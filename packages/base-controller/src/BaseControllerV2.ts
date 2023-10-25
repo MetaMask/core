@@ -256,11 +256,9 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
       const propertyMetadata = stateMetadata[metadataProperty];
       const stateProperty = state[key];
       if (typeof propertyMetadata === 'function') {
-        persistedState[key as string] = propertyMetadata(
-          stateProperty as S[keyof S],
-        );
+        persistedState[key] = propertyMetadata(stateProperty as S[keyof S]);
       } else if (propertyMetadata) {
-        persistedState[key as string] = stateProperty;
+        persistedState[key] = stateProperty;
       }
       return persistedState;
     } catch (error) {

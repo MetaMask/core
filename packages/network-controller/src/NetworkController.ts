@@ -789,9 +789,9 @@ export class NetworkController extends BaseControllerV2<
         }
       } else if (
         typeof Error !== 'undefined' &&
-        hasProperty(error as unknown as Error, 'message') &&
-        typeof (error as unknown as Error).message === 'string' &&
-        (error as unknown as Error).message.includes(
+        hasProperty(error as Error, 'message') &&
+        typeof (error as Error).message === 'string' &&
+        (error as Error).message.includes(
           'No custom network client was found with the ID',
         )
       ) {

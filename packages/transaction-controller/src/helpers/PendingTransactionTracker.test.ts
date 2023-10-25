@@ -79,7 +79,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.hub.addListener(`transaction-confirmed`, confirmedListener);
@@ -100,7 +100,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
@@ -122,7 +122,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
+      });
 
       tracker.start();
 
@@ -147,7 +147,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
@@ -166,7 +166,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
@@ -198,7 +198,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
@@ -230,7 +230,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
@@ -263,7 +263,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
@@ -283,7 +283,7 @@ describe('PendingTransactionTracker', () => {
       const tracker = new PendingTransactionTracker({
         ...options,
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
-      } as any);
+      });
 
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
@@ -303,7 +303,7 @@ describe('PendingTransactionTracker', () => {
       getTransactions: () => [
         { ...TRANSACTION_CONFIRMED_MOCK, status: TransactionStatus.failed },
       ],
-    } as any);
+    });
 
     tracker.hub.addListener('transactions', transactionsListener);
     tracker.start();
