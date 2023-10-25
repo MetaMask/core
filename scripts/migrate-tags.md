@@ -24,6 +24,7 @@
   - Default if omitted: `false`.
   - If not specified, the script will run in "dry run" mode. The script will print out all pairs of release commit hashes and prefixed tag names, but without modifying the local or remote repo in any way.
   - **This flag MUST be enabled for tags to be created and pushed.**
+  - **WARNING**: If the `-r` `--remote` option isn't specified, the tags will be pushed to the `origin` repo.
 
 ## C. Usage
 
@@ -86,6 +87,7 @@ d90fe43d json-rpc-middleware-stream@4.2.0
 ### 4. Non-Dry Mode
 
 - To override dry run mode and actually create/push tags, run the script with a `--non-dry-run` flag at the end.
+- **WARNING**: If the `-r` `--remote` option isn't specified, the tags will be pushed to the `origin` repo.
 
 ```shell
 > ./scripts/migrate-tags.sh json-rpc-middleware-stream -v 5.0.1 --no-dry-run
