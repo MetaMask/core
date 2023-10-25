@@ -6,7 +6,7 @@ remote='origin'
 release_commits_regex='^\d\{1,3\}\.\d\{1,3\}\.\d\{1,3\}'
 version_before_package_rename='0.0.0'
 tag_prefix_before_package_rename="$1"
-dry_run=false
+dry_run=true
 
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -32,8 +32,8 @@ while [[ $# -gt 0 ]]; do
     shift # past argument
     shift # past value
     ;;
-  -d | --dry-run)
-    dry_run=true
+  --non-dry-run)
+    dry_run=false
     shift # past argument
     shift # past value
     ;;
