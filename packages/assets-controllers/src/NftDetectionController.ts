@@ -1,12 +1,17 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkController,
+  NetworkState,
+  NetworkClient,
+} from '@metamask/network-controller';
+import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -127,7 +132,7 @@ export interface NftDetectionConfig extends BaseConfig {
 /**
  * Controller that passively polls on a set interval for NFT auto detection
  */
-export class NftDetectionController extends BaseController<
+export class NftDetectionController extends PollingControllerV1<
   NftDetectionConfig,
   BaseState
 > {
@@ -179,6 +184,8 @@ export class NftDetectionController extends BaseController<
 
   private readonly getNftState: () => NftState;
 
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
   /**
    * Creates an NftDetectionController instance.
    *
@@ -190,12 +197,14 @@ export class NftDetectionController extends BaseController<
    * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
    * @param options.addNft - Add an NFT.
    * @param options.getNftState - Gets the current state of the Assets controller.
+   * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
       chainId: initialChainId,
+      getNetworkClientById,
       onPreferencesStateChange,
       onNetworkStateChange,
       getOpenSeaApiKey,
@@ -203,6 +212,7 @@ export class NftDetectionController extends BaseController<
       getNftState,
     }: {
       chainId: Hex;
+      getNetworkClientById: NetworkController['getNetworkClientById'];
       onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -226,6 +236,7 @@ export class NftDetectionController extends BaseController<
     };
     this.initialize();
     this.getNftState = getNftState;
+    this.getNetworkClientById = getNetworkClientById;
     onPreferencesStateChange(({ selectedAddress, useNftDetection }) => {
       const { selectedAddress: previouslySelectedAddress, disabled } =
         this.config;
@@ -253,6 +264,14 @@ export class NftDetectionController extends BaseController<
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.addNft = addNft;
+    this.setIntervalLength(this.config.interval);
+  }
+
+  async _executePoll(
+    networkClientId: string,
+    options: { address: string },
+  ): Promise<void> {
+    await this.detectNfts(networkClientId, options.address);
   }
 
   /**
@@ -300,17 +319,33 @@ export class NftDetectionController extends BaseController<
    */
   isMainnet = (): boolean => this.config.chainId === ChainId.mainnet;
 
+  isMainnetByNetworkClientId = (networkClient: NetworkClient): boolean => {
+    return networkClient.configuration.chainId === ChainId.mainnet;
+  };
+
+  private getCorrectChainId(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      return this.getNetworkClientById(networkClientId).configuration.chainId;
+    }
+    return this.config.chainId;
+  }
+
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
    * added.
+   *
+   * @param networkClientId - The network client ID to detect NFTs on.
+   * @param accountAddress - The address to detect NFTs for.
    */
-  async detectNfts() {
+  async detectNfts(networkClientId?: NetworkClientId, accountAddress?: string) {
+    const chainId = this.getCorrectChainId(networkClientId);
+
+    const selectedAddress = accountAddress || this.config.selectedAddress;
+
     /* istanbul ignore if */
     if (!this.isMainnet() || this.disabled) {
       return;
     }
-    const { selectedAddress, chainId } = this.config;
-
     /* istanbul ignore else */
     if (!selectedAddress) {
       return;

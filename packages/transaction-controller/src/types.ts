@@ -45,9 +45,9 @@ type TransactionMetaBase = {
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
   /**
-   * The default estimate for gas.
+   * The initial gas values set when the transaction was first created.
    */
-  defaultGasEstimates?: string;
+  defaultGasEstimates?: DefaultGasEstimates;
 
   /**
    * String to indicate what device the transaction was confirmed on.
@@ -146,6 +146,18 @@ type TransactionMetaBase = {
    * This is purely attached to state logs for troubleshooting and support.
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /**
+   * If the gas estimation fails, an object containing error and block information.
+   */
+  simulationFails?: {
+    reason?: string;
+    errorKey?: string;
+    debug: {
+      blockNumber?: string;
+      blockGasLimit?: string;
+    };
+  };
 
   /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
@@ -610,3 +622,70 @@ export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
 ) => Promise<any>;
+
+/**
+ * Specifies the shape of the base transaction parameters.
+ * Added in EIP-2718.
+ */
+export enum TransactionEnvelopeType {
+  /**
+   * A legacy transaction, the very first type.
+   */
+  legacy = '0x0',
+
+  /**
+   * EIP-2930 defined the access list transaction type that allowed for
+   * specifying the state that a transaction would act upon in advance and
+   * theoretically save on gas fees.
+   */
+  accessList = '0x1',
+
+  /**
+   * The type introduced comes from EIP-1559, Fee Market describes the addition
+   * of a baseFee to blocks that will be burned instead of distributed to
+   * miners. Transactions of this type have both a maxFeePerGas (maximum total
+   * amount in gwei per gas to spend on the transaction) which is inclusive of
+   * the maxPriorityFeePerGas (maximum amount of gwei per gas from the
+   * transaction fee to distribute to miner).
+   */
+  feeMarket = '0x2',
+}
+
+/**
+ * The source of the gas fee parameters on a transaction.
+ */
+export enum UserFeeLevel {
+  CUSTOM = 'custom',
+  DAPP_SUGGESTED = 'dappSuggested',
+  MEDIUM = 'medium',
+}
+
+/**
+ * Initial gas values set when the transaction was first created.
+ */
+export type DefaultGasEstimates = {
+  /**
+   * Source of the gas fee values, such as `dappSuggested` or `medium`.
+   */
+  estimateType?: string;
+
+  /**
+   * Maxmimum number of units of gas to use for this transaction.
+   */
+  gas?: string;
+
+  /**
+   * Price per gas for legacy transactions.
+   */
+  gasPrice?: string;
+
+  /**
+   * Maximum amount per gas to pay for the transaction, including the priority fee.
+   */
+  maxFeePerGas?: string;
+
+  /**
+   * Maximum amount per gas to give to validator as incentive.
+   */
+  maxPriorityFeePerGas?: string;
+};
