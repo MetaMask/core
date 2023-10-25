@@ -108,3 +108,23 @@ Total 0 (delta 0), reused 0 (delta 0), pack-reused 0
 To https://github.com/[USERNAME]/[FORKNAME]
  * [new tag]           json-rpc-middleware-stream@1.0.1 -> json-rpc-middleware-stream@1.0.1
 ```
+
+## D. Verify
+
+- Check whether the tags have correctly been pushed to the remote repo.
+
+```shell
+> git ls-remote --tags origin | grep 'json-rpc-engine'
+```
+
+```output
+22ff65e0f76710188b527bd5d3f81dd2103c5514        refs/tags/@metamask/json-rpc-engine@7.0.0
+7639432339e60767a8239d681911375833bc3839        refs/tags/@metamask/json-rpc-engine@7.1.0
+23aa8d9e59d9275c0725cb0264057e082034dae9        refs/tags/@metamask/json-rpc-engine@7.1.1
+67c7fee5141f6c0bb2f459c1cb3062c02bbf6a15        refs/tags/@metamask/json-rpc-engine@7.2.0
+304f6efa4d1be2460c9d0bec48224cefcf7fd208        refs/tags/json-rpc-engine@1.0.0
+4909d7fd95a555a7ae18cb1f9840db4fe1f3c85d        refs/tags/json-rpc-engine@2.0.0
+93e2b7224f7370468466e2e5e29a2c10da016b11        refs/tags/json-rpc-engine@2.1.0
+286c2716a7b856b95f74d64edd9e653728dd031c        refs/tags/json-rpc-engine@2.2.0
+...
+```
