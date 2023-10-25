@@ -130,3 +130,29 @@ To https://github.com/[USERNAME]/[FORKNAME]
 286c2716a7b856b95f74d64edd9e653728dd031c        refs/tags/json-rpc-engine@2.2.0
 ...
 ```
+
+## E. Troubleshooting
+
+**WARNING**: DO NOT run this script on the core repo until you have tested the results on a fork. 
+
+These commands should NOT be run on the core repo. 
+
+### 1. Delete remote tags
+
+**WARNING**: Proceed with EXTREME CAUTION
+
+```shell
+> git ls-remote --tags <remote-repo> | grep '<package-name>' | cut -f2 | sed 's|refs/tags/||g' | xargs git push --delete <remote-repo>
+```
+
+- ALWAYS delete local tags AFTER remote tags.
+- If something goes wrong and your local tags are still there, you can try `git push <remote-repo>` to push the local tags to remote.
+
+### 2. Delete local tags
+
+```shell
+> git tag | grep '<package-name>' | xargs git tag --delete
+```
+
+- If anything goes wrong, and you haven't deleted the remote tags, run `git pull --all` and the tags in the remote repo will be restored to local.
+
