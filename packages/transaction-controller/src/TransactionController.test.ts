@@ -28,6 +28,7 @@ import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
+  TransactionState,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
@@ -445,6 +446,7 @@ describe('TransactionController', () => {
    * @param opts.network - The mock network to use with the controller.
    * @param opts.approve - Whether transactions should be immediately approved.
    * @param opts.reject - Whether transactions should be immediately rejected.
+   * @param opts.state - The initial state to use for the controller.
    * @returns The new TransactionController instance.
    */
   function newController({
@@ -453,12 +455,14 @@ describe('TransactionController', () => {
     network,
     approve,
     reject,
+    state,
   }: {
     options?: any;
     config?: Partial<TransactionConfig>;
     network?: MockNetwork;
     approve?: boolean;
     reject?: boolean;
+    state?: Partial<TransactionState>;
   } = {}): TransactionController {
     const finalNetwork = network ?? MOCK_NETWORK;
     let messenger = delayMessengerMock;
@@ -477,7 +481,7 @@ describe('TransactionController', () => {
         getNetworkState: () => finalNetwork.state,
         getCurrentAccountEIP1559Compatibility: () => true,
         getCurrentNetworkEIP1559Compatibility: () => true,
-        getGasFeeEstimates: () => ({}),
+        getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
         messenger,
@@ -489,6 +493,7 @@ describe('TransactionController', () => {
         sign: async (transaction: any) => transaction,
         ...config,
       },
+      state ?? undefined,
     );
   }
 
@@ -1738,33 +1743,49 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('initApprovals', () => {
+  describe('onBootCleanup', () => {
     it('creates approvals for all unapproved transaction', async () => {
-      const txParams = {
+      const mockTransactionMeta = {
         from: ACCOUNT_MOCK,
-        hash: '1337',
-        id: 'mocked',
         chainId: toHex(5),
         status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
       };
-      const controller = newController();
-      controller.state.transactions.push(txParams as any);
-      controller.state.transactions.push({
-        ...txParams,
-        id: 'mocked1',
-        hash: '1338',
-      } as any);
 
-      controller.initApprovals();
+      const mockedTransactions = [
+        {
+          id: '123',
+          ...mockTransactionMeta,
+          history: [{ ...mockTransactionMeta, id: '123' }],
+        },
+        {
+          id: '1234',
+          ...mockTransactionMeta,
+          history: [{ ...mockTransactionMeta, id: '1234' }],
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      newController({
+        state: mockedControllerState as any,
+      });
 
       expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
       expect(delayMessengerMock.call).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           expectsResult: true,
-          id: 'mocked',
+          id: '123',
           origin: 'metamask',
-          requestData: { txId: 'mocked' },
+          requestData: { txId: '123' },
           type: 'transaction',
         },
         false,
@@ -1773,9 +1794,9 @@ describe('TransactionController', () => {
         'ApprovalController:addRequest',
         {
           expectsResult: true,
-          id: 'mocked1',
+          id: '1234',
           origin: 'metamask',
-          requestData: { txId: 'mocked1' },
+          requestData: { txId: '1234' },
           type: 'transaction',
         },
         false,
@@ -1783,10 +1804,107 @@ describe('TransactionController', () => {
     });
 
     it('does not create any approval when there is no unapproved transaction', async () => {
-      const controller = newController();
-      controller.initApprovals();
-
+      newController();
       expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
+
+    it('updates gas values of unapproved transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        chainId: toHex(5),
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockGasPrice = '0x1';
+      const mockedTransactions = [
+        {
+          id: '123',
+          ...mockTransactionMeta,
+          history: [{ ...mockTransactionMeta, id: '123' }],
+        },
+        {
+          id: '1234',
+          ...mockTransactionMeta,
+          history: [{ ...mockTransactionMeta, id: '1234' }],
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      updateGasFeesMock.mockImplementation(({ txMeta }) => {
+        // Assume this is a sample update
+        txMeta.txParams.gasPrice = mockGasPrice;
+        return Promise.resolve();
+      });
+
+      const controller = newController({
+        state: mockedControllerState as any,
+      });
+
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(updateGasFeesMock).toHaveBeenCalledTimes(2);
+      expect(updateGasFeesMock.mock.calls[0][0]).toStrictEqual(
+        expect.objectContaining({
+          txMeta: expect.objectContaining({
+            id: '123',
+          }),
+        }),
+      );
+      expect(updateGasFeesMock.mock.calls[1][0]).toStrictEqual(
+        expect.objectContaining({
+          txMeta: expect.objectContaining({
+            id: '1234',
+          }),
+        }),
+      );
+
+      const { transactions } = controller.state;
+
+      expect(transactions[0].txParams.gasPrice).toBe(mockGasPrice);
+      expect(transactions[1].txParams.gasPrice).toBe(mockGasPrice);
+    });
+
+    it('submits an approved transaction', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        chainId: toHex(5),
+        status: TransactionStatus.approved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          ...mockTransactionMeta,
+          history: [{ ...mockTransactionMeta, id: '123' }],
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const controller = newController({
+        state: mockedControllerState as any,
+      });
+
+      await new Promise((r) => setTimeout(r, 0));
+
+      const { transactions } = controller.state;
+
+      expect(transactions[0].status).toBe(TransactionStatus.submitted);
     });
   });
 
