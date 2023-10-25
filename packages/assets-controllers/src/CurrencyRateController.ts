@@ -227,13 +227,14 @@ export class CurrencyRateController extends PollingController<
    * @returns The controller state.
    */
   async _executePoll(networkClientId: NetworkClientId): Promise<void> {
+    console.log('_executePoll', networkClientId);
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-    await safelyExecute(() =>
-      this.updateExchangeRate(networkClient.configuration.ticker),
-    );
+    console.log('_executePoll before update', networkClientId);
+    await this.updateExchangeRate(networkClient.configuration.ticker);
+    console.log('_executePoll after update', networkClientId);
   }
 }
 

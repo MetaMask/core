@@ -39,10 +39,14 @@ export async function fetchExchangeRate(
   conversionRate: number;
   usdConversionRate: number;
 }> {
+  console.log(
+    'default fetching',
+    getPricingURL(currency, nativeCurrency, includeUSDRate),
+  );
   const json = await handleFetch(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
-
+  console.log('default fetching back');
   /*
   Example expected error response (if pair is not found)
   {

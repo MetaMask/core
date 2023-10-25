@@ -244,9 +244,7 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    controller.startPollingByNetworkClientId('mainnet');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+    await controller.updateExchangeRate('ETH');
 
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
@@ -289,9 +287,7 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    controller.startPollingByNetworkClientId('sepolia');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+    await controller.updateExchangeRate('SepoliaETH');
 
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
@@ -337,9 +333,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-    controller.startPollingByNetworkClientId('sepolia');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+    await controller.updateExchangeRate('SepoliaETH');
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     expect(fetchExchangeRateStub.mock.calls).toMatchObject([
@@ -360,9 +354,8 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-    controller.startPollingByNetworkClientId('mainnet');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+
+    await controller.updateExchangeRate('ETH')
 
     expect(controller.state.currencyRates.ETH.conversionRate).toBe(2000.42);
 
@@ -409,10 +402,10 @@ describe('CurrencyRateController', () => {
       state: { currentCurrency: 'xyz' },
     });
 
-    controller.startPollingByNetworkClientId('mainnet');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+    console.log("should catch expected")
+    await controller.updateExchangeRate('ETH')
 
+    console.log("should catch expected?")
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: null,
