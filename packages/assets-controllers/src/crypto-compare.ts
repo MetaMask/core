@@ -42,6 +42,7 @@ export async function fetchExchangeRate(
   const json = await handleFetch(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
+
   /*
   Example expected error response (if pair is not found)
   {

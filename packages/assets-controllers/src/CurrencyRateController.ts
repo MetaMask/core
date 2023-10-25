@@ -28,9 +28,9 @@ export type CurrencyRateState = {
     {
       conversionDate: number | null;
       conversionRate: number | null;
+      usdConversionRate: number | null;
     }
   >;
-  usdConversionRate: number | null;
 };
 
 const name = 'CurrencyRateController';
@@ -58,7 +58,6 @@ type CurrencyRateMessenger = RestrictedControllerMessenger<
 const metadata = {
   currentCurrency: { persist: true, anonymous: true },
   currencyRates: { persist: true, anonymous: true },
-  usdConversionRate: { persist: true, anonymous: true },
 };
 
 const defaultState = {
@@ -67,9 +66,9 @@ const defaultState = {
     ETH: {
       conversionDate: 0,
       conversionRate: 0,
+      usdConversionRate: null,
     },
   },
-  usdConversionRate: null,
 };
 
 /**
@@ -128,15 +127,18 @@ export class CurrencyRateController extends PollingController<
    */
   async setCurrentCurrency(currentCurrency: string) {
     const releaseLock = await this.mutex.acquire();
+    const nativeCurrencies = Object.keys(this.state.currencyRates);
     try {
-      this.update((state) => {
-        state.currentCurrency = currentCurrency;
-        state.currencyRates = {};
+      this.update(() => {
+        return {
+          ...defaultState,
+          currentCurrency,
+        };
       });
     } finally {
       releaseLock();
     }
-    await this.updateExchangeRate(currentCurrency);
+    nativeCurrencies.forEach(this.updateExchangeRate.bind(this));
   }
 
   /**
@@ -196,10 +198,10 @@ export class CurrencyRateController extends PollingController<
               [nativeCurrency]: {
                 conversionDate,
                 conversionRate,
+                usdConversionRate,
               },
             },
             currentCurrency,
-            usdConversionRate,
           };
         });
       } finally {
