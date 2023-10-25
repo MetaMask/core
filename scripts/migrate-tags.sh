@@ -69,7 +69,13 @@ while read -r pair; do
   if [ "$dry_run" = true ]; then
     echo "$commit $tag"
   else
-    git tag "$tag" "$commit"
-    git push "$remote" "$tag"
+    if ! git tag "$tag_name" "$commit"; then
+      echo "Error creating tag $tag_name for commit $commit" >&2
+      exit 1
+    fi
+    if ! git push "$remote" "$tag_name"; then
+      echo "Error pushing tag $tag_name to remote $remote" >&2
+      exit 1
+    fi
   fi
 done <<<"$(prepend-tag-name)"
