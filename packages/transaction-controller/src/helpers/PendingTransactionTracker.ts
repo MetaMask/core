@@ -1,7 +1,8 @@
-import { query, safelyExecute } from '@metamask/controller-utils';
+import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import EventEmitter from 'events';
+import type NonceTracker from 'nonce-tracker';
 
 import { pendingTransactionsLogger as log } from '../logger';
 import type { TransactionMeta } from '../types';
@@ -20,18 +21,22 @@ export class PendingTransactionTracker {
 
   #getTransactions: () => TransactionMeta[];
 
+  #nonceTracker: NonceTracker;
+
   constructor({
     blockTracker,
     failTransaction,
     getChainId,
     getEthQuery,
     getTransactions,
+    nonceTracker,
   }: {
     blockTracker: BlockTracker;
     failTransaction: (txMeta: TransactionMeta, error: Error) => void;
     getChainId: () => string;
     getEthQuery: () => EthQuery;
     getTransactions: () => TransactionMeta[];
+    nonceTracker: NonceTracker;
   }) {
     this.hub = new EventEmitter();
 
@@ -40,12 +45,22 @@ export class PendingTransactionTracker {
     this.#getChainId = getChainId;
     this.#getEthQuery = getEthQuery;
     this.#getTransactions = getTransactions;
+    this.#nonceTracker = nonceTracker;
   }
 
   start() {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#blockTracker.addListener('latest', async () => {
-      await safelyExecute(() => this.#onLatestBlock());
+      const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
+
+      try {
+        await this.#onLatestBlock();
+      } catch (error) {
+        /* istanbul ignore next */
+        log('Error checking the status of submitted transactions', error);
+      } finally {
+        nonceGlobalLock.releaseLock();
+      }
     });
   }
 
@@ -58,22 +73,31 @@ export class PendingTransactionTracker {
 
     const transactions = this.#getTransactions();
     const currentChainId = this.#getChainId();
+
+    log('Current state', {
+      transactionCount: transactions.length,
+      currentChainId,
+    });
+
     let gotUpdates = false;
 
-    await safelyExecute(() =>
-      Promise.all(
+    try {
+      await Promise.all(
         transactions.map(async (meta, index) => {
           if (!meta.verifiedOnBlockchain && meta.chainId === currentChainId) {
             const [reconciledTx, updateRequired] =
               await this.#blockchainTransactionStateReconciler(meta);
+
             if (updateRequired) {
               transactions[index] = reconciledTx;
               gotUpdates = updateRequired;
             }
           }
         }),
-      ),
-    );
+      );
+    } catch (error) {
+      log('Error checking pending transactions', error);
+    }
 
     /* istanbul ignore else */
     if (gotUpdates) {
