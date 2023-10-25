@@ -41,7 +41,6 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { pendingTransactionsLogger } from './logger';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -299,7 +298,7 @@ export class TransactionController extends BaseController<
       getNetworkState: () => NetworkState;
       getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSelectedAddress: () => string;
-      incomingTransactions: {
+      incomingTransactions?: {
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
         queryEntireHistory?: boolean;
@@ -307,7 +306,7 @@ export class TransactionController extends BaseController<
       };
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
-      pendingTransactions: {
+      pendingTransactions?: {
         isResubmitEnabled?: boolean;
       };
       provider: Provider;
@@ -1520,11 +1519,6 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
-  }
-
-  private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
-    pendingTransactionsLogger('Updated pending transactions');
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   private generateDappSuggestedGasFees(

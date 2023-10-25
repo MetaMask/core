@@ -395,24 +395,28 @@ const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
 
-const TRANSACTION_META_MOCK = {
+const TRANSACTION_META_MOCK: TransactionMeta = {
+  chainId: '0x1',
   hash: '0x1',
+  id: '123-456',
   status: TransactionStatus.confirmed,
   time: 123456789,
   txParams: {
     from: ACCOUNT_MOCK,
     to: ACCOUNT_2_MOCK,
   },
-} as any as TransactionMeta;
+};
 
-const TRANSACTION_META_2_MOCK = {
+const TRANSACTION_META_2_MOCK: TransactionMeta = {
+  chainId: '0x2',
   hash: '0x2',
+  id: '456-789',
   status: TransactionStatus.confirmed,
   time: 987654321,
   txParams: {
     from: '0x3',
   },
-} as TransactionMeta;
+};
 
 describe('TransactionController', () => {
   const updateGasMock = jest.mocked(updateGas);

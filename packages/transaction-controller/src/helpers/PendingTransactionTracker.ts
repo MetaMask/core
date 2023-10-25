@@ -1,10 +1,11 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
+import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 import type NonceTracker from 'nonce-tracker';
 
-import { pendingTransactionsLogger as log } from '../logger';
+import { projectLogger } from '../logger';
 import type { TransactionState } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus } from '../types';
@@ -25,6 +26,13 @@ const KNOWN_TRANSACTION_ERRORS = [
   'gateway timeout',
   'nonce too low',
 ];
+
+const log = createModuleLogger(projectLogger, 'pending-transactions');
+
+type SuccessfulTransactionReceipt = TransactionReceipt & {
+  blockNumber: string;
+  blockHash: string;
+};
 
 type Events = {
   'transaction-confirmed': [txMeta: TransactionMeta];
@@ -320,8 +328,15 @@ export class PendingTransactionTracker {
         return;
       }
 
-      if (receipt?.blockNumber && isSuccess) {
-        await this.#onTransactionConfirmed(txMeta, receipt);
+      const { blockNumber, blockHash } = receipt || {};
+
+      if (isSuccess && blockNumber && blockHash) {
+        await this.#onTransactionConfirmed(txMeta, {
+          ...receipt,
+          blockNumber,
+          blockHash,
+        });
+
         return;
       }
     } catch (error: any) {
@@ -343,14 +358,15 @@ export class PendingTransactionTracker {
 
   async #onTransactionConfirmed(
     txMeta: TransactionMeta,
-    receipt: TransactionReceipt,
+    receipt: SuccessfulTransactionReceipt,
   ) {
     const { id } = txMeta;
+    const { blockHash } = receipt;
 
     log('Transaction confirmed', id);
 
     const { baseFeePerGas, timestamp: blockTimestamp } =
-      await this.#getBlockByHash(receipt.blockHash as string, false);
+      await this.#getBlockByHash(blockHash, false);
 
     txMeta.baseFeePerGas = baseFeePerGas;
     txMeta.blockTimestamp = blockTimestamp;
@@ -455,7 +471,9 @@ export class PendingTransactionTracker {
     this.hub.emit('transaction-updated', txMeta, note);
   }
 
-  async #getTransactionReceipt(txHash: string): Promise<TransactionReceipt> {
+  async #getTransactionReceipt(
+    txHash: string,
+  ): Promise<TransactionReceipt | undefined> {
     return await query(this.#getEthQuery(), 'getTransactionReceipt', [txHash]);
   }
 

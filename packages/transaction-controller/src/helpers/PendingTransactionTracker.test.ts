@@ -25,6 +25,7 @@ const TRANSACTION_SUBMITTED_MOCK = {
 
 const RECEIPT_MOCK = {
   blockNumber: BLOCK_NUMBER_MOCK,
+  blockHash: '0x321',
   gasUsed: '0x123',
   status: '0x1',
 };
