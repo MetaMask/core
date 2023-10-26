@@ -8,14 +8,10 @@ if [[ $# -eq 0 ]]; then
 fi
 
 package_name="$1"
+shift  # remove package name from arguments
 
 if [[ "${GITHUB_REF:-}" =~ '^release/' ]]; then
-  yarn auto-changelog validate --tag-prefix "${package_name}@" --rc
-elif [[ $# -gt 2 ]]; then
-  # In case of package rename
-  version_before_package_rename="$2"
-  tag_prefix_before_package_rename="$3"
-  yarn auto-changelog validate --tag-prefix "${package_name}@" --version-before-package-rename "${version_before_package_rename}" --tag-prefix-before-package-rename "${tag_prefix_before_package_rename}@"
+  yarn auto-changelog validate --tag-prefix "${package_name}@" --rc "$@"
 else
-  yarn auto-changelog validate --tag-prefix "${package_name}@"
+  yarn auto-changelog validate --tag-prefix "${package_name}@" "$@"
 fi
