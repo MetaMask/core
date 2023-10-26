@@ -18,21 +18,14 @@ import type {
   ProviderProxy,
   BlockTrackerProxy,
 } from '@metamask/network-controller';
-import {
-  BNToHex,
-  fractionBN,
-  hexToBN,
-  safelyExecute,
-  query,
-  NetworkType,
-  RPC,
-} from '@metamask/controller-utils';
+import { query, NetworkType, RPC } from '@metamask/controller-utils';
 import NonceTracker from 'nonce-tracker';
 import {
   AcceptResultCallbacks,
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
+import { GasFeeState } from '@metamask/gas-fee-controller';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -43,16 +36,19 @@ import {
   isFeeMarketEIP1559Values,
   validateGasValues,
   validateMinimumIncrease,
-  ESTIMATE_GAS_ERROR,
-} from './utils';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+} from './utils/utils';
+import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import {
   Transaction,
   TransactionMeta,
   TransactionStatus,
   WalletDevice,
 } from './types';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import { pendingTransactionsLogger } from './logger';
+import { estimateGas, updateGas } from './utils/gas';
+import { updateGasFees } from './utils/gas-fees';
 
 const HARDFORK = 'london';
 
@@ -79,12 +75,10 @@ export interface FeeMarketEIP1559Values {
  * @type TransactionConfig
  *
  * Transaction controller configuration
- * @property interval - Polling interval used to fetch new currency rate
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
 export interface TransactionConfig extends BaseConfig {
-  interval: number;
   sign?: (transaction: Transaction, from: string) => Promise<any>;
   txHistoryLimit: number;
 }
@@ -160,15 +154,23 @@ export class TransactionController extends BaseController<
 
   private provider: ProviderProxy;
 
-  private handle?: ReturnType<typeof setTimeout>;
-
   private mutex = new Mutex();
+
+  private getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
+
+  private getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+
+  private getGasFeeEstimates: () => Promise<GasFeeState>;
 
   private getNetworkState: () => NetworkState;
 
   private messagingSystem: TransactionControllerMessenger;
 
+  private blockTracker: BlockTrackerProxy;
+
   private incomingTransactionHelper: IncomingTransactionHelper;
+
+  private pendingTransactionTracker: PendingTransactionTracker;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -209,6 +211,9 @@ export class TransactionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
+   * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+   * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+   * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
@@ -225,6 +230,9 @@ export class TransactionController extends BaseController<
   constructor(
     {
       blockTracker,
+      getCurrentAccountEIP1559Compatibility,
+      getCurrentNetworkEIP1559Compatibility,
+      getGasFeeEstimates,
       getNetworkState,
       getSelectedAddress,
       incomingTransactions = {},
@@ -233,6 +241,9 @@ export class TransactionController extends BaseController<
       provider,
     }: {
       blockTracker: BlockTrackerProxy;
+      getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
+      getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+      getGasFeeEstimates?: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
@@ -251,7 +262,6 @@ export class TransactionController extends BaseController<
     super(config, state);
 
     this.defaultConfig = {
-      interval: 15000,
       txHistoryLimit: 40,
     };
 
@@ -263,6 +273,12 @@ export class TransactionController extends BaseController<
 
     this.initialize();
     this.provider = provider;
+    this.getCurrentAccountEIP1559Compatibility =
+      getCurrentAccountEIP1559Compatibility;
+    this.getCurrentNetworkEIP1559Compatibility =
+      getCurrentNetworkEIP1559Compatibility;
+    this.getGasFeeEstimates =
+      getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
@@ -306,26 +322,32 @@ export class TransactionController extends BaseController<
       this.onUpdatedLastFetchedBlockNumbers.bind(this),
     );
 
+    this.pendingTransactionTracker = new PendingTransactionTracker({
+      blockTracker,
+      failTransaction: this.failTransaction.bind(this),
+      getChainId: () => this.getNetworkState().providerConfig.chainId,
+      getEthQuery: () => this.ethQuery,
+      getTransactions: () => this.state.transactions,
+    });
+
+    this.pendingTransactionTracker.hub.on(
+      'transactions',
+      this.onPendingTransactionsUpdate.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta) => {
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
+      },
+    );
+
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
 
-    this.poll();
-  }
-
-  /**
-   * Starts a new polling interval.
-   *
-   * @param interval - The polling interval used to fetch new transaction statuses.
-   */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.queryTransactionStatuses());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
-    }, this.config.interval);
+    this.pendingTransactionTracker.start();
   }
 
   /**
@@ -379,7 +401,9 @@ export class TransactionController extends BaseController<
     } = {},
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
+    const isEIP1559Compatible = await this.getEIP1559Compatibility();
     const { transactions } = this.state;
+
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
@@ -396,14 +420,18 @@ export class TransactionController extends BaseController<
       securityAlertResponse,
     };
 
-    try {
-      const { gas, estimateGasError } = await this.estimateGas(transaction);
-      transaction.gas = gas;
-      transaction.estimateGasError = estimateGasError;
-    } catch (error: any) {
-      this.failTransaction(transactionMeta, error);
-      return Promise.reject(error);
-    }
+    await updateGas({
+      ethQuery: this.ethQuery,
+      providerConfig: this.getNetworkState().providerConfig,
+      txMeta: transactionMeta,
+    });
+
+    await updateGasFees({
+      eip1559: isEIP1559Compatible,
+      ethQuery: this.ethQuery,
+      getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
+      txMeta: transactionMeta,
+    });
 
     transactions.push(transactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
@@ -701,119 +729,12 @@ export class TransactionController extends BaseController<
    * @returns The gas and gas price.
    */
   async estimateGas(transaction: Transaction) {
-    const estimatedTransaction = { ...transaction };
-    const {
-      gas,
-      gasPrice: providedGasPrice,
-      to,
-      value,
-      data,
-    } = estimatedTransaction;
-    const gasPrice =
-      typeof providedGasPrice === 'undefined'
-        ? await query(this.ethQuery, 'gasPrice')
-        : providedGasPrice;
-    const { providerConfig } = this.getNetworkState();
-    const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-    // 1. If gas is already defined on the transaction, use it
-    if (typeof gas !== 'undefined') {
-      return { gas, gasPrice };
-    }
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', [
-      'latest',
-      false,
-    ]);
-
-    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
-    // If the newtwork is a custom network then bypass this check and fetch 'estimateGas'.
-    /* istanbul ignore next */
-    const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
-    /* istanbul ignore next */
-    if (
-      !isCustomNetwork &&
-      (!to || (to && !data && (!code || code === '0x')))
-    ) {
-      return { gas: '0x5208', gasPrice };
-    }
-
-    // if data, should be hex string format
-    estimatedTransaction.data = !data
-      ? data
-      : /* istanbul ignore next */ addHexPrefix(data);
-
-    // 3. If this is a contract address, safely estimate gas using RPC
-    estimatedTransaction.value =
-      typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
-    const gasLimitBN = hexToBN(gasLimit);
-    estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-
-    let gasHex;
-    let estimateGasError;
-    try {
-      gasHex = await query(this.ethQuery, 'estimateGas', [
-        estimatedTransaction,
-      ]);
-    } catch (error) {
-      estimateGasError = ESTIMATE_GAS_ERROR;
-    }
-    // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
-    // a custom network then return the eth_estimateGas value.
-    const gasBN = hexToBN(gasHex);
-    const maxGasBN = gasLimitBN.muln(0.9);
-    const paddedGasBN = gasBN.muln(1.5);
-    /* istanbul ignore next */
-    if (gasBN.gt(maxGasBN) || isCustomNetwork) {
-      return { gas: addHexPrefix(gasHex), gasPrice, estimateGasError };
-    }
-
-    /* istanbul ignore next */
-    if (paddedGasBN.lt(maxGasBN)) {
-      return {
-        gas: addHexPrefix(BNToHex(paddedGasBN)),
-        gasPrice,
-        estimateGasError,
-      };
-    }
-    return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice };
-  }
-
-  /**
-   * Check the status of submitted transactions on the network to determine whether they have
-   * been included in a block. Any that have been included in a block are marked as confirmed.
-   */
-  async queryTransactionStatuses() {
-    const { transactions } = this.state;
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
-    let gotUpdates = false;
-    await safelyExecute(() =>
-      Promise.all(
-        transactions.map(async (meta, index) => {
-          // Using fallback to networkID only when there is no chainId present.
-          // Should be removed when networkID is completely removed.
-          const txBelongsToCurrentChain =
-            meta.chainId === currentChainId ||
-            (!meta.chainId && meta.networkID === currentNetworkID);
-
-          if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
-            const [reconciledTx, updateRequired] =
-              await this.blockchainTransactionStateReconciler(meta);
-            if (updateRequired) {
-              transactions[index] = reconciledTx;
-              gotUpdates = updateRequired;
-            }
-          }
-        }),
-      ),
+    const { estimatedGas, simulationFails } = await estimateGas(
+      transaction,
+      this.ethQuery,
     );
 
-    /* istanbul ignore else */
-    if (gotUpdates) {
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
-    }
+    return { gas: estimatedGas, simulationFails };
   }
 
   /**
@@ -919,103 +840,6 @@ export class TransactionController extends BaseController<
       status === TransactionStatus.failed ||
       status === TransactionStatus.cancelled
     );
-  }
-
-  /**
-   * Method to verify the state of a transaction using the Blockchain as a source of truth.
-   *
-   * @param meta - The local transaction to verify on the blockchain.
-   * @returns A tuple containing the updated transaction, and whether or not an update was required.
-   */
-  private async blockchainTransactionStateReconciler(
-    meta: TransactionMeta,
-  ): Promise<[TransactionMeta, boolean]> {
-    const { status, hash } = meta;
-    switch (status) {
-      case TransactionStatus.confirmed:
-        const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-          hash,
-        ]);
-
-        if (!txReceipt) {
-          return [meta, false];
-        }
-
-        meta.verifiedOnBlockchain = true;
-        meta.transaction.gasUsed = txReceipt.gasUsed;
-
-        // According to the Web3 docs:
-        // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
-        if (Number(txReceipt.status) === 0) {
-          const error: Error = new Error(
-            'Transaction failed. The transaction was reversed',
-          );
-          this.failTransaction(meta, error);
-          return [meta, false];
-        }
-
-        return [meta, true];
-      case TransactionStatus.submitted:
-        const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-          hash,
-        ]);
-
-        if (!txObj) {
-          const receiptShowsFailedStatus =
-            await this.checkTxReceiptStatusIsFailed(hash);
-
-          // Case the txObj is evaluated as false, a second check will
-          // determine if the tx failed or it is pending or confirmed
-          if (receiptShowsFailedStatus) {
-            const error: Error = new Error(
-              'Transaction failed. The transaction was dropped or replaced by a new one',
-            );
-            this.failTransaction(meta, error);
-          }
-        }
-
-        /* istanbul ignore next */
-        if (txObj?.blockNumber) {
-          // transactions can be added to a block and still fail, so we need to check the transaction status before emitting the confirmed event
-          const txStatusFailed = await this.checkTxReceiptStatusIsFailed(hash);
-          if (txStatusFailed) {
-            const error = new Error(
-              'Transaction failed. The transaction was reversed',
-            );
-            this.failTransaction(meta, error);
-          } else {
-            meta.status = TransactionStatus.confirmed;
-            this.hub.emit(`${meta.id}:confirmed`, meta);
-            return [meta, true];
-          }
-        }
-
-        return [meta, false];
-      default:
-        return [meta, false];
-    }
-  }
-
-  /**
-   * Method to check if a tx has failed according to their receipt
-   * According to the Web3 docs:
-   * TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
-   * The receipt is not available for pending transactions and returns null.
-   *
-   * @param txHash - The transaction hash.
-   * @returns Whether the transaction has failed.
-   */
-  private async checkTxReceiptStatusIsFailed(
-    txHash: string | undefined,
-  ): Promise<boolean> {
-    const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-      txHash,
-    ]);
-    if (!txReceipt) {
-      // Transaction is pending
-      return false;
-    }
-    return Number(txReceipt.status) === 0;
   }
 
   private async processApproval(
@@ -1160,19 +984,11 @@ export class TransactionController extends BaseController<
       const txParams = isEIP1559
         ? {
             ...baseTxParams,
-            maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
-            maxPriorityFeePerGas:
-              transactionMeta.transaction.maxPriorityFeePerGas,
             estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
             type: 2,
           }
         : baseTxParams;
-
-      // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
-      if (isEIP1559) {
-        delete txParams.gasPrice;
-      }
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
       const signedTx = await this.sign(unsignedEthTx, from);
@@ -1306,6 +1122,23 @@ export class TransactionController extends BaseController<
       address,
       status,
       this.state.transactions,
+    );
+  }
+
+  private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
+    pendingTransactionsLogger('Updated pending transactions');
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  private async getEIP1559Compatibility() {
+    const currentNetworkIsEIP1559Compatible =
+      await this.getCurrentNetworkEIP1559Compatibility();
+
+    const currentAccountIsEIP1559Compatible =
+      this.getCurrentAccountEIP1559Compatibility?.() ?? true;
+
+    return (
+      currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
     );
   }
 }

@@ -5,8 +5,11 @@ import {
   isValidHexAddress,
 } from '@metamask/controller-utils';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-import { GasPriceValue, FeeMarketEIP1559Values } from './TransactionController';
-import { Transaction, TransactionStatus, TransactionMeta } from './types';
+import {
+  GasPriceValue,
+  FeeMarketEIP1559Values,
+} from '../TransactionController';
+import { Transaction, TransactionStatus, TransactionMeta } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
