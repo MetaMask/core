@@ -260,7 +260,7 @@ export class TokenListController extends PollingController<
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
-      const cachedTokens: TokenListMap = await safelyExecute(() =>
+      const cachedTokens = await safelyExecute(() =>
         this.#fetchFromCache(chainId),
       );
       if (cachedTokens) {
@@ -268,9 +268,14 @@ export class TokenListController extends PollingController<
         tokenList = { ...cachedTokens };
       } else {
         // Fetch fresh token list
-        const tokensFromAPI: TokenListToken[] = await safelyExecute(() => {
-          return fetchTokenListByChainId(chainId, this.abortController.signal);
-        });
+        const tokensFromAPI = await safelyExecute(
+          () =>
+            fetchTokenListByChainId(
+              chainId,
+              this.abortController.signal,
+            ) as Promise<TokenListToken[]>,
+        );
+
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
           tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
