@@ -91,7 +91,7 @@ export class PendingTransactionTracker {
   ): Promise<[TransactionMeta, boolean]> {
     const {
       status,
-      transactionHash,
+      hash,
       id,
       chainId,
       transaction: { to },
@@ -108,7 +108,7 @@ export class PendingTransactionTracker {
         const txReceipt = await query(
           this.#getEthQuery(),
           'getTransactionReceipt',
-          [transactionHash],
+          [hash],
         );
 
         if (!txReceipt) {
@@ -142,12 +142,12 @@ export class PendingTransactionTracker {
         });
 
         const txObj = await query(this.#getEthQuery(), 'getTransactionByHash', [
-          transactionHash,
+          hash,
         ]);
 
         if (!txObj) {
           const receiptShowsFailedStatus =
-            await this.#checkTxReceiptStatusIsFailed(transactionHash);
+            await this.#checkTxReceiptStatusIsFailed(hash);
 
           // Case the txObj is evaluated as false, a second check will
           // determine if the tx failed or it is pending or confirmed

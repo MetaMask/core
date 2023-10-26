@@ -307,7 +307,7 @@ const TRANSACTION_META_MOCK = {
   transaction: {
     from: ACCOUNT_MOCK,
   },
-  transactionHash: '0x1',
+  hash: '0x1',
 } as TransactionMeta;
 
 const TRANSACTION_META_2_MOCK = {
@@ -316,7 +316,7 @@ const TRANSACTION_META_2_MOCK = {
   transaction: {
     from: '0x3',
   },
-  transactionHash: '0x2',
+  hash: '0x2',
 } as TransactionMeta;
 
 describe('TransactionController', () => {
