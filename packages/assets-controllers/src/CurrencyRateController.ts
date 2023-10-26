@@ -45,11 +45,13 @@ export type GetCurrencyRateState = {
   handler: () => CurrencyRateState;
 };
 
-type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | GetCurrencyRateState;
 
 type CurrencyRateMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetCurrencyRateState | AllowedActions,
+  AllowedActions,
   CurrencyRateStateChange,
   AllowedActions['type'],
   never
