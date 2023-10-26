@@ -1137,17 +1137,18 @@ export class TransactionController extends BaseController<
           getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
           txMeta: transactionMeta,
         });
+        this.updateTransaction(
+          transactionMeta,
+          'TransactionController:loadGasValuesOfUnapprovedTransactions - gas values updated',
+        );
       } catch (error) {
+        this.failTransaction(transactionMeta, error as Error);
         /* istanbul ignore next */
         console.error(
           'Error during loading gas values for unapproved transactions',
           error,
         );
       }
-      this.updateTransaction(
-        transactionMeta,
-        'TransactionController:loadGasValuesOfUnapprovedTransactions - gas values updated',
-      );
     }
   }
 

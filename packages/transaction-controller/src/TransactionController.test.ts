@@ -1872,6 +1872,47 @@ describe('TransactionController', () => {
       expect(transactions[1].txParams.gasPrice).toBe(mockGasPrice);
     });
 
+    it('updates transaction as failed if failed to update gas fees', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        chainId: toHex(5),
+        status: TransactionStatus.unapproved,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          ...mockTransactionMeta,
+          history: [{ ...mockTransactionMeta, id: '123' }],
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      updateGasFeesMock.mockImplementationOnce(() => {
+        return Promise.reject(new Error('unexpected failure'));
+      });
+
+      const controller = newController({
+        state: mockedControllerState as any,
+      });
+
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(updateGasFeesMock).toHaveBeenCalledTimes(1);
+
+      const { transactions } = controller.state;
+
+      expect(transactions[0].status).toBe(TransactionStatus.failed);
+    });
+
     it('submits an approved transaction', async () => {
       const mockTransactionMeta = {
         from: ACCOUNT_MOCK,
