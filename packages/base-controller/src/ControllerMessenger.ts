@@ -19,7 +19,7 @@ export type ExtractActionResponse<
   T = Action['type'],
 > = Action extends {
   type: T;
-  handler: (...args: never[]) => infer H extends unknown;
+  handler: (...args: never[]) => infer H;
 }
   ? H
   : never;
