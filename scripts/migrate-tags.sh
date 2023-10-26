@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
     shift # past argument
     shift # past value
     ;;
-  --non-dry-run)
+  --no-dry-run)
     dry_run=false
     shift # past argument
     shift # past value
@@ -51,24 +51,25 @@ get-version-commit-pairs() {
 }
 
 prepend-tag-name() {
-  while read -r pair; do
-    commit="$(echo "$pair" | cut -d' ' -f1)"
-    version="$(echo "$pair" | cut -d' ' -f2)"
+  while IFS=$'\t' read -r commit version; do
+    local tag_name
     if semverLT "$version" "$version_before_package_rename" || semverEQ "$version" "$version_before_package_rename"; then
       tag_name="$tag_prefix_before_package_rename@$version"
     else
       tag_name="@metamask/$package_name@$version"
     fi
-    echo "$commit $tag_name"
+    echo "$commit\t$tag_name"
   done <<<"$(get-version-commit-pairs)"
 }
-
-while read -r pair; do
-  commit="$(echo "$pair" | cut -d' ' -f1)"
-  tag_name="$(echo "$pair" | cut -d' ' -f2)"
-  if [ "$dry_run" = true ]; then
+if [[ -z $package_name ]]; then
+  echo "Missing package name."
+  exit 1
+fi
+while IFS=$'\t' read -r commit tag_name; do
+  if [[ $dry_run == true ]]; then
     echo "$commit $tag_name"
   else
+    echo "Creating tag '$tag_name'..."
     git tag "$tag_name" "$commit"
     git push "$remote" "$tag_name"
   fi

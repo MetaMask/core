@@ -20,7 +20,7 @@
 - `-v`, `--version-before-package-rename` (optional)
   - Default if omitted: `0.0.0`.
   - If `-v` is not passed, all tag names will be prefixed with the `@metamask/` namespace.
-- `--non-dry-run` (optional): Must come last.
+- `--non-dry-run` (optional):
   - Default if omitted: `false`.
   - If not specified, the script will run in "dry run" mode. The script will print out all pairs of release commit hashes and prefixed tag names, but without modifying the local or remote repo in any way.
   - **This flag MUST be enabled for tags to be created and pushed.**
@@ -133,7 +133,8 @@ To https://github.com/[USERNAME]/[FORKNAME]
 
 ## E. Troubleshooting
 
-**WARNING**: DO NOT run this script on the core repo until you have tested the results on a fork.
+> [!WARNING]
+> DO NOT run this script on the core repo until you have tested the results on a fork.
 
 These commands should NOT be run on the core repo.
 
