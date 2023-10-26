@@ -1789,26 +1789,33 @@ describe('TransactionController', () => {
       expect(delayMessengerMock.call).not.toHaveBeenCalled();
     });
 
-    it('catches error no code property in error object', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
+    it('catches error without code property in error object', async () => {
+      const mockedErrorMessage = 'mocked error';
       (
         delayMessengerMock.call as jest.MockedFunction<any>
       ).mockImplementationOnce(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
-        throw undefined;
+        throw { message: mockedErrorMessage };
+      });
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const controller = newController({
+        options: {
+          disableHistory: true,
+        },
       });
 
-      const controller = newController();
-      controller.state.transactions.push(txMeta as any);
+      controller.state.transactions.push({
+        ...txMeta,
+        txParams: { data: '0x', from: ACCOUNT_MOCK },
+      } as any);
 
       controller.initApprovals();
-      await wait(100);
+      await wait(0);
 
       expect(consoleSpy).toHaveBeenCalledTimes(1);
       expect(consoleSpy).toHaveBeenCalledWith(
         'Error during persisted transaction approval',
-        TypeError(`Cannot read properties of undefined (reading 'code')`),
+        new Error(mockedErrorMessage),
       );
       expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
     });
@@ -1826,7 +1833,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push(txMeta as any);
 
       controller.initApprovals();
-      await wait(100);
+      await wait(0);
 
       expect(consoleSpy).toHaveBeenCalledTimes(0);
       expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);

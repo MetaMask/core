@@ -1147,7 +1147,7 @@ export class TransactionController extends BaseController<
         const { isCompleted: isTxCompleted } =
           this.isTransactionCompleted(transactionId);
         if (!isTxCompleted) {
-          if (error.code === errorCodes.provider.userRejectedRequest) {
+          if (error?.code === errorCodes.provider.userRejectedRequest) {
             this.cancelTransaction(transactionId);
 
             throw providerErrors.userRejectedRequest(
