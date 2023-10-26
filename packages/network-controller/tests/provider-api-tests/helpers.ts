@@ -5,7 +5,7 @@ import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import type { Scope as NockScope } from 'nock';
-import { useFakeTimers } from 'sinon';
+import * as sinon from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
 import { NetworkClientType } from '../../src/types';
@@ -432,7 +432,7 @@ export async function withNetworkClient(
   // request the latest block) set up in `eth-json-rpc-middleware`
   // 2. Halting the retry logic in `@metamask/eth-json-rpc-infura` (which also
   // depends on `setTimeout`)
-  const clock = useFakeTimers();
+  const clock = sinon.useFakeTimers();
 
   // The JSON-RPC client wraps `eth_estimateGas` so that it takes 2 seconds longer
   // than it usually would to complete. Or at least it should — this doesn't

@@ -1,4 +1,4 @@
-import { useFakeTimers } from 'sinon';
+import * as sinon from 'sinon';
 
 import { ListKeys, ListNames } from './PhishingController';
 import { applyDiffs, fetchTimeNow } from './utils';
@@ -38,7 +38,7 @@ const exampleRemoveDiff = {
 describe('fetchTimeNow', () => {
   it('correctly converts time from milliseconds to seconds', () => {
     const testTime = 1674773005000;
-    useFakeTimers(testTime);
+    sinon.useFakeTimers(testTime);
     const result = fetchTimeNow();
     expect(result).toBe(1674773005);
   });
@@ -72,7 +72,7 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    useFakeTimers(testTime);
+    sinon.useFakeTimers(testTime);
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -84,7 +84,7 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if the removal diff is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    useFakeTimers(testTime);
+    sinon.useFakeTimers(testTime);
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -106,7 +106,7 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    useFakeTimers(testTime);
+    sinon.useFakeTimers(testTime);
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -121,7 +121,7 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    useFakeTimers(testTime);
+    sinon.useFakeTimers(testTime);
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
