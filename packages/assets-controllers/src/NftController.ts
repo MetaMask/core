@@ -515,21 +515,20 @@ export class NftController extends BaseController<NftConfig, NftState> {
         this.getNetworkClientById(networkClientId).configuration.chainId;
     }
 
-    const blockchainMetadata = await safelyExecute(async () => {
-      return await this.getNftInformationFromTokenURI(
-        contractAddress,
-        tokenId,
-        networkClientId,
-      );
-    });
-
-    let openSeaMetadata;
-    // currently we only need to enter this block if we are on mainnet
-    if (this.config.displayNftMedia && chainId === '0x1') {
-      openSeaMetadata = await safelyExecute(async () => {
-        return await this.getNftInformationFromApi(contractAddress, tokenId);
-      });
-    }
+    const [blockchainMetadata, openSeaMetadata] = await Promise.all([
+      safelyExecute(() =>
+        this.getNftInformationFromTokenURI(
+          contractAddress,
+          tokenId,
+          networkClientId,
+        ),
+      ),
+      this.config.displayNftMedia && chainId === '0x1'
+        ? safelyExecute(() =>
+            this.getNftInformationFromApi(contractAddress, tokenId),
+          )
+        : undefined,
+    ]);
 
     if (blockchainMetadata.error && openSeaMetadata.error) {
       return {
@@ -610,14 +609,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'>
   > {
-    const name = await this.getERC721AssetName(
-      contractAddress,
-      networkClientId,
-    );
-    const symbol = await this.getERC721AssetSymbol(
-      contractAddress,
-      networkClientId,
-    );
+    const [name, symbol] = await Promise.all([
+      this.getERC721AssetName(contractAddress, networkClientId),
+      this.getERC721AssetSymbol(contractAddress, networkClientId),
+    ]);
+
     return {
       collection: { name },
       symbol,
@@ -640,27 +636,30 @@ export class NftController extends BaseController<NftConfig, NftState> {
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'>
   > {
-    const blockchainContractData: Partial<ApiNftContract> &
-      Pick<ApiNftContract, 'address'> &
-      Pick<ApiNftContract, 'collection'> = await safelyExecute(async () => {
-      return await this.getNftContractInformationFromContract(
-        contractAddress,
-        networkClientId,
-      );
-    });
-
     const { chainId } = this.config;
     const getCurrentChainId = this.getCorrectChainId({
       chainId,
       networkClientId,
     });
 
-    let openSeaContractData: Partial<ApiNftContract> | undefined;
-    if (this.config.displayNftMedia && getCurrentChainId === '0x1') {
-      openSeaContractData = await safelyExecute(async () => {
-        return await this.getNftContractInformationFromApi(contractAddress);
-      });
-    }
+    const [blockchainContractData, openSeaContractData]: [
+      Partial<ApiNftContract> &
+        Pick<ApiNftContract, 'address'> &
+        Pick<ApiNftContract, 'collection'>,
+      Partial<ApiNftContract> | undefined,
+    ] = await Promise.all([
+      safelyExecute(() =>
+        this.getNftContractInformationFromContract(
+          contractAddress,
+          networkClientId,
+        ),
+      ),
+      this.config.displayNftMedia && getCurrentChainId === '0x1'
+        ? safelyExecute(() =>
+            this.getNftContractInformationFromApi(contractAddress),
+          )
+        : undefined,
+    ]);
 
     if (blockchainContractData || openSeaContractData) {
       return {
