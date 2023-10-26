@@ -1097,6 +1097,62 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Update the gas values of a transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param previousGas - Previous gas values to update.
+   * @param previousGas.gasLimit - Maxmimum number of units of gas to use for this transaction.
+   * @param previousGas.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
+   * @param previousGas.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+   * @returns The updated transactionMeta.
+   */
+  updatePreviousGasParams(
+    transactionId: string,
+    {
+      gasLimit,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    }: {
+      gasLimit?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+    },
+  ): TransactionMeta {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update transaction as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, 'updatePreviousGasParams');
+
+    const transactionPreviousGas = {
+      previousGas: {
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      },
+    } as any;
+
+    // only update what is defined
+    transactionPreviousGas.previousGas = pickBy(
+      transactionPreviousGas.previousGas,
+    );
+
+    // merge updated previous gas values with existing transaction meta
+    const updatedMeta = merge(transactionMeta, transactionPreviousGas);
+
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updatePreviousGasParams - gas values updated',
+    );
+
+    return this.getTransaction(transactionId) as TransactionMeta;
+  }
+
+  /**
    * Gets the next nonce according to the nonce-tracker.
    * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
    *
