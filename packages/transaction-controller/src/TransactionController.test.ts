@@ -1872,7 +1872,7 @@ describe('TransactionController', () => {
       expect(transactions[1].txParams.gasPrice).toBe(mockGasPrice);
     });
 
-    it('updates transaction as failed if failed to update gas fees', async () => {
+    it('updates transaction as failed if failes to update gas fees', async () => {
       const mockTransactionMeta = {
         from: ACCOUNT_MOCK,
         chainId: toHex(5),
