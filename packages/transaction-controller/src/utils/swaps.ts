@@ -202,16 +202,16 @@ export async function updatePostTransactionBalance(
 ) {
   const transactionId = transactionMeta.id;
 
+  let latestTransactionMeta, approvalTransactionMeta;
   for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
     const postTransactionBalance = await query(ethQuery, 'getBalance', [
       transactionMeta.txParams.from,
     ]);
-    const latestTransactionMeta = getTransaction(
-      transactionId,
-    ) as TransactionMeta;
-    const approvalTransactionMeta = latestTransactionMeta.approvalTxId
+    latestTransactionMeta = getTransaction(transactionId) as TransactionMeta;
+    approvalTransactionMeta = latestTransactionMeta.approvalTxId
       ? getTransaction(latestTransactionMeta.approvalTxId)
       : null;
+
     latestTransactionMeta.postTxBalance = postTransactionBalance.toString(16);
     const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
       transactionMeta.destinationTokenAddress as string,
@@ -222,26 +222,20 @@ export async function updatePostTransactionBalance(
       isDefaultTokenAddress &&
       transactionMeta.preTxBalance === latestTransactionMeta.postTxBalance
     ) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, UPDATE_POST_TX_BALANCE_TIMEOUT),
-      );
+      await sleep(UPDATE_POST_TX_BALANCE_TIMEOUT);
     } else {
-      updateTransaction(
-        latestTransactionMeta,
-        'TransactionController#updatePostTransactionBalance - Add post transaction balance',
-      );
-      return Promise.resolve({
-        updatedTransactionMeta: latestTransactionMeta,
-        approvalTransactionMeta,
-      });
+      break;
     }
   }
 
-  return Promise.reject(
-    new Error(
-      'TransactionController#updatePostTransactionBalance - Post transaction balance not updated after 6 attempts',
-    ),
+  updateTransaction(
+    latestTransactionMeta as TransactionMeta,
+    'TransactionController#updatePostTransactionBalance - Add post transaction balance',
   );
+  return Promise.resolve({
+    updatedTransactionMeta: latestTransactionMeta,
+    approvalTransactionMeta,
+  });
 }
 
 /**
@@ -334,4 +328,13 @@ function isSwapsDefaultTokenAddress(address: string, chainId: string) {
       chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
     ]?.address
   );
+}
+
+/**
+ * Sleeps for the provided number of milliseconds
+ *
+ * @param ms - Number of milliseconds to sleep
+ */
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

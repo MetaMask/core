@@ -7,7 +7,6 @@ import {
   updateSwapsTransaction,
   updatePostTransactionBalance,
   UPDATE_POST_TX_BALANCE_ATTEMPTS,
-  UPDATE_POST_TX_BALANCE_TIMEOUT,
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from './swaps';
 
@@ -262,8 +261,7 @@ describe('updatePostTransactionBalance', () => {
     );
   });
 
-  it(`retries at least ${UPDATE_POST_TX_BALANCE_ATTEMPTS} times then rejects`, async () => {
-    jest.useFakeTimers();
+  it(`retries at least ${UPDATE_POST_TX_BALANCE_ATTEMPTS} times then updates`, async () => {
     const mockPostTxBalance = transactionMeta.preTxBalance;
     queryMock.mockResolvedValue(mockPostTxBalance);
 
@@ -271,30 +269,14 @@ describe('updatePostTransactionBalance', () => {
       .spyOn(request, 'getTransaction')
       .mockImplementation(() => transactionMeta);
 
-    // In order to advance timers on every sleep attempt, we need cannot use `await` here.
-    // Instead, we need to use `then` and `catch` to assert the error and advance the timers.
     // eslint-disable-next-line jest/valid-expect-in-promise
-    updatePostTransactionBalance(transactionMeta, request)
-      .then(() => {
-        throw new Error('Should not resolve');
-      })
-      .catch((e) => {
-        expect(e).toStrictEqual(
-          new Error(
-            `TransactionController#updatePostTransactionBalance - Post transaction balance not updated after ${UPDATE_POST_TX_BALANCE_ATTEMPTS} attempts`,
-          ),
-        );
+    updatePostTransactionBalance(transactionMeta, request).then(
+      ({ updatedTransactionMeta }) => {
+        expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);
         expect(queryMock).toHaveBeenCalledTimes(
           UPDATE_POST_TX_BALANCE_ATTEMPTS,
         );
-      });
-
-    // Advance time by the timeout amount for each attempt
-    for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
-      jest.advanceTimersByTime(UPDATE_POST_TX_BALANCE_TIMEOUT);
-      // Run all ticks to resolve promises
-      jest.runAllTicks();
-      await Promise.resolve();
-    }
+      },
+    );
   });
 });

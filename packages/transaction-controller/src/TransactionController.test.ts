@@ -2070,8 +2070,22 @@ describe('TransactionController', () => {
     });
 
     it('updates post transaction balance if type is swap', async () => {
-      jest.useFakeTimers();
-
+      const mockPostTxBalance = '7a00';
+      const mockApprovalTransactionMeta = {
+        id: '2',
+      };
+      updatePostTransactionBalanceMock.mockImplementationOnce(
+        async (transactionMeta: TransactionMeta, _request: any) => {
+          return Promise.resolve({
+            updatedTransactionMeta: {
+              ...transactionMeta,
+              postTxBalance: mockPostTxBalance,
+            },
+            approvalTransactionMeta:
+              mockApprovalTransactionMeta as TransactionMeta,
+          });
+        },
+      );
       const mockPostTransactionBalanceUpdatedListener = jest.fn();
       const controller = newController();
       controller.hub.on(
@@ -2079,7 +2093,6 @@ describe('TransactionController', () => {
         mockPostTransactionBalanceUpdatedListener,
       );
 
-      const mockPostTxBalance = '7a00';
       const externalTransactionToConfirm = {
         from: ACCOUNT_MOCK,
         to: ACCOUNT_2_MOCK,
@@ -2100,22 +2113,6 @@ describe('TransactionController', () => {
         gasUsed: '0x5208',
       };
       const externalBaseFeePerGas = '0x14';
-      const mockApprovalTransactionMeta = {
-        id: '2',
-      };
-
-      updatePostTransactionBalanceMock.mockImplementationOnce(
-        async (transactionMeta: TransactionMeta, _request: any) => {
-          return Promise.resolve({
-            updatedTransactionMeta: {
-              ...transactionMeta,
-              postTxBalance: mockPostTxBalance,
-            },
-            approvalTransactionMeta:
-              mockApprovalTransactionMeta as TransactionMeta,
-          });
-        },
-      );
 
       await controller.confirmExternalTransaction(
         externalTransactionToConfirm,
@@ -2123,27 +2120,21 @@ describe('TransactionController', () => {
         externalBaseFeePerGas,
       );
 
-      jest.runAllTimers();
+      await new Promise(jest.requireActual('timers').setImmediate);
 
-      // This timeout will not prevent test to be wait for assertion since we are using fake timers, letting next tick to be executed since we are not awaiting for updatePostTransactionBalanceMock
-      setTimeout(() => {
-        const transaction = controller.state.transactions[0];
-
-        expect(transaction.postTxBalance).toBe(mockPostTxBalance);
-        expect(mockPostTransactionBalanceUpdatedListener).toHaveBeenCalledTimes(
-          1,
-        );
-        expect(mockPostTransactionBalanceUpdatedListener).toHaveBeenCalledWith(
-          expect.objectContaining({
-            transactionMeta: expect.objectContaining({
-              postTxBalance: mockPostTxBalance,
-            }),
-            approvalTransactionMeta: expect.objectContaining(
-              mockApprovalTransactionMeta,
-            ),
+      expect(mockPostTransactionBalanceUpdatedListener).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockPostTransactionBalanceUpdatedListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: expect.objectContaining({
+            postTxBalance: mockPostTxBalance,
           }),
-        );
-      }, 10000);
+          approvalTransactionMeta: expect.objectContaining(
+            mockApprovalTransactionMeta,
+          ),
+        }),
+      );
     });
   });
 
