@@ -37,7 +37,7 @@ const isConfirmationMethod = (method: string) => {
     'wallet_requestPermissions',
     'personal_sign',
     'eth_sign',
-    'eth_requestAccounts'
+    'eth_requestAccounts',
   ];
 
   return confirmationMethods.includes(method);
