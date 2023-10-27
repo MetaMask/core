@@ -2,12 +2,8 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "rootDir": "../..",
-    "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
-    "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true,
-    "target": "es2020"
+    "target": "es2017"
   },
-  "include": ["../../types", "../../tests", "./src", "./tests"]
+  "include": ["../../types", "./src"]
 }
