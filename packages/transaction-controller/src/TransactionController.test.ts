@@ -1748,7 +1748,7 @@ describe('TransactionController', () => {
     };
     it('creates approvals for all unapproved transaction', async () => {
       const controller = newController();
-      controller.state.transactions.push(txMeta as any);
+      controller.state.transactions.push(txMeta);
       controller.state.transactions.push({
         ...txMeta,
         id: 'mocked1',
