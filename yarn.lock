@@ -1831,15 +1831,15 @@ __metadata:
   linkType: hard
 
 "@metamask/eth-simple-keyring@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "@metamask/eth-simple-keyring@npm:6.0.0"
+  version: 6.0.1
+  resolution: "@metamask/eth-simple-keyring@npm:6.0.1"
   dependencies:
     "@ethereumjs/util": ^8.1.0
     "@metamask/eth-sig-util": ^7.0.0
     "@metamask/utils": ^8.1.0
     ethereum-cryptography: ^2.1.2
     randombytes: ^2.1.0
-  checksum: dd106695a9903b68938ce45682e976e38e6ab50d41c461ca1a771aed139086d535e1891c85bbf91ad80fdc372d7168a71ac83622d3d834d03ad9f8a42b95a567
+  checksum: f0e302fbd583e5e189c1526a26afcd5c165e4ebbfe69924fa982e72a8b2867d698503bcc8b4473469727b90c96326b2c400d8dc491ff01f3b97c3d851a7a7b67
   languageName: node
   linkType: hard
 
