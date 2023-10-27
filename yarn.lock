@@ -1407,7 +1407,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
     "@metamask/eth-snap-keyring": ^2.0.0
-    "@metamask/keyring-api": ^1.0.0
+    "@metamask/keyring-api": ^1.1.0
     "@metamask/keyring-controller": ^8.1.0
     "@metamask/snaps-controllers": ^3.1.1
     "@metamask/snaps-utils": ^3.1.0
@@ -1995,6 +1995,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@metamask/keyring-api@npm:1.1.0"
+  dependencies:
+    "@metamask/providers": ^13.0.0
+    "@metamask/snaps-controllers": ^3.1.0
+    "@metamask/snaps-rpc-methods": ^3.1.0
+    "@metamask/snaps-utils": ^3.0.0
+    "@metamask/utils": ^8.1.0
+    "@types/uuid": ^9.0.1
+    superstruct: ^1.0.3
+    uuid: ^9.0.0
+  checksum: dd07db768861a4c4b9b5168dedac104c7e9a8fdd1de5520f81bf276f9923ea55f649d57e8eee1aa5dda06b6b82f163ec5447e32c614e920063baea06e130ecea
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@^8.1.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -2475,7 +2491,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/snaps-controllers@npm:^3.0.0, @metamask/snaps-controllers@npm:^3.1.1":
+"@metamask/snaps-controllers@npm:^3.0.0, @metamask/snaps-controllers@npm:^3.1.0, @metamask/snaps-controllers@npm:^3.1.1":
   version: 3.1.1
   resolution: "@metamask/snaps-controllers@npm:3.1.1"
   dependencies:
