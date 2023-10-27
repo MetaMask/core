@@ -435,12 +435,30 @@ export type NetworkControllerGetEIP1559CompatibilityAction = {
   handler: NetworkController['getEIP1559Compatibility'];
 };
 
+export type NetworkControllerFindNetworkClientIdByChainIdAction = {
+  type: `NetworkController:findNetworkClientIdByChainId`;
+  handler: NetworkController['findNetworkClientIdByChainId'];
+};
+
+export type NetworkControllerSetProviderTypeAction = {
+  type: `NetworkController:setProviderType`;
+  handler: NetworkController['setProviderType'];
+};
+
+export type NetworkControllerSetActiveNetworkAction = {
+  type: `NetworkController:setActiveNetwork`;
+  handler: NetworkController['setActiveNetwork'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction;
+  | NetworkControllerGetEIP1559CompatibilityAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerSetProviderTypeAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -588,6 +606,21 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEIP1559Compatibility`,
       this.getEIP1559Compatibility.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setActiveNetwork`,
+      this.setActiveNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setProviderType`,
+      this.setProviderType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:findNetworkClientIdByChainId`,
+      this.findNetworkClientIdByChainId.bind(this),
     );
 
     this.#previousProviderConfig = this.state.providerConfig;

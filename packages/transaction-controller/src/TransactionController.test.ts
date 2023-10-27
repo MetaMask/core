@@ -507,7 +507,7 @@ describe('TransactionController', () => {
       return timeCounter;
     });
 
-    for (const key in mockFlags) {
+    for (const key of Object.keys(mockFlags)) {
       mockFlags[key] = null;
     }
 
@@ -1721,6 +1721,20 @@ describe('TransactionController', () => {
       await controller.speedUpTransaction(transactionMeta.id);
 
       expect(controller.state.transactions).toHaveLength(2);
+    });
+  });
+
+  describe('getNonceLock', () => {
+    it('gets the next nonce according to the nonce-tracker', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const { nextNonce } = await controller.getNonceLock(ACCOUNT_MOCK);
+
+      expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
+      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(nextNonce).toBe(NONCE_MOCK);
     });
   });
 
