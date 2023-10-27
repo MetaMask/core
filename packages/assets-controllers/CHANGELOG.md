@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add way to start and stop different polling sessions for the same network client ID by providing extra scoping data ([#1776](https://github.com/MetaMask/core/pull/1776))
   - Add optional second argument to `stopPollingByPollingToken` (formerly `stopPollingByNetworkClientId`)
   - Add optional second argument to `onPollingCompleteByNetworkClientId`
+- Add support for token detection for Linea mainnet and Linea Goerli
 
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add missing dependency on `@metamask/polling-controller` ([#1831](https://github.com/MetaMask/core/pull/1831))
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
 - Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
+- Fix support for NFT metadata stored outside IPFS
 
 ## [15.0.0]
 ### Changed
