@@ -1205,9 +1205,6 @@ export class TransactionController extends BaseController<
         throw cancelError;
 
       case TransactionStatus.submitted:
-        this.hub.emit(TransactionEvent.submitted, {
-          transactionMeta: finalMeta,
-        });
         resultCallbacks?.success();
         return finalMeta.hash as string;
 
@@ -1310,6 +1307,9 @@ export class TransactionController extends BaseController<
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
+      this.hub.emit(TransactionEvent.submitted, {
+        transactionMeta,
+      });
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - Transaction submitted',
