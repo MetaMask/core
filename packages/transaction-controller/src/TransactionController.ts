@@ -164,6 +164,48 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
+type Events = {
+  [TransactionEvent.added]: [transactionMeta: TransactionMeta];
+  [TransactionEvent.approved]: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  [TransactionEvent.confirmed]: [{ transactionMeta: TransactionMeta }];
+
+  [TransactionEvent.dropped]: [{ transactionMeta: TransactionMeta }];
+  [TransactionEvent.failed]: [
+    {
+      actionId?: string;
+      error: string;
+      transactionMeta: TransactionMeta;
+    },
+  ];
+  [TransactionEvent.newSwap]: [transactionMeta: TransactionMeta];
+  [TransactionEvent.newSwapApproval]: [transactionMeta: TransactionMeta];
+  [TransactionEvent.rejected]: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  [TransactionEvent.submitted]: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  [TransactionEvent.postTransactionBalanceUpdated]: [
+    transactionMeta: TransactionMeta,
+  ];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
+  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
+  ['incomingTransactionBlock']: [blockNumber: number];
+};
+
+export interface TransactionControllerEventEmitter extends EventEmitter {
+  on<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
+  ): this;
+
+  emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
+}
+
 /**
  * Controller responsible for submitting and managing transactions.
  */
@@ -238,7 +280,7 @@ export class TransactionController extends BaseController<
   /**
    * EventEmitter instance used to listen to specific transactional events
    */
-  hub = new EventEmitter();
+  hub = new EventEmitter() as TransactionControllerEventEmitter;
 
   /**
    * Name of this controller used during composition
