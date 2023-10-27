@@ -14,10 +14,6 @@ module.exports = {
     {
       files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
       extends: ['@metamask/eslint-config-jest'],
-      rules: {
-        // TODO: Re-enable
-        'import/no-named-as-default-member': 'off',
-      },
     },
     {
       // These files are test helpers, not tests. We still use the Jest ESLint
