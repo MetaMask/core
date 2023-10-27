@@ -33,7 +33,7 @@
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/network-controller": "^15.1.0",
-    "@metamask/polling-controller": "^1.0.0",
+    "@metamask/polling-controller": "^1.0.1",
     "@metamask/utils": "^8.1.0",
     "@types/uuid": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
