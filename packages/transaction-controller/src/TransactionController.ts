@@ -165,7 +165,6 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
 >;
 
 type Events = {
-  [TransactionEvent.added]: [transactionMeta: TransactionMeta];
   [TransactionEvent.approved]: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
