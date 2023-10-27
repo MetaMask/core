@@ -1753,7 +1753,7 @@ describe('TransactionController', () => {
         ...txMeta,
         id: 'mocked1',
         hash: '1338',
-      } as any);
+      });
 
       controller.initApprovals();
 
