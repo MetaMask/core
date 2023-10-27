@@ -1830,7 +1830,7 @@ describe('TransactionController', () => {
       });
 
       const controller = newController();
-      controller.state.transactions.push(txMeta as any);
+      controller.state.transactions.push(txMeta);
 
       controller.initApprovals();
       await wait(0);
