@@ -570,19 +570,11 @@ export class TransactionController extends BaseController<
         addInitialHistorySnapshot(transactionMeta);
       }
 
-      // Check if swaps transaction
-      if (
-        [TransactionType.swap, TransactionType.swapApproval].includes(
-          transactionType,
-        ) &&
-        !this.isSwapsDisabled
-      ) {
-        await this.updateSwapsTransaction(
-          transactionMeta,
-          transactionType,
-          swaps,
-        );
-      }
+      await this.updateSwapsTransaction(
+        transactionMeta,
+        transactionType,
+        swaps,
+      );
 
       transactions.push(transactionMeta);
       this.update({
@@ -1790,6 +1782,14 @@ export class TransactionController extends BaseController<
       meta?: Partial<TransactionMeta>;
     },
   ) {
+    if (
+      this.isSwapsDisabled ||
+      ![TransactionType.swap, TransactionType.swapApproval].includes(
+        transactionType,
+      )
+    ) {
+      return;
+    }
     // The simulationFails property is added if the estimateGas call fails. In cases
     // when no swaps approval tx is required, this indicates that the swap will likely
     // fail. There was an earlier estimateGas call made by the swaps controller,
