@@ -29,7 +29,7 @@
     "setup": "yarn install",
     "test": "yarn test:verbose --collectCoverage=false --reporters=jest-silent-reporter",
     "test:clean": "yarn workspaces foreach --parallel --verbose run test:clean && yarn test",
-    "test:verbose": "yarn workspaces foreach --parallel --verbose run test"
+    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
