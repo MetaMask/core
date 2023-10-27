@@ -2152,13 +2152,13 @@ __metadata:
   linkType: soft
 
 "@metamask/object-multiplex@npm:^1.1.0, @metamask/object-multiplex@npm:^1.2.0":
-  version: 1.2.0
-  resolution: "@metamask/object-multiplex@npm:1.2.0"
+  version: 1.3.0
+  resolution: "@metamask/object-multiplex@npm:1.3.0"
   dependencies:
     end-of-stream: ^1.4.4
     once: ^1.4.0
     readable-stream: ^2.3.3
-  checksum: 7c622639cc164c3b780294d790311e4bcb327faf14626717728022e95da5834f32fe4e242d8f4e7d9b8c2b83f0c76450922786b2f6ef50e777bfe119b78bdab7
+  checksum: 4a2b48fc0e1a8f536edbab9f37b637cd91102538ad76ce07bdfad99b90d98b34585a0e5afa62ca9c1d550a0016347568ff0d635e5bf8cfa266d049e1c0ebedc8
   languageName: node
   linkType: hard
 
