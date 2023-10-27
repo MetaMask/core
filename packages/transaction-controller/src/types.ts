@@ -15,8 +15,7 @@ export type TransactionMeta =
  */
 type TransactionMetaBase = {
   /**
-   * [swaps-only]
-   * Swap approval transaction ID.
+   * ID of the transaction that approved the swap token transfer.
    */
   approvalTxId?: string;
 
@@ -61,19 +60,16 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
-   * [swaps-only]
    * The address of the token being received of swap transaction.
    */
   destinationTokenAddress?: string;
 
   /**
-   * [swaps-only]
    * The decimals of the token being received of swap transaction.
    */
   destinationTokenDecimals?: string;
 
   /**
-   * [swaps-only]
    * The symbol of the token being received with swap.
    */
   destinationTokenSymbol?: string;
@@ -199,19 +195,16 @@ type TransactionMetaBase = {
   submittedTime?: number;
 
   /**
-   * [swaps-only]
    * The symbol of the token being swapped.
    */
   sourceTokenSymbol?: string;
 
   /**
-   * [swaps-only]
    * The metadata of the swap transaction.
    */
   swapMetaData?: Record<string, unknown>;
 
   /**
-   * [swaps-only]
    * The value of the token being swapped.
    */
   swapTokenValue?: string;
@@ -740,11 +733,6 @@ export type DefaultGasEstimates = {
    * Maximum amount per gas to give to validator as incentive.
    */
   maxPriorityFeePerGas?: string;
-};
-
-export type SwapOptions = {
-  hasApproveTx?: boolean;
-  meta?: Partial<TransactionMeta>;
 };
 
 /**

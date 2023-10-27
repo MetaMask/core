@@ -48,7 +48,6 @@ import type {
   TransactionReceipt,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
-  SwapOptions,
   WalletDevice,
 } from './types';
 import { TransactionEvent, TransactionType, TransactionStatus } from './types';
@@ -146,7 +145,7 @@ export const CANCEL_RATE = 1.5;
 export const SPEED_UP_RATE = 1.1;
 
 /**
- * Multiplier used to determine a transaction's post transaction balance update interval
+ * Interval in milliseconds between checks of post transaction balance
  */
 export const UPDATE_POST_TX_BALANCE_TIMEOUT = 5000;
 
@@ -463,6 +462,8 @@ export class TransactionController extends BaseController<
    * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
    * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
    * @param opts.swaps - Options for swaps transactions.
+   * @param opts.swaps.hasApproveTx
+   * @param opts.swaps.meta
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -475,7 +476,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
-      swaps: swapOptions = {},
+      swaps = {},
       type,
     }: {
       actionId?: string;
@@ -485,7 +486,10 @@ export class TransactionController extends BaseController<
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
       sendFlowHistory?: SendFlowHistoryEntry[];
-      swaps?: SwapOptions;
+      swaps?: {
+        hasApproveTx?: boolean;
+        meta?: Partial<TransactionMeta>;
+      };
       type?: TransactionType;
     } = {},
   ): Promise<Result> {
@@ -572,7 +576,7 @@ export class TransactionController extends BaseController<
         transactionMeta = (await this.updateSwapsTransaction(
           transactionMeta,
           transactionType,
-          swapOptions,
+          swaps,
         )) as TransactionMeta;
       }
 
@@ -1777,7 +1781,10 @@ export class TransactionController extends BaseController<
   private async updateSwapsTransaction(
     transactionMeta: TransactionMeta,
     transactionType: TransactionType,
-    swapOptions: SwapOptions,
+    swaps: {
+      hasApproveTx?: boolean;
+      meta?: Partial<TransactionMeta>;
+    },
   ) {
     // The simulationFails property is added if the estimateGas call fails. In cases
     // when no swaps approval tx is required, this indicates that the swap will likely
@@ -1789,14 +1796,14 @@ export class TransactionController extends BaseController<
     // waste the user's funds on gas.
     if (
       transactionType === TransactionType.swap &&
-      swapOptions?.hasApproveTx === false &&
+      swaps?.hasApproveTx === false &&
       transactionMeta.simulationFails
     ) {
       await this.cancelTransaction(transactionMeta.id);
       throw new Error('Simulation failed');
     }
 
-    const swapsMeta = swapOptions?.meta as Partial<TransactionMeta>;
+    const swapsMeta = swaps?.meta as Partial<TransactionMeta>;
 
     if (!swapsMeta) {
       return transactionMeta;
