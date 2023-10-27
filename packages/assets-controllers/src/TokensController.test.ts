@@ -908,60 +908,72 @@ describe('TokensController', () => {
     it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
       const stub = stubCreateEthers(tokensController, false);
 
-      const DETECTED_ADDRESS = '0xDetectedAddress';
-      const DETECTED_CHAINID = '0xDetectedChainId';
-
-      const CONFIGURED_ADDRESS = '0xabc';
+      // The currently configured chain + address
+      const CONFIGURED_CHAIN = SEPOLIA;
+      const CONFIGURED_ADDRESS = '0xConfiguredAddress';
+      changeNetwork(CONFIGURED_CHAIN);
       preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
-      changeNetwork(SEPOLIA);
 
-      const detectedToken: Token = {
-        address: '0x01',
-        symbol: 'barA',
-        decimals: 2,
-        aggregators: [],
-        isERC721: false,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
-        name: undefined,
-      };
+      // A different chain + address
+      const OTHER_CHAIN = '0xOtherChainId';
+      const OTHER_ADDRESS = '0xOtherAddress';
 
-      const directlyAddedToken: Token = {
-        address: '0x02',
-        decimals: 5,
-        symbol: 'B',
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
-        isERC721: false,
-        aggregators: [],
-        name: undefined,
-      };
+      // Mock some tokens to add
+      const generateTokens = (len: number) =>
+        [...Array(len)].map((_, i) => ({
+          address: `0x${i}`,
+          symbol: String.fromCharCode(65 + i),
+          decimals: 2,
+          aggregators: [],
+          name: undefined,
+          isERC721: false,
+          image: `https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x${i}.png`,
+        }));
 
-      // detectionDetails object is passed as second arg with details about where token was detected
-      await tokensController.addDetectedTokens([detectedToken], {
-        selectedAddress: DETECTED_ADDRESS,
-        chainId: DETECTED_CHAINID,
-      });
+      const [
+        addedTokenConfiguredAccount,
+        detectedTokenConfiguredAccount,
+        detectedTokenOtherAccount,
+      ] = generateTokens(3);
 
-      // will add token to currently configured chainId/selectedAddress
-      await tokensController.addToken({
-        address: directlyAddedToken.address,
-        symbol: directlyAddedToken.symbol,
-        decimals: directlyAddedToken.decimals,
-        image: directlyAddedToken.image,
-      });
+      // Run twice to ensure idempotency
+      for (let i = 0; i < 2; i++) {
+        // Add and detect some tokens on the configured chain + account
+        await tokensController.addToken(addedTokenConfiguredAccount);
+        await tokensController.addDetectedTokens([
+          detectedTokenConfiguredAccount,
+        ]);
 
-      expect(tokensController.state.allDetectedTokens).toStrictEqual({
-        [DETECTED_CHAINID]: {
-          [DETECTED_ADDRESS]: [detectedToken],
-        },
-      });
+        // Detect a token on the other chain + account
+        await tokensController.addDetectedTokens([detectedTokenOtherAccount], {
+          selectedAddress: OTHER_ADDRESS,
+          chainId: OTHER_CHAIN,
+        });
 
-      expect(tokensController.state.allTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
-          [CONFIGURED_ADDRESS]: [directlyAddedToken],
-        },
-      });
+        // Expect tokens on the configured account
+        expect(tokensController.state.tokens).toStrictEqual([
+          addedTokenConfiguredAccount,
+        ]);
+        expect(tokensController.state.detectedTokens).toStrictEqual([
+          detectedTokenConfiguredAccount,
+        ]);
+
+        // Expect tokens under the correct chain + account
+        expect(tokensController.state.allTokens).toStrictEqual({
+          [CONFIGURED_CHAIN.chainId]: {
+            [CONFIGURED_ADDRESS]: [addedTokenConfiguredAccount],
+          },
+        });
+        expect(tokensController.state.allDetectedTokens).toStrictEqual({
+          [CONFIGURED_CHAIN.chainId]: {
+            [CONFIGURED_ADDRESS]: [detectedTokenConfiguredAccount],
+          },
+          [OTHER_CHAIN]: {
+            [OTHER_ADDRESS]: [detectedTokenOtherAccount],
+          },
+        });
+      }
+
       stub.restore();
     });
   });
