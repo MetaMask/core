@@ -35,6 +35,7 @@ const isConfirmationMethod = (method: string) => {
     'eth_signTypedData_v4',
     'wallet_addEthereumChain',
     'wallet_requestPermissions',
+    'wallet_requestSnaps',
     'personal_sign',
     'eth_sign',
     'eth_requestAccounts',
