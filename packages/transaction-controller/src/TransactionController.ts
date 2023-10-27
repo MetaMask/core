@@ -256,7 +256,7 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Whether to disable transaction metadata history.
-   * @param options.disableSwaps - Whether to disable additional processing swaps transactions.
+   * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
