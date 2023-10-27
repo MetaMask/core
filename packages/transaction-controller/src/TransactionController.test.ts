@@ -1739,22 +1739,37 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('getNonceLock', () => {
+    it('gets the next nonce according to the nonce-tracker', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const { nextNonce } = await controller.getNonceLock(ACCOUNT_MOCK);
+
+      expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
+      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(nextNonce).toBe(NONCE_MOCK);
+    });
+  });
+
   describe('initApprovals', () => {
+    const txMeta: TransactionMeta = {
+      hash: '1337',
+      id: 'mocked',
+      chainId: toHex(5),
+      status: TransactionStatus.unapproved,
+      txParams: { data: '0x', from: ACCOUNT_MOCK },
+      time: 0,
+    };
     it('creates approvals for all unapproved transaction', async () => {
-      const txParams = {
-        from: ACCOUNT_MOCK,
-        hash: '1337',
-        id: 'mocked',
-        chainId: toHex(5),
-        status: TransactionStatus.unapproved,
-      };
       const controller = newController();
-      controller.state.transactions.push(txParams as any);
+      controller.state.transactions.push(txMeta);
       controller.state.transactions.push({
-        ...txParams,
+        ...txMeta,
         id: 'mocked1',
         hash: '1338',
-      } as any);
+      });
 
       controller.initApprovals();
 
@@ -1788,6 +1803,53 @@ describe('TransactionController', () => {
       controller.initApprovals();
 
       expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
+
+    it('catches error without code property in error object', async () => {
+      const mockedErrorMessage = 'mocked error';
+      (
+        delayMessengerMock.call as jest.MockedFunction<any>
+      ).mockImplementationOnce(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
+        throw { message: mockedErrorMessage };
+      });
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const controller = newController({
+        options: {
+          disableHistory: true,
+        },
+      });
+
+      controller.state.transactions.push(txMeta);
+
+      controller.initApprovals();
+      await wait(0);
+
+      expect(consoleSpy).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error during persisted transaction approval',
+        new Error(mockedErrorMessage),
+      );
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
+    });
+
+    it('catches error when user reject approval', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      (
+        delayMessengerMock.call as jest.MockedFunction<any>
+      ).mockImplementationOnce(() => {
+        throw providerErrors.userRejectedRequest();
+      });
+
+      const controller = newController();
+      controller.state.transactions.push(txMeta);
+
+      controller.initApprovals();
+      await wait(0);
+
+      expect(consoleSpy).toHaveBeenCalledTimes(0);
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
     });
   });
 

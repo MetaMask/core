@@ -210,11 +210,15 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
 % The license for all published packages must be MIT unless otherwise specified.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/json-rpc-engine',
   WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
 % The following published packages use an ISC license instead of MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
-  WorkspaceCwd == 'packages/eth-json-rpc-provider'.
+  (
+    WorkspaceCwd == 'packages/json-rpc-engine' ;
+    WorkspaceCwd == 'packages/eth-json-rpc-provider'
+  ).
 % Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
@@ -249,6 +253,10 @@ gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
 
 % All published packages must have the same "publish:preview" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.publish:preview', 'yarn npm publish --tag preview') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
+% All published packages must not have a "prepack" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.prepack', null) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % The "changelog:validate" script for each published package must run a common
