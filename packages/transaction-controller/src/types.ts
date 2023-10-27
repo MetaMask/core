@@ -689,19 +689,3 @@ export type DefaultGasEstimates = {
    */
   maxPriorityFeePerGas?: string;
 };
-
-/**
- * Describes the event types emitted by the transaction controller.
- */
-export enum TransactionEvent {
-  added = 'transaction-added',
-  approved = 'transaction-approved',
-  confirmed = 'transaction-confirmed',
-  dropped = 'transaction-dropped',
-  failed = 'transaction-failed',
-  newSwap = 'transaction-new-swap',
-  newSwapApproval = 'transaction-new-swap-approval',
-  rejected = 'transaction-rejected',
-  submitted = 'transaction-submitted',
-  postTransactionBalanceUpdated = 'post-transaction-balance-updated',
-}

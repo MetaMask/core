@@ -51,7 +51,7 @@ import type {
   SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
-import { TransactionEvent, TransactionType, TransactionStatus } from './types';
+import { TransactionType, TransactionStatus } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
@@ -166,30 +166,28 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
 >;
 
 type Events = {
-  [TransactionEvent.approved]: [
+  ['transaction-approved']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
-  [TransactionEvent.confirmed]: [{ transactionMeta: TransactionMeta }];
+  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
 
-  [TransactionEvent.dropped]: [{ transactionMeta: TransactionMeta }];
-  [TransactionEvent.failed]: [
+  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-failed']: [
     {
       actionId?: string;
       error: string;
       transactionMeta: TransactionMeta;
     },
   ];
-  [TransactionEvent.newSwap]: [transactionMeta: TransactionMeta];
-  [TransactionEvent.newSwapApproval]: [transactionMeta: TransactionMeta];
-  [TransactionEvent.rejected]: [
+  ['transaction-new-swap']: [transactionMeta: TransactionMeta];
+  ['transaction-new-swap-approval']: [transactionMeta: TransactionMeta];
+  ['transaction-rejected']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
-  [TransactionEvent.submitted]: [
+  ['transaction-submitted']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
-  [TransactionEvent.postTransactionBalanceUpdated]: [
-    transactionMeta: TransactionMeta,
-  ];
+  ['transaction-post-balance-updated']: [transactionMeta: TransactionMeta];
   [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
   [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
   [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
@@ -259,7 +257,7 @@ export class TransactionController extends BaseController<
       error,
       status: TransactionStatus.failed,
     };
-    this.hub.emit(TransactionEvent.failed, {
+    this.hub.emit('transaction-failed', {
       actionId,
       error: error.message,
       transactionMeta: newTransactionMeta,
@@ -450,7 +448,7 @@ export class TransactionController extends BaseController<
     this.pendingTransactionTracker.hub.on(
       'transaction-confirmed',
       (transactionMeta: TransactionMeta) => {
-        this.hub.emit(TransactionEvent.confirmed, { transactionMeta });
+        this.hub.emit('transaction-confirmed', { transactionMeta });
         this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
       },
     );
@@ -762,8 +760,8 @@ export class TransactionController extends BaseController<
     transactionMeta.status = TransactionStatus.cancelled;
 
     // stopTransaction has no approval request, so we assume the user has already approved the transaction
-    this.hub.emit(TransactionEvent.approved, { transactionMeta, actionId });
-    this.hub.emit(TransactionEvent.submitted, { transactionMeta, actionId });
+    this.hub.emit('transaction-approved', { transactionMeta, actionId });
+    this.hub.emit('transaction-submitted', { transactionMeta, actionId });
 
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
@@ -906,11 +904,11 @@ export class TransactionController extends BaseController<
     this.update({ transactions: this.trimTransactionsForState(transactions) });
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
-    this.hub.emit(TransactionEvent.approved, {
+    this.hub.emit('transaction-approved', {
       transactionMeta: newTransactionMeta,
       actionId,
     });
-    this.hub.emit(TransactionEvent.submitted, {
+    this.hub.emit('transaction-submitted', {
       transactionMeta: newTransactionMeta,
       actionId,
     });
@@ -1028,7 +1026,7 @@ export class TransactionController extends BaseController<
         'TransactionController:confirmExternalTransaction - Add external transaction',
       );
 
-      this.hub.emit(TransactionEvent.confirmed, {
+      this.hub.emit('transaction-confirmed', {
         transactionMeta,
       });
     } catch (error) {
@@ -1224,7 +1222,7 @@ export class TransactionController extends BaseController<
           const updatedTransactionMeta = this.getTransaction(
             transactionId,
           ) as TransactionMeta;
-          this.hub.emit(TransactionEvent.approved, {
+          this.hub.emit('transaction-approved', {
             transactionMeta: updatedTransactionMeta,
             actionId,
           });
@@ -1363,7 +1361,7 @@ export class TransactionController extends BaseController<
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
-      this.hub.emit(TransactionEvent.submitted, {
+      this.hub.emit('transaction-submitted', {
         transactionMeta,
       });
       this.updateTransaction(
@@ -1398,7 +1396,7 @@ export class TransactionController extends BaseController<
     }
     transactionMeta.status = TransactionStatus.rejected;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
-    this.hub.emit(TransactionEvent.rejected, {
+    this.hub.emit('transaction-rejected', {
       transactionMeta,
       actionId,
     });
@@ -1741,7 +1739,7 @@ export class TransactionController extends BaseController<
    */
   private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
     transactionMeta.status = TransactionStatus.dropped;
-    this.hub.emit(TransactionEvent.dropped, {
+    this.hub.emit('transaction-dropped', {
       transactionMeta,
     });
     this.updateTransaction(

@@ -31,12 +31,7 @@ import type {
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
-import {
-  WalletDevice,
-  TransactionStatus,
-  TransactionType,
-  TransactionEvent,
-} from './types';
+import { WalletDevice, TransactionStatus, TransactionType } from './types';
 import { estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 
@@ -1150,7 +1145,7 @@ describe('TransactionController', () => {
       it('submits transaction', async () => {
         const controller = newController({ approve: true });
         const submittedEventListener = jest.fn();
-        controller.hub.on(TransactionEvent.submitted, submittedEventListener);
+        controller.hub.on('transaction-submitted', submittedEventListener);
 
         const { result } = await controller.addTransaction({
           from: ACCOUNT_MOCK,
@@ -1351,7 +1346,7 @@ describe('TransactionController', () => {
         const rejectedEventListener = jest.fn();
         const finishedEventListener = jest.fn();
 
-        controller.hub.on(TransactionEvent.rejected, rejectedEventListener);
+        controller.hub.on('transaction-rejected', rejectedEventListener);
 
         const mockActionId = 'mockActionId';
 
@@ -1656,8 +1651,8 @@ describe('TransactionController', () => {
 
       const mockActionId = 'mockActionId';
 
-      controller.hub.on(TransactionEvent.approved, approvedEventListener);
-      controller.hub.on(TransactionEvent.approved, submittedEventListener);
+      controller.hub.on('transaction-approved', approvedEventListener);
+      controller.hub.on('transaction-approved', submittedEventListener);
 
       const { result, transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1849,8 +1844,8 @@ describe('TransactionController', () => {
 
       const mockActionId = 'mockActionId';
 
-      controller.hub.on(TransactionEvent.approved, approvedEventListener);
-      controller.hub.on(TransactionEvent.approved, submittedEventListener);
+      controller.hub.on('transaction-approved', approvedEventListener);
+      controller.hub.on('transaction-approved', submittedEventListener);
 
       const { transactionMeta: firstTransactionMeta } =
         await controller.addTransaction({
@@ -2115,7 +2110,7 @@ describe('TransactionController', () => {
           disableHistory: true,
         },
       });
-      controller.hub.on(TransactionEvent.dropped, droppedEventListener);
+      controller.hub.on('transaction-dropped', droppedEventListener);
 
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
@@ -2232,7 +2227,7 @@ describe('TransactionController', () => {
 
       const confirmedEventListener = jest.fn();
 
-      controller.hub.on(TransactionEvent.confirmed, confirmedEventListener);
+      controller.hub.on('transaction-confirmed', confirmedEventListener);
 
       const externalTransactionToConfirm = {
         from: ACCOUNT_MOCK,
