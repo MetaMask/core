@@ -23,6 +23,10 @@ export class PendingTransactionTracker {
 
   #nonceTracker: NonceTracker;
 
+  #beforeCheckPendingTransaction: (transactionMeta: TransactionMeta) => boolean;
+
+  #beforePublish: (transactionMeta: TransactionMeta) => boolean;
+
   constructor({
     blockTracker,
     failTransaction,
@@ -30,6 +34,7 @@ export class PendingTransactionTracker {
     getEthQuery,
     getTransactions,
     nonceTracker,
+    hooks,
   }: {
     blockTracker: BlockTracker;
     failTransaction: (txMeta: TransactionMeta, error: Error) => void;
@@ -37,6 +42,12 @@ export class PendingTransactionTracker {
     getEthQuery: () => EthQuery;
     getTransactions: () => TransactionMeta[];
     nonceTracker: NonceTracker;
+    hooks?: {
+      beforeCheckPendingTransaction?: (
+        transactionMeta: TransactionMeta,
+      ) => boolean;
+      beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    };
   }) {
     this.hub = new EventEmitter();
 
@@ -46,6 +57,13 @@ export class PendingTransactionTracker {
     this.#getEthQuery = getEthQuery;
     this.#getTransactions = getTransactions;
     this.#nonceTracker = nonceTracker;
+
+    this.#beforePublish = hooks?.beforePublish
+      ? hooks.beforePublish
+      : () => true;
+    this.#beforeCheckPendingTransaction = hooks?.beforeCheckPendingTransaction
+      ? hooks.beforeCheckPendingTransaction
+      : () => true;
   }
 
   start() {

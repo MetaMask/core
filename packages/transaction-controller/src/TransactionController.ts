@@ -217,6 +217,10 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ) => boolean;
 
+  private readonly beforeCheckPendingTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
+
   private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
   private readonly getAdditionalSignArguments: (
@@ -286,6 +290,7 @@ export class TransactionController extends BaseController<
    * @param options.hooks - The controller hooks.
    * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
    * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
+   * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
    * @param config - Initial options used to configure this controller.
@@ -329,10 +334,18 @@ export class TransactionController extends BaseController<
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
       hooks: {
-        afterSign?: () => boolean;
-        beforeApproveOnInit?: () => boolean;
-        beforePublish?: () => boolean;
-        getAdditionalSignArguments?: () => (TransactionMeta | undefined)[];
+        afterSign?: (
+          transactionMeta: TransactionMeta,
+          signedTx: TypedTransaction,
+        ) => boolean;
+        beforeApproveOnInit?: (transactionMeta: TransactionMeta) => boolean;
+        beforeCheckPendingTransaction?: (
+          transactionMeta: TransactionMeta,
+        ) => boolean;
+        beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+        getAdditionalSignArguments?: (
+          transactionMeta: TransactionMeta,
+        ) => (TransactionMeta | undefined)[];
       };
     },
     config?: Partial<TransactionConfig>,
@@ -373,6 +386,10 @@ export class TransactionController extends BaseController<
     this.afterSign = hooks?.afterSign ? hooks.afterSign : () => true;
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit
       ? hooks.beforeApproveOnInit
+      : /* istanbul ignore next */
+        () => true;
+    this.beforeCheckPendingTransaction = hooks?.beforeCheckPendingTransaction
+      ? hooks.beforeCheckPendingTransaction
       : /* istanbul ignore next */
         () => true;
     this.beforePublish = hooks?.beforePublish
@@ -430,6 +447,11 @@ export class TransactionController extends BaseController<
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
       nonceTracker: this.nonceTracker,
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.beforeCheckPendingTransaction.bind(this),
+        beforePublish: this.beforePublish.bind(this),
+      },
     });
 
     this.pendingTransactionTracker.hub.on(
