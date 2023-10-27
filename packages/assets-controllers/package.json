@@ -36,7 +36,7 @@
     "@metamask/abi-utils": "^2.0.2",
     "@metamask/approval-controller": "^4.1.0",
     "@metamask/base-controller": "^3.2.3",
-    "@metamask/contract-metadata": "^2.3.1",
+    "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "3.0.0",
