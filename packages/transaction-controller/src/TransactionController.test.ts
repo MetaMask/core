@@ -23,7 +23,8 @@ import NonceTracker from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
-import { CHAIN_IDS, DEFAULT_TOKEN_ADDRESS } from './constants';
+import { CHAIN_IDS } from './constants';
+import { DEFAULT_TOKEN_ADDRESS } from './utils/swaps';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type {

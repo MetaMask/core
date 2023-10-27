@@ -59,8 +59,10 @@ import {
   updateTransactionHistory,
 } from './utils/history';
 import {
+  isSwapsDefaultTokenAddress,
   updateSwapApprovalTransaction,
   updateSwapTransaction,
+  SWAP_TRANSACTION_TYPES,
 } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
@@ -70,7 +72,6 @@ import {
   isEIP1559Transaction,
   isFeeMarketEIP1559Values,
   isGasPriceValue,
-  isSwapsDefaultTokenAddress,
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
@@ -1784,9 +1785,7 @@ export class TransactionController extends BaseController<
   ) {
     if (
       this.isSwapsDisabled ||
-      ![TransactionType.swap, TransactionType.swapApproval].includes(
-        transactionType,
-      )
+      !SWAP_TRANSACTION_TYPES.includes(transactionType)
     ) {
       return;
     }
