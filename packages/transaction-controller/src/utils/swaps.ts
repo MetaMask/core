@@ -334,6 +334,7 @@ function isSwapsDefaultTokenAddress(address: string, chainId: string) {
  * Sleeps for the provided number of milliseconds
  *
  * @param ms - Number of milliseconds to sleep
+ * @returns Promise that resolves after the provided number of milliseconds
  */
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
