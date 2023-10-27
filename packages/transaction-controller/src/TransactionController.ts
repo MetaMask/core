@@ -615,7 +615,7 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to cancel.
    * @param gasValues - The gas values to use for the cancellation transaction.
    * @param options - The options for the cancellation transaction.
-   * @param options.actionId - The actionId passed from UI
+   * @param options.actionId - Unique ID to prevent duplicate requests.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async stopTransaction(
@@ -840,7 +840,7 @@ export class TransactionController extends BaseController<
       originalGasEstimate: transactionMeta.txParams.gas,
       type: TransactionType.retry,
     };
-    const updatedTransactionMeta =
+    const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             ...baseTransactionMeta,
@@ -857,20 +857,20 @@ export class TransactionController extends BaseController<
               gasPrice: newGasPrice,
             },
           };
-    transactions.push(updatedTransactionMeta);
+    transactions.push(newTransactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
     this.hub.emit(TransactionEvent.approved, {
-      transactionMeta: updatedTransactionMeta,
+      transactionMeta: newTransactionMeta,
       actionId,
     });
     this.hub.emit(TransactionEvent.submitted, {
-      transactionMeta: updatedTransactionMeta,
+      transactionMeta: newTransactionMeta,
       actionId,
     });
 
-    this.hub.emit(`${transactionMeta.id}:speedup`, updatedTransactionMeta);
+    this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
   /**
