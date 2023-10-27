@@ -1739,12 +1739,13 @@ describe('TransactionController', () => {
   });
 
   describe('initApprovals', () => {
-    const txMeta = {
-      from: ACCOUNT_MOCK,
+    const txMeta: TransactionMeta = {
       hash: '1337',
       id: 'mocked',
       chainId: toHex(5),
       status: TransactionStatus.unapproved,
+      txParams: { data: '0x', from: ACCOUNT_MOCK },
+      time: 0,
     };
     it('creates approvals for all unapproved transaction', async () => {
       const controller = newController();
@@ -1753,7 +1754,7 @@ describe('TransactionController', () => {
         ...txMeta,
         id: 'mocked1',
         hash: '1338',
-      } as any);
+      });
 
       controller.initApprovals();
 
@@ -1804,10 +1805,7 @@ describe('TransactionController', () => {
         },
       });
 
-      controller.state.transactions.push({
-        ...txMeta,
-        txParams: { data: '0x', from: ACCOUNT_MOCK },
-      } as any);
+      controller.state.transactions.push(txMeta);
 
       controller.initApprovals();
       await wait(0);
@@ -1830,7 +1828,7 @@ describe('TransactionController', () => {
       });
 
       const controller = newController();
-      controller.state.transactions.push(txMeta as any);
+      controller.state.transactions.push(txMeta);
 
       controller.initApprovals();
       await wait(0);
