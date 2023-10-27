@@ -27,9 +27,9 @@
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "publish-previews": "yarn workspaces foreach --parallel --verbose run publish:preview",
     "setup": "yarn install",
-    "test": "yarn workspaces foreach --parallel --verbose run test",
+    "test": "yarn test:verbose --collectCoverage=false --reporters=jest-silent-reporter",
     "test:clean": "yarn workspaces foreach --parallel --verbose run test:clean && yarn test",
-    "test:silent": "yarn test --collectCoverage=false --reporters jest-silent-reporter"
+    "test:verbose": "yarn workspaces foreach --parallel --verbose run test"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
