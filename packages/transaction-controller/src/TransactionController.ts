@@ -873,15 +873,13 @@ export class TransactionController extends BaseController<
    * @returns The gas and gas price.
    */
   async estimateGas(transaction: TransactionParams) {
-    const {
-      estimatedGas: gas,
-      estimateGasError,
-      simulationFails,
-    } = await estimateGas(transaction, this.ethQuery);
+    const { estimatedGas: gas, simulationFails } = await estimateGas(
+      transaction,
+      this.ethQuery,
+    );
 
     return {
       gas,
-      estimateGasError,
       simulationFails,
     };
   }

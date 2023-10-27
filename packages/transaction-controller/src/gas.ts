@@ -14,73 +14,29 @@ import { addHexPrefix } from 'ethereumjs-util';
 
 import { projectLogger } from './logger';
 import type { TransactionMeta, TransactionParams } from './types';
-import { ESTIMATE_GAS_ERROR } from './utils';
 
 export type UpdateGasRequest = {
   ethQuery: EthQuery;
-  txMeta: TransactionMeta;
   providerConfig: ProviderConfig;
-};
-
-type GetGasRequest = UpdateGasRequest & {
-  blockGasLimit: string;
-  estimatedGas: string;
+  txMeta: TransactionMeta;
 };
 
 export const log = createModuleLogger(projectLogger, 'gas');
 
-const FIXED_GAS = '0x5208';
+export const FIXED_GAS = '0x5208';
 
 export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
+  const initialParams = { ...txMeta.txParams };
 
-  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
-    txMeta.txParams,
-    request.ethQuery,
-  );
+  const [gas, simulationFails] = await getGas(request);
 
-  txMeta.txParams.gas = await getGas({
-    ...request,
-    blockGasLimit,
-    estimatedGas,
-  });
-
+  txMeta.txParams.gas = gas;
   txMeta.simulationFails = simulationFails;
-}
 
-async function getGas(request: GetGasRequest): Promise<string> {
-  const { blockGasLimit, estimatedGas, providerConfig, txMeta } = request;
-
-  if (txMeta.txParams.gas) {
-    log('Using value from request', txMeta.txParams.gas);
-    return txMeta.txParams.gas;
+  if (!initialParams.gas) {
+    txMeta.originalGasEstimate = txMeta.txParams.gas;
   }
-
-  if (await requiresFixedGas(request)) {
-    log('Using fixed value', FIXED_GAS);
-    return FIXED_GAS;
-  }
-
-  const estimatedGasBN = hexToBN(estimatedGas);
-  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
-  const paddedGasBN = estimatedGasBN.muln(1.5);
-  const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-
-  if (estimatedGasBN.gt(maxGasBN) || isCustomNetwork) {
-    const estimatedGasHex = addHexPrefix(estimatedGas);
-    log('Using estimated value', estimatedGasHex);
-    return estimatedGasHex;
-  }
-
-  if (paddedGasBN.lt(maxGasBN)) {
-    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
-    log('Using 150% of estimated value', paddedHex);
-    return paddedHex;
-  }
-
-  const maxHex = addHexPrefix(BNToHex(maxGasBN));
-  log('Using 90% of block gas limit', maxHex);
-  return maxHex;
 }
 
 export async function estimateGas(
@@ -96,21 +52,23 @@ export async function estimateGas(
 
   const gasLimitBN = hexToBN(gasLimitHex);
 
-  request.data = data ? addHexPrefix(data) : data;
   request.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
   request.value = value || '0x0';
 
+  if (data?.length) {
+    request.data = addHexPrefix(data);
+  } else {
+    delete request.data;
+  }
+
   let estimatedGas = request.gas;
-  let estimateGasError;
   let simulationFails;
 
   try {
     estimatedGas = await query(ethQuery, 'estimateGas', [request]);
   } catch (error: any) {
-    estimateGasError = ESTIMATE_GAS_ERROR;
-
     simulationFails = {
-      reason: error.message,
+      reason: error.data?.message || error.message,
       errorKey: error.errorKey,
       debug: {
         blockNumber,
@@ -118,15 +76,56 @@ export async function estimateGas(
       },
     };
 
-    log('Estimation failed', { ...simulationFails, fallback: estimateGas });
+    log('Estimation failed', { ...simulationFails, fallback: estimatedGas });
   }
 
   return {
     blockGasLimit: gasLimitHex,
     estimatedGas,
-    estimateGasError,
     simulationFails,
   };
+}
+
+async function getGas(
+  request: UpdateGasRequest,
+): Promise<[string, TransactionMeta['simulationFails']?]> {
+  const { providerConfig, txMeta } = request;
+
+  if (txMeta.txParams.gas) {
+    log('Using value from request', txMeta.txParams.gas);
+    return [txMeta.txParams.gas];
+  }
+
+  if (await requiresFixedGas(request)) {
+    log('Using fixed value', FIXED_GAS);
+    return [FIXED_GAS];
+  }
+
+  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
+    txMeta.txParams,
+    request.ethQuery,
+  );
+
+  const estimatedGasBN = hexToBN(estimatedGas);
+  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
+  const paddedGasBN = estimatedGasBN.muln(1.5);
+  const isCustomNetwork = providerConfig.type === NetworkType.rpc;
+
+  if (estimatedGasBN.gt(maxGasBN) || isCustomNetwork) {
+    const estimatedGasHex = addHexPrefix(estimatedGas);
+    log('Using estimated value', estimatedGasHex);
+    return [estimatedGasHex, simulationFails];
+  }
+
+  if (paddedGasBN.lt(maxGasBN)) {
+    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
+    log('Using 150% of estimated value', paddedHex);
+    return [paddedHex, simulationFails];
+  }
+
+  const maxHex = addHexPrefix(BNToHex(maxGasBN));
+  log('Using 90% of block gas limit', maxHex);
+  return [maxHex, simulationFails];
 }
 
 async function requiresFixedGas({
