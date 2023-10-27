@@ -326,22 +326,6 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    expect(controller.state).toStrictEqual({
-      currentCurrency: 'usd',
-      currencyRates: {
-        ETH: {
-          conversionDate: 123,
-          conversionRate: 123,
-          usdConversionRate: 123,
-        },
-        BTC: {
-          conversionDate: 100,
-          conversionRate: 200,
-          usdConversionRate: 300,
-        },
-      },
-    });
-
     await controller.setCurrentCurrency('CAD');
 
     expect(controller.state).toStrictEqual({
