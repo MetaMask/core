@@ -58,6 +58,10 @@ import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
 } from './utils/history';
+import {
+  updateSwapApprovalTransaction,
+  updateSwapTransaction,
+} from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -462,8 +466,8 @@ export class TransactionController extends BaseController<
    * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
    * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
    * @param opts.swaps - Options for swaps transactions.
-   * @param opts.swaps.hasApproveTx
-   * @param opts.swaps.meta
+   * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
+   * @param opts.swaps.meta - Metadata for swap transaction.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -517,7 +521,7 @@ export class TransactionController extends BaseController<
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
-    let transactionMeta: TransactionMeta = existingTransactionMeta || {
+    const transactionMeta: TransactionMeta = existingTransactionMeta || {
       // Add actionId to txMeta to check if same actionId is seen again
       actionId,
       chainId,
@@ -573,11 +577,11 @@ export class TransactionController extends BaseController<
         ) &&
         !this.isSwapsDisabled
       ) {
-        transactionMeta = (await this.updateSwapsTransaction(
+        await this.updateSwapsTransaction(
           transactionMeta,
           transactionType,
           swaps,
-        )) as TransactionMeta;
+        );
       }
 
       transactions.push(transactionMeta);
@@ -1806,94 +1810,22 @@ export class TransactionController extends BaseController<
     const swapsMeta = swaps?.meta as Partial<TransactionMeta>;
 
     if (!swapsMeta) {
-      return transactionMeta;
+      return;
     }
 
     if (transactionType === TransactionType.swapApproval) {
-      const updatedMeta = this.updateSwapApprovalTransaction(
-        transactionMeta,
-        swapsMeta,
-      );
+      updateSwapApprovalTransaction(transactionMeta, swapsMeta);
       this.hub.emit(TransactionEvent.newSwapApproval, {
-        transactionMeta: updatedMeta,
+        transactionMeta,
       });
-      return updatedMeta;
     }
 
     if (transactionType === TransactionType.swap) {
-      const updatedMeta = this.updateSwapTransaction(
-        transactionMeta,
-        swapsMeta,
-      );
+      updateSwapTransaction(transactionMeta, swapsMeta);
       this.hub.emit(TransactionEvent.newSwap, {
-        transactionMeta: updatedMeta,
+        transactionMeta,
       });
-      return updatedMeta;
     }
-
-    return transactionMeta;
-  }
-
-  /**
-   * Updates a swap approval transaction with provided metadata and source token symbol
-   * if the transaction state is unapproved.
-   *
-   * @param transactionMeta - The transaction metadata to update
-   * @param swapApprovalTransaction - Holds the metadata and token symbol
-   * @param swapApprovalTransaction.type - The type of the swap approval transaction
-   * @param swapApprovalTransaction.sourceTokenSymbol - The symbol of the source token
-   * @returns The transaction metadata of the updated transaction
-   */
-  private updateSwapApprovalTransaction(
-    transactionMeta: TransactionMeta,
-    { type, sourceTokenSymbol }: Partial<TransactionMeta>,
-  ) {
-    validateIfTransactionUnapproved(
-      transactionMeta,
-      'updateSwapApprovalTransaction',
-    );
-
-    let swapApprovalTransaction = { type, sourceTokenSymbol } as any;
-    swapApprovalTransaction = pickBy({
-      type,
-      sourceTokenSymbol,
-    }) as Partial<TransactionMeta>;
-    const updatedMeta = merge(transactionMeta, swapApprovalTransaction);
-
-    return updatedMeta;
-  }
-
-  private updateSwapTransaction(
-    transactionMeta: TransactionMeta,
-    {
-      sourceTokenSymbol,
-      destinationTokenSymbol,
-      type,
-      destinationTokenDecimals,
-      destinationTokenAddress,
-      swapMetaData,
-      swapTokenValue,
-      estimatedBaseFee,
-      approvalTxId,
-    }: Partial<TransactionMeta>,
-  ) {
-    validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
-
-    let swapTransaction = {
-      sourceTokenSymbol,
-      destinationTokenSymbol,
-      type,
-      destinationTokenDecimals,
-      destinationTokenAddress,
-      swapMetaData,
-      swapTokenValue,
-      estimatedBaseFee,
-      approvalTxId,
-    };
-    swapTransaction = pickBy(swapTransaction) as any;
-    const updatedMeta = merge(transactionMeta, pickBy(swapTransaction));
-
-    return updatedMeta;
   }
 }
 
