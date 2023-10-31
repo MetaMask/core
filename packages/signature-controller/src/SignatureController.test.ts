@@ -158,15 +158,17 @@ describe('SignatureController', () => {
     action: string,
     callback: (actionName: string, ...args: any[]) => any,
   ) => {
-    messengerMock.call.mockImplementation((actionName, ...rest) => {
-      if (actionName === action) {
-        return callback(actionName, ...rest);
-      }
+    (messengerMock.call as jest.Mock).mockImplementation(
+      (actionName, ...rest) => {
+        if (actionName === action) {
+          return callback(actionName, ...rest);
+        }
 
-      return Promise.resolve({
-        resultCallbacks: resultCallbacksMock,
-      });
-    });
+        return Promise.resolve({
+          resultCallbacks: resultCallbacksMock,
+        });
+      },
+    );
   };
 
   beforeEach(() => {
@@ -179,7 +181,7 @@ describe('SignatureController', () => {
     personalMessageManagerConstructorMock.mockReturnValue(
       personalMessageManagerMock,
     );
-    messengerMock.call.mockResolvedValue({
+    (messengerMock.call as jest.Mock).mockResolvedValue({
       resultCallbacks: resultCallbacksMock,
     });
 
@@ -477,7 +479,7 @@ describe('SignatureController', () => {
     });
 
     it('throws if approval rejected', async () => {
-      messengerMock.call
+      (messengerMock.call as jest.Mock)
         .mockResolvedValueOnce({}) // LoggerController:add
         .mockRejectedValueOnce({}); // ApprovalController:addRequest
       const error: any = await getError(
@@ -620,7 +622,7 @@ describe('SignatureController', () => {
     });
 
     it('throws if approval rejected', async () => {
-      messengerMock.call
+      (messengerMock.call as jest.Mock)
         .mockResolvedValueOnce({}) // LoggerController:add
         .mockRejectedValueOnce({}); // ApprovalController:addRequest
       const error: any = await getError(
@@ -884,7 +886,7 @@ describe('SignatureController', () => {
     it('does not throw if approval request promise throws', async () => {
       const mockHub = messageManagerMock.hub.on as jest.Mock;
 
-      messengerMock.call.mockRejectedValueOnce('Test Error');
+      (messengerMock.call as jest.Mock).mockRejectedValueOnce('Test Error');
 
       mockHub.mock.calls[1][1](messageParamsMock);
     });
@@ -969,7 +971,7 @@ describe('SignatureController', () => {
 
     it('sends rejected sign log event if approval is rejected', async () => {
       const testVersion = 'V3';
-      messengerMock.call
+      (messengerMock.call as jest.Mock)
         .mockResolvedValueOnce({}) // LoggerController:add
         .mockRejectedValueOnce({}); // ApprovalController:addRequest
       await getError(
