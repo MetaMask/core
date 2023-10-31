@@ -15,8 +15,6 @@ module.exports = {
       files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
       extends: ['@metamask/eslint-config-jest'],
       rules: {
-        // TODO: Re-enable
-        'import/no-named-as-default-member': 'off',
         'jest/no-conditional-expect': 'off',
       },
     },
