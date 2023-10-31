@@ -1090,6 +1090,15 @@ export class TransactionController extends BaseController<
     return this.nonceTracker.getNonceLock(address);
   }
 
+  private getCurrentChainUnapprovedTransactions() {
+    const chainId = this.getChainId();
+    return this.state.transactions.filter(
+      (transaction) =>
+        transaction.status === TransactionStatus.unapproved &&
+        transaction.chainId === chainId,
+    );
+  }
+
   private onBootCleanup() {
     this.createApprovalsForUnapprovedTransactions();
     this.loadGasValuesForUnapprovedTransactions();
@@ -1100,12 +1109,7 @@ export class TransactionController extends BaseController<
    * Create approvals for all unapproved transactions on current chain.
    */
   private createApprovalsForUnapprovedTransactions() {
-    const chainId = this.getChainId();
-    const unapprovedTransactions = this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
-    );
+    const unapprovedTransactions = this.getCurrentChainUnapprovedTransactions();
 
     for (const transactionMeta of unapprovedTransactions) {
       this.processApproval(transactionMeta, {
@@ -1121,13 +1125,8 @@ export class TransactionController extends BaseController<
    * Update the gas values of all unapproved transactions on current chain.
    */
   private async loadGasValuesForUnapprovedTransactions() {
-    const chainId = this.getChainId();
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
-    const unapprovedTransactions = this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
-    );
+    const unapprovedTransactions = this.getCurrentChainUnapprovedTransactions();
 
     for (const transactionMeta of unapprovedTransactions) {
       try {
