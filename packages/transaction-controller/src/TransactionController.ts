@@ -41,7 +41,7 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { pendingTransactionsLogger } from './logger';
+import { pendingTransactionsLogger, projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -1288,6 +1288,10 @@ export class TransactionController extends BaseController<
       }
 
       if (this.inProcessOfSigning.has(transactionId)) {
+        log(
+          'TransactionController#approveTransaction: Already signing transaction with id:',
+          transactionId,
+        );
         return;
       }
 
