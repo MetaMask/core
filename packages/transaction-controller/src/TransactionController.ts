@@ -1146,8 +1146,6 @@ export class TransactionController extends BaseController<
       }),
     );
 
-    console.log({results})
-
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
         this.failTransaction(unapprovedTransactions[index], result.reason);
