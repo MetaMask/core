@@ -385,7 +385,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
-const NONCE_MOCK = 12;
+const NONCE_MOCK = 0;
 const ACTION_ID_MOCK = '123456';
 
 const TRANSACTION_META_MOCK = {
@@ -1128,7 +1128,7 @@ describe('TransactionController', () => {
       );
 
       expect(secondTransaction.txParams.nonce).toBe(
-        `0x${(NONCE_MOCK + 1).toString(16)}`,
+        `0x${NONCE_MOCK.toString(16)}`,
       );
     });
 
@@ -1761,7 +1761,6 @@ describe('TransactionController', () => {
       });
 
       const { transactions } = controller.state;
-      expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
       expect(transactions).toHaveLength(2);
       expect(transactions[0].txParams.nonce).toBeDefined();
       expect(transactions[0].txParams.nonce).toStrictEqual(

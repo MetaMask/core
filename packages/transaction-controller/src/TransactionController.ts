@@ -37,7 +37,6 @@ import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
-import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
@@ -55,7 +54,6 @@ import type {
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
 import {
-  getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
   normalizeTxParams,
   isEIP1559Transaction,
@@ -171,8 +169,6 @@ export class TransactionController extends BaseController<
   private readonly isHistoryDisabled: boolean;
 
   private readonly isSendFlowHistoryDisabled: boolean;
-
-  private readonly nonceTracker: NonceTracker;
 
   private registry: any;
 
@@ -311,19 +307,6 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
-
-    this.nonceTracker = new NonceTracker({
-      provider,
-      blockTracker,
-      getPendingTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.submitted,
-      ),
-      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.confirmed,
-      ),
-    });
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
@@ -1231,7 +1214,6 @@ export class TransactionController extends BaseController<
     const {
       txParams: { nonce, from },
     } = transactionMeta;
-    let nonceLock;
     try {
       if (!this.sign) {
         releaseLock();
@@ -1247,16 +1229,13 @@ export class TransactionController extends BaseController<
       }
 
       const { approved: status } = TransactionStatus;
-      let nonceToUse = nonce;
-      // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
-      // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
-      if (!nonceToUse) {
-        nonceLock = await this.nonceTracker.getNonceLock(from);
-        nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
-      }
+
+      const txNonce =
+        nonce ||
+        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
 
       transactionMeta.status = status;
-      transactionMeta.txParams.nonce = nonceToUse;
+      transactionMeta.txParams.nonce = txNonce;
       transactionMeta.txParams.chainId = chainId;
 
       const baseTxParams = {
@@ -1309,10 +1288,6 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
-      // must set transaction to submitted/failed before releasing lock
-      if (nonceLock) {
-        nonceLock.releaseLock();
-      }
       releaseLock();
     }
   }
@@ -1830,20 +1805,6 @@ export class TransactionController extends BaseController<
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
-    );
-  }
-
-  private getNonceTrackerTransactions(
-    status: TransactionStatus,
-    address: string,
-  ) {
-    const { chainId: currentChainId } = this.getNetworkState().providerConfig;
-
-    return getAndFormatTransactionsForNonceTracker(
-      currentChainId,
-      address,
-      status,
-      this.state.transactions,
     );
   }
 }
