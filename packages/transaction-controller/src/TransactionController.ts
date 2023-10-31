@@ -1137,14 +1137,14 @@ export class TransactionController extends BaseController<
 
     this.inProcessOfSigning.add(initialTxAsSerializedHex);
 
-    let rawTxes, nonceLock;
+    let rawTransactions, nonceLock;
     try {
       // TODO: we should add a check to verify that all transactions have the same from address
       const fromAddress = initialTx.from;
       nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
       const nonce = nonceLock.nextNonce;
 
-      rawTxes = await Promise.all(
+      rawTransactions = await Promise.all(
         listOfTxParams.map((txParams) => {
           txParams.nonce = addHexPrefix(nonce.toString(16));
           return this.signExternalTransaction(txParams);
@@ -1160,7 +1160,7 @@ export class TransactionController extends BaseController<
       }
       this.inProcessOfSigning.delete(initialTxAsSerializedHex);
     }
-    return rawTxes;
+    return rawTransactions;
   }
 
   private async signExternalTransaction(transactionParams: TransactionParams) {
