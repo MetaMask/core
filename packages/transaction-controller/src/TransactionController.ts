@@ -1091,15 +1091,15 @@ export class TransactionController extends BaseController<
   }
 
   private onBootCleanup() {
-    this.initApprovalsOfUnapprovedTransactions();
-    this.loadGasValuesOfUnapprovedTransactions();
+    this.createApprovalsForUnapprovedTransactions();
+    this.loadGasValuesForUnapprovedTransactions();
     this.submitApprovedTransactions();
   }
 
   /**
    * Create approvals for all unapproved transactions on current chain.
    */
-  private initApprovalsOfUnapprovedTransactions() {
+  private createApprovalsForUnapprovedTransactions() {
     const chainId = this.getChainId();
     const unapprovedTransactions = this.state.transactions.filter(
       (transaction) =>
@@ -1120,7 +1120,7 @@ export class TransactionController extends BaseController<
   /**
    * Update the gas values of all unapproved transactions on current chain.
    */
-  private async loadGasValuesOfUnapprovedTransactions() {
+  private async loadGasValuesForUnapprovedTransactions() {
     const chainId = this.getChainId();
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     const unapprovedTransactions = this.state.transactions.filter(
@@ -1139,13 +1139,13 @@ export class TransactionController extends BaseController<
         });
         this.updateTransaction(
           transactionMeta,
-          'TransactionController:loadGasValuesOfUnapprovedTransactions - gas values updated',
+          'TransactionController:loadGasValuesForUnapprovedTransactions - Gas values updated',
         );
       } catch (error) {
         this.failTransaction(transactionMeta, error as Error);
         /* istanbul ignore next */
         console.error(
-          'Error during loading gas values for unapproved transactions',
+          'Error while loading gas values for persisted transaction',
           error,
         );
       }
@@ -1165,7 +1165,7 @@ export class TransactionController extends BaseController<
     for (const transactionMeta of approvedTransactions) {
       this.approveTransaction(transactionMeta.id).catch((error) => {
         /* istanbul ignore next */
-        console.error('Error during submitting approved transactions', error);
+        console.error('Error while submitting persisted transaction', error);
       });
     }
   }
