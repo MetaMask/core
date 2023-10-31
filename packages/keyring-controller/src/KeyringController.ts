@@ -120,6 +120,11 @@ export type KeyringControllerAccountRemovedEvent = {
   payload: [string];
 };
 
+export type KeyringControllerAccountAddedEvent = {
+  type: `${typeof name}:accountAdded`;
+  payload: [string];
+};
+
 export type KeyringControllerLockEvent = {
   type: `${typeof name}:lock`;
   payload: [];
@@ -151,6 +156,7 @@ export type KeyringControllerEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | KeyringControllerAccountRemovedEvent
+  | KeyringControllerAccountAddedEvent
   | KeyringControllerQRKeyringStateChangeEvent;
 
 export type KeyringControllerMessenger = RestrictedControllerMessenger<
@@ -360,6 +366,9 @@ export class KeyringController extends BaseControllerV2<
     );
 
     assertIsStrictHexString(addedAccountAddress);
+
+    this.messagingSystem.publish(`${name}:accountAdded`, addedAccountAddress);
+
     return {
       keyringState: this.#getMemState(),
       addedAccountAddress,
@@ -398,6 +407,8 @@ export class KeyringController extends BaseControllerV2<
 
     this.updateIdentities(await this.#keyring.getAccounts());
 
+    this.messagingSystem.publish(`${name}:accountAdded`, addedAccountAddress);
+
     return addedAccountAddress;
   }
 
@@ -407,13 +418,23 @@ export class KeyringController extends BaseControllerV2<
    * @returns Promise resolving to current state when the account is added.
    */
   async addNewAccountWithoutUpdate(): Promise<KeyringControllerMemState> {
+    const oldAccounts = await this.getAccounts();
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found');
     }
     await this.#keyring.addNewAccount(primaryKeyring);
+    const newAccounts = await this.#keyring.getAccounts();
     await this.verifySeedPhrase();
+
+    const addedAccountAddress = newAccounts.find(
+      (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
+    );
+    assertIsStrictHexString(addedAccountAddress);
+
+    this.messagingSystem.publish(`${name}:accountAdded`, addedAccountAddress);
+
     return this.#getMemState();
   }
 
