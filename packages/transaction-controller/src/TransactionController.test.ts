@@ -248,6 +248,15 @@ function waitForTransactionFinished(
   });
 }
 
+/**
+ * Resolve all pending promises.
+ * This method is used for async tests that use fake timers.
+ * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ */
+function flushPromises(): Promise<unknown> {
+  return new Promise(jest.requireActual('timers').setImmediate);
+}
+
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const GOERLI_PROVIDER = new HttpProvider(
@@ -1848,7 +1857,7 @@ describe('TransactionController', () => {
         state: mockedControllerState as any,
       });
 
-      await new Promise((r) => setTimeout(r, 0));
+      await flushPromises();
 
       expect(updateGasFeesMock).toHaveBeenCalledTimes(2);
       expect(updateGasFeesMock.mock.calls[0][0]).toStrictEqual(
@@ -1904,7 +1913,7 @@ describe('TransactionController', () => {
         state: mockedControllerState as any,
       });
 
-      await new Promise((r) => setTimeout(r, 0));
+      await flushPromises();
 
       expect(updateGasFeesMock).toHaveBeenCalledTimes(1);
 
@@ -1941,7 +1950,7 @@ describe('TransactionController', () => {
         state: mockedControllerState as any,
       });
 
-      await new Promise((r) => setTimeout(r, 0));
+      await flushPromises();
 
       const { transactions } = controller.state;
 
