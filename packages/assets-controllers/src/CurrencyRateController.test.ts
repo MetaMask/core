@@ -67,6 +67,7 @@ const getStubbedDate = () => {
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {
+    // jest.useFakeTimers({advanceTimers: true});
     jest.useFakeTimers({doNotFake: ['nextTick', 'setImmediate']});
   });
 
