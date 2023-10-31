@@ -14,9 +14,6 @@ module.exports = {
     {
       files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
       extends: ['@metamask/eslint-config-jest'],
-      rules: {
-        'jest/no-conditional-expect': 'off',
-      },
     },
     {
       // These files are test helpers, not tests. We still use the Jest ESLint
