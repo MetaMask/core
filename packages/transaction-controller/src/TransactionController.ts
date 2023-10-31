@@ -1097,7 +1097,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Update the gas values of a transaction.
+   * Update the previous gas values of a transaction.
    *
    * @param transactionId - The ID of the transaction to update.
    * @param previousGas - Previous gas values to update.
