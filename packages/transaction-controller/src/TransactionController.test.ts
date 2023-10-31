@@ -1828,6 +1828,7 @@ describe('TransactionController', () => {
         },
       };
       const mockGasPrice = '0x1';
+      const mockGas = '0x1';
       const mockedTransactions = [
         {
           id: '123',
@@ -1853,27 +1854,35 @@ describe('TransactionController', () => {
         return Promise.resolve();
       });
 
+      updateGasMock.mockImplementation(({ txMeta }) => {
+        // Assume this is a sample update
+        txMeta.txParams.gas = mockGas;
+        return Promise.resolve();
+      });
+
       const controller = newController({
         state: mockedControllerState as any,
       });
 
       await flushPromises();
 
-      expect(updateGasFeesMock).toHaveBeenCalledTimes(2);
-      expect(updateGasFeesMock.mock.calls[0][0]).toStrictEqual(
-        expect.objectContaining({
-          txMeta: expect.objectContaining({
-            id: '123',
+      [updateGasMock, updateGasFeesMock].forEach((mockedGasFn) => {
+        expect(mockedGasFn).toHaveBeenCalledTimes(2);
+        expect(mockedGasFn.mock.calls[0][0]).toStrictEqual(
+          expect.objectContaining({
+            txMeta: expect.objectContaining({
+              id: '123',
+            }),
           }),
-        }),
-      );
-      expect(updateGasFeesMock.mock.calls[1][0]).toStrictEqual(
-        expect.objectContaining({
-          txMeta: expect.objectContaining({
-            id: '1234',
+        );
+        expect(mockedGasFn.mock.calls[1][0]).toStrictEqual(
+          expect.objectContaining({
+            txMeta: expect.objectContaining({
+              id: '1234',
+            }),
           }),
-        }),
-      );
+        );
+      });
 
       const { transactions } = controller.state;
 
