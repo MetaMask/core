@@ -1090,12 +1090,11 @@ export class TransactionController extends BaseController<
     return this.nonceTracker.getNonceLock(address);
   }
 
-  private getCurrentChainUnapprovedTransactions() {
+  private getCurrentChainTransactionsByStatus(status: TransactionStatus) {
     const chainId = this.getChainId();
     return this.state.transactions.filter(
       (transaction) =>
-        transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
+        transaction.status === status && transaction.chainId === chainId,
     );
   }
 
@@ -1109,7 +1108,9 @@ export class TransactionController extends BaseController<
    * Create approvals for all unapproved transactions on current chain.
    */
   private createApprovalsForUnapprovedTransactions() {
-    const unapprovedTransactions = this.getCurrentChainUnapprovedTransactions();
+    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
+      TransactionStatus.unapproved,
+    );
 
     for (const transactionMeta of unapprovedTransactions) {
       this.processApproval(transactionMeta, {
@@ -1126,7 +1127,9 @@ export class TransactionController extends BaseController<
    */
   private async loadGasValuesForUnapprovedTransactions() {
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
-    const unapprovedTransactions = this.getCurrentChainUnapprovedTransactions();
+    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
+      TransactionStatus.unapproved,
+    );
 
     for (const transactionMeta of unapprovedTransactions) {
       try {
@@ -1155,11 +1158,8 @@ export class TransactionController extends BaseController<
    * Force to submit approved transactions on current chain.
    */
   private submitApprovedTransactions() {
-    const chainId = this.getChainId();
-    const approvedTransactions = this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === TransactionStatus.approved &&
-        transaction.chainId === chainId,
+    const approvedTransactions = this.getCurrentChainTransactionsByStatus(
+      TransactionStatus.approved,
     );
     for (const transactionMeta of approvedTransactions) {
       this.approveTransaction(transactionMeta.id).catch((error) => {
