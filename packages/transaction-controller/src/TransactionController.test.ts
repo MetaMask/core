@@ -593,6 +593,242 @@ describe('TransactionController', () => {
         sign: expect.any(Function),
       });
     });
+
+    describe('onBootCleanup', () => {
+      it('creates approvals for all unapproved transaction', async () => {
+        const mockTransactionMeta = {
+          from: ACCOUNT_MOCK,
+          chainId: toHex(5),
+          status: TransactionStatus.unapproved,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+
+        const mockedTransactions = [
+          {
+            id: '123',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '123' }],
+          },
+          {
+            id: '1234',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '1234' }],
+          },
+        ];
+
+        const mockedControllerState = {
+          transactions: mockedTransactions,
+          methodData: {},
+          lastFetchedBlockNumbers: {},
+        };
+
+        newController({
+          state: mockedControllerState as any,
+        });
+
+        expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
+        expect(delayMessengerMock.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            expectsResult: true,
+            id: '123',
+            origin: 'metamask',
+            requestData: { txId: '123' },
+            type: 'transaction',
+          },
+          false,
+        );
+        expect(delayMessengerMock.call).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            expectsResult: true,
+            id: '1234',
+            origin: 'metamask',
+            requestData: { txId: '1234' },
+            type: 'transaction',
+          },
+          false,
+        );
+      });
+
+      it('does not create any approval when there is no unapproved transaction', async () => {
+        newController();
+        expect(delayMessengerMock.call).not.toHaveBeenCalled();
+      });
+
+      it('updates gas values of unapproved transactions', async () => {
+        const mockTransactionMeta = {
+          from: ACCOUNT_MOCK,
+          chainId: toHex(5),
+          status: TransactionStatus.unapproved,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const mockGasPrice = '0x1';
+        const mockGas = '0x1';
+        const mockedTransactions = [
+          {
+            id: '123',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '123' }],
+          },
+          {
+            id: '1234',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '1234' }],
+          },
+        ];
+
+        const mockedControllerState = {
+          transactions: mockedTransactions,
+          methodData: {},
+          lastFetchedBlockNumbers: {},
+        };
+
+        updateGasFeesMock.mockImplementation(({ txMeta }) => {
+          // Assume this is a sample update
+          txMeta.txParams.gasPrice = mockGasPrice;
+          return Promise.resolve();
+        });
+
+        updateGasMock.mockImplementation(({ txMeta }) => {
+          // Assume this is a sample update
+          txMeta.txParams.gas = mockGas;
+          return Promise.resolve();
+        });
+
+        const controller = newController({
+          state: mockedControllerState as any,
+        });
+
+        await flushPromises();
+
+        [updateGasMock, updateGasFeesMock].forEach((mockedGasFn) => {
+          expect(mockedGasFn).toHaveBeenCalledTimes(2);
+          expect(mockedGasFn.mock.calls[0][0]).toStrictEqual(
+            expect.objectContaining({
+              txMeta: expect.objectContaining({
+                id: '123',
+              }),
+            }),
+          );
+          expect(mockedGasFn.mock.calls[1][0]).toStrictEqual(
+            expect.objectContaining({
+              txMeta: expect.objectContaining({
+                id: '1234',
+              }),
+            }),
+          );
+        });
+
+        const { transactions } = controller.state;
+
+        expect(transactions[0].txParams.gasPrice).toBe(mockGasPrice);
+        expect(transactions[1].txParams.gasPrice).toBe(mockGasPrice);
+      });
+
+      it.only('updates transaction as failed if failes to update gas fees', async () => {
+        const mockGasPrice = '0x1';
+        const mockGas = '0x1';
+
+        const mockTransactionMeta = {
+          from: ACCOUNT_MOCK,
+          chainId: toHex(5),
+          status: TransactionStatus.unapproved,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const mockedTransactions = [
+          {
+            id: '123',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '123' }],
+          },
+          {
+            id: '1234',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '1234' }],
+          },
+        ];
+
+        const mockedControllerState = {
+          transactions: mockedTransactions,
+          methodData: {},
+          lastFetchedBlockNumbers: {},
+        };
+
+        // Let the first update pass and fail the second one
+        // to test the failure case
+        updateGasFeesMock
+          .mockImplementationOnce(({ txMeta }) => {
+            // Assume this is a sample update
+            txMeta.txParams.gasPrice = mockGasPrice;
+            return Promise.resolve();
+          })
+          .mockImplementationOnce(() => {
+            return Promise.reject(new Error('unexpected failure'));
+          });
+
+        updateGasMock.mockImplementation(({ txMeta }) => {
+          // Assume this is a sample update
+          txMeta.txParams.gasPrice = mockGas;
+          return Promise.resolve();
+        });
+
+        const controller = newController({
+          state: mockedControllerState as any,
+        });
+
+        await flushPromises();
+
+        const { transactions } = controller.state;
+
+        expect(transactions[0].status).toBe(TransactionStatus.unapproved);
+        expect(transactions[1].status).toBe(TransactionStatus.failed);
+      });
+
+      it('submits an approved transaction', async () => {
+        const mockTransactionMeta = {
+          from: ACCOUNT_MOCK,
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const mockedTransactions = [
+          {
+            id: '123',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '123' }],
+          },
+        ];
+
+        const mockedControllerState = {
+          transactions: mockedTransactions,
+          methodData: {},
+          lastFetchedBlockNumbers: {},
+        };
+
+        const controller = newController({
+          state: mockedControllerState as any,
+        });
+
+        await flushPromises();
+
+        const { transactions } = controller.state;
+
+        expect(transactions[0].status).toBe(TransactionStatus.submitted);
+      });
+    });
   });
 
   describe('estimateGas', () => {
@@ -1749,242 +1985,6 @@ describe('TransactionController', () => {
       expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
       expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
       expect(nextNonce).toBe(NONCE_MOCK);
-    });
-  });
-
-  describe.only('onBootCleanup', () => {
-    it('creates approvals for all unapproved transaction', async () => {
-      const mockTransactionMeta = {
-        from: ACCOUNT_MOCK,
-        chainId: toHex(5),
-        status: TransactionStatus.unapproved,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      };
-
-      const mockedTransactions = [
-        {
-          id: '123',
-          ...mockTransactionMeta,
-          history: [{ ...mockTransactionMeta, id: '123' }],
-        },
-        {
-          id: '1234',
-          ...mockTransactionMeta,
-          history: [{ ...mockTransactionMeta, id: '1234' }],
-        },
-      ];
-
-      const mockedControllerState = {
-        transactions: mockedTransactions,
-        methodData: {},
-        lastFetchedBlockNumbers: {},
-      };
-
-      newController({
-        state: mockedControllerState as any,
-      });
-
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          expectsResult: true,
-          id: '123',
-          origin: 'metamask',
-          requestData: { txId: '123' },
-          type: 'transaction',
-        },
-        false,
-      );
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          expectsResult: true,
-          id: '1234',
-          origin: 'metamask',
-          requestData: { txId: '1234' },
-          type: 'transaction',
-        },
-        false,
-      );
-    });
-
-    it('does not create any approval when there is no unapproved transaction', async () => {
-      newController();
-      expect(delayMessengerMock.call).not.toHaveBeenCalled();
-    });
-
-    it('updates gas values of unapproved transactions', async () => {
-      const mockTransactionMeta = {
-        from: ACCOUNT_MOCK,
-        chainId: toHex(5),
-        status: TransactionStatus.unapproved,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      };
-      const mockGasPrice = '0x1';
-      const mockGas = '0x1';
-      const mockedTransactions = [
-        {
-          id: '123',
-          ...mockTransactionMeta,
-          history: [{ ...mockTransactionMeta, id: '123' }],
-        },
-        {
-          id: '1234',
-          ...mockTransactionMeta,
-          history: [{ ...mockTransactionMeta, id: '1234' }],
-        },
-      ];
-
-      const mockedControllerState = {
-        transactions: mockedTransactions,
-        methodData: {},
-        lastFetchedBlockNumbers: {},
-      };
-
-      updateGasFeesMock.mockImplementation(({ txMeta }) => {
-        // Assume this is a sample update
-        txMeta.txParams.gasPrice = mockGasPrice;
-        return Promise.resolve();
-      });
-
-      updateGasMock.mockImplementation(({ txMeta }) => {
-        // Assume this is a sample update
-        txMeta.txParams.gas = mockGas;
-        return Promise.resolve();
-      });
-
-      const controller = newController({
-        state: mockedControllerState as any,
-      });
-
-      await flushPromises();
-
-      [updateGasMock, updateGasFeesMock].forEach((mockedGasFn) => {
-        expect(mockedGasFn).toHaveBeenCalledTimes(2);
-        expect(mockedGasFn.mock.calls[0][0]).toStrictEqual(
-          expect.objectContaining({
-            txMeta: expect.objectContaining({
-              id: '123',
-            }),
-          }),
-        );
-        expect(mockedGasFn.mock.calls[1][0]).toStrictEqual(
-          expect.objectContaining({
-            txMeta: expect.objectContaining({
-              id: '1234',
-            }),
-          }),
-        );
-      });
-
-      const { transactions } = controller.state;
-
-      expect(transactions[0].txParams.gasPrice).toBe(mockGasPrice);
-      expect(transactions[1].txParams.gasPrice).toBe(mockGasPrice);
-    });
-
-    it.only('updates transaction as failed if failes to update gas fees', async () => {
-      const mockGasPrice = '0x1';
-      const mockGas = '0x1';
-
-      const mockTransactionMeta = {
-        from: ACCOUNT_MOCK,
-        chainId: toHex(5),
-        status: TransactionStatus.unapproved,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      };
-      const mockedTransactions = [
-        {
-          id: '123',
-          ...mockTransactionMeta,
-          history: [{ ...mockTransactionMeta, id: '123' }],
-        },
-        {
-          id: '1234',
-          ...mockTransactionMeta,
-          history: [{ ...mockTransactionMeta, id: '1234' }],
-        },
-      ];
-
-      const mockedControllerState = {
-        transactions: mockedTransactions,
-        methodData: {},
-        lastFetchedBlockNumbers: {},
-      };
-
-      // Let the first update pass and fail the second one
-      // to test the failure case
-      updateGasFeesMock
-        .mockImplementationOnce(({ txMeta }) => {
-          // Assume this is a sample update
-          txMeta.txParams.gasPrice = mockGasPrice;
-          return Promise.resolve();
-        })
-        .mockImplementationOnce(() => {
-          return Promise.reject(new Error('unexpected failure'));
-        });
-
-      updateGasMock.mockImplementation(({ txMeta }) => {
-        // Assume this is a sample update
-        txMeta.txParams.gasPrice = mockGas;
-        return Promise.resolve();
-      });
-
-      const controller = newController({
-        state: mockedControllerState as any,
-      });
-
-      await flushPromises();
-
-      const { transactions } = controller.state;
-
-      expect(transactions[0].status).toBe(TransactionStatus.unapproved);
-      expect(transactions[1].status).toBe(TransactionStatus.failed);
-    });
-
-    it('submits an approved transaction', async () => {
-      const mockTransactionMeta = {
-        from: ACCOUNT_MOCK,
-        chainId: toHex(5),
-        status: TransactionStatus.approved,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      };
-      const mockedTransactions = [
-        {
-          id: '123',
-          ...mockTransactionMeta,
-          history: [{ ...mockTransactionMeta, id: '123' }],
-        },
-      ];
-
-      const mockedControllerState = {
-        transactions: mockedTransactions,
-        methodData: {},
-        lastFetchedBlockNumbers: {},
-      };
-
-      const controller = newController({
-        state: mockedControllerState as any,
-      });
-
-      await flushPromises();
-
-      const { transactions } = controller.state;
-
-      expect(transactions[0].status).toBe(TransactionStatus.submitted);
     });
   });
 
