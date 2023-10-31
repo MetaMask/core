@@ -23,7 +23,7 @@ import {
   isTokenDetectionSupportedForNetwork,
   SupportedTokenDetectionNetworks,
 } from './assetsUtil';
-import { TOKEN_END_POINT_API } from './token-service';
+import { TOKEN_END_POINT_API, TOKEN_PARAMS } from './token-service';
 import { TokenDetectionController } from './TokenDetectionController';
 import { TokenListController } from './TokenListController';
 import type {
@@ -155,7 +155,7 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${TOKEN_PARAMS}`)
       .reply(200, sampleTokenList)
       .get(
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
@@ -443,7 +443,7 @@ describe('TokenDetectionController', () => {
   it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
     const polygonDecimalChainId = '137';
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${polygonDecimalChainId}`)
+      .get(`/tokens/${polygonDecimalChainId}${TOKEN_PARAMS}`)
       .reply(200, sampleTokenList);
 
     const stub = sinon.stub();

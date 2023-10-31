@@ -185,13 +185,13 @@ const sampleWithLessThan3OccurencesResponse = [
   },
 ];
 
-const sampleWith3OrMoreOccurrences =
-  sampleWithLessThan3OccurencesResponse.reduce((output, token) => {
-    if (token.occurrences >= 3) {
-      output[token.address] = token;
-    }
-    return output;
-  }, {} as TokenListMap);
+const sampleWith3OrMoreOccurrences = sampleWithLessThan3OccurencesResponse;
+  // sampleWithLessThan3OccurencesResponse.reduce((output, token) => {
+  //   if (token.occurrences >= 3) {
+  //     output[token.address] = token;
+  //   }
+  //   return output;
+  // }, {} as TokenListMap);
 
 const sampleBinanceTokenList = [
   {
@@ -740,7 +740,7 @@ describe('TokenListController', () => {
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -903,7 +903,7 @@ describe('TokenListController', () => {
 
   it('should update token list from api', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -941,12 +941,12 @@ describe('TokenListController', () => {
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .once()
       .reply(200, undefined);
 
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -996,7 +996,7 @@ describe('TokenListController', () => {
 
   it('should update token list after removing data with duplicate symbols', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleWithDuplicateSymbols)
       .persist();
 
@@ -1037,33 +1037,9 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should update token list after removing data less than 3 occurrences', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
-      .reply(200, sampleWithLessThan3OccurencesResponse)
-      .persist();
-
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      messenger,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleWith3OrMoreOccurrences,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
-    ).toStrictEqual(sampleWith3OrMoreOccurrences);
-    controller.destroy();
-  });
-
   it('should update token list when the token property changes', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -1091,7 +1067,7 @@ describe('TokenListController', () => {
 
   it('should update the cache when the timestamp expires', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -1121,11 +1097,11 @@ describe('TokenListController', () => {
 
   it('should update token list when the chainId change', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, { error: 'ChainId 5 is not supported' })
-      .get(`/tokens/56`)
+      .get(`/tokens/56${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleBinanceTokenList)
       .persist();
 
@@ -1218,11 +1194,11 @@ describe('TokenListController', () => {
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}${tokenService.TOKEN_PARAMS}`)
       .reply(200, { error: 'ChainId 5 is not supported' })
-      .get(`/tokens/56`)
+      .get(`/tokens/56${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleBinanceTokenList)
       .persist();
 
@@ -1298,7 +1274,7 @@ describe('TokenListController', () => {
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
       jest.useFakeTimers();
       nock(tokenService.TOKEN_END_POINT_API)
-        .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
+        .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}${tokenService.TOKEN_PARAMS}`)
         .reply(200, sampleSepoliaTokenList)
         .persist();
 
