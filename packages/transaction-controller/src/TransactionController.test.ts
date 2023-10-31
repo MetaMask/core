@@ -594,7 +594,7 @@ describe('TransactionController', () => {
       });
     });
 
-    describe.only('onBootCleanup', () => {
+    describe('onBootCleanup', () => {
       it('creates approvals for all unapproved transaction', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
@@ -654,7 +654,7 @@ describe('TransactionController', () => {
         );
       });
 
-      it.only('catches error without code property in error object while creating approval', async () => {
+      it('catches error without code property in error object while creating approval', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
           chainId: toHex(5),
