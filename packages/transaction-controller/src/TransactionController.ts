@@ -1146,7 +1146,7 @@ export class TransactionController extends BaseController<
 
     this.updateTransaction(
       updatedMeta,
-      'TransactionController:updatePreviousGasParams - gas values updated',
+      'TransactionController:updatePreviousGasParams - Previous gas values updated',
     );
 
     return this.getTransaction(transactionId) as TransactionMeta;
