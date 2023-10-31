@@ -2,8 +2,8 @@
 
 source "$PWD/scripts/semver.sh"
 
-remote='origin'
-release_commits_regex='^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}'
+remote='test'
+tmp_dir='/tmp'
 version_before_package_rename='0.0.0'
 tag_prefix_before_package_rename="$1"
 dry_run=true
@@ -17,8 +17,8 @@ while [[ $# -gt 0 ]]; do
     shift # past argument
     shift # past value
     ;;
-  -p | --regex-pattern)
-    release_commits_regex="$2"
+  -d | --tmp-dir)
+    tmp_dir="$2"
     shift # past argument
     shift # past value
     ;;
@@ -44,30 +44,44 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+get-tag-commit-pairs() {
+  echo "$(cd $tmp_dir/$package_name && git tag --format="%(refname:short)"$'\t'"%(objectname)")"
+}
+
+get-version-subject-pairs() {
+  while IFS=$'\t' read -r tag commit; do
+    version="$(echo "$tag" | sed 's/^v//')"
+    subject="$(cd $tmp_dir/$package_name && git log $commit -n 1 --oneline --format='%H%x09%s' | cut -f2)"
+    echo "$version"$'\t'"$subject"
+  done <<<"$(get-tag-commit-pairs)"
+}
+
 get-version-commit-pairs() {
-  while read -r log; do
-    echo "$log" | cut -d' ' -f1,2
-  done <<<"$(git log --oneline --grep $release_commits_regex merged-packages/$package_name)"
+  while IFS=$'\t' read -r version subject; do
+    commit="$(git log --oneline --format='%H%x09%s' --grep="^$subject$" | cut -f1)"
+    echo "$version"$'\t'"$commit"
+  done <<<"$(get-version-subject-pairs)"
 }
 
 prepend-tag-name() {
-  while IFS=$'\t' read -r commit version; do
+  while IFS=$'\t' read -r version commit; do
     local tag_name
     if semverLT "$version" "$version_before_package_rename" || semverEQ "$version" "$version_before_package_rename"; then
       tag_name="$tag_prefix_before_package_rename@$version"
     else
       tag_name="@metamask/$package_name@$version"
     fi
-    echo "$commit\t$tag_name"
+    echo "$commit"$'\t'"$tag_name"
   done <<<"$(get-version-commit-pairs)"
 }
+
 if [[ -z $package_name ]]; then
   echo "Missing package name."
   exit 1
 fi
 while IFS=$'\t' read -r commit tag_name; do
   if [[ $dry_run == true ]]; then
-    echo "$commit $tag_name"
+    echo "$commit"$'\t'"$tag_name"
   else
     echo "Creating tag '$tag_name'..."
     git tag "$tag_name" "$commit"
