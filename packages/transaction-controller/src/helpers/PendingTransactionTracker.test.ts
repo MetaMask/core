@@ -87,7 +87,7 @@ describe('PendingTransactionTracker', () => {
 
       queryMock.mockResolvedValueOnce({ blockNumber: BLOCK_NUMBER_MOCK });
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(transactionsListener).toHaveBeenCalledTimes(1);
       expect(transactionsListener).toHaveBeenCalledWith([
@@ -109,7 +109,7 @@ describe('PendingTransactionTracker', () => {
         .mockResolvedValueOnce({ blockNumber: BLOCK_NUMBER_MOCK })
         .mockResolvedValueOnce({ status: 0 });
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(failTransaction).toHaveBeenCalledTimes(1);
       expect(failTransaction).toHaveBeenCalledWith(
@@ -130,7 +130,7 @@ describe('PendingTransactionTracker', () => {
         .mockResolvedValueOnce(undefined)
         .mockResolvedValueOnce({ status: 0 });
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(failTransaction).toHaveBeenCalledTimes(1);
       expect(failTransaction).toHaveBeenCalledWith(
@@ -152,7 +152,7 @@ describe('PendingTransactionTracker', () => {
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(failTransaction).toHaveBeenCalledTimes(0);
       expect(transactionsListener).toHaveBeenCalledTimes(0);
@@ -175,7 +175,7 @@ describe('PendingTransactionTracker', () => {
         .mockResolvedValueOnce(RECEIPT_MOCK)
         .mockResolvedValueOnce(BLOCK_MOCK);
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(transactionsListener).toHaveBeenCalledTimes(1);
       expect(transactionsListener).toHaveBeenCalledWith([
@@ -207,7 +207,7 @@ describe('PendingTransactionTracker', () => {
         .mockResolvedValueOnce(RECEIPT_MOCK)
         .mockResolvedValueOnce(undefined);
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(transactionsListener).toHaveBeenCalledTimes(1);
       expect(transactionsListener).toHaveBeenCalledWith([
@@ -239,7 +239,7 @@ describe('PendingTransactionTracker', () => {
         .mockResolvedValueOnce({ ...RECEIPT_MOCK, status: 0 })
         .mockResolvedValueOnce(BLOCK_MOCK);
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(failTransaction).toHaveBeenCalledTimes(1);
       expect(failTransaction).toHaveBeenCalledWith(
@@ -268,7 +268,7 @@ describe('PendingTransactionTracker', () => {
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(failTransaction).toHaveBeenCalledTimes(0);
       expect(transactionsListener).toHaveBeenCalledTimes(0);
@@ -288,7 +288,7 @@ describe('PendingTransactionTracker', () => {
       tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
-      await (blockTracker.addListener.mock.calls[0][1]() as any);
+      await blockTracker.addListener.mock.calls[0][1]();
 
       expect(failTransaction).toHaveBeenCalledTimes(0);
       expect(transactionsListener).toHaveBeenCalledTimes(0);
@@ -308,7 +308,7 @@ describe('PendingTransactionTracker', () => {
     tracker.hub.addListener('transactions', transactionsListener);
     tracker.start();
 
-    await (blockTracker.addListener.mock.calls[0][1]() as any);
+    await blockTracker.addListener.mock.calls[0][1]();
 
     expect(failTransaction).toHaveBeenCalledTimes(0);
     expect(transactionsListener).toHaveBeenCalledTimes(0);
