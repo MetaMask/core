@@ -137,54 +137,6 @@ const sampleWithDuplicateSymbolsTokensChainsCache =
     return output;
   }, {} as TokenListMap);
 
-const sampleWithLessThan3OccurencesResponse = [
-  {
-    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-    symbol: 'SNX',
-    decimals: 18,
-    occurrences: 2,
-    name: 'Synthetix',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
-    aggregators: [
-      'Aave',
-      'Bancor',
-      'CMC',
-      'Crypto.com',
-      'CoinGecko',
-      '1inch',
-      'Paraswap',
-      'PMM',
-      'Synthetix',
-      'Zapper',
-      'Zerion',
-      '0x',
-    ],
-  },
-  {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-    symbol: 'LINK',
-    decimals: 18,
-    occurrences: 11,
-    name: 'Chainlink',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
-    aggregators: [
-      'Aave',
-      'Bancor',
-      'CMC',
-      'Crypto.com',
-      'CoinGecko',
-      '1inch',
-      'Paraswap',
-      'PMM',
-      'Zapper',
-      'Zerion',
-      '0x',
-    ],
-  },
-];
-
 const sampleBinanceTokenList = [
   {
     address: '0x7083609fce4d1d8dc0c979aab8c869ea2c873402',
