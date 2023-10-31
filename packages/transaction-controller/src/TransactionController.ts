@@ -35,7 +35,6 @@ import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
@@ -43,7 +42,6 @@ import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { Transaction, TransactionMeta, WalletDevice } from './types';
 import { TransactionStatus } from './types';
 import {
-  getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
   validateTransaction,
   getIncreasedPriceFromExisting,
@@ -154,8 +152,6 @@ export class TransactionController extends BaseController<
   TransactionState
 > {
   private ethQuery: EthQuery;
-
-  private readonly nonceTracker: NonceTracker;
 
   private registry: any;
 
@@ -268,18 +264,6 @@ export class TransactionController extends BaseController<
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
-    this.nonceTracker = new NonceTracker({
-      provider,
-      blockTracker,
-      getPendingTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.submitted,
-      ),
-      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.confirmed,
-      ),
-    });
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
       getCurrentAccount: getSelectedAddress,
@@ -934,13 +918,12 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { providerConfig } = this.getNetworkState();
-    const { chainId } = providerConfig;
+    const { chainId: currentChainId } = providerConfig;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
       transaction: { nonce, from },
     } = transactionMeta;
-    let nonceLock;
     try {
       if (!this.sign) {
         releaseLock();
@@ -949,24 +932,21 @@ export class TransactionController extends BaseController<
           new Error('No sign method defined.'),
         );
         return;
-      } else if (!chainId) {
+      } else if (!currentChainId) {
         releaseLock();
         this.failTransaction(transactionMeta, new Error('No chainId defined.'));
         return;
       }
 
       const { approved: status } = TransactionStatus;
-      let nonceToUse = nonce;
-      // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
-      // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
-      if (!nonceToUse) {
-        nonceLock = await this.nonceTracker.getNonceLock(from);
-        nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
-      }
+
+      const txNonce =
+        nonce ||
+        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
 
       transactionMeta.status = status;
-      transactionMeta.transaction.nonce = nonceToUse;
-      transactionMeta.transaction.chainId = chainId;
+      transactionMeta.transaction.nonce = txNonce;
+      transactionMeta.transaction.chainId = currentChainId;
 
       const baseTxParams = {
         ...transactionMeta.transaction,
@@ -1010,10 +990,6 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
-      // must set transaction to submitted/failed before releasing lock
-      if (nonceLock) {
-        nonceLock.releaseLock();
-      }
       releaseLock();
     }
   }
@@ -1295,20 +1271,6 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
-  }
-
-  private getNonceTrackerTransactions(
-    status: TransactionStatus,
-    address: string,
-  ) {
-    const { chainId: currentChainId } = this.getNetworkState().providerConfig;
-
-    return getAndFormatTransactionsForNonceTracker(
-      currentChainId,
-      address,
-      status,
-      this.state.transactions,
-    );
   }
 }
 
