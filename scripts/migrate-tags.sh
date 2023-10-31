@@ -9,10 +9,48 @@ tmp_dir='/tmp'
 sed_pattern='s/^v//'
 dry_run=true
 
+print-usage() {
+  cat <<EOF
+
+Migrates tags.
+
+$0 [OPTIONS] PACKAGE_NAME
+
+OPTIONS:
+
+-r REMOTE
+--remote REMOTE
+  Specifies the remote git repo where the tags will be pushed.
+
+-v VERSION_BEFORE_PACKAGE_RENAME
+--version-before-package-rename VERSION_BEFORE_PACKAGE_RENAME
+  The version before the package rename. If package was never renamed, omit this and all tag names will be prepended with the '@metamask/' namespace.
+
+-t TAG_PREFIX_BEFORE_PACKAGE_RENAME
+--tag-prefix-before-package-rename TAG_PREFIX_BEFORE_PACKAGE_RENAME
+  Specifies the tag prefix before the package rename. Defaults to the package name.
+
+-d TMP_DIR
+--tmp-dir TMP_DIR
+  Specifies the temporary directory where the $(git-filter-repo)-applied clone of the original repo is located. Defaults to '/tmp'.
+
+-p SED_PATTERN
+--sed-pattern SED_PATTERN
+  sed pattern for extracting verson numbers from the original repo's tag names. Adjust if the original tag names follow a different naming scheme than 'v0.0.0'.
+
+--no-dry-run
+  If specified, the tags will be created and pushed to the remote repo. Otherwise, the tags and associated release commit hashes will only be printed to stdout.
+EOF
+}
+
 while [[ $# -gt 0 ]]; do
   key="$1"
 
   case $key in
+  -h | --help)
+    print-usage
+    exit 0
+    ;;
   -r | --remote)
     remote="$2"
     shift # past argument
