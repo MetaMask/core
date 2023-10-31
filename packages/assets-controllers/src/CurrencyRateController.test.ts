@@ -68,7 +68,7 @@ const getStubbedDate = () => {
 describe('CurrencyRateController', () => {
   beforeEach(() => {
     // jest.useFakeTimers({advanceTimers: true});
-    jest.useFakeTimers({doNotFake: ['nextTick', 'setImmediate']});
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
   });
 
   afterEach(() => {
@@ -157,7 +157,7 @@ describe('CurrencyRateController', () => {
 
     controller.startPollingByNetworkClientId('mainnet');
     await jest.advanceTimersByTimeAsync(0);
-    await jest.runAllTicks()
+    await jest.runAllTicks();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
@@ -167,10 +167,10 @@ describe('CurrencyRateController', () => {
       },
     });
     await jest.advanceTimersByTimeAsync(99);
-    await jest.runAllTicks()
+    await jest.runAllTicks();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     await jest.advanceTimersByTimeAsync(1);
-    await jest.runAllTicks()
+    await jest.runAllTicks();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
