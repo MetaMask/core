@@ -56,7 +56,6 @@ module.exports = {
         '@typescript-eslint/await-thenable': 'warn',
         '@typescript-eslint/naming-convention': 'off',
         '@typescript-eslint/no-floating-promises': 'warn',
-        '@typescript-eslint/no-loss-of-precision': 'warn',
         '@typescript-eslint/no-misused-promises': 'warn',
         '@typescript-eslint/no-unnecessary-type-assertion': 'off',
         '@typescript-eslint/unbound-method': 'off',
