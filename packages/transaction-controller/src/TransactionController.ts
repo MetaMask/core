@@ -1122,6 +1122,9 @@ export class TransactionController extends BaseController<
       this.processApproval(transactionMeta, {
         shouldShowRequest: false,
       }).catch((error) => {
+        if (error?.code === errorCodes.provider.userRejectedRequest) {
+          return;
+        }
         /* istanbul ignore next */
         console.error('Error during persisted transaction approval', error);
       });

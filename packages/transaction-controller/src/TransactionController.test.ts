@@ -594,7 +594,7 @@ describe('TransactionController', () => {
       });
     });
 
-    describe('onBootCleanup', () => {
+    describe.only('onBootCleanup', () => {
       it('creates approvals for all unapproved transaction', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
@@ -652,6 +652,67 @@ describe('TransactionController', () => {
           },
           false,
         );
+      });
+
+      it.only('catches error without code property in error object while creating approval', async () => {
+        const mockTransactionMeta = {
+          from: ACCOUNT_MOCK,
+          chainId: toHex(5),
+          status: TransactionStatus.unapproved,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+
+        const mockedTransactions = [
+          {
+            id: '123',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '123' }],
+          },
+          {
+            id: '1234',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '1234' }],
+          },
+        ];
+
+        const mockedControllerState = {
+          transactions: mockedTransactions,
+          methodData: {},
+          lastFetchedBlockNumbers: {},
+        };
+
+        const mockedErrorMessage = 'mocked error';
+
+        // Expect both calls to throw error, one with code property to check if it is handled
+        (delayMessengerMock.call as jest.MockedFunction<any>)
+          .mockImplementationOnce(() => {
+            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            throw { message: mockedErrorMessage };
+          })
+          .mockImplementationOnce(() => {
+            // eslint-disable-next-line @typescript-eslint/no-throw-literal
+            throw {
+              message: mockedErrorMessage,
+              code: errorCodes.provider.userRejectedRequest,
+            };
+          });
+        const consoleSpy = jest.spyOn(console, 'error');
+
+        newController({
+          state: mockedControllerState as any,
+        });
+
+        await flushPromises();
+
+        expect(consoleSpy).toHaveBeenCalledTimes(1);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error during persisted transaction approval',
+          new Error(mockedErrorMessage),
+        );
+        expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
       });
 
       it('does not create any approval when there is no unapproved transaction', async () => {
@@ -732,7 +793,7 @@ describe('TransactionController', () => {
         expect(transactions[1].txParams.gasPrice).toBe(mockGasPrice);
       });
 
-      it.only('updates transaction as failed if failes to update gas fees', async () => {
+      it('updates transaction as failed if failes to update gas fees', async () => {
         const mockGasPrice = '0x1';
         const mockGas = '0x1';
 
