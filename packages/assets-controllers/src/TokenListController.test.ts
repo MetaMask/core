@@ -684,7 +684,11 @@ describe('TokenListController', () => {
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -847,7 +851,11 @@ describe('TokenListController', () => {
 
   it('should update token list from api', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -885,12 +893,20 @@ describe('TokenListController', () => {
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .once()
       .reply(200, undefined);
 
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -940,7 +956,11 @@ describe('TokenListController', () => {
 
   it('should update token list after removing data with duplicate symbols', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleWithDuplicateSymbols)
       .persist();
 
@@ -983,7 +1003,11 @@ describe('TokenListController', () => {
 
   it('should update token list when the token property changes', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -1011,7 +1035,11 @@ describe('TokenListController', () => {
 
   it('should update the cache when the timestamp expires', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -1041,9 +1069,17 @@ describe('TokenListController', () => {
 
   it('should update token list when the chainId change', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.goerli)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleBinanceTokenList)
@@ -1138,9 +1174,17 @@ describe('TokenListController', () => {
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.mainnet)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}${tokenService.TOKEN_PARAMS}`)
+      .get(
+        `/tokens/${convertHexToDecimal(ChainId.goerli)}${
+          tokenService.TOKEN_PARAMS
+        }`,
+      )
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56${tokenService.TOKEN_PARAMS}`)
       .reply(200, sampleBinanceTokenList)
@@ -1218,7 +1262,11 @@ describe('TokenListController', () => {
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
       jest.useFakeTimers();
       nock(tokenService.TOKEN_END_POINT_API)
-        .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}${tokenService.TOKEN_PARAMS}`)
+        .get(
+          `/tokens/${convertHexToDecimal(ChainId.sepolia)}${
+            tokenService.TOKEN_PARAMS
+          }`,
+        )
         .reply(200, sampleSepoliaTokenList)
         .persist();
 
