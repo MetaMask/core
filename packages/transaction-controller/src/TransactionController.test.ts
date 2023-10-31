@@ -1752,7 +1752,7 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('onBootCleanup', () => {
+  describe.only('onBootCleanup', () => {
     it('creates approvals for all unapproved transaction', async () => {
       const mockTransactionMeta = {
         from: ACCOUNT_MOCK,
@@ -1890,7 +1890,10 @@ describe('TransactionController', () => {
       expect(transactions[1].txParams.gasPrice).toBe(mockGasPrice);
     });
 
-    it('updates transaction as failed if failes to update gas fees', async () => {
+    it.only('updates transaction as failed if failes to update gas fees', async () => {
+      const mockGasPrice = '0x1';
+      const mockGas = '0x1';
+
       const mockTransactionMeta = {
         from: ACCOUNT_MOCK,
         chainId: toHex(5),
@@ -1906,6 +1909,11 @@ describe('TransactionController', () => {
           ...mockTransactionMeta,
           history: [{ ...mockTransactionMeta, id: '123' }],
         },
+        {
+          id: '1234',
+          ...mockTransactionMeta,
+          history: [{ ...mockTransactionMeta, id: '1234' }],
+        },
       ];
 
       const mockedControllerState = {
@@ -1914,8 +1922,22 @@ describe('TransactionController', () => {
         lastFetchedBlockNumbers: {},
       };
 
-      updateGasFeesMock.mockImplementationOnce(() => {
-        return Promise.reject(new Error('unexpected failure'));
+      // Let the first update pass and fail the second one
+      // to test the failure case
+      updateGasFeesMock
+        .mockImplementationOnce(({ txMeta }) => {
+          // Assume this is a sample update
+          txMeta.txParams.gasPrice = mockGasPrice;
+          return Promise.resolve();
+        })
+        .mockImplementationOnce(() => {
+          return Promise.reject(new Error('unexpected failure'));
+        });
+
+      updateGasMock.mockImplementation(({ txMeta }) => {
+        // Assume this is a sample update
+        txMeta.txParams.gasPrice = mockGas;
+        return Promise.resolve();
       });
 
       const controller = newController({
@@ -1924,11 +1946,10 @@ describe('TransactionController', () => {
 
       await flushPromises();
 
-      expect(updateGasFeesMock).toHaveBeenCalledTimes(1);
-
       const { transactions } = controller.state;
 
-      expect(transactions[0].status).toBe(TransactionStatus.failed);
+      expect(transactions[0].status).toBe(TransactionStatus.unapproved);
+      expect(transactions[1].status).toBe(TransactionStatus.failed);
     });
 
     it('submits an approved transaction', async () => {

@@ -1136,22 +1136,28 @@ export class TransactionController extends BaseController<
       TransactionStatus.unapproved,
     );
 
-    for (const transactionMeta of unapprovedTransactions) {
-      try {
+    const results = await Promise.allSettled(
+      unapprovedTransactions.map(async (transactionMeta) => {
         await this.updateGasProperties(transactionMeta);
         this.updateTransaction(
           transactionMeta,
           'TransactionController:loadGasValuesForUnapprovedTransactions - Gas values updated',
         );
-      } catch (error) {
-        this.failTransaction(transactionMeta, error as Error);
+      }),
+    );
+
+    console.log({results})
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        this.failTransaction(unapprovedTransactions[index], result.reason);
         /* istanbul ignore next */
         console.error(
           'Error while loading gas values for persisted transaction',
-          error,
+          result.reason,
         );
       }
-    }
+    });
   }
 
   /**
