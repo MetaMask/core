@@ -107,7 +107,7 @@ type TransactionMetaBase = {
   originalGasEstimate?: string;
 
   /**
-   * The original gas estimation before updating the gas values, set by UI.
+   * The previous gas properties before they were updated.
    */
   previousGas?: {
     /**
