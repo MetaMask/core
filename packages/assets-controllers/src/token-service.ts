@@ -6,6 +6,7 @@ import { isTokenListSupportedForNetwork } from './assetsUtil';
 export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
+export const TOKEN_PARAMS = '?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false';
 
 /**
  * Get the tokens URL for a specific network.
@@ -14,7 +15,7 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: Hex) {
-  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(chainId)}`;
+  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(chainId)}${TOKEN_PARAMS}`;
 }
 
 /**
