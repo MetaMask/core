@@ -28,14 +28,12 @@ import {
   RPC,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
-import NonceTracker from 'nonce-tracker';
 import {
   AcceptResultCallbacks,
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
 import {
-  getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
   validateTransaction,
   getIncreasedPriceFromExisting,
@@ -155,8 +153,6 @@ export class TransactionController extends BaseController<
 > {
   private ethQuery: EthQuery;
 
-  private nonceTracker: NonceTracker;
-
   private registry: any;
 
   private provider: Provider;
@@ -269,19 +265,6 @@ export class TransactionController extends BaseController<
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
     this.messagingSystem = messenger;
-
-    this.nonceTracker = new NonceTracker({
-      provider,
-      blockTracker,
-      getPendingTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.submitted,
-      ),
-      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.confirmed,
-      ),
-    });
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
@@ -1127,7 +1110,6 @@ export class TransactionController extends BaseController<
     const {
       transaction: { nonce, from },
     } = transactionMeta;
-    let nonceLock;
     try {
       if (!this.sign) {
         releaseLock();
@@ -1143,16 +1125,13 @@ export class TransactionController extends BaseController<
       }
 
       const { approved: status } = TransactionStatus;
-      let nonceToUse = nonce;
-      // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
-      // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
-      if (!nonceToUse) {
-        nonceLock = await this.nonceTracker.getNonceLock(from);
-        nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
-      }
+
+      const txNonce =
+        nonce ||
+        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
 
       transactionMeta.status = status;
-      transactionMeta.transaction.nonce = nonceToUse;
+      transactionMeta.transaction.nonce = txNonce;
       transactionMeta.transaction.chainId = currentChainId;
 
       const baseTxParams = {
@@ -1197,10 +1176,6 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
-      // must set transaction to submitted/failed before releasing lock
-      if (nonceLock) {
-        nonceLock.releaseLock();
-      }
       releaseLock();
     }
   }
@@ -1301,20 +1276,6 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
-  }
-
-  private getNonceTrackerTransactions(
-    status: TransactionStatus,
-    address: string,
-  ) {
-    const { chainId: currentChainId } = this.getNetworkState().providerConfig;
-
-    return getAndFormatTransactionsForNonceTracker(
-      currentChainId,
-      address,
-      status,
-      this.state.transactions,
-    );
   }
 }
 
