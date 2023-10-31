@@ -14,9 +14,4 @@ export const pendingTransactionsLogger = createModuleLogger(
   'pending-transactions',
 );
 
-export const transactionControllerLogger = createModuleLogger(
-  projectLogger,
-  'transaction-controller',
-);
-
 export { createModuleLogger };
