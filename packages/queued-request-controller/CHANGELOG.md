@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.1.2]
-### Uncategorized
-- use network confiurations always ([#1962](https://github.com/MetaMask/core.git/pull/1962))
+### Fixed
+- Fix issue where switching chain would ultimately fail due to the wrong `networkClientId` / `type` ([#1962](https://github.com/MetaMask/core/pull/1962))
 
 ## [0.1.1]
 ### Fixed
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.2...HEAD
-[0.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.1...@metamask/queued-request-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.0...@metamask/queued-request-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/queued-request-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.2...HEAD
+[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.1...@metamask/queued-request-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.0...@metamask/queued-request-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/queued-request-controller@0.1.0
