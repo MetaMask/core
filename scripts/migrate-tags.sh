@@ -4,6 +4,7 @@ source "$PWD/scripts/semver.sh"
 
 remote='test'
 tmp_dir='/tmp'
+sed_pattern='s/^v//'
 version_before_package_rename='0.0.0'
 tag_prefix_before_package_rename="$1"
 dry_run=true
@@ -19,6 +20,11 @@ while [[ $# -gt 0 ]]; do
     ;;
   -d | --tmp-dir)
     tmp_dir="$2"
+    shift # past argument
+    shift # past value
+    ;;
+  -p | --sed-pattern)
+    sed_pattern="$2"
     shift # past argument
     shift # past value
     ;;
@@ -50,7 +56,7 @@ get-tag-commit-pairs() {
 
 get-version-subject-pairs() {
   while IFS=$'\t' read -r tag commit; do
-    version="$(echo "$tag" | sed 's/^v//')"
+    version="$(echo "$tag" | sed "$sed_pattern")"
     subject="$(cd $tmp_dir/$package_name && git log $commit -n 1 --oneline --format='%H%x09%s' | cut -f2)"
     echo "$version"$'\t'"$subject"
   done <<<"$(get-tag-commit-pairs)"
