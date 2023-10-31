@@ -1523,9 +1523,7 @@ describe('AccountsController', () => {
 
       const result = accountsController.getAccount(mockAccount.id);
 
-      expect(result).toStrictEqual(
-        setLastSelectedAsAny(mockAccount as InternalAccount),
-      );
+      expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
     });
     it('should return undefined for an unknown account ID', () => {
       const accountsController = setupAccountsController({
@@ -1560,8 +1558,8 @@ describe('AccountsController', () => {
       const result = accountsController.listAccounts();
 
       expect(result).toStrictEqual([
-        setLastSelectedAsAny(mockAccount as InternalAccount),
-        setLastSelectedAsAny(mockAccount2 as InternalAccount),
+        setLastSelectedAsAny(mockAccount),
+        setLastSelectedAsAny(mockAccount2),
       ]);
     });
   });
@@ -1578,9 +1576,7 @@ describe('AccountsController', () => {
       });
       const result = accountsController.getAccountExpect(mockAccount.id);
 
-      expect(result).toStrictEqual(
-        setLastSelectedAsAny(mockAccount as InternalAccount),
-      );
+      expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
     });
 
     it('should throw an error for an unknown account ID', () => {
@@ -1637,9 +1633,7 @@ describe('AccountsController', () => {
       });
       const result = accountsController.getAccountExpect(mockAccount.id);
 
-      expect(result).toStrictEqual(
-        setLastSelectedAsAny(mockAccount as InternalAccount),
-      );
+      expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
     });
   });
 

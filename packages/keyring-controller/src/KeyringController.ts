@@ -992,7 +992,7 @@ export class KeyringController extends BaseControllerV2<
   async forgetQRDevice(): Promise<void> {
     const keyring = await this.getOrAddQRKeyring();
     keyring.forgetDevice();
-    const accounts = (await this.#keyring.getAccounts()) as string[];
+    const accounts = await this.#keyring.getAccounts();
     accounts.forEach((account) => {
       this.setSelectedAddress(account);
     });
