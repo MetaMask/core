@@ -142,8 +142,21 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
-  it('should poll and update rate in the right interval', async () => {
-    const fetchExchangeRateStub = jest.fn();
+  it('should poll and update state in the right interval', async () => {
+    jest
+      .spyOn(global.Date, 'now')
+      .mockReturnValueOnce(10000)
+      .mockReturnValueOnce(20000);
+    const fetchExchangeRateStub = jest
+      .fn()
+      .mockResolvedValueOnce({
+        conversionRate: 1,
+        usdConversionRate: 11,
+      })
+      .mockResolvedValueOnce({
+        conversionRate: 2,
+        usdConversionRate: 22,
+      });
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -151,16 +164,30 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    controller.startPollingByNetworkClientId('sepolia');
+    controller.startPollingByNetworkClientId('mainnet');
     jest.advanceTimersByTime(0);
     await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: 10,
+        conversionRate: 1,
+        usdConversionRate: 11,
+      },
+    });
     jest.advanceTimersByTime(99);
     await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     jest.advanceTimersByTime(1);
     await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: 20,
+        conversionRate: 2,
+        usdConversionRate: 22,
+      },
+    });
 
     controller.destroy();
   });
@@ -322,22 +349,6 @@ describe('CurrencyRateController', () => {
             conversionRate: 200,
             usdConversionRate: 300,
           },
-        },
-      },
-    });
-
-    expect(controller.state).toStrictEqual({
-      currentCurrency: 'usd',
-      currencyRates: {
-        ETH: {
-          conversionDate: 123,
-          conversionRate: 123,
-          usdConversionRate: 123,
-        },
-        BTC: {
-          conversionDate: 100,
-          conversionRate: 200,
-          usdConversionRate: 300,
         },
       },
     });
