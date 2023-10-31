@@ -185,14 +185,6 @@ const sampleWithLessThan3OccurencesResponse = [
   },
 ];
 
-const sampleWith3OrMoreOccurrences = sampleWithLessThan3OccurencesResponse;
-  // sampleWithLessThan3OccurencesResponse.reduce((output, token) => {
-  //   if (token.occurrences >= 3) {
-  //     output[token.address] = token;
-  //   }
-  //   return output;
-  // }, {} as TokenListMap);
-
 const sampleBinanceTokenList = [
   {
     address: '0x7083609fce4d1d8dc0c979aab8c869ea2c873402',
