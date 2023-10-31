@@ -169,8 +169,8 @@ export class TokenRatesController extends PollingControllerV1<
       threshold = 6 * 60 * 60 * 1000,
       getNetworkClientById,
     }: {
-      interval: number;
-      threshold: number;
+      interval?: number;
+      threshold?: number;
       getNetworkClientById: NetworkController['getNetworkClientById'];
     },
     config?: Partial<TokenRatesConfig>,
