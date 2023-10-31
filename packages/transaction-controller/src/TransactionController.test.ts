@@ -595,6 +595,11 @@ describe('TransactionController', () => {
     });
 
     describe('onBootCleanup', () => {
+      afterEach(() => {
+        updateGasMock.mockReset();
+        updateGasFeesMock.mockReset();
+      });
+
       it('creates approvals for all unapproved transaction', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
@@ -730,7 +735,7 @@ describe('TransactionController', () => {
             to: ACCOUNT_2_MOCK,
           },
         };
-        const mockGasPrice = '0x1';
+        const mockGasPrice = '0x2';
         const mockGas = '0x1';
         const mockedTransactions = [
           {
