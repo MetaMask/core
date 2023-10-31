@@ -283,26 +283,7 @@ export class TokenListController extends PollingController<
           });
           return;
         }
-        // Filtering out tokens with less than 3 occurrences and native tokens
-        const filteredTokenList = tokensFromAPI.filter(
-          (token) =>
-            token.occurrences &&
-            token.occurrences >= 3 &&
-            token.address !== '0x0000000000000000000000000000000000000000',
-        );
-        // Removing the tokens with symbol conflicts
-        const symbolsList = filteredTokenList.map((token) => token.symbol);
-        const duplicateSymbols = [
-          ...new Set(
-            symbolsList.filter(
-              (symbol, index) => symbolsList.indexOf(symbol) !== index,
-            ),
-          ),
-        ];
-        const uniqueTokenList = filteredTokenList.filter(
-          (token) => !duplicateSymbols.includes(token.symbol),
-        );
-        for (const token of uniqueTokenList) {
+        for (const token of tokensFromAPI) {
           const formattedToken: TokenListToken = {
             ...token,
             aggregators: formatAggregatorNames(token.aggregators),
