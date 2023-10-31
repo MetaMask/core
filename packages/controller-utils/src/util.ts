@@ -330,8 +330,11 @@ export async function successfulFetch(request: string, options?: RequestInit) {
  * @returns The fetch response JSON data.
  */
 export async function handleFetch(request: string, options?: RequestInit) {
+  console.log("handle fetch")
   const response = await successfulFetch(request, options);
+  console.log("handle fetch 1")
   const object = await response.json();
+  // console.log("handle fetch 2")
   return object;
 }
 

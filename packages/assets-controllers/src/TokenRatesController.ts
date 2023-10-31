@@ -248,12 +248,14 @@ export class TokenRatesController extends PollingControllerV1<
    * @returns The CoinGecko slug for the chain ID.
    */
   async getChainSlug(chainId: Hex): Promise<string | null> {
+    console.log("chainSlug")
     const { threshold } = this.config;
     const { data, timestamp } = this.supportedChains;
 
     const now = Date.now();
 
     if (now - timestamp > threshold) {
+      console.log("getChainSlug fetching", CoinGeckoApi.getPlatformsURL())
       const platforms = await handleFetch(CoinGeckoApi.getPlatformsURL());
       this.supportedChains = {
         data: platforms,
@@ -282,10 +284,13 @@ export class TokenRatesController extends PollingControllerV1<
     nativeCurrency: string;
     tokenAddresses: string[];
   }) {
+    console.log("updateExchangeRates")
     if (!tokenAddresses.length) {
       return;
     }
+    console.log("updateExchangeRates 0")
     const chainSlug = await this.getChainSlug(chainId);
+    console.log("updateExchangeRates 1")
 
     let newContractExchangeRates: ContractExchangeRates = {};
     if (!chainSlug) {
@@ -300,6 +305,8 @@ export class TokenRatesController extends PollingControllerV1<
         tokenAddresses,
       });
     }
+
+    console.log("updateExchangeRates", chainId, nativeCurrency, newContractExchangeRates)
 
     this.update({
       contractExchangeRates: {
@@ -413,12 +420,14 @@ export class TokenRatesController extends PollingControllerV1<
     networkClientId: NetworkClientId,
     options: { tokenAddresses: string[] },
   ): Promise<void> {
+    console.log("executePoll start")
     const networkClient = this.getNetworkClientById(networkClientId);
     await this.updateExchangeRates({
       chainId: networkClient.configuration.chainId,
       nativeCurrency: networkClient.configuration.ticker,
       tokenAddresses: options.tokenAddresses,
     });
+    console.log("executePoll end")
   }
 }
 

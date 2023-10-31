@@ -121,6 +121,7 @@ describe('TokenRatesController', () => {
     // });
 
     it('should update state on poll', async () => {
+      nock.recorder.rec()
       nock(COINGECKO_API)
         .get(`${COINGECKO_ETH_PATH}`)
         .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
@@ -149,6 +150,8 @@ describe('TokenRatesController', () => {
         tokenAddresses: ['0x02', '0x03'],
       });
       console.log("started spec")
+      jest.advanceTimersByTime(0);
+      await flushPromises();
       jest.advanceTimersByTime(0);
       await flushPromises();
       console.log("waited 0ms and flushed")
