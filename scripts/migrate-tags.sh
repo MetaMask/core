@@ -3,10 +3,10 @@
 source "$PWD/scripts/semver.sh"
 
 remote='test'
-tmp_dir='/tmp'
-sed_pattern='s/^v//'
 version_before_package_rename='0.0.0'
 tag_prefix_before_package_rename="$1"
+tmp_dir='/tmp'
+sed_pattern='s/^v//'
 dry_run=true
 
 while [[ $# -gt 0 ]]; do
@@ -18,16 +18,6 @@ while [[ $# -gt 0 ]]; do
     shift # past argument
     shift # past value
     ;;
-  -d | --tmp-dir)
-    tmp_dir="$2"
-    shift # past argument
-    shift # past value
-    ;;
-  -p | --sed-pattern)
-    sed_pattern="$2"
-    shift # past argument
-    shift # past value
-    ;;
   -v | --version-before-package-rename)
     version_before_package_rename="$2"
     shift # past argument
@@ -35,6 +25,16 @@ while [[ $# -gt 0 ]]; do
     ;;
   -t | --tag-prefix-before-package-rename)
     tag_prefix_before_package_rename="$2"
+    shift # past argument
+    shift # past value
+    ;;
+  -d | --tmp-dir)
+    tmp_dir="$2"
+    shift # past argument
+    shift # past value
+    ;;
+  -p | --sed-pattern)
+    sed_pattern="$2"
     shift # past argument
     shift # past value
     ;;

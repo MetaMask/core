@@ -1,30 +1,39 @@
 # `migrate-tags`
 
+When migrating libraries into the core monorepo, the original git history is transferred using the `git-filter-repo` tool (instructions [here](https://github.com/MetaMask/core/issues/1079#issuecomment-1700126302)), but tags attached to release commits are excluded from the process. This is because the tag names (`v[major].[minor].[patch]`) first need to be adjusted to conform to the scheme used by the core repo (`@metamask/<package-name>@[major].[minor].[patch]`).
+
+The `./scripts/migrate-tags.sh` script automates the process of enumerating the tags and associated release commit messages in the original repo, searching the migrated git history in the core repo's `merged-packages/<package-name>` directory for each commit message, creating tags with correctly-formatted names and attaching them to the found release commits, and pushing those tags to the core repo.
+
 ## A. Preparations
 
 - The migration target package must be inside of the `merged-packages/` directory with its git history fully migrated.
 - The script must be run from the root directory of the core repo.
+- The `/tmp/<package-name>` directory used during the git history migration process should still be accessible. If not, perform steps 1-5 of [these instructions](https://github.com/MetaMask/core/issues/1079#issuecomment-1700126302) before proceeding.
 - If the script isn't executable, run `chmod +x ./scripts/migrate-tags.sh`.
-- By default, this script will run in "dry mode", printing out all pairs of release commit hashes and prefixed tag names, but not modifying the local or remote repo in any way. To override this and actually create/push tags, run the script with a `--non-dry-run` flag appended at the end.
+- By default, this script will run in "dry mode", printing out all pairs of release commit hashes and prefixed tag names, but not modifying the local or remote repo in any way. To override this and actually create/push tags, run the script with a `--no-dry-run` flag appended at the end.
 
 ## B. Options
 
 - `<package-name>` (required).
   - Only supply the package directory name. Exclude the `@metamask/` namespace.
 - `-r`, `--remote` (optional): the git remote repo where the tags will be pushed.
-  - Default if omitted: "origin".
-- `-p`, `--regex-pattern` (optional): regex pattern for grepping release commits from the package's migrated git history.
-  - Default if omitted: regex for commit messages that start with a semver string.
-- `-t`, `--tag-prefix-before-package-rename` (optional)
-  - Default if omitted: `<package-name>` supplied in the first argument.
+  - Default if omitted: "test".
 - `-v`, `--version-before-package-rename` (optional)
   - Default if omitted: `0.0.0`.
-  - If `-v` is not passed, all tag names will be prefixed with the `@metamask/` namespace.
-- `--non-dry-run` (optional):
+  - **If `-v` is not passed, all tag names will be prepended with the `@metamask/` namespace.**
+- `-t`, `--tag-prefix-before-package-rename` (optional)
+  - Default if omitted: `<package-name>` supplied in the first argument.
+- `-d`, `--tmp-dir` (optional)
+  - Default if ommited: `/tmp`
+  - Specifies the temporary directory where `git-filter-repo` was applied to a clone of the original repo.
+- `-p`, `--sed-pattern` (optional): sed pattern for extracting verson numbers from the original repo's tag names.
+  - Default if omitted: `'s/^v//'`
+  - If the original tag names follow a different naming scheme than `v[major].[minor].[patch]`, adjust this setting.
+- `--no-dry-run` (optional):
   - Default if omitted: `false`.
   - If not specified, the script will run in "dry run" mode. The script will print out all pairs of release commit hashes and prefixed tag names, but without modifying the local or remote repo in any way.
   - **This flag MUST be enabled for tags to be created and pushed.**
-  - **WARNING**: If the `-r` `--remote` option isn't specified, the tags will be pushed to the `origin` repo.
+  - Make sure to specify the correct remote repo where the tags will be pushed by using the `-r` flag.
 
 ## C. Usage
 
@@ -86,11 +95,11 @@ d90fe43d json-rpc-middleware-stream@4.2.0
 
 ### 4. Non-Dry Mode
 
-- To override dry run mode and actually create/push tags, run the script with a `--non-dry-run` flag at the end.
-- **WARNING**: If the `-r` `--remote` option isn't specified, the tags will be pushed to the `origin` repo.
+- To override dry run mode and actually create/push tags, run the script with a `--no-dry-run` flag at the end.
+- Make sure to specify the correct remote repo where the tags will be pushed by using the `-r` flag.
 
 ```shell
-> ./scripts/migrate-tags.sh json-rpc-middleware-stream -v 5.0.1 --no-dry-run
+> ./scripts/migrate-tags.sh json-rpc-middleware-stream -v 5.0.1 -r origin --no-dry-run
 ```
 
 ```output
@@ -134,9 +143,9 @@ To https://github.com/[USERNAME]/[FORKNAME]
 ## E. Troubleshooting
 
 > [!WARNING]
-> DO NOT run this script on the core repo until you have tested the results on a fork.
+> DO NOT run this script on the core repo until the results have been tested on a fork.
 
-These commands should NOT be run on the core repo.
+The following commands should NOT be run on the core repo unless something has gone very wrong.
 
 ### 1. Delete remote tags
 
@@ -146,9 +155,10 @@ These commands should NOT be run on the core repo.
 > git ls-remote --tags <remote-repo> | grep '<package-name>' | cut -f2 | sed 's|refs/tags/||g' | xargs git push --delete <remote-repo>
 ```
 
-- ALWAYS delete local tags AFTER remote tags.
-- If something goes wrong and your local tags are still there, you can try `git push <remote-repo>` to push the local tags to remote.
-- If you have deleted your local tags, ask a teammate who has the correct tags on local to push them to remote.
+- ALWAYS create a backup clone repo in advance and delete local tags AFTER remote tags.
+- If something goes wrong, try `git push <remote-repo>` to push the local tags to remote.
+- If the local tags have been deleted, push the unaltered tags in the backup clone repo to remote.
+- If this fails, ask a teammate who has the correct tags on local to push them to remote.
 
 ### 2. Delete local tags
 
@@ -156,4 +166,4 @@ These commands should NOT be run on the core repo.
 > git tag | grep '<package-name>' | xargs git tag --delete
 ```
 
-- If anything goes wrong, and you haven't deleted the remote tags, run `git pull --all` and the tags in the remote repo will be restored to local.
+- If anything goes wrong, run `git pull --all` and the tags in the remote repo will be restored to local.
