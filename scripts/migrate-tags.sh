@@ -103,6 +103,9 @@ get-version-subject-pairs() {
 get-version-commit-pairs() {
   while IFS=$'\t' read -r version subject; do
     commit="$(git log --oneline --format='%H%x09%s' --grep="^$subject$" | cut -f1)"
+    if [[ $commit == '' ]]; then
+      echo "Could not find commit for version '$version' and subject '$subject'."
+    fi
     echo "$version"$'\t'"$commit"
   done <<<"$(get-version-subject-pairs)"
 }
