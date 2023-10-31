@@ -33,6 +33,12 @@ const isConfirmationMethod = (method: string) => {
     'wallet_watchAsset',
     'wallet_switchEthereumChain',
     'eth_signTypedData_v4',
+    'wallet_addEthereumChain',
+    'wallet_requestPermissions',
+    'wallet_requestSnaps',
+    'personal_sign',
+    'eth_sign',
+    'eth_requestAccounts',
   ];
 
   return confirmationMethods.includes(method);
