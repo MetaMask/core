@@ -4,11 +4,11 @@ import type { Operation } from 'fast-json-patch';
 /**
  * Representation of transaction metadata.
  */
-export type TransactionMeta =
-  | ({
-      status: Exclude<TransactionStatus, TransactionStatus.failed>;
-    } & TransactionMetaBase)
-  | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
+export type TransactionMeta = TransactionMetaBase &
+  (
+    | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
+    | { status: TransactionStatus.failed; error: Error }
+  );
 
 /**
  * Information about a single transaction such as status and block number.
@@ -110,6 +110,26 @@ type TransactionMetaBase = {
    * The original gas estimation of the transaction.
    */
   originalGasEstimate?: string;
+
+  /**
+   * The previous gas properties before they were updated.
+   */
+  previousGas?: {
+    /**
+     * Maxmimum number of units of gas to use for this transaction.
+     */
+    gasLimit?: string;
+
+    /**
+     * Maximum amount per gas to pay for the transaction, including the priority fee.
+     */
+    maxFeePerGas?: string;
+
+    /**
+     * Maximum amount per gas to give to validator as incentive.
+     */
+    maxPriorityFeePerGas?: string;
+  };
 
   /**
    * The transaction's 'r' value as a hex string.
