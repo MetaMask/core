@@ -133,26 +133,32 @@ get-version-commit-pairs() {
 
 get-commit-tagname-pairs() {
   local tag_name
-  while IFS=$'\t' read -r version commit; do
+  while IFS=$'\t' read -r version commit message error; do
     if semverLT "$version" "$version_before_package_rename" || semverEQ "$version" "$version_before_package_rename"; then
       tag_name="$tag_prefix_before_package_rename@$version"
     else
       tag_name="@metamask/$package_name@$version"
     fi
-    echo "$commit"$'\t'"$tag_name"
+    echo "$tag_name"$'\t'"$commit"$'\t'"$message"$'\t'"$error"
   done <<<"$(get-version-commit-pairs)"
 }
 
-if [[ -z $package_name ]]; then
-  echo "Missing package name."
-  exit 1
-fi
-while IFS=$'\t' read -r commit tag_name; do
-  if [[ $dry_run == true ]]; then
-    echo "$commit"$'\t'"$tag_name"
-  else
-    echo "Creating tag '$tag_name'..."
-    git tag "$tag_name" "$commit"
-    git push "$remote" "$tag_name"
+main() {
+  if [[ -z $package_name ]]; then
+    echo "Missing package name."
+    exit 1
   fi
-done <<<"$(get-commit-tagname-pairs)"
+  while IFS=$'\t' read -r tag_name commit message error; do
+    if [[ -n $error ]]; then
+      echo "ERROR: $error" >&2
+    elif [[ $dry_run == true ]]; then
+      echo "$commit"$'\t'"$tag_name"$'\t'"$message"
+    else
+      echo "Creating tag '$tag_name'..."
+      git tag "$tag_name" "$commit"
+      git push "$remote" "$tag_name"
+    fi
+  done <<<"$(get-commit-tagname-pairs)"
+}
+
+main
