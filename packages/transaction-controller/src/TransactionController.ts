@@ -302,7 +302,7 @@ export class TransactionController extends BaseController<
       disableAdvancedGasFee: boolean;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
-      getAdvancedGasFeeByChainId: (chainId: Hex) => AdvancedGasFees;
+      getAdvancedGasFeeByChainId?: (chainId: Hex) => AdvancedGasFees;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getGasFeeEstimates?: () => Promise<GasFeeState>;
@@ -346,7 +346,8 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
-    this.getAdvancedGasFeeByChainId = getAdvancedGasFeeByChainId;
+    this.getAdvancedGasFeeByChainId =
+      getAdvancedGasFeeByChainId ?? (() => ({}));
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
