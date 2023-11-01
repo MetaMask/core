@@ -7,42 +7,42 @@ export type ActionHandler<
 
 export type ExtractActionParameters<
   Action extends ActionConstraint,
-  T = Action['type'],
+  ActionType = Action['type'],
 > = Action extends {
-  type: T;
-  handler: (...args: infer H) => unknown;
+  type: ActionType;
+  handler: (...args: infer HandlerArgs) => unknown;
 }
-  ? H
+  ? HandlerArgs
   : never;
 export type ExtractActionResponse<
   Action extends ActionConstraint,
-  T = Action['type'],
+  ActionType = Action['type'],
 > = Action extends {
-  type: T;
-  handler: (...args: never[]) => infer H;
+  type: ActionType;
+  handler: (...args: never[]) => infer HandlerReturnValue;
 }
-  ? H
+  ? HandlerReturnValue
   : never;
 
 export type ExtractEventHandler<
   Event extends EventConstraint,
-  T = Event['type'],
+  ActionType = Event['type'],
 > = Event extends {
-  type: T;
-  payload: infer P;
+  type: ActionType;
+  payload: infer Payload;
 }
-  ? P extends unknown[]
-    ? (...payload: P) => void
+  ? Payload extends unknown[]
+    ? (...payload: Payload) => void
     : never
   : never;
 export type ExtractEventPayload<
   Event extends EventConstraint,
-  T = Event['type'],
+  ActionType = Event['type'],
 > = Event extends {
-  type: T;
-  payload: infer P extends unknown[];
+  type: ActionType;
+  payload: infer Payload extends unknown[];
 }
-  ? P
+  ? Payload
   : never;
 
 export type GenericEventHandler = (...args: unknown[]) => void;
