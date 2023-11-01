@@ -102,14 +102,32 @@ get-version-message-pairs() {
   done <<<"$(get-tag-commit-pairs)"
 }
 
-get-version-commit-pairs() {
-  local commit
-  while IFS=$'\t' read -r version message; do
-    commit="$(git log --oneline --format='%H%x09%s' --grep="^$message$" | cut -f1)"
-    if [[ $commit == '' ]]; then
-      echo "Could not find commit for version '$version' and message '$message'."
+find-commits-matching-message() {
+  local expected_message="$1"
+  while IFS=$'\t' read -r commit actual_message; do
+    if [[ $actual_message == $expected_message ]]; then
+      echo "$commit"
     fi
-    echo "$version"$'\t'"$commit"
+  done <<<"$(git log --oneline --format='%H%x09%s' --grep="$expected_message" --fixed-strings)"
+}
+
+get-version-commit-pairs() {
+  local commits
+  local num_commits
+  local commits_as_string
+  local error
+  while IFS=$'\t' read -r version message; do
+    commits="$(find-commits-matching-message "$message")"
+    num_commits="$(echo $commits | wc -l | sed -E 's/^[ ]+//')"
+    commits_as_string="$(echo $commits | awk '{ if(FNR == 1) { printf "%s", $0 } else { printf ", %s", $0 } }')"
+    if [[ $num_commits -eq 0 ]]; then
+      error="Could not find commit for version '$version' and message '$message'."
+    elif [[ $num_commits -gt 1 ]]; then
+      error="More than one commit found for '$version' and message '$message': $commits_as_string"
+    else
+      error=""
+    fi
+    echo "$version"$'\t'"$commits"$'\t'"$message"$'\t'"$error"
   done <<<"$(get-version-message-pairs)"
 }
 
