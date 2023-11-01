@@ -110,6 +110,26 @@ type TransactionMetaBase = {
   originalGasEstimate?: string;
 
   /**
+   * The previous gas properties before they were updated.
+   */
+  previousGas?: {
+    /**
+     * Maxmimum number of units of gas to use for this transaction.
+     */
+    gasLimit?: string;
+
+    /**
+     * Maximum amount per gas to pay for the transaction, including the priority fee.
+     */
+    maxFeePerGas?: string;
+
+    /**
+     * Maximum amount per gas to give to validator as incentive.
+     */
+    maxPriorityFeePerGas?: string;
+  };
+
+  /**
    * The transaction's 'r' value as a hex string.
    */
   r?: string;
