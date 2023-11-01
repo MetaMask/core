@@ -592,7 +592,9 @@ export class TransactionController extends BaseController<
       this.processApproval(txMeta, {
         shouldShowRequest: false,
       }).catch((error) => {
-        /* istanbul ignore next */
+        if (error?.code === errorCodes.provider.userRejectedRequest) {
+          return;
+        }
         console.error('Error during persisted transaction approval', error);
       });
     }
@@ -1201,7 +1203,7 @@ export class TransactionController extends BaseController<
         const { isCompleted: isTxCompleted } =
           this.isTransactionCompleted(transactionId);
         if (!isTxCompleted) {
-          if (error.code === errorCodes.provider.userRejectedRequest) {
+          if (error?.code === errorCodes.provider.userRejectedRequest) {
             this.cancelTransaction(transactionId);
 
             throw providerErrors.userRejectedRequest(
