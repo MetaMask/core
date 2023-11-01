@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ActionConstraint,
+  ExtractActionResponse,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Patch } from 'immer';
@@ -10,7 +14,7 @@ import type { Patch } from 'immer';
  * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
  */
 export type RateLimitedApi = {
-  method: (...args: any[]) => any;
+  method: ActionConstraint['handler'];
   rateLimitTimeout?: number;
   rateLimitCount?: number;
 };
@@ -38,12 +42,16 @@ export type GetRateLimitState<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = {
   type: `${typeof name}:getState`;
-  handler: () => RateLimitState<RateLimitedApis>;
+  handler: () => RateLimitState<RateLimitedApis> extends ActionConstraint['handler']
+    ? RateLimitState<RateLimitedApis>
+    : never;
 };
 
 export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
   type: `${typeof name}:call`;
-  handler: RateLimitController<RateLimitedApis>['call'];
+  handler: RateLimitController<RateLimitedApis>['call'] extends ActionConstraint['handler']
+    ? RateLimitController<RateLimitedApis>['call']
+    : never;
 };
 
 export type RateLimitControllerActions<
@@ -121,11 +129,15 @@ export class RateLimitController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:call` as const,
-      ((
+      (
         origin: string,
         type: keyof RateLimitedApis,
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
-      ) => this.call(origin, type, ...args)) as any,
+      ) =>
+        this.call(origin, type, ...args) as ExtractActionResponse<
+          CallApi<RateLimitedApis>,
+          'RateLimitController:call'
+        >,
     );
   }
 
@@ -155,7 +167,9 @@ export class RateLimitController<
       throw new Error('Invalid api type');
     }
 
-    return implementation(...args);
+    return implementation(...args) as ReturnType<
+      RateLimitedApis[ApiType]['method']
+    >;
   }
 
   /**
