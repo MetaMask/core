@@ -146,6 +146,7 @@ get-commit-tagname-pairs() {
 main() {
   if [[ -z $package_name ]]; then
     echo "Missing package name."
+    print-usage
     exit 1
   fi
   while IFS=$'\t' read -r tag_name commit message error; do
