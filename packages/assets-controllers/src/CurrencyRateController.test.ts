@@ -127,7 +127,7 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    await advanceTime({ clock, duration: 200, stepSize: 50 });
+    await advanceTime({ clock, duration: 200 });
 
     expect(fetchExchangeRateStub).not.toHaveBeenCalled();
 
@@ -166,7 +166,7 @@ describe('CurrencyRateController', () => {
         usdConversionRate: 11,
       },
     });
-    await advanceTime({ clock, duration: 99, stepSize: 50 });
+    await advanceTime({ clock, duration: 99 });
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 

@@ -568,11 +568,11 @@ export async function advanceTime({
   duration: number;
   stepSize?: number;
 }): Promise<void> {
-  stepSize ??= duration / 4 ?? 1;
+  // if stepSize is not provided, default to 1/4 of the duration
+  stepSize ??= duration / 4;
   do {
-    const amountToTick = duration < stepSize ? duration : stepSize;
-    await clock.tickAsync(amountToTick);
+    await clock.tickAsync(stepSize);
     await flushPromises();
-    duration -= amountToTick;
+    duration -= stepSize;
   } while (duration > 0);
 }
