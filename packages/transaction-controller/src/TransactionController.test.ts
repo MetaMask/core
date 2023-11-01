@@ -30,7 +30,12 @@ import type {
   TransactionConfig,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
-import type { TransactionMeta, DappSuggestedGasFees } from './types';
+import type {
+  TransactionMeta,
+  DappSuggestedGasFees,
+  TransactionParams,
+  TransactionHistoryEntry,
+} from './types';
 import {
   TransactionEvent,
   TransactionStatus,
@@ -197,7 +202,7 @@ function buildMockMessenger({
 }): {
   messenger: TransactionControllerMessenger;
   approve: () => void;
-  reject: (reason: any) => void;
+  reject: (reason: unknown) => void;
 } {
   let approve, reject;
   let promise: Promise<AddResult>;
@@ -228,8 +233,8 @@ function buildMockMessenger({
 
   return {
     messenger,
-    approve: approve as any,
-    reject: reject as any,
+    approve: approve as unknown as () => void,
+    reject: reject as unknown as (reason: unknown) => void,
   };
 }
 
@@ -405,7 +410,7 @@ const ACTION_ID_MOCK = '123456';
 
 const TRANSACTION_META_MOCK = {
   hash: '0x1',
-  status: TransactionStatus.confirmed,
+  status: TransactionStatus.confirmed as const,
   time: 123456789,
   txParams: {
     from: ACCOUNT_MOCK,
@@ -414,7 +419,7 @@ const TRANSACTION_META_MOCK = {
 
 const TRANSACTION_META_2_MOCK = {
   hash: '0x2',
-  status: TransactionStatus.confirmed,
+  status: TransactionStatus.confirmed as const,
   time: 987654321,
   txParams: {
     from: '0x3',
@@ -554,14 +559,14 @@ describe('TransactionController', () => {
       hub: {
         on: jest.fn(),
       },
-    } as any;
+    } as unknown as jest.Mocked<IncomingTransactionHelper>;
 
     pendingTransactionTrackerMock = {
       start: jest.fn(),
       hub: {
         on: jest.fn(),
       },
-    } as any;
+    } as unknown as jest.Mocked<PendingTransactionTracker>;
 
     incomingTransactionHelperClassMock.mockReturnValue(
       incomingTransactionHelperMock,
@@ -792,7 +797,7 @@ describe('TransactionController', () => {
         expectedSignCalledTimes,
       ) => {
         const controller = newController();
-        const signSpy = jest.spyOn(controller, 'sign' as any);
+        const signSpy = jest.spyOn(controller, 'sign');
 
         const { transactionMeta } = await controller.addTransaction({
           from: ACCOUNT_MOCK,
@@ -887,7 +892,7 @@ describe('TransactionController', () => {
         origin: undefined,
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
-        status: TransactionStatus.unapproved,
+        status: TransactionStatus.unapproved as const,
         time: expect.any(Number),
         txParams: expect.anything(),
         userEditedGasLimit: false,
@@ -922,31 +927,34 @@ describe('TransactionController', () => {
         ).toBeUndefined();
       });
 
-      it.each([
+      it.each<[keyof DappSuggestedGasFees]>([
         ['gasPrice'],
         ['maxFeePerGas'],
         ['maxPriorityFeePerGas'],
         ['gas'],
-      ])('if %s is defined', async (gasPropName) => {
-        const controller = newController();
-        const mockDappOrigin = 'MockDappOrigin';
-        const mockGasValue = '0x1';
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-            [gasPropName]: mockGasValue,
-          },
-          {
-            origin: mockDappOrigin,
-          },
-        );
-        expect(
-          controller.state.transactions[0]?.dappSuggestedGasFees?.[
-            gasPropName as keyof DappSuggestedGasFees
-          ],
-        ).toBe(mockGasValue);
-      });
+      ])(
+        'if %s is defined',
+        async (gasPropName: keyof DappSuggestedGasFees) => {
+          const controller = newController();
+          const mockDappOrigin = 'MockDappOrigin';
+          const mockGasValue = '0x1';
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+              [gasPropName]: mockGasValue,
+            },
+            {
+              origin: mockDappOrigin,
+            },
+          );
+          expect(
+            controller.state.transactions[0]?.dappSuggestedGasFees?.[
+              gasPropName
+            ],
+          ).toBe(mockGasValue);
+        },
+      );
     });
 
     it.each([
@@ -995,9 +1003,9 @@ describe('TransactionController', () => {
 
     it('throws if address invalid', async () => {
       const controller = newController();
-      await expect(
-        controller.addTransaction({ from: 'foo' } as any),
-      ).rejects.toThrow('Invalid "from" address');
+      await expect(controller.addTransaction({ from: 'foo' })).rejects.toThrow(
+        'Invalid "from" address',
+      );
     });
 
     it('increments nonce when adding a new non-cancel non-speedup transaction', async () => {
@@ -1360,7 +1368,7 @@ describe('TransactionController', () => {
             {
               from: notSelectedFromAddress,
               to: ACCOUNT_MOCK,
-            } as any,
+            },
             { origin: ORIGIN_METAMASK },
           ),
         ).rejects.toThrow(
@@ -1418,18 +1426,22 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '1',
         chainId: mockCurrentChainId,
+        status: TransactionStatus.confirmed as const,
+        time: 123456789,
         txParams: {
           from: mockFromAccount1,
         },
-      } as any);
+      });
 
       controller.state.transactions.push({
         id: '2',
         chainId: mockCurrentChainId,
+        status: TransactionStatus.confirmed as const,
+        time: 987654321,
         txParams: {
           from: mockFromAccount2,
         },
-      } as any);
+      });
 
       controller.wipeTransactions(true, mockFromAccount2);
 
@@ -1452,7 +1464,9 @@ describe('TransactionController', () => {
         txParams: {
           from: mockFromAccount1,
         },
-      } as any);
+        status: TransactionStatus.confirmed as const,
+        time: 123456789,
+      });
 
       controller.state.transactions.push({
         id: '4',
@@ -1460,7 +1474,9 @@ describe('TransactionController', () => {
         txParams: {
           from: mockFromAccount1,
         },
-      } as any);
+        status: TransactionStatus.confirmed as const,
+        time: 987654321,
+      });
 
       controller.wipeTransactions(false, mockFromAccount1);
 
@@ -1542,7 +1558,10 @@ describe('TransactionController', () => {
 
       await controller.handleMethodData('0xf39b5b9b');
 
-      const registryLookup = jest.spyOn(controller, 'registryLookup' as any);
+      const registryLookup = jest.spyOn<TransactionController, never>(
+        controller,
+        'registryLookup' as never,
+      );
 
       await controller.handleMethodData('0xf39b5b9b');
 
@@ -1590,7 +1609,7 @@ describe('TransactionController', () => {
         gasPrice: '0x1',
       });
 
-      const signSpy = jest.spyOn(controller, 'sign' as any);
+      const signSpy = jest.spyOn(controller, 'sign');
 
       expect(signSpy).toHaveBeenCalledTimes(0);
     });
@@ -1758,9 +1777,9 @@ describe('TransactionController', () => {
       hash: '1337',
       id: 'mocked',
       chainId: toHex(5),
-      status: TransactionStatus.unapproved,
+      status: TransactionStatus.unapproved as const,
       txParams: { data: '0x', from: ACCOUNT_MOCK },
-      time: 0,
+      time: 123456789,
     };
     it('creates approvals for all unapproved transaction', async () => {
       const controller = newController();
@@ -1858,17 +1877,16 @@ describe('TransactionController', () => {
       const controller = newController();
 
       const externalTransactionToConfirm = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
         id: '1',
         chainId: toHex(1),
-        status: TransactionStatus.confirmed,
+        time: 123456789,
+        status: TransactionStatus.confirmed as const,
         txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
-      } as any;
+      };
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
       };
@@ -1899,13 +1917,14 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         id: '1',
         chainId: toHex(1),
-        status: TransactionStatus.confirmed,
+        status: TransactionStatus.confirmed as const,
+        time: 123456789,
         txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
-      } as any;
+      };
 
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
@@ -1923,7 +1942,8 @@ describe('TransactionController', () => {
         chainId: '0x1',
         from: ACCOUNT_MOCK,
         id: '1',
-        status: TransactionStatus.confirmed,
+        time: 123456789,
+        status: TransactionStatus.confirmed as const,
         to: ACCOUNT_2_MOCK,
         txParams: {
           from: ACCOUNT_MOCK,
@@ -1971,13 +1991,14 @@ describe('TransactionController', () => {
         hash: externalTransactionHash,
         id: externalTransactionId,
         chainId: toHex(5),
-        status: TransactionStatus.confirmed,
+        status: TransactionStatus.confirmed as const,
+        time: 123456789,
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+          nonce: String(NONCE_MOCK),
         },
-      } as any;
+      };
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
       };
@@ -1986,17 +2007,16 @@ describe('TransactionController', () => {
       // Submitted local unapproved transaction
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
         id: localTransactionIdWithSameNonce,
         chainId: toHex(5),
-        status: TransactionStatus.unapproved,
+        status: TransactionStatus.unapproved as const,
+        time: 123456789,
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+          nonce: String(NONCE_MOCK),
         },
-      } as any);
+      });
 
       await controller.confirmExternalTransaction(
         externalTransactionToConfirm,
@@ -2025,13 +2045,14 @@ describe('TransactionController', () => {
         hash: externalTransactionHash,
         id: externalTransactionId,
         chainId: toHex(5),
-        status: TransactionStatus.confirmed,
+        status: TransactionStatus.confirmed as const,
+        time: 123456789,
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+          nonce: String(NONCE_MOCK),
         },
-      } as any;
+      };
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
       };
@@ -2040,17 +2061,17 @@ describe('TransactionController', () => {
       // Off-chain failed local transaction
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
         id: localTransactionIdWithSameNonce,
         chainId: toHex(5),
-        status: TransactionStatus.failed,
+        status: TransactionStatus.failed as const,
+        error: new Error('mock error'),
+        time: 123456789,
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
+          nonce: String(NONCE_MOCK),
         },
-      } as any);
+      });
 
       await controller.confirmExternalTransaction(
         externalTransactionToConfirm,
@@ -2283,12 +2304,15 @@ describe('TransactionController', () => {
         },
       ];
       controller.state.transactions.push({
-        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         chainId: toHex(5),
-        status: TransactionStatus.submitted,
-        transactionHash: '1337',
-      } as any);
+        hash: '1337',
+        status: TransactionStatus.submitted as const,
+        time: 123456789,
+        txParams: {
+          from: MOCK_PREFERENCES.state.selectedAddress,
+        },
+      });
       expect(() =>
         controller.updateTransactionSendFlowHistory(
           'foo',
@@ -2409,7 +2433,11 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: transactionId,
         status,
-      } as any);
+        error: new Error('mock error'),
+        chainId: '0x1',
+        time: 123456789,
+        txParams: {} as TransactionParams,
+      });
       expect(() =>
         controller.updateTransactionGasFees(transactionId, {
           gasPrice: '0x1',
@@ -2436,13 +2464,18 @@ describe('TransactionController', () => {
 
       controller.state.transactions.push({
         id: transactionId,
-        status: TransactionStatus.unapproved,
-        history: [{}],
+        chainId: '0x1',
+        time: 123456789,
+        status: TransactionStatus.unapproved as const,
+        history: [
+          {} as TransactionMeta,
+          ...([{}] as TransactionHistoryEntry[]),
+        ],
         txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
-      } as any);
+      });
 
       controller.updateTransactionGasFees(transactionId, {
         gas,
