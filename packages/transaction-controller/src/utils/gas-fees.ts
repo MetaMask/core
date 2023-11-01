@@ -12,33 +12,61 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
+import { SWAP_TRANSACTION_TYPES } from '../constants';
 import { projectLogger } from '../logger';
-import type { TransactionParams } from '../types';
-import { UserFeeLevel, type TransactionMeta } from '../types';
+import type {
+  AdvancedGasFees,
+  TransactionParams,
+  TransactionMeta,
+  TransactionType,
+} from '../types';
+import { UserFeeLevel } from '../types';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
+  getAdvancedGasFee: () => AdvancedGasFees;
   getGasFeeEstimates: () => Promise<GasFeeState>;
+  isAdvancedGasFeeDisabled: boolean;
   txMeta: TransactionMeta;
 };
 
 export type GetGasFeeRequest = UpdateGasFeesRequest & {
+  advancedGasFees?: AdvancedGasFees;
   initialParams: TransactionParams;
+  shouldReadAdvancedGasFees: boolean;
   suggestedGasFees: Awaited<ReturnType<typeof getSuggestedGasFees>>;
 };
+
+/**
+ * Represents the user customizing their gas preference
+ */
+export const CUSTOM_GAS_ESTIMATE = 'custom';
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
 
 export async function updateGasFees(request: UpdateGasFeesRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
+  const advancedGasFees = !request.isAdvancedGasFeeDisabled
+    ? request.getAdvancedGasFee()
+    : undefined;
+
+  const shouldReadAdvancedGasFees =
+    Boolean(advancedGasFees) &&
+    !SWAP_TRANSACTION_TYPES.includes(txMeta.type as TransactionType);
 
   const suggestedGasFees = await getSuggestedGasFees(request);
 
   log('Suggested gas fees', suggestedGasFees);
 
-  const getGasFeeRequest = { ...request, initialParams, suggestedGasFees };
+  const getGasFeeRequest = {
+    ...request,
+    advancedGasFees,
+    initialParams,
+    shouldReadAdvancedGasFees,
+    suggestedGasFees,
+  };
 
   txMeta.txParams.maxFeePerGas = getMaxFeePerGas(getGasFeeRequest);
 
@@ -67,10 +95,24 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 }
 
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
-  const { eip1559, initialParams, suggestedGasFees } = request;
+  const {
+    advancedGasFees,
+    eip1559,
+    initialParams,
+    shouldReadAdvancedGasFees,
+    suggestedGasFees,
+  } = request;
 
   if (!eip1559) {
     return undefined;
+  }
+
+  if (shouldReadAdvancedGasFees) {
+    const maxFeePerGas = gweiDecimalToWeiHex(
+      advancedGasFees?.maxBaseFee as string,
+    );
+    log('Using maxFeePerGas from advancedGasFees', maxFeePerGas);
+    return maxFeePerGas;
   }
 
   if (initialParams.maxFeePerGas) {
@@ -106,10 +148,28 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
 function getMaxPriorityFeePerGas(
   request: GetGasFeeRequest,
 ): string | undefined {
-  const { eip1559, initialParams, suggestedGasFees, txMeta } = request;
+  const {
+    advancedGasFees,
+    eip1559,
+    initialParams,
+    shouldReadAdvancedGasFees,
+    suggestedGasFees,
+    txMeta,
+  } = request;
 
   if (!eip1559) {
     return undefined;
+  }
+
+  if (shouldReadAdvancedGasFees) {
+    const maxPriorityFeePerGas = gweiDecimalToWeiHex(
+      advancedGasFees?.priorityFee as string,
+    );
+    log(
+      'Using maxPriorityFeePerGas from advancedGasFees',
+      maxPriorityFeePerGas,
+    );
+    return maxPriorityFeePerGas;
   }
 
   if (initialParams.maxPriorityFeePerGas) {
@@ -169,11 +229,23 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
   return undefined;
 }
 
-function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
-  const { eip1559, initialParams, suggestedGasFees, txMeta } = request;
+function getUserFeeLevel(
+  request: GetGasFeeRequest,
+): UserFeeLevel | undefined | typeof CUSTOM_GAS_ESTIMATE {
+  const {
+    eip1559,
+    initialParams,
+    shouldReadAdvancedGasFees,
+    suggestedGasFees,
+    txMeta,
+  } = request;
 
   if (!eip1559) {
     return undefined;
+  }
+
+  if (shouldReadAdvancedGasFees) {
+    return CUSTOM_GAS_ESTIMATE;
   }
 
   if (

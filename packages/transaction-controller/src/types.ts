@@ -575,6 +575,14 @@ export interface DappSuggestedGasFees {
 }
 
 /**
+ * Gas values set by the user.
+ */
+export interface AdvancedGasFees {
+  maxBaseFee?: string;
+  priorityFee?: string;
+}
+
+/**
  * A transaction history operation that includes a note and timestamp.
  */
 type ExtendedHistoryOperation = Operation & {

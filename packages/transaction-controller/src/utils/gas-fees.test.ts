@@ -2,9 +2,9 @@
 import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import { UserFeeLevel } from '../types';
+import { TransactionType, UserFeeLevel } from '../types';
 import type { UpdateGasFeesRequest } from './gas-fees';
-import { updateGasFees } from './gas-fees';
+import { updateGasFees, CUSTOM_GAS_ESTIMATE } from './gas-fees';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -25,6 +25,7 @@ const UPDATE_GAS_FEES_REQUEST_MOCK = {
   txMeta: {
     txParams: {},
   },
+  isAdvancedGasFeeDisabled: true,
 } as any as UpdateGasFeesRequest;
 
 function toHex(value: number) {
@@ -51,6 +52,8 @@ describe('gas-fees', () => {
       JSON.stringify(UPDATE_GAS_FEES_REQUEST_MOCK),
     );
 
+    // eslint-disable-next-line jest/prefer-spy-on
+    updateGasFeeRequest.getAdvancedGasFee = jest.fn();
     // eslint-disable-next-line jest/prefer-spy-on
     updateGasFeeRequest.getGasFeeEstimates = jest.fn().mockResolvedValue({});
   });
@@ -140,6 +143,21 @@ describe('gas-fees', () => {
         expect(
           updateGasFeeRequest.txMeta.txParams.maxFeePerGas,
         ).toBeUndefined();
+      });
+
+      it('to request maxFeePerGas if advanced gas fees enabled', async () => {
+        updateGasFeeRequest.isAdvancedGasFeeDisabled = false;
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getAdvancedGasFee.mockReturnValueOnce({
+          maxBaseFee: '123',
+          priorityFee: '456',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          '0x1ca35f0e00', // 123 gwei
+        );
       });
 
       it('to request maxFeePerGas if set', async () => {
@@ -256,6 +274,21 @@ describe('gas-fees', () => {
         expect(
           updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas,
         ).toBeUndefined();
+      });
+
+      it('to request maxFeePerGas if advanced gas fees enabled', async () => {
+        updateGasFeeRequest.isAdvancedGasFeeDisabled = false;
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getAdvancedGasFee.mockReturnValueOnce({
+          maxBaseFee: '123',
+          priorityFee: '456',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          '0x6a2bb7d000', // 456 gwei
+        );
       });
 
       it('to request maxPriorityFeePerGas if set', async () => {
@@ -460,6 +493,21 @@ describe('gas-fees', () => {
         await updateGasFees(updateGasFeeRequest);
 
         expect(updateGasFeeRequest.txMeta.userFeeLevel).toBeUndefined();
+      });
+
+      it('to request maxFeePerGas if advanced gas fees enabled', async () => {
+        updateGasFeeRequest.isAdvancedGasFeeDisabled = false;
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getAdvancedGasFee.mockReturnValueOnce({
+          maxBaseFee: '123',
+          priorityFee: '456',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          CUSTOM_GAS_ESTIMATE,
+        );
       });
 
       it('to custom if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin is metamask', async () => {
