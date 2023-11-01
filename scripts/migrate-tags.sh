@@ -92,25 +92,25 @@ get-tag-commit-pairs() {
   echo "$(cd $tmp_dir/$package_name && git tag --format="%(refname:short)"$'\t'"%(objectname)")"
 }
 
-get-version-subject-pairs() {
+get-version-message-pairs() {
   local version
-  local subject
+  local message
   while IFS=$'\t' read -r tag commit; do
     version="$(echo "$tag" | sed "$sed_pattern")"
-    subject="$(cd $tmp_dir/$package_name && git log $commit -n 1 --oneline --format='%H%x09%s' | cut -f2)"
-    echo "$version"$'\t'"$subject"
+    message="$(cd $tmp_dir/$package_name && git log $commit -n 1 --oneline --format='%H%x09%s' | cut -f2)"
+    echo "$version"$'\t'"$message"
   done <<<"$(get-tag-commit-pairs)"
 }
 
 get-version-commit-pairs() {
   local commit
-  while IFS=$'\t' read -r version subject; do
-    commit="$(git log --oneline --format='%H%x09%s' --grep="^$subject$" | cut -f1)"
+  while IFS=$'\t' read -r version message; do
+    commit="$(git log --oneline --format='%H%x09%s' --grep="^$message$" | cut -f1)"
     if [[ $commit == '' ]]; then
-      echo "Could not find commit for version '$version' and subject '$subject'."
+      echo "Could not find commit for version '$version' and message '$message'."
     fi
     echo "$version"$'\t'"$commit"
-  done <<<"$(get-version-subject-pairs)"
+  done <<<"$(get-version-message-pairs)"
 }
 
 get-commit-tagname-pairs() {
