@@ -4,14 +4,14 @@ import type { Operation } from 'fast-json-patch';
 /**
  * Representation of transaction metadata.
  */
-export type TransactionMeta =
-  | ({
-      status: Exclude<TransactionStatus, TransactionStatus.failed>;
-    } & TransactionMetaBase)
-  | ({
-      status: TransactionStatus.failed;
-      error: TxError;
-    } & TransactionMetaBase);
+export type TransactionMeta = TransactionMetaBase &
+  (
+    | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
+    | {
+        status: TransactionStatus.failed;
+        error: TxError;
+      }
+  );
 
 /**
  * Information about a single transaction such as status and block number.
