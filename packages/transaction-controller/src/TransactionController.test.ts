@@ -2632,6 +2632,67 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('updatePreviousGasParams', () => {
+    it('throws if transaction does not exist', async () => {
+      const controller = newController();
+      expect(() =>
+        controller.updatePreviousGasParams('123', {
+          maxFeePerGas: '0x1',
+        }),
+      ).toThrow('Cannot update transaction as no transaction metadata found');
+    });
+
+    it('throws if transaction not unapproved status', async () => {
+      const transactionId = '123';
+      const fnName = 'updatePreviousGasParams';
+      const status = TransactionStatus.failed;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionId,
+        status,
+      } as any);
+      expect(() =>
+        controller.updatePreviousGasParams(transactionId, {
+          maxFeePerGas: '0x1',
+        }),
+      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${status}`);
+    });
+
+    it('updates previous gas values', async () => {
+      const transactionId = '123';
+      const controller = newController();
+
+      const gasLimit = '0xgasLimit';
+      const maxFeePerGas = '0xmaxFeePerGas';
+      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
+
+      controller.state.transactions.push({
+        id: transactionId,
+        status: TransactionStatus.unapproved,
+        history: [{}],
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any);
+
+      controller.updatePreviousGasParams(transactionId, {
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.previousGas?.gasLimit).toBe(gasLimit);
+      expect(transaction?.previousGas?.maxFeePerGas).toBe(maxFeePerGas);
+      expect(transaction?.previousGas?.maxPriorityFeePerGas).toBe(
+        maxPriorityFeePerGas,
+      );
+    });
+  });
+
   describe('on pending transactions event', () => {
     it('updates existing transactions in state', async () => {
       const controller = newController();
