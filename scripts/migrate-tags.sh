@@ -93,6 +93,8 @@ get-tag-commit-pairs() {
 }
 
 get-version-subject-pairs() {
+  local version
+  local subject
   while IFS=$'\t' read -r tag commit; do
     version="$(echo "$tag" | sed "$sed_pattern")"
     subject="$(cd $tmp_dir/$package_name && git log $commit -n 1 --oneline --format='%H%x09%s' | cut -f2)"
@@ -101,6 +103,7 @@ get-version-subject-pairs() {
 }
 
 get-version-commit-pairs() {
+  local commit
   while IFS=$'\t' read -r version subject; do
     commit="$(git log --oneline --format='%H%x09%s' --grep="^$subject$" | cut -f1)"
     if [[ $commit == '' ]]; then
@@ -111,8 +114,8 @@ get-version-commit-pairs() {
 }
 
 prepend-tag-name() {
+  local tag_name
   while IFS=$'\t' read -r version commit; do
-    local tag_name
     if semverLT "$version" "$version_before_package_rename" || semverEQ "$version" "$version_before_package_rename"; then
       tag_name="$tag_prefix_before_package_rename@$version"
     else
