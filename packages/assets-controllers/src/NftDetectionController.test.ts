@@ -259,13 +259,11 @@ describe('NftDetectionController', () => {
     await advanceTime({
       clock,
       duration: 0,
-      stepSize: 5,
     });
     expect(mockNfts.calledOnce).toBe(true);
     await advanceTime({
       clock,
       duration: 10,
-      stepSize: 5,
     });
     expect(mockNfts.calledTwice).toBe(true);
   });
@@ -304,21 +302,19 @@ describe('NftDetectionController', () => {
       address: '0x1',
     });
 
-    await advanceTime({ clock, duration: 0, stepSize: 5000 });
+    await advanceTime({ clock, duration: 0 });
     expect(spy.mock.calls).toHaveLength(1);
     await advanceTime({
       clock,
       duration: DEFAULT_INTERVAL / 2,
-      stepSize: 5000,
     });
     expect(spy.mock.calls).toHaveLength(1);
     await advanceTime({
       clock,
       duration: DEFAULT_INTERVAL / 2,
-      stepSize: 5000,
     });
     expect(spy.mock.calls).toHaveLength(2);
-    await advanceTime({ clock, duration: DEFAULT_INTERVAL, stepSize: 5000 });
+    await advanceTime({ clock, duration: DEFAULT_INTERVAL });
     expect(spy.mock.calls).toMatchObject([
       ['mainnet', '0x1'],
       ['mainnet', '0x1'],
@@ -536,7 +532,7 @@ describe('NftDetectionController', () => {
     nftDetection.detectNfts();
     nftDetection.configure({ selectedAddress: '0x12' });
     nftController.configure({ selectedAddress: '0x12' });
-    await advanceTime({ clock, duration: 1000, stepSize: 500 });
+    await advanceTime({ clock, duration: 1000 });
     expect(nftDetection.config.selectedAddress).toBe('0x12');
 
     expect(

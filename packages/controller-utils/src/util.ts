@@ -540,6 +540,11 @@ function logOrRethrowError(error: any, codesToCatch: number[] = []) {
   }
 }
 
+/**
+ * Resolve all pending promises.
+ * This method is used for async tests that use fake timers.
+ * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ */
 const flushPromises = () => {
   return new Promise(jest.requireActual('timers').setImmediate);
 };
@@ -557,12 +562,13 @@ const flushPromises = () => {
 export async function advanceTime({
   clock,
   duration,
-  stepSize = 1,
+  stepSize,
 }: {
   clock: sinon.SinonFakeTimers;
   duration: number;
   stepSize?: number;
 }): Promise<void> {
+  stepSize ??= duration / 4 ?? 1;
   do {
     const amountToTick = duration < stepSize ? duration : stepSize;
     await clock.tickAsync(amountToTick);
