@@ -41,7 +41,7 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { pendingTransactionsLogger } from './logger';
+import { pendingTransactionsLogger, projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -1123,7 +1123,7 @@ export class TransactionController extends BaseController<
     }
 
     const initialTx = listOfTxParams[0];
-    const common = await this.getCommonConfiguration();
+    const common = this.getCommonConfiguration();
 
     const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
       common,
@@ -1151,6 +1151,7 @@ export class TransactionController extends BaseController<
         }),
       );
     } catch (err) {
+      log('Error while signing transactions with same nonce: ', err);
       // Must set transaction to submitted/failed before releasing lock
       // continue with error chain
       throw err;
@@ -1173,20 +1174,23 @@ export class TransactionController extends BaseController<
     const type = isEIP1559Transaction(normalizedtransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
-    const txParams = {
+    const updatedTransactionParams = {
       ...normalizedtransactionParams,
       type,
       gasLimit: normalizedtransactionParams.gas,
       chainId,
     };
 
-    const from = txParams.from;
-    const common = await this.getCommonConfiguration();
-    const unsignedEthTx = TransactionFactory.fromTxData(txParams, { common });
-    const signedTx = await this.sign(unsignedEthTx, from);
+    const { from } = updatedTransactionParams;
+    const common = this.getCommonConfiguration();
+    const unsignedTransaction = TransactionFactory.fromTxData(
+      updatedTransactionParams,
+      { common },
+    );
+    const signedTransaction = await this.sign(unsignedTransaction, from);
 
-    const rawTx = bufferToHex(signedTx.serialize());
-    return rawTx;
+    const rawTransaction = bufferToHex(signedTransaction.serialize());
+    return rawTransaction;
   }
 
   private async processApproval(
