@@ -1293,7 +1293,7 @@ describe('TokenListController', () => {
 
   describe('startPollingByNetworkClient', () => {
     let clock: sinon.SinonFakeTimers;
-    const pollingIntervalTime = 1000
+    const pollingIntervalTime = 1000;
     beforeEach(() => {
       clock = sinon.useFakeTimers();
     });
@@ -1460,7 +1460,6 @@ describe('TokenListController', () => {
       // start polling for binance
       controller.startPollingByNetworkClientId('binance-network-client-id');
       await advanceTime({ clock, duration: pollingIntervalTime });
-
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid

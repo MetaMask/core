@@ -552,8 +552,7 @@ const flushPromises = () => {
 /**
  * Advances the provided fake timer by a specified duration in incremental steps.
  * Between each step, any enqueued promises are processed. This function is especially
- * useful for ensuring that chained promises and timers are fully processed within
- * tests.
+ * useful for ensuring that chained promises and timers are fully processed within tests.
  * @param options - The options object.
  * @param options.clock - The Sinon fake timer instance used to manipulate time in tests.
  * @param options.duration - The total amount of time (in milliseconds) to advance the timer by.
