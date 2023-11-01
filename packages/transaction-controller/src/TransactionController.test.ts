@@ -404,6 +404,7 @@ const TRANSACTION_META_MOCK = {
   time: 123456789,
   txParams: {
     from: ACCOUNT_MOCK,
+    to: ACCOUNT_2_MOCK,
   },
 } as TransactionMeta;
 
