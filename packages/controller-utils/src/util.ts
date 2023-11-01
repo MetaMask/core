@@ -539,3 +539,34 @@ function logOrRethrowError(error: any, codesToCatch: number[] = []) {
     throw error;
   }
 }
+
+const flushPromises = () => {
+  return new Promise(jest.requireActual('timers').setImmediate);
+};
+
+/**
+ * Advances the provided fake timer by a specified duration in incremental steps.
+ * Between each step, any enqueued promises are processed. This function is especially
+ * useful for ensuring that chained promises and timers are fully processed within
+ * tests.
+ * @param options - The options object.
+ * @param options.clock - The Sinon fake timer instance used to manipulate time in tests.
+ * @param options.duration - The total amount of time (in milliseconds) to advance the timer by.
+ * @param options.stepSize - The incremental step size (in milliseconds) by which the timer is advanced in each iteration. Default is 2000ms.
+ */
+export async function advanceTime({
+  clock,
+  duration,
+  stepSize = 1,
+}: {
+  clock: sinon.SinonFakeTimers;
+  duration: number;
+  stepSize?: number;
+}): Promise<void> {
+  do {
+    const amountToTick = duration < stepSize ? duration : stepSize;
+    await clock.tickAsync(amountToTick);
+    await flushPromises();
+    duration -= amountToTick;
+  } while (duration > 0);
+}

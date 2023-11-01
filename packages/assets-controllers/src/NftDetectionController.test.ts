@@ -1,6 +1,11 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
+import {
+  OPENSEA_PROXY_URL,
+  ChainId,
+  toHex,
+  advanceTime,
+} from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
@@ -16,15 +21,12 @@ type ApprovalActions = AddApprovalRequest;
 
 const controllerName = 'NftController' as const;
 
-const flushPromises = () => {
-  return new Promise(jest.requireActual('timers').setImmediate);
-};
-
 describe('NftDetectionController', () => {
   let nftDetection: NftDetectionController;
   let preferences: PreferencesController;
   let nftController: NftController;
   let assetsContract: AssetsContractController;
+  let clock: sinon.SinonFakeTimers;
   const networkStateChangeNoop = jest.fn();
   const getOpenSeaApiKeyStub = jest.fn();
 
@@ -37,6 +39,8 @@ describe('NftDetectionController', () => {
   }) as NftControllerMessenger;
 
   beforeEach(async () => {
+    clock = sinon.useFakeTimers();
+
     preferences = new PreferencesController();
     assetsContract = new AssetsContractController({
       chainId: ChainId.mainnet,
@@ -221,6 +225,7 @@ describe('NftDetectionController', () => {
 
   afterEach(() => {
     nftDetection.stopAllPolling();
+    clock.restore();
     sinon.restore();
   });
 
@@ -235,37 +240,37 @@ describe('NftDetectionController', () => {
   });
 
   it('should poll and detect NFTs on interval while on mainnet', async () => {
-    await new Promise((resolve) => {
-      const mockNfts = sinon.stub(
-        NftDetectionController.prototype,
-        'detectNfts',
-      );
-      const nftsDetectionController = new NftDetectionController(
-        {
-          getNetworkClientById: jest.fn(),
-          chainId: ChainId.mainnet,
-          onNftsStateChange: (listener) => nftController.subscribe(listener),
-          onPreferencesStateChange: (listener) =>
-            preferences.subscribe(listener),
-          onNetworkStateChange: networkStateChangeNoop,
-          getOpenSeaApiKey: () => nftController.openSeaApiKey,
-          addNft: nftController.addNft.bind(nftController),
-          getNftState: () => nftController.state,
-        },
-        { interval: 10 },
-      );
-      nftsDetectionController.configure({ disabled: false });
-      nftsDetectionController.start();
-      expect(mockNfts.calledOnce).toBe(true);
-      setTimeout(() => {
-        expect(mockNfts.calledTwice).toBe(true);
-        resolve('');
-      }, 15);
+    const mockNfts = sinon.stub(NftDetectionController.prototype, 'detectNfts');
+    const nftsDetectionController = new NftDetectionController(
+      {
+        getNetworkClientById: jest.fn(),
+        chainId: ChainId.mainnet,
+        onNftsStateChange: (listener) => nftController.subscribe(listener),
+        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+        onNetworkStateChange: networkStateChangeNoop,
+        getOpenSeaApiKey: () => nftController.openSeaApiKey,
+        addNft: nftController.addNft.bind(nftController),
+        getNftState: () => nftController.state,
+      },
+      { interval: 10 },
+    );
+    nftsDetectionController.configure({ disabled: false });
+    await nftsDetectionController.start();
+    await advanceTime({
+      clock,
+      duration: 0,
+      stepSize: 5,
     });
+    expect(mockNfts.calledOnce).toBe(true);
+    await advanceTime({
+      clock,
+      duration: 10,
+      stepSize: 5,
+    });
+    expect(mockNfts.calledTwice).toBe(true);
   });
 
   it('should poll and detect NFTs by networkClientId on interval while on mainnet', async () => {
-    jest.useFakeTimers();
     const getNetworkClientById = jest.fn().mockImplementation(() => {
       return {
         configuration: {
@@ -298,30 +303,28 @@ describe('NftDetectionController', () => {
     testNftDetection.startPollingByNetworkClientId('mainnet', {
       address: '0x1',
     });
-    await Promise.all([jest.advanceTimersByTime(0), flushPromises]);
+
+    await advanceTime({ clock, duration: 0, stepSize: 5000 });
     expect(spy.mock.calls).toHaveLength(1);
-    await Promise.all([
-      jest.advanceTimersByTime(DEFAULT_INTERVAL / 2),
-      flushPromises(),
-    ]);
+    await advanceTime({
+      clock,
+      duration: DEFAULT_INTERVAL / 2,
+      stepSize: 5000,
+    });
     expect(spy.mock.calls).toHaveLength(1);
-    await Promise.all([
-      jest.advanceTimersByTime(DEFAULT_INTERVAL / 2),
-      flushPromises(),
-    ]);
+    await advanceTime({
+      clock,
+      duration: DEFAULT_INTERVAL / 2,
+      stepSize: 5000,
+    });
     expect(spy.mock.calls).toHaveLength(2);
-    await Promise.all([
-      jest.advanceTimersByTime(DEFAULT_INTERVAL),
-      flushPromises(),
-    ]);
+    await advanceTime({ clock, duration: DEFAULT_INTERVAL, stepSize: 5000 });
     expect(spy.mock.calls).toMatchObject([
       ['mainnet', '0x1'],
       ['mainnet', '0x1'],
       ['mainnet', '0x1'],
     ]);
     nftDetection.stopAllPolling();
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
   });
 
   it('should detect mainnet correctly', () => {
@@ -533,7 +536,7 @@ describe('NftDetectionController', () => {
     nftDetection.detectNfts();
     nftDetection.configure({ selectedAddress: '0x12' });
     nftController.configure({ selectedAddress: '0x12' });
-    await new Promise((res) => setTimeout(() => res(true), 1000));
+    await advanceTime({ clock, duration: 1000, stepSize: 500 });
     expect(nftDetection.config.selectedAddress).toBe('0x12');
 
     expect(
