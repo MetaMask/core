@@ -41,7 +41,6 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { pendingTransactionsLogger } from './logger';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -313,6 +312,8 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.pendingTransactions - Configuration options for pending transaction support.
+   * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param config - Initial options used to configure this controller.
@@ -332,6 +333,7 @@ export class TransactionController extends BaseController<
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
+      pendingTransactions = {},
       provider,
       securityProviderRequest,
     }: {
@@ -344,7 +346,7 @@ export class TransactionController extends BaseController<
       getNetworkState: () => NetworkState;
       getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSelectedAddress: () => string;
-      incomingTransactions: {
+      incomingTransactions?: {
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
         queryEntireHistory?: boolean;
@@ -352,6 +354,9 @@ export class TransactionController extends BaseController<
       };
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+      pendingTransactions?: {
+        isResubmitEnabled?: boolean;
+      };
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
     },
@@ -432,34 +437,24 @@ export class TransactionController extends BaseController<
     );
 
     this.pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
       blockTracker,
-      failTransaction: this.failTransaction.bind(this),
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
+      onStateChange: this.subscribe.bind(this),
+      publishTransaction: this.publishTransaction.bind(this),
     });
 
-    this.pendingTransactionTracker.hub.on(
-      'transactions',
-      this.onPendingTransactionsUpdate.bind(this),
-    );
-
-    this.pendingTransactionTracker.hub.on(
-      'transaction-confirmed',
-      (transactionMeta: TransactionMeta) => {
-        this.hub.emit('transaction-confirmed', { transactionMeta });
-        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
-      },
-    );
+    this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
       // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
-
-    this.pendingTransactionTracker.start();
   }
 
   /**
@@ -1413,7 +1408,7 @@ export class TransactionController extends BaseController<
         transactionMeta,
         'TransactionController#approveTransaction - RawTransaction added',
       );
-      const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+      const hash = await this.publishTransaction(rawTx);
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
@@ -1434,6 +1429,10 @@ export class TransactionController extends BaseController<
       }
       releaseLock();
     }
+  }
+
+  private async publishTransaction(rawTransaction: string): Promise<string> {
+    return await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
   }
 
   /**
@@ -1669,11 +1668,6 @@ export class TransactionController extends BaseController<
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
 
-  private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
-    pendingTransactionsLogger('Updated pending transactions');
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
-  }
-
   private generateDappSuggestedGasFees(
     txParams: TransactionParams,
     origin?: string,
@@ -1858,6 +1852,31 @@ export class TransactionController extends BaseController<
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
+  }
+
+  private addPendingTransactionTrackerListeners() {
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta: TransactionMeta) => {
+        this.hub.emit('transaction-confirmed', { transactionMeta });
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
+      },
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-dropped',
+      this.setTransactionStatusDropped.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-failed',
+      this.failTransaction.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
     );
   }
 }

@@ -404,6 +404,7 @@ const TRANSACTION_META_MOCK = {
   time: 123456789,
   txParams: {
     from: ACCOUNT_MOCK,
+    to: ACCOUNT_2_MOCK,
   },
 } as TransactionMeta;
 
@@ -2693,39 +2694,94 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('on pending transactions event', () => {
-    it('updates existing transactions in state', async () => {
+  describe('on pending transactions tracker event', () => {
+    /**
+     * Simulate an event from the pending transaction tracker.
+     *
+     * @param eventName - The name of the event to fire.
+     * @param args - The arguments to pass to the event handler.
+     */
+    function firePendingTransactionTrackerEvent(
+      eventName: string,
+      ...args: any
+    ) {
+      (pendingTransactionTrackerMock.hub.on as jest.Mock).mock.calls.find(
+        (call) => call[0] === eventName,
+      )[1](...args);
+    }
+
+    it('bubbles on transaction-confirmed event', async () => {
+      const listener = jest.fn();
       const controller = newController();
 
-      controller.state.transactions = [
-        { ...TRANSACTION_META_MOCK, status: TransactionStatus.submitted },
-        { ...TRANSACTION_META_2_MOCK, status: TransactionStatus.submitted },
-      ];
+      controller.hub.on(`${TRANSACTION_META_MOCK.id}:confirmed`, listener);
 
-      const updatedTransaction = TRANSACTION_META_MOCK;
-      const updatedTransaction_2 = TRANSACTION_META_2_MOCK;
+      firePendingTransactionTrackerEvent(
+        'transaction-confirmed',
+        TRANSACTION_META_MOCK,
+      );
 
-      await (pendingTransactionTrackerMock.hub.on as any).mock.calls[0][1]([
-        updatedTransaction,
-        updatedTransaction_2,
-      ]);
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+    });
+
+    it('sets status to dropped on transaction-dropped event', async () => {
+      const controller = newController({
+        options: { disableHistory: true },
+      });
+
+      controller.state.transactions = [{ ...TRANSACTION_META_MOCK }];
+
+      firePendingTransactionTrackerEvent(
+        'transaction-dropped',
+        TRANSACTION_META_MOCK,
+      );
 
       expect(controller.state.transactions).toStrictEqual([
-        updatedTransaction,
-        updatedTransaction_2,
+        { ...TRANSACTION_META_MOCK, status: TransactionStatus.dropped },
       ]);
     });
 
-    it('limits max transactions when adding to state', async () => {
-      const controller = newController({ config: { txHistoryLimit: 1 } });
+    it('sets status to failed on transaction-failed event', async () => {
+      const controller = newController({
+        options: { disableHistory: true },
+      });
 
-      await (pendingTransactionTrackerMock.hub.on as any).mock.calls[0][1]([
+      controller.state.transactions = [{ ...TRANSACTION_META_MOCK }];
+
+      firePendingTransactionTrackerEvent(
+        'transaction-failed',
         TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
-      ]);
+        new Error('TestError'),
+      );
 
       expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_2_MOCK,
+        {
+          ...TRANSACTION_META_MOCK,
+          status: TransactionStatus.failed,
+          error: new Error('TestError'),
+        },
+      ]);
+    });
+
+    it('updates transaction on transaction-updated event', async () => {
+      const controller = newController({
+        options: { disableHistory: true },
+      });
+
+      controller.state.transactions = [{ ...TRANSACTION_META_MOCK }];
+
+      firePendingTransactionTrackerEvent(
+        'transaction-updated',
+        { ...TRANSACTION_META_MOCK, retryCount: 123 },
+        'TestNote',
+      );
+
+      expect(controller.state.transactions).toStrictEqual([
+        {
+          ...TRANSACTION_META_MOCK,
+          retryCount: 123,
+        },
       ]);
     });
   });
