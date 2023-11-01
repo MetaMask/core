@@ -113,7 +113,7 @@ get-version-commit-pairs() {
   done <<<"$(get-version-subject-pairs)"
 }
 
-prepend-tag-name() {
+get-commit-tagname-pairs() {
   local tag_name
   while IFS=$'\t' read -r version commit; do
     if semverLT "$version" "$version_before_package_rename" || semverEQ "$version" "$version_before_package_rename"; then
@@ -137,4 +137,4 @@ while IFS=$'\t' read -r commit tag_name; do
     git tag "$tag_name" "$commit"
     git push "$remote" "$tag_name"
   fi
-done <<<"$(prepend-tag-name)"
+done <<<"$(get-commit-tagname-pairs)"
