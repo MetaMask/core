@@ -110,6 +110,11 @@ export type KeyringControllerGetAccountsAction = {
   handler: KeyringController['getAccounts'];
 };
 
+export type KeyringControllerPersistAllKeyringsAction = {
+  type: `${typeof name}:persistAllKeyrings`;
+  handler: KeyringController['persistAllKeyrings'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -144,7 +149,8 @@ export type KeyringControllerActions =
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetKeyringForAccountAction;
+  | KeyringControllerGetKeyringForAccountAction
+  | KeyringControllerPersistAllKeyringsAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -1042,6 +1048,11 @@ export class KeyringController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${name}:getKeyringForAccount`,
       this.getKeyringForAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:persistAllKeyrings`,
+      this.persistAllKeyrings.bind(this),
     );
   }
 
