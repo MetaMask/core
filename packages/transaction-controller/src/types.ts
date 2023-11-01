@@ -694,7 +694,7 @@ export type DefaultGasEstimates = {
 };
 
 /**
- * Represents an error encountered during a transaction.
+ * Data concerning an error while processing a transaction.
  */
 export type TransactionError = {
   /**
