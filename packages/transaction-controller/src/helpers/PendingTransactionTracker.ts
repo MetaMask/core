@@ -5,7 +5,7 @@ import EventEmitter from 'events';
 import type NonceTracker from 'nonce-tracker';
 
 import { pendingTransactionsLogger as log } from '../logger';
-import type { TransactionMeta, TxError } from '../types';
+import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
 
 export class PendingTransactionTracker {
@@ -13,7 +13,7 @@ export class PendingTransactionTracker {
 
   #blockTracker: BlockTracker;
 
-  #failTransaction: (txMeta: TransactionMeta, error: TxError) => void;
+  #failTransaction: (txMeta: TransactionMeta, error: Error) => void;
 
   #getChainId: () => string;
 
@@ -32,7 +32,7 @@ export class PendingTransactionTracker {
     nonceTracker,
   }: {
     blockTracker: BlockTracker;
-    failTransaction: (txMeta: TransactionMeta, error: TxError) => void;
+    failTransaction: (txMeta: TransactionMeta, error: Error) => void;
     getChainId: () => string;
     getEthQuery: () => EthQuery;
     getTransactions: () => TransactionMeta[];

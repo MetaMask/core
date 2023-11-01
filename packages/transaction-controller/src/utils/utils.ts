@@ -8,7 +8,11 @@ import type {
   FeeMarketEIP1559Values,
 } from '../TransactionController';
 import { TransactionStatus } from '../types';
-import type { TransactionParams, TransactionMeta, TxError } from '../types';
+import type {
+  TransactionParams,
+  TransactionMeta,
+  TransactionError,
+} from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -174,12 +178,14 @@ export function validateIfTransactionUnapproved(
  * @param error - The error to be normalize.
  * @returns Normalized transaction error.
  */
-export function normalizeTxError(error: TxError): TxError {
+export function normalizeTxError(
+  error: Error & { code?: string; value?: unknown },
+): TransactionError {
   return {
     name: error.name,
     message: error.message,
     stack: error.stack,
-    code: error.code,
-    rpc: error.value,
+    code: error?.code,
+    rpc: error?.value,
   };
 }

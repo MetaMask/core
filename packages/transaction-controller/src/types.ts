@@ -9,7 +9,7 @@ export type TransactionMeta = TransactionMetaBase &
     | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
     | {
         status: TransactionStatus.failed;
-        error: TxError;
+        error: TransactionError;
       }
   );
 
@@ -696,7 +696,7 @@ export type DefaultGasEstimates = {
 /**
  * Represents an error encountered during a transaction.
  */
-export type TxError = {
+export type TransactionError = {
   /**
    * A descriptive error name.
    */
