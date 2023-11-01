@@ -24,7 +24,6 @@ module.exports = {
         'jest/no-export': 'off',
         'jest/require-top-level-describe': 'off',
         'jest/no-if': 'off',
-        'jest/no-test-return-statement': 'off',
       },
     },
     {
