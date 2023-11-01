@@ -27,7 +27,6 @@ export async function determineTransactionType(
   ethQuery: EthQuery,
 ): Promise<InferTransactionTypeResult> {
   const { data, to } = txParams;
-  const name = parseStandardTokenTransactionData(data)?.name;
 
   if (data && !to) {
     return { type: TransactionType.deployContract, getCodeResponse: undefined };
@@ -42,16 +41,19 @@ export async function determineTransactionType(
 
   const hasValue = txParams.value && Number(txParams.value) !== 0;
 
-  const tokenMethodName = [
-    TransactionType.tokenMethodApprove,
-    TransactionType.tokenMethodSetApprovalForAll,
-    TransactionType.tokenMethodTransfer,
-    TransactionType.tokenMethodTransferFrom,
-    TransactionType.tokenMethodSafeTransferFrom,
-  ].find((methodName) => methodName.toLowerCase() === name?.toLowerCase());
+  const name = parseStandardTokenTransactionData(data)?.name;
+  if (name !== undefined) {
+    const tokenMethodName = [
+      TransactionType.tokenMethodApprove,
+      TransactionType.tokenMethodSetApprovalForAll,
+      TransactionType.tokenMethodTransfer,
+      TransactionType.tokenMethodTransferFrom,
+      TransactionType.tokenMethodSafeTransferFrom,
+    ].find((methodName) => methodName.toLowerCase() === name.toLowerCase());
 
-  if (data && tokenMethodName && !hasValue) {
-    return { type: tokenMethodName, getCodeResponse: resultCode };
+    if (data && tokenMethodName && !hasValue) {
+      return { type: tokenMethodName, getCodeResponse: resultCode };
+    }
   }
 
   return {
