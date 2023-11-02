@@ -2570,7 +2570,7 @@ describe('TransactionController', () => {
       Current tx status: ${status}`);
     });
 
-    it.only('updates provided gas values', async () => {
+    it('updates provided gas values', async () => {
       const transactionId = '123';
       const txIdWithoutGasPriceUpdate = '124';
       const controller = newController();
