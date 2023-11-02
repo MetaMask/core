@@ -36,7 +36,6 @@ describe('NftDetectionController', () => {
 
   beforeEach(async () => {
     clock = sinon.useFakeTimers();
-
     preferences = new PreferencesController();
     assetsContract = new AssetsContractController({
       chainId: ChainId.mainnet,
@@ -90,6 +89,7 @@ describe('NftDetectionController', () => {
     preferences.setUseNftDetection(true);
 
     nock(OPENSEA_PROXY_URL)
+      .persist()
       .get(`/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
@@ -166,6 +166,7 @@ describe('NftDetectionController', () => {
       });
 
     nock(OPENSEA_PROXY_URL)
+      .persist()
       .get(`/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
       .reply(200, {
         description: 'Description',
@@ -454,48 +455,10 @@ describe('NftDetectionController', () => {
   });
 
   it('should not autodetect NFTs that exist in the ignoreList', async () => {
-    nock(OPENSEA_PROXY_URL, {
-      encodedQueryParams: true,
-    })
-      .persist()
-      .get('/assets')
-      .query({
-        owner: '0x2',
-        offset: '0',
-        limit: '50',
-      })
-      .reply(200, {
-        assets: [
-          {
-            asset_contract: {
-              address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2577',
-              image_url: 'url',
-            },
-            description: 'Description 2577',
-            image_original_url: 'image/2577.png',
-            name: 'ID 2577',
-            token_id: '2577',
-          },
-        ],
-      })
-      .get('/assets')
-      .query({
-        owner: '0x2',
-        offset: '50',
-        limit: '50',
-      })
-      .reply(200, {
-        assets: [],
-      });
-
-    const selectedAddress = '0x2';
+    const selectedAddress = '0x1';
     nftDetection.configure({
       chainId: ChainId.mainnet,
-      selectedAddress: '0x2',
+      selectedAddress: '0x1',
     });
     nftController.configure({ selectedAddress });
 
@@ -507,8 +470,8 @@ describe('NftDetectionController', () => {
     );
     expect(nftController.state.ignoredNfts).toHaveLength(0);
     nftController.removeAndIgnoreNft(
-      '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-      '2577',
+      '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+      '2574',
     );
 
     expect(nftController.state.ignoredNfts).toHaveLength(1);
@@ -656,7 +619,7 @@ describe('NftDetectionController', () => {
       nftController.state.allNftContracts[selectedAddress][chainId],
     ).toStrictEqual([nftContractHH]);
     // During next call of assets detection, API succeeds returning contract ending in gg information
-
+    nock.cleanAll();
     nock(OPENSEA_PROXY_URL)
       .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
       .reply(200, {
