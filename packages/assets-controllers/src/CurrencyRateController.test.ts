@@ -3,12 +3,12 @@ import {
   ChainId,
   NetworkType,
   NetworksTicker,
-  advanceTime,
 } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import type {
   CurrencyRateStateChange,
   GetCurrencyRateState,

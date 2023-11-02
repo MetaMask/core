@@ -3,7 +3,6 @@ import {
   ChainId,
   NetworkType,
   NetworksTicker,
-  advanceTime,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
@@ -17,6 +16,7 @@ import { NetworkStatus } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import * as tokenService from './token-service';
 import type {
   TokenListStateChange,

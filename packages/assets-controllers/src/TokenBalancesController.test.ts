@@ -1,11 +1,12 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { advanceTime, toHex } from '@metamask/controller-utils';
+import { toHex } from '@metamask/controller-utils';
 import type { NetworkControllerMessenger } from '@metamask/network-controller';
 import { NetworkController } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import { AssetsContractController } from './AssetsContractController';
 import {
   BN as exportedBn,

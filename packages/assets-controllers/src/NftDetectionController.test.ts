@@ -1,15 +1,11 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  OPENSEA_PROXY_URL,
-  ChainId,
-  toHex,
-  advanceTime,
-} from '@metamask/controller-utils';
+import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import { AssetsContractController } from './AssetsContractController';
 import type { NftControllerMessenger } from './NftController';
 import { NftController } from './NftController';

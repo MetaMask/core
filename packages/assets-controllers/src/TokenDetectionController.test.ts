@@ -3,7 +3,6 @@ import {
   ChainId,
   NetworkType,
   NetworksTicker,
-  advanceTime,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
@@ -18,6 +17,7 @@ import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import type { AssetsContractController } from './AssetsContractController';
 import {
   formatAggregatorNames,

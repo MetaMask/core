@@ -1,7 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { advanceTime } from '@metamask/controller-utils';
 import { useFakeTimers } from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import { PollingController, PollingControllerOnly } from './PollingController';
 
 const TICK_TIME = 1000;
