@@ -1428,7 +1428,7 @@ export class TransactionController extends BaseController<
 
       if (this.inProcessOfSigning.has(transactionId)) {
         log(
-          'TransactionController#approveTransaction: Already signing transaction with id:',
+          'Skipping approval as signing in progress',
           transactionId,
         );
         return;
