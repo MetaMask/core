@@ -41,7 +41,6 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { pendingTransactionsLogger } from './logger';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -165,6 +164,45 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
+type Events = {
+  ['transaction-approved']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
+
+  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-failed']: [
+    {
+      actionId?: string;
+      error: string;
+      transactionMeta: TransactionMeta;
+    },
+  ];
+  ['transaction-new-swap']: [transactionMeta: TransactionMeta];
+  ['transaction-new-swap-approval']: [transactionMeta: TransactionMeta];
+  ['transaction-rejected']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-submitted']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-post-balance-updated']: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
+  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
+  ['incomingTransactionBlock']: [blockNumber: number];
+};
+
+export interface TransactionControllerEventEmitter extends EventEmitter {
+  on<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
+  ): this;
+
+  emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
+}
+
 /**
  * Controller responsible for submitting and managing transactions.
  */
@@ -227,12 +265,21 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ) => (TransactionMeta | undefined)[];
 
-  private failTransaction(transactionMeta: TransactionMeta, error: Error) {
+  private failTransaction(
+    transactionMeta: TransactionMeta,
+    error: Error,
+    actionId?: string,
+  ) {
     const newTransactionMeta = {
       ...transactionMeta,
       error,
       status: TransactionStatus.failed,
     };
+    this.hub.emit('transaction-failed', {
+      actionId,
+      error: error.message,
+      transactionMeta: newTransactionMeta,
+    });
     this.updateTransaction(
       newTransactionMeta,
       'TransactionController#failTransaction - Add error message and set status to failed',
@@ -249,7 +296,7 @@ export class TransactionController extends BaseController<
   /**
    * EventEmitter instance used to listen to specific transactional events
    */
-  hub = new EventEmitter();
+  hub = new EventEmitter() as TransactionControllerEventEmitter;
 
   /**
    * Name of this controller used during composition
@@ -285,6 +332,8 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.pendingTransactions - Configuration options for pending transaction support.
+   * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.hooks - The controller hooks.
@@ -310,6 +359,7 @@ export class TransactionController extends BaseController<
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
+      pendingTransactions = {},
       provider,
       securityProviderRequest,
       hooks = {},
@@ -323,7 +373,7 @@ export class TransactionController extends BaseController<
       getNetworkState: () => NetworkState;
       getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSelectedAddress: () => string;
-      incomingTransactions: {
+      incomingTransactions?: {
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
         queryEntireHistory?: boolean;
@@ -331,6 +381,9 @@ export class TransactionController extends BaseController<
       };
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+      pendingTransactions?: {
+        isResubmitEnabled?: boolean;
+      };
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
       hooks: {
@@ -438,12 +491,15 @@ export class TransactionController extends BaseController<
     );
 
     this.pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
       blockTracker,
-      failTransaction: this.failTransaction.bind(this),
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
+      onStateChange: this.subscribe.bind(this),
+      publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
@@ -451,24 +507,13 @@ export class TransactionController extends BaseController<
       },
     });
 
-    this.pendingTransactionTracker.hub.on(
-      'transactions',
-      this.onPendingTransactionsUpdate.bind(this),
-    );
-
-    this.pendingTransactionTracker.hub.on(
-      'transaction-confirmed',
-      (transactionMeta: TransactionMeta) =>
-        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
-    );
+    this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
       // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
-
-    this.pendingTransactionTracker.start();
   }
 
   /**
@@ -619,6 +664,7 @@ export class TransactionController extends BaseController<
       result: this.processApproval(transactionMeta, {
         isExisting: Boolean(existingTransactionMeta),
         requireApproval,
+        actionId,
       }),
       transactionMeta,
     };
@@ -651,7 +697,9 @@ export class TransactionController extends BaseController<
       this.processApproval(txMeta, {
         shouldShowRequest: false,
       }).catch((error) => {
-        /* istanbul ignore next */
+        if (error?.code === errorCodes.provider.userRejectedRequest) {
+          return;
+        }
         console.error('Error during persisted transaction approval', error);
       });
     }
@@ -664,12 +712,16 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to cancel.
    * @param gasValues - The gas values to use for the cancellation transaction.
    * @param options - The options for the cancellation transaction.
+   * @param options.actionId - Unique ID to prevent duplicate requests.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async stopTransaction(
     transactionId: string,
     gasValues?: GasPriceValue | FeeMarketEIP1559Values,
-    { estimatedBaseFee }: { estimatedBaseFee?: string } = {},
+    {
+      estimatedBaseFee,
+      actionId,
+    }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
     if (gasValues) {
       validateGasValues(gasValues);
@@ -760,6 +812,11 @@ export class TransactionController extends BaseController<
     await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
     transactionMeta.estimatedBaseFee = estimatedBaseFee;
     transactionMeta.status = TransactionStatus.cancelled;
+
+    // stopTransaction has no approval request, so we assume the user has already approved the transaction
+    this.hub.emit('transaction-approved', { transactionMeta, actionId });
+    this.hub.emit('transaction-submitted', { transactionMeta, actionId });
+
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
 
@@ -899,6 +956,17 @@ export class TransactionController extends BaseController<
           };
     transactions.push(newTransactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+
+    // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
+    this.hub.emit('transaction-approved', {
+      transactionMeta: newTransactionMeta,
+      actionId,
+    });
+    this.hub.emit('transaction-submitted', {
+      transactionMeta: newTransactionMeta,
+      actionId,
+    });
+
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
@@ -1011,6 +1079,10 @@ export class TransactionController extends BaseController<
         transactionMeta,
         'TransactionController:confirmExternalTransaction - Add external transaction',
       );
+
+      this.hub.emit('transaction-confirmed', {
+        transactionMeta,
+      });
     } catch (error) {
       console.error(error);
     }
@@ -1156,6 +1228,62 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Update the previous gas values of a transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param previousGas - Previous gas values to update.
+   * @param previousGas.gasLimit - Maxmimum number of units of gas to use for this transaction.
+   * @param previousGas.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
+   * @param previousGas.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+   * @returns The updated transactionMeta.
+   */
+  updatePreviousGasParams(
+    transactionId: string,
+    {
+      gasLimit,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    }: {
+      gasLimit?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+    },
+  ): TransactionMeta {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update transaction as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, 'updatePreviousGasParams');
+
+    const transactionPreviousGas = {
+      previousGas: {
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      },
+    } as any;
+
+    // only update what is defined
+    transactionPreviousGas.previousGas = pickBy(
+      transactionPreviousGas.previousGas,
+    );
+
+    // merge updated previous gas values with existing transaction meta
+    const updatedMeta = merge(transactionMeta, transactionPreviousGas);
+
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updatePreviousGasParams - Previous gas values updated',
+    );
+
+    return this.getTransaction(transactionId) as TransactionMeta;
+  }
+
+  /**
    * Gets the next nonce according to the nonce-tracker.
    * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
    *
@@ -1172,10 +1300,12 @@ export class TransactionController extends BaseController<
       isExisting = false,
       requireApproval,
       shouldShowRequest = true,
+      actionId,
     }: {
       isExisting?: boolean;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
+      actionId?: string;
     },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
@@ -1199,19 +1329,26 @@ export class TransactionController extends BaseController<
 
         if (!isTxCompleted) {
           await this.approveTransaction(transactionId);
+          const updatedTransactionMeta = this.getTransaction(
+            transactionId,
+          ) as TransactionMeta;
+          this.hub.emit('transaction-approved', {
+            transactionMeta: updatedTransactionMeta,
+            actionId,
+          });
         }
       } catch (error: any) {
         const { isCompleted: isTxCompleted } =
           this.isTransactionCompleted(transactionId);
         if (!isTxCompleted) {
-          if (error.code === errorCodes.provider.userRejectedRequest) {
-            this.cancelTransaction(transactionId);
+          if (error?.code === errorCodes.provider.userRejectedRequest) {
+            this.cancelTransaction(transactionId, actionId);
 
             throw providerErrors.userRejectedRequest(
               'User rejected the transaction',
             );
           } else {
-            this.failTransaction(meta, error);
+            this.failTransaction(meta, error, actionId);
           }
         }
       }
@@ -1228,7 +1365,6 @@ export class TransactionController extends BaseController<
         const cancelError = rpcErrors.internal(
           'User cancelled the transaction',
         );
-
         resultCallbacks?.error(cancelError);
         throw cancelError;
 
@@ -1347,10 +1483,13 @@ export class TransactionController extends BaseController<
         transactionMeta,
         'TransactionController#approveTransaction - RawTransaction added',
       );
-      const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+      const hash = await this.publishTransaction(rawTx);
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
+      this.hub.emit('transaction-submitted', {
+        transactionMeta,
+      });
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - Transaction submitted',
@@ -1367,13 +1506,18 @@ export class TransactionController extends BaseController<
     }
   }
 
+  private async publishTransaction(rawTransaction: string): Promise<string> {
+    return await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+  }
+
   /**
    * Cancels a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.
    *
    * @param transactionId - The ID of the transaction to cancel.
+   * @param actionId - The actionId passed from UI
    */
-  private cancelTransaction(transactionId: string) {
+  private cancelTransaction(transactionId: string, actionId?: string) {
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionId,
     );
@@ -1382,6 +1526,10 @@ export class TransactionController extends BaseController<
     }
     transactionMeta.status = TransactionStatus.rejected;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+    this.hub.emit('transaction-rejected', {
+      transactionMeta,
+      actionId,
+    });
     const transactions = this.state.transactions.filter(
       ({ id }) => id !== transactionId,
     );
@@ -1595,11 +1743,6 @@ export class TransactionController extends BaseController<
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
 
-  private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
-    pendingTransactionsLogger('Updated pending transactions');
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
-  }
-
   private generateDappSuggestedGasFees(
     txParams: TransactionParams,
     origin?: string,
@@ -1721,6 +1864,9 @@ export class TransactionController extends BaseController<
    */
   private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
     transactionMeta.status = TransactionStatus.dropped;
+    this.hub.emit('transaction-dropped', {
+      transactionMeta,
+    });
     this.updateTransaction(
       transactionMeta,
       'TransactionController#setTransactionStatusDropped - Transaction dropped',
@@ -1781,6 +1927,31 @@ export class TransactionController extends BaseController<
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
+  }
+
+  private addPendingTransactionTrackerListeners() {
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta: TransactionMeta) => {
+        this.hub.emit('transaction-confirmed', { transactionMeta });
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
+      },
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-dropped',
+      this.setTransactionStatusDropped.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-failed',
+      this.failTransaction.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
     );
   }
 }
