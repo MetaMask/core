@@ -1151,7 +1151,7 @@ export class TransactionController extends BaseController<
         }),
       );
     } catch (err) {
-      log('Error while signing transactions with same nonce: ', err);
+      log('Error while signing transactions with same nonce', err);
       // Must set transaction to submitted/failed before releasing lock
       // continue with error chain
       throw err;
