@@ -144,7 +144,7 @@ function getMaxPriorityFeePerGas(
 
   if (savedGasFees) {
     const maxPriorityFeePerGas = gweiDecimalToWeiHex(
-      savedGasFees.priorityFee as string,
+      savedGasFees.priorityFee,
     );
     log(
       'Using maxPriorityFeePerGas from advancedGasFees',
