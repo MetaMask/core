@@ -383,21 +383,18 @@ export class TransactionController extends BaseController<
     this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
 
-    this.afterSign = hooks?.afterSign ? hooks.afterSign : () => true;
-    this.beforeApproveOnInit = hooks?.beforeApproveOnInit
-      ? hooks.beforeApproveOnInit
-      : /* istanbul ignore next */
-        () => true;
-    this.beforeCheckPendingTransaction = hooks?.beforeCheckPendingTransaction
-      ? hooks.beforeCheckPendingTransaction
-      : /* istanbul ignore next */
-        () => true;
-    this.beforePublish = hooks?.beforePublish
-      ? hooks.beforePublish
-      : () => true;
-    this.getAdditionalSignArguments = hooks?.getAdditionalSignArguments
-      ? hooks.getAdditionalSignArguments
-      : () => [undefined];
+    this.afterSign = hooks?.afterSign ?? (() => true);
+    this.beforeApproveOnInit =
+      hooks?.beforeApproveOnInit ??
+      /* istanbul ignore next */
+      (() => true);
+    this.beforeCheckPendingTransaction =
+      hooks?.beforeCheckPendingTransaction ??
+      /* istanbul ignore next */
+      (() => true);
+    this.beforePublish = hooks?.beforePublish ?? (() => true);
+    this.getAdditionalSignArguments =
+      hooks?.getAdditionalSignArguments ?? (() => []);
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -1333,7 +1330,6 @@ export class TransactionController extends BaseController<
         from,
         ...this.getAdditionalSignArguments(transactionMeta),
       );
-      // In certain cases, the responsibility to publish the transaction lies with the custodian
       if (!this.afterSign(transactionMeta, signedTx)) {
         return;
       }
