@@ -24,8 +24,9 @@
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest",
+    "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
+    "test:verbose": "jest --verbose",
     "test:watch": "jest --watch"
   },
   "dependencies": {

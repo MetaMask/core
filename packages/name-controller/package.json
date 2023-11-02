@@ -25,8 +25,9 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/name-controller",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest",
+    "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
+    "test:verbose": "jest --verbose",
     "test:watch": "jest --watch"
   },
   "dependencies": {
