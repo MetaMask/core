@@ -123,12 +123,9 @@ export class PendingTransactionTracker {
     this.#onStateChange = onStateChange;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
-    this.#beforePublish = hooks?.beforePublish
-      ? hooks.beforePublish
-      : () => true;
-    this.#beforeCheckPendingTransaction = hooks?.beforeCheckPendingTransaction
-      ? hooks.beforeCheckPendingTransaction
-      : () => true;
+    this.#beforePublish = hooks?.beforePublish ?? (() => true);
+    this.#beforeCheckPendingTransaction =
+      hooks?.beforeCheckPendingTransaction ?? (() => true);
 
     this.#onStateChange((state) => {
       const pendingTransactions = this.#getPendingTransactions(
@@ -264,6 +261,10 @@ export class PendingTransactionTracker {
 
     const { rawTx } = txMeta;
 
+    if (!this.#beforePublish(txMeta)) {
+      return;
+    }
+
     if (!rawTx?.length) {
       log('Approving transaction as no raw value');
       await this.#approveTransaction(txMeta.id);
@@ -312,7 +313,7 @@ export class PendingTransactionTracker {
   async #checkTransaction(txMeta: TransactionMeta) {
     const { hash, id } = txMeta;
 
-    if (!hash) {
+    if (!hash || (!hash && !this.#beforeCheckPendingTransaction(txMeta))) {
       const error = new Error(
         'We had an error while submitting this transaction, please try again.',
       );
