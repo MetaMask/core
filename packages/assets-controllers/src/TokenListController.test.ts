@@ -1368,20 +1368,28 @@ describe('TokenListController', () => {
       );
 
       controller.startPollingByNetworkClientId('goerli');
-      jest.advanceTimersByTime(pollingIntervalTime / 2);
+      jest.advanceTimersByTime(0);
       await flushPromises();
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(0);
-      jest.advanceTimersByTime(pollingIntervalTime / 2);
-      await flushPromises();
-
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      await Promise.all([
+        jest.advanceTimersByTime(pollingIntervalTime / 2),
+        flushPromises(),
+      ]);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      await Promise.all([
+        jest.advanceTimersByTime(pollingIntervalTime / 2),
+        jest.runOnlyPendingTimers(),
+        flushPromises(),
+      ]);
+
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
       await Promise.all([
         jest.advanceTimersByTime(pollingIntervalTime),
         flushPromises(),
       ]);
 
       await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
     });
 
     it('should update tokenList state and tokensChainsCache', async () => {
@@ -1441,7 +1449,7 @@ describe('TokenListController', () => {
       expect(controller.state).toStrictEqual(startingState);
 
       // start polling for sepolia
-      await controller.startPollingByNetworkClientId('sepolia');
+      const pollingToken = controller.startPollingByNetworkClientId('sepolia');
       // wait a polling interval
       jest.advanceTimersByTime(pollingIntervalTime);
       await flushPromises();
@@ -1457,10 +1465,10 @@ describe('TokenListController', () => {
           data: sampleSepoliaTokensChainCache,
         },
       });
+      controller.stopPollingByPollingToken(pollingToken);
+
       // start polling for binance
-      await controller.startPollingByNetworkClientId(
-        'binance-network-client-id',
-      );
+      controller.startPollingByNetworkClientId('binance-network-client-id');
       jest.advanceTimersByTime(pollingIntervalTime);
       await flushPromises();
 

@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.0
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+
 ## [15.0.0]
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
@@ -243,7 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@15.0.0...@metamask/transaction-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@14.0.0...@metamask/transaction-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...@metamask/transaction-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@12.0.0...@metamask/transaction-controller@13.0.0
