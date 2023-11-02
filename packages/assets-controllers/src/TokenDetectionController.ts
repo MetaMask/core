@@ -131,6 +131,7 @@ export class TokenDetectionController extends PollingControllerV1<
     };
 
     this.initialize();
+    this.setIntervalLength(this.config.interval);
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
