@@ -1115,9 +1115,15 @@ export class TransactionController extends BaseController<
     return this.nonceTracker.getNonceLock(address);
   }
 
+  /**
+   * Signs and returns the raw transaction data for provided transaction params list.
+   *
+   * @param listOfTxParams - The list of transaction params to approve.
+   * @returns The raw transactions.
+   */
   async approveTransactionsWithSameNonce(
     listOfTxParams: TransactionParams[] = [],
-  ) {
+  ): Promise<string | string[]> {
     if (listOfTxParams.length === 0) {
       return '';
     }
