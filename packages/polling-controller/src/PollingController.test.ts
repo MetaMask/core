@@ -24,26 +24,6 @@ describe('PollingController', () => {
   describe('start', () => {
     it('should start polling if not polling', async () => {
       class MyGasFeeController extends PollingController<any, any, any> {
-        constructor({
-          messenger,
-          metadata,
-          name,
-          state,
-        }: {
-          messenger: ControllerMessenger<any, any>;
-          metadata: any;
-          name: string;
-          state: any;
-        }) {
-          super({
-            messenger,
-            metadata,
-            name,
-            state,
-          });
-          this.setIntervalLength(TICK_TIME);
-        }
-
         _executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
