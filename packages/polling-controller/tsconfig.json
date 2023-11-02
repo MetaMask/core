@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "rootDir": ",../.."
+    "rootDir": "../.."
   },
   "references": [
     { "path": "../base-controller" },
