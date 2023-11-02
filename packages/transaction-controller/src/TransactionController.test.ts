@@ -2449,6 +2449,40 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('clearUnapprovedTxs', () => {
+    it('clears unapproved transactions', async () => {
+      const controller = newController();
+
+      const unapprovedTxId = '1';
+      const confirmedTxId = '1';
+
+      controller.state.transactions.push({
+        id: unapprovedTxId,
+        chainId: toHex(5),
+        status: TransactionStatus.unapproved as const,
+        time: 123456789,
+        txParams: {
+          from: '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207',
+        },
+      });
+
+      controller.state.transactions.push({
+        id: confirmedTxId,
+        chainId: toHex(5),
+        status: TransactionStatus.confirmed as const,
+        time: 987654321,
+        txParams: {
+          from: '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207',
+        },
+      });
+
+      controller.clearUnapprovedTxs();
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].id).toBe(confirmedTxId);
+    });
+  });
+
   describe('on incoming transaction helper transactions event', () => {
     it('adds new transactions to state', async () => {
       const controller = newController();

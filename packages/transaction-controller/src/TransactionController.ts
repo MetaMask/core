@@ -1235,6 +1235,16 @@ export class TransactionController extends BaseController<
     return this.nonceTracker.getNonceLock(address);
   }
 
+  /**
+   * Filters out the unapproved transactions from state
+   */
+  clearUnapprovedTxs() {
+    const transactions = this.state.transactions.filter(
+      ({ status }) => status !== TransactionStatus.unapproved,
+    );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
