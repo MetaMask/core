@@ -17,6 +17,7 @@ import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import type { AssetsContractController } from './AssetsContractController';
 import {
   formatAggregatorNames,
@@ -121,10 +122,6 @@ const setupTokenListController = (
   });
 
   return { tokenList, tokenListMessenger };
-};
-
-const flushPromises = () => {
-  return new Promise(jest.requireActual('timers').setImmediate);
 };
 
 describe('TokenDetectionController', () => {
@@ -597,8 +594,16 @@ describe('TokenDetectionController', () => {
   });
 
   describe('startPollingByNetworkClientId', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
     it('should call detect tokens with networkClientId and address params', async () => {
-      jest.useFakeTimers();
       const spy = jest
         .spyOn(tokenDetection, 'detectTokens')
         .mockImplementation(() => {
@@ -613,17 +618,23 @@ describe('TokenDetectionController', () => {
       tokenDetection.startPollingByNetworkClientId('goerli', {
         address: '0x3',
       });
-      await Promise.all([
-        jest.advanceTimersByTime(DEFAULT_INTERVAL),
-        flushPromises(),
-      ]);
+
+      await advanceTime({ clock, duration: 0 });
       expect(spy.mock.calls).toMatchObject([
         [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
         [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
         [{ networkClientId: 'goerli', accountAddress: '0x3' }],
       ]);
+      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+      expect(spy.mock.calls).toMatchObject([
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+      ]);
       tokenDetection.stopAllPolling();
-      jest.useRealTimers();
       spy.mockRestore();
     });
   });
