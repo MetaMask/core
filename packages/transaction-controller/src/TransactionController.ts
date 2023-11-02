@@ -1286,7 +1286,7 @@ export class TransactionController extends BaseController<
             this.cancelTransaction(transactionId, actionId);
 
             throw providerErrors.userRejectedRequest(
-              'User rejected the transaction',
+              'MetaMask Tx Signature: User denied transaction signature.',
             );
           } else {
             this.failTransaction(meta, error, actionId);
