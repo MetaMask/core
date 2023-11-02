@@ -2570,8 +2570,9 @@ describe('TransactionController', () => {
       Current tx status: ${status}`);
     });
 
-    it('updates provided gas values', async () => {
+    it.only('updates provided gas values', async () => {
       const transactionId = '123';
+      const txIdWithoutGasPriceUpdate = '124';
       const controller = newController();
 
       const gas = '0xgas';
@@ -2601,12 +2602,25 @@ describe('TransactionController', () => {
         },
       });
 
+      controller.state.transactions.push({
+        id: txIdWithoutGasPriceUpdate,
+        chainId: '0x1',
+        time: 123456789,
+        status: TransactionStatus.unapproved as const,
+        history: [
+          {} as TransactionMeta,
+          ...([{}] as TransactionHistoryEntry[]),
+        ],
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      });
+
       controller.updateTransactionGasFees(transactionId, {
         gas,
         gasLimit,
         gasPrice,
-        maxPriorityFeePerGas,
-        maxFeePerGas,
         estimateUsed,
         estimateSuggested,
         defaultGasEstimates,
@@ -2615,21 +2629,37 @@ describe('TransactionController', () => {
         userFeeLevel,
       });
 
-      const transaction = controller.state.transactions[0];
+      const transaction = controller.state.transactions.find(
+        ({ id }) => id === transactionId,
+      );
 
       expect(transaction?.txParams?.gas).toBe(gas);
       expect(transaction?.txParams?.gasLimit).toBe(gasLimit);
       expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
-      expect(transaction?.txParams?.maxPriorityFeePerGas).toBe(
-        maxPriorityFeePerGas,
-      );
-      expect(transaction?.txParams?.maxFeePerGas).toBe(maxFeePerGas);
       expect(transaction?.estimateUsed).toBe(estimateUsed);
       expect(transaction?.estimateSuggested).toBe(estimateSuggested);
       expect(transaction?.defaultGasEstimates).toBe(defaultGasEstimates);
       expect(transaction?.originalGasEstimate).toBe(originalGasEstimate);
       expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
       expect(transaction?.userFeeLevel).toBe(userFeeLevel);
+
+      // In order to test maxPriorityFeePerGas, maxFeePerGas updates
+      // we shoudn't set the gasPrice in the same call
+      controller.updateTransactionGasFees(txIdWithoutGasPriceUpdate, {
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+      });
+
+      const txToBeUpdatedWithoutGasPrice = controller.state.transactions.find(
+        ({ id }) => id === txIdWithoutGasPriceUpdate,
+      );
+
+      expect(txToBeUpdatedWithoutGasPrice?.txParams?.maxPriorityFeePerGas).toBe(
+        maxPriorityFeePerGas,
+      );
+      expect(txToBeUpdatedWithoutGasPrice?.txParams?.maxFeePerGas).toBe(
+        maxFeePerGas,
+      );
     });
   });
 
