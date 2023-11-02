@@ -57,9 +57,9 @@ describe('PollingController', () => {
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      // await advanceTime({ clock, duration: TICK_TIME });
-      // expect(controller._executePoll).toHaveBeenCalledTimes(2);
-      // controller.stopAllPolling();
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+      controller.stopAllPolling();
     });
   });
   describe('stop', () => {

@@ -539,4 +539,3 @@ function logOrRethrowError(error: any, codesToCatch: number[] = []) {
     throw error;
   }
 }
-
