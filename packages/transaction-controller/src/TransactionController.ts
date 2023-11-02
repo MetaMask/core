@@ -1277,16 +1277,18 @@ export class TransactionController extends BaseController<
       }),
     );
 
-    results.forEach((result, index) => {
+    for (const [index, result] of results.entries()) {
       if (result.status === 'rejected') {
-        this.failTransaction(unapprovedTransactions[index], result.reason);
+        const transactionMeta = unapprovedTransactions[index];
+        this.failTransaction(transactionMeta, result.reason);
         /* istanbul ignore next */
         console.error(
-          'Error while loading gas values for persisted transaction',
+          'Error while loading gas values for persisted transaction id: ',
+          transactionMeta.id,
           result.reason,
         );
       }
-    });
+    }
   }
 
   /**
@@ -1427,10 +1429,7 @@ export class TransactionController extends BaseController<
       }
 
       if (this.inProcessOfSigning.has(transactionId)) {
-        log(
-          'Skipping approval as signing in progress',
-          transactionId,
-        );
+        log('Skipping approval as signing in progress', transactionId);
         return;
       }
 
