@@ -2644,7 +2644,7 @@ describe('TransactionController', () => {
       expect(transaction?.userFeeLevel).toBe(userFeeLevel);
 
       // In order to test maxPriorityFeePerGas, maxFeePerGas updates
-      // we shoudn't set the gasPrice in the same call
+      // we shoudn't set the gasPrice in the same call to not fail the validation
       controller.updateTransactionGasFees(txIdWithoutGasPriceUpdate, {
         maxPriorityFeePerGas,
         maxFeePerGas,
