@@ -2480,7 +2480,9 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe(confirmedTxId);
-      expect(controller.state.transactions[0].status).toBe(TransactionStatus.confirmed);
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.confirmed,
+      );
     });
   });
 
