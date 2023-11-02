@@ -575,11 +575,11 @@ export interface DappSuggestedGasFees {
 }
 
 /**
- * Gas values set by the user.
+ * Gas values saved by the user for a specific chain.
  */
-export interface AdvancedGasFees {
-  maxBaseFee?: string;
-  priorityFee?: string;
+export interface SavedGasFees {
+  maxBaseFee: string;
+  priorityFee: string;
 }
 
 /**

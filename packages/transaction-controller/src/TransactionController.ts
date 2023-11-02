@@ -43,7 +43,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { pendingTransactionsLogger } from './logger';
 import type {
-  AdvancedGasFees,
+  SavedGasFees,
   DappSuggestedGasFees,
   TransactionParams,
   TransactionMeta,
@@ -175,8 +175,6 @@ export class TransactionController extends BaseController<
 > {
   private ethQuery: EthQuery;
 
-  private readonly isAdvancedGasFeeDisabled: boolean;
-
   private readonly isHistoryDisabled: boolean;
 
   private readonly isSendFlowHistoryDisabled: boolean;
@@ -191,9 +189,7 @@ export class TransactionController extends BaseController<
 
   private readonly mutex = new Mutex();
 
-  private readonly getAdvancedGasFeeByChainId: (
-    chainId: Hex,
-  ) => AdvancedGasFees;
+  private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
   private readonly getNetworkState: () => NetworkState;
 
@@ -260,7 +256,7 @@ export class TransactionController extends BaseController<
    * @param options.disableAdvancedGasFee - Whether to disable advanced gas fee config.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
-   * @param options.getAdvancedGasFeeByChainId - Gets the advanced gas fee config for a given chain ID.
+   * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
@@ -282,10 +278,9 @@ export class TransactionController extends BaseController<
   constructor(
     {
       blockTracker,
-      disableAdvancedGasFee,
       disableHistory,
       disableSendFlowHistory,
-      getAdvancedGasFeeByChainId,
+      getSavedGasFees,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getGasFeeEstimates,
@@ -302,7 +297,7 @@ export class TransactionController extends BaseController<
       disableAdvancedGasFee: boolean;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
-      getAdvancedGasFeeByChainId?: (chainId: Hex) => AdvancedGasFees;
+      getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getGasFeeEstimates?: () => Promise<GasFeeState>;
@@ -342,12 +337,10 @@ export class TransactionController extends BaseController<
     this.getNetworkState = getNetworkState;
     // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(provider);
-    this.isAdvancedGasFeeDisabled = disableAdvancedGasFee ?? false;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
-    this.getAdvancedGasFeeByChainId =
-      getAdvancedGasFeeByChainId ?? (() => ({}));
+    this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
@@ -543,9 +536,8 @@ export class TransactionController extends BaseController<
     await updateGasFees({
       eip1559: isEIP1559Compatible,
       ethQuery: this.ethQuery,
-      getAdvancedGasFee: this.getAdvancedGasFeeByChainId.bind(null, chainId),
+      getSavedGasFees: this.getSavedGasFees.bind(null, chainId),
       getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
-      isAdvancedGasFeeDisabled: this.isAdvancedGasFeeDisabled,
       txMeta: transactionMeta,
     });
 

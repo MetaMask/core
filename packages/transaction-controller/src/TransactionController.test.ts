@@ -1144,9 +1144,8 @@ describe('TransactionController', () => {
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
         ethQuery: expect.any(Object),
-        getAdvancedGasFee: expect.any(Function),
+        getSavedGasFees: expect.any(Function),
         getGasFeeEstimates: expect.any(Function),
-        isAdvancedGasFeeDisabled: false,
         txMeta: expect.any(Object),
       });
     });

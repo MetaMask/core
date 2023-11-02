@@ -15,7 +15,7 @@ import { addHexPrefix } from 'ethereumjs-util';
 import { SWAP_TRANSACTION_TYPES } from '../constants';
 import { projectLogger } from '../logger';
 import type {
-  AdvancedGasFees,
+  SavedGasFees,
   TransactionParams,
   TransactionMeta,
   TransactionType,
@@ -25,16 +25,14 @@ import { UserFeeLevel } from '../types';
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
-  getAdvancedGasFee: () => AdvancedGasFees;
+  getSavedGasFees: () => SavedGasFees | undefined;
   getGasFeeEstimates: () => Promise<GasFeeState>;
-  isAdvancedGasFeeDisabled: boolean;
   txMeta: TransactionMeta;
 };
 
 export type GetGasFeeRequest = UpdateGasFeesRequest & {
-  advancedGasFees?: AdvancedGasFees;
+  savedGasFees?: SavedGasFees;
   initialParams: TransactionParams;
-  shouldReadAdvancedGasFees: boolean;
   suggestedGasFees: Awaited<ReturnType<typeof getSuggestedGasFees>>;
 };
 
@@ -48,13 +46,11 @@ const log = createModuleLogger(projectLogger, 'gas-fees');
 export async function updateGasFees(request: UpdateGasFeesRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
-  const advancedGasFees = !request.isAdvancedGasFeeDisabled
-    ? request.getAdvancedGasFee()
-    : undefined;
 
-  const shouldReadAdvancedGasFees =
-    Boolean(advancedGasFees) &&
-    !SWAP_TRANSACTION_TYPES.includes(txMeta.type as TransactionType);
+  let savedGasFees = request.getSavedGasFees();
+  if (SWAP_TRANSACTION_TYPES.includes(txMeta.type as TransactionType)) {
+    savedGasFees = undefined;
+  }
 
   const suggestedGasFees = await getSuggestedGasFees(request);
 
@@ -62,9 +58,8 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 
   const getGasFeeRequest = {
     ...request,
-    advancedGasFees,
+    savedGasFees,
     initialParams,
-    shouldReadAdvancedGasFees,
     suggestedGasFees,
   };
 
@@ -95,22 +90,14 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 }
 
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
-  const {
-    advancedGasFees,
-    eip1559,
-    initialParams,
-    shouldReadAdvancedGasFees,
-    suggestedGasFees,
-  } = request;
+  const { savedGasFees, eip1559, initialParams, suggestedGasFees } = request;
 
   if (!eip1559) {
     return undefined;
   }
 
-  if (shouldReadAdvancedGasFees) {
-    const maxFeePerGas = gweiDecimalToWeiHex(
-      advancedGasFees?.maxBaseFee as string,
-    );
+  if (savedGasFees) {
+    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee as string);
     log('Using maxFeePerGas from advancedGasFees', maxFeePerGas);
     return maxFeePerGas;
   }
@@ -148,22 +135,16 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
 function getMaxPriorityFeePerGas(
   request: GetGasFeeRequest,
 ): string | undefined {
-  const {
-    advancedGasFees,
-    eip1559,
-    initialParams,
-    shouldReadAdvancedGasFees,
-    suggestedGasFees,
-    txMeta,
-  } = request;
+  const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
+    request;
 
   if (!eip1559) {
     return undefined;
   }
 
-  if (shouldReadAdvancedGasFees) {
+  if (savedGasFees) {
     const maxPriorityFeePerGas = gweiDecimalToWeiHex(
-      advancedGasFees?.priorityFee as string,
+      savedGasFees.priorityFee as string,
     );
     log(
       'Using maxPriorityFeePerGas from advancedGasFees',
@@ -232,19 +213,14 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
 function getUserFeeLevel(
   request: GetGasFeeRequest,
 ): UserFeeLevel | undefined | typeof CUSTOM_GAS_ESTIMATE {
-  const {
-    eip1559,
-    initialParams,
-    shouldReadAdvancedGasFees,
-    suggestedGasFees,
-    txMeta,
-  } = request;
+  const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
+    request;
 
   if (!eip1559) {
     return undefined;
   }
 
-  if (shouldReadAdvancedGasFees) {
+  if (savedGasFees) {
     return CUSTOM_GAS_ESTIMATE;
   }
 

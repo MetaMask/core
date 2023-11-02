@@ -25,7 +25,6 @@ const UPDATE_GAS_FEES_REQUEST_MOCK = {
   txMeta: {
     txParams: {},
   },
-  isAdvancedGasFeeDisabled: true,
 } as any as UpdateGasFeesRequest;
 
 function toHex(value: number) {
@@ -53,7 +52,7 @@ describe('gas-fees', () => {
     );
 
     // eslint-disable-next-line jest/prefer-spy-on
-    updateGasFeeRequest.getAdvancedGasFee = jest.fn();
+    updateGasFeeRequest.getSavedGasFees = jest.fn();
     // eslint-disable-next-line jest/prefer-spy-on
     updateGasFeeRequest.getGasFeeEstimates = jest.fn().mockResolvedValue({});
   });
@@ -145,10 +144,9 @@ describe('gas-fees', () => {
         ).toBeUndefined();
       });
 
-      it('to request maxFeePerGas if advanced gas fees enabled', async () => {
-        updateGasFeeRequest.isAdvancedGasFeeDisabled = false;
+      it('to saved maxFeePerGas if saved gas fees defined', async () => {
         updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
-        updateGasFeeRequest.getAdvancedGasFee.mockReturnValueOnce({
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
           maxBaseFee: '123',
           priorityFee: '456',
         });
@@ -276,10 +274,9 @@ describe('gas-fees', () => {
         ).toBeUndefined();
       });
 
-      it('to request maxFeePerGas if advanced gas fees enabled', async () => {
-        updateGasFeeRequest.isAdvancedGasFeeDisabled = false;
+      it('to saved maxPriorityFeePerGas if saved gas fees defined', async () => {
         updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
-        updateGasFeeRequest.getAdvancedGasFee.mockReturnValueOnce({
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
           maxBaseFee: '123',
           priorityFee: '456',
         });
@@ -495,10 +492,9 @@ describe('gas-fees', () => {
         expect(updateGasFeeRequest.txMeta.userFeeLevel).toBeUndefined();
       });
 
-      it('to request maxFeePerGas if advanced gas fees enabled', async () => {
-        updateGasFeeRequest.isAdvancedGasFeeDisabled = false;
+      it('to saved userFeeLevel if saved gas fees defined', async () => {
         updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
-        updateGasFeeRequest.getAdvancedGasFee.mockReturnValueOnce({
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
           maxBaseFee: '123',
           priorityFee: '456',
         });
