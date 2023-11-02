@@ -1170,7 +1170,9 @@ export class TransactionController extends BaseController<
     return rawTransactions;
   }
 
-  private async signExternalTransaction(transactionParams: TransactionParams) {
+  private async signExternalTransaction(
+    transactionParams: TransactionParams,
+  ): Promise<string> {
     if (!this.sign) {
       throw new Error('No sign method defined.');
     }

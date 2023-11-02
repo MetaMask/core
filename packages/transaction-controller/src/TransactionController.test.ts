@@ -2553,7 +2553,8 @@ describe('TransactionController', () => {
       expect(result).toHaveLength(2);
       expect(result).toStrictEqual([expect.any(String), expect.any(String)]);
     });
-    it('throws error if error happens while signing transaction', async () => {
+
+    it('throws if error while signing transaction', async () => {
       const mockSignError = 'Error while signing transaction';
 
       const signMock = jest
