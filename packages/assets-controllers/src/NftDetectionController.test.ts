@@ -94,58 +94,6 @@ describe('NftDetectionController', () => {
     preferences.setUseNftDetection(true);
 
     nock(OPENSEA_PROXY_URL)
-      .get(`/assets?owner=0x2&offset=0&limit=50`)
-      .reply(200, {
-        assets: [
-          {
-            asset_contract: {
-              address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2577',
-              image_url: 'url',
-            },
-            description: 'Description 2577',
-            image_original_url: 'image/2577.png',
-            name: 'ID 2577',
-            token_id: '2577',
-          },
-        ],
-      })
-      .get(`/assets?owner=0x2&offset=50&limit=50`)
-      .reply(200, {
-        assets: [],
-      })
-      .persist();
-
-    nock(OPENSEA_PROXY_URL)
-      .get(`/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
-      .reply(200, {
-        description: 'Description',
-        image_url: 'url',
-        name: 'Name',
-        symbol: 'FOO',
-        total_supply: 0,
-        collection: {
-          image_url: 'url',
-          name: 'Name',
-        },
-      })
-      .get(`/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`)
-      .reply(200, {
-        description: 'Description HH',
-        symbol: 'HH',
-        total_supply: 10,
-        collection: {
-          image_url: 'url HH',
-          name: 'Name HH',
-        },
-      })
-      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
-      .replyWithError(new Error('Failed to fetch'))
-      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
-      .replyWithError(new Error('Failed to fetch'))
       .get(`/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
@@ -198,7 +146,6 @@ describe('NftDetectionController', () => {
         assets: [],
       })
       .get(`/assets?owner=0x9&offset=0&limit=50`)
-      .delay(800)
       .reply(200, {
         assets: [
           {
@@ -221,6 +168,34 @@ describe('NftDetectionController', () => {
       .reply(200, {
         assets: [],
       });
+
+    nock(OPENSEA_PROXY_URL)
+      .get(`/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
+      .reply(200, {
+        description: 'Description',
+        image_url: 'url',
+        name: 'Name',
+        symbol: 'FOO',
+        total_supply: 0,
+        collection: {
+          image_url: 'url',
+          name: 'Name',
+        },
+      })
+      .get(`/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`)
+      .reply(200, {
+        description: 'Description HH',
+        symbol: 'HH',
+        total_supply: 10,
+        collection: {
+          image_url: 'url HH',
+          name: 'Name HH',
+        },
+      })
+      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
+      .replyWithError(new Error('Failed to fetch'))
+      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
+      .replyWithError(new Error('Failed to fetch'));
   });
 
   afterEach(() => {
@@ -483,6 +458,44 @@ describe('NftDetectionController', () => {
   });
 
   it('should not autodetect NFTs that exist in the ignoreList', async () => {
+    nock(OPENSEA_PROXY_URL, {
+      encodedQueryParams: true,
+    })
+      .persist()
+      .get('/assets')
+      .query({
+        owner: '0x2',
+        offset: '0',
+        limit: '50',
+      })
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2577',
+              image_url: 'url',
+            },
+            description: 'Description 2577',
+            image_original_url: 'image/2577.png',
+            name: 'ID 2577',
+            token_id: '2577',
+          },
+        ],
+      })
+      .get('/assets')
+      .query({
+        owner: '0x2',
+        offset: '50',
+        limit: '50',
+      })
+      .reply(200, {
+        assets: [],
+      });
+
     const selectedAddress = '0x2';
     nftDetection.configure({
       chainId: ChainId.mainnet,
