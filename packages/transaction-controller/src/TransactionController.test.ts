@@ -2785,4 +2785,24 @@ describe('TransactionController', () => {
       ]);
     });
   });
+
+  describe('addTransactionMetaParams', () => {
+    it('add params to transaction meta', async () => {
+      const transactionId = '123';
+      const status = TransactionStatus.submitted;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionId,
+        status,
+      } as any);
+      controller.addTransactionMetaParams(transactionId, {
+        securityAlertResponse: {
+          result_type: 'Benign',
+        },
+      });
+      expect(
+        controller.state.transactions[0].securityAlertResponse,
+      ).toBeDefined();
+    });
+  });
 });

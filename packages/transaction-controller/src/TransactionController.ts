@@ -945,6 +945,25 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Add params to transactionMeta.
+   *
+   * @param transactionMetaId - ID of the transaction.
+   * @param params - New params to be added to tarnsaction meta.
+   */
+  addTransactionMetaParams(
+    transactionMetaId: string,
+    params: Record<string, any>,
+  ) {
+    const { transactions } = this.state;
+    const index = this.state.transactions.findIndex(
+      ({ id }) => id === transactionMetaId,
+    );
+    const transactionMeta = transactions[index];
+    transactions[index] = { ...transactionMeta, ...params };
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  /**
    * Removes all transactions from state, optionally based on the current network.
    *
    * @param ignoreNetwork - Determines whether to wipe all transactions, or just those on the
