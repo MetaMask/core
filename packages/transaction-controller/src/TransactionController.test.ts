@@ -2805,5 +2805,55 @@ describe('TransactionController', () => {
         controller.state.transactions[0].securityAlertResponse,
       ).toBeDefined();
     });
+    it('should do nothing if transactionMetaId is not defined', async () => {
+      const transactionMetaId = '123';
+      const status = TransactionStatus.submitted;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionMetaId,
+        status,
+      } as any);
+      expect(controller.state.transactions[0]).toBeDefined();
+      controller.addTransactionMetaParams(undefined as any, {
+        securityAlertResponse: {
+          result_type: 'Benign',
+        },
+      });
+      expect(
+        controller.state.transactions[0].securityAlertResponse,
+      ).toBeUndefined();
+    });
+    it('should do nothing if params are not defined', async () => {
+      const transactionMetaId = '123';
+      const status = TransactionStatus.submitted;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionMetaId,
+        status,
+      } as any);
+      expect(controller.state.transactions[0]).toBeDefined();
+      controller.addTransactionMetaParams(transactionMetaId, undefined as any);
+      expect(
+        controller.state.transactions[0].securityAlertResponse,
+      ).toBeUndefined();
+    });
+    it('should do nothing if transaction with given id does not exist', async () => {
+      const transactionMetaId = '123';
+      const status = TransactionStatus.submitted;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionMetaId,
+        status,
+      } as any);
+      expect(controller.state.transactions[0]).toBeDefined();
+      controller.addTransactionMetaParams('456', {
+        securityAlertResponse: {
+          result_type: 'Benign',
+        },
+      });
+      expect(
+        controller.state.transactions[0].securityAlertResponse,
+      ).toBeUndefined();
+    });
   });
 });
