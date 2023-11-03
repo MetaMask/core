@@ -727,3 +727,10 @@ export type DefaultGasEstimates = {
    */
   maxPriorityFeePerGas?: string;
 };
+
+export type SecurityAlertResponse = {
+  reason: string;
+  features?: string[];
+  result_type: string;
+  providerRequestsCount?: Record<string, number>;
+};

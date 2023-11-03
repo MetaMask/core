@@ -2786,8 +2786,8 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('addTransactionMetaParams', () => {
-    it('add params to transaction meta', async () => {
+  describe('securityAlertResponse', () => {
+    it('add securityAlertResponse to transaction meta', async () => {
       const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
       const controller = newController();
@@ -2796,10 +2796,9 @@ describe('TransactionController', () => {
         status,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.addTransactionMetaParams(transactionMetaId, {
-        securityAlertResponse: {
-          result_type: 'Benign',
-        },
+      controller.updateSecurityAlertResponse(transactionMetaId, {
+        reason: 'NA',
+        result_type: 'Benign',
       });
       expect(
         controller.state.transactions[0].securityAlertResponse,
@@ -2814,16 +2813,15 @@ describe('TransactionController', () => {
         status,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.addTransactionMetaParams(undefined as any, {
-        securityAlertResponse: {
-          result_type: 'Benign',
-        },
+      controller.updateSecurityAlertResponse(undefined as any, {
+        reason: 'NA',
+        result_type: 'Benign',
       });
       expect(
         controller.state.transactions[0].securityAlertResponse,
       ).toBeUndefined();
     });
-    it('should do nothing if params are not defined', async () => {
+    it('should do nothing if securityAlertResponse is not defined', async () => {
       const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
       const controller = newController();
@@ -2832,7 +2830,10 @@ describe('TransactionController', () => {
         status,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.addTransactionMetaParams(transactionMetaId, undefined as any);
+      controller.updateSecurityAlertResponse(
+        transactionMetaId,
+        undefined as any,
+      );
       expect(
         controller.state.transactions[0].securityAlertResponse,
       ).toBeUndefined();
@@ -2846,10 +2847,9 @@ describe('TransactionController', () => {
         status,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.addTransactionMetaParams('456', {
-        securityAlertResponse: {
-          result_type: 'Benign',
-        },
+      controller.updateSecurityAlertResponse(transactionMetaId, {
+        reason: 'NA',
+        result_type: 'Benign',
       });
       expect(
         controller.state.transactions[0].securityAlertResponse,

@@ -49,6 +49,7 @@ import type {
   SecurityProviderRequest,
   SendFlowHistoryEntry,
   WalletDevice,
+  SecurityAlertResponse,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
@@ -948,13 +949,13 @@ export class TransactionController extends BaseController<
    * Add params to transactionMeta.
    *
    * @param transactionMetaId - ID of the transaction.
-   * @param params - New params to be added to tarnsaction meta.
+   * @param securityAlertResponse - New params to be added to tarnsaction meta.
    */
-  addTransactionMetaParams(
+  updateSecurityAlertResponse(
     transactionMetaId: string,
-    params: Record<string, any>,
+    securityAlertResponse: SecurityAlertResponse,
   ) {
-    if (!transactionMetaId || !params) {
+    if (!transactionMetaId || !securityAlertResponse) {
       return;
     }
     const { transactions } = this.state;
@@ -963,8 +964,10 @@ export class TransactionController extends BaseController<
     );
     if (index >= 0) {
       const transactionMeta = transactions[index];
-      transactions[index] = { ...transactionMeta, ...params };
-      this.update({ transactions });
+      this.updateTransaction(
+        { ...transactionMeta, securityAlertResponse },
+        'TransactionController:updatesecurityAlertResponse - securityAlertResponse updated',
+      );
     }
   }
 
