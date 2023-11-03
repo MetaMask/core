@@ -74,6 +74,9 @@
     },
     {
       "path": "./packages/queued-request-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/json-rpc-engine/tsconfig.build.json"
     }
   ],
   "files": [],
