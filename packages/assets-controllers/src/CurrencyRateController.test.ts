@@ -6,7 +6,9 @@ import {
 } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import nock from 'nock';
+import { useFakeTimers } from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import type {
   CurrencyRateStateChange,
   GetCurrencyRateState,
@@ -65,24 +67,15 @@ const getStubbedDate = () => {
   return new Date('2019-04-07T10:20:30Z').getTime();
 };
 
-/**
- * Resolve all pending promises.
- * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
- */
-function flushPromises(): Promise<unknown> {
-  return new Promise(jest.requireActual('timers').setImmediate);
-}
-
 describe('CurrencyRateController', () => {
+  let clock: sinon.SinonFakeTimers;
   beforeEach(() => {
-    jest.useFakeTimers('legacy');
+    clock = useFakeTimers();
   });
 
   afterEach(() => {
+    clock.restore();
     jest.restoreAllMocks();
-    jest.clearAllTimers();
-    jest.useRealTimers();
   });
 
   it('should set default state', () => {
@@ -134,8 +127,7 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    jest.advanceTimersByTime(200);
-    await flushPromises();
+    await advanceTime({ clock, duration: 200 });
 
     expect(fetchExchangeRateStub).not.toHaveBeenCalled();
 
@@ -165,8 +157,7 @@ describe('CurrencyRateController', () => {
     });
 
     controller.startPollingByNetworkClientId('mainnet');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+    await advanceTime({ clock, duration: 0 });
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
@@ -175,11 +166,12 @@ describe('CurrencyRateController', () => {
         usdConversionRate: 11,
       },
     });
-    jest.advanceTimersByTime(99);
-    await flushPromises();
+    await advanceTime({ clock, duration: 99 });
+
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
-    jest.advanceTimersByTime(1);
-    await flushPromises();
+
+    await advanceTime({ clock, duration: 1 });
+
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
@@ -202,15 +194,15 @@ describe('CurrencyRateController', () => {
     });
 
     controller.startPollingByNetworkClientId('sepolia');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+
+    await advanceTime({ clock, duration: 0 });
+
     controller.stopAllPolling();
 
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(150);
-    await flushPromises();
+    await advanceTime({ clock, duration: 150, stepSize: 50 });
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
@@ -227,21 +219,19 @@ describe('CurrencyRateController', () => {
       messenger,
     });
     controller.startPollingByNetworkClientId('sepolia');
-    jest.advanceTimersByTime(0);
-    await flushPromises();
+    await advanceTime({ clock, duration: 0 });
+
     controller.stopAllPolling();
 
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
     controller.startPollingByNetworkClientId('sepolia');
+    await advanceTime({ clock, duration: 0 });
 
-    jest.advanceTimersByTime(0);
-    await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
-    jest.advanceTimersByTime(100);
-    await flushPromises();
+    await advanceTime({ clock, duration: 100 });
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(3);
   });
@@ -366,7 +356,7 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    await flushPromises();
+    await advanceTime({ clock, duration: 0 });
 
     expect(controller.state).toStrictEqual({
       currentCurrency: 'CAD',
