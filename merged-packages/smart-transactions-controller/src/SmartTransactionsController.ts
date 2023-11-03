@@ -55,6 +55,7 @@ export type SmartTransactionsControllerState = BaseState & {
   smartTransactionsState: {
     smartTransactions: Record<Hex, SmartTransaction[]>;
     userOptIn: boolean | undefined;
+    userOptInV2: boolean | undefined;
     liveness: boolean | undefined;
     fees: FeeEstimates;
     feesByChainId: Record<Hex, FeeEstimates>;
@@ -126,6 +127,7 @@ export default class SmartTransactionsController extends PollingControllerV1<
       smartTransactionsState: {
         smartTransactions: {},
         userOptIn: undefined,
+        userOptInV2: undefined,
         fees: {
           approvalTxFees: undefined,
           tradeTxFees: undefined,
@@ -232,7 +234,7 @@ export default class SmartTransactionsController extends PollingControllerV1<
     this.update({
       smartTransactionsState: {
         ...this.state.smartTransactionsState,
-        userOptIn: state,
+        userOptInV2: state,
       },
     });
   }

@@ -287,6 +287,7 @@ const defaultState = {
       [CHAIN_IDS.ETHEREUM]: [],
     },
     userOptIn: undefined,
+    userOptInV2: undefined,
     fees: {
       approvalTxFees: undefined,
       tradeTxFees: undefined,
@@ -496,15 +497,15 @@ describe('SmartTransactionsController', () => {
     it('sets optIn state', () => {
       smartTransactionsController.setOptInState(true);
       expect(
-        smartTransactionsController.state.smartTransactionsState.userOptIn,
+        smartTransactionsController.state.smartTransactionsState.userOptInV2,
       ).toBe(true);
       smartTransactionsController.setOptInState(false);
       expect(
-        smartTransactionsController.state.smartTransactionsState.userOptIn,
+        smartTransactionsController.state.smartTransactionsState.userOptInV2,
       ).toBe(false);
       smartTransactionsController.setOptInState(undefined);
       expect(
-        smartTransactionsController.state.smartTransactionsState.userOptIn,
+        smartTransactionsController.state.smartTransactionsState.userOptInV2,
       ).toBeUndefined();
     });
   });
@@ -611,6 +612,7 @@ describe('SmartTransactionsController', () => {
             [CHAIN_IDS.ETHEREUM]: [pendingTransaction],
           },
           userOptIn: undefined,
+          userOptInV2: undefined,
           fees: {
             approvalTxFees: undefined,
             tradeTxFees: undefined,
@@ -666,6 +668,7 @@ describe('SmartTransactionsController', () => {
             ],
           },
           userOptIn: undefined,
+          userOptInV2: undefined,
           fees: {
             approvalTxFees: undefined,
             tradeTxFees: undefined,
