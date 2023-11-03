@@ -1207,6 +1207,8 @@ describe('approval controller', () => {
         const result = approvalController.startFlow(opts);
 
         const expectedFlow = {
+          // We're not making an assertion conditionally, we're using a helper.
+          // eslint-disable-next-line jest/no-conditional-expect
           id: opts?.id ?? expect.any(String),
           loadingText: opts?.loadingText ?? null,
         };

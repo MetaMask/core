@@ -211,8 +211,7 @@ describe('createQueuedRequestMiddleware', () => {
       );
 
       expect(mocks.enqueueRequest).toHaveBeenCalled();
-      // infura networks do not use getNetworkClientById
-      expect(mocks.getNetworkClientById).not.toHaveBeenCalled();
+      expect(mocks.getNetworkClientById).toHaveBeenCalledWith('mainnet');
     });
 
     it('should resolve requests that require confirmations for custom networks', async () => {
