@@ -954,6 +954,9 @@ export class TransactionController extends BaseController<
     transactionMetaId: string,
     params: Record<string, any>,
   ) {
+    if (!transactionMetaId || !params) {
+      return;
+    }
     const { transactions } = this.state;
     const index = this.state.transactions.findIndex(
       ({ id }) => id === transactionMetaId,
