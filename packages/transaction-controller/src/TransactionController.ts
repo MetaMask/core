@@ -964,8 +964,9 @@ export class TransactionController extends BaseController<
     );
     if (index >= 0) {
       const transactionMeta = transactions[index];
+      const updatedMeta = merge(transactionMeta, { securityAlertResponse });
       this.updateTransaction(
-        { ...transactionMeta, securityAlertResponse },
+        updatedMeta,
         'TransactionController:updatesecurityAlertResponse - securityAlertResponse updated',
       );
     }

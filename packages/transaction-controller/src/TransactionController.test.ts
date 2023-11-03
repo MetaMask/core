@@ -59,6 +59,14 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
+const mockSendFlowHistory = [
+  {
+    entry:
+      'sendFlow - user selected transfer to my accounts on recipient screen',
+    timestamp: 1650663928211,
+  },
+];
+
 jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
@@ -824,13 +832,6 @@ describe('TransactionController', () => {
           operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
         },
       };
-      const mockSendFlowHistory = [
-        {
-          entry:
-            'sendFlow - user selected transfer to my accounts on recipient screen',
-          timestamp: 1650663928211,
-        },
-      ];
       await controller.addTransaction(
         {
           from: ACCOUNT_MOCK,
@@ -2794,6 +2795,11 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: transactionMetaId,
         status,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+        history: mockSendFlowHistory,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
       controller.updateSecurityAlertResponse(transactionMetaId, {
@@ -2845,9 +2851,14 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: transactionMetaId,
         status,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+        history: mockSendFlowHistory,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.updateSecurityAlertResponse(transactionMetaId, {
+      controller.updateSecurityAlertResponse('456', {
         reason: 'NA',
         result_type: 'Benign',
       });
