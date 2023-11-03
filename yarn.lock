@@ -1900,7 +1900,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.1.0
+    "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     depcheck: ^1.4.3
