@@ -2788,14 +2788,15 @@ describe('TransactionController', () => {
 
   describe('addTransactionMetaParams', () => {
     it('add params to transaction meta', async () => {
-      const transactionId = '123';
+      const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
       const controller = newController();
       controller.state.transactions.push({
-        id: transactionId,
+        id: transactionMetaId,
         status,
       } as any);
-      controller.addTransactionMetaParams(transactionId, {
+      expect(controller.state.transactions[0]).toBeDefined();
+      controller.addTransactionMetaParams(transactionMetaId, {
         securityAlertResponse: {
           result_type: 'Benign',
         },
