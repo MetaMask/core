@@ -97,7 +97,7 @@ get-version-message-pairs() {
   local message
   while IFS=$'\t' read -r tag commit; do
     version="$(echo "$tag" | sed "$sed_pattern")"
-    message="$(cd $tmp_dir/$package_name && git log $commit -n 1 --oneline --format='%H%x09%s' | cut -f2)"
+    message="$(cd $tmp_dir/$package_name && git log $commit -n 1 --oneline --format='%s')"
     echo "$version"$'\t'"$message"
   done <<<"$(get-tag-commit-pairs)"
 }
