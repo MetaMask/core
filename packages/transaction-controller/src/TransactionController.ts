@@ -827,13 +827,18 @@ export class TransactionController extends BaseController<
     transactionMetaId: string,
     params: Record<string, any>,
   ) {
+    if (!transactionMetaId || !params) {
+      return;
+    }
     const { transactions } = this.state;
     const index = this.state.transactions.findIndex(
       ({ id }) => id === transactionMetaId,
     );
-    const transactionMeta = transactions[index];
-    transactions[index] = { ...transactionMeta, ...params };
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    if (index >= 0) {
+      const transactionMeta = transactions[index];
+      transactions[index] = { ...transactionMeta, ...params };
+      this.update({ transactions });
+    }
   }
 
   /**
