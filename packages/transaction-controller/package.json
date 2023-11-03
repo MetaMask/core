@@ -24,8 +24,9 @@
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest",
+    "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
+    "test:verbose": "jest --verbose",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -40,7 +41,7 @@
     "@metamask/metamask-eth-abis": "^3.0.0",
     "@metamask/network-controller": "^15.1.0",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/utils": "^8.1.0",
+    "@metamask/utils": "^8.2.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "1.1.0",
     "ethereumjs-util": "^7.0.10",

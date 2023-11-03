@@ -9,9 +9,4 @@ export const incomingTransactionsLogger = createModuleLogger(
   'incoming-transactions',
 );
 
-export const pendingTransactionsLogger = createModuleLogger(
-  projectLogger,
-  'pending-transactions',
-);
-
 export { createModuleLogger };

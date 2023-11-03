@@ -206,7 +206,7 @@ describe('gas utils', () => {
         '123456.0000006',
       );
       expect(normalizeGWEIDecimalNumbers(1.000000016025)).toBe('1.000000016');
-      expect(normalizeGWEIDecimalNumbers(1.0000000160000028)).toBe(
+      expect(normalizeGWEIDecimalNumbers('1.0000000160000028')).toBe(
         '1.000000016',
       );
       expect(normalizeGWEIDecimalNumbers(1.000000016522)).toBe('1.000000017');
