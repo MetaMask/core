@@ -2824,5 +2824,34 @@ describe('TransactionController', () => {
       );
       expect(transactionMeta.status).toBe(TransactionStatus.approved);
     });
+
+    it('adds a transaction, signs and skips publish the transaction', async () => {
+      const txMeta = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      };
+      const controller = newController({
+        options: {
+          hooks: {
+            beforePublish: undefined,
+            afterSign: () => false,
+            getAdditionalSignArguments: () => [txMeta],
+          },
+        },
+      });
+      const signSpy = jest.spyOn(controller, 'sign' as any);
+      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
+
+      await controller.addTransaction(txMeta, {
+        origin: 'origin',
+        actionId: ACTION_ID_MOCK,
+      });
+
+      approveTransaction();
+      await wait(0);
+
+      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(0);
+    });
   });
 });

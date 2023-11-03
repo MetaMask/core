@@ -313,7 +313,7 @@ export class PendingTransactionTracker {
   async #checkTransaction(txMeta: TransactionMeta) {
     const { hash, id } = txMeta;
 
-    if (!hash || (!hash && !this.#beforeCheckPendingTransaction(txMeta))) {
+    if (!hash || !this.#beforeCheckPendingTransaction(txMeta)) {
       const error = new Error(
         'We had an error while submitting this transaction, please try again.',
       );

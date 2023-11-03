@@ -780,14 +780,14 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const txParams =
+    const txParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             from: transactionMeta.txParams.from,
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: 2,
+            type: '2',
             nonce: transactionMeta.txParams.nonce,
             to: transactionMeta.txParams.from,
             value: '0x0',
@@ -903,14 +903,14 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const txParams =
+    const txParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             ...transactionMeta.txParams,
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: 2,
+            type: '2',
           }
         : {
             ...transactionMeta.txParams,
@@ -1436,14 +1436,14 @@ export class TransactionController extends BaseController<
 
       const isEIP1559 = isEIP1559Transaction(transactionMeta.txParams);
 
-      const txParams = isEIP1559
+      const txParams: TransactionParams = isEIP1559
         ? {
             ...baseTxParams,
             maxFeePerGas: transactionMeta.txParams.maxFeePerGas,
             maxPriorityFeePerGas: transactionMeta.txParams.maxPriorityFeePerGas,
             estimatedBaseFee: transactionMeta.txParams.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-            type: 2,
+            type: '2',
           }
         : baseTxParams;
 
@@ -1458,31 +1458,17 @@ export class TransactionController extends BaseController<
           transactionMeta,
           'TransactionController#approveTransaction - Transaction approved',
         );
-      }
-
-      const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
-      const signedTx = await this.sign(
-        unsignedEthTx,
-        from,
-        ...this.getAdditionalSignArguments(transactionMeta),
-      );
-      if (!this.afterSign(transactionMeta, signedTx)) {
+        await this.signTransaction(transactionMeta);
         return;
       }
 
-      await this.updateTransactionMetaRSV(transactionMeta, signedTx);
-      transactionMeta.status = TransactionStatus.signed;
-      this.updateTransaction(
-        transactionMeta,
-        'TransactionController#approveTransaction - Transaction signed',
-      );
+      const rawTx = await this.signTransaction(transactionMeta);
 
-      const rawTx = bufferToHex(signedTx.serialize());
-      transactionMeta.rawTx = rawTx;
-      this.updateTransaction(
-        transactionMeta,
-        'TransactionController#approveTransaction - RawTransaction added',
-      );
+      // skips publish if rawTx is not defined
+      if (!rawTx) {
+        return;
+      }
+
       const hash = await this.publishTransaction(rawTx);
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
@@ -1665,9 +1651,7 @@ export class TransactionController extends BaseController<
     return providerConfig.chainId;
   }
 
-  private prepareUnsignedEthTx(
-    txParams: Record<string, unknown>,
-  ): TypedTransaction {
+  private prepareUnsignedEthTx(txParams: TransactionParams): TypedTransaction {
     return TransactionFactory.fromTxData(txParams, {
       common: this.getCommonConfiguration(),
       freeze: false,
@@ -1953,6 +1937,37 @@ export class TransactionController extends BaseController<
       'transaction-updated',
       this.updateTransaction.bind(this),
     );
+  }
+
+  private async signTransaction(
+    transactionMeta: TransactionMeta,
+  ): Promise<string | undefined> {
+    const { txParams } = transactionMeta;
+
+    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+    const signedTx = await this.sign?.(
+      unsignedEthTx,
+      txParams.from,
+      ...this.getAdditionalSignArguments(transactionMeta),
+    );
+    if (!signedTx || !this.afterSign(transactionMeta, signedTx)) {
+      return undefined;
+    }
+
+    await this.updateTransactionMetaRSV(transactionMeta, signedTx);
+    transactionMeta.status = TransactionStatus.signed;
+    this.updateTransaction(
+      transactionMeta,
+      'TransactionController#approveTransaction - Transaction signed',
+    );
+
+    const rawTx = bufferToHex(signedTx.serialize());
+    transactionMeta.rawTx = rawTx;
+    this.updateTransaction(
+      transactionMeta,
+      'TransactionController#approveTransaction - RawTransaction added',
+    );
+    return rawTx;
   }
 }
 
