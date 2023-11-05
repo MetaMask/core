@@ -21,7 +21,7 @@ import type {
   RemoteTransactionSourceRequest,
   TransactionMeta,
 } from './types';
-import { TransactionStatus } from './types';
+import { TransactionStatus, TransactionType } from './types';
 
 /**
  * A RemoteTransactionSource that fetches transaction data from Etherscan.
@@ -177,6 +177,7 @@ export class EtherscanRemoteTransactionSource
         to: txMeta.to,
         value: BNToHex(new BN(txMeta.value)),
       },
+      type: TransactionType.incoming,
       verifiedOnBlockchain: false,
     };
   }

@@ -12,7 +12,7 @@ import {
   fetchEtherscanTransactions,
 } from './etherscan';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import { TransactionStatus } from './types';
+import { TransactionStatus, TransactionType } from './types';
 
 jest.mock('./etherscan', () => ({
   fetchEtherscanTransactions: jest.fn(),
@@ -116,6 +116,7 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
     to: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.to,
     value: '0xb1a2bc2ec50000',
   },
+  type: TransactionType.incoming,
   verifiedOnBlockchain: false,
 };
 
