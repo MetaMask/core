@@ -1539,7 +1539,6 @@ export class TransactionController extends BaseController<
       }
 
       if (!rawTx) {
-        log('Skipping signed status as no signed transaction');
         return;
       }
 
@@ -2026,7 +2025,13 @@ export class TransactionController extends BaseController<
       txParams.from,
       ...this.getAdditionalSignArguments(transactionMeta),
     );
-    if (!signedTx || !this.afterSign(transactionMeta, signedTx)) {
+
+    if (!signedTx) {
+      log('Skipping signed status as no signed transaction');
+      return undefined;
+    }
+
+    if (!this.afterSign(transactionMeta, signedTx)) {
       log('Skipping signed status based on hook');
       return undefined;
     }
