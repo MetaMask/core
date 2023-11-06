@@ -949,7 +949,7 @@ export class TransactionController extends BaseController<
    * Update the security alert response for a transaction.
    *
    * @param transactionMetaId - ID of the transaction.
-   * @param securityAlertResponse - New params to be added to tarnsaction meta.
+   * @param securityAlertResponse - The new security alert response for the transaction.
    */
   updateSecurityAlertResponse(
     transactionMetaId: string,
