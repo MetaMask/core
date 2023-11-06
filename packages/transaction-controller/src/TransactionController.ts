@@ -53,6 +53,7 @@ import {
   TransactionStatus,
   WalletDevice,
 } from './types';
+import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 
 const HARDFORK = 'london';
 
@@ -862,6 +863,17 @@ export class TransactionController extends BaseController<
     this.update({
       transactions: this.trimTransactionsForState(newTransactions),
     });
+  }
+
+  /**
+   * Gets the next nonce according to the nonce-tracker.
+   * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
+   *
+   * @param address - The hex string address for the transaction.
+   * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
+   */
+  async getNonceLock(address: string): Promise<NonceLock> {
+    return this.nonceTracker.getNonceLock(address);
   }
 
   /**
