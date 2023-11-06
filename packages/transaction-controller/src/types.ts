@@ -1,6 +1,41 @@
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
+export type Events = {
+  ['incomingTransactionBlock']: [blockNumber: number];
+  ['post-transaction-balance-updated']: [
+    {
+      transactionMeta: TransactionMeta;
+      approvalTransactionMeta?: TransactionMeta;
+    },
+  ];
+  ['transaction-approved']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
+
+  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-failed']: [
+    {
+      actionId?: string;
+      error: string;
+      transactionMeta: TransactionMeta;
+    },
+  ];
+  ['transaction-new-swap']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-new-swap-approval']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-rejected']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-submitted']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
+};
+
 /**
  * Representation of transaction metadata.
  */
@@ -17,6 +52,11 @@ export type TransactionMeta = TransactionMetaBase &
  * Information about a single transaction such as status and block number.
  */
 type TransactionMetaBase = {
+  /**
+   * ID of the transaction that approved the swap token transfer.
+   */
+  approvalTxId?: string;
+
   /**
    * Unique ID to prevent duplicate requests.
    */
@@ -66,6 +106,21 @@ type TransactionMetaBase = {
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
+
+  /**
+   * The address of the token being received of swap transaction.
+   */
+  destinationTokenAddress?: string;
+
+  /**
+   * The decimals of the token being received of swap transaction.
+   */
+  destinationTokenDecimals?: string;
+
+  /**
+   * The symbol of the token being received with swap.
+   */
+  destinationTokenSymbol?: string;
 
   /**
    * The estimated base fee of the transaction.
@@ -123,6 +178,16 @@ type TransactionMetaBase = {
    * The original gas estimation of the transaction.
    */
   originalGasEstimate?: string;
+
+  /**
+   * Account transaction balance after swap.
+   */
+  postTxBalance?: string;
+
+  /**
+   * Account transaction balance before swap.
+   */
+  preTxBalance?: string;
 
   /**
    * The previous gas properties before they were updated.
@@ -206,6 +271,21 @@ type TransactionMetaBase = {
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
+
+  /**
+   * The symbol of the token being swapped.
+   */
+  sourceTokenSymbol?: string;
+
+  /**
+   * The metadata of the swap transaction.
+   */
+  swapMetaData?: Record<string, unknown>;
+
+  /**
+   * The value of the token being swapped.
+   */
+  swapTokenValue?: string;
 
   /**
    * Timestamp associated with this transaction.
