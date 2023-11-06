@@ -232,10 +232,10 @@ export async function updatePostTransactionBalance(
     latestTransactionMeta as TransactionMeta,
     'TransactionController#updatePostTransactionBalance - Add post transaction balance',
   );
-  return Promise.resolve({
+  return {
     updatedTransactionMeta: latestTransactionMeta,
     approvalTransactionMeta,
-  });
+  };
 }
 
 /**
