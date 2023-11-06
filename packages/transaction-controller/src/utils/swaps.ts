@@ -219,13 +219,13 @@ export async function updatePostTransactionBalance(
     );
 
     if (
-      isDefaultTokenAddress &&
-      transactionMeta.preTxBalance === latestTransactionMeta.postTxBalance
+      !isDefaultTokenAddress ||
+      transactionMeta.preTxBalance !== latestTransactionMeta.postTxBalance
     ) {
-      await sleep(UPDATE_POST_TX_BALANCE_TIMEOUT);
-    } else {
       break;
     }
+
+    await sleep(UPDATE_POST_TX_BALANCE_TIMEOUT);
   }
 
   updateTransaction(
