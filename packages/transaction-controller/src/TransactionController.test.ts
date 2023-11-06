@@ -3333,14 +3333,15 @@ describe('TransactionController', () => {
         status,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.updateSecurityAlertResponse(undefined as any, {
-        reason: 'NA',
-        result_type: 'Benign',
-      });
 
       expect(
-        controller.state.transactions[0].securityAlertResponse,
-      ).toBeUndefined();
+        controller.updateSecurityAlertResponse(undefined as any, {
+          reason: 'NA',
+          result_type: 'Benign',
+        }),
+      ).toThrow(
+        'Cannot update security alert response as no transaction metadata found',
+      );
     });
 
     it('should do nothing if securityAlertResponse is not defined', async () => {
@@ -3352,14 +3353,15 @@ describe('TransactionController', () => {
         status,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.updateSecurityAlertResponse(
-        transactionMetaId,
-        undefined as any,
-      );
 
       expect(
-        controller.state.transactions[0].securityAlertResponse,
-      ).toBeUndefined();
+        controller.updateSecurityAlertResponse(
+          transactionMetaId,
+          undefined as any,
+        ),
+      ).toThrow(
+        'updateSecurityAlertResponse: securityAlertResponse should not be null',
+      );
     });
 
     it('should do nothing if transaction with given id does not exist', async () => {
@@ -3376,14 +3378,15 @@ describe('TransactionController', () => {
         history: mockSendFlowHistory,
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
-      controller.updateSecurityAlertResponse('456', {
-        reason: 'NA',
-        result_type: 'Benign',
-      });
 
       expect(
-        controller.state.transactions[0].securityAlertResponse,
-      ).toBeUndefined();
+        controller.updateSecurityAlertResponse('456', {
+          reason: 'NA',
+          result_type: 'Benign',
+        }),
+      ).toThrow(
+        'Cannot update security alert response as no transaction metadata found',
+      );
     });
   });
 });
