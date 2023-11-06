@@ -1133,7 +1133,7 @@ describe('TransactionController', () => {
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
-        resultType: 'Malicious',
+        result_type: 'Malicious',
         reason: 'blur_farming',
         description:
           'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
