@@ -42,10 +42,8 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  let savedGasFees = request.getSavedGasFees();
-  if (SWAP_TRANSACTION_TYPES.includes(txMeta.type as TransactionType)) {
-    savedGasFees = undefined;
-  }
+  const isSwap = SWAP_TRANSACTION_TYPES.includes(txMeta.type  as TransactionType);
+  const savedGasFees = isSwap ? undefined : request.getSavedGasFees();
 
   const suggestedGasFees = await getSuggestedGasFees(request);
 
@@ -203,9 +201,7 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
   return undefined;
 }
 
-function getUserFeeLevel(
-  request: GetGasFeeRequest,
-): UserFeeLevel | undefined {
+function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
   const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
     request;
 
