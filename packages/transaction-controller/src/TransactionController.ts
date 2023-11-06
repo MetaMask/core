@@ -43,6 +43,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
 import type {
+  SavedGasFees,
   DappSuggestedGasFees,
   TransactionParams,
   TransactionMeta,
@@ -229,6 +230,8 @@ export class TransactionController extends BaseController<
 
   private readonly mutex = new Mutex();
 
+  private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+
   private readonly getNetworkState: () => NetworkState;
 
   private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
@@ -302,6 +305,7 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
+   * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
@@ -327,6 +331,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       disableHistory,
       disableSendFlowHistory,
+      getSavedGasFees,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getGasFeeEstimates,
@@ -343,6 +348,7 @@ export class TransactionController extends BaseController<
       blockTracker: BlockTracker;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
+      getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getGasFeeEstimates?: () => Promise<GasFeeState>;
@@ -388,6 +394,7 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
+    this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
@@ -1219,6 +1226,7 @@ export class TransactionController extends BaseController<
 
   private async updateGasProperties(transactionMeta: TransactionMeta) {
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
+    const chainId = this.getChainId();
 
     await updateGas({
       ethQuery: this.ethQuery,
@@ -1229,6 +1237,7 @@ export class TransactionController extends BaseController<
     await updateGasFees({
       eip1559: isEIP1559Compatible,
       ethQuery: this.ethQuery,
+      getSavedGasFees: this.getSavedGasFees.bind(this, chainId),
       getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
     });

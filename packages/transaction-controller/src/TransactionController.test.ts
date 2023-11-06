@@ -496,6 +496,7 @@ describe('TransactionController', () => {
         getNetworkState: () => finalNetwork.state,
         getCurrentAccountEIP1559Compatibility: () => true,
         getCurrentNetworkEIP1559Compatibility: () => true,
+        getSavedGasFees: () => undefined,
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
@@ -1461,6 +1462,7 @@ describe('TransactionController', () => {
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
         ethQuery: expect.any(Object),
+        getSavedGasFees: expect.any(Function),
         getGasFeeEstimates: expect.any(Function),
         txMeta: expect.any(Object),
       });
