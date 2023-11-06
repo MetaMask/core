@@ -40,7 +40,7 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
-import { estimateGas, updateGas } from './gas';
+import { addGasBuffer, estimateGas, updateGas } from './gas';
 import { updateGasFees } from './gas-fees';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
@@ -877,6 +877,23 @@ export class TransactionController extends BaseController<
       transaction,
       this.ethQuery,
     );
+
+    return {
+      gas,
+      simulationFails,
+    };
+  }
+
+  async estimateGasBuffered(
+    transaction: TransactionParams,
+    multiplier: number,
+  ) {
+    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
+      transaction,
+      this.ethQuery,
+    );
+
+    const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
 
     return {
       gas,
