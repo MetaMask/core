@@ -9,7 +9,6 @@ import {
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
-import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
