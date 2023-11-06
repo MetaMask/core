@@ -623,6 +623,14 @@ export interface DappSuggestedGasFees {
 }
 
 /**
+ * Gas values saved by the user for a specific chain.
+ */
+export interface SavedGasFees {
+  maxBaseFee: string;
+  priorityFee: string;
+}
+
+/**
  * A transaction history operation that includes a note and timestamp.
  */
 type ExtendedHistoryOperation = Operation & {

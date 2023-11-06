@@ -1,4 +1,5 @@
 /* eslint-disable jest/expect-expect */
+import { TransactionFactory } from '@ethereumjs/tx';
 import type {
   AcceptResultCallbacks,
   AddResult,
@@ -496,6 +497,7 @@ describe('TransactionController', () => {
         getNetworkState: () => finalNetwork.state,
         getCurrentAccountEIP1559Compatibility: () => true,
         getCurrentNetworkEIP1559Compatibility: () => true,
+        getSavedGasFees: () => undefined,
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
@@ -1461,6 +1463,7 @@ describe('TransactionController', () => {
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
         ethQuery: expect.any(Object),
+        getSavedGasFees: expect.any(Function),
         getGasFeeEstimates: expect.any(Function),
         txMeta: expect.any(Object),
       });
@@ -2665,6 +2668,67 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('clearUnapprovedTransactions', () => {
+    it('clears unapproved transactions', async () => {
+      const controller = newController();
+
+      const firstUnapprovedTxId = '1';
+      const secondUnapprovedTxId = '2';
+      const firstConfirmedTxId = '3';
+      const secondConfirmedTxId = '4';
+
+      const transactionMeta = {
+        chainId: toHex(5),
+        status: TransactionStatus.unapproved as const,
+        time: 123456789,
+        txParams: {
+          from: '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207',
+        },
+      };
+
+      const confirmedTxMeta = {
+        ...transactionMeta,
+        status: TransactionStatus.confirmed as const,
+      };
+
+      const unapprovedTxMeta = {
+        ...transactionMeta,
+        status: TransactionStatus.unapproved as const,
+      };
+
+      controller.state.transactions.push(
+        {
+          ...unapprovedTxMeta,
+          id: firstUnapprovedTxId,
+        },
+        {
+          ...unapprovedTxMeta,
+          id: secondUnapprovedTxId,
+        },
+        {
+          ...confirmedTxMeta,
+          id: firstConfirmedTxId,
+        },
+        {
+          ...confirmedTxMeta,
+          id: secondConfirmedTxId,
+        },
+      );
+
+      controller.clearUnapprovedTransactions();
+
+      const { transactions } = controller.state;
+
+      expect(transactions).toHaveLength(2);
+      expect(
+        transactions.find(({ id }) => id === firstConfirmedTxId)?.status,
+      ).toBe(TransactionStatus.confirmed);
+      expect(
+        transactions.find(({ id }) => id === secondConfirmedTxId)?.status,
+      ).toBe(TransactionStatus.confirmed);
+    });
+  });
+
   describe('on incoming transaction helper transactions event', () => {
     it('adds new transactions to state', async () => {
       const controller = newController();
@@ -2999,6 +3063,133 @@ describe('TransactionController', () => {
           retryCount: 123,
         },
       ]);
+    });
+  });
+
+  describe('approveTransactionsWithSameNonce', () => {
+    it('throws error if no sign method', async () => {
+      const controller = newController({
+        config: {
+          sign: undefined,
+        },
+      });
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+      };
+
+      await expect(
+        controller.approveTransactionsWithSameNonce([mockTransactionParam2]),
+      ).rejects.toThrow('No sign method defined.');
+    });
+
+    it('returns empty string if no transactions are provided', async () => {
+      const controller = newController();
+      const result = await controller.approveTransactionsWithSameNonce([]);
+      expect(result).toBe('');
+    });
+
+    it('return empty string if transaction is already being signed', async () => {
+      const controller = newController({
+        config: {
+          // We never resolve this promise, so the transaction is always in the process of being signed
+          sign: async () =>
+            new Promise(() => {
+              /* noop */
+            }),
+        },
+      });
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x5208',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+      };
+
+      // Send the transaction to put it in the process of being signed
+      controller.approveTransactionsWithSameNonce([mockTransactionParam]);
+
+      // Now send it one more time to test that it doesn't get signed again
+      const result = await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+      ]);
+
+      expect(result).toBe('');
+    });
+
+    it('signs transactions and return raw transactions', async () => {
+      const signMock = jest
+        .fn()
+        .mockImplementation(async (transactionParams) =>
+          Promise.resolve(TransactionFactory.fromTxData(transactionParams)),
+        );
+      const controller = newController({
+        config: {
+          sign: signMock,
+        },
+      });
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+      };
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+      };
+
+      const result = await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+        mockTransactionParam2,
+      ]);
+
+      expect(result).toHaveLength(2);
+      expect(result).toStrictEqual([expect.any(String), expect.any(String)]);
+    });
+
+    it('throws if error while signing transaction', async () => {
+      const mockSignError = 'Error while signing transaction';
+
+      const signMock = jest
+        .fn()
+        .mockImplementation(async () =>
+          Promise.reject(new Error(mockSignError)),
+        );
+      const controller = newController({
+        config: {
+          sign: signMock,
+        },
+      });
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+      };
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+      };
+
+      await expect(
+        controller.approveTransactionsWithSameNonce([
+          mockTransactionParam,
+          mockTransactionParam2,
+        ]),
+      ).rejects.toThrow(mockSignError);
     });
   });
 

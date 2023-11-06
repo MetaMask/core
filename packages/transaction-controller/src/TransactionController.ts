@@ -43,6 +43,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
 import type {
+  SavedGasFees,
   DappSuggestedGasFees,
   TransactionParams,
   TransactionMeta,
@@ -51,7 +52,11 @@ import type {
   SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
-import { TransactionType, TransactionStatus } from './types';
+import {
+  TransactionEnvelopeType,
+  TransactionType,
+  TransactionStatus,
+} from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
@@ -229,6 +234,8 @@ export class TransactionController extends BaseController<
 
   private readonly mutex = new Mutex();
 
+  private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+
   private readonly getNetworkState: () => NetworkState;
 
   private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
@@ -322,6 +329,7 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
+   * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
@@ -353,6 +361,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       disableHistory,
       disableSendFlowHistory,
+      getSavedGasFees,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getGasFeeEstimates,
@@ -370,6 +379,7 @@ export class TransactionController extends BaseController<
       blockTracker: BlockTracker;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
+      getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getGasFeeEstimates?: () => Promise<GasFeeState>;
@@ -429,6 +439,7 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
+    this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
@@ -1263,8 +1274,105 @@ export class TransactionController extends BaseController<
     return this.nonceTracker.getNonceLock(address);
   }
 
+  /**
+   * Signs and returns the raw transaction data for provided transaction params list.
+   *
+   * @param listOfTxParams - The list of transaction params to approve.
+   * @returns The raw transactions.
+   */
+  async approveTransactionsWithSameNonce(
+    listOfTxParams: TransactionParams[] = [],
+  ): Promise<string | string[]> {
+    if (listOfTxParams.length === 0) {
+      return '';
+    }
+
+    const initialTx = listOfTxParams[0];
+    const common = this.getCommonConfiguration();
+
+    const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
+      common,
+    });
+
+    const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
+
+    if (this.inProcessOfSigning.has(initialTxAsSerializedHex)) {
+      return '';
+    }
+
+    this.inProcessOfSigning.add(initialTxAsSerializedHex);
+
+    let rawTransactions, nonceLock;
+    try {
+      // TODO: we should add a check to verify that all transactions have the same from address
+      const fromAddress = initialTx.from;
+      nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
+      const nonce = nonceLock.nextNonce;
+
+      rawTransactions = await Promise.all(
+        listOfTxParams.map((txParams) => {
+          txParams.nonce = addHexPrefix(nonce.toString(16));
+          return this.signExternalTransaction(txParams);
+        }),
+      );
+    } catch (err) {
+      log('Error while signing transactions with same nonce', err);
+      // Must set transaction to submitted/failed before releasing lock
+      // continue with error chain
+      throw err;
+    } finally {
+      if (nonceLock) {
+        nonceLock.releaseLock();
+      }
+      this.inProcessOfSigning.delete(initialTxAsSerializedHex);
+    }
+    return rawTransactions;
+  }
+
+  private async signExternalTransaction(
+    transactionParams: TransactionParams,
+  ): Promise<string> {
+    if (!this.sign) {
+      throw new Error('No sign method defined.');
+    }
+
+    const normalizedtransactionParams = normalizeTxParams(transactionParams);
+    const chainId = this.getChainId();
+    const type = isEIP1559Transaction(normalizedtransactionParams)
+      ? TransactionEnvelopeType.feeMarket
+      : TransactionEnvelopeType.legacy;
+    const updatedTransactionParams = {
+      ...normalizedtransactionParams,
+      type,
+      gasLimit: normalizedtransactionParams.gas,
+      chainId,
+    };
+
+    const { from } = updatedTransactionParams;
+    const common = this.getCommonConfiguration();
+    const unsignedTransaction = TransactionFactory.fromTxData(
+      updatedTransactionParams,
+      { common },
+    );
+    const signedTransaction = await this.sign(unsignedTransaction, from);
+
+    const rawTransaction = bufferToHex(signedTransaction.serialize());
+    return rawTransaction;
+  }
+
+  /**
+   * Removes unapproved transactions from state.
+   */
+  clearUnapprovedTransactions() {
+    const transactions = this.state.transactions.filter(
+      ({ status }) => status !== TransactionStatus.unapproved,
+    );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
   private async updateGasProperties(transactionMeta: TransactionMeta) {
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
+    const chainId = this.getChainId();
 
     await updateGas({
       ethQuery: this.ethQuery,
@@ -1275,6 +1383,7 @@ export class TransactionController extends BaseController<
     await updateGasFees({
       eip1559: isEIP1559Compatible,
       ethQuery: this.ethQuery,
+      getSavedGasFees: this.getSavedGasFees.bind(this, chainId),
       getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
     });
