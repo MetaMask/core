@@ -1607,7 +1607,7 @@ __metadata:
     "@metamask/eslint-config-nodejs": ^12.1.0
     "@metamask/eslint-config-typescript": ^12.1.0
     "@metamask/eth-json-rpc-provider": ^2.2.0
-    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/utils": ^8.2.0
     "@types/node": ^16.18.54
     "@typescript-eslint/eslint-plugin": ^5.62.0
@@ -1755,9 +1755,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^12.0.0":
-  version: 12.0.0
-  resolution: "@metamask/eth-json-rpc-middleware@npm:12.0.0"
+"@metamask/eth-json-rpc-middleware@npm:^12.0.1":
+  version: 12.0.1
+  resolution: "@metamask/eth-json-rpc-middleware@npm:12.0.1"
   dependencies:
     "@metamask/eth-json-rpc-provider": ^2.1.0
     "@metamask/eth-sig-util": ^7.0.0
@@ -1768,7 +1768,7 @@ __metadata:
     klona: ^2.0.6
     pify: ^5.0.0
     safe-stable-stringify: ^2.4.3
-  checksum: 22391116f752abcb0145385297b426450260e857d9a37b6aeb7602f48079126e0920d39d28ec3e6de8fc247d589dd089731198af4f92aa98974fa45d37ede027
+  checksum: 27d7ef46bad5b9db8e5a4591c6646ffd8df974ab841e82d8c446e0458de1f2d66a86eb5bf82b3db3029065edfa7e98ec8c88a79bf4e799f131703dfc3cc9675d
   languageName: node
   linkType: hard
 
@@ -1777,7 +1777,7 @@ __metadata:
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
     "@metamask/auto-changelog": ^3.4.2
-    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
@@ -1892,16 +1892,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@npm:^7.1.1":
-  version: 7.1.1
-  resolution: "@metamask/json-rpc-engine@npm:7.1.1"
+"@metamask/json-rpc-engine@^7.1.1, @metamask/json-rpc-engine@^7.2.0, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
+  version: 0.0.0-use.local
+  resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
   dependencies:
-    "@metamask/rpc-errors": ^6.0.0
+    "@lavamoat/allow-scripts": ^2.3.1
+    "@metamask/auto-changelog": ^3.4.2
+    "@metamask/rpc-errors": ^6.1.0
     "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.1.0
-  checksum: 9dddd9142965ccd86313cda5bf13f15bf99c6c14631f93aab78de353317d548a334b5b125cdc134edd7d54e2f2e4961a0bdcd24fba997b2913083955df8fefa1
-  languageName: node
-  linkType: hard
+    "@metamask/utils": ^8.2.0
+    "@types/jest": ^27.4.1
+    deepmerge: ^4.2.2
+    depcheck: ^1.4.3
+    jest: ^27.5.1
+    jest-it-up: ^2.0.2
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typescript: ~4.8.4
+  languageName: unknown
+  linkType: soft
 
 "@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream":
   version: 0.0.0-use.local
@@ -2066,10 +2075,10 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-json-rpc-infura": ^9.0.0
-    "@metamask/eth-json-rpc-middleware": ^12.0.0
+    "@metamask/eth-json-rpc-middleware": ^12.0.1
     "@metamask/eth-json-rpc-provider": ^2.2.0
     "@metamask/eth-query": ^3.0.1
-    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.2.0
@@ -2151,7 +2160,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.2.0
     "@types/deep-freeze-strict": ^1.1.0
@@ -2271,7 +2280,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/network-controller": ^15.1.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/selected-network-controller": ^3.1.0
@@ -2352,7 +2361,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
-    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/network-controller": ^15.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1

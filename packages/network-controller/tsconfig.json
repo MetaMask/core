@@ -13,6 +13,9 @@
     },
     {
       "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../json-rpc-engine"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
