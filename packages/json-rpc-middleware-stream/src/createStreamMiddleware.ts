@@ -120,6 +120,7 @@ export default function createStreamMiddleware(options: Options = {}) {
     Object.assign(context.res, res);
     // run callback on empty stack,
     // prevent internal stream-handler from catching errors
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     setTimeout(context.end);
   }
 
