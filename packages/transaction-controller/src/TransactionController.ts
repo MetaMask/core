@@ -1207,6 +1207,16 @@ export class TransactionController extends BaseController<
     return this.nonceTracker.getNonceLock(address);
   }
 
+  /**
+   * Removes unapproved transactions from state.
+   */
+  clearUnapprovedTransactions() {
+    const transactions = this.state.transactions.filter(
+      ({ status }) => status !== TransactionStatus.unapproved,
+    );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
   private async updateGasProperties(transactionMeta: TransactionMeta) {
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
 
