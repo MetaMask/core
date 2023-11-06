@@ -2786,7 +2786,7 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('securityAlertResponse', () => {
+  describe('updateSecurityAlertResponse', () => {
     const mockSendFlowHistory = [
       {
         entry:
