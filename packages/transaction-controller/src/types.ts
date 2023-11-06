@@ -2,6 +2,13 @@ import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 export type Events = {
+  ['incomingTransactionBlock']: [blockNumber: number];
+  ['post-transaction-balance-updated']: [
+    {
+      transactionMeta: TransactionMeta;
+      approvalTransactionMeta?: TransactionMeta;
+    },
+  ];
   ['transaction-approved']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
@@ -24,17 +31,10 @@ export type Events = {
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
   ['transaction-post-balance-updated']: [transactionMeta: TransactionMeta];
+  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
   [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
   [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
   [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
-  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  ['incomingTransactionBlock']: [blockNumber: number];
-  ['post-transaction-balance-updated']: [
-    {
-      transactionMeta: TransactionMeta;
-      approvalTransactionMeta?: TransactionMeta;
-    },
-  ];
 };
 
 /**
