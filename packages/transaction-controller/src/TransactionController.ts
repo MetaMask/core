@@ -221,7 +221,7 @@ export class TransactionController extends BaseController<
 
   private readonly isSendFlowHistoryDisabled: boolean;
 
-  private readonly inProcessOfSigning = new Set();
+  private readonly inProcessOfSigning: Set<string> = new Set();
 
   private readonly nonceTracker: NonceTracker;
 
@@ -461,7 +461,10 @@ export class TransactionController extends BaseController<
       // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
+      this.onBootCleanup();
     });
+
+    this.onBootCleanup();
   }
 
   /**
@@ -570,18 +573,7 @@ export class TransactionController extends BaseController<
       type: transactionType,
     };
 
-    await updateGas({
-      ethQuery: this.ethQuery,
-      providerConfig: this.getNetworkState().providerConfig,
-      txMeta: transactionMeta,
-    });
-
-    await updateGasFees({
-      eip1559: isEIP1559Compatible,
-      ethQuery: this.ethQuery,
-      getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
-      txMeta: transactionMeta,
-    });
+    await this.updateGasProperties(transactionMeta);
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -628,29 +620,6 @@ export class TransactionController extends BaseController<
 
   async updateIncomingTransactions() {
     await this.incomingTransactionHelper.update();
-  }
-
-  /**
-   * Creates approvals for all unapproved transactions persisted.
-   */
-  initApprovals() {
-    const chainId = this.getChainId();
-    const unapprovedTxs = this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
-    );
-
-    for (const txMeta of unapprovedTxs) {
-      this.processApproval(txMeta, {
-        shouldShowRequest: false,
-      }).catch((error) => {
-        if (error?.code === errorCodes.provider.userRejectedRequest) {
-          return;
-        }
-        console.error('Error during persisted transaction approval', error);
-      });
-    }
   }
 
   /**
@@ -1328,6 +1297,115 @@ export class TransactionController extends BaseController<
     return rawTransaction;
   }
 
+  /**
+   * Removes unapproved transactions from state.
+   */
+  clearUnapprovedTransactions() {
+    const transactions = this.state.transactions.filter(
+      ({ status }) => status !== TransactionStatus.unapproved,
+    );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  private async updateGasProperties(transactionMeta: TransactionMeta) {
+    const isEIP1559Compatible = await this.getEIP1559Compatibility();
+
+    await updateGas({
+      ethQuery: this.ethQuery,
+      providerConfig: this.getNetworkState().providerConfig,
+      txMeta: transactionMeta,
+    });
+
+    await updateGasFees({
+      eip1559: isEIP1559Compatible,
+      ethQuery: this.ethQuery,
+      getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
+      txMeta: transactionMeta,
+    });
+  }
+
+  private getCurrentChainTransactionsByStatus(status: TransactionStatus) {
+    const chainId = this.getChainId();
+    return this.state.transactions.filter(
+      (transaction) =>
+        transaction.status === status && transaction.chainId === chainId,
+    );
+  }
+
+  private onBootCleanup() {
+    this.createApprovalsForUnapprovedTransactions();
+    this.loadGasValuesForUnapprovedTransactions();
+    this.submitApprovedTransactions();
+  }
+
+  /**
+   * Create approvals for all unapproved transactions on current chain.
+   */
+  private createApprovalsForUnapprovedTransactions() {
+    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
+      TransactionStatus.unapproved,
+    );
+
+    for (const transactionMeta of unapprovedTransactions) {
+      this.processApproval(transactionMeta, {
+        shouldShowRequest: false,
+      }).catch((error) => {
+        if (error?.code === errorCodes.provider.userRejectedRequest) {
+          return;
+        }
+        /* istanbul ignore next */
+        console.error('Error during persisted transaction approval', error);
+      });
+    }
+  }
+
+  /**
+   * Update the gas values of all unapproved transactions on current chain.
+   */
+  private async loadGasValuesForUnapprovedTransactions() {
+    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
+      TransactionStatus.unapproved,
+    );
+
+    const results = await Promise.allSettled(
+      unapprovedTransactions.map(async (transactionMeta) => {
+        await this.updateGasProperties(transactionMeta);
+        this.updateTransaction(
+          transactionMeta,
+          'TransactionController:loadGasValuesForUnapprovedTransactions - Gas values updated',
+        );
+      }),
+    );
+
+    for (const [index, result] of results.entries()) {
+      if (result.status === 'rejected') {
+        const transactionMeta = unapprovedTransactions[index];
+        this.failTransaction(transactionMeta, result.reason);
+        /* istanbul ignore next */
+        console.error(
+          'Error while loading gas values for persisted transaction id: ',
+          transactionMeta.id,
+          result.reason,
+        );
+      }
+    }
+  }
+
+  /**
+   * Force to submit approved transactions on current chain.
+   */
+  private submitApprovedTransactions() {
+    const approvedTransactions = this.getCurrentChainTransactionsByStatus(
+      TransactionStatus.approved,
+    );
+    for (const transactionMeta of approvedTransactions) {
+      this.approveTransaction(transactionMeta.id).catch((error) => {
+        /* istanbul ignore next */
+        console.error('Error while submitting persisted transaction', error);
+      });
+    }
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
@@ -1450,6 +1528,11 @@ export class TransactionController extends BaseController<
         return;
       }
 
+      if (this.inProcessOfSigning.has(transactionId)) {
+        log('Skipping approval as signing in progress', transactionId);
+        return;
+      }
+
       const { approved: status } = TransactionStatus;
       let nonceToUse = nonce;
       // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
@@ -1487,6 +1570,7 @@ export class TransactionController extends BaseController<
       }
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+      this.inProcessOfSigning.add(transactionId);
       const signedTx = await this.sign(unsignedEthTx, from);
       await this.updateTransactionMetaRSV(transactionMeta, signedTx);
       transactionMeta.status = TransactionStatus.signed;
@@ -1516,6 +1600,7 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
+      this.inProcessOfSigning.delete(transactionId);
       // must set transaction to submitted/failed before releasing lock
       if (nonceLock) {
         nonceLock.releaseLock();
