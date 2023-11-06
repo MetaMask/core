@@ -440,10 +440,7 @@ export class TransactionController extends BaseController<
     this.securityProviderRequest = securityProviderRequest;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
-    this.beforeApproveOnInit =
-      hooks?.beforeApproveOnInit ??
-      /* istanbul ignore next */
-      (() => true);
+    this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
     this.beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
@@ -1358,10 +1355,12 @@ export class TransactionController extends BaseController<
       TransactionStatus.approved,
     );
     for (const transactionMeta of approvedTransactions) {
-      this.approveTransaction(transactionMeta.id).catch((error) => {
-        /* istanbul ignore next */
-        console.error('Error while submitting persisted transaction', error);
-      });
+      if (this.beforeApproveOnInit(transactionMeta)) {
+        this.approveTransaction(transactionMeta.id).catch((error) => {
+          /* istanbul ignore next */
+          console.error('Error while submitting persisted transaction', error);
+        });
+      }
     }
   }
 
@@ -1509,6 +1508,10 @@ export class TransactionController extends BaseController<
         ...transactionMeta.txParams,
         gasLimit: transactionMeta.txParams.gas,
       };
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController#approveTransaction - Transaction approved',
+      );
 
       const isEIP1559 = isEIP1559Transaction(transactionMeta.txParams);
 
@@ -1528,20 +1531,15 @@ export class TransactionController extends BaseController<
         delete txParams.gasPrice;
       }
 
+      const rawTx = await this.signTransaction(transactionMeta);
+
       if (!this.beforePublish(transactionMeta)) {
-        transactionMeta.status = TransactionStatus.approved;
-        this.updateTransaction(
-          transactionMeta,
-          'TransactionController#approveTransaction - Transaction approved',
-        );
-        await this.signTransaction(transactionMeta);
+        log('Skipping publishing transaction based on hook');
         return;
       }
 
-      const rawTx = await this.signTransaction(transactionMeta);
-
-      // skips publish if rawTx is not defined
       if (!rawTx) {
+        log('Skipping signed status as no signed transaction');
         return;
       }
 
@@ -2029,6 +2027,7 @@ export class TransactionController extends BaseController<
       ...this.getAdditionalSignArguments(transactionMeta),
     );
     if (!signedTx || !this.afterSign(transactionMeta, signedTx)) {
+      log('Skipping signed status based on hook');
       return undefined;
     }
 

@@ -313,7 +313,7 @@ export class PendingTransactionTracker {
   async #checkTransaction(txMeta: TransactionMeta) {
     const { hash, id } = txMeta;
 
-    if (!hash || !this.#beforeCheckPendingTransaction(txMeta)) {
+    if (!hash && this.#beforeCheckPendingTransaction(txMeta)) {
       const error = new Error(
         'We had an error while submitting this transaction, please try again.',
       );
@@ -490,7 +490,7 @@ export class PendingTransactionTracker {
   }
 
   async #getTransactionReceipt(
-    txHash: string,
+    txHash?: string,
   ): Promise<TransactionReceipt | undefined> {
     return await query(this.#getEthQuery(), 'getTransactionReceipt', [txHash]);
   }

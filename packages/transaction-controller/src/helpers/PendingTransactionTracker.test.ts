@@ -251,13 +251,7 @@ describe('PendingTransactionTracker', () => {
 
           await onLatestBlock();
 
-          expect(listener).toHaveBeenCalledTimes(1);
-          expect(listener).toHaveBeenCalledWith(
-            transactionMetaMock,
-            new Error(
-              'We had an error while submitting this transaction, please try again.',
-            ),
-          );
+          expect(listener).toHaveBeenCalledTimes(0);
         });
 
         it('if receipt has error status', async () => {
