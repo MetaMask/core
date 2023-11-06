@@ -7,6 +7,7 @@ import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
+import { merge } from 'lodash';
 import {
   BaseController,
   BaseConfig,
@@ -46,6 +47,7 @@ import {
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import {
+  SecurityAlertResponse,
   Transaction,
   TransactionMeta,
   TransactionStatus,
@@ -821,13 +823,13 @@ export class TransactionController extends BaseController<
    * Add params to transactionMeta.
    *
    * @param transactionMetaId - ID of the transaction.
-   * @param params - New params to be added to tarnsaction meta.
+   * @param securityAlertResponse - New params to be added to tarnsaction meta.
    */
-  addTransactionMetaParams(
+  updateSecurityAlertResponse(
     transactionMetaId: string,
-    params: Record<string, any>,
+    securityAlertResponse: SecurityAlertResponse,
   ) {
-    if (!transactionMetaId || !params) {
+    if (!transactionMetaId || !securityAlertResponse) {
       return;
     }
     const { transactions } = this.state;
@@ -836,8 +838,8 @@ export class TransactionController extends BaseController<
     );
     if (index >= 0) {
       const transactionMeta = transactions[index];
-      transactions[index] = { ...transactionMeta, ...params };
-      this.update({ transactions });
+      const updatedMeta = merge(transactionMeta, { securityAlertResponse });
+      this.updateTransaction(updatedMeta);
     }
   }
 

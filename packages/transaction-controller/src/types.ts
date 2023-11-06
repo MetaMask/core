@@ -149,3 +149,10 @@ export interface RemoteTransactionSource {
     request: RemoteTransactionSourceRequest,
   ) => Promise<TransactionMeta[]>;
 }
+
+export type SecurityAlertResponse = {
+  reason: string;
+  features?: string[];
+  result_type: string;
+  providerRequestsCount?: Record<string, number>;
+};
