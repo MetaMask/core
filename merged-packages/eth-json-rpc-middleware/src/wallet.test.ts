@@ -116,6 +116,26 @@ describe('wallet', () => {
         'The requested account and/or method has not been authorized by the user.',
       );
     });
+
+    it('should not override other request params', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice(0, 2);
+      const witnessedTxParams: TransactionParams[] = [];
+      const processTransaction = async (_txParams: TransactionParams) => {
+        witnessedTxParams.push(_txParams);
+        return testTxHash;
+      };
+      engine.push(createWalletMiddleware({ getAccounts, processTransaction }));
+      const txParams = {
+        from: testAddresses[0],
+        to: testAddresses[1],
+      };
+
+      const payload = { method: 'eth_sendTransaction', params: [txParams] };
+      await pify(engine.handle).call(engine, payload);
+      expect(witnessedTxParams).toHaveLength(1);
+      expect(witnessedTxParams[0]).toStrictEqual(txParams);
+    });
   });
 
   describe('signTransaction', () => {
@@ -140,6 +160,29 @@ describe('wallet', () => {
       const sendTxResult = sendTxResponse.result;
       expect(sendTxResult).toBeDefined();
       expect(sendTxResult).toStrictEqual(testTxHash);
+      expect(witnessedTxParams).toHaveLength(1);
+      expect(witnessedTxParams[0]).toStrictEqual(txParams);
+    });
+
+    it('should not override other request params', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice(0, 2);
+      const witnessedTxParams: TransactionParams[] = [];
+      const processSignTransaction = async (_txParams: TransactionParams) => {
+        witnessedTxParams.push(_txParams);
+        return testTxHash;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processSignTransaction }),
+      );
+      const txParams = {
+        from: testAddresses[0],
+        to: testAddresses[1],
+      };
+
+      const payload = { method: 'eth_signTransaction', params: [txParams] };
+      await pify(engine.handle).call(engine, payload);
       expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
