@@ -1226,6 +1226,7 @@ export class TransactionController extends BaseController<
 
   private async updateGasProperties(transactionMeta: TransactionMeta) {
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
+    const chainId = this.getChainId();
 
     await updateGas({
       ethQuery: this.ethQuery,
@@ -1236,6 +1237,7 @@ export class TransactionController extends BaseController<
     await updateGasFees({
       eip1559: isEIP1559Compatible,
       ethQuery: this.ethQuery,
+      getSavedGasFees: this.getSavedGasFees.bind(this, chainId),
       getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
     });
