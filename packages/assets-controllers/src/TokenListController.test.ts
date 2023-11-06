@@ -16,6 +16,7 @@ import { NetworkStatus } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import * as tokenService from './token-service';
 import type {
   TokenListStateChange,
@@ -27,10 +28,6 @@ import { TokenListController } from './TokenListController';
 
 const name = 'TokenListController';
 const timestamp = Date.now();
-
-const flushPromises = () => {
-  return new Promise(jest.requireActual('timers').setImmediate);
-};
 
 const sampleMainnetTokenList = [
   {
@@ -1295,8 +1292,17 @@ describe('TokenListController', () => {
   });
 
   describe('startPollingByNetworkClient', () => {
+    let clock: sinon.SinonFakeTimers;
+    const pollingIntervalTime = 1000;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
-      jest.useFakeTimers();
       nock(tokenService.TOKEN_END_POINT_API)
         .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
         .reply(200, sampleSepoliaTokenList)
@@ -1316,7 +1322,6 @@ describe('TokenListController', () => {
           },
         }),
       );
-      const pollingIntervalTime = 1000;
       const messenger = getRestrictedMessenger(controllerMessenger);
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
@@ -1330,16 +1335,14 @@ describe('TokenListController', () => {
       );
 
       controller.startPollingByNetworkClientId('sepolia');
-      jest.advanceTimersByTime(pollingIntervalTime);
-      await flushPromises();
+      await advanceTime({ clock, duration: 0 });
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
       );
     });
+
     it('should start polling against the token list API at the interval passed to the constructor', async () => {
-      jest.useFakeTimers();
-      const pollingIntervalTime = 1000;
       const fetchTokenListByChainIdSpy = jest.spyOn(
         tokenService,
         'fetchTokenListByChainId',
@@ -1368,32 +1371,21 @@ describe('TokenListController', () => {
       );
 
       controller.startPollingByNetworkClientId('goerli');
-      jest.advanceTimersByTime(0);
-      await flushPromises();
+      await advanceTime({ clock, duration: 0 });
+
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      await Promise.all([
-        jest.advanceTimersByTime(pollingIntervalTime / 2),
-        flushPromises(),
-      ]);
+      await advanceTime({ clock, duration: pollingIntervalTime / 2 });
+
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      await Promise.all([
-        jest.advanceTimersByTime(pollingIntervalTime / 2),
-        jest.runOnlyPendingTimers(),
-        flushPromises(),
-      ]);
+      await advanceTime({ clock, duration: pollingIntervalTime / 2 });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
-      await Promise.all([
-        jest.advanceTimersByTime(pollingIntervalTime),
-        flushPromises(),
-      ]);
+      await advanceTime({ clock, duration: pollingIntervalTime });
 
-      await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
     });
 
     it('should update tokenList state and tokensChainsCache', async () => {
-      jest.useFakeTimers();
       const startingState: TokenListState = {
         tokenList: {},
         tokensChainsCache: {},
@@ -1436,7 +1428,6 @@ describe('TokenListController', () => {
           }
         }),
       );
-      const pollingIntervalTime = 1000;
       const messenger = getRestrictedMessenger(controllerMessenger);
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
@@ -1451,8 +1442,7 @@ describe('TokenListController', () => {
       // start polling for sepolia
       const pollingToken = controller.startPollingByNetworkClientId('sepolia');
       // wait a polling interval
-      jest.advanceTimersByTime(pollingIntervalTime);
-      await flushPromises();
+      await advanceTime({ clock, duration: pollingIntervalTime });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
       // expect the state to be updated with the sepolia token list
@@ -1469,8 +1459,7 @@ describe('TokenListController', () => {
 
       // start polling for binance
       controller.startPollingByNetworkClientId('binance-network-client-id');
-      jest.advanceTimersByTime(pollingIntervalTime);
-      await flushPromises();
+      await advanceTime({ clock, duration: pollingIntervalTime });
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid

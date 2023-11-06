@@ -19,6 +19,9 @@
     },
     {
       "path": "../controller-utils"
+    },
+    {
+      "path": "../json-rpc-engine"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
