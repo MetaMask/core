@@ -30,7 +30,6 @@ export type Events = {
   ['transaction-submitted']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
-  ['transaction-post-balance-updated']: [transactionMeta: TransactionMeta];
   ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
   [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
   [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
