@@ -2,7 +2,7 @@ import { query } from '@metamask/controller-utils';
 
 import { CHAIN_IDS } from '../constants';
 import type { TransactionMeta } from '../types';
-import { TransactionType, TransactionEvent, TransactionStatus } from '../types';
+import { TransactionType, TransactionStatus } from '../types';
 import {
   updateSwapsTransaction,
   updatePostTransactionBalance,
@@ -118,7 +118,7 @@ describe('updateSwapsTransaction', () => {
     );
     expect(request.controllerHubEmitter).toHaveBeenCalledTimes(1);
     expect(request.controllerHubEmitter).toHaveBeenCalledWith(
-      TransactionEvent.newSwap,
+      'transaction-new-swap',
       {
         transactionMeta: {
           ...transactionMeta,
@@ -154,7 +154,7 @@ describe('updateSwapsTransaction', () => {
     );
     expect(request.controllerHubEmitter).toHaveBeenCalledTimes(1);
     expect(request.controllerHubEmitter).toHaveBeenCalledWith(
-      TransactionEvent.newSwapApproval,
+      'transaction-new-swap-approval',
       {
         transactionMeta: {
           ...transactionMeta,

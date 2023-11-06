@@ -4,7 +4,7 @@ import { merge, pickBy } from 'lodash';
 
 import { CHAIN_IDS } from '../constants';
 import type { Events, TransactionMeta } from '../types';
-import { TransactionEvent, TransactionType } from '../types';
+import { TransactionType } from '../types';
 import { validateIfTransactionUnapproved } from './utils';
 
 /**
@@ -173,7 +173,7 @@ export async function updateSwapsTransaction(
 
   if (transactionType === TransactionType.swap) {
     updateSwapTransaction(transactionMeta, swapsMeta);
-    controllerHubEmitter(TransactionEvent.newSwap, {
+    controllerHubEmitter('transaction-new-swap', {
       transactionMeta,
     });
   }

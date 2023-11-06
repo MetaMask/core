@@ -38,12 +38,7 @@ import type {
   TransactionParams,
   TransactionHistoryEntry,
 } from './types';
-import {
-  TransactionEvent,
-  TransactionStatus,
-  TransactionType,
-  WalletDevice,
-} from './types';
+import { TransactionStatus, TransactionType, WalletDevice } from './types';
 import { estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import {
@@ -2497,7 +2492,7 @@ describe('TransactionController', () => {
       const mockPostTransactionBalanceUpdatedListener = jest.fn();
       const controller = newController();
       controller.hub.on(
-        TransactionEvent.postTransactionBalanceUpdated,
+        'post-transaction-balance-updated',
         mockPostTransactionBalanceUpdatedListener,
       );
 
