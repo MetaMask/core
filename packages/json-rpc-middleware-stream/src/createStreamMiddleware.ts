@@ -104,7 +104,11 @@ export default function createStreamMiddleware(options: Options = {}) {
    * @param res - The response to process.
    */
   function processResponse(res: PendingJsonRpcResponse<JsonRpcParams>) {
-    const responseId = res.id as unknown as string;
+    const { id: responseId } = res;
+    if (responseId === null) {
+      return;
+    }
+
     const context = idMap[responseId];
     if (!context) {
       console.warn(`StreamMiddleware - Unknown response id "${responseId}"`);
