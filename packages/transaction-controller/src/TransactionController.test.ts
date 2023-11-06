@@ -3193,6 +3193,104 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('with hooks', () => {
+    const txMeta = {
+      from: ACCOUNT_MOCK,
+      to: ACCOUNT_MOCK,
+    };
+    it('adds a transaction, signs and update status to `approved`', async () => {
+      const controller = newController({
+        options: {
+          hooks: {
+            afterSign: () => false,
+            beforeApproveOnInit: () => false,
+            beforePublish: () => false,
+            getAdditionalSignArguments: () => [txMeta],
+          },
+        },
+      });
+      const signSpy = jest.spyOn(controller, 'sign' as any);
+      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
+
+      await controller.addTransaction(txMeta, {
+        origin: 'origin',
+        actionId: ACTION_ID_MOCK,
+      });
+
+      approveTransaction();
+      await wait(0);
+
+      const transactionMeta = controller.state.transactions[0];
+      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          txParams: expect.objectContaining(txMeta),
+        }),
+        'TransactionController#approveTransaction - Transaction approved',
+      );
+      expect(transactionMeta.status).toBe(TransactionStatus.approved);
+    });
+
+    it('adds a transaction and signing returns undefined', async () => {
+      const controller = newController({
+        options: {
+          hooks: {
+            afterSign: () => false,
+            beforeApproveOnInit: () => false,
+            beforePublish: () => false,
+            getAdditionalSignArguments: () => [txMeta],
+          },
+        },
+        config: { sign: async () => undefined },
+      });
+      const signSpy = jest.spyOn(controller, 'sign' as any);
+      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
+
+      await controller.addTransaction(txMeta, {
+        origin: 'origin',
+        actionId: ACTION_ID_MOCK,
+      });
+
+      approveTransaction();
+      await wait(0);
+
+      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('adds a transaction, signs and skips publish the transaction', async () => {
+      const controller = newController({
+        options: {
+          hooks: {
+            beforePublish: undefined,
+            afterSign: () => false,
+            getAdditionalSignArguments: () => [txMeta],
+          },
+        },
+      });
+      const signSpy = jest.spyOn(controller, 'sign' as any);
+      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
+
+      await controller.addTransaction(txMeta, {
+        origin: 'origin',
+        actionId: ACTION_ID_MOCK,
+      });
+
+      approveTransaction();
+      await wait(0);
+
+      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          txParams: expect.objectContaining(txMeta),
+        }),
+        'TransactionController#approveTransaction - Transaction approved',
+      );
+    });
+  });
+
   describe('updateSecurityAlertResponse', () => {
     const mockSendFlowHistory = [
       {
