@@ -1238,7 +1238,7 @@ export class TransactionController extends BaseController<
   /**
    * Filters out the unapproved transactions from state
    */
-  clearUnapprovedTxs() {
+  clearUnapprovedTransactions() {
     const transactions = this.state.transactions.filter(
       ({ status }) => status !== TransactionStatus.unapproved,
     );

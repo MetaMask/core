@@ -2449,40 +2449,64 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('clearUnapprovedTxs', () => {
+  describe('clearUnapprovedTransactions', () => {
     it('clears unapproved transactions', async () => {
       const controller = newController();
 
-      const unapprovedTxId = '1';
-      const confirmedTxId = '2';
+      const firstUnapprovedTxId = '1';
+      const secondUnapprovedTxId = '2';
+      const firstConfirmedTxId = '3';
+      const secondConfirmedTxId = '4';
 
-      controller.state.transactions.push({
-        id: unapprovedTxId,
+      const transactionMeta = {
         chainId: toHex(5),
         status: TransactionStatus.unapproved as const,
         time: 123456789,
         txParams: {
           from: '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207',
         },
-      });
+      };
 
-      controller.state.transactions.push({
-        id: confirmedTxId,
-        chainId: toHex(5),
+      const confirmedTxMeta = {
+        ...transactionMeta,
         status: TransactionStatus.confirmed as const,
-        time: 987654321,
-        txParams: {
-          from: '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      };
+
+      const unapprovedTxMeta = {
+        ...transactionMeta,
+        status: TransactionStatus.unapproved as const,
+      };
+
+      controller.state.transactions.push(
+        {
+          ...unapprovedTxMeta,
+          id: firstUnapprovedTxId,
         },
-      });
-
-      controller.clearUnapprovedTxs();
-
-      expect(controller.state.transactions).toHaveLength(1);
-      expect(controller.state.transactions[0].id).toBe(confirmedTxId);
-      expect(controller.state.transactions[0].status).toBe(
-        TransactionStatus.confirmed,
+        {
+          ...unapprovedTxMeta,
+          id: secondUnapprovedTxId,
+        },
+        {
+          ...confirmedTxMeta,
+          id: firstConfirmedTxId,
+        },
+        {
+          ...confirmedTxMeta,
+          id: secondConfirmedTxId,
+        },
       );
+
+      controller.clearUnapprovedTransactions();
+
+      const { transactions } = controller.state;
+
+      expect(transactions).toHaveLength(2);
+      expect(
+        transactions.find(({ id }) => id === firstConfirmedTxId)?.status,
+      ).toBe(TransactionStatus.confirmed);
+      expect(
+        transactions.find(({ id }) => id === secondConfirmedTxId)?.status,
+      ).toBe(TransactionStatus.confirmed);
     });
   });
 
