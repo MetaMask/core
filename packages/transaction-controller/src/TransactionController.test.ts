@@ -3324,7 +3324,7 @@ describe('TransactionController', () => {
       ).toBeDefined();
     });
 
-    it('should do nothing if transactionMetaId is not defined', async () => {
+    it('should throw error if transactionMetaId is not defined', async () => {
       const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
       const controller = newController();
@@ -3334,7 +3334,7 @@ describe('TransactionController', () => {
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
 
-      expect(
+      expect(() =>
         controller.updateSecurityAlertResponse(undefined as any, {
           reason: 'NA',
           result_type: 'Benign',
@@ -3344,7 +3344,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('should do nothing if securityAlertResponse is not defined', async () => {
+    it('should throw error if securityAlertResponse is not defined', async () => {
       const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
       const controller = newController();
@@ -3354,7 +3354,7 @@ describe('TransactionController', () => {
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
 
-      expect(
+      expect(() =>
         controller.updateSecurityAlertResponse(
           transactionMetaId,
           undefined as any,
@@ -3364,7 +3364,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('should do nothing if transaction with given id does not exist', async () => {
+    it('should throw error if transaction with given id does not exist', async () => {
       const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
       const controller = newController();
@@ -3379,7 +3379,7 @@ describe('TransactionController', () => {
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
 
-      expect(
+      expect(() =>
         controller.updateSecurityAlertResponse('456', {
           reason: 'NA',
           result_type: 'Benign',
