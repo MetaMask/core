@@ -300,7 +300,6 @@ export class TransactionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
-   * @param options.disableAdvancedGasFee - Whether to disable advanced gas fee config.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
@@ -344,7 +343,6 @@ export class TransactionController extends BaseController<
       securityProviderRequest,
     }: {
       blockTracker: BlockTracker;
-      disableAdvancedGasFee: boolean;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
       getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;

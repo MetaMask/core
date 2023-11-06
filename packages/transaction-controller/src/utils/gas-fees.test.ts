@@ -4,7 +4,7 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
 import { TransactionType, UserFeeLevel } from '../types';
 import type { UpdateGasFeesRequest } from './gas-fees';
-import { updateGasFees, CUSTOM_GAS_ESTIMATE } from './gas-fees';
+import { updateGasFees } from './gas-fees';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -502,7 +502,7 @@ describe('gas-fees', () => {
         await updateGasFees(updateGasFeeRequest);
 
         expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
-          CUSTOM_GAS_ESTIMATE,
+          UserFeeLevel.CUSTOM,
         );
       });
 

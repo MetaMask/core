@@ -36,11 +36,6 @@ export type GetGasFeeRequest = UpdateGasFeesRequest & {
   suggestedGasFees: Awaited<ReturnType<typeof getSuggestedGasFees>>;
 };
 
-/**
- * Represents the user customizing their gas preference
- */
-export const CUSTOM_GAS_ESTIMATE = 'custom';
-
 const log = createModuleLogger(projectLogger, 'gas-fees');
 
 export async function updateGasFees(request: UpdateGasFeesRequest) {
@@ -210,7 +205,7 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
 
 function getUserFeeLevel(
   request: GetGasFeeRequest,
-): UserFeeLevel | undefined | typeof CUSTOM_GAS_ESTIMATE {
+): UserFeeLevel | undefined {
   const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
     request;
 
@@ -219,7 +214,7 @@ function getUserFeeLevel(
   }
 
   if (savedGasFees) {
-    return CUSTOM_GAS_ESTIMATE;
+    return UserFeeLevel.CUSTOM;
   }
 
   if (
