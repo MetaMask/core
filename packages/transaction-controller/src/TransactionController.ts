@@ -591,7 +591,7 @@ export class TransactionController extends BaseController<
       method?: string;
       origin?: string;
       requireApproval?: boolean | undefined;
-      securityAlertResponse?: Record<string, unknown>;
+      securityAlertResponse?: SecurityAlertResponse;
       sendFlowHistory?: SendFlowHistoryEntry[];
       type?: TransactionType;
     } = {},
