@@ -6,6 +6,8 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
 
+type GasFieldsToValidate = 'gasPrice' | 'maxFeePerGas' | 'maxPriorityFeePerGas';
+
 /**
  * Validates whether a transaction initiated by a specific 'from' address is permitted by the origin.
  *
@@ -59,7 +61,7 @@ export function validateTxParams(
   validateParamValue(txParams.value);
   validateParamData(txParams.data);
   validateParamChainId(txParams.chainId);
-  validateGasParams(txParams);
+  validateGasFeeParams(txParams);
 }
 
 /**
@@ -196,13 +198,12 @@ function validateParamChainId(chainId: number | string | undefined) {
   }
 }
 
-type GasFieldsToValidate = 'gasPrice' | 'maxFeePerGas' | 'maxPriorityFeePerGas';
 /**
  * Validates gas values.
  *
  * @param txParams - The transaction parameters to validate.
  */
-function validateGasParams(txParams: TransactionParams) {
+function validateGasFeeParams(txParams: TransactionParams) {
   if (txParams.gasPrice) {
     ensureProperTransactionEnvelopeTypeProvided(txParams, 'gasPrice');
     ensureMutuallyExclusiveFieldsNotProvided(

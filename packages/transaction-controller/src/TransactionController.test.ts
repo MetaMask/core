@@ -2847,16 +2847,13 @@ describe('TransactionController', () => {
       Current tx status: ${status}`);
     });
 
-    it('updates provided gas values', async () => {
+    it('updates provided legacy gas values', async () => {
       const transactionId = '123';
-      const txIdWithoutGasPriceUpdate = '124';
       const controller = newController();
 
       const gas = '0xgas';
       const gasLimit = '0xgasLimit';
       const gasPrice = '0xgasPrice';
-      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
-      const maxFeePerGas = '0xmaxFeePerGas';
       const estimateUsed = '0xestimateUsed';
       const estimateSuggested = '0xestimateSuggested';
       const defaultGasEstimates = '0xdefaultGasEstimates';
@@ -2866,21 +2863,6 @@ describe('TransactionController', () => {
 
       controller.state.transactions.push({
         id: transactionId,
-        chainId: '0x1',
-        time: 123456789,
-        status: TransactionStatus.unapproved as const,
-        history: [
-          {} as TransactionMeta,
-          ...([{}] as TransactionHistoryEntry[]),
-        ],
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      });
-
-      controller.state.transactions.push({
-        id: txIdWithoutGasPriceUpdate,
         chainId: '0x1',
         time: 123456789,
         status: TransactionStatus.unapproved as const,
@@ -2919,16 +2901,37 @@ describe('TransactionController', () => {
       expect(transaction?.originalGasEstimate).toBe(originalGasEstimate);
       expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
       expect(transaction?.userFeeLevel).toBe(userFeeLevel);
+    });
 
-      // In order to test maxPriorityFeePerGas, maxFeePerGas updates
-      // we shoudn't set the gasPrice in the same call to not fail the validation
-      controller.updateTransactionGasFees(txIdWithoutGasPriceUpdate, {
+    it('updates provided 1559 gas values', async () => {
+      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
+      const maxFeePerGas = '0xmaxFeePerGas';
+      const transactionId = '123';
+
+      const controller = newController();
+
+      controller.state.transactions.push({
+        id: transactionId,
+        chainId: '0x1',
+        time: 123456789,
+        status: TransactionStatus.unapproved as const,
+        history: [
+          {} as TransactionMeta,
+          ...([{}] as TransactionHistoryEntry[]),
+        ],
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      });
+
+      controller.updateTransactionGasFees(transactionId, {
         maxPriorityFeePerGas,
         maxFeePerGas,
       });
 
       const txToBeUpdatedWithoutGasPrice = controller.state.transactions.find(
-        ({ id }) => id === txIdWithoutGasPriceUpdate,
+        ({ id }) => id === transactionId,
       );
 
       expect(txToBeUpdatedWithoutGasPrice?.txParams?.maxPriorityFeePerGas).toBe(
