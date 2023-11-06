@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+### Fixed
+- Export `PollingControllerOnly` ([#1921](https://github.com/MetaMask/core/pull/1921))
+
 ## [1.0.0]
 ### Added
 - Add `PollingControllerOnly` to extend from an empty class. This will allow classes that previously are just classes that don't extend from BaseV1 or V2 to extend from this new `PollingControllerOnly`. ([#1873](https://github.com/MetaMask/core/pull/1873))
@@ -30,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.0...@metamask/polling-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.2.0...@metamask/polling-controller@1.0.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.1.0...@metamask/polling-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/polling-controller@0.1.0

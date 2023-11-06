@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "rootDir": "../.."
   },
   "references": [
     { "path": "../approval-controller" },
@@ -11,5 +12,5 @@
     { "path": "../preferences-controller" },
     { "path": "../polling-controller" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "../../tests"]
 }

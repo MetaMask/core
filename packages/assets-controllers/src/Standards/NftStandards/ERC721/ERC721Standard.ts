@@ -6,6 +6,7 @@ import {
   ERC721_METADATA_INTERFACE_ID,
   ERC721_ENUMERABLE_INTERFACE_ID,
   ERC721,
+  safelyExecute,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 
@@ -176,28 +177,23 @@ export class ERC721Standard {
       throw new Error("This isn't a valid ERC721 contract");
     }
 
-    let tokenURI, image, symbol, name;
+    const [symbol, name, tokenURI] = await Promise.all([
+      safelyExecute(() => this.getAssetSymbol(address)),
+      safelyExecute(() => this.getAssetName(address)),
+      tokenId
+        ? safelyExecute(() =>
+            this.getTokenURI(address, tokenId).then((uri) =>
+              uri.startsWith('ipfs://')
+                ? getFormattedIpfsUrl(ipfsGateway, uri, true)
+                : uri,
+            ),
+          )
+        : undefined,
+    ]);
 
-    // TODO upgrade to use Promise.allSettled for name/symbol when we can refactor to use es2020 in tsconfig
-    try {
-      symbol = await this.getAssetSymbol(address);
-    } catch {
-      // ignore
-    }
-
-    try {
-      name = await this.getAssetName(address);
-    } catch {
-      // ignore
-    }
-
-    if (tokenId) {
+    let image;
+    if (tokenURI) {
       try {
-        tokenURI = await this.getTokenURI(address, tokenId);
-        if (tokenURI.startsWith('ipfs://')) {
-          tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
-        }
-
         const response = await timeoutFetch(tokenURI);
         const object = await response.json();
         image = object?.image;
