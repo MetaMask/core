@@ -256,6 +256,25 @@ export class TransactionController extends BaseController<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
+  private readonly afterSign: (
+    transactionMeta: TransactionMeta,
+    signedTx: TypedTransaction,
+  ) => boolean;
+
+  private readonly beforeApproveOnInit: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
+
+  private readonly beforeCheckPendingTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
+
+  private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
+
+  private readonly getAdditionalSignArguments: (
+    transactionMeta: TransactionMeta,
+  ) => (TransactionMeta | undefined)[];
+
   private failTransaction(
     transactionMeta: TransactionMeta,
     error: Error,
@@ -300,6 +319,7 @@ export class TransactionController extends BaseController<
   sign?: (
     transaction: TypedTransaction,
     from: string,
+    transactionMeta?: TransactionMeta,
   ) => Promise<TypedTransaction>;
 
   /**
@@ -327,6 +347,12 @@ export class TransactionController extends BaseController<
    * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
+   * @param options.hooks - The controller hooks.
+   * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
+   * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
+   * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
+   * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
+   * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -348,6 +374,7 @@ export class TransactionController extends BaseController<
       pendingTransactions = {},
       provider,
       securityProviderRequest,
+      hooks = {},
     }: {
       blockTracker: BlockTracker;
       disableHistory: boolean;
@@ -372,6 +399,20 @@ export class TransactionController extends BaseController<
       };
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
+      hooks: {
+        afterSign?: (
+          transactionMeta: TransactionMeta,
+          signedTx: TypedTransaction,
+        ) => boolean;
+        beforeApproveOnInit?: (transactionMeta: TransactionMeta) => boolean;
+        beforeCheckPendingTransaction?: (
+          transactionMeta: TransactionMeta,
+        ) => boolean;
+        beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+        getAdditionalSignArguments?: (
+          transactionMeta: TransactionMeta,
+        ) => (TransactionMeta | undefined)[];
+      };
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -408,6 +449,16 @@ export class TransactionController extends BaseController<
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
+
+    this.afterSign = hooks?.afterSign ?? (() => true);
+    this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
+    this.beforeCheckPendingTransaction =
+      hooks?.beforeCheckPendingTransaction ??
+      /* istanbul ignore next */
+      (() => true);
+    this.beforePublish = hooks?.beforePublish ?? (() => true);
+    this.getAdditionalSignArguments =
+      hooks?.getAdditionalSignArguments ?? (() => []);
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -460,6 +511,11 @@ export class TransactionController extends BaseController<
       nonceTracker: this.nonceTracker,
       onStateChange: this.subscribe.bind(this),
       publishTransaction: this.publishTransaction.bind(this),
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.beforeCheckPendingTransaction.bind(this),
+        beforePublish: this.beforePublish.bind(this),
+      },
     });
 
     this.addPendingTransactionTrackerListeners();
@@ -704,14 +760,14 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const txParams =
+    const txParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             from: transactionMeta.txParams.from,
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: 2,
+            type: '2',
             nonce: transactionMeta.txParams.nonce,
             to: transactionMeta.txParams.from,
             value: '0x0',
@@ -827,14 +883,14 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const txParams =
+    const txParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             ...transactionMeta.txParams,
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: 2,
+            type: '2',
           }
         : {
             ...transactionMeta.txParams,
@@ -1408,10 +1464,12 @@ export class TransactionController extends BaseController<
       TransactionStatus.approved,
     );
     for (const transactionMeta of approvedTransactions) {
-      this.approveTransaction(transactionMeta.id).catch((error) => {
-        /* istanbul ignore next */
-        console.error('Error while submitting persisted transaction', error);
-      });
+      if (this.beforeApproveOnInit(transactionMeta)) {
+        this.approveTransaction(transactionMeta.id).catch((error) => {
+          /* istanbul ignore next */
+          console.error('Error while submitting persisted transaction', error);
+        });
+      }
     }
   }
 
@@ -1559,17 +1617,21 @@ export class TransactionController extends BaseController<
         ...transactionMeta.txParams,
         gasLimit: transactionMeta.txParams.gas,
       };
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController#approveTransaction - Transaction approved',
+      );
 
       const isEIP1559 = isEIP1559Transaction(transactionMeta.txParams);
 
-      const txParams = isEIP1559
+      const txParams: TransactionParams = isEIP1559
         ? {
             ...baseTxParams,
             maxFeePerGas: transactionMeta.txParams.maxFeePerGas,
             maxPriorityFeePerGas: transactionMeta.txParams.maxPriorityFeePerGas,
             estimatedBaseFee: transactionMeta.txParams.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-            type: 2,
+            type: '2',
           }
         : baseTxParams;
 
@@ -1578,22 +1640,17 @@ export class TransactionController extends BaseController<
         delete txParams.gasPrice;
       }
 
-      const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
-      this.inProcessOfSigning.add(transactionId);
-      const signedTx = await this.sign(unsignedEthTx, from);
-      await this.updateTransactionMetaRSV(transactionMeta, signedTx);
-      transactionMeta.status = TransactionStatus.signed;
-      this.updateTransaction(
-        transactionMeta,
-        'TransactionController#approveTransaction - Transaction signed',
-      );
+      const rawTx = await this.signTransaction(transactionMeta);
 
-      const rawTx = bufferToHex(signedTx.serialize());
-      transactionMeta.rawTx = rawTx;
-      this.updateTransaction(
-        transactionMeta,
-        'TransactionController#approveTransaction - RawTransaction added',
-      );
+      if (!this.beforePublish(transactionMeta)) {
+        log('Skipping publishing transaction based on hook');
+        return;
+      }
+
+      if (!rawTx) {
+        return;
+      }
+
       const hash = await this.publishTransaction(rawTx);
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
@@ -1777,9 +1834,7 @@ export class TransactionController extends BaseController<
     return providerConfig.chainId;
   }
 
-  private prepareUnsignedEthTx(
-    txParams: Record<string, unknown>,
-  ): TypedTransaction {
+  private prepareUnsignedEthTx(txParams: TransactionParams): TypedTransaction {
     return TransactionFactory.fromTxData(txParams, {
       common: this.getCommonConfiguration(),
       freeze: false,
@@ -2065,6 +2120,45 @@ export class TransactionController extends BaseController<
       'transaction-updated',
       this.updateTransaction.bind(this),
     );
+  }
+
+  private async signTransaction(
+    transactionMeta: TransactionMeta,
+  ): Promise<string | undefined> {
+    const { txParams } = transactionMeta;
+
+    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+    this.inProcessOfSigning.add(transactionMeta.id);
+    const signedTx = await this.sign?.(
+      unsignedEthTx,
+      txParams.from,
+      ...this.getAdditionalSignArguments(transactionMeta),
+    );
+
+    if (!signedTx) {
+      log('Skipping signed status as no signed transaction');
+      return undefined;
+    }
+
+    if (!this.afterSign(transactionMeta, signedTx)) {
+      log('Skipping signed status based on hook');
+      return undefined;
+    }
+
+    await this.updateTransactionMetaRSV(transactionMeta, signedTx);
+    transactionMeta.status = TransactionStatus.signed;
+    this.updateTransaction(
+      transactionMeta,
+      'TransactionController#approveTransaction - Transaction signed',
+    );
+
+    const rawTx = bufferToHex(signedTx.serialize());
+    transactionMeta.rawTx = rawTx;
+    this.updateTransaction(
+      transactionMeta,
+      'TransactionController#approveTransaction - RawTransaction added',
+    );
+    return rawTx;
   }
 }
 
