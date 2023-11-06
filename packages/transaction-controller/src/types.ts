@@ -164,7 +164,7 @@ type TransactionMetaBase = {
   /**
    * Response from security validator.
    */
-  securityAlertResponse?: Record<string, unknown>;
+  securityAlertResponse?: SecurityAlertResponse;
 
   /**
    * Response from security provider.
@@ -728,6 +728,9 @@ export type DefaultGasEstimates = {
   maxPriorityFeePerGas?: string;
 };
 
+/**
+ * Type for security alert response from transaction validator.
+ */
 export type SecurityAlertResponse = {
   reason: string;
   features?: string[];

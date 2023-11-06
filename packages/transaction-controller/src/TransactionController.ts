@@ -948,28 +948,29 @@ export class TransactionController extends BaseController<
   /**
    * Update the security alert response for a transaction.
    *
-   * @param transactionMetaId - ID of the transaction.
+   * @param transactionId - ID of the transaction.
    * @param securityAlertResponse - The new security alert response for the transaction.
    */
   updateSecurityAlertResponse(
-    transactionMetaId: string,
+    transactionId: string,
     securityAlertResponse: SecurityAlertResponse,
   ) {
-    if (!transactionMetaId || !securityAlertResponse) {
-      return;
-    }
-    const { transactions } = this.state;
-    const index = this.state.transactions.findIndex(
-      ({ id }) => id === transactionMetaId,
-    );
-    if (index >= 0) {
-      const transactionMeta = transactions[index];
-      const updatedMeta = merge(transactionMeta, { securityAlertResponse });
-      this.updateTransaction(
-        updatedMeta,
-        'TransactionController:updatesecurityAlertResponse - securityAlertResponse updated',
+    if (!securityAlertResponse) {
+      throw new Error(
+        'updateSecurityAlertResponse: securityAlertResponse should not be null',
       );
     }
+    const transactionMeta = this.getTransaction(transactionId);
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update security alert response as no transaction metadata found`,
+      );
+    }
+    const updatedMeta = merge(transactionMeta, { securityAlertResponse });
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updatesecurityAlertResponse - securityAlertResponse updated',
+    );
   }
 
   /**
