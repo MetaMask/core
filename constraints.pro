@@ -211,7 +211,8 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   WorkspaceCwd \= 'packages/json-rpc-engine',
-  WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
+  WorkspaceCwd \= 'packages/eth-json-rpc-provider',
+  WorkspaceCwd \= 'packages/permission-log-controller'.
 % The following published packages use an ISC license instead of MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
@@ -219,6 +220,10 @@ gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
     WorkspaceCwd == 'packages/json-rpc-engine' ;
     WorkspaceCwd == 'packages/eth-json-rpc-provider'
   ).
+% The following published packages use a custom license instead of MIT.
+gen_enforced_field(WorkspaceCwd, 'license', 'SEE LICENSE IN LICENSE') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd == 'packages/permission-log-controller'.
 % Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
