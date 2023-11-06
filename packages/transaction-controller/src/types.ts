@@ -40,6 +40,16 @@ type TransactionMetaBase = {
   chainId: Hex;
 
   /**
+   * Unique ID for custodian transaction.
+   */
+  custodyId?: string;
+
+  /**
+   * Custodian transaction status.
+   */
+  custodyStatus?: string;
+
+  /**
    * Gas values provided by the dApp.
    */
   dappSuggestedGasFees?: DappSuggestedGasFees;
@@ -662,7 +672,7 @@ export type InferTransactionTypeResult = {
 };
 
 /**
- * A function for verifying a transaction, whether it is malicious or not
+ * A function for verifying a transaction, whether it is malicious or not.
  */
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
