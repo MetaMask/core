@@ -626,7 +626,7 @@ export class TransactionController extends BaseController<
       await updateSwapsTransaction(transactionMeta, transactionType, swaps, {
         isSwapsDisabled: this.isSwapsDisabled,
         cancelTransaction: this.cancelTransaction.bind(this),
-        controllerHubEmitter: this.hub.emit.bind(this.hub),
+        controllerHubEmitter: this.hub.emit.bind(this.hub) as any,
       });
 
       transactions.push(transactionMeta);

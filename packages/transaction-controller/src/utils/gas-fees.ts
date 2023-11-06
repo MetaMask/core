@@ -12,7 +12,6 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
-import { SWAP_TRANSACTION_TYPES } from '../constants';
 import { projectLogger } from '../logger';
 import type {
   SavedGasFees,
@@ -21,6 +20,7 @@ import type {
   TransactionType,
 } from '../types';
 import { UserFeeLevel } from '../types';
+import { SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;

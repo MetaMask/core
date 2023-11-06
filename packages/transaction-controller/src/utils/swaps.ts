@@ -103,7 +103,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
 } as const;
 
-const SWAP_TRANSACTION_TYPES = [
+export const SWAP_TRANSACTION_TYPES = [
   TransactionType.swap,
   TransactionType.swapApproval,
 ];
