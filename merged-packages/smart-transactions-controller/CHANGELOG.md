@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0]
+### Added
+- Add a new "userOptInV2" prop ([#222](https://github.com/MetaMask/smart-transactions-controller/pull/222))
+
+### Changed
+- Bump @metamask/network-controller from 15.0.0 to 15.1.0 ([#219](https://github.com/MetaMask/smart-transactions-controller/pull/219))
+
 ## [6.0.0]
 ### Added
 - **BREAKING:** `getNetworkClientById` is now required argument in constructor options object ([#210](https://github.com/MetaMask/smart-transactions-controller/pull/210))
@@ -164,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v5.0.0...v6.0.0
 [5.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v3.1.0...v4.0.0
