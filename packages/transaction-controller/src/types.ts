@@ -759,9 +759,4 @@ export type TransactionError = {
    * The rpc property holds additional information related to the error.
    */
   rpc?: unknown;
-
-  /**
-   * The value property holds additional information related to the error.
-   */
-  value?: unknown;
 };
