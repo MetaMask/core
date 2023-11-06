@@ -189,136 +189,138 @@ describe('validation', () => {
       ).not.toThrow();
     });
 
-    it('throws if gasPrice is defined but type is feeMarket', () => {
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          gasPrice: '0x01',
-          type: TransactionEnvelopeType.feeMarket,
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction envelope type: specified type "0x2" but included a gasPrice instead of maxFeePerGas and maxPriorityFeePerGas',
-        ),
-      );
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          gasPrice: '0x01',
-        } as any),
-      ).not.toThrow();
-    });
+    describe('gas fees', () => {
+      it('throws if gasPrice is defined but type is feeMarket', () => {
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            gasPrice: '0x01',
+            type: TransactionEnvelopeType.feeMarket,
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction envelope type: specified type "0x2" but included a gasPrice instead of maxFeePerGas and maxPriorityFeePerGas',
+          ),
+        );
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            gasPrice: '0x01',
+          } as any),
+        ).not.toThrow();
+      });
 
-    it('throws if gasPrice is defined along with maxFeePerGas or maxPriorityFeePerGas', () => {
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          gasPrice: '0x01',
-          maxFeePerGas: '0x01',
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction params: specified gasPrice but also included maxFeePerGas, these cannot be mixed',
-        ),
-      );
+      it('throws if gasPrice is defined along with maxFeePerGas or maxPriorityFeePerGas', () => {
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            gasPrice: '0x01',
+            maxFeePerGas: '0x01',
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: specified gasPrice but also included maxFeePerGas, these cannot be mixed',
+          ),
+        );
 
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          gasPrice: '0x01',
-          maxPriorityFeePerGas: '0x01',
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction params: specified gasPrice but also included maxPriorityFeePerGas, these cannot be mixed',
-        ),
-      );
-    });
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            gasPrice: '0x01',
+            maxPriorityFeePerGas: '0x01',
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: specified gasPrice but also included maxPriorityFeePerGas, these cannot be mixed',
+          ),
+        );
+      });
 
-    it('throws if gasPrice, maxPriorityFeePerGas or maxFeePerGas is not string', () => {
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          gasPrice: 1,
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction params: gasPrice is not a string. got: (1)',
-        ),
-      );
+      it('throws if gasPrice, maxPriorityFeePerGas or maxFeePerGas is not string', () => {
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            gasPrice: 1,
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: gasPrice is not a string. got: (1)',
+          ),
+        );
 
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          maxPriorityFeePerGas: 1,
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction params: maxPriorityFeePerGas is not a string. got: (1)',
-        ),
-      );
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxPriorityFeePerGas: 1,
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: maxPriorityFeePerGas is not a string. got: (1)',
+          ),
+        );
 
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          maxFeePerGas: 1,
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction params: maxFeePerGas is not a string. got: (1)',
-        ),
-      );
-    });
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxFeePerGas: 1,
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: maxFeePerGas is not a string. got: (1)',
+          ),
+        );
+      });
 
-    it('throws if maxPriorityFeePerGas is defined but type is not feeMarket', () => {
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          maxPriorityFeePerGas: '0x01',
-          type: TransactionEnvelopeType.accessList,
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction envelope type: specified type "0x1" but including maxFeePerGas and maxPriorityFeePerGas requires type: "0x2"',
-        ),
-      );
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          maxPriorityFeePerGas: '0x01',
-        } as any),
-      ).not.toThrow();
-    });
+      it('throws if maxPriorityFeePerGas is defined but type is not feeMarket', () => {
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxPriorityFeePerGas: '0x01',
+            type: TransactionEnvelopeType.accessList,
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction envelope type: specified type "0x1" but including maxFeePerGas and maxPriorityFeePerGas requires type: "0x2"',
+          ),
+        );
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxPriorityFeePerGas: '0x01',
+          } as any),
+        ).not.toThrow();
+      });
 
-    it('throws if maxFeePerGas is defined but type is not feeMarket', () => {
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          maxFeePerGas: '0x01',
-          type: TransactionEnvelopeType.accessList,
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction envelope type: specified type "0x1" but including maxFeePerGas and maxPriorityFeePerGas requires type: "0x2"',
-        ),
-      );
-      expect(() =>
-        validateTxParams({
-          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
-          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
-          maxFeePerGas: '0x01',
-        } as any),
-      ).not.toThrow();
+      it('throws if maxFeePerGas is defined but type is not feeMarket', () => {
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxFeePerGas: '0x01',
+            type: TransactionEnvelopeType.accessList,
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction envelope type: specified type "0x1" but including maxFeePerGas and maxPriorityFeePerGas requires type: "0x2"',
+          ),
+        );
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxFeePerGas: '0x01',
+          } as any),
+        ).not.toThrow();
+      });
     });
   });
 });
