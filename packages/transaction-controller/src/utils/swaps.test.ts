@@ -209,7 +209,7 @@ describe('updatePostTransactionBalance', () => {
       await updatePostTransactionBalance(transactionMeta, request),
     ).toStrictEqual({
       updatedTransactionMeta: expectedTransactionMeta,
-      approvalTransactionMeta: null,
+      approvalTransactionMeta: undefined,
     });
 
     expect(queryMock).toHaveBeenCalledWith(expect.anything(), 'getBalance', [

@@ -3,11 +3,8 @@ import type EthQuery from '@metamask/eth-query';
 import { merge, pickBy } from 'lodash';
 
 import { CHAIN_IDS } from '../constants';
-import {
-  TransactionEvent,
-  type TransactionMeta,
-  TransactionType,
-} from '../types';
+import type { Events, TransactionMeta } from '../types';
+import { TransactionEvent, TransactionType } from '../types';
 import { validateIfTransactionUnapproved } from './utils';
 
 /**
@@ -135,7 +132,10 @@ export async function updateSwapsTransaction(
   }: {
     isSwapsDisabled: boolean;
     cancelTransaction: (transactionId: string) => void;
-    controllerHubEmitter: (event: TransactionEvent, payload: any) => void;
+    controllerHubEmitter: <T extends keyof Events>(
+      eventName: T,
+      ...args: Events[T]
+    ) => boolean;
   },
 ) {
   if (isSwapsDisabled || !SWAP_TRANSACTION_TYPES.includes(transactionType)) {
@@ -166,7 +166,7 @@ export async function updateSwapsTransaction(
 
   if (transactionType === TransactionType.swapApproval) {
     updateSwapApprovalTransaction(transactionMeta, swapsMeta);
-    controllerHubEmitter(TransactionEvent.newSwapApproval, {
+    controllerHubEmitter('transaction-new-swap-approval', {
       transactionMeta,
     });
   }
@@ -199,7 +199,10 @@ export async function updatePostTransactionBalance(
     getTransaction: (transactionId: string) => TransactionMeta | undefined;
     updateTransaction: (transactionMeta: TransactionMeta, note: string) => void;
   },
-) {
+): Promise<{
+  updatedTransactionMeta: TransactionMeta;
+  approvalTransactionMeta?: TransactionMeta;
+}> {
   const transactionId = transactionMeta.id;
 
   let latestTransactionMeta, approvalTransactionMeta;
@@ -210,7 +213,7 @@ export async function updatePostTransactionBalance(
     latestTransactionMeta = getTransaction(transactionId) as TransactionMeta;
     approvalTransactionMeta = latestTransactionMeta.approvalTxId
       ? getTransaction(latestTransactionMeta.approvalTxId)
-      : null;
+      : undefined;
 
     latestTransactionMeta.postTxBalance = postTransactionBalance.toString(16);
     const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
@@ -233,7 +236,7 @@ export async function updatePostTransactionBalance(
     'TransactionController#updatePostTransactionBalance - Add post transaction balance',
   );
   return {
-    updatedTransactionMeta: latestTransactionMeta,
+    updatedTransactionMeta: latestTransactionMeta as TransactionMeta,
     approvalTransactionMeta,
   };
 }

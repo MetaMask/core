@@ -43,13 +43,14 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
 import type {
-  SavedGasFees,
+  Events,
   DappSuggestedGasFees,
+  SavedGasFees,
+  SecurityProviderRequest,
+  SendFlowHistoryEntry,
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
-  SecurityProviderRequest,
-  SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
 import {
@@ -173,42 +174,6 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   never
 >;
-
-type Events = {
-  ['transaction-approved']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
-
-  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-failed']: [
-    {
-      actionId?: string;
-      error: string;
-      transactionMeta: TransactionMeta;
-    },
-  ];
-  ['transaction-new-swap']: [transactionMeta: TransactionMeta];
-  ['transaction-new-swap-approval']: [transactionMeta: TransactionMeta];
-  ['transaction-rejected']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-submitted']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-post-balance-updated']: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
-  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  ['incomingTransactionBlock']: [blockNumber: number];
-  ['post-transaction-balance-updated']: [
-    {
-      transactionMeta?: TransactionMeta;
-      approvalTransactionMeta?: TransactionMeta | null;
-    },
-  ];
-};
 
 export interface TransactionControllerEventEmitter extends EventEmitter {
   on<T extends keyof Events>(

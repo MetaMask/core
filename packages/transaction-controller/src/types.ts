@@ -1,6 +1,42 @@
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
+export type Events = {
+  ['transaction-approved']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
+
+  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-failed']: [
+    {
+      actionId?: string;
+      error: string;
+      transactionMeta: TransactionMeta;
+    },
+  ];
+  ['transaction-new-swap']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-new-swap-approval']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-rejected']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-submitted']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-post-balance-updated']: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
+  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
+  ['incomingTransactionBlock']: [blockNumber: number];
+  ['post-transaction-balance-updated']: [
+    {
+      transactionMeta: TransactionMeta;
+      approvalTransactionMeta?: TransactionMeta;
+    },
+  ];
+};
+
 /**
  * Representation of transaction metadata.
  */
