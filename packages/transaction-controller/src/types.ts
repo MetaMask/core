@@ -43,6 +43,16 @@ type TransactionMetaBase = {
   chainId: Hex;
 
   /**
+   * Unique ID for custodian transaction.
+   */
+  custodyId?: string;
+
+  /**
+   * Custodian transaction status.
+   */
+  custodyStatus?: string;
+
+  /**
    * Gas values provided by the dApp.
    */
   dappSuggestedGasFees?: DappSuggestedGasFees;
@@ -616,6 +626,14 @@ export interface DappSuggestedGasFees {
 }
 
 /**
+ * Gas values saved by the user for a specific chain.
+ */
+export interface SavedGasFees {
+  maxBaseFee: string;
+  priorityFee: string;
+}
+
+/**
  * A transaction history operation that includes a note and timestamp.
  */
 type ExtendedHistoryOperation = Operation & {
@@ -657,7 +675,7 @@ export type InferTransactionTypeResult = {
 };
 
 /**
- * A function for verifying a transaction, whether it is malicious or not
+ * A function for verifying a transaction, whether it is malicious or not.
  */
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
