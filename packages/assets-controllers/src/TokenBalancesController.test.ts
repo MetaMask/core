@@ -6,6 +6,7 @@ import { PreferencesController } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import { AssetsContractController } from './AssetsContractController';
 import {
   BN as exportedBn,
@@ -24,6 +25,7 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
 };
 
 describe('TokenBalancesController', () => {
+  let clock: sinon.SinonFakeTimers;
   const getToken = (
     tokenBalances: TokenBalancesController,
     address: string,
@@ -31,8 +33,12 @@ describe('TokenBalancesController', () => {
     const { tokens } = tokenBalances.config;
     return tokens.find((token) => token.address === address);
   };
+  beforeEach(() => {
+    clock = sinon.useFakeTimers();
+  });
 
   afterEach(() => {
+    clock.restore();
     sinon.restore();
   });
 
@@ -62,26 +68,23 @@ describe('TokenBalancesController', () => {
   });
 
   it('should poll and update balances in the right interval', async () => {
-    await new Promise<void>((resolve) => {
-      const mock = sinon.stub(
-        TokenBalancesController.prototype,
-        'updateBalances',
-      );
-      new TokenBalancesController(
-        {
-          onTokensStateChange: sinon.stub(),
-          getSelectedAddress: () => '0x1234',
-          getERC20BalanceOf: sinon.stub(),
-        },
-        { interval: 10 },
-      );
-      expect(mock.called).toBe(true);
-      expect(mock.calledTwice).toBe(false);
-      setTimeout(() => {
-        expect(mock.calledTwice).toBe(true);
-        resolve();
-      }, 15);
-    });
+    const mock = sinon.stub(
+      TokenBalancesController.prototype,
+      'updateBalances',
+    );
+    new TokenBalancesController(
+      {
+        onTokensStateChange: sinon.stub(),
+        getSelectedAddress: () => '0x1234',
+        getERC20BalanceOf: sinon.stub(),
+      },
+      { interval: 10 },
+    );
+    expect(mock.called).toBe(true);
+    expect(mock.calledTwice).toBe(false);
+
+    await advanceTime({ clock, duration: 15 });
+    expect(mock.calledTwice).toBe(true);
   });
 
   it('should not update rates if disabled', async () => {
@@ -111,13 +114,9 @@ describe('TokenBalancesController', () => {
       },
       { interval: 1337 },
     );
-    await new Promise<void>((resolve) => {
-      setTimeout(() => {
-        tokenBalances.poll(1338);
-        expect(mock.called).toBe(true);
-        resolve();
-      }, 100);
-    });
+    await tokenBalances.poll(1338);
+    await advanceTime({ clock, duration: 1339 });
+    expect(mock.called).toBe(true);
   });
 
   const setupControllers = () => {
