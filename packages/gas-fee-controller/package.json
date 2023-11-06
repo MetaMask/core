@@ -24,8 +24,9 @@
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/gas-fee-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest",
+    "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
+    "test:verbose": "jest --verbose",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -34,7 +35,7 @@
     "@metamask/eth-query": "^3.0.1",
     "@metamask/network-controller": "^15.1.0",
     "@metamask/polling-controller": "^1.0.1",
-    "@metamask/utils": "^8.1.0",
+    "@metamask/utils": "^8.2.0",
     "@types/uuid": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
     "ethjs-unit": "^0.1.6",

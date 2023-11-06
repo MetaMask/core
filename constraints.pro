@@ -260,18 +260,25 @@ gen_enforced_field(WorkspaceCwd, 'scripts.prepack', null) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % The "changelog:validate" script for each published package must run a common
-% script with the name of the package as an argument.
-gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
+% script with the name of the package as the first argument.
+gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', CorrectChangelogValidationCommand) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_field(WorkspaceCwd, 'scripts.changelog:validate', ChangelogValidationCommand),
   workspace_package_name(WorkspaceCwd, WorkspacePackageName),
-  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
+  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName, ' [...]'], CorrectChangelogValidationCommand),
+  atom_concat('../../scripts/validate-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
+  \+ atom_concat(ExpectedPrefix, _, ChangelogValidationCommand).
 
 % All non-root packages must have the same "test" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:clean" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+  WorkspaceCwd \= '.'.
+
+% All non-root packages must have the same "test:verbose" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:verbose', 'jest --verbose') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:watch" script.

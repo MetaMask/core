@@ -90,6 +90,11 @@ type TransactionMetaBase = {
   estimateUsed?: string;
 
   /**
+   * The number of the latest block when the transaction submit was first retried.
+   */
+  firstRetryBlockNumber?: string;
+
+  /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
@@ -137,6 +142,26 @@ type TransactionMetaBase = {
   preTxBalance?: string;
 
   /**
+   * The previous gas properties before they were updated.
+   */
+  previousGas?: {
+    /**
+     * Maxmimum number of units of gas to use for this transaction.
+     */
+    gasLimit?: string;
+
+    /**
+     * Maximum amount per gas to pay for the transaction, including the priority fee.
+     */
+    maxFeePerGas?: string;
+
+    /**
+     * Maximum amount per gas to give to validator as incentive.
+     */
+    maxPriorityFeePerGas?: string;
+  };
+
+  /**
    * The transaction's 'r' value as a hex string.
    */
   r?: string;
@@ -155,6 +180,11 @@ type TransactionMetaBase = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * The number of times that the transaction submit has been retried.
+   */
+  retryCount?: number;
 
   /**
    * The transaction's 's' value as a hex string.
@@ -262,6 +292,14 @@ type TransactionMetaBase = {
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
+
+  /**
+   * Warning information for the transaction.
+   */
+  warning?: {
+    error: string;
+    message: string;
+  };
 };
 
 export type SendFlowHistoryEntry = {
@@ -617,6 +655,14 @@ export interface DappSuggestedGasFees {
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+}
+
+/**
+ * Gas values saved by the user for a specific chain.
+ */
+export interface SavedGasFees {
+  maxBaseFee: string;
+  priorityFee: string;
 }
 
 /**
