@@ -1101,9 +1101,9 @@ export class TransactionController extends BaseController<
               approvalTransactionMeta,
             });
           })
-          .catch(() => {
+          .catch((error) => {
             /* istanbul ignore next */
-            log('Error while updating post transaction balance');
+            log('Error while updating post transaction balance', error);
           });
       }
       this.hub.emit('transaction-confirmed', {
