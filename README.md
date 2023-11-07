@@ -34,6 +34,7 @@ This repository houses the following packages:
 - [`@metamask/selected-network-controller`](packages/selected-network-controller);
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
+- [`@metamask/permission-log-controller`](packages/permission-log-controller)
 
 Or, in graph form [^fn1]:
 
@@ -63,6 +64,7 @@ linkStyle default opacity:0.5
   network_controller(["@metamask/network-controller"]);
   notification_controller(["@metamask/notification-controller"]);
   permission_controller(["@metamask/permission-controller"]);
+  permission_log_controller(["@metamask/permission-log-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
@@ -110,6 +112,8 @@ linkStyle default opacity:0.5
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
   permission_controller --> json_rpc_engine;
+  permission_log_controller --> base_controller;
+  permission_log_controller --> json_rpc_engine;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   polling_controller --> base_controller;
