@@ -286,6 +286,10 @@ export class PermissionLogController extends BaseControllerV2<
     response: PendingJsonRpcResponse<Json>,
     time: number,
   ) {
+    if (!entry || !response) {
+      return;
+    }
+
     // The JSON-RPC 2.0 specification defines "success" by the presence of
     // either the "result" or "error" property. The specification forbids
     // both properties from being present simultaneously, and our JSON-RPC

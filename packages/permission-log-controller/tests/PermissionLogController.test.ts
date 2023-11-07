@@ -183,10 +183,32 @@ describe('PermissionLogController', () => {
         true,
       );
 
+      // test_method, no response
+
+      req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+      req.id = REQUEST_IDS.a;
+      // @ts-expect-error We are intentionally passing bad input.
+      res = null;
+
+      logMiddleware(req, res, mockNext, noop);
+
+      log = permLog.getActivityLog();
+      const entry4 = log[3];
+
+      expect(log).toHaveLength(4);
+      validateActivityEntry(
+        entry4,
+        { ...req },
+        null,
+        LOG_METHOD_TYPES.restricted,
+        false,
+      );
+
       // Validate final state
       expect(entry1).toStrictEqual(log[0]);
       expect(entry2).toStrictEqual(log[1]);
       expect(entry3).toStrictEqual(log[2]);
+      expect(entry4).toStrictEqual(log[3]);
 
       // Regression test: ensure "response" and "request" properties
       // are not present
