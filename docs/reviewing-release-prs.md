@@ -124,7 +124,7 @@ In most cases, removing something from a package will cause a breaking change, a
 
 There are a few different kinds of changes that could be filed under this category.
 
-- Fixing a security vulnerability. (NOTE: These are actually a special kind of change and should be made discreetly through a private channel so as not to raise suspicion.)
+- Fixing a security vulnerability.
 - Correcting a mistake introduced in a previous release. For example, a function was supposed to be included but was not.
 - Realigning confusing or illogical behavior. This is tricky, because the longer buggy behavior is allowed to persist, the more consumers may rely upon it. In this case, it would be more thoughtful to call out a change in this behavior as breaking, even if the new behavior makes more sense. (As an example, read about the [history of MetaMask's signing methods](https://github.com/MetaMask/metamask-docs/blob/72e1a066ea1a81a7964dbc9aa83381493a2cd3eb/wallet/concepts/signing-methods.md).) But for minor cases, a "fix" may be more appropriate.
 
