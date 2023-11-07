@@ -11,24 +11,20 @@ describe('validation', () => {
     it('should throw if no from address', () => {
       expect(() => validateTxParams({} as any)).toThrow(
         rpcErrors.invalidParams(
-          'Invalid "from" address: undefined must be a valid string.',
+          'Invalid "from" address undefined: not a string.',
         ),
       );
     });
 
     it('should throw if non-string from address', () => {
       expect(() => validateTxParams({ from: 1337 } as any)).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid "from" address: 1337 must be a valid string.',
-        ),
+        rpcErrors.invalidParams('Invalid "from" address 1337: not a string.'),
       );
     });
 
     it('should throw if invalid from address', () => {
       expect(() => validateTxParams({ from: '1337' } as any)).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid "from" address: 1337 must be a valid string.',
-        ),
+        rpcErrors.invalidParams('Invalid "from" address.'),
       );
     });
 
@@ -38,21 +34,13 @@ describe('validation', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x',
         } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid "to" address: 0x must be a valid string.',
-        ),
-      );
+      ).toThrow(rpcErrors.invalidParams('Invalid "to" address.'));
 
       expect(() =>
         validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid "to" address: undefined must be a valid string.',
-        ),
-      );
+      ).toThrow(rpcErrors.invalidParams('Invalid "to" address.'));
     });
 
     it('should delete data', () => {
@@ -71,11 +59,7 @@ describe('validation', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '1337',
         } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid "to" address: 1337 must be a valid string.',
-        ),
-      );
+      ).toThrow(rpcErrors.invalidParams('Invalid "to" address.'));
     });
 
     it('should throw if value is invalid', () => {
@@ -87,7 +71,7 @@ describe('validation', () => {
         } as any),
       ).toThrow(
         rpcErrors.invalidParams(
-          'Invalid "value": 133-7 is not a positive number.',
+          'Invalid transaction value "133-7": not a positive number.',
         ),
       );
 
@@ -99,7 +83,7 @@ describe('validation', () => {
         } as any),
       ).toThrow(
         rpcErrors.invalidParams(
-          'Invalid "value": 133.7 number must be denominated in wei.',
+          'Invalid transaction value "133.7": number must be in wei.',
         ),
       );
 
@@ -111,7 +95,7 @@ describe('validation', () => {
         } as any),
       ).toThrow(
         rpcErrors.invalidParams(
-          'Invalid "value": hello number must be a valid number.',
+          'Invalid transaction value hello: number must be a valid number.',
         ),
       );
 
@@ -123,7 +107,7 @@ describe('validation', () => {
         } as any),
       ).toThrow(
         rpcErrors.invalidParams(
-          'Invalid "value": one million dollar$ number must be a valid number.',
+          'Invalid transaction value one million dollar$: number must be a valid number.',
         ),
       );
 

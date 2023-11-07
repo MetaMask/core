@@ -162,7 +162,7 @@ export function validateIfTransactionUnapproved(
 ) {
   if (transactionMeta?.status !== TransactionStatus.unapproved) {
     throw new Error(
-      `Can only call ${fnName} on an unapproved transaction.
+      `TransactionsController: Can only call ${fnName} on an unapproved transaction.
       Current tx status: ${transactionMeta?.status}`,
     );
   }
