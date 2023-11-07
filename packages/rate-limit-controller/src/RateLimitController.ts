@@ -135,8 +135,7 @@ export class RateLimitController<
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
       ) =>
         this.call(origin, type, ...args) as ExtractActionResponse<
-          CallApi<RateLimitedApis>,
-          'RateLimitController:call'
+          CallApi<RateLimitedApis>
         >,
     );
   }
@@ -161,15 +160,14 @@ export class RateLimitController<
     }
     this.recordRequest(type, origin);
 
-    const implementation = this.implementations[type].method;
+    const implementation: RateLimitedApis[ApiType]['method'] =
+      this.implementations[type].method;
 
     if (!implementation) {
       throw new Error('Invalid api type');
     }
 
-    return implementation(...args) as ReturnType<
-      RateLimitedApis[ApiType]['method']
-    >;
+    return implementation(...args) as ReturnType<typeof implementation>;
   }
 
   /**
