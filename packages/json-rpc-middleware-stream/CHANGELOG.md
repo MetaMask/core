@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Migrate `@metamask/json-rpc-engine` into the core monorepo ([#1762](https://github.com/MetaMask/core/pull/1762))
+
 ## Changed
 - **BREAKING**: Rename package from `json-rpc-middleware-stream` to `@metamask/json-rpc-middleware-stream` ([#1762](https://github.com/MetaMask/core/pull/1762))
 - Bump `@metamask/json-rpc-engine` from `^7.1.0` to `^7.2.0` ([#1762](https://github.com/MetaMask/core/pull/1762))
