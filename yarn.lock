@@ -2179,6 +2179,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/permission-log-controller@workspace:packages/permission-log-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/permission-log-controller@workspace:packages/permission-log-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.4.3
+    "@metamask/base-controller": ^3.2.3
+    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/utils": ^8.2.0
+    "@types/deep-freeze-strict": ^1.1.0
+    "@types/jest": ^27.4.1
+    deep-freeze-strict: ^1.1.1
+    deepmerge: ^4.2.2
+    jest: ^27.5.1
+    nanoid: ^3.1.31
+    sinon: ^9.2.4
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
+  languageName: unknown
+  linkType: soft
+
 "@metamask/phishing-controller@^7.0.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
