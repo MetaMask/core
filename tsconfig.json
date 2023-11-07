@@ -38,6 +38,9 @@
       "path": "./packages/gas-fee-controller"
     },
     {
+      "path": "./packages/json-rpc-engine"
+    },
+    {
       "path": "./packages/keyring-controller"
     },
     {
@@ -75,9 +78,6 @@
     },
     {
       "path": "./packages/queued-request-controller"
-    },
-    {
-      "path": "./packages/json-rpc-engine"
     },
     {
       "path": "./packages/permission-log-controller"
