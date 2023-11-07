@@ -10,12 +10,12 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { CaveatTypes } from './constants';
 import {
   LOG_IGNORE_METHODS,
   LOG_LIMIT,
   LOG_METHOD_TYPES,
   WALLET_PREFIX,
+  CAVEAT_TYPES,
 } from './enums';
 
 export type JsonRpcRequestWithOrigin<
@@ -79,7 +79,7 @@ export type PermissionLogControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-export const defaultState: PermissionLogControllerState = {
+const defaultState: PermissionLogControllerState = {
   permissionHistory: {},
   permissionActivityLog: [],
 };
@@ -474,7 +474,7 @@ export class PermissionLogController extends BaseControllerV2<
     const accounts = new Set<string>();
     for (const caveat of perm.caveats) {
       if (
-        caveat.type === CaveatTypes.restrictReturnedAccounts &&
+        caveat.type === CAVEAT_TYPES.restrictReturnedAccounts &&
         Array.isArray(caveat.value)
       ) {
         for (const value of caveat.value) {

@@ -1,7 +1,7 @@
 import { type Json, JsonRpcRequestStruct } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import { CaveatTypes } from '../src/constants';
+import { CAVEAT_TYPES } from '../src/enums';
 
 /**
  * This file contains mocks for the PermissionLogController tests.
@@ -56,7 +56,7 @@ const CAVEATS = {
   eth_accounts: (accounts: string[]) => {
     return [
       {
-        type: CaveatTypes.restrictReturnedAccounts,
+        type: CAVEAT_TYPES.restrictReturnedAccounts,
         value: accounts,
       },
     ];
