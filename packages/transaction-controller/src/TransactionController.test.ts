@@ -1672,7 +1672,9 @@ describe('TransactionController', () => {
 
         const finishedPromise = waitForTransactionFinished(controller);
 
-        await expect(result).rejects.toThrow('User rejected the transaction');
+        await expect(result).rejects.toThrow(
+          'MetaMask Tx Signature: User denied transaction signature.',
+        );
 
         const { txParams, status } = await finishedPromise;
         expect(txParams.from).toBe(ACCOUNT_MOCK);
@@ -2741,7 +2743,7 @@ describe('TransactionController', () => {
           mockSendFlowHistory,
         ),
       )
-        .toThrow(`Can only call updateTransactionSendFlowHistory on an unapproved transaction.
+        .toThrow(`TransactionsController: Can only call updateTransactionSendFlowHistory on an unapproved transaction.
       Current tx status: submitted`);
     });
   });
@@ -2924,7 +2926,8 @@ describe('TransactionController', () => {
         controller.updateTransactionGasFees(transactionId, {
           gasPrice: '0x1',
         }),
-      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      )
+        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved transaction.
       Current tx status: ${status}`);
     });
 
@@ -3014,7 +3017,8 @@ describe('TransactionController', () => {
         controller.updatePreviousGasParams(transactionId, {
           maxFeePerGas: '0x1',
         }),
-      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      )
+        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved transaction.
       Current tx status: ${status}`);
     });
 
