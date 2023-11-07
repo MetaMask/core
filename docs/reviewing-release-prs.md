@@ -168,7 +168,7 @@ Finally, look over the changelogs one more time to ensure that they aren't missi
 - While a release PR is open, more changes may be made to packages that are already planned for release.
 - Finally, if the version of a package in the monorepo is updated, the manifests of any dependents of that package will be updated so that they match the same version. This is unusual because bumps to dependencies usually happen _before_ a release PR, but is essential to document just the same.
 
-Therefore, review the [changes committed since the previous release](#review-changes) and look for internal dependency bumps, and if either are missing from the changelogs, notify the creator of the release PR so that they can add them, offering a suggestion as necessary.
+Therefore, review the [changes committed since the previous release](#review-changes) and look for changed versions of workspace dependencies. If any are missing from changelogs, notify the creator of the release PR so that they can add them, offering a suggestion as appropriate.
 
 ## 6. Approve the release
 
