@@ -721,7 +721,7 @@ describe('TransactionController', () => {
               code: errorCodes.provider.userRejectedRequest,
             };
           });
-        const consoleSpy = jest.spyOn(console, 'error');
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
         newController({
           state: mockedControllerState as any,
@@ -864,6 +864,9 @@ describe('TransactionController', () => {
           txMeta.txParams.gasPrice = mockGas;
           return Promise.resolve();
         });
+
+        // Second gas update will fail, in order to keep the console clean during test mock console.error once
+        jest.spyOn(console, 'error').mockImplementation();
 
         const controller = newController({
           state: mockedControllerState as any,
