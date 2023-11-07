@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.3]
 ### Fixed
 - Fix network nicknames ([#2000](https://github.com/MetaMask/core/pull/2000))
+- Fix addEthereumChain showing switch ethereum chain dialog ([#2000](https://github.com/MetaMask/core/pull/2000))
 
 ### Changed
 - move json-rpc-engine from merged-packages to packages ([#1895](https://github.com/MetaMask/core/pull/1895))
