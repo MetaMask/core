@@ -516,6 +516,23 @@ describe('PermissionLogController', () => {
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case2[0]);
     });
 
+    it('handles extra caveats for eth_accounts', async () => {
+      const req = RPC_REQUESTS.requestPermission(
+        SUBJECTS.a.origin,
+        PERM_NAMES.eth_accounts,
+      );
+      const res = {
+        ...PendingJsonRpcResponseStruct.TYPE,
+        result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
+      };
+      // @ts-expect-error We are intentionally passing bad input.
+      res.result[0].caveats.push({ foo: 'bar' });
+
+      logMiddleware(req, res, mockNext, noop);
+
+      expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
+    });
+
     // wallet_requestPermissions returns all permissions approved for the
     // requesting origin, including old ones
     it('handles unrequested permissions on the response', async () => {
