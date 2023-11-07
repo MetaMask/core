@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate `@metamask/eth-json-rpc-provider` into the core monorepo ([#1738](https://github.com/MetaMask/core/pull/1738))
 
 ### Changed
-- Export `SafeEventEmitterProvider` as class instead of type ([4c8fea70c5d753b6bb0cf17fc640e2aaed16fd52](https://github.com/MetaMask/core/pull/1738/commits/4c8fea70c5d753b6bb0cf17fc640e2aaed16fd52))
+- Export `SafeEventEmitterProvider` as class instead of type ([#1738](https://github.com/MetaMask/core/pull/1738))
 - Bump `@metamask/json-rpc-engine` from `^7.1.0` to `^7.2.0` ([#1895](https://github.com/MetaMask/core/pull/1895))
+- Bump `@metamask/utils` from `^8.1.0` to `^8.2.0` ([#1895](https://github.com/MetaMask/core/pull/1895))
 
 ## [2.2.0]
 ### Changed

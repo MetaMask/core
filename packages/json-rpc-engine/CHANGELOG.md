@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Bump `@metamask/utils` from `^8.1.0` to `^8.2.0` ([#1895](https://github.com/MetaMask/core/pull/1895))
+- Bump `@metamask/rpc-errors` from `^6.0.0` to `^6.1.0` ([#1882](https://github.com/MetaMask/core/pull/1882))
 
 ## [7.2.0]
 ### Added
