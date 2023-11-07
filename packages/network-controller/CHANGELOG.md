@@ -11,8 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update @metamask/eth-json-rpc-middleware in network controller ([#1988](https://github.com/MetaMask/core/pull/1988))
 - Bump dependency on `@metamask/json-rpc-engine` to ^7.2.0 ([#1895](https://github.com/MetaMask/core/pull/1895))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
-- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
-- Re-enable import/no-named-as-default-member ([#1925](https://github.com/MetaMask/core/pull/1925))
 
 ## [15.1.0]
 ### Added
