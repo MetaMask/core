@@ -11,10 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix network nicknames ([#2000](https://github.com/MetaMask/core/pull/2000))
 
 ### Changed
-- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
 - move json-rpc-engine from merged-packages to packages ([#1895](https://github.com/MetaMask/core/pull/1895))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
-- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
 
 ## [0.1.2]
 ### Fixed
