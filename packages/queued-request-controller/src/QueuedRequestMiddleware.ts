@@ -97,14 +97,18 @@ export const createQueuedRequestMiddleware = ({
           }
 
           const isBuiltIn = isNetworkType(networkClientIdForRequest);
-          const networkConfigurationForRequest = messenger.call(
+          const networkClientConfigurationForRequest = messenger.call(
             'NetworkController:getNetworkClientById',
             networkClientIdForRequest,
           ).configuration;
 
-          const currentProviderConfig = messenger.call(
+          const networkControllerState = messenger.call(
             'NetworkController:getState',
           ).providerConfig;
+          const networkConfigurationForRequest = Object.values(
+            networkControllerState.networkConfigurations
+          ).find((configurations) => configurations.chainId === networkClientConfigurationForRequest.chainId) ?? networkClientConfigurationForRequest;
+          const currentProviderConfig = networkControllerState.providerConfig;
 
           const currentChainId = currentProviderConfig.chainId;
 
@@ -135,6 +139,7 @@ export const createQueuedRequestMiddleware = ({
               true,
             );
 
+            const isBuiltIn = isNetworkType(networkClientIdForRequest);
             const method = isBuiltIn ? 'setProviderType' : 'setActiveNetwork';
 
             await messenger.call(
