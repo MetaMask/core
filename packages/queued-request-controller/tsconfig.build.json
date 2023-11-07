@@ -10,7 +10,8 @@
     { "path": "../network-controller/tsconfig.build.json" },
     { "path": "../approval-controller/tsconfig.build.json" },
     { "path": "../selected-network-controller/tsconfig.build.json" },
-    { "path": "../controller-utils/tsconfig.build.json" }
+    { "path": "../controller-utils/tsconfig.build.json" },
+    { "path": "../json-rpc-engine/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

@@ -18,6 +18,9 @@ export { BN };
  * @property interval - Polling interval used to fetch new token balances
  * @property tokens - List of tokens to track balances for
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenBalancesConfig extends BaseConfig {
   interval: number;
   tokens: Token[];
@@ -29,6 +32,9 @@ export interface TokenBalancesConfig extends BaseConfig {
  * Token balances controller state
  * @property contractBalances - Hash of token contract addresses to balances
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenBalancesState extends BaseState {
   contractBalances: { [address: string]: BN };
 }

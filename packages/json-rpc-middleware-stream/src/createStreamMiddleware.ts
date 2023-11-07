@@ -104,7 +104,11 @@ export default function createStreamMiddleware(options: Options = {}) {
    * @param res - The response to process.
    */
   function processResponse(res: PendingJsonRpcResponse<JsonRpcParams>) {
-    const responseId = res.id as unknown as string;
+    const { id: responseId } = res;
+    if (responseId === null) {
+      return;
+    }
+
     const context = idMap[responseId];
     if (!context) {
       console.warn(`StreamMiddleware - Unknown response id "${responseId}"`);
@@ -116,6 +120,8 @@ export default function createStreamMiddleware(options: Options = {}) {
     Object.assign(context.res, res);
     // run callback on empty stack,
     // prevent internal stream-handler from catching errors
+    // TODO: remove eslint-disable once issue #1989 is resolved.
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     setTimeout(context.end);
   }
 
@@ -147,8 +153,10 @@ export default function createStreamMiddleware(options: Options = {}) {
           `StreamMiddleware - Retry limit exceeded for request id "${req.id}"`,
         );
       }
-
-      idMap[req.id].retryCount = retryCount + 1;
+      const idMapObject = idMap[req.id];
+      if (idMapObject) {
+        idMapObject.retryCount = retryCount + 1;
+      }
       sendToStream(req);
     });
   }
