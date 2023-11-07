@@ -97,13 +97,13 @@ function validateParamValue(value?: string) {
   if (value !== undefined) {
     if (value.includes('-')) {
       throw rpcErrors.invalidParams(
-        `Invalid "value": ${value} is not a positive number.`,
+        `Invalid transaction value "${value}": not a positive number.`,
       );
     }
 
     if (value.includes('.')) {
       throw rpcErrors.invalidParams(
-        `Invalid "value": ${value} number must be denominated in wei.`,
+        `Invalid transaction value "${value}": number must be in wei.`,
       );
     }
     const intValue = parseInt(value, 10);
@@ -114,7 +114,7 @@ function validateParamValue(value?: string) {
       Number.isSafeInteger(intValue);
     if (!isValid) {
       throw rpcErrors.invalidParams(
-        `Invalid "value": ${value} number must be a valid number.`,
+        `Invalid transaction value ${value}: number must be a valid number.`,
       );
     }
   }
@@ -134,14 +134,10 @@ function validateParamRecipient(txParams: TransactionParams) {
     if (txParams.data) {
       delete txParams.to;
     } else {
-      throw new Error(
-        `Invalid "to" address: ${txParams.to} must be a valid string.`,
-      );
+      throw rpcErrors.invalidParams(`Invalid "to" address.`);
     }
   } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
-    throw new Error(
-      `Invalid "to" address: ${txParams.to} must be a valid string.`,
-    );
+    throw rpcErrors.invalidParams(`Invalid "to" address.`);
   }
 }
 
@@ -155,8 +151,13 @@ function validateParamRecipient(txParams: TransactionParams) {
  * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
  */
 function validateParamFrom(from: string) {
-  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
-    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
+  if (!from || typeof from !== 'string') {
+    throw rpcErrors.invalidParams(
+      `Invalid "from" address ${from}: not a string.`,
+    );
+  }
+  if (!isValidHexAddress(from)) {
+    throw rpcErrors.invalidParams('Invalid "from" address.');
   }
 }
 

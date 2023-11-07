@@ -37,6 +37,7 @@ import type {
   DappSuggestedGasFees,
   TransactionParams,
   TransactionHistoryEntry,
+  TransactionError,
 } from './types';
 import { TransactionStatus, TransactionType, WalletDevice } from './types';
 import { estimateGas, updateGas } from './utils/gas';
@@ -1672,7 +1673,9 @@ describe('TransactionController', () => {
 
         const finishedPromise = waitForTransactionFinished(controller);
 
-        await expect(result).rejects.toThrow('User rejected the transaction');
+        await expect(result).rejects.toThrow(
+          'MetaMask Tx Signature: User denied transaction signature.',
+        );
 
         const { txParams, status } = await finishedPromise;
         expect(txParams.from).toBe(ACCOUNT_MOCK);
@@ -2741,7 +2744,7 @@ describe('TransactionController', () => {
           mockSendFlowHistory,
         ),
       )
-        .toThrow(`Can only call updateTransactionSendFlowHistory on an unapproved transaction.
+        .toThrow(`TransactionsController: Can only call updateTransactionSendFlowHistory on an unapproved transaction.
       Current tx status: submitted`);
     });
   });
@@ -2924,7 +2927,8 @@ describe('TransactionController', () => {
         controller.updateTransactionGasFees(transactionId, {
           gasPrice: '0x1',
         }),
-      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      )
+        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved transaction.
       Current tx status: ${status}`);
     });
 
@@ -3047,7 +3051,8 @@ describe('TransactionController', () => {
         controller.updatePreviousGasParams(transactionId, {
           maxFeePerGas: '0x1',
         }),
-      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      )
+        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved transaction.
       Current tx status: ${status}`);
     });
 
@@ -3138,19 +3143,28 @@ describe('TransactionController', () => {
         options: { disableHistory: true },
       });
 
+      const errorMock = new Error('TestError');
+      const expectedTransactionError: TransactionError = {
+        message: errorMock.message,
+        name: errorMock.name,
+        stack: errorMock.stack,
+        code: undefined,
+        rpc: undefined,
+      };
+
       controller.state.transactions = [{ ...TRANSACTION_META_MOCK }];
 
       firePendingTransactionTrackerEvent(
         'transaction-failed',
         TRANSACTION_META_MOCK,
-        new Error('TestError'),
+        errorMock,
       );
 
       expect(controller.state.transactions).toStrictEqual([
         {
           ...TRANSACTION_META_MOCK,
           status: TransactionStatus.failed,
-          error: new Error('TestError'),
+          error: expectedTransactionError,
         },
       ]);
     });
