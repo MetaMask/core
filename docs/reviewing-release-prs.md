@@ -4,17 +4,18 @@ In order to publish a new release of the monorepo, a release PR must be created.
 
 This document shows you how to do that.
 
-## 0. tl;dr — if you've done this before
+## 0. tl;dr — if you've done this sort of thing before
 
 - [ ] Are there any packages with version bumps that should not be published?
-- [ ] Do the new versions of packages being published sufficiently communicate the impact of changes to those packages?
-- [ ] Are all changelog entries placed in the correct category?
-- [ ] Do all changelog entries explain the changes in a clear and straightforward manner and detail exact changes to the package's interface?
-- [ ] Are there any changelog entries that do not need to be listed?
-- [ ] Are there any changes made to a package since its previous release that are not reflected in its changelog?
-- [ ] Are there any changelog entries that have missing references to pull requests?
-- [ ] Have any changes been merged to `main` while the release PR has been open that have not been added to a changelog?
-- [ ] Are there any bumps to workspace dependencies that have not been captured in changelogs?
+- For all packages being published:
+  - [ ] Does the new version string sufficiently communicate the impact of changes?
+  - [ ] Are there any changelog entries that do not need to be listed?
+  - [ ] Are there any changelog entries that are placed in the wrong category (including "Unreleased")?
+  - [ ] Do all changelog entries explain the changes in a clear and straightforward manner and detail exact changes to the package's interface?
+  - [ ] Do all changes made through a pull request link to that pull request?
+  - [ ] Are there any changes since the package's previous release that not reflected in the changelog?
+  - [ ] Have there been any changes merged to `main` while the release PR has been open that have not been added to a changelog?
+  - [ ] Are there any bumps to workspace dependencies made within the release PR that have not been captured in the changelog?
 
 ## 1. Review packages being published
 
