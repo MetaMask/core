@@ -2,6 +2,14 @@
 
 A tool for processing JSON-RPC requests and responses.
 
+## Installation
+
+`yarn add @metamask/json-rpc-engine`
+
+or
+
+`npm install @metamask/json-rpc-engine`
+
 ## Usage
 
 ```js
@@ -191,14 +199,6 @@ engine.push(function (req, res, next, end) {
 });
 ```
 
-## Running tests
+## Contributing
 
-Build the project if not already built:
-
-```bash
-yarn build
-```
-
-```bash
-yarn test
-```
+This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

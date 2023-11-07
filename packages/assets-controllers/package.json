@@ -41,7 +41,7 @@
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "3.0.0",
-    "@metamask/network-controller": "^15.1.0",
+    "@metamask/network-controller": "^15.2.0",
     "@metamask/polling-controller": "^1.0.1",
     "@metamask/preferences-controller": "^4.4.3",
     "@metamask/rpc-errors": "^6.1.0",
@@ -55,7 +55,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.2",
+    "@metamask/auto-changelog": "^3.4.3",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
@@ -71,7 +71,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^4.1.0",
-    "@metamask/network-controller": "^15.1.0",
+    "@metamask/network-controller": "^15.2.0",
     "@metamask/preferences-controller": "^4.4.3"
   },
   "engines": {

@@ -80,6 +80,10 @@ export class PendingTransactionTracker {
 
   #running: boolean;
 
+  #beforeCheckPendingTransaction: (transactionMeta: TransactionMeta) => boolean;
+
+  #beforePublish: (transactionMeta: TransactionMeta) => boolean;
+
   constructor({
     approveTransaction,
     blockTracker,
@@ -90,6 +94,7 @@ export class PendingTransactionTracker {
     nonceTracker,
     onStateChange,
     publishTransaction,
+    hooks,
   }: {
     approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
@@ -100,6 +105,12 @@ export class PendingTransactionTracker {
     nonceTracker: NonceTracker;
     onStateChange: (listener: (state: TransactionState) => void) => void;
     publishTransaction: (rawTx: string) => Promise<string>;
+    hooks?: {
+      beforeCheckPendingTransaction?: (
+        transactionMeta: TransactionMeta,
+      ) => boolean;
+      beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    };
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
@@ -115,6 +126,9 @@ export class PendingTransactionTracker {
     this.#onStateChange = onStateChange;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
+    this.#beforePublish = hooks?.beforePublish ?? (() => true);
+    this.#beforeCheckPendingTransaction =
+      hooks?.beforeCheckPendingTransaction ?? (() => true);
 
     this.#onStateChange((state) => {
       const pendingTransactions = this.#getPendingTransactions(
@@ -250,6 +264,10 @@ export class PendingTransactionTracker {
 
     const { rawTx } = txMeta;
 
+    if (!this.#beforePublish(txMeta)) {
+      return;
+    }
+
     if (!rawTx?.length) {
       log('Approving transaction as no raw value');
       await this.#approveTransaction(txMeta.id);
@@ -298,7 +316,7 @@ export class PendingTransactionTracker {
   async #checkTransaction(txMeta: TransactionMeta) {
     const { hash, id } = txMeta;
 
-    if (!hash) {
+    if (!hash && this.#beforeCheckPendingTransaction(txMeta)) {
       const error = new Error(
         'We had an error while submitting this transaction, please try again.',
       );
@@ -475,7 +493,7 @@ export class PendingTransactionTracker {
   }
 
   async #getTransactionReceipt(
-    txHash: string,
+    txHash?: string,
   ): Promise<TransactionReceipt | undefined> {
     return await query(this.#getEthQuery(), 'getTransactionReceipt', [txHash]);
   }

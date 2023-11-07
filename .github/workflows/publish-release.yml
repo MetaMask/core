@@ -73,7 +73,7 @@ jobs:
           key: ${{ github.sha }}
           fail-on-cache-miss: true
       - name: Publish
-        uses: MetaMask/action-npm-publish@v3
+        uses: MetaMask/action-npm-publish@v4
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
         env:

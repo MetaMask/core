@@ -39,7 +39,7 @@
     "@metamask/eth-query": "^3.0.1",
     "@metamask/gas-fee-controller": "^10.0.0",
     "@metamask/metamask-eth-abis": "^3.0.0",
-    "@metamask/network-controller": "^15.1.0",
+    "@metamask/network-controller": "^15.2.0",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.2.0",
     "async-mutex": "^0.2.6",
@@ -51,7 +51,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.2",
+    "@metamask/auto-changelog": "^3.4.3",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
     "babel-runtime": "^6.26.0",
@@ -67,7 +67,7 @@
   "peerDependencies": {
     "@metamask/approval-controller": "^4.1.0",
     "@metamask/gas-fee-controller": "^10.0.0",
-    "@metamask/network-controller": "^15.1.0",
+    "@metamask/network-controller": "^15.2.0",
     "babel-runtime": "^6.26.0"
   },
   "engines": {

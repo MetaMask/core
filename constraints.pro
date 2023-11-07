@@ -211,12 +211,14 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   WorkspaceCwd \= 'packages/json-rpc-engine',
+  WorkspaceCwd \= 'packages/json-rpc-middleware-stream',
   WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
 % The following published packages use an ISC license instead of MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   (
     WorkspaceCwd == 'packages/json-rpc-engine' ;
+    WorkspaceCwd == 'packages/json-rpc-middleware-stream' ;
     WorkspaceCwd == 'packages/eth-json-rpc-provider'
   ).
 % Non-published packages do not have a license.
@@ -260,11 +262,14 @@ gen_enforced_field(WorkspaceCwd, 'scripts.prepack', null) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % The "changelog:validate" script for each published package must run a common
-% script with the name of the package as an argument.
-gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
+% script with the name of the package as the first argument.
+gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', CorrectChangelogValidationCommand) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_field(WorkspaceCwd, 'scripts.changelog:validate', ChangelogValidationCommand),
   workspace_package_name(WorkspaceCwd, WorkspacePackageName),
-  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
+  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName, ' [...]'], CorrectChangelogValidationCommand),
+  atom_concat('../../scripts/validate-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
+  \+ atom_concat(ExpectedPrefix, _, ChangelogValidationCommand).
 
 % All non-root packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
