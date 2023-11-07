@@ -12,7 +12,6 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type {
   BlockTracker,
   NetworkState,
@@ -1979,9 +1978,7 @@ describe('TransactionController', () => {
       const { transactions } = controller.state;
 
       // Expect first transaction to be submitted
-      await expect(result).resolves.toBe(
-        ethQueryMockResults.sendRawTransaction,
-      );
+      expect(await result).toBe(ethQueryMockResults.sendRawTransaction);
 
       const simpleSendTransaction = transactions.find(
         ({ id }) => id === simpleSendTransactionId,
