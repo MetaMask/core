@@ -103,7 +103,7 @@ export const createQueuedRequestMiddleware = ({
 
           const networkControllerState = messenger.call(
             'NetworkController:getState',
-          ).providerConfig;
+          );
           const networkConfigurationForRequest =
             Object.values(networkControllerState.networkConfigurations).find(
               (configurations) =>
@@ -111,7 +111,6 @@ export const createQueuedRequestMiddleware = ({
                 networkClientConfigurationForRequest.chainId,
             ) ?? networkClientConfigurationForRequest;
           const currentProviderConfig = networkControllerState.providerConfig;
-
           const currentChainId = currentProviderConfig.chainId;
 
           // if the 'globally selected network' is already on the correct chain for the request currently being processed
