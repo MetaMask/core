@@ -552,7 +552,7 @@ export class ControllerMessenger<
       this.events.set(eventType, subscribers);
     }
 
-    subscribers.set(handler, selector as ExtractEventHandler<Event, E>);
+    subscribers.set(handler, selector as SelectorFunction<unknown[], V>);
   }
 
   /**
