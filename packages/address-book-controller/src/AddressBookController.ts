@@ -16,6 +16,9 @@ import type { Hex } from '@metamask/utils';
  * @property name - Nickname associated with this address
  * @property importTime - Data time when an account as created/imported
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface ContactEntry {
   address: string;
   name: string;
@@ -39,6 +42,9 @@ export enum AddressType {
  * @property isEns - is the entry an ENS name
  * @property addressType - is the type of this address
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AddressBookEntry {
   address: string;
   name: string;
@@ -54,6 +60,9 @@ export interface AddressBookEntry {
  * Address book controller state
  * @property addressBook - Array of contact entry objects
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AddressBookState extends BaseState {
   addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
 }
