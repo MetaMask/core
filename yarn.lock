@@ -1507,7 +1507,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:^3.4.2, @metamask/auto-changelog@npm:^3.4.3":
+"@metamask/auto-changelog@npm:^3.4.3":
   version: 3.4.3
   resolution: "@metamask/auto-changelog@npm:3.4.3"
   dependencies:
@@ -2160,7 +2160,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/permission-log-controller@workspace:packages/permission-log-controller"
   dependencies:
-    "@metamask/auto-changelog": ^3.4.2
+    "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
     "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/utils": ^8.2.0
