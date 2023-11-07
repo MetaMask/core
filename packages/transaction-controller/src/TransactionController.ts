@@ -80,6 +80,7 @@ import {
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
+  normalizeTxError,
 } from './utils/utils';
 import {
   validateTransactionOrigin,
@@ -257,7 +258,7 @@ export class TransactionController extends BaseController<
   ) {
     const newTransactionMeta = {
       ...transactionMeta,
-      error,
+      error: normalizeTxError(error),
       status: TransactionStatus.failed,
     };
     this.hub.emit('transaction-failed', {
@@ -1535,7 +1536,7 @@ export class TransactionController extends BaseController<
             this.cancelTransaction(transactionId, actionId);
 
             throw providerErrors.userRejectedRequest(
-              'User rejected the transaction',
+              'MetaMask Tx Signature: User denied transaction signature.',
             );
           } else {
             this.failTransaction(meta, error, actionId);
