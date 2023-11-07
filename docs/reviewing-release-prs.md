@@ -14,7 +14,7 @@ This document shows you how to do that.
 - [ ] Are there any changes made to a package since its previous release that are not reflected in its changelog?
 - [ ] Are there any changelog entries that have missing references to pull requests?
 - [ ] Have any changes been merged to `main` while the release PR has been open that have not been added to a changelog?
-- [ ] Are there any bumps to internal dependencies that have not been captured in changelogs?
+- [ ] Are there any bumps to workspace dependencies that have not been captured in changelogs?
 
 ## 1. Review packages being published
 
