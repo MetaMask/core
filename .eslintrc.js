@@ -41,10 +41,6 @@ module.exports = {
         project: ['./tsconfig.packages.json'],
       },
       rules: {
-        // disabled due to incompatibility with Record<string, unknown>
-        // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
-        '@typescript-eslint/consistent-type-definitions': 'off',
-
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
 

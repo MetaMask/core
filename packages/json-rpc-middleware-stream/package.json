@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/queued-request-controller",
-  "version": "0.1.3",
-  "description": "Includes a controller and middleware that implements a request queue",
+  "name": "@metamask/json-rpc-middleware-stream",
+  "version": "5.0.1",
+  "description": "A small toolset for streaming JSON-RPC data and matching requests and responses",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/queued-request-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/json-rpc-middleware-stream#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "license": "ISC",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/queued-request-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
@@ -30,33 +30,24 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.3",
-    "@metamask/controller-utils": "^5.0.2",
     "@metamask/json-rpc-engine": "^7.2.0",
-    "@metamask/network-controller": "^15.2.0",
-    "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/selected-network-controller": "^3.1.0",
-    "@metamask/swappable-obj-proxy": "^2.1.0",
-    "@metamask/utils": "^8.2.0"
+    "@metamask/safe-event-emitter": "^3.0.0",
+    "@metamask/utils": "^8.2.0",
+    "readable-stream": "^3.6.2"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^4.1.0",
     "@metamask/auto-changelog": "^3.4.3",
     "@types/jest": "^27.4.1",
+    "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
-    "immer": "^9.0.6",
+    "extension-port-stream": "^2.0.1",
     "jest": "^27.5.1",
-    "lodash": "^4.17.21",
-    "nock": "^13.3.1",
-    "sinon": "^9.2.4",
+    "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.8.4"
-  },
-  "peerDependencies": {
-    "@metamask/network-controller": "^15.2.0",
-    "@metamask/selected-network-controller": "^3.1.0"
+    "typescript": "~4.8.4",
+    "webextension-polyfill-ts": "^0.26.0"
   },
   "engines": {
     "node": ">=16.0.0"

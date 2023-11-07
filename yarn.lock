@@ -1912,6 +1912,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream":
+  version: 0.0.0-use.local
+  resolution: "@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream"
+  dependencies:
+    "@metamask/auto-changelog": ^3.4.3
+    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.2.0
+    "@types/jest": ^27.4.1
+    "@types/readable-stream": ^2.3.0
+    deepmerge: ^4.2.2
+    extension-port-stream: ^2.0.1
+    jest: ^27.5.1
+    jest-it-up: ^2.0.2
+    readable-stream: ^3.6.2
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
+    webextension-polyfill-ts: ^0.26.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/key-tree@npm:^9.0.0":
   version: 9.0.0
   resolution: "@metamask/key-tree@npm:9.0.0"
@@ -2153,6 +2176,28 @@ __metadata:
     typescript: ~4.8.4
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/permission-log-controller@workspace:packages/permission-log-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/permission-log-controller@workspace:packages/permission-log-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.4.3
+    "@metamask/base-controller": ^3.2.3
+    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/utils": ^8.2.0
+    "@types/deep-freeze-strict": ^1.1.0
+    "@types/jest": ^27.4.1
+    deep-freeze-strict: ^1.1.1
+    deepmerge: ^4.2.2
+    jest: ^27.5.1
+    nanoid: ^3.1.31
+    sinon: ^9.2.4
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -5789,7 +5834,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"extension-port-stream@npm:^2.1.1":
+"extension-port-stream@npm:^2.0.1, extension-port-stream@npm:^2.1.1":
   version: 2.1.1
   resolution: "extension-port-stream@npm:2.1.1"
   dependencies:
@@ -10586,10 +10631,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"webextension-polyfill-ts@npm:^0.26.0":
+  version: 0.26.0
+  resolution: "webextension-polyfill-ts@npm:0.26.0"
+  dependencies:
+    webextension-polyfill: ^0.8.0
+  checksum: cf9e21da6b1237e760d3774f707d9694c6e51e9629c15ebdac5b43e0c7b02fffe18570aeab1f5b3126e24fbb4bf6f523c56d5c9a92d944d900e7182c1fd81066
+  languageName: node
+  linkType: hard
+
 "webextension-polyfill@npm:>=0.10.0 <1.0, webextension-polyfill@npm:^0.10.0":
   version: 0.10.0
   resolution: "webextension-polyfill@npm:0.10.0"
   checksum: 4a59036bda571360c2c0b2fb03fe1dc244f233946bcf9a6766f677956c40fd14d270aaa69cdba95e4ac521014afbe4008bfa5959d0ac39f91c990eb206587f91
+  languageName: node
+  linkType: hard
+
+"webextension-polyfill@npm:^0.8.0":
+  version: 0.8.0
+  resolution: "webextension-polyfill@npm:0.8.0"
+  checksum: 56286e6216e15834fdcdc3dcf611000d96b49c9d925de3d657eb5f1e294074180dd3efe78a0966223eb311ac3a0ac5fdf71d324b836bf05724455ffd6c7c98c3
   languageName: node
   linkType: hard
 
