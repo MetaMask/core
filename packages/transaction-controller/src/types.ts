@@ -42,7 +42,10 @@ export type Events = {
 export type TransactionMeta = TransactionMetaBase &
   (
     | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
-    | { status: TransactionStatus.failed; error: Error }
+    | {
+        status: TransactionStatus.failed;
+        error: TransactionError;
+      }
   );
 
 /**
@@ -824,4 +827,34 @@ export type DefaultGasEstimates = {
    * Maximum amount per gas to give to validator as incentive.
    */
   maxPriorityFeePerGas?: string;
+};
+
+/**
+ * Data concerning an error while processing a transaction.
+ */
+export type TransactionError = {
+  /**
+   * A descriptive error name.
+   */
+  name: string;
+
+  /**
+   * A descriptive error message providing details about the encountered error.
+   */
+  message: string;
+
+  /**
+   * The stack trace associated with the error, if available.
+   */
+  stack?: string;
+
+  /**
+   * An optional error code associated with the error.
+   */
+  code?: string;
+
+  /**
+   * The rpc property holds additional information related to the error.
+   */
+  rpc?: unknown;
 };
