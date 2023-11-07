@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
-    "@metamask/auto-changelog": "^3.4.2",
+    "@metamask/auto-changelog": "^3.4.3",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "depcheck": "^1.4.3",
