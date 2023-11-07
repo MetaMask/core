@@ -8,10 +8,5 @@
     { "path": "../controller-utils" },
     { "path": "../json-rpc-engine" }
   ],
-  "include": [
-    "../../types",
-    "./src",
-    "tests/PermissionLogController.test.ts",
-    "tests/helpers.ts"
-  ]
+  "include": ["../../types", "./src", "./tests"]
 }
