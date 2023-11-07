@@ -43,13 +43,14 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
 import type {
-  SavedGasFees,
+  Events,
   DappSuggestedGasFees,
+  SavedGasFees,
+  SecurityProviderRequest,
+  SendFlowHistoryEntry,
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
-  SecurityProviderRequest,
-  SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
 import {
@@ -64,6 +65,10 @@ import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
 } from './utils/history';
+import {
+  updatePostTransactionBalance,
+  updateSwapsTransaction,
+} from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -75,6 +80,7 @@ import {
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
+  normalizeTxError,
 } from './utils/utils';
 import {
   validateTransactionOrigin,
@@ -170,36 +176,6 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-type Events = {
-  ['transaction-approved']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
-
-  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-failed']: [
-    {
-      actionId?: string;
-      error: string;
-      transactionMeta: TransactionMeta;
-    },
-  ];
-  ['transaction-new-swap']: [transactionMeta: TransactionMeta];
-  ['transaction-new-swap-approval']: [transactionMeta: TransactionMeta];
-  ['transaction-rejected']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-submitted']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-post-balance-updated']: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
-  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  ['incomingTransactionBlock']: [blockNumber: number];
-};
-
 export interface TransactionControllerEventEmitter extends EventEmitter {
   on<T extends keyof Events>(
     eventName: T,
@@ -220,6 +196,8 @@ export class TransactionController extends BaseController<
 
   private readonly isHistoryDisabled: boolean;
 
+  private readonly isSwapsDisabled: boolean;
+
   private readonly isSendFlowHistoryDisabled: boolean;
 
   private readonly inProcessOfSigning: Set<string> = new Set();
@@ -229,8 +207,6 @@ export class TransactionController extends BaseController<
   private registry: any;
 
   private readonly provider: Provider;
-
-  private readonly handle?: ReturnType<typeof setTimeout>;
 
   private readonly mutex = new Mutex();
 
@@ -282,7 +258,7 @@ export class TransactionController extends BaseController<
   ) {
     const newTransactionMeta = {
       ...transactionMeta,
-      error,
+      error: normalizeTxError(error),
       status: TransactionStatus.failed,
     };
     this.hub.emit('transaction-failed', {
@@ -329,6 +305,7 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
+   * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
@@ -361,6 +338,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       disableHistory,
       disableSendFlowHistory,
+      disableSwaps,
       getSavedGasFees,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
@@ -379,6 +357,7 @@ export class TransactionController extends BaseController<
       blockTracker: BlockTracker;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
+      disableSwaps: boolean;
       getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
@@ -438,6 +417,7 @@ export class TransactionController extends BaseController<
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
+    this.isSwapsDisabled = disableSwaps ?? false;
     this.registry = new MethodRegistry({ provider });
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
@@ -571,6 +551,9 @@ export class TransactionController extends BaseController<
    * @param opts.securityAlertResponse - Response from security validator.
    * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
    * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
+   * @param opts.swaps - Options for swaps transactions.
+   * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
+   * @param opts.swaps.meta - Metadata for swap transaction.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -583,6 +566,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
+      swaps = {},
       type,
     }: {
       actionId?: string;
@@ -592,6 +576,10 @@ export class TransactionController extends BaseController<
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
       sendFlowHistory?: SendFlowHistoryEntry[];
+      swaps?: {
+        hasApproveTx?: boolean;
+        meta?: Partial<TransactionMeta>;
+      };
       type?: TransactionType;
     } = {},
   ): Promise<Result> {
@@ -656,6 +644,13 @@ export class TransactionController extends BaseController<
       if (!this.isHistoryDisabled) {
         addInitialHistorySnapshot(transactionMeta);
       }
+
+      await updateSwapsTransaction(transactionMeta, transactionType, swaps, {
+        isSwapsDisabled: this.isSwapsDisabled,
+        cancelTransaction: this.cancelTransaction.bind(this),
+        controllerHubEmitter: this.hub.emit.bind(this.hub) as any,
+      });
+
       transactions.push(transactionMeta);
       this.update({
         transactions: this.trimTransactionsForState(transactions),
@@ -1060,6 +1055,23 @@ export class TransactionController extends BaseController<
         'TransactionController:confirmExternalTransaction - Add external transaction',
       );
 
+      if (transactionMeta.type === TransactionType.swap) {
+        updatePostTransactionBalance(transactionMeta, {
+          ethQuery: this.ethQuery,
+          getTransaction: this.getTransaction.bind(this),
+          updateTransaction: this.updateTransaction.bind(this),
+        })
+          .then(({ updatedTransactionMeta, approvalTransactionMeta }) => {
+            this.hub.emit('post-transaction-balance-updated', {
+              transactionMeta: updatedTransactionMeta,
+              approvalTransactionMeta,
+            });
+          })
+          .catch((error) => {
+            /* istanbul ignore next */
+            log('Error while updating post transaction balance', error);
+          });
+      }
       this.hub.emit('transaction-confirmed', {
         transactionMeta,
       });
@@ -1524,7 +1536,7 @@ export class TransactionController extends BaseController<
             this.cancelTransaction(transactionId, actionId);
 
             throw providerErrors.userRejectedRequest(
-              'User rejected the transaction',
+              'MetaMask Tx Signature: User denied transaction signature.',
             );
           } else {
             this.failTransaction(meta, error, actionId);
