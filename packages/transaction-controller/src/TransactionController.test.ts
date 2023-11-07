@@ -2057,6 +2057,31 @@ describe('TransactionController', () => {
   });
 
   describe('speedUpTransaction', () => {
+    it('creates additional transaction', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        options: {
+          getCurrentNetworkEIP1559Compatibility: () => false,
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.originalType).toBe(transactionMeta.type);
+      expect(speedUpTransaction.type).toBe(TransactionType.retry);
+    });
+
     it('creates additional transaction with increased gas', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,

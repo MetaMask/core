@@ -902,7 +902,7 @@ export class TransactionController extends BaseController<
     await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
     const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
-    const baseTransactionMeta = {
+    const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
       estimatedBaseFee,
       id: random(),
@@ -911,6 +911,7 @@ export class TransactionController extends BaseController<
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
       type: TransactionType.retry,
+      originalType: transactionMeta.type,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
