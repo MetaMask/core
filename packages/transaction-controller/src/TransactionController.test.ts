@@ -37,6 +37,7 @@ import type {
   DappSuggestedGasFees,
   TransactionParams,
   TransactionHistoryEntry,
+  TransactionError,
 } from './types';
 import { TransactionStatus, TransactionType, WalletDevice } from './types';
 import { estimateGas, updateGas } from './utils/gas';
@@ -3109,19 +3110,28 @@ describe('TransactionController', () => {
         options: { disableHistory: true },
       });
 
+      const errorMock = new Error('TestError');
+      const expectedTransactionError: TransactionError = {
+        message: errorMock.message,
+        name: errorMock.name,
+        stack: errorMock.stack,
+        code: undefined,
+        rpc: undefined,
+      };
+
       controller.state.transactions = [{ ...TRANSACTION_META_MOCK }];
 
       firePendingTransactionTrackerEvent(
         'transaction-failed',
         TRANSACTION_META_MOCK,
-        new Error('TestError'),
+        errorMock,
       );
 
       expect(controller.state.transactions).toStrictEqual([
         {
           ...TRANSACTION_META_MOCK,
           status: TransactionStatus.failed,
-          error: new Error('TestError'),
+          error: expectedTransactionError,
         },
       ]);
     });
