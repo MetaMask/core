@@ -60,9 +60,10 @@ class FooController extends BaseControllerV2<
 
 // Mock BaseController classes
 
-interface BarControllerState extends BaseState {
+type BarControllerState = BaseState & {
   bar: string;
-}
+};
+
 class BarController extends BaseController<never, BarControllerState> {
   defaultState = {
     bar: 'bar',
@@ -80,9 +81,10 @@ class BarController extends BaseController<never, BarControllerState> {
   }
 }
 
-interface BazControllerState extends BaseState {
+type BazControllerState = BaseState & {
   baz: string;
-}
+};
+
 class BazController extends BaseController<never, BazControllerState> {
   defaultState = {
     baz: 'baz',

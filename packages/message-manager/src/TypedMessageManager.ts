@@ -25,6 +25,9 @@ import {
  * A 'TypedMessage' which always has a 'eth_signTypedData' type
  * @property rawSig - Raw data of the signature request
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TypedMessage extends AbstractMessage {
   error?: string;
   messageParams: TypedMessageParams;
@@ -50,6 +53,9 @@ export type SignTypedDataMessageV3V4 = {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TypedMessageParams extends AbstractMessageParams {
   data: Record<string, unknown>[] | string | SignTypedDataMessageV3V4;
 }
@@ -67,6 +73,9 @@ export interface TypedMessageParams extends AbstractMessageParams {
  * @property origin? - Added for request origin identification
  * @property version - Compatibility version EIP712
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TypedMessageParamsMetamask
   extends AbstractMessageParamsMetamask {
   data: TypedMessageParams['data'];

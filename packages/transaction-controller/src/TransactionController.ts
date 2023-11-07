@@ -94,15 +94,24 @@ export const HARDFORK = Hardfork.London;
  * @property result - Promise resolving to a new transaction hash
  * @property transactionMeta - Meta information about this new transaction
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Result {
   result: Promise<string>;
   transactionMeta: TransactionMeta;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface GasPriceValue {
   gasPrice: string;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface FeeMarketEIP1559Values {
   maxFeePerGas: string;
   maxPriorityFeePerGas: string;
@@ -115,6 +124,9 @@ export interface FeeMarketEIP1559Values {
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionConfig extends BaseConfig {
   sign?: (txParams: TransactionParams, from: string) => Promise<any>;
   txHistoryLimit: number;
@@ -127,6 +139,9 @@ export interface TransactionConfig extends BaseConfig {
  * @property registryMethod - Registry method raw string
  * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface MethodData {
   registryMethod: string;
   parsedRegistryMethod: Record<string, unknown>;
@@ -139,6 +154,9 @@ export interface MethodData {
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
@@ -176,6 +194,9 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionControllerEventEmitter extends EventEmitter {
   on<T extends keyof Events>(
     eventName: T,
