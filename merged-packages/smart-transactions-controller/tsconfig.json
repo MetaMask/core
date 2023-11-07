@@ -11,7 +11,8 @@
     "sourceMap": true,
     "strict": true,
     "target": "ES2017",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "exclude": ["./src/**/*.test.ts"],
   "include": ["./src/**/*.ts"]

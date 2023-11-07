@@ -10,6 +10,7 @@ import { BigNumber } from 'bignumber.js';
 import EthQuery from '@metamask/eth-query';
 import { hexlify } from '@ethersproject/bytes';
 import cloneDeep from 'lodash/cloneDeep';
+
 import {
   APIType,
   SmartTransaction,

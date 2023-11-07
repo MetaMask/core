@@ -2,6 +2,11 @@ import jsonDiffer from 'fast-json-patch';
 import _ from 'lodash';
 import { BigNumber } from 'bignumber.js';
 import { hexlify } from '@ethersproject/bytes';
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import packageJson from '../package.json';
+
 import {
   APIType,
   SmartTransaction,
@@ -34,7 +39,7 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
     }
 
     case APIType.SUBMIT_TRANSACTIONS: {
-      return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions&stxControllerVersion=${packageJson.version}`;
     }
 
     case APIType.CANCEL: {
