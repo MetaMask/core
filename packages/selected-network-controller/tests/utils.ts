@@ -28,9 +28,19 @@ export function buildMessenger() {
 export function buildSelectedNetworkControllerMessenger(
   messenger = buildMessenger(),
 ) {
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    jest.fn().mockReturnValue({
+      provider: { sendAsync: jest.fn() },
+      blockTracker: { getLatestBlock: jest.fn() },
+    }),
+  );
   return messenger.getRestricted({
     name: 'SelectedNetworkController',
-    allowedActions: Object.values(SelectedNetworkControllerActionTypes),
+    allowedActions: [
+      ...Object.values(SelectedNetworkControllerActionTypes),
+      'NetworkController:getNetworkClientById',
+    ],
     allowedEvents: ['NetworkController:stateChange'],
   });
 }

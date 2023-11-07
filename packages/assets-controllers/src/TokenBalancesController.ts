@@ -116,17 +116,17 @@ export class TokenBalancesController extends BaseController<
     }
     const { tokens } = this.config;
     const newContractBalances: { [address: string]: BN } = {};
-    for (const i in tokens) {
-      const { address } = tokens[i];
+    for (const token of tokens) {
+      const { address } = token;
       try {
         newContractBalances[address] = await this.getERC20BalanceOf(
           address,
           this.getSelectedAddress(),
         );
-        tokens[i].balanceError = null;
+        token.balanceError = null;
       } catch (error) {
         newContractBalances[address] = new BN(0);
-        tokens[i].balanceError = error;
+        token.balanceError = error;
       }
     }
     this.update({ contractBalances: newContractBalances });

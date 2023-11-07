@@ -180,7 +180,7 @@ export type AcceptOptions = {
 export type StartFlowOptions = OptionalField<
   ApprovalFlow,
   'id' | 'loadingText'
->;
+> & { show?: boolean };
 
 export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
 
@@ -758,6 +758,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts - Options bag.
    * @param opts.id - The id of the approval flow.
    * @param opts.loadingText - The loading text that will be associated to the approval flow.
+   * @param opts.show - A flag to determine whether the approval should show to the user.
    * @returns The object containing the approval flow id.
    */
   startFlow(opts: StartFlowOptions = {}): ApprovalFlowStartResult {
@@ -768,7 +769,10 @@ export class ApprovalController extends BaseControllerV2<
       draftState.approvalFlows.push({ id, loadingText });
     });
 
-    this.#showApprovalRequest();
+    // By default, if nothing else is specified, we always show the approval.
+    if (opts.show !== false) {
+      this.#showApprovalRequest();
+    }
 
     return { id, loadingText };
   }

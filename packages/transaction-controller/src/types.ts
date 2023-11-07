@@ -1,19 +1,62 @@
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
+export type Events = {
+  ['incomingTransactionBlock']: [blockNumber: number];
+  ['post-transaction-balance-updated']: [
+    {
+      transactionMeta: TransactionMeta;
+      approvalTransactionMeta?: TransactionMeta;
+    },
+  ];
+  ['transaction-approved']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
+
+  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-failed']: [
+    {
+      actionId?: string;
+      error: string;
+      transactionMeta: TransactionMeta;
+    },
+  ];
+  ['transaction-new-swap']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-new-swap-approval']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-rejected']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-submitted']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
+};
+
 /**
  * Representation of transaction metadata.
  */
-export type TransactionMeta =
-  | ({
-      status: Exclude<TransactionStatus, TransactionStatus.failed>;
-    } & TransactionMetaBase)
-  | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
+export type TransactionMeta = TransactionMetaBase &
+  (
+    | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
+    | {
+        status: TransactionStatus.failed;
+        error: TransactionError;
+      }
+  );
 
 /**
  * Information about a single transaction such as status and block number.
  */
 type TransactionMetaBase = {
+  /**
+   * ID of the transaction that approved the swap token transfer.
+   */
+  approvalTxId?: string;
+
   /**
    * Unique ID to prevent duplicate requests.
    */
@@ -40,19 +83,44 @@ type TransactionMetaBase = {
   chainId: Hex;
 
   /**
+   * Unique ID for custodian transaction.
+   */
+  custodyId?: string;
+
+  /**
+   * Custodian transaction status.
+   */
+  custodyStatus?: string;
+
+  /**
    * Gas values provided by the dApp.
    */
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
   /**
-   * The default estimate for gas.
+   * The initial gas values set when the transaction was first created.
    */
-  defaultGasEstimates?: string;
+  defaultGasEstimates?: DefaultGasEstimates;
 
   /**
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
+
+  /**
+   * The address of the token being received of swap transaction.
+   */
+  destinationTokenAddress?: string;
+
+  /**
+   * The decimals of the token being received of swap transaction.
+   */
+  destinationTokenDecimals?: string;
+
+  /**
+   * The symbol of the token being received with swap.
+   */
+  destinationTokenSymbol?: string;
 
   /**
    * The estimated base fee of the transaction.
@@ -68,6 +136,11 @@ type TransactionMetaBase = {
    * Which estimate level was used
    */
   estimateUsed?: string;
+
+  /**
+   * The number of the latest block when the transaction submit was first retried.
+   */
+  firstRetryBlockNumber?: string;
 
   /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
@@ -107,6 +180,36 @@ type TransactionMetaBase = {
   originalGasEstimate?: string;
 
   /**
+   * Account transaction balance after swap.
+   */
+  postTxBalance?: string;
+
+  /**
+   * Account transaction balance before swap.
+   */
+  preTxBalance?: string;
+
+  /**
+   * The previous gas properties before they were updated.
+   */
+  previousGas?: {
+    /**
+     * Maxmimum number of units of gas to use for this transaction.
+     */
+    gasLimit?: string;
+
+    /**
+     * Maximum amount per gas to pay for the transaction, including the priority fee.
+     */
+    maxFeePerGas?: string;
+
+    /**
+     * Maximum amount per gas to give to validator as incentive.
+     */
+    maxPriorityFeePerGas?: string;
+  };
+
+  /**
    * The transaction's 'r' value as a hex string.
    */
   r?: string;
@@ -125,6 +228,11 @@ type TransactionMetaBase = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * The number of times that the transaction submit has been retried.
+   */
+  retryCount?: number;
 
   /**
    * The transaction's 's' value as a hex string.
@@ -148,9 +256,36 @@ type TransactionMetaBase = {
   sendFlowHistory?: SendFlowHistoryEntry[];
 
   /**
+   * If the gas estimation fails, an object containing error and block information.
+   */
+  simulationFails?: {
+    reason?: string;
+    errorKey?: string;
+    debug: {
+      blockNumber?: string;
+      blockGasLimit?: string;
+    };
+  };
+
+  /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
+
+  /**
+   * The symbol of the token being swapped.
+   */
+  sourceTokenSymbol?: string;
+
+  /**
+   * The metadata of the swap transaction.
+   */
+  swapMetaData?: Record<string, unknown>;
+
+  /**
+   * The value of the token being swapped.
+   */
+  swapTokenValue?: string;
 
   /**
    * Timestamp associated with this transaction.
@@ -205,6 +340,14 @@ type TransactionMetaBase = {
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
+
+  /**
+   * Warning information for the transaction.
+   */
+  warning?: {
+    error: string;
+    message: string;
+  };
 };
 
 export type SendFlowHistoryEntry = {
@@ -563,6 +706,14 @@ export interface DappSuggestedGasFees {
 }
 
 /**
+ * Gas values saved by the user for a specific chain.
+ */
+export interface SavedGasFees {
+  maxBaseFee: string;
+  priorityFee: string;
+}
+
+/**
  * A transaction history operation that includes a note and timestamp.
  */
 type ExtendedHistoryOperation = Operation & {
@@ -604,9 +755,106 @@ export type InferTransactionTypeResult = {
 };
 
 /**
- * A function for verifying a transaction, whether it is malicious or not
+ * A function for verifying a transaction, whether it is malicious or not.
  */
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
 ) => Promise<any>;
+
+/**
+ * Specifies the shape of the base transaction parameters.
+ * Added in EIP-2718.
+ */
+export enum TransactionEnvelopeType {
+  /**
+   * A legacy transaction, the very first type.
+   */
+  legacy = '0x0',
+
+  /**
+   * EIP-2930 defined the access list transaction type that allowed for
+   * specifying the state that a transaction would act upon in advance and
+   * theoretically save on gas fees.
+   */
+  accessList = '0x1',
+
+  /**
+   * The type introduced comes from EIP-1559, Fee Market describes the addition
+   * of a baseFee to blocks that will be burned instead of distributed to
+   * miners. Transactions of this type have both a maxFeePerGas (maximum total
+   * amount in gwei per gas to spend on the transaction) which is inclusive of
+   * the maxPriorityFeePerGas (maximum amount of gwei per gas from the
+   * transaction fee to distribute to miner).
+   */
+  feeMarket = '0x2',
+}
+
+/**
+ * The source of the gas fee parameters on a transaction.
+ */
+export enum UserFeeLevel {
+  CUSTOM = 'custom',
+  DAPP_SUGGESTED = 'dappSuggested',
+  MEDIUM = 'medium',
+}
+
+/**
+ * Initial gas values set when the transaction was first created.
+ */
+export type DefaultGasEstimates = {
+  /**
+   * Source of the gas fee values, such as `dappSuggested` or `medium`.
+   */
+  estimateType?: string;
+
+  /**
+   * Maxmimum number of units of gas to use for this transaction.
+   */
+  gas?: string;
+
+  /**
+   * Price per gas for legacy transactions.
+   */
+  gasPrice?: string;
+
+  /**
+   * Maximum amount per gas to pay for the transaction, including the priority fee.
+   */
+  maxFeePerGas?: string;
+
+  /**
+   * Maximum amount per gas to give to validator as incentive.
+   */
+  maxPriorityFeePerGas?: string;
+};
+
+/**
+ * Data concerning an error while processing a transaction.
+ */
+export type TransactionError = {
+  /**
+   * A descriptive error name.
+   */
+  name: string;
+
+  /**
+   * A descriptive error message providing details about the encountered error.
+   */
+  message: string;
+
+  /**
+   * The stack trace associated with the error, if available.
+   */
+  stack?: string;
+
+  /**
+   * An optional error code associated with the error.
+   */
+  code?: string;
+
+  /**
+   * The rpc property holds additional information related to the error.
+   */
+  rpc?: unknown;
+};

@@ -1,1 +1,5 @@
-export { PollingController, PollingControllerV1 } from './PollingController';
+export {
+  PollingController,
+  PollingControllerV1,
+  PollingControllerOnly,
+} from './PollingController';

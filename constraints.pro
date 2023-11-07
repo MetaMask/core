@@ -210,11 +210,15 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
 % The license for all published packages must be MIT unless otherwise specified.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/json-rpc-engine',
   WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
 % The following published packages use an ISC license instead of MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
-  WorkspaceCwd == 'packages/eth-json-rpc-provider'.
+  (
+    WorkspaceCwd == 'packages/json-rpc-engine' ;
+    WorkspaceCwd == 'packages/eth-json-rpc-provider'
+  ).
 % Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
@@ -251,19 +255,30 @@ gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
 gen_enforced_field(WorkspaceCwd, 'scripts.publish:preview', 'yarn npm publish --tag preview') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
+% All published packages must not have a "prepack" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.prepack', null) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
 % The "changelog:validate" script for each published package must run a common
-% script with the name of the package as an argument.
-gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
+% script with the name of the package as the first argument.
+gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', CorrectChangelogValidationCommand) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_field(WorkspaceCwd, 'scripts.changelog:validate', ChangelogValidationCommand),
   workspace_package_name(WorkspaceCwd, WorkspacePackageName),
-  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
+  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName, ' [...]'], CorrectChangelogValidationCommand),
+  atom_concat('../../scripts/validate-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
+  \+ atom_concat(ExpectedPrefix, _, ChangelogValidationCommand).
 
 % All non-root packages must have the same "test" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:clean" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+  WorkspaceCwd \= '.'.
+
+% All non-root packages must have the same "test:verbose" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:verbose', 'jest --verbose') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:watch" script.

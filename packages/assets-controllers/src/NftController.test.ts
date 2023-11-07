@@ -2701,6 +2701,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       nftController.updateNftFavoriteStatus(
@@ -2727,6 +2728,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       nftController.updateNftFavoriteStatus(
@@ -2769,6 +2771,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       nftController.updateNftFavoriteStatus(
@@ -2826,6 +2829,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       expect(

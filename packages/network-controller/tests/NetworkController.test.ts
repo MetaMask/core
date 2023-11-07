@@ -1130,6 +1130,22 @@ describe('NetworkController', () => {
         },
       );
     });
+
+    it('is callable from the controller messenger', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ messenger }) => {
+          const fakeNetworkClient = buildFakeClient();
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          const networkClientId = messenger.call(
+            'NetworkController:findNetworkClientIdByChainId',
+            '0x1',
+          );
+          expect(networkClientId).toBe('mainnet');
+        },
+      );
+    });
   });
 
   describe('getNetworkClientById', () => {
@@ -2846,6 +2862,18 @@ describe('NetworkController', () => {
         });
       });
     });
+
+    it('is callable from the controller messenger', async () => {
+      await withController({}, async ({ controller, messenger }) => {
+        const fakeProvider = buildFakeProvider();
+        const fakeNetworkClient = buildFakeClient(fakeProvider);
+        mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+        await messenger.call('NetworkController:setProviderType', 'goerli');
+
+        expect(controller.state.selectedNetworkClientId).toBe('goerli');
+      });
+    });
   });
 
   describe('setActiveNetwork', () => {
@@ -3097,6 +3125,49 @@ describe('NetworkController', () => {
             .mockReturnValue(fakeNetworkClient);
 
           await controller.setActiveNetwork(testNetworkClientId);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            testNetworkClientId,
+          );
+        },
+      );
+    });
+
+    it('is able to be called via messenger action', async () => {
+      const testNetworkClientId = 'testNetworkConfigurationId';
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              [testNetworkClientId]: {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                ticker: 'TEST',
+                nickname: 'something existing',
+                id: testNetworkClientId,
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer-2.com',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, messenger }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient()
+            .calledWith({
+              rpcUrl: 'https://mock-rpc-url',
+              chainId: toHex(111),
+              type: NetworkClientType.Custom,
+              ticker: 'TEST',
+            })
+            .mockReturnValue(fakeNetworkClient);
+
+          await messenger.call(
+            'NetworkController:setActiveNetwork',
+            testNetworkClientId,
+          );
 
           expect(controller.state.selectedNetworkClientId).toStrictEqual(
             testNetworkClientId,

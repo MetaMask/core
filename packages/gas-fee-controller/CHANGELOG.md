@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+### Added
+- Add optional `networkClientId` argument to options object param of `fetchGasFeeEstimates` method which, if passed, fetches the required chainId and networkClient provider to fetch and store gasFee data appropriately. ([#1891](https://github.com/MetaMask/core/pull/1891))
+
+### Changed
+- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^1.0.0
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+
 ## [9.0.0]
 ### Added
 - Add way to start and stop different polling sessions for the same network client ID by providing extra scoping data ([#1776](https://github.com/MetaMask/core/pull/1776))
@@ -110,7 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@9.0.0...@metamask/gas-fee-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@8.0.0...@metamask/gas-fee-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.1...@metamask/gas-fee-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.0...@metamask/gas-fee-controller@7.0.1

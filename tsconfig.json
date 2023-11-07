@@ -72,6 +72,12 @@
     },
     {
       "path": "./packages/transaction-controller"
+    },
+    {
+      "path": "./packages/queued-request-controller"
+    },
+    {
+      "path": "./packages/json-rpc-engine"
     }
   ],
   "files": [],
