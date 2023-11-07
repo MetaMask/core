@@ -7,5 +7,10 @@
     { "path": "../base-controller" },
     { "path": "../controller-utils" }
   ],
-  "include": ["../../types", "./src"]
+  "include": [
+    "../../types",
+    "./src",
+    "tests/PermissionLogController.test.ts",
+    "tests/helpers.ts"
+  ]
 }

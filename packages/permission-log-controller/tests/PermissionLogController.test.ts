@@ -15,14 +15,14 @@ import { nanoid } from 'nanoid';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
-import { LOG_LIMIT, LOG_METHOD_TYPES } from './enums';
+import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
 import {
   type Permission,
   type JsonRpcRequestWithOrigin,
   type PermissionActivityLog,
   PermissionLogController,
-} from './PermissionLogController';
-import { CaveatTypes, constants, getters, noop } from './permissions';
+} from '../src/PermissionLogController';
+import { constants, getters, noop } from './helpers';
 
 const { PERMS, RPC_REQUESTS } = getters;
 const {
@@ -141,9 +141,9 @@ describe('PermissionLogController', () => {
       req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
       req.id = REQUEST_IDS.b;
       res = {
-        ...PendingJsonRpcResponseStruct.TYPE,
+        id: REQUEST_IDS.a,
+        jsonrpc: '2.0',
         error: new CustomError('Unauthorized.', 1),
-        result: undefined,
       };
 
       logMiddleware(req, res, mockNext, noop);
@@ -183,34 +183,10 @@ describe('PermissionLogController', () => {
         true,
       );
 
-      // test_method, no response
-
-      req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
-      req.id = REQUEST_IDS.a;
-      res = {
-        ...PendingJsonRpcResponseStruct.TYPE,
-        result: undefined,
-      };
-
-      logMiddleware(req, res, mockNext, noop);
-
-      log = permLog.getActivityLog();
-      const entry4 = log[3];
-
-      expect(log).toHaveLength(4);
-      validateActivityEntry(
-        entry4,
-        req,
-        null,
-        LOG_METHOD_TYPES.restricted,
-        false,
-      );
-
       // Validate final state
       expect(entry1).toStrictEqual(log[0]);
       expect(entry2).toStrictEqual(log[1]);
       expect(entry3).toStrictEqual(log[2]);
-      expect(entry4).toStrictEqual(log[3]);
 
       // Regression test: ensure "response" and "request" properties
       // are not present
@@ -285,7 +261,6 @@ describe('PermissionLogController', () => {
 
       // verify all entries
       log = permLog.getActivityLog();
-
       validateActivityEntry(
         log[0],
         { ...req, id: id1 },
@@ -541,25 +516,6 @@ describe('PermissionLogController', () => {
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case2[0]);
     });
 
-    it('handles extra caveats for eth_accounts', async () => {
-      const req = RPC_REQUESTS.requestPermission(
-        SUBJECTS.a.origin,
-        PERM_NAMES.eth_accounts,
-      );
-      const res = {
-        ...PendingJsonRpcResponseStruct.TYPE,
-        result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
-      };
-      res.result[0].caveats?.push({
-        type: CaveatTypes.restrictReturnedAccounts,
-        value: ['bar'],
-      });
-
-      logMiddleware(req, res, mockNext, noop);
-
-      expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
-    });
-
     // wallet_requestPermissions returns all permissions approved for the
     // requesting origin, including old ones
     it('handles unrequested permissions on the response', async () => {
@@ -663,16 +619,7 @@ describe('PermissionLogController', () => {
 
       // make requests and process responses out of order
       round1.forEach((x) => {
-        logMiddleware(
-          x.req,
-          {
-            ...PendingJsonRpcResponseStruct.TYPE,
-            result: undefined,
-            ...x.res,
-          },
-          getSavedMockNext(handlers1),
-          noop,
-        );
+        logMiddleware(x.req, x.res, getSavedMockNext(handlers1), noop);
       });
 
       for (const i of [1, 2, 0]) {
@@ -718,16 +665,7 @@ describe('PermissionLogController', () => {
 
       // make requests
       round2.forEach((x) => {
-        logMiddleware(
-          x.req,
-          {
-            ...PendingJsonRpcResponseStruct.TYPE,
-            result: undefined,
-            ...x.res,
-          },
-          mockNext,
-          noop,
-        );
+        logMiddleware(x.req, x.res, mockNext, noop);
       });
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case3[1]);

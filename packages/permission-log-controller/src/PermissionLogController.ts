@@ -10,13 +10,13 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
+import { CaveatTypes } from './constants';
 import {
   LOG_IGNORE_METHODS,
   LOG_LIMIT,
   LOG_METHOD_TYPES,
   WALLET_PREFIX,
 } from './enums';
-import { CaveatTypes } from './permissions';
 
 export type JsonRpcRequestWithOrigin<
   Params extends JsonRpcParams = JsonRpcParams,
@@ -60,14 +60,14 @@ export type PermissionHistory = Record<PermissionOrigin, PermissionEntry>;
  * @property permissionHistory - permission history
  * @property permissionActivityLog - permission activity logs
  */
-export type PermissionLogState = {
+export type PermissionLogControllerState = {
   permissionHistory: PermissionHistory;
   permissionActivityLog: PermissionActivityLog[];
 };
 
 export type PermissionLogControllerOptions = {
   restrictedMethods: Set<string>;
-  state?: Partial<PermissionLogState>;
+  state?: Partial<PermissionLogControllerState>;
   messenger: PermissionLogControllerMessenger;
 };
 
@@ -79,7 +79,7 @@ export type PermissionLogControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-export const defaultState: PermissionLogState = {
+export const defaultState: PermissionLogControllerState = {
   permissionHistory: {},
   permissionActivityLog: [],
 };
@@ -95,7 +95,7 @@ const name = 'PermissionLogController';
  */
 export class PermissionLogController extends BaseControllerV2<
   typeof name,
-  PermissionLogState,
+  PermissionLogControllerState,
   PermissionLogControllerMessenger
 > {
   restrictedMethods: Set<string>;
@@ -148,7 +148,7 @@ export class PermissionLogController extends BaseControllerV2<
    *
    * @returns The permissions history log.
    */
-  getHistory() {
+  getHistory(): PermissionHistory {
     return this.state.permissionHistory;
   }
 
@@ -295,7 +295,11 @@ export class PermissionLogController extends BaseControllerV2<
     // both properties from being present simultaneously, and our JSON-RPC
     // stack is spec-compliant at the time of writing.
     this.update((state) => {
-      state.permissionActivityLog[state.permissionActivityLog.length - 1] = {
+      const targetPermissionActivyLogIndex =
+        state.permissionActivityLog.findIndex(
+          (pActivityLog) => pActivityLog.id === entry.id,
+        );
+      state.permissionActivityLog[targetPermissionActivyLogIndex] = {
         ...entry,
         success: Object.hasOwnProperty.call(response, 'result'),
         responseTime: time,
@@ -340,6 +344,8 @@ export class PermissionLogController extends BaseControllerV2<
     let newEntries: PermissionEntry;
 
     if (isEthRequestAccounts) {
+      // Type assertion: We are assuming that the response data contains
+      // a set of accounts if the RPC method is "eth_requestAccounts".
       accounts = result as string[];
       const accountToTimeMap = getAccountToTimeMap(accounts, time);
 
@@ -353,6 +359,9 @@ export class PermissionLogController extends BaseControllerV2<
       // Records new "lastApproved" times for the granted permissions, if any.
       // Special handling for eth_accounts, in order to record the time the
       // accounts were last seen or approved by the origin.
+
+      // Type assertion: We are assuming that the response data contains
+      // a set of permissions if the RPC method is "eth_requestPermissions".
       newEntries = (result as Permission[])
         .map((perm) => {
           if (perm.parentCapability === 'eth_accounts') {

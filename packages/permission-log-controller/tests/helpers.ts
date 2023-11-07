@@ -1,13 +1,7 @@
 import { type Json, JsonRpcRequestStruct } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-export const CaveatTypes = Object.freeze({
-  restrictReturnedAccounts: 'restrictReturnedAccounts' as const,
-});
-
-export const RestrictedMethods = Object.freeze({
-  eth_accounts: 'eth_accounts',
-} as const);
+import { CaveatTypes } from '../src/constants';
 
 /**
  * This file contains mocks for the PermissionLogController tests.
