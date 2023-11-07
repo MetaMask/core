@@ -44,7 +44,7 @@ type TransactionMetaBase = {
   /**
    * Response from security validator.
    */
-  securityAlertResponse?: Record<string, unknown>;
+  securityAlertResponse?: SecurityAlertResponse;
 };
 
 /**
