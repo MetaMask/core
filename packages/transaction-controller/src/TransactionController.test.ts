@@ -12,6 +12,7 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import type {
   BlockTracker,
   NetworkState,
@@ -67,6 +68,9 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
+const ethQueryMockResults = {
+  sendRawTransaction: 'mockSendRawTransactionResult',
+};
 jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
@@ -111,7 +115,7 @@ jest.mock('@metamask/eth-query', () =>
         callback(undefined, '0x0');
       },
       sendRawTransaction: (_transaction: any, callback: any) => {
-        callback(undefined, '1337');
+        callback(undefined, ethQueryMockResults.sendRawTransaction);
       },
       getTransactionReceipt: (_hash: any, callback: any) => {
         const txs: any = [
@@ -1941,7 +1945,15 @@ describe('TransactionController', () => {
   });
 
   describe('stopTransaction', () => {
-    it('rejects result promise', async () => {
+    it('submits a cancel transaction', async () => {
+      const simpleSendTransactionId =
+        'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const cancelTransactionId = 'cancel1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const mockNonce = '0x9';
+      v1Stub
+        .mockImplementationOnce(() => simpleSendTransactionId)
+        .mockImplementationOnce(() => cancelTransactionId);
+
       const controller = newController({
         network: MOCK_LINEA_GOERLI_NETWORK,
       });
@@ -1952,23 +1964,41 @@ describe('TransactionController', () => {
         gasPrice: '0x1',
         to: ACCOUNT_MOCK,
         value: '0x0',
+        nonce: mockNonce,
+        type: TransactionType.simpleSend,
       });
 
-      const finishedPromise = waitForTransactionFinished(controller);
+      // Approve the transaction so it is submitted
+      approveTransaction();
 
+      // Now we can stop the transaction
       await controller.stopTransaction(transactionMeta.id, undefined, {
         estimatedBaseFee: '0x123',
       });
 
-      const { estimatedBaseFee } = await finishedPromise;
-
-      approveTransaction();
-
       const { transactions } = controller.state;
-      await expect(result).rejects.toThrow('User cancelled the transaction');
-      expect(estimatedBaseFee).toBe('0x123');
-      expect(transactions[0].status).toStrictEqual(TransactionStatus.cancelled);
-      expect(transactions[0].type).toStrictEqual(TransactionType.simpleSend);
+
+      // Expect first transaction to be submitted
+      await expect(result).resolves.toBe(
+        ethQueryMockResults.sendRawTransaction,
+      );
+
+      const simpleSendTransaction = transactions.find(
+        ({ id }) => id === simpleSendTransactionId,
+      );
+      const cancelTransaction = transactions.find(
+        ({ id }) => id === cancelTransactionId,
+      );
+
+      expect(transactions).toHaveLength(2);
+      expect(simpleSendTransaction?.type).toBe(TransactionType.simpleSend);
+      expect(simpleSendTransaction?.status).toBe(TransactionStatus.submitted);
+
+      // This nonce provided while adding first transaction
+      expect(cancelTransaction?.txParams.nonce).toBe(mockNonce);
+
+      expect(cancelTransaction?.type).toBe(TransactionType.cancel);
+      expect(cancelTransaction?.status).toBe(TransactionStatus.submitted);
     });
 
     it('rejects unknown transaction', async () => {
@@ -2009,12 +2039,13 @@ describe('TransactionController', () => {
       controller.hub.on('transaction-approved', approvedEventListener);
       controller.hub.on('transaction-approved', submittedEventListener);
 
-      const { result, transactionMeta } = await controller.addTransaction({
+      const { transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
         gas: '0x0',
         gasPrice: '0x1',
         to: ACCOUNT_MOCK,
         value: '0x0',
+        type: TransactionType.simpleSend,
       });
 
       controller.hub.on(
@@ -2022,37 +2053,38 @@ describe('TransactionController', () => {
         finishedEventListener,
       );
 
-      const finishedPromise = waitForTransactionFinished(controller);
+      approveTransaction();
+
+      // Release for add transaction transaction submission
+      await flushPromises();
 
       await controller.stopTransaction(transactionMeta.id, undefined, {
         estimatedBaseFee: '0x123',
         actionId: mockActionId,
       });
 
-      await finishedPromise;
+      // Release for cancel transaction submission
+      await flushPromises();
 
-      approveTransaction();
+      const cancelTransaction = controller.state.transactions.find(
+        ({ type }) => type === TransactionType.cancel,
+      );
 
-      try {
-        await result;
-      } catch (error) {
-        // Ignore user rejected error as it is expected
-      }
-
-      expect(approvedEventListener).toHaveBeenCalledTimes(1);
-      expect(approvedEventListener).toHaveBeenCalledWith({
+      // All expected events should be emitted twice (add and cancel transaction)
+      expect(approvedEventListener).toHaveBeenCalledTimes(2);
+      expect(approvedEventListener.mock.calls[1][0]).toStrictEqual({
         actionId: mockActionId,
-        transactionMeta,
+        transactionMeta: cancelTransaction,
       });
 
-      expect(submittedEventListener).toHaveBeenCalledTimes(1);
+      expect(submittedEventListener).toHaveBeenCalledTimes(2);
       expect(submittedEventListener).toHaveBeenCalledWith({
         actionId: mockActionId,
-        transactionMeta,
+        transactionMeta: cancelTransaction,
       });
 
-      expect(finishedEventListener).toHaveBeenCalledTimes(1);
-      expect(finishedEventListener).toHaveBeenCalledWith(transactionMeta);
+      expect(finishedEventListener).toHaveBeenCalledTimes(2);
+      expect(finishedEventListener).toHaveBeenCalledWith(cancelTransaction);
     });
   });
 

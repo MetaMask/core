@@ -698,12 +698,12 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
+    const { transactions } = this.state;
+
     if (gasValues) {
       validateGasValues(gasValues);
     }
-    const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionId,
-    );
+    const transactionMeta = transactions.find(({ id }) => id === transactionId);
     if (!transactionMeta) {
       return;
     }
@@ -755,7 +755,7 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const txParams: TransactionParams =
+    const cancelTxParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             from: transactionMeta.txParams.from,
@@ -776,7 +776,7 @@ export class TransactionController extends BaseController<
             value: '0x0',
           };
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+    const unsignedEthTx = this.prepareUnsignedEthTx(cancelTxParams);
 
     const signedTx = await this.sign(
       unsignedEthTx,
@@ -784,15 +784,40 @@ export class TransactionController extends BaseController<
     );
     await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
-    transactionMeta.estimatedBaseFee = estimatedBaseFee;
-    transactionMeta.status = TransactionStatus.cancelled;
+    const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+    const cancelTransactionMeta: TransactionMeta = {
+      ...transactionMeta,
+      actionId,
+      estimatedBaseFee,
+      hash,
+      id: random(),
+      originalGasEstimate: transactionMeta.txParams.gas,
+      status: TransactionStatus.submitted,
+      time: Date.now(),
+      type: TransactionType.cancel,
+      txParams: {
+        ...transactionMeta.txParams,
+        ...cancelTxParams,
+      },
+    };
+
+    transactions.push(cancelTransactionMeta);
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
 
     // stopTransaction has no approval request, so we assume the user has already approved the transaction
-    this.hub.emit('transaction-approved', { transactionMeta, actionId });
-    this.hub.emit('transaction-submitted', { transactionMeta, actionId });
+    this.hub.emit('transaction-approved', {
+      transactionMeta: cancelTransactionMeta,
+      actionId,
+    });
+    this.hub.emit('transaction-submitted', {
+      transactionMeta: cancelTransactionMeta,
+      actionId,
+    });
 
-    this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+    this.hub.emit(
+      `${cancelTransactionMeta.id}:finished`,
+      cancelTransactionMeta,
+    );
   }
 
   /**
@@ -1552,13 +1577,6 @@ export class TransactionController extends BaseController<
         resultCallbacks?.error(finalMeta.error);
         throw rpcErrors.internal(finalMeta.error.message);
 
-      case TransactionStatus.cancelled:
-        const cancelError = rpcErrors.internal(
-          'User cancelled the transaction',
-        );
-        resultCallbacks?.error(cancelError);
-        throw cancelError;
-
       case TransactionStatus.submitted:
         resultCallbacks?.success();
         return finalMeta.hash as string;
@@ -1774,8 +1792,7 @@ export class TransactionController extends BaseController<
     return (
       status === TransactionStatus.rejected ||
       status === TransactionStatus.confirmed ||
-      status === TransactionStatus.failed ||
-      status === TransactionStatus.cancelled
+      status === TransactionStatus.failed
     );
   }
 
@@ -1787,7 +1804,6 @@ export class TransactionController extends BaseController<
    */
   private isLocalFinalState(status: TransactionStatus): boolean {
     return [
-      TransactionStatus.cancelled,
       TransactionStatus.confirmed,
       TransactionStatus.failed,
       TransactionStatus.rejected,
