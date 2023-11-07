@@ -92,7 +92,10 @@ export const createQueuedRequestMiddleware = ({
       await messenger.call(
         QueuedRequestControllerActionTypes.enqueueRequest,
         async () => {
-          if (req.method === 'wallet_switchEthereumChain') {
+          if (
+            req.method === 'wallet_switchEthereumChain' ||
+            req.method === 'wallet_addEthereumChain'
+          ) {
             return next();
           }
 
@@ -104,12 +107,22 @@ export const createQueuedRequestMiddleware = ({
           const networkControllerState = messenger.call(
             'NetworkController:getState',
           );
-          const networkConfigurationForRequest =
-            Object.values(networkControllerState.networkConfigurations).find(
-              (configurations) =>
-                configurations.chainId ===
-                networkClientConfigurationForRequest.chainId,
-            ) ?? networkClientConfigurationForRequest;
+
+          const isBuiltIn = isNetworkType(networkClientIdForRequest);
+          let networkConfigurationForRequest;
+          if (!isBuiltIn) {
+            networkConfigurationForRequest =
+              networkControllerState.networkConfigurations[
+                networkClientIdForRequest
+              ];
+          } else {
+            // if its a built in
+            // Ideally we should be using only networkConfigurations, and networkClientIds &
+            // networkConfiguration.id should be the same thing.
+            networkConfigurationForRequest =
+              networkClientConfigurationForRequest;
+          }
+
           const currentProviderConfig = networkControllerState.providerConfig;
           const currentChainId = currentProviderConfig.chainId;
 
@@ -140,7 +153,6 @@ export const createQueuedRequestMiddleware = ({
               true,
             );
 
-            const isBuiltIn = isNetworkType(networkClientIdForRequest);
             const method = isBuiltIn ? 'setProviderType' : 'setActiveNetwork';
 
             await messenger.call(
