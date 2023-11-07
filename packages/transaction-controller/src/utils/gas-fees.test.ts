@@ -2,7 +2,7 @@
 import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import { UserFeeLevel } from '../types';
+import { TransactionType, UserFeeLevel } from '../types';
 import type { UpdateGasFeesRequest } from './gas-fees';
 import { updateGasFees } from './gas-fees';
 
@@ -51,6 +51,8 @@ describe('gas-fees', () => {
       JSON.stringify(UPDATE_GAS_FEES_REQUEST_MOCK),
     );
 
+    // eslint-disable-next-line jest/prefer-spy-on
+    updateGasFeeRequest.getSavedGasFees = jest.fn();
     // eslint-disable-next-line jest/prefer-spy-on
     updateGasFeeRequest.getGasFeeEstimates = jest.fn().mockResolvedValue({});
   });
@@ -140,6 +142,20 @@ describe('gas-fees', () => {
         expect(
           updateGasFeeRequest.txMeta.txParams.maxFeePerGas,
         ).toBeUndefined();
+      });
+
+      it('to saved maxFeePerGas if saved gas fees defined', async () => {
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          maxBaseFee: '123',
+          priorityFee: '456',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          '0x1ca35f0e00', // 123 gwei
+        );
       });
 
       it('to request maxFeePerGas if set', async () => {
@@ -256,6 +272,20 @@ describe('gas-fees', () => {
         expect(
           updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas,
         ).toBeUndefined();
+      });
+
+      it('to saved maxPriorityFeePerGas if saved gas fees defined', async () => {
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          maxBaseFee: '123',
+          priorityFee: '456',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          '0x6a2bb7d000', // 456 gwei
+        );
       });
 
       it('to request maxPriorityFeePerGas if set', async () => {
@@ -460,6 +490,20 @@ describe('gas-fees', () => {
         await updateGasFees(updateGasFeeRequest);
 
         expect(updateGasFeeRequest.txMeta.userFeeLevel).toBeUndefined();
+      });
+
+      it('to saved userFeeLevel if saved gas fees defined', async () => {
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+          maxBaseFee: '123',
+          priorityFee: '456',
+        });
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.CUSTOM,
+        );
       });
 
       it('to custom if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin is metamask', async () => {
