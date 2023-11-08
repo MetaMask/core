@@ -41,6 +41,9 @@
       "path": "./packages/json-rpc-engine"
     },
     {
+      "path": "./packages/json-rpc-middleware-stream"
+    },
+    {
       "path": "./packages/keyring-controller"
     },
     {
