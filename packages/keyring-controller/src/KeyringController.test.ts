@@ -2243,6 +2243,19 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    describe('persistAllKeyrings', () => {
+      it('should call persistAllKeyrings', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'persistAllKeyrings')
+          .mockResolvedValue(true);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:persistAllKeyrings');
+
+          expect(controller.persistAllKeyrings).toHaveBeenCalledWith();
+        });
+      });
+    });
   });
 });
 
@@ -2303,6 +2316,7 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:getKeyringsByType',
       'KeyringController:getKeyringForAccount',
       'KeyringController:getAccounts',
+      'KeyringController:persistAllKeyrings',
     ],
     allowedEvents: [
       'KeyringController:stateChange',

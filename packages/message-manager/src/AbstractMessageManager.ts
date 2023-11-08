@@ -9,6 +9,9 @@ import { EventEmitter } from 'events';
  * Represents the original request object for adding a message.
  * @property origin? - Is it is specified, represents the origin
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface OriginalRequest {
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
@@ -25,6 +28,9 @@ export interface OriginalRequest {
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  * @property metadata - Additional data for the message, for example external identifiers
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AbstractMessage {
   id: string;
   time: number;
@@ -45,6 +51,9 @@ export interface AbstractMessage {
  * @property origin? - Added for request origin identification
  * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
@@ -60,6 +69,9 @@ export interface AbstractMessageParams {
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
   metamaskId?: string;
 }
@@ -71,6 +83,9 @@ export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
  * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
  * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface MessageManagerState<M extends AbstractMessage>
   extends BaseState {
   unapprovedMessages: { [key: string]: M };

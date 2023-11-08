@@ -24,7 +24,6 @@ module.exports = {
         'jest/no-export': 'off',
         'jest/require-top-level-describe': 'off',
         'jest/no-if': 'off',
-        'jest/no-test-return-statement': 'off',
       },
     },
     {
@@ -42,10 +41,6 @@ module.exports = {
         project: ['./tsconfig.packages.json'],
       },
       rules: {
-        // disabled due to incompatibility with Record<string, unknown>
-        // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
-        '@typescript-eslint/consistent-type-definitions': 'off',
-
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
 
