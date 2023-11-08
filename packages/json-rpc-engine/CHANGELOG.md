@@ -92,6 +92,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
+## [5.1.8]
+
+## [5.1.7]
+
+## [5.1.6]
+
+## [5.1.5]
+
+## [5.1.4]
+
+## [5.1.3]
+
+## [5.1.2]
+
+## [5.1.1]
+
+## [5.1.0]
+
+## [5.0.0]
+
+## [4.0.0]
+
+## [3.8.0]
+
+## [3.7.4]
+
+## [3.7.3]
+
+## [3.7.2]
+
+## [3.7.1]
+
+## [3.7.0]
+
+## [3.6.3]
+
+## [3.6.2]
+
+## [3.6.1]
+
+## [3.5.0]
+
+## [3.4.0]
+
+## [3.3.1]
+
+## [3.3.0]
+
+## [3.1.1]
+
+## [3.1.0]
+
+## [3.0.1]
+
+## [3.0.0]
+
+## [2.2.3]
+
+## [2.2.2]
+
+## [2.2.1]
+
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.0...HEAD
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.2.0...@metamask/json-rpc-engine@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
