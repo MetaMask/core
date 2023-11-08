@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "3.1.1",
+  "version": "3.1.0",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.3",
-    "@metamask/json-rpc-engine": "^7.3.0",
+    "@metamask/json-rpc-engine": "^7.2.0",
     "@metamask/network-controller": "^15.2.0",
     "@metamask/swappable-obj-proxy": "^2.1.0"
   },
