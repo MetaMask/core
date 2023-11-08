@@ -32,10 +32,10 @@
   "dependencies": {
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
-    "@metamask/json-rpc-engine": "^7.2.0",
+    "@metamask/json-rpc-engine": "^7.3.0",
     "@metamask/network-controller": "^15.2.0",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/selected-network-controller": "^3.1.0",
+    "@metamask/selected-network-controller": "^3.1.1",
     "@metamask/swappable-obj-proxy": "^2.1.0",
     "@metamask/utils": "^8.2.0"
   },
@@ -56,7 +56,7 @@
   },
   "peerDependencies": {
     "@metamask/network-controller": "^15.2.0",
-    "@metamask/selected-network-controller": "^3.1.0"
+    "@metamask/selected-network-controller": "^3.1.1"
   },
   "engines": {
     "node": ">=16.0.0"
