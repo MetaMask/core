@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [7.3.0]
+### Uncategorized
+- Record CHANGELOG entries from `@metamask/json-rpc-{engine,middleware-stream}` migrations ([#2003](https://github.com/MetaMask/core/pull/2003))
+- Update `@metamask/json-rpc-engine` README to reflect migration into monorepo subpackage ([#1990](https://github.com/MetaMask/core/pull/1990))
+- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
+
 ### Added
 - Migrate `@metamask/json-rpc-engine` into the core monorepo ([#1895](https://github.com/MetaMask/core/pull/1895))
 
@@ -89,13 +96,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.0...HEAD
+[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.2.0...@metamask/json-rpc-engine@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.0...@metamask/json-rpc-engine@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.0.0...@metamask/json-rpc-engine@7.1.0
-[7.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
-[6.1.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.0.0...json-rpc-engine@6.1.0
-[6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.4.0...json-rpc-engine@6.0.0
-[5.4.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.3.0...json-rpc-engine@5.4.0
-[5.3.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.2.0...json-rpc-engine@5.3.0
-[5.2.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-engine@5.2.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.0.0...@metamask/json-rpc-engine@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.4.0...@metamask/json-rpc-engine@6.0.0
+[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.3.0...@metamask/json-rpc-engine@5.4.0
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.2.0...@metamask/json-rpc-engine@5.3.0
+[5.2.0]: https://github.com/MetaMask/core/releases/tag/@metamask/json-rpc-engine@5.2.0
