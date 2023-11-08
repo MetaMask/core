@@ -40,6 +40,9 @@ const DEFAULT_INTERVAL = 180000;
  * @property creator - The NFT owner information object
  * @property lastSale - When this item was last sold
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface ApiNft {
   token_id: string;
   num_sales: number | null;
@@ -72,6 +75,9 @@ export interface ApiNft {
  * @property description - The NFT contract description
  * @property external_link - External link containing additional information
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface ApiNftContract {
   address: string;
   asset_contract_type: string | null;
@@ -95,6 +101,9 @@ export interface ApiNftContract {
  * @property total_price - URI of NFT image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface ApiNftLastSale {
   event_timestamp: string;
   total_price: string;
@@ -109,6 +118,9 @@ export interface ApiNftLastSale {
  * @property profile_img_url - URI of NFT image associated with this owner
  * @property address - The owner address
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface ApiNftCreator {
   user: { username: string };
   profile_img_url: string;
@@ -123,6 +135,9 @@ export interface ApiNftCreator {
  * @property chainId - Current chain ID
  * @property selectedAddress - Vault selected address
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
   chainId: Hex;

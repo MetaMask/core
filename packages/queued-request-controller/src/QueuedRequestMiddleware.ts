@@ -92,20 +92,38 @@ export const createQueuedRequestMiddleware = ({
       await messenger.call(
         QueuedRequestControllerActionTypes.enqueueRequest,
         async () => {
-          if (req.method === 'wallet_switchEthereumChain') {
+          if (
+            req.method === 'wallet_switchEthereumChain' ||
+            req.method === 'wallet_addEthereumChain'
+          ) {
             return next();
           }
 
-          const isBuiltIn = isNetworkType(networkClientIdForRequest);
-          const networkConfigurationForRequest = messenger.call(
+          const networkClientConfigurationForRequest = messenger.call(
             'NetworkController:getNetworkClientById',
             networkClientIdForRequest,
           ).configuration;
 
-          const currentProviderConfig = messenger.call(
+          const networkControllerState = messenger.call(
             'NetworkController:getState',
-          ).providerConfig;
+          );
 
+          const isBuiltIn = isNetworkType(networkClientIdForRequest);
+          let networkConfigurationForRequest;
+          if (!isBuiltIn) {
+            networkConfigurationForRequest =
+              networkControllerState.networkConfigurations[
+                networkClientIdForRequest
+              ];
+          } else {
+            // if its a built in
+            // Ideally we should be using only networkConfigurations, and networkClientIds &
+            // networkConfiguration.id should be the same thing.
+            networkConfigurationForRequest =
+              networkClientConfigurationForRequest;
+          }
+
+          const currentProviderConfig = networkControllerState.providerConfig;
           const currentChainId = currentProviderConfig.chainId;
 
           // if the 'globally selected network' is already on the correct chain for the request currently being processed
