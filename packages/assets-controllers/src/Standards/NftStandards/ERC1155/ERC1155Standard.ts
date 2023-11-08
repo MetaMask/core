@@ -5,6 +5,7 @@ import {
   ERC1155_INTERFACE_ID,
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
+  safelyExecute,
   timeoutFetch,
 } from '@metamask/controller-utils';
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
@@ -139,6 +140,7 @@ export class ERC1155Standard {
   getAssetSymbol = async (address: string): Promise<string> => {
     const contract = new Contract(
       address,
+      // Contract ABI fragment containing only the symbol method to fetch the symbol of the contract.
       [
         {
           inputs: [],
@@ -163,6 +165,7 @@ export class ERC1155Standard {
   getAssetName = async (address: string): Promise<string> => {
     const contract = new Contract(
       address,
+      // Contract ABI fragment containing only the name method to fetch the name of the contract.
       [
         {
           inputs: [],
@@ -218,27 +221,23 @@ export class ERC1155Standard {
       throw new Error("This isn't a valid ERC1155 contract");
     }
 
-    let tokenURI, image, symbol, name;
+    let image;
 
-    const [getNameResult, getSymbolResult] = await Promise.allSettled([
-      this.getAssetName(address),
-      this.getAssetSymbol(address),
+    const [symbol, name, tokenURI] = await Promise.all([
+      safelyExecute(() => this.getAssetSymbol(address)),
+      safelyExecute(() => this.getAssetName(address)),
+      tokenId
+        ? safelyExecute(() =>
+            this.getTokenURI(address, tokenId).then((uri) =>
+              uri.startsWith('ipfs://')
+                ? getFormattedIpfsUrl(ipfsGateway, uri, true)
+                : uri,
+            ),
+          )
+        : undefined,
     ]);
 
-    if (getNameResult.status === 'fulfilled') {
-      name = getNameResult.value;
-    }
-
-    if (getSymbolResult.status === 'fulfilled') {
-      symbol = getSymbolResult.value;
-    }
-
     if (tokenId) {
-      tokenURI = await this.getTokenURI(address, tokenId);
-      if (tokenURI.startsWith('ipfs://')) {
-        tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
-      }
-
       try {
         const response = await timeoutFetch(tokenURI);
         const object = await response.json();
