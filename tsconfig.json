@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "noEmit": true
+    "noEmit": true,
   },
   "references": [
     {
@@ -78,6 +78,9 @@
     },
     {
       "path": "./packages/json-rpc-engine"
+    },
+    {
+      "path": "./packages/user-operation-controller"
     }
   ],
   "files": [],

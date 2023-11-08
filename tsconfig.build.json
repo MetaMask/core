@@ -77,6 +77,9 @@
     },
     {
       "path": "./packages/json-rpc-engine/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/user-operation-controller/tsconfig.build.json"
     }
   ],
   "files": [],
