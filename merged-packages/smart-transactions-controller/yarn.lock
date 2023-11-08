@@ -1039,7 +1039,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^12.0.0":
+"@metamask/eth-json-rpc-middleware@npm:^12.0.1":
   version: 12.0.1
   resolution: "@metamask/eth-json-rpc-middleware@npm:12.0.1"
   dependencies:
@@ -1092,7 +1092,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/json-rpc-engine@npm:^7.1.0, @metamask/json-rpc-engine@npm:^7.1.1":
+"@metamask/json-rpc-engine@npm:^7.1.0, @metamask/json-rpc-engine@npm:^7.1.1, @metamask/json-rpc-engine@npm:^7.2.0":
   version: 7.2.0
   resolution: "@metamask/json-rpc-engine@npm:7.2.0"
   dependencies:
@@ -1104,24 +1104,24 @@ __metadata:
   linkType: hard
 
 "@metamask/network-controller@npm:^15.0.0":
-  version: 15.1.0
-  resolution: "@metamask/network-controller@npm:15.1.0"
+  version: 15.2.0
+  resolution: "@metamask/network-controller@npm:15.2.0"
   dependencies:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-json-rpc-infura": ^9.0.0
-    "@metamask/eth-json-rpc-middleware": ^12.0.0
+    "@metamask/eth-json-rpc-middleware": ^12.0.1
     "@metamask/eth-json-rpc-provider": ^2.2.0
     "@metamask/eth-query": ^3.0.1
-    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
-    "@metamask/utils": ^8.1.0
+    "@metamask/utils": ^8.2.0
     async-mutex: ^0.2.6
     eth-block-tracker: ^8.0.0
     immer: ^9.0.6
     uuid: ^8.3.2
-  checksum: 5ba7f8756aa10a0c4970973fc5112aeeba69b2a23f922b8cbf72c17ccdec89fcc42fdacd7927af2f7aec41dd0824796fabc366e3f546cbc5b8902007b7b3f760
+  checksum: 331937360ac503a5000cf6277159852a23ff7d5cd72155665467e170c3cf213e4970a1706d24765201434dd5c4a088fa5e029011a78b1be87de51ca7b4011a5f
   languageName: node
   linkType: hard
 
@@ -1207,7 +1207,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^8.0.0, @metamask/utils@npm:^8.1.0":
+"@metamask/utils@npm:^8.0.0, @metamask/utils@npm:^8.1.0, @metamask/utils@npm:^8.2.0":
   version: 8.2.0
   resolution: "@metamask/utils@npm:8.2.0"
   dependencies:
