@@ -576,7 +576,7 @@ describe('SmartTransactionsController', () => {
         createSubmitTransactionsApiResponse(); // It has uuid.
       nock(API_BASE_URL)
         .post(
-          `/networks/${ethereumChainIdDec}/submitTransactions&stxControllerVersion=${packageJson.version}`,
+          `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
         )
         .reply(200, submitTransactionsApiResponse);
 

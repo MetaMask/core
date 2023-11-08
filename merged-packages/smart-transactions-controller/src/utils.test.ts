@@ -47,7 +47,7 @@ describe('src/utils.js', () => {
       expect(
         utils.getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, CHAIN_IDS.ETHEREUM),
       ).toBe(
-        `${API_BASE_URL}/networks/${ethereumChainIdDec}/submitTransactions&stxControllerVersion=${packageJson.version}`,
+        `${API_BASE_URL}/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
       );
     });
 

@@ -39,7 +39,7 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
     }
 
     case APIType.SUBMIT_TRANSACTIONS: {
-      return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions&stxControllerVersion=${packageJson.version}`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
     }
 
     case APIType.CANCEL: {
