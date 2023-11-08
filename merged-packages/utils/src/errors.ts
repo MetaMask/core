@@ -92,19 +92,19 @@ export function wrapError<Throwable>(
   message: string,
 ): Error & { code?: string } {
   if (isError(originalError)) {
-    const error: Error & { code?: string } =
-      Error.length === 2
-        ? // This branch is getting tested by using the Node version that
-          // supports `cause` on the Error constructor.
-          // istanbul ignore next
-          // Also, for some reason `tsserver` is not complaining that the
-          // Error constructor doesn't support a second argument in the editor,
-          // but `tsc` does. I'm not sure why, but we disable this in the
-          // meantime.
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          new Error(message, { cause: originalError })
-        : new ErrorWithCause(message, { cause: originalError });
+    let error: Error & { code?: string };
+    if (Error.length === 2) {
+      // for some reason `tsserver` is not complaining that the
+      // Error constructor doesn't support a second argument in the editor,
+      // but `tsc` does. Error causes are not supported by our current tsc target (ES2020, we need ES2022 to make this work)
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      error = new Error(message, { cause: originalError });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      error = new ErrorWithCause(message, { cause: originalError });
+    }
 
     if (isErrorWithCode(originalError)) {
       error.code = originalError.code;

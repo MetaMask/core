@@ -164,6 +164,44 @@ describe('wrapError', () => {
     });
   });
 
+  describe('if the original error has a length === 2', () => {
+    it('returns an error with cause', () => {
+      // Save original Error
+      const OriginalError = global.Error;
+
+      // Create a mock error with a cause
+      class MockError extends Error {
+        constructor(message: string, options: { cause?: Error } = {}) {
+          super(message);
+          this.cause = options.cause;
+        }
+
+        cause: Error | undefined;
+      }
+      // Set length to 2
+      Object.defineProperty(MockError, 'length', { value: 2 });
+
+      // Replace global Error with MockError
+      // NOTE: when we upgrade jest, change this to use:
+      // jest.replaceProperty(global, 'Error', MockError);
+      global.Error = MockError as unknown as ErrorConstructor;
+
+      // Define your original error and message
+      const originalError = new Error('original error');
+      const message = 'new error message';
+
+      // Call your function
+      const result = wrapError(originalError, message);
+
+      // Assert that the error has the expected properties
+      expect(result.message).toBe(message);
+      expect(result.cause).toBe(originalError);
+
+      // Restore the original Error constructor
+      global.Error = OriginalError;
+    });
+  });
+
   describe('if the original error is an object but not an Error instance', () => {
     describe('if the message is a non-empty string', () => {
       it('combines a string version of the original error and message together in a new Error', () => {
