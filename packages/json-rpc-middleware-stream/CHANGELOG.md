@@ -7,9 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
-### Uncategorized
-- Record CHANGELOG entries from `@metamask/json-rpc-{engine,middleware-stream}` migrations ([#2003](https://github.com/MetaMask/core/pull/2003))
-
 ### Added
 - Migrate `@metamask/json-rpc-engine` into the core monorepo ([#1762](https://github.com/MetaMask/core/pull/1762))
 

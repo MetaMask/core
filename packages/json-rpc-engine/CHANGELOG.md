@@ -7,17 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.3.0]
-### Uncategorized
-- Record CHANGELOG entries from `@metamask/json-rpc-{engine,middleware-stream}` migrations ([#2003](https://github.com/MetaMask/core/pull/2003))
-- Update `@metamask/json-rpc-engine` README to reflect migration into monorepo subpackage ([#1990](https://github.com/MetaMask/core/pull/1990))
-- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
-
 ### Added
 - Migrate `@metamask/json-rpc-engine` into the core monorepo ([#1895](https://github.com/MetaMask/core/pull/1895))
 
 ### Changed
 - Bump `@metamask/utils` from `^8.1.0` to `^8.2.0` ([#1895](https://github.com/MetaMask/core/pull/1895))
 - Bump `@metamask/rpc-errors` from `^6.0.0` to `^6.1.0` ([#1882](https://github.com/MetaMask/core/pull/1882))
+- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
 
 ## [7.2.0]
 ### Added
