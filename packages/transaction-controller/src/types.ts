@@ -242,7 +242,7 @@ type TransactionMetaBase = {
   /**
    * Response from security validator.
    */
-  securityAlertResponse?: Record<string, unknown>;
+  securityAlertResponse?: SecurityAlertResponse;
 
   /**
    * Response from security provider.
@@ -877,4 +877,14 @@ export type TransactionError = {
    * The rpc property holds additional information related to the error.
    */
   rpc?: unknown;
+};
+
+/**
+ * Type for security alert response from transaction validator.
+ */
+export type SecurityAlertResponse = {
+  reason: string;
+  features?: string[];
+  result_type: string;
+  providerRequestsCount?: Record<string, number>;
 };

@@ -52,6 +52,7 @@ import type {
   TransactionMeta,
   TransactionReceipt,
   WalletDevice,
+  SecurityAlertResponse,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -595,7 +596,7 @@ export class TransactionController extends BaseController<
       method?: string;
       origin?: string;
       requireApproval?: boolean | undefined;
-      securityAlertResponse?: Record<string, unknown>;
+      securityAlertResponse?: SecurityAlertResponse;
       sendFlowHistory?: SendFlowHistoryEntry[];
       swaps?: {
         hasApproveTx?: boolean;
@@ -997,6 +998,34 @@ export class TransactionController extends BaseController<
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  /**
+   * Update the security alert response for a transaction.
+   *
+   * @param transactionId - ID of the transaction.
+   * @param securityAlertResponse - The new security alert response for the transaction.
+   */
+  updateSecurityAlertResponse(
+    transactionId: string,
+    securityAlertResponse: SecurityAlertResponse,
+  ) {
+    if (!securityAlertResponse) {
+      throw new Error(
+        'updateSecurityAlertResponse: securityAlertResponse should not be null',
+      );
+    }
+    const transactionMeta = this.getTransaction(transactionId);
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update security alert response as no transaction metadata found`,
+      );
+    }
+    const updatedMeta = merge(transactionMeta, { securityAlertResponse });
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updatesecurityAlertResponse - securityAlertResponse updated',
+    );
   }
 
   /**
