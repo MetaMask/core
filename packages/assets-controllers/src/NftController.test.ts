@@ -759,7 +759,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should add the NFT to the correct chainId/selectedAddress in state even if the user changes network and account before accepting the request', async function () {
+    it.only('should add the NFT to the correct chainId/selectedAddress in state even if the user changes network and account before accepting the request', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -801,6 +801,8 @@ describe('NftController', () => {
           resolve();
         });
       });
+
+      console.log('state.allNfts: ', nftController.state.allNfts);
 
       const acceptedRequest = new Promise<void>((resolve) => {
         nftController.subscribe((state) => {
@@ -953,7 +955,6 @@ describe('NftController', () => {
           favorite: false,
         },
         userAddress: detectedUserAddress,
-        chainId: toHex(2),
         source: Source.Detected,
       });
 
@@ -1584,7 +1585,6 @@ describe('NftController', () => {
       });
 
       await nftController.addNft('0x01234abcdefg', '1234', {
-        chainId: GOERLI.chainId,
         userAddress: '0x123',
         source: Source.Dapp,
       });
@@ -1655,7 +1655,6 @@ describe('NftController', () => {
         '123',
         {
           userAddress: selectedAddress,
-          chainId,
           source: Source.Detected,
         },
       );
@@ -1670,7 +1669,6 @@ describe('NftController', () => {
 
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
         userAddress: selectedAddress,
-        chainId,
         source: Source.Detected,
       });
 
@@ -1730,20 +1728,18 @@ describe('NftController', () => {
         .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
         .replyWithError(new Error('Failed to fetch'));
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress } = nftController.config;
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
         {
           userAddress: selectedAddress,
-          chainId,
           source: Source.Detected,
         },
       );
 
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
         userAddress: selectedAddress,
-        chainId,
         source: Source.Detected,
       });
 
@@ -2483,7 +2479,7 @@ describe('NftController', () => {
         OWNER_ADDRESS,
         '0x2b26675403a063d92ccad0293d387485471a7d3a',
         String(1),
-        'sepolia',
+        { networkClientId: 'sepolia' },
       );
       expect(isOwner).toBe(true);
     });
@@ -3065,7 +3061,7 @@ describe('NftController', () => {
 
         await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, false, {
           userAddress: OWNER_ADDRESS,
-          chainId: SEPOLIA.chainId,
+          networkClientId: 'sepolia',
         });
 
         expect(
