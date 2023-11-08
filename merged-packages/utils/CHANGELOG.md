@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.2.1]
+### Fixed
+- Fix issue with source maps where line numbers were incorrect for src/error.ts ([#156](https://github.com/MetaMask/utils/pull/156))
+
 ## [8.2.0]
 ### Added
 - Add struct utils for validating JSON objects with optional values ([#136](https://github.com/MetaMask/utils/pull/136))
@@ -204,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v8.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v8.2.1...HEAD
+[8.2.1]: https://github.com/MetaMask/utils/compare/v8.2.0...v8.2.1
 [8.2.0]: https://github.com/MetaMask/utils/compare/v8.1.0...v8.2.0
 [8.1.0]: https://github.com/MetaMask/utils/compare/v8.0.0...v8.1.0
 [8.0.0]: https://github.com/MetaMask/utils/compare/v7.1.0...v8.0.0
