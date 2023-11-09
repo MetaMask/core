@@ -2131,6 +2131,7 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(1);
     });
+  
     it('creates additional transaction with increased gas', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
