@@ -799,10 +799,7 @@ export class TransactionController extends BaseController<
       status: TransactionStatus.submitted,
       time: Date.now(),
       type: TransactionType.cancel,
-      txParams: {
-        ...transactionMeta.txParams,
-        ...newTxParams,
-      },
+      txParams: newTxParams,
     };
 
     transactions.push(cancelTransactionMeta);
