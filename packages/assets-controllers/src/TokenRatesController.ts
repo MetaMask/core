@@ -74,6 +74,9 @@ export interface Token {
  *
  * Token rates controller configuration
  * @property interval - Polling interval used to fetch new token rates
+ * @property nativeCurrency - Current native currency selected to use base of rates
+ * @property chainId - Current network chainId
+ * @property tokens - List of tokens to track exchange rates for
  * @property threshold - Threshold to invalidate the supportedChains
  */
 // This interface was created before this ESLint rule was added.
@@ -285,14 +288,18 @@ export class TokenRatesController extends PollingControllerV1<
 
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
       // These two state properties are assumed to be immutable
+      console.log({allTokens, allDetectedTokens})
       if (
         this.config.allTokens !== allTokens ||
         this.config.allDetectedTokens !== allDetectedTokens
       ) {
         this.configure({ allTokens, allDetectedTokens });
         this.#updateTokenList();
+        console.log(this.#pollState)
         if (this.#pollState === PollState.Active) {
+          console.log('update')
           await this.updateExchangeRates();
+          console.log('update done')
         }
       }
     });
