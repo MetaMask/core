@@ -47,8 +47,6 @@ export type UserOperation = {
   verificationGasLimit: string;
 };
 
-export type UnsignedUserOperation = Omit<UserOperation, 'signature'>;
-
 export enum UserOperationStatus {
   Unapproved = 'unapproved',
   Approved = 'approved',
@@ -97,5 +95,22 @@ export type UserOperationMetadata = {
   time: number;
   transactionHash: string | null;
   transactionParams: Required<TransactionParams> | null;
-  userOperation: UnsignedUserOperation | UserOperation | null;
+  userOperation: UserOperation;
+};
+
+export type BundlerEstimateUserOperationGasResponse = {
+  preVerificationGas: number;
+  verificationGas: number;
+  verificationGasLimit: number;
+  callGasLimit: number;
+};
+
+export type UserOperationReceipt = {
+  actualGasCost: string;
+  actualGasUsed: string;
+  success: boolean;
+  receipt: {
+    blockHash: string;
+    transactionHash: string;
+  };
 };

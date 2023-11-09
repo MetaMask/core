@@ -6,7 +6,6 @@ import { Contract } from '@ethersproject/contracts';
 import { AddressZero } from '@ethersproject/constants';
 import SimpleAccountABI from './abi/SimpleAccount.json';
 import {
-  UnsignedUserOperation,
   UserOperation,
   UserOperationMetadata,
   UserOperationStatus,
@@ -24,9 +23,8 @@ import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { AddApprovalRequest } from '@metamask/approval-controller';
 import { getTransactionMetadata } from './utils/transaction';
 import { toHex } from '@metamask/controller-utils';
-
-const ENTRYPOINT_ADDRESS = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789';
-const BUNDLER_URL = 'https://api.blocknative.com/v1/goerli/bundler';
+import { Bundler, getBundler } from './helpers/Bundler';
+import { ENTRYPOINT } from './constants';
 
 const DUMMY_SIGNATURE =
   '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
@@ -71,18 +69,10 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 
 export type UserOperationControllerOptions = {
   blockTracker: BlockTracker;
-  getChainId: () => string;
   getPrivateKey: () => Promise<string>;
   messenger: UserOperationControllerMessenger;
   provider: ProviderProxy;
   state?: Partial<UserOperationControllerState>;
-};
-
-type BundlerGasEstimate = {
-  preVerificationGas: number;
-  verificationGasLimit: number;
-  callGasLimit: number;
-  verificationGas: number;
 };
 
 /**
@@ -97,8 +87,6 @@ export class UserOperationController extends BaseControllerV2<
 
   #blockTracker: BlockTracker;
 
-  #getChainId: () => string;
-
   #getPrivateKey: () => Promise<string>;
 
   #provider: ProviderProxy;
@@ -109,12 +97,10 @@ export class UserOperationController extends BaseControllerV2<
    * @param options - Controller options.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
-   * @param options.getChainId
    * @param options.getPrivateKey
    */
   constructor({
     blockTracker,
-    getChainId,
     getPrivateKey,
     messenger,
     provider,
@@ -130,16 +116,13 @@ export class UserOperationController extends BaseControllerV2<
     this.hub = new EventEmitter();
 
     this.#blockTracker = blockTracker;
-    this.#getChainId = getChainId;
     this.#getPrivateKey = getPrivateKey;
     this.#provider = provider;
 
     const pendingTracker = new PendingUserOperationTracker({
       blockTracker: this.#blockTracker,
-      bundlerQuery: this.#bundlerQuery.bind(this),
       getBlockByHash: (hash: string) =>
         new Web3Provider(this.#provider as any).getBlock(hash),
-      getChainId: this.#getChainId.bind(this),
       getUserOperations: () => Object.values(this.#getState().userOperations),
       onStateChange: (
         listener: (state: UserOperationControllerState) => void,
@@ -157,69 +140,60 @@ export class UserOperationController extends BaseControllerV2<
     });
   }
 
-  async addUserOperationFromTransaction(transaction: TransactionParams) {
-    const id = random();
+  async addUserOperationFromTransaction(
+    transaction: TransactionParams,
+    { chainId }: { chainId: string },
+  ) {
+    const bundler = getBundler(chainId);
+    const metadata = this.#createMetadata(chainId);
 
-    const metadata: UserOperationMetadata = {
+    try {
+      await this.#applyTransaction(metadata, transaction);
+      await this.#updateGas(metadata, bundler);
+
+      const resultCallbacks = await this.#approveUserOperation(metadata);
+
+      await this.#signUserOperation(metadata);
+      await this.#submitUserOperation(metadata, bundler);
+
+      resultCallbacks?.success();
+    } catch (error) {
+      this.#failUserOperation(metadata, error);
+      throw error;
+    }
+  }
+
+  #createMetadata(chainId: string): UserOperationMetadata {
+    const metadata = {
       actualGasCost: null,
       actualGasUsed: null,
       baseFeePerGas: null,
-      chainId: this.#getChainId(),
+      chainId,
       error: null,
       hash: null,
-      id,
+      id: random(),
       status: UserOperationStatus.Unapproved,
       time: Date.now(),
       transactionHash: null,
-      transactionParams: transaction as Required<TransactionParams>,
-      userOperation: null,
+      transactionParams: null,
+      userOperation: this.#createEmptyUserOperation(),
     };
 
     this.#updateMetadata(metadata);
 
-    log('Added user operation', id);
+    log('Added user operation', metadata.id);
 
-    const unsignedUserOperation =
-      await this.#generateUserOperationFromTransaction(transaction);
-
-    metadata.userOperation = unsignedUserOperation;
-    this.#updateMetadata(metadata);
-
-    await this.#updateGasFields(unsignedUserOperation);
-    this.#updateMetadata(metadata);
-
-    const { resultCallbacks } = await this.requestApproval(metadata);
-
-    const signature = await signUserOperation(
-      unsignedUserOperation,
-      ENTRYPOINT_ADDRESS,
-      this.#getChainId(),
-      await this.#getPrivateKey(),
-    );
-
-    const signedUserOperation = {
-      ...unsignedUserOperation,
-      signature,
-    };
-
-    metadata.status = UserOperationStatus.Signed;
-    metadata.userOperation = signedUserOperation;
-    this.#updateMetadata(metadata);
-
-    log('Signed user operation', signature);
-
-    const hash = await this.#submitUserOperation(signedUserOperation);
-
-    metadata.hash = hash;
-    metadata.status = UserOperationStatus.Submitted;
-    this.#updateMetadata(metadata);
-
-    resultCallbacks?.success();
+    return metadata;
   }
 
-  async #generateUserOperationFromTransaction(
+  async #applyTransaction(
+    metadata: UserOperationMetadata,
     transaction: TransactionParams,
-  ): Promise<UnsignedUserOperation> {
+  ) {
+    const { id, userOperation } = metadata;
+
+    log('Generating user operation from transaction', id);
+
     const smartContractWallet = new Contract(
       transaction.from,
       SimpleAccountABI,
@@ -235,45 +209,25 @@ export class UserOperationController extends BaseControllerV2<
       ],
     );
 
-    const callGasLimit = '0x';
-    const initCode = '0x';
-    const maxFeePerGas = toHex(0.16e9);
-    const maxPriorityFeePerGas = toHex(0.15e9);
-    const nonce = (await smartContractWallet.getNonce()).toHexString();
-    const paymasterAndData = '0x';
-    const preVerificationGas = '0x';
-    const sender = transaction.from;
-    const verificationGasLimit = '0x';
+    userOperation.callData = callData;
+    userOperation.maxFeePerGas = toHex(0.16e9);
+    userOperation.maxPriorityFeePerGas = toHex(0.15e9);
+    userOperation.nonce = (await smartContractWallet.getNonce()).toHexString();
+    userOperation.sender = transaction.from;
 
-    return {
-      callData,
-      callGasLimit,
-      initCode,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      nonce,
-      paymasterAndData,
-      preVerificationGas,
-      sender,
-      verificationGasLimit,
-    };
+    metadata.transactionParams = transaction as any;
+
+    this.#updateMetadata(metadata);
   }
 
-  async #updateGasFields(userOperation: UnsignedUserOperation): Promise<void> {
-    const estimatedGas = await this.#estimateGas(userOperation);
+  async #updateGas(
+    metadata: UserOperationMetadata,
+    bundler: Bundler,
+  ): Promise<void> {
+    const { id, userOperation } = metadata;
 
-    userOperation.preVerificationGas = toHex(estimatedGas.preVerificationGas);
+    log('Updating gas', id);
 
-    userOperation.verificationGasLimit = toHex(
-      estimatedGas.verificationGasLimit,
-    );
-
-    userOperation.callGasLimit = toHex(estimatedGas.callGasLimit);
-  }
-
-  async #estimateGas(
-    userOperation: UnsignedUserOperation,
-  ): Promise<BundlerGasEstimate> {
     const payload = {
       ...userOperation,
       callGasLimit: '0x1',
@@ -282,45 +236,103 @@ export class UserOperationController extends BaseControllerV2<
       signature: DUMMY_SIGNATURE,
     };
 
-    const response = await this.#bundlerQuery('eth_estimateUserOperationGas', [
+    const estimatedGas = await bundler.estimateUserOperationGas(
       payload,
-      ENTRYPOINT_ADDRESS,
-    ]);
+      ENTRYPOINT,
+    );
 
-    log('Estimated gas', response);
+    userOperation.preVerificationGas = toHex(estimatedGas.preVerificationGas);
 
-    return response as BundlerGasEstimate;
+    userOperation.verificationGasLimit = toHex(
+      estimatedGas.verificationGasLimit,
+    );
+
+    userOperation.callGasLimit = toHex(estimatedGas.callGasLimit);
+
+    this.#updateMetadata(metadata);
   }
 
-  async #submitUserOperation(userOperation: UserOperation): Promise<string> {
-    const hash = await this.#bundlerQuery('eth_sendUserOperation', [
+  async #approveUserOperation(metadata: UserOperationMetadata) {
+    const { resultCallbacks } = await this.#requestApproval(metadata);
+
+    metadata.status = UserOperationStatus.Approved;
+    this.#updateMetadata(metadata);
+
+    return resultCallbacks;
+  }
+
+  async #signUserOperation(metadata: UserOperationMetadata) {
+    const { id, chainId, userOperation } = metadata;
+
+    log('Signing user operation', id);
+
+    const signature = await signUserOperation(
       userOperation,
-      ENTRYPOINT_ADDRESS,
-    ]);
+      ENTRYPOINT,
+      chainId,
+      await this.#getPrivateKey(),
+    );
 
-    log('Submitted user operation to bundler', hash);
+    userOperation.signature = signature;
 
-    return hash;
+    log('Signed user operation', signature);
+
+    metadata.status = UserOperationStatus.Signed;
+
+    this.#updateMetadata(metadata);
   }
 
-  async #bundlerQuery(method: string, params: any[]): Promise<any> {
-    const request = {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  async #submitUserOperation(
+    metadata: UserOperationMetadata,
+    bundler: Bundler,
+  ) {
+    const { id, userOperation } = metadata;
+
+    log('Submitting user operation', id);
+
+    const hash = await bundler.sendUserOperation(userOperation, ENTRYPOINT);
+
+    log('Submitted user operation', hash);
+
+    metadata.hash = hash;
+    metadata.status = UserOperationStatus.Submitted;
+
+    this.#updateMetadata(metadata);
+  }
+
+  #failUserOperation(metadata: UserOperationMetadata, error: unknown) {
+    const { id } = metadata;
+    const rawError = error as any;
+
+    log('User operation failed', id, error);
+
+    metadata.error = {
+      name: rawError.name,
+      message: rawError.message,
+      stack: rawError.stack,
+      code: rawError.code,
+      rpc: rawError.rpc,
     };
 
-    const response = await fetch(BUNDLER_URL, request);
-    const responseJson = await response.json();
+    metadata.status = UserOperationStatus.Failed;
 
-    if (responseJson.error) {
-      throw new Error(responseJson.error.message || responseJson.error);
-    }
+    this.#updateMetadata(metadata);
+  }
 
-    return responseJson.result;
+  #createEmptyUserOperation(): UserOperation {
+    return {
+      callData: '0x',
+      callGasLimit: '0x',
+      initCode: '0x',
+      maxFeePerGas: '0x',
+      maxPriorityFeePerGas: '0x',
+      nonce: '0x',
+      paymasterAndData: '0x',
+      preVerificationGas: '0x',
+      sender: AddressZero,
+      signature: '0x',
+      verificationGasLimit: '0x',
+    };
   }
 
   #updateMetadata(metadata: UserOperationMetadata) {
@@ -336,6 +348,10 @@ export class UserOperationController extends BaseControllerV2<
   }
 
   #updateTransaction(metadata: UserOperationMetadata) {
+    if (!metadata.transactionParams) {
+      return;
+    }
+
     const transactionMetadata = getTransactionMetadata(metadata);
     this.hub.emit('transaction-updated', transactionMetadata);
   }
@@ -344,9 +360,7 @@ export class UserOperationController extends BaseControllerV2<
     return cloneDeep(this.state);
   }
 
-  private async requestApproval(
-    metadata: UserOperationMetadata,
-  ): Promise<AddResult> {
+  async #requestApproval(metadata: UserOperationMetadata): Promise<AddResult> {
     const { id } = metadata;
     const type = ApprovalType.Transaction;
     const requestData = { txId: id };

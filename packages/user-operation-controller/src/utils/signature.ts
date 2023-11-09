@@ -1,13 +1,13 @@
 // Temporary until new keyring is available via KeyringController.
 
 import { arrayify } from '@ethersproject/bytes';
-import { UnsignedUserOperation } from '../types';
+import { UserOperation } from '../types';
 import { Wallet } from '@ethersproject/wallet';
 import { keccak256 } from '@ethersproject/keccak256';
 import { defaultAbiCoder } from '@ethersproject/abi';
 
 export async function signUserOperation(
-  userOperation: UnsignedUserOperation,
+  userOperation: UserOperation,
   entrypointAddress: string,
   chainId: string,
   privateKey: string,
@@ -20,7 +20,7 @@ export async function signUserOperation(
 }
 
 function getUserOperationHash(
-  userOperation: UnsignedUserOperation,
+  userOperation: UserOperation,
   entrypointAddress: string,
   chainId: string,
 ): string {
@@ -36,7 +36,7 @@ function getUserOperationHash(
 }
 
 function encodeUserOperationForSigning(
-  userOperation: UnsignedUserOperation,
+  userOperation: UserOperation,
 ): string {
   return defaultAbiCoder.encode(
     [

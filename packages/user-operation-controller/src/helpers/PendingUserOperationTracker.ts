@@ -3,21 +3,16 @@ import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
-import { UserOperationMetadata, UserOperationStatus } from '../types';
+import {
+  UserOperationMetadata,
+  UserOperationReceipt,
+  UserOperationStatus,
+} from '../types';
 import { UserOperationControllerState } from '../UserOperationController';
 import { Block } from '@ethersproject/providers';
+import { getBundler } from './Bundler';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
-
-type UserOperationReceipt = {
-  actualGasCost: string;
-  actualGasUsed: string;
-  success: boolean;
-  receipt: {
-    blockHash: string;
-    transactionHash: string;
-  };
-};
 
 type Events = {
   'user-operation-confirmed': [metadata: UserOperationMetadata];
@@ -39,11 +34,7 @@ export class PendingUserOperationTracker {
 
   #blockTracker: BlockTracker;
 
-  #bundlerQuery: (method: string, params: any[]) => Promise<any>;
-
   #getBlockByHash: (hash: string) => Promise<Block>;
-
-  #getChainId: () => string;
 
   #getUserOperations: () => UserOperationMetadata[];
 
@@ -57,16 +48,12 @@ export class PendingUserOperationTracker {
 
   constructor({
     blockTracker,
-    bundlerQuery,
     getBlockByHash,
-    getChainId,
     getUserOperations,
     onStateChange,
   }: {
     blockTracker: BlockTracker;
-    bundlerQuery: (method: string, params: any[]) => Promise<any>;
     getBlockByHash: (hash: string) => Promise<Block>;
-    getChainId: () => string;
     getUserOperations: () => UserOperationMetadata[];
     onStateChange: (
       listener: (state: UserOperationControllerState) => void,
@@ -75,9 +62,7 @@ export class PendingUserOperationTracker {
     this.hub = new EventEmitter() as PendingUserOperationTrackerEventEmitter;
 
     this.#blockTracker = blockTracker;
-    this.#bundlerQuery = bundlerQuery;
     this.#getBlockByHash = getBlockByHash;
-    this.#getChainId = getChainId;
     this.#getUserOperations = getUserOperations;
     this.#listener = this.#onLatestBlock.bind(this);
     this.#onStateChange = onStateChange;
@@ -149,7 +134,7 @@ export class PendingUserOperationTracker {
   }
 
   async #checkUserOperation(metadata: UserOperationMetadata) {
-    const { hash, id } = metadata;
+    const { chainId, hash, id } = metadata;
 
     if (!hash) {
       log('Skipping user operation as no hash', id);
@@ -157,7 +142,7 @@ export class PendingUserOperationTracker {
     }
 
     try {
-      const receipt = await this.#getUserOperationReceipt(hash);
+      const receipt = await this.#getUserOperationReceipt(hash, chainId);
       const isSuccess = receipt?.success;
 
       if (receipt && !isSuccess) {
@@ -235,8 +220,10 @@ export class PendingUserOperationTracker {
   }
 
   async #getUserOperationReceipt(
-    hash?: string,
+    hash: string,
+    chainId: string,
   ): Promise<UserOperationReceipt | undefined> {
-    return await this.#bundlerQuery('eth_getUserOperationReceipt', [hash]);
+    const bundler = getBundler(chainId);
+    return bundler.getUserOperationReceipt(hash);
   }
 }
