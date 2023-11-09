@@ -203,7 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.3...json-rpc-engine@3.0.0
 [2.2.3]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.2...json-rpc-engine@2.2.3
 [2.2.2]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.1...json-rpc-engine@2.2.2
-[2.2.1]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.1...json-rpc-engine@2.2.1
+[2.2.1]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.0...json-rpc-engine@2.2.1
 [2.2.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.1.0...json-rpc-engine@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.0.0...json-rpc-engine@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@1.0.0...json-rpc-engine@2.0.0
