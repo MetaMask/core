@@ -242,7 +242,7 @@ type TransactionMetaBase = {
   /**
    * Response from security validator.
    */
-  securityAlertResponse?: Record<string, unknown>;
+  securityAlertResponse?: SecurityAlertResponse;
 
   /**
    * Response from security provider.
@@ -508,6 +508,9 @@ export enum TransactionType {
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionParams {
   /**
    * Network ID as per EIP-155.
@@ -590,6 +593,9 @@ export interface TransactionParams {
 /**
  * Standard data concerning a transaction processed by the blockchain.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionReceipt {
   /**
    * The block hash of the block that this transaction was included in.
@@ -635,6 +641,9 @@ export interface TransactionReceipt {
 /**
  * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Log {
   /**
    * Address of the contract that generated log.
@@ -649,6 +658,9 @@ export interface Log {
 /**
  * The configuration required to fetch transaction data from a RemoteTransactionSource.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface RemoteTransactionSourceRequest {
   /**
    * The address of the account to fetch transactions for.
@@ -675,6 +687,9 @@ export interface RemoteTransactionSourceRequest {
  * An object capable of fetching transaction data from a remote source.
  * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface RemoteTransactionSource {
   /**
    * @param chainId - The chainId of the current network.
@@ -699,6 +714,9 @@ export interface RemoteTransactionSource {
 /**
  * Gas values initially suggested by the dApp.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface DappSuggestedGasFees {
   gas?: string;
   gasPrice?: string;
@@ -709,6 +727,8 @@ export interface DappSuggestedGasFees {
 /**
  * Gas values saved by the user for a specific chain.
  */
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface SavedGasFees {
   maxBaseFee: string;
   priorityFee: string;
@@ -858,4 +878,14 @@ export type TransactionError = {
    * The rpc property holds additional information related to the error.
    */
   rpc?: unknown;
+};
+
+/**
+ * Type for security alert response from transaction validator.
+ */
+export type SecurityAlertResponse = {
+  reason: string;
+  features?: string[];
+  result_type: string;
+  providerRequestsCount?: Record<string, number>;
 };

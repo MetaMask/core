@@ -52,6 +52,7 @@ import type {
   TransactionMeta,
   TransactionReceipt,
   WalletDevice,
+  SecurityAlertResponse,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -94,15 +95,24 @@ export const HARDFORK = Hardfork.London;
  * @property result - Promise resolving to a new transaction hash
  * @property transactionMeta - Meta information about this new transaction
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Result {
   result: Promise<string>;
   transactionMeta: TransactionMeta;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface GasPriceValue {
   gasPrice: string;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface FeeMarketEIP1559Values {
   maxFeePerGas: string;
   maxPriorityFeePerGas: string;
@@ -115,6 +125,9 @@ export interface FeeMarketEIP1559Values {
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionConfig extends BaseConfig {
   sign?: (txParams: TransactionParams, from: string) => Promise<any>;
   txHistoryLimit: number;
@@ -127,6 +140,9 @@ export interface TransactionConfig extends BaseConfig {
  * @property registryMethod - Registry method raw string
  * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface MethodData {
   registryMethod: string;
   parsedRegistryMethod: Record<string, unknown>;
@@ -139,6 +155,9 @@ export interface MethodData {
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
@@ -176,6 +195,9 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionControllerEventEmitter extends EventEmitter {
   on<T extends keyof Events>(
     eventName: T,
@@ -574,7 +596,7 @@ export class TransactionController extends BaseController<
       method?: string;
       origin?: string;
       requireApproval?: boolean | undefined;
-      securityAlertResponse?: Record<string, unknown>;
+      securityAlertResponse?: SecurityAlertResponse;
       sendFlowHistory?: SendFlowHistoryEntry[];
       swaps?: {
         hasApproveTx?: boolean;
@@ -992,6 +1014,34 @@ export class TransactionController extends BaseController<
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  /**
+   * Update the security alert response for a transaction.
+   *
+   * @param transactionId - ID of the transaction.
+   * @param securityAlertResponse - The new security alert response for the transaction.
+   */
+  updateSecurityAlertResponse(
+    transactionId: string,
+    securityAlertResponse: SecurityAlertResponse,
+  ) {
+    if (!securityAlertResponse) {
+      throw new Error(
+        'updateSecurityAlertResponse: securityAlertResponse should not be null',
+      );
+    }
+    const transactionMeta = this.getTransaction(transactionId);
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update security alert response as no transaction metadata found`,
+      );
+    }
+    const updatedMeta = merge(transactionMeta, { securityAlertResponse });
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updatesecurityAlertResponse - securityAlertResponse updated',
+    );
   }
 
   /**
