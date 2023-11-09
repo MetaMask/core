@@ -1196,11 +1196,9 @@ describe('TokenRatesController', () => {
         });
 
         const contractExchangeRates = await controller.fetchAndMapExchangeRates(
-          {
-            nativeCurrency: 'ETH',
-            chainSlug: 'ethereum',
-            tokenAddresses: ['0x02', '0x03'],
-          },
+          'ETH',
+          'ethereum',
+          ['0x02', '0x03'],
         );
 
         expect(contractExchangeRates).toStrictEqual({
@@ -1239,11 +1237,9 @@ describe('TokenRatesController', () => {
         });
 
         const contractExchangeRates = await controller.fetchAndMapExchangeRates(
-          {
-            nativeCurrency: 'LOL',
-            chainSlug: 'ethereum',
-            tokenAddresses: ['0x02', '0x03'],
-          },
+          'LOL',
+          'ethereum',
+          ['0x02', '0x03'],
         );
 
         expect(contractExchangeRates).toStrictEqual({
