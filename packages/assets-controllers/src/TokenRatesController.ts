@@ -1,5 +1,6 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
+  safelyExecute,
   handleFetch,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
@@ -8,11 +9,14 @@ import {
 import type {
   NetworkClientId,
   NetworkController,
+  NetworkState,
 } from '@metamask/network-controller';
 import { PollingControllerV1 } from '@metamask/polling-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
+import type { TokensState } from './TokensController';
 
 /**
  * @type CoinGeckoResponse
@@ -77,6 +81,11 @@ export interface Token {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
+  nativeCurrency: string;
+  chainId: Hex;
+  selectedAddress: string;
+  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   threshold: number;
 }
 
@@ -103,6 +112,11 @@ interface SupportedVsCurrenciesCache {
   data: string[];
 }
 
+enum PollState {
+  Active = 'Active',
+  Inactive = 'Inactive',
+}
+
 /**
  * @type TokenRatesState
  *
@@ -114,7 +128,11 @@ interface SupportedVsCurrenciesCache {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenRatesState extends BaseState {
-  contractExchangeRates: Record<Hex, Record<string, ContractExchangeRates>>;
+  contractExchangeRates: ContractExchangeRates;
+  contractExchangeRatesByChainId: Record<
+    Hex,
+    Record<string, ContractExchangeRates>
+  >;
 }
 
 const CoinGeckoApi = {
@@ -160,6 +178,10 @@ export class TokenRatesController extends PollingControllerV1<
   TokenRatesConfig,
   TokenRatesState
 > {
+  private handle?: ReturnType<typeof setTimeout>;
+
+  private tokenList: Token[] = [];
+
   private supportedChains: SupportedChainsCache = {
     timestamp: 0,
     data: null,
@@ -169,6 +191,8 @@ export class TokenRatesController extends PollingControllerV1<
     timestamp: 0,
     data: [],
   };
+
+  #pollState = PollState.Inactive;
 
   /**
    * Name of this controller used during composition
@@ -184,6 +208,12 @@ export class TokenRatesController extends PollingControllerV1<
    * @param options.interval - The polling interval in ms
    * @param options.threshold - The duration in ms before metadata fetched from CoinGecko is considered stale
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
+   * @param options.chainId - The chain ID of the current network.
+   * @param options.ticker - The ticker for the current network.
+   * @param options.selectedAddress - The current selected address.
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
+   * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
+   * @param options.onNetworkStateChange - Allows subscribing to network state changes.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -192,10 +222,28 @@ export class TokenRatesController extends PollingControllerV1<
       interval = 3 * 60 * 1000,
       threshold = 6 * 60 * 60 * 1000,
       getNetworkClientById,
+      chainId: initialChainId,
+      ticker: initialTicker,
+      selectedAddress: initialSelectedAddress,
+      onPreferencesStateChange,
+      onTokensStateChange,
+      onNetworkStateChange,
     }: {
       interval?: number;
       threshold?: number;
       getNetworkClientById: NetworkController['getNetworkClientById'];
+      chainId: Hex;
+      ticker: string;
+      selectedAddress: string;
+      onPreferencesStateChange: (
+        listener: (preferencesState: PreferencesState) => void,
+      ) => void;
+      onTokensStateChange: (
+        listener: (tokensState: TokensState) => void,
+      ) => void;
+      onNetworkStateChange: (
+        listener: (networkState: NetworkState) => void,
+      ) => void;
     },
     config?: Partial<TokenRatesConfig>,
     state?: Partial<TokenRatesState>,
@@ -204,14 +252,114 @@ export class TokenRatesController extends PollingControllerV1<
     this.defaultConfig = {
       interval,
       threshold,
+      disabled: false,
+      nativeCurrency: initialTicker,
+      chainId: initialChainId,
+      selectedAddress: initialSelectedAddress,
+      allTokens: {}, // TODO: initialize these correctly, maybe as part of BaseControllerV2 migration
+      allDetectedTokens: {},
     };
 
     this.defaultState = {
       contractExchangeRates: {},
+      contractExchangeRatesByChainId: {},
     };
     this.initialize();
     this.setIntervalLength(interval);
     this.getNetworkClientById = getNetworkClientById;
+
+    if (config?.disabled) {
+      this.configure({ disabled: true }, false, false);
+    }
+    this.#updateTokenList();
+
+    onPreferencesStateChange(async ({ selectedAddress }) => {
+      if (this.config.selectedAddress !== selectedAddress) {
+        this.configure({ selectedAddress });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
+      }
+    });
+
+    onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
+      // These two state properties are assumed to be immutable
+      if (
+        this.config.allTokens !== allTokens ||
+        this.config.allDetectedTokens !== allDetectedTokens
+      ) {
+        this.configure({ allTokens, allDetectedTokens });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
+      }
+    });
+
+    onNetworkStateChange(async ({ providerConfig }) => {
+      const { chainId, ticker } = providerConfig;
+      if (
+        this.config.chainId !== chainId ||
+        this.config.nativeCurrency !== ticker
+      ) {
+        this.update({ contractExchangeRates: {} });
+        this.configure({ chainId, nativeCurrency: ticker });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
+      }
+    });
+  }
+
+  #updateTokenList() {
+    const { allTokens, allDetectedTokens } = this.config;
+    const tokens =
+      allTokens[this.config.chainId]?.[this.config.selectedAddress] || [];
+    const detectedTokens =
+      allDetectedTokens[this.config.chainId]?.[this.config.selectedAddress] ||
+      [];
+    this.tokenList = [...tokens, ...detectedTokens];
+  }
+
+  /**
+   * Start (or restart) polling.
+   */
+  async start() {
+    this.#stopPoll();
+    this.#pollState = PollState.Active;
+    await this.#poll();
+  }
+
+  /**
+   * Stop polling.
+   */
+  stop() {
+    this.#stopPoll();
+    this.#pollState = PollState.Inactive;
+  }
+
+  /**
+   * Clear the active polling timer, if present.
+   */
+  #stopPoll() {
+    if (this.handle) {
+      clearTimeout(this.handle);
+    }
+  }
+
+  /**
+   * Poll for exchange rate updates.
+   */
+  async #poll() {
+    await safelyExecute(() => this.updateExchangeRates());
+
+    // Poll using recursive `setTimeout` instead of `setInterval` so that
+    // requests don't stack if they take longer than the polling interval
+    this.handle = setTimeout(() => {
+      this.#poll();
+    }, this.config.interval);
   }
 
   /**
@@ -291,13 +439,35 @@ export class TokenRatesController extends PollingControllerV1<
 
   /**
    * Updates exchange rates for all tokens.
+   */
+  async updateExchangeRates() {
+    if (this.tokenList.length === 0 || this.disabled) {
+      return;
+    }
+
+    const { chainId, nativeCurrency } = this.config;
+    const tokenAddresses = this.tokenList.map((token) => token.address);
+    await this.updateExchangeRatesByChainId({
+      chainId,
+      nativeCurrency,
+      tokenAddresses,
+    });
+
+    this.update({
+      contractExchangeRates:
+        this.state.contractExchangeRatesByChainId[chainId][nativeCurrency],
+    });
+  }
+
+  /**
+   * Updates exchange rates for all tokens.
    *
    * @param options - The options to fetch exchange rates.
    * @param options.chainId - The chain ID.
    * @param options.nativeCurrency - The ticker for the chain.
    * @param options.tokenAddresses - The addresses for the token contracts.
    */
-  async updateExchangeRates({
+  async updateExchangeRatesByChainId({
     chainId,
     nativeCurrency,
     tokenAddresses,
@@ -325,15 +495,15 @@ export class TokenRatesController extends PollingControllerV1<
       });
     }
 
+    const existingContractExchangeRates =
+      this.state.contractExchangeRatesByChainId[chainId] ?? {};
     this.update({
-      contractExchangeRates: {
-        ...this.state.contractExchangeRates,
+      contractExchangeRatesByChainId: {
+        ...this.state.contractExchangeRatesByChainId,
         [chainId]: {
-          ...(this.state.contractExchangeRates[chainId] || {}),
+          ...existingContractExchangeRates,
           [nativeCurrency]: {
-            ...((this.state.contractExchangeRates[chainId] || {})[
-              nativeCurrency
-            ] || {}),
+            ...(existingContractExchangeRates[nativeCurrency] ?? {}),
             ...newContractExchangeRates,
           },
         },
@@ -438,7 +608,7 @@ export class TokenRatesController extends PollingControllerV1<
     options: { tokenAddresses: string[] },
   ): Promise<void> {
     const networkClient = this.getNetworkClientById(networkClientId);
-    await this.updateExchangeRates({
+    await this.updateExchangeRatesByChainId({
       chainId: networkClient.configuration.chainId,
       nativeCurrency: networkClient.configuration.ticker,
       tokenAddresses: options.tokenAddresses,
