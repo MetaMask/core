@@ -3517,4 +3517,71 @@ describe('TransactionController', () => {
       );
     });
   });
+
+  describe('getTransactions', () => {
+    it('should return an array of transactions', async () => {
+      const controller = newController();
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+      });
+      const expectedTransactions = controller.state.transactions;
+      const transactions = controller.getTransactions();
+      expect(transactions).toStrictEqual(expectedTransactions);
+    });
+  });
+  describe('updateTransactionHash', () => {
+    const transactionId = '1';
+    const baseTransaction = {
+      id: transactionId,
+      chainId: toHex(5),
+      status: TransactionStatus.unapproved as const,
+      time: 123456789,
+      txParams: {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+      },
+    };
+    const transactionMeta: TransactionMeta = {
+      ...baseTransaction,
+      hash: '1234',
+      history: [{ ...baseTransaction }],
+    };
+    it('updates transaction hash', async () => {
+      const newHash = 'newHash';
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
+
+      controller.updateTransactionHash(transactionId, newHash);
+
+      const updatedTransaction = controller.state.transactions.find(
+        (transaction) => transaction.id === transactionId,
+      );
+
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledWith(
+        updatedTransaction,
+        'TransactionController#updateTransactionHash - Transaction hash updated',
+      );
+      expect(updatedTransaction?.hash).toStrictEqual(newHash);
+    });
+
+    it('handles non-existent transaction during hash update', async () => {
+      const nonExistentId = 'nonExistentId';
+      const newHash = 'newHash';
+      const controller = newController();
+
+      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
+
+      controller.updateTransactionHash(nonExistentId, newHash);
+
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(0);
+    });
+  });
 });

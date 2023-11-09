@@ -1391,6 +1391,34 @@ export class TransactionController extends BaseController<
     return rawTransactions;
   }
 
+  /**
+   * Retrieves an array containing all transactions stored in the current state.
+   *
+   * @returns An array of `TransactionMeta` objects representing the transactions.
+   */
+  getTransactions(): TransactionMeta[] {
+    return this.state.transactions;
+  }
+
+  /**
+   * Updates the transaction hash associated with a specific transaction ID.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param hash - The new hash value to be assigned.
+   */
+  updateTransactionHash(transactionId: string, hash: string) {
+    const transactionMeta = this.getTransaction(transactionId);
+    if (!transactionMeta) {
+      log(`Transaction with id ${transactionId} not found.`);
+      return;
+    }
+    transactionMeta.hash = hash;
+    this.updateTransaction(
+      transactionMeta,
+      'TransactionController#updateTransactionHash - Transaction hash updated',
+    );
+  }
+
   private async signExternalTransaction(
     transactionParams: TransactionParams,
   ): Promise<string> {
