@@ -28,7 +28,7 @@ export function getTransactionMetadata(
     return undefined;
   }
 
-  const { nonce, maxFeePerGas, maxPriorityFeePerGas } = userOperation ?? {};
+  const { nonce } = userOperation ?? {};
 
   const effectiveGasPrice =
     actualGasCost && actualGasUsed
@@ -66,6 +66,16 @@ export function getTransactionMetadata(
     userOperation?.callGasLimit,
   );
 
+  const maxFeePerGas =
+    userOperation.maxFeePerGas === '0x'
+      ? undefined
+      : userOperation.maxFeePerGas;
+
+  const maxPriorityFeePerGas =
+    userOperation.maxPriorityFeePerGas === '0x'
+      ? undefined
+      : userOperation.maxPriorityFeePerGas;
+
   const txParams = {
     ...transactionParams,
     gas,
@@ -74,7 +84,7 @@ export function getTransactionMetadata(
     maxPriorityFeePerGas,
   };
 
-  const type = TransactionType.contractInteraction;
+  const type = 'userOperation' as TransactionType;
 
   return {
     baseFeePerGas: (baseFeePerGas as Hex) ?? undefined,

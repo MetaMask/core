@@ -1,6 +1,9 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import { TransactionParams } from '@metamask/transaction-controller';
+import {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
 import { AddressZero } from '@ethersproject/constants';
 
@@ -71,6 +74,7 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 export type UserOperationControllerOptions = {
   blockTracker: BlockTracker;
   getPrivateKey: () => Promise<string>;
+  getTransactions: () => TransactionMeta[];
   messenger: UserOperationControllerMessenger;
   provider: ProviderProxy;
   state?: Partial<UserOperationControllerState>;
@@ -90,6 +94,8 @@ export class UserOperationController extends BaseControllerV2<
 
   #getPrivateKey: () => Promise<string>;
 
+  #getTransactions: () => TransactionMeta[];
+
   #provider: ProviderProxy;
 
   /**
@@ -103,6 +109,7 @@ export class UserOperationController extends BaseControllerV2<
   constructor({
     blockTracker,
     getPrivateKey,
+    getTransactions,
     messenger,
     provider,
     state,
@@ -118,6 +125,7 @@ export class UserOperationController extends BaseControllerV2<
 
     this.#blockTracker = blockTracker;
     this.#getPrivateKey = getPrivateKey;
+    this.#getTransactions = getTransactions;
     this.#provider = provider;
 
     const pendingTracker = new PendingUserOperationTracker({
@@ -199,7 +207,7 @@ export class UserOperationController extends BaseControllerV2<
     const provider = new Web3Provider(this.#provider as any);
 
     const ethereum: SnapProvider = {
-      request: ({method, params}) => provider.send(method, params),
+      request: ({ method, params }) => provider.send(method, params),
     };
 
     const response = await sendSnapRequest(snapId, {
@@ -211,8 +219,9 @@ export class UserOperationController extends BaseControllerV2<
     });
 
     userOperation.callData = response.callData;
-    userOperation.maxFeePerGas = toHex(0.16e9);
-    userOperation.maxPriorityFeePerGas = toHex(0.15e9);
+    userOperation.maxFeePerGas = transaction.maxFeePerGas || '0x';
+    userOperation.maxPriorityFeePerGas =
+      transaction.maxPriorityFeePerGas || '0x';
     userOperation.nonce = response.nonce;
     userOperation.sender = transaction.from;
 
@@ -255,6 +264,20 @@ export class UserOperationController extends BaseControllerV2<
 
   async #approveUserOperation(metadata: UserOperationMetadata) {
     const { resultCallbacks } = await this.#requestApproval(metadata);
+
+    const transaction = this.#getTransactions().find(
+      (tx) => tx.id === metadata.id,
+    );
+
+    if (
+      transaction?.txParams.maxFeePerGas &&
+      transaction?.txParams.maxPriorityFeePerGas
+    ) {
+      metadata.userOperation.maxFeePerGas = transaction.txParams.maxFeePerGas;
+
+      metadata.userOperation.maxPriorityFeePerGas =
+        transaction.txParams.maxPriorityFeePerGas;
+    }
 
     metadata.status = UserOperationStatus.Approved;
     this.#updateMetadata(metadata);
@@ -354,6 +377,7 @@ export class UserOperationController extends BaseControllerV2<
     }
 
     const transactionMetadata = getTransactionMetadata(metadata);
+
     this.hub.emit('transaction-updated', transactionMetadata);
   }
 

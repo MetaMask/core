@@ -50,6 +50,8 @@ export class Bundler {
     userOperation: UserOperation,
     entrypoint: string,
   ): Promise<string> {
+    log('Sending user operation', { userOperation, entrypoint });
+
     const hash = await this.#query('eth_sendUserOperation', [
       userOperation,
       entrypoint,
