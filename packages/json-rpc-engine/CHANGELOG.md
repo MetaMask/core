@@ -154,6 +154,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.1]
 
+## [2.2.0]
+
+## [2.1.0]
+
+## [2.0.0]
+
+## [1.0.0]
+
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.0...HEAD
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.2.0...@metamask/json-rpc-engine@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
@@ -195,4 +203,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.3...json-rpc-engine@3.0.0
 [2.2.3]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.2...json-rpc-engine@2.2.3
 [2.2.2]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.1...json-rpc-engine@2.2.2
-[2.2.1]: https://github.com/MetaMask/core/releases/tag/json-rpc-engine@2.2.1
+[2.2.1]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.2.1...json-rpc-engine@2.2.1
+[2.2.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.1.0...json-rpc-engine@2.2.0
+[2.1.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@2.0.0...json-rpc-engine@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@1.0.0...json-rpc-engine@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-engine@1.0.0
