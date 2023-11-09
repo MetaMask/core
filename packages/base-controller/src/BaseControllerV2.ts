@@ -265,7 +265,10 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
   return Object.keys(state).reduce(
-    (persistedState: Record<string, Json>, key: keyof ControllerState) => {
+    (
+      persistedState: Record<keyof ControllerState, Json>,
+      key: keyof ControllerState,
+    ) => {
       try {
         const stateMetadata = metadata[key];
         if (!stateMetadata) {
@@ -274,9 +277,9 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
         const propertyMetadata = stateMetadata[metadataProperty];
         const stateProperty = state[key];
         if (typeof propertyMetadata === 'function') {
-          persistedState[String(key)] = propertyMetadata(stateProperty);
+          persistedState[key] = propertyMetadata(stateProperty);
         } else if (propertyMetadata) {
-          persistedState[String(key)] = stateProperty;
+          persistedState[key] = stateProperty;
         }
         return persistedState;
       } catch (error) {
@@ -288,6 +291,6 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
         return persistedState;
       }
     },
-    {},
+    {} as Record<keyof ControllerState, Json>,
   );
 }
