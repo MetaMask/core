@@ -62,6 +62,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
+## [2.1.1]
+
+## [2.1.0]
+
+## [2.0.0]
+
+## [1.0.1]
+
+## [1.0.0]
+
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.0...HEAD
 [6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@5.0.1...@metamask/json-rpc-middleware-stream@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@5.0.0...json-rpc-middleware-stream@5.0.1
@@ -72,4 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [4.2.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.1.0...json-rpc-middleware-stream@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@4.0.0...json-rpc-middleware-stream@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@3.0.0...json-rpc-middleware-stream@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-middleware-stream@3.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@2.1.1...json-rpc-middleware-stream@3.0.0
+[2.1.1]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@2.1.0...json-rpc-middleware-stream@2.1.1
+[2.1.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@2.0.0...json-rpc-middleware-stream@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@1.0.1...json-rpc-middleware-stream@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@1.0.0...json-rpc-middleware-stream@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-middleware-stream@1.0.0
