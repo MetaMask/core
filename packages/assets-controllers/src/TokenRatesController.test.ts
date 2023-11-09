@@ -1,5 +1,4 @@
-import { NetworkType, NetworksTicker, toHex } from '@metamask/controller-utils';
-import { Address } from 'ethereumjs-util';
+import { NetworksTicker, toHex } from '@metamask/controller-utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
@@ -418,7 +417,7 @@ describe('TokenRatesController', () => {
           providerConfig: { chainId: toHex(1337), ticker: 'NEW' },
         });
 
-        expect(controller.state.contractExchangeRates).toEqual({});
+        expect(controller.state.contractExchangeRates).toStrictEqual({});
       });
 
       it('should clear contractExchangeRates state when chain ID changes', async () => {
@@ -446,7 +445,7 @@ describe('TokenRatesController', () => {
           providerConfig: { chainId: toHex(1338), ticker: 'TEST' },
         });
 
-        expect(controller.state.contractExchangeRates).toEqual({});
+        expect(controller.state.contractExchangeRates).toStrictEqual({});
       });
 
       it('should not update exchange rates when network state changes without a ticker/chain id change', async () => {
@@ -563,7 +562,7 @@ describe('TokenRatesController', () => {
           providerConfig: { chainId: toHex(1337), ticker: 'NEW' },
         });
 
-        expect(controller.state.contractExchangeRates).toEqual({});
+        expect(controller.state.contractExchangeRates).toStrictEqual({});
       });
 
       it('should clear contractExchangeRates state when chain ID changes', async () => {
@@ -590,7 +589,7 @@ describe('TokenRatesController', () => {
           providerConfig: { chainId: toHex(1338), ticker: 'TEST' },
         });
 
-        expect(controller.state.contractExchangeRates).toEqual({});
+        expect(controller.state.contractExchangeRates).toStrictEqual({});
       });
     });
   });
@@ -1022,7 +1021,7 @@ describe('TokenRatesController', () => {
         tokenAddresses: ['0x123', ADDRESS],
       });
 
-      expect(controller.state.contractExchangeRates).toEqual({
+      expect(controller.state.contractExchangeRates).toStrictEqual({
         '0x123': 123,
         '0x01': 100,
       });
