@@ -1029,6 +1029,27 @@ describe('TokenRatesController', () => {
   });
 
   describe('updateExchangeRatesByChainId', () => {
+    it('should not update state if no tokenAddresses are provided', async () => {
+      const controller = new TokenRatesController({
+        interval: 100,
+        chainId: '0x2',
+        ticker: 'ticker',
+        selectedAddress: '0xdeadbeef',
+        onPreferencesStateChange: jest.fn(),
+        onTokensStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
+        getNetworkClientById: jest.fn(),
+      });
+
+      expect(controller.state.contractExchangeRates).toStrictEqual({});
+      await controller.updateExchangeRatesByChainId({
+        chainId: '0x1',
+        nativeCurrency: 'ETH',
+        tokenAddresses: [],
+      });
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
+    });
+
     it('should update all rates', async () => {
       const tokenAddress = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
       nock(COINGECKO_API)
@@ -1128,6 +1149,34 @@ describe('TokenRatesController', () => {
           MATIC: {
             '0x02': 0.0005, // token value in terms of matic = (token value in eth) * (eth value in matic) = .001 * .5
             '0x03': 0.001,
+          },
+        },
+      });
+    });
+
+    it('should update exchange rates with undefined when chain is not supported by coingecko', async () => {
+      const controller = new TokenRatesController({
+        chainId: '0x2',
+        ticker: 'ticker',
+        selectedAddress: '0xdeadbeef',
+        onPreferencesStateChange: jest.fn(),
+        onTokensStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
+        getNetworkClientById: jest.fn(),
+      });
+      jest.spyOn(controller, 'getChainSlug').mockResolvedValue('');
+
+      await controller.updateExchangeRatesByChainId({
+        chainId: toHex(137),
+        nativeCurrency: 'MATIC',
+        tokenAddresses: ['0x02', '0x03'],
+      });
+
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
+        [toHex(137)]: {
+          MATIC: {
+            '0x02': undefined,
+            '0x03': undefined,
           },
         },
       });
@@ -1246,6 +1295,42 @@ describe('TokenRatesController', () => {
           '0x02': 0.0005,
           '0x03': 0.001,
         });
+      });
+
+      it('returns the an empty object when market does not exist for pair', async () => {
+        nock(COINGECKO_API)
+          .get(`${COINGECKO_ETH_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+          .reply(200, {
+            '0x02': {
+              eth: 0.001,
+            },
+            '0x03': {
+              eth: 0.002,
+            },
+          });
+
+        const controller = new TokenRatesController({
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: '0xdeadbeef',
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn(),
+        });
+        jest
+          .spyOn(controller, 'fetchExchangeRate')
+          .mockRejectedValue(
+            new Error('market does not exist for this coin pair'),
+          );
+        const contractExchangeRates = await controller.fetchAndMapExchangeRates(
+          'LOL',
+          'ethereum',
+          ['0x02', '0x03'],
+        );
+
+        expect(contractExchangeRates).toStrictEqual({});
       });
     });
   });
