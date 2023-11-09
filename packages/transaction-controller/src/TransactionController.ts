@@ -1392,15 +1392,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Retrieves an array containing all transactions stored in the current state.
-   *
-   * @returns An array of `TransactionMeta` objects representing the transactions.
-   */
-  getTransactions(): TransactionMeta[] {
-    return this.state.transactions;
-  }
-
-  /**
    * Updates the transaction hash associated with a specific transaction ID.
    *
    * @param transactionId - The ID of the transaction to update.

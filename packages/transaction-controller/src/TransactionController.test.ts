@@ -3518,22 +3518,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('getTransactions', () => {
-    it('should return an array of transactions', async () => {
-      const controller = newController();
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-      });
-      const expectedTransactions = controller.state.transactions;
-      const transactions = controller.getTransactions();
-      expect(transactions).toStrictEqual(expectedTransactions);
-    });
-  });
   describe('updateTransactionHash', () => {
     const transactionId = '1';
     const baseTransaction = {
