@@ -171,7 +171,7 @@ export class RestrictedControllerMessenger<
    * @param action - The action type. This is a unqiue identifier for this action.
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
-   * @throws Will throw when a handler has been registered for this action type already.
+   * @throws Will throw if an action handler that is not in the current namespace is being registered.
    * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
    */
   registerActionHandler<ActionType extends Action['type']>(
