@@ -3,7 +3,6 @@ export type SnapProvider = {
 };
 
 export type OnUserOperationRequest = {
-  sender: string;
   to?: string;
   value?: string;
   data?: string;
@@ -13,8 +12,10 @@ export type OnUserOperationRequest = {
 
 export type OnUserOperationResponse = {
   callData: string;
+  initCode: string;
   nonce: string;
   paymasterAndData: string;
+  sender: string;
 };
 
 export type OnUserOperationHandler = (

@@ -78,6 +78,7 @@ export function getTransactionMetadata(
 
   const txParams = {
     ...transactionParams,
+    from: userOperation.sender,
     gas,
     nonce,
     maxFeePerGas,

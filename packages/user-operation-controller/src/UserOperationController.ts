@@ -212,18 +212,18 @@ export class UserOperationController extends BaseControllerV2<
 
     const response = await sendSnapRequest(snapId, {
       ethereum,
-      sender: transaction.from,
       to: transaction.to,
       value: transaction.value,
       data: transaction.data,
     });
 
     userOperation.callData = response.callData;
+    userOperation.initCode = response.initCode;
     userOperation.maxFeePerGas = transaction.maxFeePerGas || '0x';
     userOperation.maxPriorityFeePerGas =
       transaction.maxPriorityFeePerGas || '0x';
     userOperation.nonce = response.nonce;
-    userOperation.sender = transaction.from;
+    userOperation.sender = response.sender;
 
     metadata.transactionParams = transaction as any;
 
