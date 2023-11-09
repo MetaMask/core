@@ -703,7 +703,7 @@ export class TransactionController extends BaseController<
     if (gasValues) {
       validateGasValues(gasValues);
     }
-    const transactionMeta = transactions.find(({ id }) => id === transactionId);
+    const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
     }
@@ -755,7 +755,7 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const cancelTxParams: TransactionParams =
+    const newTxParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             from: transactionMeta.txParams.from,
@@ -776,7 +776,7 @@ export class TransactionController extends BaseController<
             value: '0x0',
           };
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(cancelTxParams);
+    const unsignedEthTx = this.prepareUnsignedEthTx(newTxParams);
 
     const signedTx = await this.sign(
       unsignedEthTx,
@@ -797,7 +797,7 @@ export class TransactionController extends BaseController<
       type: TransactionType.cancel,
       txParams: {
         ...transactionMeta.txParams,
-        ...cancelTxParams,
+        ...newTxParams,
       },
     };
 
