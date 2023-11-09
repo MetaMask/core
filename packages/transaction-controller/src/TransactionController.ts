@@ -698,6 +698,11 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
+    // If transaction is found for same action id, do not create a cancel transaction.
+    if (this.getTransactionWithActionId(actionId)) {
+      return;
+    }
+
     const { transactions } = this.state;
 
     if (gasValues) {

@@ -1944,6 +1944,29 @@ describe('TransactionController', () => {
   });
 
   describe('stopTransaction', () => {
+    it('should avoid creating cancel transaction if actionId already exist', async () => {
+      const mockActionId = 'mockActionId';
+      const controller = newController();
+
+      controller.state.transactions.push({
+        actionId: mockActionId,
+        id: '2',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        type: TransactionType.cancel,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+        },
+      });
+
+      await controller.stopTransaction('2', undefined, {
+        actionId: mockActionId,
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
     it('submits a cancel transaction', async () => {
       const simpleSendTransactionId =
         'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
@@ -2086,6 +2109,28 @@ describe('TransactionController', () => {
   });
 
   describe('speedUpTransaction', () => {
+    it('should avoid creating speedup transaction if actionId already exist', async () => {
+      const mockActionId = 'mockActionId';
+      const controller = newController();
+
+      controller.state.transactions.push({
+        actionId: mockActionId,
+        id: '2',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        type: TransactionType.retry,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+        },
+      });
+
+      await controller.speedUpTransaction('2', undefined, {
+        actionId: mockActionId,
+      });
+
+      expect(controller.state.transactions).toHaveLength(1);
+    });
     it('creates additional transaction with increased gas', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
