@@ -782,7 +782,6 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.txParams.from,
     );
-    await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
     const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
     const cancelTransactionMeta: TransactionMeta = {
