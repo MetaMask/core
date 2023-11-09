@@ -1,6 +1,5 @@
 import nock from 'nock';
 import { NetworkState } from '@metamask/network-controller';
-import { convertHexToDecimal } from '@metamask/controller-utils';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import packageJson from '../package.json';
@@ -10,61 +9,32 @@ import SmartTransactionsController, {
 } from './SmartTransactionsController';
 import { API_BASE_URL, CHAIN_IDS } from './constants';
 import { SmartTransaction, SmartTransactionStatuses } from './types';
-import * as utils from './utils';
 
-/**
- * Resolve all pending promises.
- * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
- */
-function flushPromises(): Promise<unknown> {
-  return new Promise(jest.requireActual('timers').setImmediate);
-}
+const confirmExternalMock = jest.fn();
 
 jest.mock('@ethersproject/bytes', () => ({
   ...jest.requireActual('@ethersproject/bytes'),
   hexlify: (str: string) => `0x${str}`,
 }));
 
-jest.mock('@metamask/eth-query', () => {
-  const EthQuery = jest.requireActual('@metamask/eth-query');
-  return class FakeEthQuery extends EthQuery {
-    sendAsync = jest.fn(({ method }, callback) => {
-      switch (method) {
-        case 'eth_getBalance': {
-          callback(null, '0x1000');
-          break;
-        }
+jest.mock('@ethersproject/providers', () => ({
+  Web3Provider: class Web3Provider {
+    getBalance = () => ({ toHexString: () => '0x1000' });
 
-        case 'eth_getTransactionReceipt': {
-          callback(null, { blockNumber: '123' });
-          break;
-        }
+    getTransactionReceipt = jest.fn(() => ({ blockNumber: '123' }));
 
-        case 'eth_getBlockByNumber': {
-          callback(null, { baseFeePerGas: '0x123' });
-          break;
-        }
+    getTransaction = jest.fn(() => ({
+      maxFeePerGas: { toHexString: () => '0x123' },
+      maxPriorityFeePerGas: { toHexString: () => '0x123' },
+    }));
 
-        case 'eth_getTransactionByHash': {
-          callback(null, {
-            maxFeePerGas: '0x123',
-            maxPriorityFeePerGas: '0x123',
-          });
-          break;
-        }
-
-        default: {
-          throw new Error('Invalid method');
-        }
-      }
-    });
-  };
-});
+    getBlock = jest.fn();
+  },
+}));
 
 const addressFrom = '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3';
 
-const createUnsignedTransaction = (chainId: number) => {
+const createUnsignedTransaction = () => {
   return {
     from: addressFrom,
     to: '0x0000000000000000000000000000000000000000',
@@ -72,7 +42,7 @@ const createUnsignedTransaction = (chainId: number) => {
     data: '0x',
     nonce: 0,
     type: 2,
-    chainId,
+    chainId: 4,
   };
 };
 
@@ -282,41 +252,13 @@ const testHistory = [
 ];
 
 const ethereumChainIdDec = parseInt(CHAIN_IDS.ETHEREUM, 16);
-const goerliChainIdDec = parseInt(CHAIN_IDS.GOERLI, 16);
 
 const trackMetaMetricsEventSpy = jest.fn();
-const defaultState = {
-  smartTransactionsState: {
-    smartTransactions: {
-      [CHAIN_IDS.ETHEREUM]: [],
-    },
-    userOptIn: undefined,
-    userOptInV2: undefined,
-    fees: {
-      approvalTxFees: undefined,
-      tradeTxFees: undefined,
-    },
-    feesByChainId: {
-      [CHAIN_IDS.ETHEREUM]: {
-        approvalTxFees: undefined,
-        tradeTxFees: undefined,
-      },
-      [CHAIN_IDS.GOERLI]: {
-        approvalTxFees: undefined,
-        tradeTxFees: undefined,
-      },
-    },
-    liveness: true,
-    livenessByChainId: {
-      [CHAIN_IDS.ETHEREUM]: true,
-      [CHAIN_IDS.GOERLI]: true,
-    },
-  },
-};
 
 describe('SmartTransactionsController', () => {
   let smartTransactionsController: SmartTransactionsController;
   let networkListener: (networkState: NetworkState) => void;
+
   beforeEach(() => {
     smartTransactionsController = new SmartTransactionsController({
       onNetworkStateChange: (listener) => {
@@ -329,26 +271,8 @@ describe('SmartTransactionsController', () => {
         };
       }),
       provider: jest.fn(),
-      confirmExternalTransaction: jest.fn(),
+      confirmExternalTransaction: confirmExternalMock,
       trackMetaMetricsEvent: trackMetaMetricsEventSpy,
-      getNetworkClientById: jest.fn().mockImplementation((networkClientId) => {
-        switch (networkClientId) {
-          case 'mainnet':
-            return {
-              configuration: {
-                chainId: CHAIN_IDS.ETHEREUM,
-              },
-            };
-          case 'goerli':
-            return {
-              configuration: {
-                chainId: CHAIN_IDS.GOERLI,
-              },
-            };
-          default:
-            throw new Error('Invalid network client id');
-        }
-      }),
     });
     // eslint-disable-next-line jest/prefer-spy-on
     smartTransactionsController.subscribe = jest.fn();
@@ -363,35 +287,38 @@ describe('SmartTransactionsController', () => {
   it('initializes with default config', () => {
     expect(smartTransactionsController.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
-      supportedChainIds: [CHAIN_IDS.ETHEREUM, CHAIN_IDS.GOERLI],
+      supportedChainIds: [CHAIN_IDS.ETHEREUM, CHAIN_IDS.RINKEBY],
       chainId: CHAIN_IDS.ETHEREUM,
       clientId: 'default',
     });
   });
 
   it('initializes with default state', () => {
-    expect(smartTransactionsController.state).toStrictEqual(defaultState);
+    expect(smartTransactionsController.state).toStrictEqual({
+      smartTransactionsState: {
+        smartTransactions: {
+          [CHAIN_IDS.ETHEREUM]: [],
+        },
+        userOptIn: undefined,
+        userOptInV2: undefined,
+        fees: {
+          approvalTxFees: undefined,
+          tradeTxFees: undefined,
+        },
+        liveness: true,
+      },
+    });
   });
 
   describe('onNetworkChange', () => {
     it('is triggered', () => {
-      networkListener({
-        providerConfig: { chainId: '0x32', type: 'rpc', ticker: 'CET' },
-        selectedNetworkClientId: 'networkClientId',
-        networkConfigurations: {},
-        networksMetadata: {},
-      } as NetworkState);
-      expect(smartTransactionsController.config.chainId).toBe('0x32');
+      networkListener({ providerConfig: { chainId: '52' } } as NetworkState);
+      expect(smartTransactionsController.config.chainId).toBe('52');
     });
 
     it('calls poll', () => {
       const checkPollSpy = jest.spyOn(smartTransactionsController, 'checkPoll');
-      networkListener({
-        providerConfig: { chainId: '0x32', type: 'rpc', ticker: 'CET' },
-        selectedNetworkClientId: 'networkClientId',
-        networkConfigurations: {},
-        networksMetadata: {},
-      } as NetworkState);
+      networkListener({ providerConfig: { chainId: '2' } } as NetworkState);
       expect(checkPollSpy).toHaveBeenCalled();
     });
   });
@@ -418,7 +345,7 @@ describe('SmartTransactionsController', () => {
 
     it('calls stop if there is a timeoutHandle and no pending transactions', () => {
       const stopSpy = jest.spyOn(smartTransactionsController, 'stop');
-      smartTransactionsController.timeoutHandle = setTimeout(() => ({}));
+      smartTransactionsController.timeoutHandle = setInterval(() => ({}));
       smartTransactionsController.checkPoll(smartTransactionsController.state);
       expect(stopSpy).toHaveBeenCalled();
       clearInterval(smartTransactionsController.timeoutHandle);
@@ -432,19 +359,12 @@ describe('SmartTransactionsController', () => {
         'updateSmartTransactions',
       );
       expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
-      networkListener({
-        providerConfig: { chainId: '0x32', type: 'rpc', ticker: 'CET' },
-        selectedNetworkClientId: 'networkClientId',
-        networkConfigurations: {},
-        networksMetadata: {},
-      } as NetworkState);
+      networkListener({ providerConfig: { chainId: '56' } } as NetworkState);
       expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('updateSmartTransactions', () => {
-    // TODO rewrite this test... updateSmartTransactions is getting called via the checkPoll method which is called whenever state is updated.
-    // this test should be more isolated to the updateSmartTransactions method.
     it('calls fetchSmartTransactionsStatus if there are pending transactions', () => {
       const fetchSmartTransactionsStatusSpy = jest
         .spyOn(smartTransactionsController, 'fetchSmartTransactionsStatus')
@@ -516,8 +436,8 @@ describe('SmartTransactionsController', () => {
 
   describe('getFees', () => {
     it('gets unsigned transactions and estimates based on an unsigned transaction', async () => {
-      const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
-      const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
+      const tradeTx = createUnsignedTransaction();
+      const approvalTx = createUnsignedTransaction();
       const getFeesApiResponse = createGetFeesApiResponse();
       nock(API_BASE_URL)
         .post(`/networks/${ethereumChainIdDec}/getFees`)
@@ -529,36 +449,6 @@ describe('SmartTransactionsController', () => {
       expect(fees).toMatchObject({
         approvalTxFees: getFeesApiResponse.txs[0],
         tradeTxFees: getFeesApiResponse.txs[1],
-      });
-    });
-
-    it('should add fee data to feesByChainId state using the networkClientId passed in to identify the appropriate chain', async () => {
-      const tradeTx = createUnsignedTransaction(goerliChainIdDec);
-      const approvalTx = createUnsignedTransaction(goerliChainIdDec);
-      const getFeesApiResponse = createGetFeesApiResponse();
-      nock(API_BASE_URL)
-        .post(`/networks/${goerliChainIdDec}/getFees`)
-        .reply(200, getFeesApiResponse);
-
-      expect(
-        smartTransactionsController.state.smartTransactionsState.feesByChainId,
-      ).toStrictEqual(defaultState.smartTransactionsState.feesByChainId);
-
-      await smartTransactionsController.getFees(tradeTx, approvalTx, {
-        networkClientId: 'goerli',
-      });
-
-      expect(
-        smartTransactionsController.state.smartTransactionsState.feesByChainId,
-      ).toMatchObject({
-        [CHAIN_IDS.ETHEREUM]: {
-          approvalTxFees: undefined,
-          tradeTxFees: undefined,
-        },
-        [CHAIN_IDS.GOERLI]: {
-          approvalTxFees: getFeesApiResponse.txs[0],
-          tradeTxFees: getFeesApiResponse.txs[1],
-        },
       });
     });
   });
@@ -606,10 +496,7 @@ describe('SmartTransactionsController', () => {
       nock(API_BASE_URL)
         .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
         .reply(200, pendingBatchStatusApiResponse);
-
-      await smartTransactionsController.fetchSmartTransactionsStatus(uuids, {
-        networkClientId: 'mainnet',
-      });
+      await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
       const pendingState = createStateAfterPending()[0];
       const pendingTransaction = { ...pendingState, history: [pendingState] };
       expect(smartTransactionsController.state).toStrictEqual({
@@ -623,21 +510,7 @@ describe('SmartTransactionsController', () => {
             approvalTxFees: undefined,
             tradeTxFees: undefined,
           },
-          feesByChainId: {
-            [CHAIN_IDS.ETHEREUM]: {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
-            },
-            [CHAIN_IDS.GOERLI]: {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
-            },
-          },
           liveness: true,
-          livenessByChainId: {
-            [CHAIN_IDS.ETHEREUM]: true,
-            [CHAIN_IDS.GOERLI]: true,
-          },
         },
       });
     });
@@ -659,10 +532,7 @@ describe('SmartTransactionsController', () => {
       nock(API_BASE_URL)
         .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
         .reply(200, successBatchStatusApiResponse);
-
-      await smartTransactionsController.fetchSmartTransactionsStatus(uuids, {
-        networkClientId: 'mainnet',
-      });
+      await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
       const successState = createStateAfterSuccess()[0];
       const successTransaction = { ...successState, history: [successState] };
       expect(smartTransactionsController.state).toStrictEqual({
@@ -680,20 +550,6 @@ describe('SmartTransactionsController', () => {
             tradeTxFees: undefined,
           },
           liveness: true,
-          feesByChainId: {
-            '0x1': {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
-            },
-            '0x5': {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
-            },
-          },
-          livenessByChainId: {
-            '0x1': true,
-            '0x5': true,
-          },
         },
       });
     });
@@ -707,32 +563,6 @@ describe('SmartTransactionsController', () => {
         .reply(200, successLivenessApiResponse);
       const liveness = await smartTransactionsController.fetchLiveness();
       expect(liveness).toBe(true);
-    });
-
-    it('fetches liveness and sets in feesByChainId state for the Smart Transactions API for the chainId of the networkClientId passed in', async () => {
-      nock(API_BASE_URL)
-        .get(`/networks/${goerliChainIdDec}/health`)
-        .replyWithError('random error');
-
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .livenessByChainId,
-      ).toStrictEqual({
-        [CHAIN_IDS.ETHEREUM]: true,
-        [CHAIN_IDS.GOERLI]: true,
-      });
-
-      await smartTransactionsController.fetchLiveness({
-        networkClientId: 'goerli',
-      });
-
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .livenessByChainId,
-      ).toStrictEqual({
-        [CHAIN_IDS.ETHEREUM]: true,
-        [CHAIN_IDS.GOERLI]: false,
-      });
     });
   });
 
@@ -762,9 +592,6 @@ describe('SmartTransactionsController', () => {
       };
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
-        {
-          networkClientId: 'mainnet',
-        },
       );
 
       expect(
@@ -775,6 +602,10 @@ describe('SmartTransactionsController', () => {
 
     it('confirms a smart transaction that has status success', async () => {
       const { smartTransactionsState } = smartTransactionsController.state;
+      const confirmSpy = jest.spyOn(
+        smartTransactionsController,
+        'confirmSmartTransaction',
+      );
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
@@ -789,27 +620,44 @@ describe('SmartTransactionsController', () => {
       });
       const updateTransaction = {
         ...pendingStx,
-        status: SmartTransactionStatuses.SUCCESS,
+        status: 'success',
       };
-
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
-        {
-          networkClientId: 'mainnet',
-        },
       );
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+  });
 
-      await flushPromises();
+  describe('confirmSmartTransaction', () => {
+    beforeEach(() => {
+      // eslint-disable-next-line jest/prefer-spy-on
+      smartTransactionsController.checkPoll = jest.fn(() => ({}));
+    });
 
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM],
-      ).toStrictEqual([
-        {
-          ...updateTransaction,
-          confirmed: true,
-        },
-      ]);
+    it('calls confirm external transaction', async () => {
+      const successfulStx = {
+        ...createStateAfterSuccess()[0],
+        history: testHistory,
+      };
+      await smartTransactionsController.confirmSmartTransaction(
+        successfulStx as SmartTransaction,
+      );
+      expect(confirmExternalMock).toHaveBeenCalled();
+    });
+
+    it('throws an error if ethersProvider fails', async () => {
+      smartTransactionsController.ethersProvider.getTransactionReceipt.mockRejectedValueOnce(
+        'random error' as never,
+      );
+      const successfulStx = {
+        ...createStateAfterSuccess()[0],
+        history: testHistory,
+      };
+      await smartTransactionsController.confirmSmartTransaction(
+        successfulStx as SmartTransaction,
+      );
+      expect(trackMetaMetricsEventSpy).toHaveBeenCalled();
     });
   });
 
@@ -894,116 +742,6 @@ describe('SmartTransactionsController', () => {
       });
       const actual = smartTransactionsController.isNewSmartTransaction('uuid1');
       expect(actual).toBe(false);
-    });
-  });
-
-  describe('startPollingByNetworkClientId', () => {
-    it('starts and stops calling smart transactions batch status api endpoint with the correct chainId at the polling interval', async () => {
-      // mock this to a noop because it causes an extra fetch call to the API upon state changes
-      jest
-        .spyOn(smartTransactionsController, 'checkPoll')
-        .mockImplementation(() => undefined);
-
-      // pending transactions in state are required to test polling
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...defaultState.smartTransactionsState,
-          smartTransactions: {
-            '0x1': [
-              {
-                uuid: 'uuid1',
-                status: 'pending',
-                cancellable: true,
-                chainId: '0x1',
-              },
-            ],
-            '0x5': [
-              {
-                uuid: 'uuid2',
-                status: 'pending',
-                cancellable: true,
-                chainId: '0x5',
-              },
-            ],
-          },
-        },
-      });
-
-      jest.useFakeTimers();
-      const handleFetchSpy = jest.spyOn(utils, 'handleFetch');
-
-      const mainnetPollingToken =
-        smartTransactionsController.startPollingByNetworkClientId('mainnet');
-
-      await Promise.all([
-        jest.advanceTimersByTime(DEFAULT_INTERVAL),
-        flushPromises(),
-      ]);
-
-      expect(handleFetchSpy.mock.calls[0]).toStrictEqual(
-        expect.arrayContaining([
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.ETHEREUM,
-          )}/batchStatus?uuids=uuid1`,
-        ]),
-      );
-
-      smartTransactionsController.startPollingByNetworkClientId('goerli');
-      await jest.advanceTimersByTime(DEFAULT_INTERVAL);
-
-      expect(
-        JSON.stringify(handleFetchSpy.mock.calls.map((arg) => arg[0])),
-      ).toStrictEqual(
-        JSON.stringify([
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.ETHEREUM,
-          )}/batchStatus?uuids=uuid1`,
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.ETHEREUM,
-          )}/batchStatus?uuids=uuid1`,
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.GOERLI,
-          )}/batchStatus?uuids=uuid2`,
-        ]),
-      );
-
-      // stop the mainnet polling
-      smartTransactionsController.stopPollingByPollingToken(
-        mainnetPollingToken,
-      );
-
-      // cycle two polling intervals
-      await jest.advanceTimersByTime(DEFAULT_INTERVAL);
-      await jest.advanceTimersByTime(DEFAULT_INTERVAL);
-
-      // check that the mainnet polling has stopped while the goerli polling continues
-      expect(
-        JSON.stringify(handleFetchSpy.mock.calls.map((arg) => arg[0])),
-      ).toStrictEqual(
-        JSON.stringify([
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.ETHEREUM,
-          )}/batchStatus?uuids=uuid1`,
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.ETHEREUM,
-          )}/batchStatus?uuids=uuid1`,
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.GOERLI,
-          )}/batchStatus?uuids=uuid2`,
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.GOERLI,
-          )}/batchStatus?uuids=uuid2`,
-          `${API_BASE_URL}/networks/${convertHexToDecimal(
-            CHAIN_IDS.GOERLI,
-          )}/batchStatus?uuids=uuid2`,
-        ]),
-      );
-
-      // cleanup
-      smartTransactionsController.update(defaultState);
-
-      smartTransactionsController.stopAllPolling();
-      jest.clearAllTimers();
     });
   });
 });

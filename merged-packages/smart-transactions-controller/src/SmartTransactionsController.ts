@@ -1,14 +1,15 @@
-import { BaseConfig, BaseState } from '@metamask/base-controller';
-import { ChainId, safelyExecute, query } from '@metamask/controller-utils';
 import {
-  NetworkState,
-  NetworkController,
-  NetworkClientId,
-} from '@metamask/network-controller';
-import { PollingControllerV1 } from '@metamask/polling-controller';
+  BaseConfig,
+  BaseController,
+  BaseState,
+} from '@metamask/base-controller';
+import { safelyExecute } from '@metamask/controller-utils';
+import { NetworkState } from '@metamask/network-controller';
 import { BigNumber } from 'bignumber.js';
-import EthQuery from '@metamask/eth-query';
+import { BigNumber as ethersBigNumber } from '@ethersproject/bignumber';
+import { Web3Provider } from '@ethersproject/providers';
 import { hexlify } from '@ethersproject/bytes';
+import mapValues from 'lodash/mapValues';
 import cloneDeep from 'lodash/cloneDeep';
 
 import {
@@ -21,7 +22,6 @@ import {
   SmartTransactionStatuses,
   Fees,
   IndividualTxFees,
-  Hex,
 } from './types';
 import {
   getAPIRequestURL,
@@ -43,28 +43,24 @@ export const DEFAULT_INTERVAL = SECOND * 5;
 export type SmartTransactionsControllerConfig = BaseConfig & {
   interval: number;
   clientId: string;
-  chainId: Hex;
+  chainId: string;
   supportedChainIds: string[];
-};
-
-type FeeEstimates = {
-  approvalTxFees: IndividualTxFees | undefined;
-  tradeTxFees: IndividualTxFees | undefined;
 };
 
 export type SmartTransactionsControllerState = BaseState & {
   smartTransactionsState: {
-    smartTransactions: Record<Hex, SmartTransaction[]>;
+    smartTransactions: Record<string, SmartTransaction[]>;
     userOptIn: boolean | undefined;
     userOptInV2: boolean | undefined;
     liveness: boolean | undefined;
-    fees: FeeEstimates;
-    feesByChainId: Record<Hex, FeeEstimates>;
-    livenessByChainId: Record<Hex, boolean>;
+    fees: {
+      approvalTxFees: IndividualTxFees | undefined;
+      tradeTxFees: IndividualTxFees | undefined;
+    };
   };
 };
 
-export default class SmartTransactionsController extends PollingControllerV1<
+export default class SmartTransactionsController extends BaseController<
   SmartTransactionsControllerConfig,
   SmartTransactionsControllerState
 > {
@@ -72,13 +68,11 @@ export default class SmartTransactionsController extends PollingControllerV1<
 
   private getNonceLock: any;
 
-  public ethQuery: EthQuery;
+  public ethersProvider: any;
 
   public confirmExternalTransaction: any;
 
   private trackMetaMetricsEvent: any;
-
-  private getNetworkClientById: NetworkController['getNetworkClientById'];
 
   /* istanbul ignore next */
   private async fetch(request: string, options?: RequestInit) {
@@ -101,7 +95,6 @@ export default class SmartTransactionsController extends PollingControllerV1<
       provider,
       confirmExternalTransaction,
       trackMetaMetricsEvent,
-      getNetworkClientById,
     }: {
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
@@ -110,7 +103,6 @@ export default class SmartTransactionsController extends PollingControllerV1<
       provider: any;
       confirmExternalTransaction: any;
       trackMetaMetricsEvent: any;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
     },
     config?: Partial<SmartTransactionsControllerConfig>,
     state?: Partial<SmartTransactionsControllerState>,
@@ -119,9 +111,9 @@ export default class SmartTransactionsController extends PollingControllerV1<
 
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      chainId: ChainId.mainnet,
+      chainId: CHAIN_IDS.ETHEREUM,
       clientId: 'default',
-      supportedChainIds: [CHAIN_IDS.ETHEREUM, CHAIN_IDS.GOERLI],
+      supportedChainIds: [CHAIN_IDS.ETHEREUM, CHAIN_IDS.RINKEBY],
     };
 
     this.defaultState = {
@@ -134,28 +126,13 @@ export default class SmartTransactionsController extends PollingControllerV1<
           tradeTxFees: undefined,
         },
         liveness: true,
-        livenessByChainId: {
-          [CHAIN_IDS.ETHEREUM]: true,
-          [CHAIN_IDS.GOERLI]: true,
-        },
-        feesByChainId: {
-          [CHAIN_IDS.ETHEREUM]: {
-            approvalTxFees: undefined,
-            tradeTxFees: undefined,
-          },
-          [CHAIN_IDS.GOERLI]: {
-            approvalTxFees: undefined,
-            tradeTxFees: undefined,
-          },
-        },
       },
     };
-    this.setIntervalLength(this.config.interval || DEFAULT_INTERVAL);
+
     this.getNonceLock = getNonceLock;
-    this.ethQuery = new EthQuery(provider);
+    this.ethersProvider = new Web3Provider(provider);
     this.confirmExternalTransaction = confirmExternalTransaction;
     this.trackMetaMetricsEvent = trackMetaMetricsEvent;
-    this.getNetworkClientById = getNetworkClientById;
 
     this.initialize();
     this.initializeSmartTransactionsForChainId();
@@ -165,22 +142,10 @@ export default class SmartTransactionsController extends PollingControllerV1<
       this.configure({ chainId });
       this.initializeSmartTransactionsForChainId();
       this.checkPoll(this.state);
-      this.ethQuery = new EthQuery(provider);
+      this.ethersProvider = new Web3Provider(provider);
     });
 
     this.subscribe((currentState: any) => this.checkPoll(currentState));
-  }
-
-  _executePoll(networkClientId: string): Promise<void> {
-    // if this is going to be truly UI driven polling we shouldn't really reach here
-    // with a networkClientId that is not supported, but for now I'll add a check in case
-    // wondering if we should add some kind of predicate to the polling controller to check whether
-    // we should poll or not
-    const chainId = this.getChainId({ networkClientId });
-    if (!this.config.supportedChainIds.includes(chainId)) {
-      return Promise.resolve();
-    }
-    return this.updateSmartTransactions({ networkClientId });
   }
 
   checkPoll(state: any) {
@@ -290,35 +255,8 @@ export default class SmartTransactionsController extends PollingControllerV1<
     return currentIndex === -1 || currentIndex === undefined;
   }
 
-  updateSmartTransaction(
-    smartTransaction: SmartTransaction,
-    { networkClientId }: { networkClientId?: NetworkClientId } = {},
-  ) {
-    let { chainId } = this.config;
-    let { ethQuery } = this;
-    if (networkClientId) {
-      const networkClient = this.getNetworkClientById(networkClientId);
-      chainId = networkClient.configuration.chainId;
-      // @ts-expect-error TODO: Provider type alignment
-      ethQuery = new EthQuery(networkClient.provider);
-    }
-
-    this.#updateSmartTransaction(smartTransaction, {
-      chainId,
-      ethQuery,
-    });
-  }
-
-  #updateSmartTransaction(
-    smartTransaction: SmartTransaction,
-    {
-      chainId = this.config.chainId,
-      ethQuery = this.ethQuery,
-    }: {
-      chainId: Hex;
-      ethQuery: EthQuery;
-    },
-  ): void {
+  updateSmartTransaction(smartTransaction: SmartTransaction): void {
+    const { chainId } = this.config;
     const { smartTransactionsState } = this.state;
     const { smartTransactions } = smartTransactionsState;
     const currentSmartTransactions = smartTransactions[chainId];
@@ -328,7 +266,6 @@ export default class SmartTransactionsController extends PollingControllerV1<
     const isNewSmartTransaction = this.isNewSmartTransaction(
       smartTransaction.uuid,
     );
-
     this.trackStxStatusChange(
       smartTransaction,
       isNewSmartTransaction
@@ -338,7 +275,7 @@ export default class SmartTransactionsController extends PollingControllerV1<
 
     if (isNewSmartTransaction) {
       // add smart transaction
-      const cancelledNonceIndex = currentSmartTransactions?.findIndex(
+      const cancelledNonceIndex = currentSmartTransactions.findIndex(
         (stx: SmartTransaction) =>
           stx.txParams?.nonce === smartTransaction.txParams?.nonce &&
           stx.status?.startsWith('cancelled'),
@@ -352,7 +289,7 @@ export default class SmartTransactionsController extends PollingControllerV1<
               .slice(0, cancelledNonceIndex)
               .concat(currentSmartTransactions.slice(cancelledNonceIndex + 1))
               .concat(historifiedSmartTransaction)
-          : currentSmartTransactions?.concat(historifiedSmartTransaction);
+          : currentSmartTransactions.concat(historifiedSmartTransaction);
       this.update({
         smartTransactionsState: {
           ...smartTransactionsState,
@@ -376,10 +313,7 @@ export default class SmartTransactionsController extends PollingControllerV1<
         ...currentSmartTransaction,
         ...smartTransaction,
       };
-      this.#confirmSmartTransaction(nextSmartTransaction, {
-        chainId,
-        ethQuery,
-      });
+      this.confirmSmartTransaction(nextSmartTransaction);
     }
 
     this.update({
@@ -399,59 +333,42 @@ export default class SmartTransactionsController extends PollingControllerV1<
     });
   }
 
-  async updateSmartTransactions({
-    networkClientId,
-  }: {
-    networkClientId?: NetworkClientId;
-  } = {}): Promise<void> {
+  async updateSmartTransactions() {
     const { smartTransactions } = this.state.smartTransactionsState;
-    const chainId = this.getChainId({ networkClientId });
-    const smartTransactionsForChainId = smartTransactions?.[chainId];
+    const { chainId } = this.config;
 
-    const transactionsToUpdate: string[] = smartTransactionsForChainId
+    const currentSmartTransactions = smartTransactions?.[chainId];
+
+    const transactionsToUpdate: string[] = currentSmartTransactions
       .filter(isSmartTransactionPending)
       .map((smartTransaction) => smartTransaction.uuid);
 
     if (transactionsToUpdate.length > 0) {
-      this.fetchSmartTransactionsStatus(transactionsToUpdate, {
-        networkClientId,
-      });
+      this.fetchSmartTransactionsStatus(transactionsToUpdate);
     }
   }
 
-  async #confirmSmartTransaction(
-    smartTransaction: SmartTransaction,
-    {
-      chainId,
-      ethQuery,
-    }: {
-      chainId: Hex;
-      ethQuery: EthQuery;
-    },
-  ) {
+  async confirmSmartTransaction(smartTransaction: SmartTransaction) {
     const txHash = smartTransaction.statusMetadata?.minedHash;
     try {
-      const transactionReceipt: {
-        maxFeePerGas?: string;
-        maxPriorityFeePerGas?: string;
-        blockNumber: string;
-      } | null = await query(ethQuery, 'getTransactionReceipt', [txHash]);
-
-      const transaction: {
-        maxFeePerGas?: string;
-        maxPriorityFeePerGas?: string;
-      } | null = await query(ethQuery, 'getTransactionByHash', [txHash]);
-
-      const maxFeePerGas = transaction?.maxFeePerGas;
-      const maxPriorityFeePerGas = transaction?.maxPriorityFeePerGas;
+      const transactionReceipt =
+        await this.ethersProvider.getTransactionReceipt(txHash);
+      const transaction = await this.ethersProvider.getTransaction(txHash);
+      const maxFeePerGas = transaction.maxFeePerGas?.toHexString();
+      const maxPriorityFeePerGas =
+        transaction.maxPriorityFeePerGas?.toHexString();
       if (transactionReceipt?.blockNumber) {
-        const blockData: { baseFeePerGas?: string } | null = await query(
-          ethQuery,
-          'getBlockByNumber',
-          [transactionReceipt?.blockNumber, false],
+        const blockData = await this.ethersProvider.getBlock(
+          transactionReceipt?.blockNumber,
+          false,
         );
-        const baseFeePerGas = blockData?.baseFeePerGas;
-        const txReceipt = Object.values(transactionReceipt);
+        const baseFeePerGas = blockData?.baseFeePerGas.toHexString();
+        const txReceipt = mapValues(transactionReceipt, (value) => {
+          if (value instanceof ethersBigNumber) {
+            return value.toHexString();
+          }
+          return value;
+        });
         const updatedTxParams = {
           ...smartTransaction.txParams,
           maxFeePerGas,
@@ -482,7 +399,6 @@ export default class SmartTransactionsController extends PollingControllerV1<
                 history: originalTxMeta.history.concat(entry),
               }
             : originalTxMeta;
-
         this.confirmExternalTransaction(txMeta, txReceipt, baseFeePerGas);
 
         this.trackMetaMetricsEvent({
@@ -490,13 +406,10 @@ export default class SmartTransactionsController extends PollingControllerV1<
           category: 'swaps',
         });
 
-        this.#updateSmartTransaction(
-          {
-            ...smartTransaction,
-            confirmed: true,
-          },
-          { chainId, ethQuery },
-        );
+        this.updateSmartTransaction({
+          ...smartTransaction,
+          confirmed: true,
+        });
       }
     } catch (e) {
       this.trackMetaMetricsEvent({
@@ -510,31 +423,29 @@ export default class SmartTransactionsController extends PollingControllerV1<
   // ! Ask backend API to accept list of uuids as params
   async fetchSmartTransactionsStatus(
     uuids: string[],
-    { networkClientId }: { networkClientId?: NetworkClientId } = {},
   ): Promise<SmartTransaction[]> {
+    const { chainId } = this.config;
+
     const params = new URLSearchParams({
       uuids: uuids.join(','),
     });
-    const chainId = this.getChainId({ networkClientId });
-    const ethQuery = this.getEthQuery({ networkClientId });
+
     const url = `${getAPIRequestURL(
       APIType.BATCH_STATUS,
       chainId,
     )}?${params.toString()}`;
 
     const data = await this.fetch(url);
+
     Object.entries(data).forEach(([uuid, stxStatus]) => {
-      this.#updateSmartTransaction(
-        {
-          statusMetadata: stxStatus as SmartTransactionsStatus,
-          status: calculateStatus(stxStatus as SmartTransactionsStatus),
-          cancellable: isSmartTransactionCancellable(
-            stxStatus as SmartTransactionsStatus,
-          ),
-          uuid,
-        },
-        { chainId, ethQuery },
-      );
+      this.updateSmartTransaction({
+        statusMetadata: stxStatus as SmartTransactionsStatus,
+        status: calculateStatus(stxStatus as SmartTransactionsStatus),
+        cancellable: isSmartTransactionCancellable(
+          stxStatus as SmartTransactionsStatus,
+        ),
+        uuid,
+      });
     });
 
     return data;
@@ -569,9 +480,8 @@ export default class SmartTransactionsController extends PollingControllerV1<
   async getFees(
     tradeTx: UnsignedTransaction,
     approvalTx: UnsignedTransaction,
-    { networkClientId }: { networkClientId?: NetworkClientId } = {},
   ): Promise<Fees> {
-    const chainId = this.getChainId({ networkClientId });
+    const { chainId } = this.config;
     const transactions = [];
     let unsignedTradeTransactionWithNonce;
     if (approvalTx) {
@@ -611,16 +521,8 @@ export default class SmartTransactionsController extends PollingControllerV1<
           approvalTxFees,
           tradeTxFees,
         },
-        feesByChainId: {
-          ...this.state.smartTransactionsState.feesByChainId,
-          [chainId]: {
-            approvalTxFees,
-            tradeTxFees,
-          },
-        },
       },
     });
-
     return {
       approvalTxFees,
       tradeTxFees,
@@ -633,15 +535,12 @@ export default class SmartTransactionsController extends PollingControllerV1<
     txParams,
     signedTransactions,
     signedCanceledTransactions,
-    networkClientId,
   }: {
     signedTransactions: SignedTransaction[];
     signedCanceledTransactions: SignedCanceledTransaction[];
     txParams?: any;
-    networkClientId?: NetworkClientId;
   }) {
-    const chainId = this.getChainId({ networkClientId });
-    const ethQuery = this.getEthQuery({ networkClientId });
+    const { chainId } = this.config;
     const data = await this.fetch(
       getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, chainId),
       {
@@ -655,12 +554,12 @@ export default class SmartTransactionsController extends PollingControllerV1<
     const time = Date.now();
     let preTxBalance;
     try {
-      const preTxBalanceBN = await query(ethQuery, 'getBalance', [
+      const preTxBalanceBN = await this.ethersProvider.getBalance(
         txParams?.from,
-      ]);
-      preTxBalance = new BigNumber(preTxBalanceBN).toString(16);
+      );
+      preTxBalance = new BigNumber(preTxBalanceBN.toHexString()).toString(16);
     } catch (e) {
-      console.error('provider error', e);
+      console.error('ethers error', e);
     }
     const nonceLock = await this.getNonceLock(txParams?.from);
     try {
@@ -670,18 +569,16 @@ export default class SmartTransactionsController extends PollingControllerV1<
       }
       const { nonceDetails } = nonceLock;
 
-      this.#updateSmartTransaction(
-        {
-          nonceDetails,
-          preTxBalance,
-          status: SmartTransactionStatuses.PENDING,
-          time,
-          txParams,
-          uuid: data.uuid,
-          cancellable: true,
-        },
-        { chainId, ethQuery },
-      );
+      this.updateSmartTransaction({
+        chainId,
+        nonceDetails,
+        preTxBalance,
+        status: SmartTransactionStatuses.PENDING,
+        time,
+        txParams,
+        uuid: data.uuid,
+        cancellable: true,
+      });
     } finally {
       nonceLock.releaseLock();
     }
@@ -689,49 +586,19 @@ export default class SmartTransactionsController extends PollingControllerV1<
     return data;
   }
 
-  getChainId({
-    networkClientId,
-  }: { networkClientId?: NetworkClientId } = {}): Hex {
-    return networkClientId
-      ? this.getNetworkClientById(networkClientId).configuration.chainId
-      : this.config.chainId;
-  }
-
-  getEthQuery({
-    networkClientId,
-  }: {
-    networkClientId?: NetworkClientId;
-  }): EthQuery {
-    return networkClientId
-      ? // @ts-expect-error TODO: Provider type alignment
-        new EthQuery(this.getNetworkClientById(networkClientId).provider)
-      : this.ethQuery;
-  }
-
   // TODO: This should return if the cancellation was on chain or not (for nonce management)
   // After this successful call client must update nonce representative
   // in transaction controller external transactions list
-  async cancelSmartTransaction(
-    uuid: string,
-    {
-      networkClientId,
-    }: {
-      networkClientId?: NetworkClientId;
-    } = {},
-  ): Promise<void> {
-    const chainId = this.getChainId({ networkClientId });
+  async cancelSmartTransaction(uuid: string): Promise<void> {
+    const { chainId } = this.config;
     await this.fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
       method: 'POST',
       body: JSON.stringify({ uuid }),
     });
   }
 
-  async fetchLiveness({
-    networkClientId,
-  }: {
-    networkClientId?: NetworkClientId;
-  } = {}): Promise<boolean> {
-    const chainId = this.getChainId({ networkClientId });
+  async fetchLiveness(): Promise<boolean> {
+    const { chainId } = this.config;
     let liveness = false;
     try {
       const response = await this.fetch(
@@ -746,13 +613,8 @@ export default class SmartTransactionsController extends PollingControllerV1<
       smartTransactionsState: {
         ...this.state.smartTransactionsState,
         liveness,
-        livenessByChainId: {
-          ...this.state.smartTransactionsState.livenessByChainId,
-          [chainId]: liveness,
-        },
       },
     });
-
     return liveness;
   }
 
