@@ -33,7 +33,7 @@
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/network-controller": "^15.2.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/utils": "^8.2.1",
     "@types/uuid": "^8.3.0",
     "fast-json-stable-stringify": "^2.1.0",
     "uuid": "^8.3.2"

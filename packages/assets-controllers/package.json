@@ -45,7 +45,7 @@
     "@metamask/polling-controller": "^1.0.1",
     "@metamask/preferences-controller": "^4.4.3",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/utils": "^8.2.1",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",

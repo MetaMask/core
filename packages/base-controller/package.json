@@ -30,7 +30,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^8.2.0",
+    "@metamask/utils": "^8.2.1",
     "immer": "^9.0.6"
   },
   "devDependencies": {

@@ -39,7 +39,7 @@
   "dependencies": {
     "@metamask/json-rpc-engine": "^7.3.0",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^8.2.0"
+    "@metamask/utils": "^8.2.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.3",
