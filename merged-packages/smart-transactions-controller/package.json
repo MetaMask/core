@@ -1,6 +1,6 @@
 {
   "name": "@metamask/smart-transactions-controller",
-  "version": "6.2.1",
+  "version": "6.2.2",
   "description": "Improves success rates for swaps by trialing transactions privately and finding minimum fees",
   "repository": {
     "type": "git",
