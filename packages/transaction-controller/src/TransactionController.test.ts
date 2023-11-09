@@ -70,6 +70,11 @@ const mockFlags: { [key: string]: any } = {
 const ethQueryMockResults = {
   sendRawTransaction: 'mockSendRawTransactionResult',
 };
+const mockSendRawTransaction = jest
+  .fn()
+  .mockImplementation((_transaction: any, callback: any) => {
+    callback(undefined, ethQueryMockResults.sendRawTransaction);
+  });
 jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
@@ -113,9 +118,7 @@ jest.mock('@metamask/eth-query', () =>
       getTransactionCount: (_from: any, _to: any, callback: any) => {
         callback(undefined, '0x0');
       },
-      sendRawTransaction: (_transaction: any, callback: any) => {
-        callback(undefined, ethQueryMockResults.sendRawTransaction);
-      },
+      sendRawTransaction: mockSendRawTransaction,
       getTransactionReceipt: (_hash: any, callback: any) => {
         const txs: any = [
           {
@@ -1972,36 +1975,69 @@ describe('TransactionController', () => {
         'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
       const cancelTransactionId = 'cancel1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
       const mockNonce = '0x9';
-      v1Stub
-        .mockImplementationOnce(() => simpleSendTransactionId)
-        .mockImplementationOnce(() => cancelTransactionId);
+      v1Stub.mockImplementationOnce(() => cancelTransactionId);
 
-      const controller = newController({
-        network: MOCK_LINEA_GOERLI_NETWORK,
-      });
+      const controller = newController();
 
-      const { result, transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x1',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-        nonce: mockNonce,
+      // Assume we have a transaction in the state
+      controller.state.transactions.push({
+        id: simpleSendTransactionId,
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
         type: TransactionType.simpleSend,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          nonce: mockNonce,
+        },
       });
-
-      // Approve the transaction so it is submitted
-      approveTransaction();
 
       // Now we can stop the transaction
-      await controller.stopTransaction(transactionMeta.id, undefined, {
+      await controller.stopTransaction(simpleSendTransactionId, undefined, {
         estimatedBaseFee: '0x123',
       });
 
       const { transactions } = controller.state;
 
-      // Expect first transaction to be submitted
-      expect(await result).toBe(ethQueryMockResults.sendRawTransaction);
+      const cancelTransaction = transactions.find(
+        ({ id }) => id === cancelTransactionId,
+      );
+
+      // Expect cancel transaction to be submitted
+      expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
+      expect(cancelTransaction?.hash).toBe(
+        ethQueryMockResults.sendRawTransaction,
+      );
+    });
+
+    it('adds cancel transaction to state', async () => {
+      const simpleSendTransactionId =
+        'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const cancelTransactionId = 'cancel1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+      const mockNonce = '0x9';
+      v1Stub.mockImplementationOnce(() => cancelTransactionId);
+
+      const controller = newController();
+
+      // Assume we have a transaction in the state
+      controller.state.transactions.push({
+        id: simpleSendTransactionId,
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        type: TransactionType.simpleSend,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          nonce: mockNonce,
+        },
+      });
+
+      // Now we can stop the transaction
+      await controller.stopTransaction(simpleSendTransactionId, undefined, {
+        estimatedBaseFee: '0x123',
+      });
+
+      const { transactions } = controller.state;
 
       const simpleSendTransaction = transactions.find(
         ({ id }) => id === simpleSendTransactionId,
@@ -2131,7 +2167,7 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(1);
     });
-  
+
     it('creates additional transaction with increased gas', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
