@@ -13,7 +13,7 @@ This document shows you how to do that.
   - [ ] Are there any changelog entries that are placed in the wrong category (including "Unreleased")?
   - [ ] Do all changelog entries explain the changes in a clear and straightforward manner and detail exact changes to the package's interface?
   - [ ] Do all change entries include a link to the pull requests where that change was made?
-  - [ ] Are there any changes since the package's previous release that not reflected in the changelog?
+  - [ ] Are there any changes since the package's previous release that are not reflected in the changelog?
   - [ ] Have there been any changes merged to `main` while the release PR has been open that have not been added to a changelog?
   - [ ] Are there any bumps to workspace dependencies made within the release PR that have not been captured in the changelog?
 
