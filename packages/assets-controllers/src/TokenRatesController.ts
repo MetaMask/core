@@ -288,18 +288,14 @@ export class TokenRatesController extends PollingControllerV1<
 
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
       // These two state properties are assumed to be immutable
-      console.log({allTokens, allDetectedTokens})
       if (
         this.config.allTokens !== allTokens ||
         this.config.allDetectedTokens !== allDetectedTokens
       ) {
         this.configure({ allTokens, allDetectedTokens });
         this.#updateTokenList();
-        console.log(this.#pollState)
         if (this.#pollState === PollState.Active) {
-          console.log('update')
           await this.updateExchangeRates();
-          console.log('update done')
         }
       }
     });
