@@ -584,7 +584,6 @@ export class TransactionController extends BaseController<
     } = {},
   ): Promise<Result> {
     const chainId = this.getChainId();
-    const { transactions } = this.state;
     txParams = normalizeTxParams(txParams);
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     validateTxParams(txParams, isEIP1559Compatible);
@@ -651,10 +650,7 @@ export class TransactionController extends BaseController<
         controllerHubEmitter: this.hub.emit.bind(this.hub) as any,
       });
 
-      transactions.push(transactionMeta);
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
+      this.addMetadata(transactionMeta);
       this.hub.emit(`unapprovedTransaction`, transactionMeta);
     }
 
@@ -702,8 +698,6 @@ export class TransactionController extends BaseController<
     if (this.getTransactionWithActionId(actionId)) {
       return;
     }
-
-    const { transactions } = this.state;
 
     if (gasValues) {
       validateGasValues(gasValues);
@@ -802,8 +796,7 @@ export class TransactionController extends BaseController<
       txParams: newTxParams,
     };
 
-    transactions.push(cancelTransactionMeta);
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.addMetadata(cancelTransactionMeta);
 
     // stopTransaction has no approval request, so we assume the user has already approved the transaction
     this.hub.emit('transaction-approved', {
@@ -858,8 +851,6 @@ export class TransactionController extends BaseController<
     if (!this.sign) {
       throw new Error('No sign method defined.');
     }
-
-    const { transactions } = this.state;
 
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
@@ -955,8 +946,7 @@ export class TransactionController extends BaseController<
               gasPrice: newGasPrice,
             },
           };
-    transactions.push(newTransactionMeta);
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.addMetadata(newTransactionMeta);
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
     this.hub.emit('transaction-approved', {
@@ -1405,6 +1395,12 @@ export class TransactionController extends BaseController<
     const transactions = this.state.transactions.filter(
       ({ status }) => status !== TransactionStatus.unapproved,
     );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  private addMetadata(transactionMeta: TransactionMeta) {
+    const { transactions } = this.state;
+    transactions.push(transactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
