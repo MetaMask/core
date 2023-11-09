@@ -2,9 +2,8 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { TransactionParams } from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
-import { Contract } from '@ethersproject/contracts';
 import { AddressZero } from '@ethersproject/constants';
-import SimpleAccountABI from './abi/SimpleAccount.json';
+
 import {
   UserOperation,
   UserOperationMetadata,
@@ -25,6 +24,8 @@ import { getTransactionMetadata } from './utils/transaction';
 import { toHex } from '@metamask/controller-utils';
 import { Bundler, getBundler } from './helpers/Bundler';
 import { ENTRYPOINT } from './constants';
+import { sendSnapRequest } from './snaps';
+import { SnapProvider } from './snaps/types';
 
 const DUMMY_SIGNATURE =
   '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
@@ -142,13 +143,13 @@ export class UserOperationController extends BaseControllerV2<
 
   async addUserOperationFromTransaction(
     transaction: TransactionParams,
-    { chainId }: { chainId: string },
+    { chainId, snapId }: { chainId: string; snapId: string },
   ) {
     const bundler = getBundler(chainId);
     const metadata = this.#createMetadata(chainId);
 
     try {
-      await this.#applyTransaction(metadata, transaction);
+      await this.#applySnapData(metadata, transaction, snapId);
       await this.#updateGas(metadata, bundler);
 
       const resultCallbacks = await this.#approveUserOperation(metadata);
@@ -186,33 +187,33 @@ export class UserOperationController extends BaseControllerV2<
     return metadata;
   }
 
-  async #applyTransaction(
+  async #applySnapData(
     metadata: UserOperationMetadata,
     transaction: TransactionParams,
+    snapId: string,
   ) {
     const { id, userOperation } = metadata;
 
-    log('Generating user operation from transaction', id);
+    log('Requesting data from snap', { id, snapId });
 
-    const smartContractWallet = new Contract(
-      transaction.from,
-      SimpleAccountABI,
-      new Web3Provider(this.#provider as any),
-    );
+    const provider = new Web3Provider(this.#provider as any);
 
-    const callData = smartContractWallet.interface.encodeFunctionData(
-      'execute',
-      [
-        transaction.to ?? AddressZero,
-        transaction.value,
-        transaction.data ?? '0x',
-      ],
-    );
+    const ethereum: SnapProvider = {
+      request: ({method, params}) => provider.send(method, params),
+    };
 
-    userOperation.callData = callData;
+    const response = await sendSnapRequest(snapId, {
+      ethereum,
+      sender: transaction.from,
+      to: transaction.to,
+      value: transaction.value,
+      data: transaction.data,
+    });
+
+    userOperation.callData = response.callData;
     userOperation.maxFeePerGas = toHex(0.16e9);
     userOperation.maxPriorityFeePerGas = toHex(0.15e9);
-    userOperation.nonce = (await smartContractWallet.getNonce()).toHexString();
+    userOperation.nonce = response.nonce;
     userOperation.sender = transaction.from;
 
     metadata.transactionParams = transaction as any;

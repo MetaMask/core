@@ -20,5 +20,5 @@
       "path": "../transaction-controller/tsconfig.build.json"
     }
   ],
-  "include": ["../../types", "./src", "./src/abi/*.json"]
+  "include": ["../../types", "./src", "./src/**/*.json"]
 }

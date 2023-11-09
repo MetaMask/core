@@ -18,5 +18,5 @@
       "path": "../transaction-controller"
     }
   ],
-  "include": ["../../types", "./src", "./src/abi/*.json"]
+  "include": ["../../types", "./src", "./src/**/*.json"]
 }
