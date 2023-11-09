@@ -790,8 +790,8 @@ export class TransactionController extends BaseController<
     const rawTx = bufferToHex(signedTx.serialize());
     const hash = await this.publishTransaction(rawTx);
     const cancelTransactionMeta: TransactionMeta = {
-      ...transactionMeta,
       actionId,
+      chainId: transactionMeta.chainId,
       estimatedBaseFee,
       hash,
       id: random(),
