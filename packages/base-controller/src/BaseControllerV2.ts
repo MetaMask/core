@@ -125,7 +125,7 @@ export class BaseController<
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(
-      String(`${name}:getState`),
+      `${name}:getState` as Namespaced<ControllerName, any>,
       () => this.state,
     );
   }
