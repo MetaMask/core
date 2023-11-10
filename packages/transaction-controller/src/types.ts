@@ -369,6 +369,7 @@ export type SendFlowHistoryEntry = {
  */
 export enum TransactionStatus {
   approved = 'approved',
+  /** @deprecated Determined by the clients using the transaction type. No longer used. */
   cancelled = 'cancelled',
   confirmed = 'confirmed',
   dropped = 'dropped',
