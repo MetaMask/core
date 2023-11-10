@@ -1392,41 +1392,78 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Updates the transaction hash associated with a specific transaction ID.
-   *
-   * @param transactionId - The ID of the transaction to update.
-   * @param hash - The new hash value to be assigned.
-   */
-  updateTransactionHash(transactionId: string, hash: string) {
-    const transactionMeta = this.getTransaction(transactionId);
-    if (!transactionMeta) {
-      log(`Transaction with id ${transactionId} not found.`);
-      return;
-    }
-    transactionMeta.hash = hash;
-    this.updateTransaction(
-      transactionMeta,
-      'TransactionController:updateTransactionHash - Transaction hash updated',
-    );
-  }
-
-  /**
    * Updates the transaction status associated with a specific transaction ID.
    *
    * @param transactionId - The ID of the transaction to update.
-   * @param status - The new status value to be assigned.
+   * @param options - The custodial transaction options to update.
+   * @param options.custodyStatus - The new custody status value to be assigned.
+   * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
+   * @param options.hash - The new hash value to be assigned.
+   * @param options.status - The new status value to be assigned.
    */
-  updateTransactionStatus(transactionId: string, status: TransactionStatus) {
-    const transactionMeta = this.getTransaction(transactionId);
+  updateCustodialTransaction(
+    transactionId: string,
+    {
+      custodyStatus,
+      errorMessage,
+      hash,
+      status,
+    }: {
+      custodyStatus?: string;
+      errorMessage?: string;
+      hash?: string;
+      status?: TransactionStatus;
+    },
+  ) {
+    let transactionMeta;
+    transactionMeta = this.getTransaction(transactionId);
+    const noteDetails = [];
+
     if (!transactionMeta) {
-      log(`Transaction with id ${transactionId} not found.`);
-      return;
+      throw new Error(`Cannot update status as no transaction metadata found.`);
     }
-    transactionMeta.status = status;
-    this.updateTransaction(
-      transactionMeta,
-      `TransactionController:updateTransactionStatus - Transaction status updated to ${status}`,
-    );
+
+    if (!transactionMeta.custodyId) {
+      throw new Error('Transaction is not custodian.');
+    }
+    if (status === TransactionStatus.signed) {
+      transactionMeta.status = status;
+      noteDetails.push(`status to ${status}`);
+    }
+
+    if (status === TransactionStatus.submitted) {
+      transactionMeta.submittedTime = new Date().getTime();
+      transactionMeta.status = status;
+      noteDetails.push(`status to ${status}`);
+    }
+
+    if (status === TransactionStatus.failed) {
+      transactionMeta = {
+        ...transactionMeta,
+        error: normalizeTxError(new Error(errorMessage)),
+        status: TransactionStatus.failed,
+      };
+      noteDetails.push(`status to ${status}`);
+    }
+
+    if (custodyStatus) {
+      transactionMeta.custodyStatus = custodyStatus;
+      noteDetails.push(`custody status`);
+    }
+
+    if (hash) {
+      transactionMeta.hash = hash;
+      noteDetails.push(`hash`);
+    }
+
+    if (noteDetails.length > 0) {
+      this.updateTransaction(
+        transactionMeta,
+        `TransactionController:updateCustodialTransaction - Transaction ${noteDetails.join(
+          ', ',
+        )} updated`,
+      );
+    }
   }
 
   private async signExternalTransaction(

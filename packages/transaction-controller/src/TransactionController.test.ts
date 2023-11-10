@@ -3518,54 +3518,7 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('updateTransactionHash', () => {
-    const transactionId = '1';
-    const hashMock = '1234';
-    const baseTransaction = {
-      id: transactionId,
-      chainId: toHex(5),
-      status: TransactionStatus.unapproved as const,
-      time: 123456789,
-      txParams: {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-      },
-    };
-    const transactionMeta: TransactionMeta = {
-      ...baseTransaction,
-      hash: hashMock,
-      history: [{ ...baseTransaction }],
-    };
-    it('updates transaction hash', async () => {
-      const newHash = 'newHash';
-      const controller = newController();
-      controller.state.transactions.push(transactionMeta);
-
-      controller.updateTransactionHash(transactionId, newHash);
-
-      const updatedTransaction = controller.state.transactions.find(
-        (transaction) => transaction.id === transactionId,
-      );
-
-      expect(updatedTransaction?.hash).toStrictEqual(newHash);
-    });
-
-    it('handles non-existent transaction during hash update', async () => {
-      const nonExistentId = 'nonExistentId';
-      const newHash = 'newHash';
-      const controller = newController();
-
-      controller.updateTransactionHash(nonExistentId, newHash);
-
-      const updatedTransaction = controller.state.transactions.find(
-        (transaction) => transaction.id === nonExistentId,
-      );
-
-      expect(updatedTransaction).toBeUndefined();
-    });
-  });
-
-  describe('updateTransactionStatus', () => {
+  describe('updateCustodialTransaction', () => {
     const transactionId = '1';
     const statusMock = TransactionStatus.unapproved as const;
     const baseTransaction = {
@@ -3580,34 +3533,82 @@ describe('TransactionController', () => {
     };
     const transactionMeta: TransactionMeta = {
       ...baseTransaction,
+      custodyId: '123',
       history: [{ ...baseTransaction }],
     };
-    it('updates transaction status', async () => {
-      const newStatus = TransactionStatus.approved as const;
-      const controller = newController();
-      controller.state.transactions.push(transactionMeta);
+    it.each([
+      {
+        newStatus: TransactionStatus.signed as const,
+      },
+      {
+        newStatus: TransactionStatus.submitted as const,
+      },
+      {
+        newStatus: TransactionStatus.failed as const,
+        errorMessage: 'Error mock',
+      },
+    ])(
+      'updates transaction status to $newStatus',
+      async ({ newStatus, errorMessage }) => {
+        const newHash = '1234';
+        const newCustodyStatus = 'submitted';
+        const controller = newController();
+        controller.state.transactions.push(transactionMeta);
 
-      controller.updateTransactionStatus(transactionId, newStatus);
+        controller.updateCustodialTransaction(transactionId, {
+          status: newStatus,
+          hash: newHash,
+          custodyStatus: newCustodyStatus,
+          errorMessage,
+        });
 
-      const updatedTransaction = controller.state.transactions.find(
-        (transaction) => transaction.id === transactionId,
-      );
+        const updatedTransaction = controller.state.transactions[0];
 
-      expect(updatedTransaction?.status).toStrictEqual(newStatus);
-    });
+        expect(updatedTransaction?.status).toStrictEqual(newStatus);
+      },
+    );
 
-    it('handles non-existent transaction during status update', async () => {
+    it('throws if transaction does not exists', async () => {
       const nonExistentId = 'nonExistentId';
       const newStatus = TransactionStatus.approved as const;
       const controller = newController();
 
-      controller.updateTransactionStatus(nonExistentId, newStatus);
+      expect(() =>
+        controller.updateCustodialTransaction(nonExistentId, {
+          status: newStatus,
+        }),
+      ).toThrow('Cannot update status as no transaction metadata found.');
+    });
 
-      const updatedTransaction = controller.state.transactions.find(
-        (transaction) => transaction.id === nonExistentId,
+    it('throws if transaction is not custodial', async () => {
+      const nonCustodialTransaction: TransactionMeta = {
+        ...baseTransaction,
+        history: [{ ...baseTransaction }],
+      };
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+      controller.state.transactions.push(nonCustodialTransaction);
+
+      expect(() =>
+        controller.updateCustodialTransaction(nonCustodialTransaction.id, {
+          status: newStatus,
+        }),
+      ).toThrow('Transaction is not custodian.');
+    });
+
+    it('no property was updated', async () => {
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      controller.updateCustodialTransaction(transactionId, {});
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction?.status).toStrictEqual(transactionMeta.status);
+      expect(updatedTransaction?.custodyStatus).toStrictEqual(
+        transactionMeta.custodyStatus,
       );
-
-      expect(updatedTransaction).toBeUndefined();
+      expect(updatedTransaction?.hash).toStrictEqual(transactionMeta.hash);
     });
   });
 });
