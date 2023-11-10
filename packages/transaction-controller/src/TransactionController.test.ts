@@ -3520,6 +3520,7 @@ describe('TransactionController', () => {
 
   describe('updateTransactionHash', () => {
     const transactionId = '1';
+    const hashMock = '1234';
     const baseTransaction = {
       id: transactionId,
       chainId: toHex(5),
@@ -3532,7 +3533,7 @@ describe('TransactionController', () => {
     };
     const transactionMeta: TransactionMeta = {
       ...baseTransaction,
-      hash: '1234',
+      hash: hashMock,
       history: [{ ...baseTransaction }],
     };
     it('updates transaction hash', async () => {
@@ -3540,19 +3541,12 @@ describe('TransactionController', () => {
       const controller = newController();
       controller.state.transactions.push(transactionMeta);
 
-      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
-
       controller.updateTransactionHash(transactionId, newHash);
 
       const updatedTransaction = controller.state.transactions.find(
         (transaction) => transaction.id === transactionId,
       );
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
-      expect(updateTransactionSpy).toHaveBeenCalledWith(
-        updatedTransaction,
-        'TransactionController#updateTransactionHash - Transaction hash updated',
-      );
       expect(updatedTransaction?.hash).toStrictEqual(newHash);
     });
 
@@ -3561,11 +3555,59 @@ describe('TransactionController', () => {
       const newHash = 'newHash';
       const controller = newController();
 
-      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
-
       controller.updateTransactionHash(nonExistentId, newHash);
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(0);
+      const updatedTransaction = controller.state.transactions.find(
+        (transaction) => transaction.id === nonExistentId,
+      );
+
+      expect(updatedTransaction).toBeUndefined();
+    });
+  });
+
+  describe('updateTransactionStatus', () => {
+    const transactionId = '1';
+    const statusMock = TransactionStatus.unapproved as const;
+    const baseTransaction = {
+      id: transactionId,
+      chainId: toHex(5),
+      status: statusMock,
+      time: 123456789,
+      txParams: {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+      },
+    };
+    const transactionMeta: TransactionMeta = {
+      ...baseTransaction,
+      history: [{ ...baseTransaction }],
+    };
+    it('updates transaction status', async () => {
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      controller.updateTransactionStatus(transactionId, newStatus);
+
+      const updatedTransaction = controller.state.transactions.find(
+        (transaction) => transaction.id === transactionId,
+      );
+
+      expect(updatedTransaction?.status).toStrictEqual(newStatus);
+    });
+
+    it('handles non-existent transaction during status update', async () => {
+      const nonExistentId = 'nonExistentId';
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+
+      controller.updateTransactionStatus(nonExistentId, newStatus);
+
+      const updatedTransaction = controller.state.transactions.find(
+        (transaction) => transaction.id === nonExistentId,
+      );
+
+      expect(updatedTransaction).toBeUndefined();
     });
   });
 });

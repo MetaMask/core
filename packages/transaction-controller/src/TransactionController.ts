@@ -1410,6 +1410,25 @@ export class TransactionController extends BaseController<
     );
   }
 
+  /**
+   * Updates the transaction status associated with a specific transaction ID.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param status - The new status value to be assigned.
+   */
+  updateTransactionStatus(transactionId: string, status: TransactionStatus) {
+    const transactionMeta = this.getTransaction(transactionId);
+    if (!transactionMeta) {
+      log(`Transaction with id ${transactionId} not found.`);
+      return;
+    }
+    transactionMeta.status = status;
+    this.updateTransaction(
+      transactionMeta,
+      `TransactionController:updateTransactionStatus - Transaction status updated to ${status}`,
+    );
+  }
+
   private async signExternalTransaction(
     transactionParams: TransactionParams,
   ): Promise<string> {
@@ -1417,15 +1436,15 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const normalizedtransactionParams = normalizeTxParams(transactionParams);
+    const normalizedTransactionParams = normalizeTxParams(transactionParams);
     const chainId = this.getChainId();
-    const type = isEIP1559Transaction(normalizedtransactionParams)
+    const type = isEIP1559Transaction(normalizedTransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
     const updatedTransactionParams = {
-      ...normalizedtransactionParams,
+      ...normalizedTransactionParams,
       type,
-      gasLimit: normalizedtransactionParams.gas,
+      gasLimit: normalizedTransactionParams.gas,
       chainId,
     };
 
