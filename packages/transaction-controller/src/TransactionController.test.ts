@@ -2197,7 +2197,6 @@ describe('TransactionController', () => {
   });
 
   describe('speedUpTransaction', () => {
-<<<<<<< HEAD
     it('creates additional transaction', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
@@ -2221,7 +2220,8 @@ describe('TransactionController', () => {
       const speedUpTransaction = transactions[1];
       expect(speedUpTransaction.originalType).toBe(transactionMeta.type);
       expect(speedUpTransaction.type).toBe(TransactionType.retry);
-=======
+    });
+
     it('should avoid creating speedup transaction if actionId already exist', async () => {
       const mockActionId = 'mockActionId';
       const controller = newController();
@@ -2243,7 +2243,6 @@ describe('TransactionController', () => {
       });
 
       expect(controller.state.transactions).toHaveLength(1);
->>>>>>> main
     });
 
     it('creates additional transaction with increased gas', async () => {
