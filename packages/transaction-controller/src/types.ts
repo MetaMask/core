@@ -134,7 +134,7 @@ type TransactionMetaBase = {
   /**
    * Response from security validator.
    */
-  securityAlertResponse?: Record<string, unknown>;
+  securityAlertResponse?: SecurityAlertResponse;
 
   /**
    * An array of entries that describe the user's journey through the send flow.
@@ -596,4 +596,11 @@ export type InferTransactionTypeResult = {
    * The type of transaction
    */
   type: TransactionType;
+};
+
+export type SecurityAlertResponse = {
+  reason: string;
+  features?: string[];
+  result_type: string;
+  providerRequestsCount?: Record<string, number>;
 };
