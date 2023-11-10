@@ -1,3 +1,4 @@
+import type { AccessList } from '@ethereumjs/tx';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -512,6 +513,11 @@ export enum TransactionType {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionParams {
+  /**
+   * A list of addresses and storage keys that the transaction plans to access.
+   */
+  accessList?: AccessList;
+
   /**
    * Network ID as per EIP-155.
    */
