@@ -979,8 +979,8 @@ describe('TransactionController', () => {
         multiplierMock,
       );
 
-      expect(estimateGasMock).toBeCalledTimes(1);
-      expect(estimateGasMock).toBeCalledWith(
+      expect(estimateGasMock).toHaveBeenCalledTimes(1);
+      expect(estimateGasMock).toHaveBeenCalledWith(
         transactionParamsMock,
         expect.anything(),
       );
