@@ -60,7 +60,7 @@ import {
   TransactionStatus,
 } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import { estimateGas, updateGas } from './utils/gas';
+import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import {
   addInitialHistorySnapshot,
@@ -606,7 +606,6 @@ export class TransactionController extends BaseController<
     } = {},
   ): Promise<Result> {
     const chainId = this.getChainId();
-    const { transactions } = this.state;
     txParams = normalizeTxParams(txParams);
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     validateTxParams(txParams, isEIP1559Compatible);
@@ -673,10 +672,7 @@ export class TransactionController extends BaseController<
         controllerHubEmitter: this.hub.emit.bind(this.hub) as any,
       });
 
-      transactions.push(transactionMeta);
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
+      this.addMetadata(transactionMeta);
       this.hub.emit(`unapprovedTransaction`, transactionMeta);
     }
 
@@ -720,12 +716,15 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
+    // If transaction is found for same action id, do not create a cancel transaction.
+    if (this.getTransactionWithActionId(actionId)) {
+      return;
+    }
+
     if (gasValues) {
       validateGasValues(gasValues);
     }
-    const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionId,
-    );
+    const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
     }
@@ -777,7 +776,7 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const txParams: TransactionParams =
+    const newTxParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             from: transactionMeta.txParams.from,
@@ -798,23 +797,43 @@ export class TransactionController extends BaseController<
             value: '0x0',
           };
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+    const unsignedEthTx = this.prepareUnsignedEthTx(newTxParams);
 
     const signedTx = await this.sign(
       unsignedEthTx,
       transactionMeta.txParams.from,
     );
-    await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
-    transactionMeta.estimatedBaseFee = estimatedBaseFee;
-    transactionMeta.status = TransactionStatus.cancelled;
+    const hash = await this.publishTransaction(rawTx);
+    const cancelTransactionMeta: TransactionMeta = {
+      actionId,
+      chainId: transactionMeta.chainId,
+      estimatedBaseFee,
+      hash,
+      id: random(),
+      originalGasEstimate: transactionMeta.txParams.gas,
+      status: TransactionStatus.submitted,
+      time: Date.now(),
+      type: TransactionType.cancel,
+      txParams: newTxParams,
+    };
+
+    this.addMetadata(cancelTransactionMeta);
 
     // stopTransaction has no approval request, so we assume the user has already approved the transaction
-    this.hub.emit('transaction-approved', { transactionMeta, actionId });
-    this.hub.emit('transaction-submitted', { transactionMeta, actionId });
+    this.hub.emit('transaction-approved', {
+      transactionMeta: cancelTransactionMeta,
+      actionId,
+    });
+    this.hub.emit('transaction-submitted', {
+      transactionMeta: cancelTransactionMeta,
+      actionId,
+    });
 
-    this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+    this.hub.emit(
+      `${cancelTransactionMeta.id}:finished`,
+      cancelTransactionMeta,
+    );
   }
 
   /**
@@ -854,8 +873,6 @@ export class TransactionController extends BaseController<
     if (!this.sign) {
       throw new Error('No sign method defined.');
     }
-
-    const { transactions } = this.state;
 
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
@@ -951,8 +968,7 @@ export class TransactionController extends BaseController<
               gasPrice: newGasPrice,
             },
           };
-    transactions.push(newTransactionMeta);
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.addMetadata(newTransactionMeta);
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
     this.hub.emit('transaction-approved', {
@@ -980,6 +996,29 @@ export class TransactionController extends BaseController<
     );
 
     return { gas: estimatedGas, simulationFails };
+  }
+
+  /**
+   * Estimates required gas for a given transaction and add additional gas buffer with the given multiplier.
+   *
+   * @param transaction - The transaction params to estimate gas for.
+   * @param multiplier - The multiplier to use for the gas buffer.
+   */
+  async estimateGasBuffered(
+    transaction: TransactionParams,
+    multiplier: number,
+  ) {
+    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
+      transaction,
+      this.ethQuery,
+    );
+
+    const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
+
+    return {
+      gas,
+      simulationFails,
+    };
   }
 
   /**
@@ -1432,6 +1471,12 @@ export class TransactionController extends BaseController<
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
+  private addMetadata(transactionMeta: TransactionMeta) {
+    const { transactions } = this.state;
+    transactions.push(transactionMeta);
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
   private async updateGasProperties(transactionMeta: TransactionMeta) {
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     const chainId = this.getChainId();
@@ -1601,13 +1646,6 @@ export class TransactionController extends BaseController<
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
         throw rpcErrors.internal(finalMeta.error.message);
-
-      case TransactionStatus.cancelled:
-        const cancelError = rpcErrors.internal(
-          'User cancelled the transaction',
-        );
-        resultCallbacks?.error(cancelError);
-        throw cancelError;
 
       case TransactionStatus.submitted:
         resultCallbacks?.success();
@@ -1824,8 +1862,7 @@ export class TransactionController extends BaseController<
     return (
       status === TransactionStatus.rejected ||
       status === TransactionStatus.confirmed ||
-      status === TransactionStatus.failed ||
-      status === TransactionStatus.cancelled
+      status === TransactionStatus.failed
     );
   }
 
@@ -1837,7 +1874,6 @@ export class TransactionController extends BaseController<
    */
   private isLocalFinalState(status: TransactionStatus): boolean {
     return [
-      TransactionStatus.cancelled,
       TransactionStatus.confirmed,
       TransactionStatus.failed,
       TransactionStatus.rejected,
