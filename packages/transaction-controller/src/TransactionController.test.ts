@@ -950,6 +950,10 @@ describe('TransactionController', () => {
       const blockGasLimitMock = '0x1234';
       const expectedEstimatedGas = '0x12345';
       const multiplierMock = 1;
+      const transactionParamsMock = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      };
 
       const simulationFailsMock = {
         errorKey: 'testKey',
@@ -971,11 +975,14 @@ describe('TransactionController', () => {
       addGasBufferMock.mockReturnValue(expectedEstimatedGas);
 
       const { gas, simulationFails } = await controller.estimateGasBuffered(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
+        transactionParamsMock,
         multiplierMock,
+      );
+
+      expect(estimateGasMock).toBeCalledTimes(1);
+      expect(estimateGasMock).toBeCalledWith(
+        transactionParamsMock,
+        expect.anything(),
       );
 
       expect(addGasBufferMock).toHaveBeenCalledTimes(1);
