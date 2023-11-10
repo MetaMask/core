@@ -60,7 +60,7 @@ import {
   TransactionStatus,
 } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import { estimateGas, updateGas } from './utils/gas';
+import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import {
   addInitialHistorySnapshot,
@@ -980,6 +980,29 @@ export class TransactionController extends BaseController<
     );
 
     return { gas: estimatedGas, simulationFails };
+  }
+
+  /**
+   * Estimates required gas for a given transaction and add additional gas buffer with the given multiplier.
+   *
+   * @param transaction - The transaction params to estimate gas for.
+   * @param multiplier - The multiplier to use for the gas buffer.
+   */
+  async estimateGasBuffered(
+    transaction: TransactionParams,
+    multiplier: number,
+  ) {
+    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
+      transaction,
+      this.ethQuery,
+    );
+
+    const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
+
+    return {
+      gas,
+      simulationFails,
+    };
   }
 
   /**
