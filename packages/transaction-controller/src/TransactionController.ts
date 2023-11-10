@@ -1406,7 +1406,7 @@ export class TransactionController extends BaseController<
     transactionMeta.hash = hash;
     this.updateTransaction(
       transactionMeta,
-      'TransactionController#updateTransactionHash - Transaction hash updated',
+      'TransactionController:updateTransactionHash - Transaction hash updated',
     );
   }
 
