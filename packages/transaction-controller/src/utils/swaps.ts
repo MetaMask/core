@@ -25,6 +25,8 @@ const SWAPS_TESTNET_CHAIN_ID = '0x539';
 export const DEFAULT_TOKEN_ADDRESS =
   '0x0000000000000000000000000000000000000000';
 
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface SwapsTokenObject {
   /**
    * The name for the network

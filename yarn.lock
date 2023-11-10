@@ -1476,7 +1476,7 @@ __metadata:
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": 3.0.0
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/polling-controller": ^1.0.1
     "@metamask/preferences-controller": ^4.4.3
     "@metamask/rpc-errors": ^6.1.0
@@ -1502,7 +1502,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/preferences-controller": ^4.4.3
   languageName: unknown
   linkType: soft
@@ -1606,8 +1606,8 @@ __metadata:
     "@metamask/eslint-config-jest": ^12.1.0
     "@metamask/eslint-config-nodejs": ^12.1.0
     "@metamask/eslint-config-typescript": ^12.1.0
-    "@metamask/eth-json-rpc-provider": ^2.2.0
-    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/eth-json-rpc-provider": ^2.3.0
+    "@metamask/json-rpc-engine": ^7.3.0
     "@metamask/utils": ^8.2.0
     "@types/node": ^16.18.54
     "@typescript-eslint/eslint-plugin": ^5.62.0
@@ -1663,7 +1663,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1675,7 +1675,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
   languageName: unknown
   linkType: soft
 
@@ -1772,12 +1772,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-provider@^2.1.0, @metamask/eth-json-rpc-provider@^2.2.0, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
+"@metamask/eth-json-rpc-provider@^2.1.0, @metamask/eth-json-rpc-provider@^2.3.0, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
     "@metamask/auto-changelog": ^3.4.3
-    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/json-rpc-engine": ^7.3.0
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
@@ -1868,7 +1868,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/polling-controller": ^1.0.1
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
@@ -1888,11 +1888,11 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@^7.1.1, @metamask/json-rpc-engine@^7.2.0, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
+"@metamask/json-rpc-engine@^7.1.1, @metamask/json-rpc-engine@^7.3.0, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
   dependencies:
@@ -1909,6 +1909,29 @@ __metadata:
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
     typescript: ~4.8.4
+  languageName: unknown
+  linkType: soft
+
+"@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream":
+  version: 0.0.0-use.local
+  resolution: "@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream"
+  dependencies:
+    "@metamask/auto-changelog": ^3.4.3
+    "@metamask/json-rpc-engine": ^7.3.0
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.2.0
+    "@types/jest": ^27.4.1
+    "@types/readable-stream": ^2.3.0
+    deepmerge: ^4.2.2
+    extension-port-stream: ^2.0.1
+    jest: ^27.5.1
+    jest-it-up: ^2.0.2
+    readable-stream: ^3.6.2
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
+    webextension-polyfill-ts: ^0.26.0
   languageName: unknown
   linkType: soft
 
@@ -2043,7 +2066,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@^15.1.0, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@^15.2.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -2053,9 +2076,9 @@ __metadata:
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-json-rpc-infura": ^9.0.0
     "@metamask/eth-json-rpc-middleware": ^12.0.1
-    "@metamask/eth-json-rpc-provider": ^2.2.0
+    "@metamask/eth-json-rpc-provider": ^2.3.0
     "@metamask/eth-query": ^3.0.1
-    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/json-rpc-engine": ^7.3.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.2.0
@@ -2137,7 +2160,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/json-rpc-engine": ^7.3.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.2.0
     "@types/deep-freeze-strict": ^1.1.0
@@ -2153,6 +2176,28 @@ __metadata:
     typescript: ~4.8.4
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/permission-log-controller@workspace:packages/permission-log-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/permission-log-controller@workspace:packages/permission-log-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.4.3
+    "@metamask/base-controller": ^3.2.3
+    "@metamask/json-rpc-engine": ^7.3.0
+    "@metamask/utils": ^8.2.0
+    "@types/deep-freeze-strict": ^1.1.0
+    "@types/jest": ^27.4.1
+    deep-freeze-strict: ^1.1.1
+    deepmerge: ^4.2.2
+    jest: ^27.5.1
+    nanoid: ^3.1.31
+    sinon: ^9.2.4
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -2185,7 +2230,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
@@ -2199,7 +2244,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
   languageName: unknown
   linkType: soft
 
@@ -2257,10 +2302,10 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/json-rpc-engine": ^7.2.0
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/json-rpc-engine": ^7.3.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/rpc-errors": ^6.1.0
-    "@metamask/selected-network-controller": ^3.1.0
+    "@metamask/selected-network-controller": ^3.1.1
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
@@ -2275,8 +2320,8 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^15.1.0
-    "@metamask/selected-network-controller": ^3.1.0
+    "@metamask/network-controller": ^15.2.0
+    "@metamask/selected-network-controller": ^3.1.1
   languageName: unknown
   linkType: soft
 
@@ -2332,14 +2377,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@^3.1.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@^3.1.1, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
-    "@metamask/json-rpc-engine": ^7.2.0
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/json-rpc-engine": ^7.3.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2353,7 +2398,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
   languageName: unknown
   linkType: soft
 
@@ -2587,7 +2632,7 @@ __metadata:
     "@metamask/eth-query": ^3.0.1
     "@metamask/gas-fee-controller": ^10.0.0
     "@metamask/metamask-eth-abis": ^3.0.0
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
@@ -2611,7 +2656,7 @@ __metadata:
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
     "@metamask/gas-fee-controller": ^10.0.0
-    "@metamask/network-controller": ^15.1.0
+    "@metamask/network-controller": ^15.2.0
     babel-runtime: ^6.26.0
   languageName: unknown
   linkType: soft
@@ -5789,7 +5834,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"extension-port-stream@npm:^2.1.1":
+"extension-port-stream@npm:^2.0.1, extension-port-stream@npm:^2.1.1":
   version: 2.1.1
   resolution: "extension-port-stream@npm:2.1.1"
   dependencies:
@@ -10586,10 +10631,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"webextension-polyfill-ts@npm:^0.26.0":
+  version: 0.26.0
+  resolution: "webextension-polyfill-ts@npm:0.26.0"
+  dependencies:
+    webextension-polyfill: ^0.8.0
+  checksum: cf9e21da6b1237e760d3774f707d9694c6e51e9629c15ebdac5b43e0c7b02fffe18570aeab1f5b3126e24fbb4bf6f523c56d5c9a92d944d900e7182c1fd81066
+  languageName: node
+  linkType: hard
+
 "webextension-polyfill@npm:>=0.10.0 <1.0, webextension-polyfill@npm:^0.10.0":
   version: 0.10.0
   resolution: "webextension-polyfill@npm:0.10.0"
   checksum: 4a59036bda571360c2c0b2fb03fe1dc244f233946bcf9a6766f677956c40fd14d270aaa69cdba95e4ac521014afbe4008bfa5959d0ac39f91c990eb206587f91
+  languageName: node
+  linkType: hard
+
+"webextension-polyfill@npm:^0.8.0":
+  version: 0.8.0
+  resolution: "webextension-polyfill@npm:0.8.0"
+  checksum: 56286e6216e15834fdcdc3dcf611000d96b49c9d925de3d657eb5f1e294074180dd3efe78a0966223eb311ac3a0ac5fdf71d324b836bf05724455ffd6c7c98c3
   languageName: node
   linkType: hard
 

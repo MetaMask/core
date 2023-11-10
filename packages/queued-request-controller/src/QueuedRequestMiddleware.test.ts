@@ -3,6 +3,7 @@ import type {
   ApprovalController,
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
+import { NetworkType } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
   NetworkClientId,
@@ -11,7 +12,9 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerSetProviderTypeAction,
+  ProviderConfig,
 } from '@metamask/network-controller';
+import { defaultState as networkControllerDefaultState } from '@metamask/network-controller';
 import { serializeError } from '@metamask/rpc-errors';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
@@ -37,8 +40,12 @@ const buildMocks = (
   messenger: ReturnType<typeof buildMessenger>,
   mocks: {
     getNetworkClientById?: NetworkController['getNetworkClientById'];
-    getProviderConfig?: NetworkControllerGetStateAction['handler'];
+    getProviderConfig?: () => ProviderConfig;
     addRequest?: ApprovalController['add'];
+    // since NetworkConfigurations is not exported, we get it this way. Todo: export the type or expose a getter on NetworkController
+    getNetworkConfigurations?: () => ReturnType<
+      NetworkControllerGetStateAction['handler']
+    >['networkConfigurations'];
   } = {},
 ) => {
   const mockGetNetworkClientById =
@@ -53,16 +60,24 @@ const buildMocks = (
     mockGetNetworkClientById,
   );
 
+  const mockGetNetworkConfigurations =
+    mocks.getNetworkConfigurations ?? jest.fn(() => ({}));
   const mockGetProviderConfig =
-    mocks.getProviderConfig ||
-    jest.fn().mockReturnValue({
-      providerConfig: {
-        chainId: '0x1',
-      },
-    });
+    mocks.getProviderConfig ??
+    jest.fn<ProviderConfig, any[]>(() => ({
+      chainId: '0x1',
+      type: NetworkType.mainnet,
+      ticker: 'ETH',
+    }));
+  const mockGetNetworkControllerState = jest.fn(() => ({
+    ...networkControllerDefaultState,
+    networkConfigurations: mockGetNetworkConfigurations(),
+    providerConfig: mockGetProviderConfig(),
+  }));
+
   messenger.registerActionHandler(
     'NetworkController:getState',
-    mockGetProviderConfig,
+    mockGetNetworkControllerState,
   );
 
   const mockEnqueueRequest = jest.fn().mockImplementation((cb) => cb());
@@ -97,6 +112,8 @@ const buildMocks = (
 
   return {
     getProviderConfig: mockGetProviderConfig,
+    getNetworkConfigurations: mockGetNetworkConfigurations,
+    getNetworkControllerState: mockGetNetworkControllerState,
     getNetworkClientById: mockGetNetworkClientById,
     enqueueRequest: mockEnqueueRequest,
     addRequest: mockAddRequest,
@@ -220,11 +237,21 @@ describe('createQueuedRequestMiddleware', () => {
         messenger,
         useRequestQueue: () => true,
       });
-      const mocks = buildMocks(messenger);
+      const networkClientId = '12309-12039-12309';
+      const mocks = buildMocks(messenger, {
+        getNetworkConfigurations: jest.fn(() => ({
+          [networkClientId]: {
+            id: networkClientId,
+            rpcUrl: 'foo.com',
+            ticker: 'foo',
+            chainId: '0x123',
+          },
+        })),
+      });
 
       const req = {
         ...requestDefaults,
-        networkClientId: 'custom-rpc.com',
+        networkClientId,
         method: 'eth_sendTransaction',
       };
 
@@ -234,7 +261,7 @@ describe('createQueuedRequestMiddleware', () => {
 
       expect(mocks.enqueueRequest).toHaveBeenCalled();
       // custom networks use getNetworkClientyId
-      expect(mocks.getNetworkClientById).toHaveBeenCalledWith('custom-rpc.com');
+      expect(mocks.getNetworkClientById).toHaveBeenCalledWith(networkClientId);
     });
 
     it('switchEthereumChain calls get queued but we dont check the current network', async () => {
@@ -267,9 +294,7 @@ describe('createQueuedRequestMiddleware', () => {
           useRequestQueue: () => true,
         });
         const mockGetProviderConfig = jest.fn().mockReturnValue({
-          providerConfig: {
-            chainId: '0x5',
-          },
+          chainId: '0x5',
         });
         const mocks = buildMocks(messenger, {
           getProviderConfig: mockGetProviderConfig,
@@ -298,9 +323,7 @@ describe('createQueuedRequestMiddleware', () => {
         const rejected = new Error('big bad rejected');
         const mockAddRequest = jest.fn().mockRejectedValue(rejected);
         const mockGetProviderConfig = jest.fn().mockReturnValue({
-          providerConfig: {
-            chainId: '0x5',
-          },
+          chainId: '0x5',
         });
         const mocks = buildMocks(messenger, {
           addRequest: mockAddRequest,
@@ -331,9 +354,7 @@ describe('createQueuedRequestMiddleware', () => {
         });
         const mocks = buildMocks(messenger, {
           getProviderConfig: jest.fn().mockReturnValue({
-            providerConfig: {
-              chainId: '0x5',
-            },
+            chainId: '0x5',
           }),
         });
 
@@ -356,15 +377,22 @@ describe('createQueuedRequestMiddleware', () => {
           messenger,
           useRequestQueue: () => true,
         });
+        const networkClientId = '123123-123123-123123';
         const mocks = buildMocks(messenger, {
-          getProviderConfig: jest.fn().mockReturnValue({
-            providerConfig: {
-              chainId: '0x1',
+          getNetworkConfigurations: jest.fn(() => ({
+            [networkClientId]: {
+              id: networkClientId,
+              rpcUrl: 'foo.com',
+              ticker: 'foo',
+              chainId: '0x123',
             },
+          })),
+          getProviderConfig: jest.fn().mockReturnValue({
+            chainId: '0x1',
           }),
           getNetworkClientById: jest.fn().mockReturnValue({
             configuration: {
-              chainId: '0x1234',
+              chainId: '0x123',
             },
           }),
         });
@@ -373,7 +401,7 @@ describe('createQueuedRequestMiddleware', () => {
           ...requestDefaults,
           origin: 'example.com',
           method: 'eth_sendTransaction',
-          networkClientId: 'https://some-rpc-url.com',
+          networkClientId,
         };
 
         await new Promise((resolve, reject) =>
@@ -400,9 +428,7 @@ describe('createQueuedRequestMiddleware', () => {
         .mockResolvedValueOnce(true);
 
       const mockGetProviderConfig = jest.fn().mockReturnValue({
-        providerConfig: {
-          chainId: '0x5',
-        },
+        chainId: '0x5',
       });
 
       const mocks = buildMocks(messenger, {

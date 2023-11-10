@@ -11,6 +11,9 @@ import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
  * @property name - Nickname associated with this address
  * @property importTime - Data time when an account as created/imported
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface ContactEntry {
   address: string;
   name: string;
@@ -32,6 +35,9 @@ export type EtherscanSupportedHexChainId =
  * @property lostIdentities - Map of lost addresses to ContactEntry objects
  * @property selectedAddress - Current coinbase account
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PreferencesState extends BaseState {
   featureFlags: { [feature: string]: boolean };
   ipfsGateway: string;
