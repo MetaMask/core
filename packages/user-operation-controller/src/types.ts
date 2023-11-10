@@ -95,6 +95,7 @@ export type UserOperationMetadata = {
   time: number;
   transactionHash: string | null;
   transactionParams: Required<TransactionParams> | null;
+  userFeeLevel: string | null;
   userOperation: UserOperation;
 };
 

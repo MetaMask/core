@@ -15,13 +15,18 @@ import { getBundler } from './Bundler';
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
 
 type Events = {
-  'user-operation-confirmed': [metadata: UserOperationMetadata];
-  'user-operation-failed': [txMeta: UserOperationMetadata, error: Error];
+  [key: `${string}:confirmed`]: [metadata: UserOperationMetadata];
+  [key: `${string}:failed`]: [txMeta: UserOperationMetadata, error: Error];
   'user-operation-updated': [txMeta: UserOperationMetadata];
 };
 
 export interface PendingUserOperationTrackerEventEmitter extends EventEmitter {
   on<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
+  ): this;
+
+  once<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): this;
@@ -185,7 +190,7 @@ export class PendingUserOperationTracker {
 
     this.#updateUserOperation(metadata);
 
-    this.hub.emit('user-operation-confirmed', metadata);
+    this.hub.emit(`${id}:confirmed`, metadata);
   }
 
   #onUserOperationFailed(
@@ -201,7 +206,7 @@ export class PendingUserOperationTracker {
     this.#updateUserOperation(metadata);
 
     this.hub.emit(
-      'user-operation-failed',
+      `${id}:failed`,
       metadata,
       new Error('User operation receipt has failed status'),
     );

@@ -2,8 +2,10 @@ import { UserOperationMetadata, UserOperationStatus } from '../types';
 import {
   TransactionError,
   TransactionMeta,
+  TransactionParams,
   TransactionStatus,
   TransactionType,
+  UserFeeLevel,
 } from '@metamask/transaction-controller';
 import { Hex } from '@metamask/utils';
 import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
@@ -22,6 +24,7 @@ export function getTransactionMetadata(
     time,
     transactionParams,
     userOperation,
+    userFeeLevel,
   } = metadata;
 
   if (!transactionParams) {
@@ -83,7 +86,10 @@ export function getTransactionMetadata(
     nonce,
     maxFeePerGas,
     maxPriorityFeePerGas,
-  };
+  } as TransactionParams;
+
+  // Since the user operations only support EIP-1559, we won't need this.
+  delete txParams.gasPrice;
 
   const type = 'userOperation' as TransactionType;
 
@@ -101,6 +107,7 @@ export function getTransactionMetadata(
     time,
     txParams,
     type,
+    userFeeLevel: userFeeLevel || undefined,
   };
 }
 

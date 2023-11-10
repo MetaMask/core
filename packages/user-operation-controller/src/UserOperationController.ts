@@ -29,6 +29,8 @@ import { Bundler, getBundler } from './helpers/Bundler';
 import { ENTRYPOINT } from './constants';
 import { sendSnapRequest } from './snaps';
 import { SnapProvider } from './snaps/types';
+import { GasFeeState } from '@metamask/gas-fee-controller';
+import { updateGasFees } from './utils/gas-fees';
 
 const DUMMY_SIGNATURE =
   '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
@@ -73,6 +75,7 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 
 export type UserOperationControllerOptions = {
   blockTracker: BlockTracker;
+  getGasFeeEstimates: () => Promise<GasFeeState>;
   getPrivateKey: () => Promise<string>;
   getTransactions: () => TransactionMeta[];
   messenger: UserOperationControllerMessenger;
@@ -92,9 +95,13 @@ export class UserOperationController extends BaseControllerV2<
 
   #blockTracker: BlockTracker;
 
+  #getGasFeeEstimates: () => Promise<GasFeeState>;
+
   #getPrivateKey: () => Promise<string>;
 
   #getTransactions: () => TransactionMeta[];
+
+  #pendingTracker: PendingUserOperationTracker;
 
   #provider: ProviderProxy;
 
@@ -108,6 +115,7 @@ export class UserOperationController extends BaseControllerV2<
    */
   constructor({
     blockTracker,
+    getGasFeeEstimates,
     getPrivateKey,
     getTransactions,
     messenger,
@@ -124,11 +132,12 @@ export class UserOperationController extends BaseControllerV2<
     this.hub = new EventEmitter();
 
     this.#blockTracker = blockTracker;
+    this.#getGasFeeEstimates = getGasFeeEstimates;
     this.#getPrivateKey = getPrivateKey;
     this.#getTransactions = getTransactions;
     this.#provider = provider;
 
-    const pendingTracker = new PendingUserOperationTracker({
+    this.#pendingTracker = new PendingUserOperationTracker({
       blockTracker: this.#blockTracker,
       getBlockByHash: (hash: string) =>
         new Web3Provider(this.#provider as any).getBlock(hash),
@@ -144,7 +153,7 @@ export class UserOperationController extends BaseControllerV2<
         ),
     });
 
-    pendingTracker.hub.on('user-operation-updated', (metadata) => {
+    this.#pendingTracker.hub.on('user-operation-updated', (metadata) => {
       this.#updateMetadata(metadata);
     });
   }
@@ -155,21 +164,43 @@ export class UserOperationController extends BaseControllerV2<
   ) {
     const bundler = getBundler(chainId);
     const metadata = this.#createMetadata(chainId);
+    const { id } = metadata;
 
-    try {
-      await this.#applySnapData(metadata, transaction, snapId);
-      await this.#updateGas(metadata, bundler);
+    const hash = (async () => {
+      try {
+        await this.#applySnapData(metadata, transaction, snapId);
+        await this.#updateGasFees(metadata);
+        await this.#updateGas(metadata, bundler);
 
-      const resultCallbacks = await this.#approveUserOperation(metadata);
+        const resultCallbacks = await this.#approveUserOperation(metadata);
 
-      await this.#signUserOperation(metadata);
-      await this.#submitUserOperation(metadata, bundler);
+        await this.#signUserOperation(metadata);
+        await this.#submitUserOperation(metadata, bundler);
 
-      resultCallbacks?.success();
-    } catch (error) {
-      this.#failUserOperation(metadata, error);
-      throw error;
-    }
+        resultCallbacks?.success();
+
+        return metadata.hash as string;
+      } catch (error) {
+        this.#failUserOperation(metadata, error);
+        throw error;
+      }
+    })();
+
+    const transactionHash = new Promise<string>((resolve, reject) => {
+      this.#pendingTracker.hub.once(`${id}:confirmed`, (metadata) => {
+        resolve(metadata.transactionHash as string);
+      });
+
+      this.#pendingTracker.hub.once(`${id}:failed`, (_metadata, error) => {
+        reject(error);
+      });
+    });
+
+    return {
+      id,
+      hash,
+      transactionHash,
+    };
   }
 
   #createMetadata(chainId: string): UserOperationMetadata {
@@ -186,6 +217,7 @@ export class UserOperationController extends BaseControllerV2<
       transactionHash: null,
       transactionParams: null,
       userOperation: this.#createEmptyUserOperation(),
+      userFeeLevel: null,
     };
 
     this.#updateMetadata(metadata);
@@ -219,13 +251,20 @@ export class UserOperationController extends BaseControllerV2<
 
     userOperation.callData = response.callData;
     userOperation.initCode = response.initCode;
-    userOperation.maxFeePerGas = transaction.maxFeePerGas || '0x';
-    userOperation.maxPriorityFeePerGas =
-      transaction.maxPriorityFeePerGas || '0x';
     userOperation.nonce = response.nonce;
     userOperation.sender = response.sender;
 
     metadata.transactionParams = transaction as any;
+
+    this.#updateMetadata(metadata);
+  }
+
+  async #updateGasFees(metadata: UserOperationMetadata) {
+    await updateGasFees({
+      getGasFeeEstimates: this.#getGasFeeEstimates,
+      metadata,
+      provider: new Web3Provider(this.#provider as any),
+    });
 
     this.#updateMetadata(metadata);
   }
@@ -251,13 +290,17 @@ export class UserOperationController extends BaseControllerV2<
       ENTRYPOINT,
     );
 
-    userOperation.preVerificationGas = toHex(estimatedGas.preVerificationGas);
-
-    userOperation.verificationGasLimit = toHex(
-      estimatedGas.verificationGasLimit,
+    userOperation.preVerificationGas = toHex(
+      Math.round(estimatedGas.preVerificationGas * 1.5),
     );
 
-    userOperation.callGasLimit = toHex(estimatedGas.callGasLimit);
+    userOperation.verificationGasLimit = toHex(
+      Math.round(estimatedGas.verificationGasLimit * 1.5),
+    );
+
+    userOperation.callGasLimit = toHex(
+      Math.round(estimatedGas.callGasLimit * 1.5),
+    );
 
     this.#updateMetadata(metadata);
   }
@@ -269,17 +312,27 @@ export class UserOperationController extends BaseControllerV2<
       (tx) => tx.id === metadata.id,
     );
 
+    const { userOperation } = metadata;
+
+    log('Existing transaction', transaction);
+
     if (
       transaction?.txParams.maxFeePerGas &&
       transaction?.txParams.maxPriorityFeePerGas
     ) {
-      metadata.userOperation.maxFeePerGas = transaction.txParams.maxFeePerGas;
+      userOperation.maxFeePerGas = transaction.txParams.maxFeePerGas;
 
-      metadata.userOperation.maxPriorityFeePerGas =
+      userOperation.maxPriorityFeePerGas =
         transaction.txParams.maxPriorityFeePerGas;
+
+      log('Updated gas fees after approval', {
+        maxFeePerGas: userOperation.maxFeePerGas,
+        maxPriorityFeePerGas: userOperation.maxPriorityFeePerGas,
+      });
     }
 
     metadata.status = UserOperationStatus.Approved;
+
     this.#updateMetadata(metadata);
 
     return resultCallbacks;
@@ -288,7 +341,7 @@ export class UserOperationController extends BaseControllerV2<
   async #signUserOperation(metadata: UserOperationMetadata) {
     const { id, chainId, userOperation } = metadata;
 
-    log('Signing user operation', id);
+    log('Signing user operation', id, userOperation);
 
     const signature = await signUserOperation(
       userOperation,
@@ -310,13 +363,9 @@ export class UserOperationController extends BaseControllerV2<
     metadata: UserOperationMetadata,
     bundler: Bundler,
   ) {
-    const { id, userOperation } = metadata;
-
-    log('Submitting user operation', id);
+    const { userOperation } = metadata;
 
     const hash = await bundler.sendUserOperation(userOperation, ENTRYPOINT);
-
-    log('Submitted user operation', hash);
 
     metadata.hash = hash;
     metadata.status = UserOperationStatus.Submitted;

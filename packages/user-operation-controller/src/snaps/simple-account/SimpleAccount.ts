@@ -64,7 +64,7 @@ export const onUserOperationRequest: OnUserOperationHandler = async (
 
   const callData = simpleAccountContract.interface.encodeFunctionData(
     'execute',
-    [to ?? AddressZero, value, data ?? '0x'],
+    [to ?? AddressZero, value ?? '0x0', data ?? '0x'],
   );
 
   const nonce = isDeployed
