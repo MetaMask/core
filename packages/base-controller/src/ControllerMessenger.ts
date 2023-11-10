@@ -14,6 +14,7 @@ export type ExtractActionParameters<
 }
   ? HandlerArgs
   : never;
+
 export type ExtractActionResponse<
   Action extends ActionConstraint,
   ActionType = Action['type'],
@@ -26,21 +27,22 @@ export type ExtractActionResponse<
 
 export type ExtractEventHandler<
   Event extends EventConstraint,
-  ActionType = Event['type'],
+  EventType = Event['type'],
 > = Event extends {
-  type: ActionType;
+  type: EventType;
   payload: infer Payload;
 }
   ? Payload extends unknown[]
     ? (...payload: Payload) => void
     : never
   : never;
+
 export type ExtractEventPayload<
   Event extends EventConstraint,
-  ActionType = Event['type'],
+  EventType = Event['type'],
 > = Event extends {
-  type: ActionType;
-  payload: infer Payload extends unknown[];
+  type: EventType;
+  payload: infer Payload;
 }
   ? Payload
   : never;
