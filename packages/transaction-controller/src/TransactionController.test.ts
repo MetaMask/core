@@ -1979,7 +1979,7 @@ describe('TransactionController', () => {
 
       const controller = newController();
 
-      // Assume we have a transaction in the state
+      // Assume we have a submitted transaction in the state
       controller.state.transactions.push({
         id: simpleSendTransactionId,
         chainId: toHex(5),
@@ -1992,7 +1992,6 @@ describe('TransactionController', () => {
         },
       });
 
-      // Now we can stop the transaction
       await controller.stopTransaction(simpleSendTransactionId, undefined, {
         estimatedBaseFee: '0x123',
       });
@@ -2019,7 +2018,7 @@ describe('TransactionController', () => {
 
       const controller = newController();
 
-      // Assume we have a transaction in the state
+      // Assume we have a submitted transaction in the state
       controller.state.transactions.push({
         id: simpleSendTransactionId,
         chainId: toHex(5),
@@ -2032,7 +2031,6 @@ describe('TransactionController', () => {
         },
       });
 
-      // Now we can stop the transaction
       await controller.stopTransaction(simpleSendTransactionId, undefined, {
         estimatedBaseFee: '0x123',
       });
