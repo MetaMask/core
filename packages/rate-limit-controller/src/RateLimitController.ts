@@ -42,9 +42,7 @@ export type GetRateLimitState<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = {
   type: `${typeof name}:getState`;
-  handler: () => RateLimitState<RateLimitedApis> extends ActionConstraint['handler']
-    ? RateLimitState<RateLimitedApis>
-    : never;
+  handler: () => RateLimitState<RateLimitedApis>;
 };
 
 export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
