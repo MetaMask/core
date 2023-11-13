@@ -13,17 +13,25 @@ import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
 import { projectLogger } from '../logger';
-import type { TransactionParams } from '../types';
-import { UserFeeLevel, type TransactionMeta } from '../types';
+import type {
+  SavedGasFees,
+  TransactionParams,
+  TransactionMeta,
+  TransactionType,
+} from '../types';
+import { UserFeeLevel } from '../types';
+import { SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
+  getSavedGasFees: () => SavedGasFees | undefined;
   getGasFeeEstimates: () => Promise<GasFeeState>;
   txMeta: TransactionMeta;
 };
 
 export type GetGasFeeRequest = UpdateGasFeesRequest & {
+  savedGasFees?: SavedGasFees;
   initialParams: TransactionParams;
   suggestedGasFees: Awaited<ReturnType<typeof getSuggestedGasFees>>;
 };
@@ -34,11 +42,21 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
+  const isSwap = SWAP_TRANSACTION_TYPES.includes(
+    txMeta.type as TransactionType,
+  );
+  const savedGasFees = isSwap ? undefined : request.getSavedGasFees();
+
   const suggestedGasFees = await getSuggestedGasFees(request);
 
   log('Suggested gas fees', suggestedGasFees);
 
-  const getGasFeeRequest = { ...request, initialParams, suggestedGasFees };
+  const getGasFeeRequest = {
+    ...request,
+    savedGasFees,
+    initialParams,
+    suggestedGasFees,
+  };
 
   txMeta.txParams.maxFeePerGas = getMaxFeePerGas(getGasFeeRequest);
 
@@ -67,10 +85,16 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 }
 
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
-  const { eip1559, initialParams, suggestedGasFees } = request;
+  const { savedGasFees, eip1559, initialParams, suggestedGasFees } = request;
 
   if (!eip1559) {
     return undefined;
+  }
+
+  if (savedGasFees) {
+    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee as string);
+    log('Using maxFeePerGas from savedGasFees', maxFeePerGas);
+    return maxFeePerGas;
   }
 
   if (initialParams.maxFeePerGas) {
@@ -106,10 +130,20 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
 function getMaxPriorityFeePerGas(
   request: GetGasFeeRequest,
 ): string | undefined {
-  const { eip1559, initialParams, suggestedGasFees, txMeta } = request;
+  const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
+    request;
 
   if (!eip1559) {
     return undefined;
+  }
+
+  if (savedGasFees) {
+    const maxPriorityFeePerGas = gweiDecimalToWeiHex(savedGasFees.priorityFee);
+    log(
+      'Using maxPriorityFeePerGas from savedGasFees.priorityFee',
+      maxPriorityFeePerGas,
+    );
+    return maxPriorityFeePerGas;
   }
 
   if (initialParams.maxPriorityFeePerGas) {
@@ -170,10 +204,15 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
 }
 
 function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
-  const { eip1559, initialParams, suggestedGasFees, txMeta } = request;
+  const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
+    request;
 
   if (!eip1559) {
     return undefined;
+  }
+
+  if (savedGasFees) {
+    return UserFeeLevel.CUSTOM;
   }
 
   if (
