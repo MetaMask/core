@@ -14,7 +14,7 @@ import type { Patch } from 'immer';
  * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
  */
 export type RateLimitedApi = {
-  method: (...args: never[]) => boolean;
+  method: ActionConstraint['handler'];
   rateLimitTimeout?: number;
   rateLimitCount?: number;
 };
@@ -150,7 +150,7 @@ export class RateLimitController<
     origin: string,
     type: ApiType,
     ...args: Parameters<RateLimitedApis[ApiType]['method']>
-  ): Promise<boolean> {
+  ): Promise<ReturnType<RateLimitedApis[ApiType]['method']>> {
     if (this.isRateLimited(type, origin)) {
       throw rpcErrors.limitExceeded({
         message: `"${type.toString()}" is currently rate-limited. Please try again later.`,
@@ -164,7 +164,9 @@ export class RateLimitController<
       throw new Error('Invalid api type');
     }
 
-    return implementation(...args);
+    return implementation(...args) as ReturnType<
+      RateLimitedApis[ApiType]['method']
+    >;
   }
 
   /**
