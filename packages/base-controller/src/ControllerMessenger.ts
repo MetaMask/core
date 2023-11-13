@@ -51,8 +51,8 @@ export type ExtractEventPayload<
 
 export type GenericEventHandler = (...args: unknown[]) => void;
 
-export type SelectorFunction<Args extends unknown[], ReturnValue> = (
-  ...args: Args
+export type SelectorFunction<Event extends EventConstraint, ReturnValue> = (
+  ...args: ExtractEventPayload<Event>
 ) => ReturnValue;
 export type SelectorEventHandler<SelectorReturnValue> = (
   newValue: SelectorReturnValue,
@@ -73,8 +73,7 @@ type EventSubscriptionMap<
   ReturnValue = unknown,
 > = Map<
   GenericEventHandler | SelectorEventHandler<ReturnValue>,
-  | SelectorFunction<ExtractEventPayload<Event, Event['type']>, ReturnValue>
-  | undefined
+  SelectorFunction<ExtractEventPayload<Event>, ReturnValue> | undefined
 >;
 
 /**
