@@ -1501,16 +1501,12 @@ export class NftController extends BaseController<NftConfig, NftState> {
       isOwned = await this.isNftOwner(userAddress, address, tokenId, {
         networkClientId,
       });
-    } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          error.message.includes('Unable to verify ownership')
-        )
-      ) {
-        throw error;
-      }
+    } catch {
+      // ignore error
+      // this will only throw an error 'Unable to verify ownership' in which case
+      // we want to keep the current value of isCurrentlyOwned for this flow.
     }
+
     nft.isCurrentlyOwned = isOwned;
 
     if (batch) {
