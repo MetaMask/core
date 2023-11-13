@@ -3,10 +3,9 @@ import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 import type { Draft, Patch } from 'immer';
 
 import type {
-  RestrictedControllerMessenger,
-  Namespaced,
-  EventConstraint,
   ActionConstraint,
+  EventConstraint,
+  RestrictedControllerMessenger,
 } from './ControllerMessenger';
 
 enablePatches();
@@ -64,6 +63,32 @@ export interface StatePropertyMetadata<T extends Json> {
   anonymous: boolean | StateDeriver<T>;
 }
 
+export type GetStateAction<
+  ControllerName extends string,
+  ControllerState extends Record<string, Json>,
+> = {
+  type: `${ControllerName}:getState`;
+  handler: () => ControllerState;
+};
+
+export type StateChangeEvent<
+  ControllerName extends string,
+  ControllerState extends Record<string, Json>,
+> = {
+  type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
+};
+
+export type ControllerActions<
+  ControllerName extends string,
+  ControllerState extends Record<string, Json>,
+> = GetStateAction<ControllerName, ControllerState>;
+
+export type ControllerEvents<
+  ControllerName extends string,
+  ControllerState extends Record<string, Json>,
+> = StateChangeEvent<ControllerName, ControllerState>;
+
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
@@ -72,8 +97,8 @@ export class BaseController<
   ControllerState extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<
     ControllerName,
-    ActionConstraint,
-    EventConstraint,
+    ActionConstraint | ControllerActions<ControllerName, ControllerState>,
+    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
     string,
     string
   >,
@@ -125,7 +150,7 @@ export class BaseController<
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(
-      `${name}:getState` as Namespaced<ControllerName, any>,
+      `${name}:getState`,
       () => this.state,
     );
   }
@@ -174,7 +199,7 @@ export class BaseController<
 
     this.internalState = nextState;
     this.messagingSystem.publish(
-      `${this.name}:stateChange` as Namespaced<ControllerName, any>,
+      `${this.name}:stateChange`,
       nextState,
       patches,
     );
@@ -193,7 +218,7 @@ export class BaseController<
     const nextState = applyPatches(this.internalState, patches);
     this.internalState = nextState;
     this.messagingSystem.publish(
-      `${this.name}:stateChange` as Namespaced<ControllerName, any>,
+      `${this.name}:stateChange`,
       nextState,
       patches,
     );
@@ -209,9 +234,7 @@ export class BaseController<
    * listeners from being garbage collected.
    */
   protected destroy() {
-    this.messagingSystem.clearEventSubscriptions(
-      `${this.name}:stateChange` as Namespaced<ControllerName, any>,
-    );
+    this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange`);
   }
 }
 
