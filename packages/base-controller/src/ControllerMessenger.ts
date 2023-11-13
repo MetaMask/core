@@ -89,6 +89,9 @@ export type Namespaced<
   Name,
 > = Name extends `${Namespace}:${string}` ? Name : never;
 
+export type NamespacedName<Namespace extends string = string> =
+  `${Namespace}:${string}`;
+
 type NarrowToNamespace<Name, Namespace extends string> = Name extends {
   type: `${Namespace}:${string}`;
 }
@@ -204,9 +207,9 @@ export class RestrictedControllerMessenger<
    * @param action - The action type. This is a unqiue identifier for this action.
    * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
    */
-  unregisterActionHandler<
-    ActionType extends Namespaced<Namespace, Action['type']>,
-  >(action: ActionType) {
+  unregisterActionHandler<ActionType extends NamespacedName<Namespace>>(
+    action: ActionType,
+  ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.controllerName}:`)) {
       throw new Error(
@@ -231,7 +234,7 @@ export class RestrictedControllerMessenger<
    * @template ActionType - A type union of allowed Action type strings.
    * @returns The action return value.
    */
-  call<ActionType extends AllowedAction & string>(
+  call<ActionType extends AllowedAction & NamespacedName>(
     action: ActionType,
     ...params: ExtractActionParameters<Action, ActionType>
   ): ExtractActionResponse<Action, ActionType> {
@@ -256,7 +259,7 @@ export class RestrictedControllerMessenger<
    * match the type of this payload.
    * @template EventType - A type union of Event type strings that are namespaced by Namespace.
    */
-  publish<EventType extends Namespaced<Namespace, Event['type']>>(
+  publish<EventType extends NamespacedName<Namespace>>(
     event: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
@@ -281,7 +284,7 @@ export class RestrictedControllerMessenger<
    * match the type of the payload for this event type.
    * @template EventType - A type union of Event type strings.
    */
-  subscribe<EventType extends AllowedEvent & string>(
+  subscribe<EventType extends AllowedEvent & NamespacedName>(
     eventType: EventType,
     handler: ExtractEventHandler<Event, EventType>,
   ): void;
@@ -305,7 +308,10 @@ export class RestrictedControllerMessenger<
    * @template EventType - A type union of Event type strings.
    * @template SelectorReturnValue - The selector return value.
    */
-  subscribe<EventType extends AllowedEvent & string, SelectorReturnValue>(
+  subscribe<
+    EventType extends AllowedEvent & NamespacedName,
+    SelectorReturnValue,
+  >(
     eventType: EventType,
     handler: SelectorEventHandler<SelectorReturnValue>,
     selector: SelectorFunction<
@@ -314,7 +320,10 @@ export class RestrictedControllerMessenger<
     >,
   ): void;
 
-  subscribe<EventType extends AllowedEvent & string, SelectorReturnValue>(
+  subscribe<
+    EventType extends AllowedEvent & NamespacedName,
+    SelectorReturnValue,
+  >(
     event: EventType,
     handler: ExtractEventHandler<Event, EventType>,
     selector?: SelectorFunction<
@@ -347,7 +356,7 @@ export class RestrictedControllerMessenger<
    * @throws Will throw when the given event handler is not registered for this event.
    * @template EventType - A type union of allowed Event type strings.
    */
-  unsubscribe<EventType extends AllowedEvent & string>(
+  unsubscribe<EventType extends AllowedEvent & NamespacedName>(
     event: EventType,
     handler: ExtractEventHandler<Event, EventType>,
   ) {
@@ -370,9 +379,9 @@ export class RestrictedControllerMessenger<
    * @param event - The event type. This is a unique identifier for this event.
    * @template EventType - A type union of Event type strings that are namespaced by Namespace.
    */
-  clearEventSubscriptions<
-    EventType extends Namespaced<Namespace, Event['type']>,
-  >(event: EventType) {
+  clearEventSubscriptions<EventType extends NamespacedName<Namespace>>(
+    event: EventType,
+  ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!event.startsWith(`${this.controllerName}:`)) {
       throw new Error(
