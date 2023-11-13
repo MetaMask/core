@@ -1035,8 +1035,12 @@ export class TransactionController extends BaseController<
       updateTransactionHistory(transactionMeta, note);
     }
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
+    const prevTransactionStatus = transactions[index]?.status;
     transactions[index] = transactionMeta;
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+    if (prevTransactionStatus !== transactionMeta.status) {
+      this.hub.emit('transaction-status-update', { transactionMeta });
+    }
   }
 
   /**

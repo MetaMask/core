@@ -28,6 +28,7 @@ export type Events = {
   ['transaction-rejected']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
+  ['transaction-status-update']: [{ transactionMeta: TransactionMeta }];
   ['transaction-submitted']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
