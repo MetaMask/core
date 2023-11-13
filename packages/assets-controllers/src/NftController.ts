@@ -134,7 +134,13 @@ export interface NftContract {
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface NftMetadata {
+
+enum NFTFetchMetadataError {
+  OPEN_SEA = 'Opensea import error',
+  URI = 'URI import error',
+  BOTH = 'Both import failed',
+}
+export type NftMetadata = {
   name: string | null;
   description: string | null;
   image: string | null;
@@ -152,8 +158,8 @@ export interface NftMetadata {
   lastSale?: ApiNftLastSale;
   transactionId?: string;
   tokenURI?: string | null;
-  error?: string | undefined;
-}
+  error?: NFTFetchMetadataError | undefined;
+};
 
 /**
  * @type NftConfig
@@ -361,7 +367,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: null,
         image: null,
         standard: null,
-        error: 'Opensea import error',
+        error: NFTFetchMetadataError.OPEN_SEA,
       };
     }
   }
@@ -406,7 +412,10 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     const hasIpfsTokenURI = tokenURI.startsWith('ipfs://');
 
-    if (hasIpfsTokenURI && !isIpfsGatewayEnabled) {
+    if (
+      (hasIpfsTokenURI && !isIpfsGatewayEnabled) ||
+      (!hasIpfsTokenURI && !displayNftMedia)
+    ) {
       return {
         image: null,
         name: null,
@@ -419,17 +428,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     if (hasIpfsTokenURI) {
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
-    }
-
-    if (!hasIpfsTokenURI && !displayNftMedia) {
-      return {
-        image: null,
-        name: null,
-        description: null,
-        standard: standard || null,
-        favorite: false,
-        tokenURI: tokenURI ?? null,
-      };
     }
 
     try {
@@ -455,7 +453,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: standard || null,
         favorite: false,
         tokenURI: tokenURI ?? null,
-        error: 'URI import error',
+        error: NFTFetchMetadataError.URI,
       };
     }
   }
@@ -556,7 +554,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: blockchainMetadata.standard ?? null,
         favorite: false,
         tokenURI: blockchainMetadata.tokenURI ?? null,
-        error: 'Both import failed',
+        error: NFTFetchMetadataError.BOTH,
       };
     }
 
