@@ -261,10 +261,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private updateNestedNftState(
     newCollection: Nft[] | NftContract[],
     baseStateKey: 'allNfts' | 'allNftContracts',
-    { userAddress, chainId } = {
-      userAddress: this.config.selectedAddress,
-      chainId: this.config.chainId,
-    },
+    { userAddress, chainId }: { userAddress: string; chainId: Hex },
   ) {
     const { [baseStateKey]: oldState } = this.state;
 
@@ -615,7 +612,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'>
   > {
-    const getCurrentChainId = this.getCorrectChainId({
+    const chainId = this.getCorrectChainId({
       networkClientId,
     });
 
@@ -631,7 +628,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           networkClientId,
         ),
       ),
-      this.config.openSeaEnabled && getCurrentChainId === '0x1'
+      this.config.openSeaEnabled && chainId === '0x1'
         ? safelyExecute(() =>
             this.getNftContractInformationFromApi(contractAddress),
           )
@@ -774,11 +771,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
     try {
       tokenAddress = toChecksumHexAddress(tokenAddress);
       const { allNftContracts } = this.state;
-      const currentChainId = this.getCorrectChainId({
+      const chainId = this.getCorrectChainId({
         networkClientId,
       });
 
-      const nftContracts = allNftContracts[userAddress]?.[currentChainId] || [];
+      const nftContracts = allNftContracts[userAddress]?.[chainId] || [];
 
       const existingEntry = nftContracts.find(
         (nftContract) =>
@@ -839,7 +836,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
       const newNftContracts = [...nftContracts, newEntry];
       this.updateNestedNftState(newNftContracts, ALL_NFTS_CONTRACTS_STATE_KEY, {
-        chainId: currentChainId,
+        chainId,
         userAddress,
       });
 
@@ -862,8 +859,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
     address: string,
     tokenId: string,
     {
-      chainId = this.config.chainId,
-      userAddress = this.config.selectedAddress,
+      chainId,
+      userAddress,
+    }: {
+      chainId: Hex;
+      userAddress: string;
     },
   ) {
     address = toChecksumHexAddress(address);
@@ -906,10 +906,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private removeIndividualNft(
     address: string,
     tokenId: string,
-    {
-      chainId = this.config.chainId,
-      userAddress = this.config.selectedAddress,
-    },
+    { chainId, userAddress }: { chainId: Hex; userAddress: string },
   ) {
     address = toChecksumHexAddress(address);
     const { allNfts } = this.state;
@@ -938,10 +935,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    */
   private removeNftContract(
     address: string,
-    {
-      chainId = this.config.chainId,
-      userAddress = this.config.selectedAddress,
-    },
+    { chainId, userAddress }: { chainId: Hex; userAddress: string },
   ): NftContract[] {
     address = toChecksumHexAddress(address);
     const { allNftContracts } = this.state;
