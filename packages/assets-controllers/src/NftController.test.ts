@@ -448,6 +448,7 @@ describe('NftController', () => {
       const result = nftController.watchNft(assetWithNumericTokenId, ERC721);
       await expect(result).rejects.toThrow('Invalid tokenId');
     });
+
     it('should error if address is invalid', async function () {
       const { nftController } = setupController();
       const assetWithInvalidAddress = {
@@ -822,7 +823,99 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should add the NFT to the correct chainId/selectedAddress (when passed a networkClientId, and optionally a selected address) in state even if the user changes network and account before accepting the request', async function () {
+    it('should add the NFT to the correct chainId/selectedAddress in state when passed a userAddress in the options argument', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+
+      const {
+        nftController,
+        messenger,
+        approvalController,
+        preferences,
+        changeNetwork,
+      } = setupController({
+        getERC721OwnerOfStub: jest
+          .fn()
+          .mockImplementation(() => SECOND_OWNER_ADDRESS),
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC721AssetNameStub: jest
+          .fn()
+          .mockImplementation(() => 'testERC721Name'),
+        getERC721AssetSymbolStub: jest
+          .fn()
+          .mockImplementation(() => 'testERC721Symbol'),
+      });
+
+      const requestId = 'approval-request-id-1';
+
+      sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const pendingRequest = new Promise<void>((resolve) => {
+        messenger.subscribe('ApprovalController:stateChange', () => {
+          resolve();
+        });
+      });
+
+      const acceptedRequest = new Promise<void>((resolve) => {
+        nftController.subscribe((state) => {
+          if (state.allNfts?.[SECOND_OWNER_ADDRESS]?.[GOERLI.chainId]) {
+            resolve();
+          }
+        });
+      });
+
+      // check that the NFT is not in state to begin with
+      expect(nftController.state.allNfts).toStrictEqual({});
+
+      // this is our account and network status when the watchNFT request is made
+      preferences.setSelectedAddress(OWNER_ADDRESS);
+      changeNetwork(GOERLI);
+
+      nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io', {
+        userAddress: SECOND_OWNER_ADDRESS,
+      });
+
+      await pendingRequest;
+
+      // now accept the request
+      approvalController.accept(requestId);
+      await acceptedRequest;
+
+      // check that the NFT was added to the correct chainId/selectedAddress in state
+      const {
+        state: { allNfts },
+      } = nftController;
+
+      expect(allNfts).toStrictEqual({
+        [SECOND_OWNER_ADDRESS]: {
+          [GOERLI.chainId]: [
+            {
+              ...ERC721_NFT,
+              favorite: false,
+              isCurrentlyOwned: true,
+              description: 'testERC721Description',
+              image: 'testERC721Image',
+              name: 'testERC721Name',
+              standard: ERC721,
+            },
+          ],
+        },
+      });
+    });
+
+    it('should add the NFT to the correct chainId/selectedAddress (when passed a networkClientId) in state even if the user changes network and account before accepting the request', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -878,11 +971,9 @@ describe('NftController', () => {
 
       // this is our account and network status when the watchNFT request is made
       preferences.setSelectedAddress(OWNER_ADDRESS);
-      changeNetwork(GOERLI);
 
       nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io', {
         networkClientId: 'goerli',
-        userAddress: OWNER_ADDRESS,
       });
 
       await pendingRequest;

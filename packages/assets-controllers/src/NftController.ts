@@ -1360,7 +1360,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenAddress = toChecksumHexAddress(tokenAddress);
 
     const chainId = this.getCorrectChainId({ networkClientId });
-
     const newNftContracts = await this.addNftContract({
       tokenAddress,
       userAddress,
