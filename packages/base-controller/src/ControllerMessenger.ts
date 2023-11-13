@@ -44,7 +44,9 @@ export type ExtractEventPayload<
   type: EventType;
   payload: infer Payload;
 }
-  ? Payload
+  ? Payload extends unknown[]
+    ? Payload
+    : never
   : never;
 
 export type GenericEventHandler = (...args: unknown[]) => void;
@@ -66,9 +68,13 @@ export type EventConstraint = {
   payload: unknown[];
 };
 
-type EventSubscriptionMap = Map<
-  GenericEventHandler | SelectorEventHandler<unknown>,
-  SelectorFunction<unknown[], unknown> | undefined
+type EventSubscriptionMap<
+  Event extends EventConstraint,
+  ReturnValue = unknown,
+> = Map<
+  GenericEventHandler | SelectorEventHandler<ReturnValue>,
+  | SelectorFunction<ExtractEventPayload<Event, Event['type']>, ReturnValue>
+  | undefined
 >;
 
 /**
@@ -394,7 +400,10 @@ export class ControllerMessenger<
 > {
   private readonly actions = new Map<Action['type'], unknown>();
 
-  private readonly events = new Map<Event['type'], EventSubscriptionMap>();
+  private readonly events = new Map<
+    Event['type'],
+    EventSubscriptionMap<Event>
+  >();
 
   /**
    * A cache of selector return values for their respective handlers.
@@ -576,10 +585,7 @@ export class ControllerMessenger<
       this.events.set(eventType, subscribers);
     }
 
-    subscribers.set(
-      handler,
-      selector as SelectorFunction<unknown[], SelectorReturnValue>,
-    );
+    subscribers.set(handler, selector);
   }
 
   /**
