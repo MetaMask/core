@@ -63,17 +63,17 @@ export interface StatePropertyMetadata<T extends Json> {
   anonymous: boolean | StateDeriver<T>;
 }
 
-export type GetStateAction<
+export type ControllerGetStateAction<
   ControllerName extends string,
-  ControllerState extends Record<string, Json>,
+  ControllerState extends Record<string, unknown>,
 > = {
   type: `${ControllerName}:getState`;
   handler: () => ControllerState;
 };
 
-export type StateChangeEvent<
+export type ControllerStateChangeEvent<
   ControllerName extends string,
-  ControllerState extends Record<string, Json>,
+  ControllerState extends Record<string, unknown>,
 > = {
   type: `${ControllerName}:stateChange`;
   payload: [ControllerState, Patch[]];
@@ -81,13 +81,13 @@ export type StateChangeEvent<
 
 export type ControllerActions<
   ControllerName extends string,
-  ControllerState extends Record<string, Json>,
-> = GetStateAction<ControllerName, ControllerState>;
+  ControllerState extends Record<string, unknown>,
+> = ControllerGetStateAction<ControllerName, ControllerState>;
 
 export type ControllerEvents<
   ControllerName extends string,
-  ControllerState extends Record<string, Json>,
-> = StateChangeEvent<ControllerName, ControllerState>;
+  ControllerState extends Record<string, unknown>,
+> = ControllerStateChangeEvent<ControllerName, ControllerState>;
 
 /**
  * Controller class that provides state management, subscriptions, and state metadata
