@@ -93,17 +93,17 @@ export type ControllerEvents<
  * Controller class that provides state management, subscriptions, and state metadata
  */
 export class BaseController<
-  ControllerName extends string,
-  ControllerState extends Record<string, Json>,
+  N extends string,
+  S extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<
-    ControllerName,
-    ActionConstraint | ControllerActions<ControllerName, ControllerState>,
-    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
+    N,
+    ActionConstraint | ControllerActions<N, S>,
+    EventConstraint | ControllerEvents<N, S>,
     string,
     string
   >,
 > {
-  private internalState: ControllerState;
+  private internalState: S;
 
   protected messagingSystem: messenger;
 
@@ -112,9 +112,9 @@ export class BaseController<
    *
    * This is used by the ComposableController to construct a composed application state.
    */
-  public readonly name: ControllerName;
+  public readonly name: N;
 
-  public readonly metadata: StateMetadata<ControllerState>;
+  public readonly metadata: StateMetadata<S>;
 
   /**
    * The existence of the `subscribe` property is how the ComposableController detects whether a
@@ -128,7 +128,7 @@ export class BaseController<
    *
    * @param options - Controller options.
    * @param options.messenger - Controller messaging system.
-   * @param options.metadata - ControllerState metadata, describing how to "anonymize" the state, and which
+   * @param options.metadata - State metadata, describing how to "anonymize" the state, and which
    * parts should be persisted.
    * @param options.name - The name of the controller, used as a namespace for events and actions.
    * @param options.state - Initial controller state.
@@ -140,9 +140,9 @@ export class BaseController<
     state,
   }: {
     messenger: messenger;
-    metadata: StateMetadata<ControllerState>;
-    name: ControllerName;
-    state: ControllerState;
+    metadata: StateMetadata<S>;
+    name: N;
+    state: S;
   }) {
     this.messagingSystem = messenger;
     this.name = name;
@@ -181,10 +181,8 @@ export class BaseController<
    * @returns An object that has the next state, patches applied in the update and inverse patches to
    * rollback the update.
    */
-  protected update(
-    callback: (state: Draft<ControllerState>) => void | ControllerState,
-  ): {
-    nextState: ControllerState;
+  protected update(callback: (state: Draft<S>) => void | S): {
+    nextState: S;
     patches: Patch[];
     inversePatches: Patch[];
   } {
@@ -192,9 +190,9 @@ export class BaseController<
     // produceWithPatches here.
     const [nextState, patches, inversePatches] = (
       produceWithPatches as unknown as (
-        state: ControllerState,
+        state: S,
         cb: typeof callback,
-      ) => [ControllerState, Patch[], Patch[]]
+      ) => [S, Patch[], Patch[]]
     )(this.internalState, callback);
 
     this.internalState = nextState;
@@ -249,11 +247,9 @@ export class BaseController<
  * anonymized state.
  * @returns The anonymized controller state.
  */
-export function getAnonymizedState<
-  ControllerState extends Record<string, Json>,
->(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
+export function getAnonymizedState<S extends Record<string, Json>>(
+  state: S,
+  metadata: StateMetadata<S>,
 ): Record<string, Json> {
   return deriveStateFromMetadata(state, metadata, 'anonymous');
 }
@@ -265,11 +261,9 @@ export function getAnonymizedState<
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
  * @returns The subset of controller state that should be persisted.
  */
-export function getPersistentState<
-  ControllerState extends Record<string, Json>,
->(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
+export function getPersistentState<S extends Record<string, Json>>(
+  state: S,
+  metadata: StateMetadata<S>,
 ): Record<string, Json> {
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
@@ -282,13 +276,13 @@ export function getPersistentState<
  * @param metadataProperty - The metadata property to use to derive state.
  * @returns The metadata-derived controller state.
  */
-function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
-  state: ControllerState,
-  metadata: StateMetadata<ControllerState>,
+function deriveStateFromMetadata<S extends Record<string, Json>>(
+  state: S,
+  metadata: StateMetadata<S>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return (Object.keys(state) as (keyof ControllerState)[]).reduce<
-    Partial<Record<keyof ControllerState, Json>>
+  return (Object.keys(state) as (keyof S)[]).reduce<
+    Partial<Record<keyof S, Json>>
   >((persistedState, key) => {
     try {
       const stateMetadata = metadata[key];
@@ -311,5 +305,5 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
       });
       return persistedState;
     }
-  }, {}) as Record<keyof ControllerState, Json>;
+  }, {}) as Record<keyof S, Json>;
 }

@@ -7,19 +7,19 @@ export type ActionHandler<
 
 export type ExtractActionParameters<
   Action extends ActionConstraint,
-  ActionType = Action['type'],
+  T = Action['type'],
 > = Action extends {
-  type: ActionType;
-  handler: (...args: infer HandlerArgs) => unknown;
+  type: T;
+  handler: (...args: infer H) => unknown;
 }
-  ? HandlerArgs
+  ? H
   : never;
 
 export type ExtractActionResponse<
   Action extends ActionConstraint,
-  ActionType = Action['type'],
+  T = Action['type'],
 > = Action extends {
-  type: ActionType;
+  type: T;
   handler: (...args: never[]) => infer HandlerReturnValue;
 }
   ? HandlerReturnValue
@@ -27,25 +27,25 @@ export type ExtractActionResponse<
 
 export type ExtractEventHandler<
   Event extends EventConstraint,
-  EventType = Event['type'],
+  T = Event['type'],
 > = Event extends {
-  type: EventType;
-  payload: infer Payload;
+  type: T;
+  payload: infer P;
 }
-  ? Payload extends unknown[]
-    ? (...payload: Payload) => void
+  ? P extends unknown[]
+    ? (...payload: P) => void
     : never
   : never;
 
 export type ExtractEventPayload<
   Event extends EventConstraint,
-  EventType = Event['type'],
+  T = Event['type'],
 > = Event extends {
-  type: EventType;
-  payload: infer Payload;
+  type: T;
+  payload: infer P;
 }
-  ? Payload extends unknown[]
-    ? Payload
+  ? P extends unknown[]
+    ? P
     : never
   : never;
 
@@ -79,29 +79,28 @@ type EventSubscriptionMap<
 /**
  * A namespaced string
  *
- * This type verifies that the string Name is prefixed by the string Name followed by a colon.
+ * This type verifies that the string T is prefixed by the string Name followed by a colon.
  *
- * @template Namespace - The namespace we're checking for.
- * @template Name - The full string, including the namespace.
+ * @template Name - The namespace we're checking for.
+ * @template T - The full string, including the namespace.
  */
-export type Namespaced<
-  Namespace extends string,
-  Name,
-> = Name extends `${Namespace}:${string}` ? Name : never;
+export type Namespaced<Name extends string, T> = T extends `${Name}:${string}`
+  ? T
+  : never;
 
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
 
-type NarrowToNamespace<Name, Namespace extends string> = Name extends {
+type NarrowToNamespace<T, Namespace extends string> = T extends {
   type: `${Namespace}:${string}`;
 }
-  ? Name
+  ? T
   : never;
 
-type NarrowToAllowed<Name, Allowed extends string> = Name extends {
+type NarrowToAllowed<T, Allowed extends string> = T extends {
   type: Allowed;
 }
-  ? Name
+  ? T
   : never;
 
 /**
@@ -110,7 +109,7 @@ type NarrowToAllowed<Name, Allowed extends string> = Name extends {
  * This acts as a wrapper around the controller messenger instance that restricts access to actions
  * and events.
  *
- * @template Namespace - The namespace for this messenger. Typically this is the name of the controller or
+ * @template N - The namespace for this messenger. Typically this is the name of the controller or
  * module that this messenger has been created for. The authority to publish events and register
  * actions under this namespace is granted to this restricted messenger instance.
  * @template Action - A type union of all Action types.
@@ -119,7 +118,7 @@ type NarrowToAllowed<Name, Allowed extends string> = Name extends {
  * @template AllowedEvent - A type union of the 'type' string for any allowed events.
  */
 export class RestrictedControllerMessenger<
-  Namespace extends string,
+  N extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
   AllowedAction extends string,
@@ -130,7 +129,7 @@ export class RestrictedControllerMessenger<
     EventConstraint
   >;
 
-  private readonly controllerName: Namespace;
+  private readonly controllerName: N;
 
   private readonly allowedActions: AllowedAction[] | null;
 
@@ -161,7 +160,7 @@ export class RestrictedControllerMessenger<
     allowedEvents,
   }: {
     controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
-    name: Namespace;
+    name: N;
     allowedActions?: AllowedAction[];
     allowedEvents?: AllowedEvent[];
   }) {
@@ -182,11 +181,11 @@ export class RestrictedControllerMessenger<
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw if an action handler that is not in the current namespace is being registered.
-   * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
+   * @template T - A type union of Action type strings that are namespaced by N.
    */
-  registerActionHandler<ActionType extends Action['type']>(
-    action: ActionType,
-    handler: ActionHandler<Action, ActionType>,
+  registerActionHandler<T extends Action['type']>(
+    action: T,
+    handler: ActionHandler<Action, T>,
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.controllerName}:`)) {
@@ -205,11 +204,9 @@ export class RestrictedControllerMessenger<
    * The action type being unregistered *must* be in the current namespace.
    *
    * @param action - The action type. This is a unqiue identifier for this action.
-   * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
+   * @template T - A type union of Action type strings that are namespaced by N.
    */
-  unregisterActionHandler<ActionType extends NamespacedName<Namespace>>(
-    action: ActionType,
-  ) {
+  unregisterActionHandler<T extends NamespacedName<N>>(action: T) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.controllerName}:`)) {
       throw new Error(
@@ -231,13 +228,13 @@ export class RestrictedControllerMessenger<
    * @param params - The action parameters. These must match the type of the parameters of the
    * registered action handler.
    * @throws Will throw when no handler has been registered for the given type.
-   * @template ActionType - A type union of allowed Action type strings.
+   * @template T - A type union of allowed Action type strings.
    * @returns The action return value.
    */
-  call<ActionType extends AllowedAction & NamespacedName>(
-    action: ActionType,
-    ...params: ExtractActionParameters<Action, ActionType>
-  ): ExtractActionResponse<Action, ActionType> {
+  call<T extends AllowedAction & NamespacedName>(
+    action: T,
+    ...params: ExtractActionParameters<Action, T>
+  ): ExtractActionResponse<Action, T> {
     /* istanbul ignore next */ // Branches unreachable with valid types
     if (this.allowedActions === null) {
       throw new Error('No actions allowed');
@@ -257,11 +254,11 @@ export class RestrictedControllerMessenger<
    * @param event - The event type. This is a unique identifier for this event.
    * @param payload - The event payload. The type of the parameters for each event handler must
    * match the type of this payload.
-   * @template EventType - A type union of Event type strings that are namespaced by Namespace.
+   * @template E - A type union of Event type strings that are namespaced by N.
    */
-  publish<EventType extends NamespacedName<Namespace>>(
-    event: EventType,
-    ...payload: ExtractEventPayload<Event, EventType>
+  publish<E extends NamespacedName<N>>(
+    event: E,
+    ...payload: ExtractEventPayload<Event, E>
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!event.startsWith(`${this.controllerName}:`)) {
@@ -282,11 +279,11 @@ export class RestrictedControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param handler - The event handler. The type of the parameters for this event handler must
    * match the type of the payload for this event type.
-   * @template EventType - A type union of Event type strings.
+   * @template E - A type union of Event type strings.
    */
-  subscribe<EventType extends AllowedEvent & NamespacedName>(
-    eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+  subscribe<E extends AllowedEvent & NamespacedName>(
+    eventType: E,
+    handler: ExtractEventHandler<Event, E>,
   ): void;
 
   /**
@@ -305,31 +302,19 @@ export class RestrictedControllerMessenger<
    * @param selector - The selector function used to select relevant data from
    * the event payload. The type of the parameters for this selector must match
    * the type of the payload for this event type.
-   * @template EventType - A type union of Event type strings.
-   * @template SelectorReturnValue - The selector return value.
+   * @template E - A type union of Event type strings.
+   * @template V - The selector return value.
    */
-  subscribe<
-    EventType extends AllowedEvent & NamespacedName,
-    SelectorReturnValue,
-  >(
-    eventType: EventType,
-    handler: SelectorEventHandler<SelectorReturnValue>,
-    selector: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+  subscribe<E extends AllowedEvent & NamespacedName, V>(
+    eventType: E,
+    handler: SelectorEventHandler<V>,
+    selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void;
 
-  subscribe<
-    EventType extends AllowedEvent & NamespacedName,
-    SelectorReturnValue,
-  >(
-    event: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
-    selector?: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+  subscribe<E extends AllowedEvent & NamespacedName, V>(
+    event: E,
+    handler: ExtractEventHandler<Event, E>,
+    selector?: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
     if (this.allowedEvents === null) {
@@ -354,11 +339,11 @@ export class RestrictedControllerMessenger<
    * @param event - The event type. This is a unique identifier for this event.
    * @param handler - The event handler to unregister.
    * @throws Will throw when the given event handler is not registered for this event.
-   * @template EventType - A type union of allowed Event type strings.
+   * @template T - A type union of allowed Event type strings.
    */
-  unsubscribe<EventType extends AllowedEvent & NamespacedName>(
-    event: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+  unsubscribe<E extends AllowedEvent & NamespacedName>(
+    event: E,
+    handler: ExtractEventHandler<Event, E>,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
     if (this.allowedEvents === null) {
@@ -377,11 +362,9 @@ export class RestrictedControllerMessenger<
    * The event type being cleared *must* be in the current namespace.
    *
    * @param event - The event type. This is a unique identifier for this event.
-   * @template EventType - A type union of Event type strings that are namespaced by Namespace.
+   * @template E - A type union of Event type strings that are namespaced by N.
    */
-  clearEventSubscriptions<EventType extends NamespacedName<Namespace>>(
-    event: EventType,
-  ) {
+  clearEventSubscriptions<E extends NamespacedName<N>>(event: E) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!event.startsWith(`${this.controllerName}:`)) {
       throw new Error(
@@ -430,11 +413,11 @@ export class ControllerMessenger<
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw when a handler has been registered for this action type already.
-   * @template ActionType - A type union of Action type strings.
+   * @template T - A type union of Action type strings.
    */
-  registerActionHandler<ActionType extends Action['type']>(
-    actionType: ActionType,
-    handler: ActionHandler<Action, ActionType>,
+  registerActionHandler<T extends Action['type']>(
+    actionType: T,
+    handler: ActionHandler<Action, T>,
   ) {
     if (this.actions.has(actionType)) {
       throw new Error(
@@ -450,11 +433,9 @@ export class ControllerMessenger<
    * This will prevent this action from being called.
    *
    * @param actionType - The action type. This is a unqiue identifier for this action.
-   * @template ActionType - A type union of Action type strings.
+   * @template T - A type union of Action type strings.
    */
-  unregisterActionHandler<ActionType extends Action['type']>(
-    actionType: ActionType,
-  ) {
+  unregisterActionHandler<T extends Action['type']>(actionType: T) {
     this.actions.delete(actionType);
   }
 
@@ -477,17 +458,14 @@ export class ControllerMessenger<
    * @param params - The action parameters. These must match the type of the parameters of the
    * registered action handler.
    * @throws Will throw when no handler has been registered for the given type.
-   * @template ActionType - A type union of Action type strings.
+   * @template T - A type union of Action type strings.
    * @returns The action return value.
    */
-  call<ActionType extends Action['type']>(
-    actionType: ActionType,
-    ...params: ExtractActionParameters<Action, ActionType>
-  ): ExtractActionResponse<Action, ActionType> {
-    const handler = this.actions.get(actionType) as ActionHandler<
-      Action,
-      ActionType
-    >;
+  call<T extends Action['type']>(
+    actionType: T,
+    ...params: ExtractActionParameters<Action, T>
+  ): ExtractActionResponse<Action, T> {
+    const handler = this.actions.get(actionType) as ActionHandler<Action, T>;
     if (!handler) {
       throw new Error(`A handler for ${actionType} has not been registered`);
     }
@@ -505,11 +483,11 @@ export class ControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param payload - The event payload. The type of the parameters for each event handler must
    * match the type of this payload.
-   * @template EventType - A type union of Event type strings.
+   * @template E - A type union of Event type strings.
    */
-  publish<EventType extends Event['type']>(
-    eventType: EventType,
-    ...payload: ExtractEventPayload<Event, EventType>
+  publish<E extends Event['type']>(
+    eventType: E,
+    ...payload: ExtractEventPayload<Event, E>
   ) {
     const subscribers = this.events.get(eventType);
 
@@ -546,11 +524,11 @@ export class ControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param handler - The event handler. The type of the parameters for this event handler must
    * match the type of the payload for this event type.
-   * @template EventType - A type union of Event type strings.
+   * @template E - A type union of Event type strings.
    */
-  subscribe<EventType extends Event['type']>(
-    eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+  subscribe<E extends Event['type']>(
+    eventType: E,
+    handler: ExtractEventHandler<Event, E>,
   ): void;
 
   /**
@@ -567,25 +545,19 @@ export class ControllerMessenger<
    * @param selector - The selector function used to select relevant data from
    * the event payload. The type of the parameters for this selector must match
    * the type of the payload for this event type.
-   * @template EventType - A type union of Event type strings.
-   * @template SelectorReturnValue - The selector return value.
+   * @template E - A type union of Event type strings.
+   * @template V - The selector return value.
    */
-  subscribe<EventType extends Event['type'], SelectorReturnValue>(
-    eventType: EventType,
-    handler: SelectorEventHandler<SelectorReturnValue>,
-    selector: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+  subscribe<E extends Event['type'], V>(
+    eventType: E,
+    handler: SelectorEventHandler<V>,
+    selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void;
 
-  subscribe<EventType extends Event['type'], SelectorReturnValue>(
-    eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
-    selector?: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+  subscribe<E extends Event['type'], V>(
+    eventType: E,
+    handler: ExtractEventHandler<Event, E>,
+    selector?: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void {
     let subscribers = this.events.get(eventType);
     if (!subscribers) {
@@ -604,11 +576,11 @@ export class ControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param handler - The event handler to unregister.
    * @throws Will throw when the given event handler is not registered for this event.
-   * @template EventType - A type union of Event type strings.
+   * @template E - A type union of Event type strings.
    */
-  unsubscribe<EventType extends Event['type']>(
-    eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+  unsubscribe<E extends Event['type']>(
+    eventType: E,
+    handler: ExtractEventHandler<Event, E>,
   ) {
     const subscribers = this.events.get(eventType);
 
@@ -630,11 +602,9 @@ export class ControllerMessenger<
    * This will remove all subscribed handlers for this event.
    *
    * @param eventType - The event type. This is a unique identifier for this event.
-   * @template EventType - A type union of Event type strings.
+   * @template E - A type union of Event type strings.
    */
-  clearEventSubscriptions<EventType extends Event['type']>(
-    eventType: EventType,
-  ) {
+  clearEventSubscriptions<E extends Event['type']>(eventType: E) {
     this.events.delete(eventType);
   }
 
@@ -664,7 +634,7 @@ export class ControllerMessenger<
    * should be alowed to call.
    * @param options.allowedEvents - The list of events that this restricted controller messenger
    * should be allowed to subscribe to.
-   * @template Namespace - The namespace for this messenger. Typically this is the name of the controller or
+   * @template N - The namespace for this messenger. Typically this is the name of the controller or
    * module that this messenger has been created for. The authority to publish events and register
    * actions under this namespace is granted to this restricted messenger instance.
    * @template AllowedAction - A type union of the 'type' string for any allowed actions.
@@ -672,7 +642,7 @@ export class ControllerMessenger<
    * @returns The restricted controller messenger.
    */
   getRestricted<
-    Namespace extends string,
+    N extends string,
     AllowedAction extends string,
     AllowedEvent extends string,
   >({
@@ -680,23 +650,20 @@ export class ControllerMessenger<
     allowedActions,
     allowedEvents,
   }: {
-    name: Namespace;
+    name: N;
     allowedActions?: Extract<Action['type'], AllowedAction>[];
     allowedEvents?: Extract<Event['type'], AllowedEvent>[];
   }): RestrictedControllerMessenger<
-    Namespace,
-    | NarrowToNamespace<Action, Namespace>
-    | NarrowToAllowed<Action, AllowedAction>,
-    NarrowToNamespace<Event, Namespace> | NarrowToAllowed<Event, AllowedEvent>,
+    N,
+    NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
+    NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
     AllowedAction,
     AllowedEvent
   > {
     return new RestrictedControllerMessenger<
-      Namespace,
-      | NarrowToNamespace<Action, Namespace>
-      | NarrowToAllowed<Action, AllowedAction>,
-      | NarrowToNamespace<Event, Namespace>
-      | NarrowToAllowed<Event, AllowedEvent>,
+      N,
+      NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
+      NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
       AllowedAction,
       AllowedEvent
     >({
