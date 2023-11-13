@@ -264,33 +264,29 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
   metadata: StateMetadata<ControllerState>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return Object.keys(state).reduce(
-    (
-      persistedState: Record<keyof ControllerState, Json>,
-      key: keyof ControllerState,
-    ) => {
-      try {
-        const stateMetadata = metadata[key];
-        if (!stateMetadata) {
-          throw new Error(`No metadata found for '${String(key)}'`);
-        }
-        const propertyMetadata = stateMetadata[metadataProperty];
-        const stateProperty = state[key];
-        if (typeof propertyMetadata === 'function') {
-          persistedState[key] = propertyMetadata(stateProperty);
-        } else if (propertyMetadata) {
-          persistedState[key] = stateProperty;
-        }
-        return persistedState;
-      } catch (error) {
-        // Throw error after timeout so that it is captured as a console error
-        // (and by Sentry) without interrupting state-related operations
-        setTimeout(() => {
-          throw error;
-        });
-        return persistedState;
+  return (Object.keys(state) as (keyof ControllerState)[]).reduce<
+    Partial<Record<keyof ControllerState, Json>>
+  >((persistedState, key) => {
+    try {
+      const stateMetadata = metadata[key];
+      if (!stateMetadata) {
+        throw new Error(`No metadata found for '${String(key)}'`);
       }
-    },
-    {} as Record<keyof ControllerState, Json>,
-  );
+      const propertyMetadata = stateMetadata[metadataProperty];
+      const stateProperty = state[key];
+      if (typeof propertyMetadata === 'function') {
+        persistedState[key] = propertyMetadata(stateProperty);
+      } else if (propertyMetadata) {
+        persistedState[key] = stateProperty;
+      }
+      return persistedState;
+    } catch (error) {
+      // Throw error after timeout so that it is captured as a console error
+      // (and by Sentry) without interrupting state-related operations
+      setTimeout(() => {
+        throw error;
+      });
+      return persistedState;
+    }
+  }, {}) as Record<keyof ControllerState, Json>;
 }
