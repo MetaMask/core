@@ -1013,7 +1013,6 @@ export class NetworkController extends BaseControllerV2<
     }
 
     const networkClient = this.getNetworkClientById(networkClientId);
-    // @ts-expect-error TODO: Provider type alignment
     const ethQuery = new EthQuery(networkClient.provider);
 
     return new Promise((resolve, reject) => {
@@ -1583,7 +1582,6 @@ export class NetworkController extends BaseControllerV2<
       });
     }
 
-    // @ts-expect-error TODO: Provider type alignment
     this.#ethQuery = new EthQuery(this.#providerProxy);
   }
 }

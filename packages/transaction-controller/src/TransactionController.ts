@@ -435,7 +435,6 @@ export class TransactionController extends BaseController<
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
-    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -523,7 +522,6 @@ export class TransactionController extends BaseController<
     this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
-      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
       this.onBootCleanup();
@@ -941,7 +939,7 @@ export class TransactionController extends BaseController<
     await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
     const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
-    const baseTransactionMeta = {
+    const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
       estimatedBaseFee,
       id: random(),
@@ -950,6 +948,7 @@ export class TransactionController extends BaseController<
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
       type: TransactionType.retry,
+      originalType: transactionMeta.type,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas

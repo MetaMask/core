@@ -348,7 +348,6 @@ export class GasFeeController extends PollingController<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
-    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(this.#getProvider());
 
     if (onNetworkStateChange && getChainId) {
@@ -435,7 +434,6 @@ export class GasFeeController extends PollingController<
       } catch {
         isEIP1559Compatible = false;
       }
-      // @ts-expect-error TODO: Provider type alignment
       ethQuery = new EthQuery(networkClient.provider);
     }
 
@@ -581,7 +579,6 @@ export class GasFeeController extends PollingController<
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {
-      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.#getProvider());
       await this.resetPolling();
 
