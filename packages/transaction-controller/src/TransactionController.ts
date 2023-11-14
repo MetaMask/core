@@ -1430,7 +1430,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Updates the transaction status associated with a specific transaction ID.
+   * Update a custodial transaction.
    *
    * @param transactionId - The ID of the transaction to update.
    * @param options - The custodial transaction options to update.
