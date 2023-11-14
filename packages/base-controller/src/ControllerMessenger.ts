@@ -20,7 +20,7 @@ export type ExtractActionResponse<
   T = Action['type'],
 > = Action extends {
   type: T;
-  handler: (...args: never) => infer H;
+  handler: (...args: infer _) => infer H;
 }
   ? H
   : never;
