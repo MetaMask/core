@@ -91,7 +91,7 @@ Given this, there are many ways a change could be regarded as breaking:
 
 - Changing a function or method to throw an error
 - Adding a required argument to a function or method
-- Adding a property to a TypeScript type
+- Adding a required property to a TypeScript type
 - Narrowing the type of a property in a TypeScript type
 - Narrowing the type of an argument in a function
 - Adding a parameter to a TypeScript type
