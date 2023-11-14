@@ -1,6 +1,5 @@
 import type {
   ActionConstraint,
-  ExtractActionResponse,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
@@ -131,10 +130,7 @@ export class RateLimitController<
         origin: string,
         type: keyof RateLimitedApis,
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
-      ) =>
-        this.call(origin, type, ...args) as ExtractActionResponse<
-          CallApi<RateLimitedApis>
-        >,
+      ) => this.call(origin, type, ...args),
     );
   }
 
@@ -144,7 +140,6 @@ export class RateLimitController<
    * @param origin - The requesting origin.
    * @param type - The type of API call to make.
    * @param args - Arguments for the API call.
-   * @returns `false` if rate-limited, and `true` otherwise.
    */
   async call<ApiType extends keyof RateLimitedApis>(
     origin: string,
