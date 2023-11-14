@@ -3760,7 +3760,7 @@ describe('TransactionController', () => {
       },
     );
 
-    it('throws if transaction does not exists', async () => {
+    it('throws if custodial transaction does not exists', async () => {
       const nonExistentId = 'nonExistentId';
       const newStatus = TransactionStatus.approved as const;
       const controller = newController();
@@ -3769,10 +3769,12 @@ describe('TransactionController', () => {
         controller.updateCustodialTransaction(nonExistentId, {
           status: newStatus,
         }),
-      ).toThrow('Cannot update status as no transaction metadata found.');
+      ).toThrow(
+        'Cannot update custodial transaction as no transaction metadata found',
+      );
     });
 
-    it('throws if transaction is not custodial', async () => {
+    it('throws if transaction is not a custodial transaction', async () => {
       const nonCustodialTransaction: TransactionMeta = {
         ...baseTransaction,
         history: [{ ...baseTransaction }],
@@ -3785,7 +3787,21 @@ describe('TransactionController', () => {
         controller.updateCustodialTransaction(nonCustodialTransaction.id, {
           status: newStatus,
         }),
-      ).toThrow('Transaction is not custodian.');
+      ).toThrow('Transaction must be a custodian transaction');
+    });
+
+    it('throws if status is invalid', async () => {
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      expect(() =>
+        controller.updateCustodialTransaction(transactionMeta.id, {
+          status: newStatus,
+        }),
+      ).toThrow(
+        `Cannot update custodial transaction with status: ${newStatus}`,
+      );
     });
 
     it('no property was updated', async () => {

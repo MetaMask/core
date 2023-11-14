@@ -1455,24 +1455,36 @@ export class TransactionController extends BaseController<
   ) {
     let transactionMeta;
     transactionMeta = this.getTransaction(transactionId);
-    const noteDetails = [];
 
     if (!transactionMeta) {
-      throw new Error(`Cannot update status as no transaction metadata found.`);
+      throw new Error(
+        `Cannot update custodial transaction as no transaction metadata found`,
+      );
     }
 
     if (!transactionMeta.custodyId) {
-      throw new Error('Transaction is not custodian.');
+      throw new Error('Transaction must be a custodian transaction');
+    }
+
+    if (
+      status &&
+      ![
+        TransactionStatus.submitted,
+        TransactionStatus.signed,
+        TransactionStatus.failed,
+      ].includes(status)
+    ) {
+      throw new Error(
+        `Cannot update custodial transaction with status: ${status}`,
+      );
     }
     if (status === TransactionStatus.signed) {
       transactionMeta.status = status;
-      noteDetails.push(`status to ${status}`);
     }
 
     if (status === TransactionStatus.submitted) {
       transactionMeta.submittedTime = new Date().getTime();
       transactionMeta.status = status;
-      noteDetails.push(`status to ${status}`);
     }
 
     if (status === TransactionStatus.failed) {
@@ -1481,27 +1493,20 @@ export class TransactionController extends BaseController<
         error: normalizeTxError(new Error(errorMessage)),
         status: TransactionStatus.failed,
       };
-      noteDetails.push(`status to ${status}`);
     }
 
     if (custodyStatus) {
       transactionMeta.custodyStatus = custodyStatus;
-      noteDetails.push(`custody status`);
     }
 
     if (hash) {
       transactionMeta.hash = hash;
-      noteDetails.push(`hash`);
     }
 
-    if (noteDetails.length > 0) {
-      this.updateTransaction(
-        transactionMeta,
-        `TransactionController:updateCustodialTransaction - Transaction ${noteDetails.join(
-          ', ',
-        )} updated`,
-      );
-    }
+    this.updateTransaction(
+      transactionMeta,
+      `TransactionController:updateCustodialTransaction - Custodial transaction updated`,
+    );
   }
 
   private async signExternalTransaction(
