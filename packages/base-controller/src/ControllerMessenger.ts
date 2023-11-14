@@ -20,9 +20,9 @@ export type ExtractActionResponse<
   T = Action['type'],
 > = Action extends {
   type: T;
-  handler: (...args: never[]) => infer HandlerReturnValue;
+  handler: (...args: never[]) => infer H;
 }
-  ? HandlerReturnValue
+  ? H
   : never;
 
 export type ExtractEventHandler<
