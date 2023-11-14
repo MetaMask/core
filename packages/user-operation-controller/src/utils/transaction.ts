@@ -1,14 +1,17 @@
-import { UserOperationMetadata, UserOperationStatus } from '../types';
-import {
+/* eslint-disable jsdoc/require-jsdoc */
+
+import type {
   TransactionError,
   TransactionMeta,
   TransactionParams,
-  TransactionStatus,
   TransactionType,
-  UserFeeLevel,
 } from '@metamask/transaction-controller';
-import { Hex } from '@metamask/utils';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
+
+import { UserOperationStatus } from '../types';
+import type { UserOperationMetadata } from '../types';
 
 export function getTransactionMetadata(
   metadata: UserOperationMetadata,

@@ -1,39 +1,51 @@
+/* eslint-disable n/no-process-env */
+
+import { defaultAbiCoder } from '@ethersproject/abi';
+import { AddressZero } from '@ethersproject/constants';
+import { Web3Provider } from '@ethersproject/providers';
+import type {
+  AddResult,
+  AddApprovalRequest,
+} from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import {
+  ApprovalType,
+  ORIGIN_METAMASK,
+  toHex,
+} from '@metamask/controller-utils';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import type { Patch } from 'immer';
-import { AddressZero } from '@ethersproject/constants';
-
-import {
-  UserOperation,
-  UserOperationMetadata,
-  UserOperationStatus,
-} from './types';
-import { projectLogger as log } from './logger';
-import { Web3Provider } from '@ethersproject/providers';
-import { v1 as random } from 'uuid';
-import { signUserOperation } from './utils/signature';
-import { BlockTracker, ProviderProxy } from '../../network-controller/src';
-import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
-import { cloneDeep } from 'lodash';
+import { stripHexPrefix } from 'ethereumjs-util';
 import EventEmitter from 'events';
-import { AddResult } from '@metamask/approval-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
-import { AddApprovalRequest } from '@metamask/approval-controller';
-import { getTransactionMetadata } from './utils/transaction';
-import { toHex } from '@metamask/controller-utils';
-import { Bundler, getBundler } from './helpers/Bundler';
+import type { Patch } from 'immer';
+import { cloneDeep } from 'lodash';
+import { v1 as random } from 'uuid';
+
+import type { BlockTracker, ProviderProxy } from '../../network-controller/src';
 import { ENTRYPOINT } from './constants';
-import { sendSnapRequest } from './snaps';
-import { SnapProvider } from './snaps/types';
-import { GasFeeState } from '@metamask/gas-fee-controller';
+import type { Bundler } from './helpers/Bundler';
+import { getBundler } from './helpers/Bundler';
+import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
+import { projectLogger as log } from './logger';
+import {
+  sendSnapPaymasterRequest,
+  sendSnapUserOperationRequest,
+} from './snaps';
+import type { SnapProvider } from './snaps/types';
+import type { UserOperation, UserOperationMetadata } from './types';
+import { UserOperationStatus } from './types';
 import { updateGasFees } from './utils/gas-fees';
+import { signUserOperation } from './utils/signature';
+import { getTransactionMetadata } from './utils/transaction';
 
 const DUMMY_SIGNATURE =
   '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+
+const GAS_BUFFER = 2;
 
 const controllerName = 'UserOperationController';
 
@@ -109,9 +121,13 @@ export class UserOperationController extends BaseControllerV2<
    * Construct a UserOperation controller.
    *
    * @param options - Controller options.
+   * @param options.blockTracker -
+   * @param options.getGasFeeEstimates -
+   * @param options.getPrivateKey -
+   * @param options.getTransactions -
    * @param options.messenger - Restricted controller messenger for the user operation controller.
+   * @param options.provider -
    * @param options.state - Initial state to set on the controller.
-   * @param options.getPrivateKey
    */
   constructor({
     blockTracker,
@@ -147,8 +163,8 @@ export class UserOperationController extends BaseControllerV2<
       ) =>
         this.hub.on(
           'user-operations-updated',
-          (state: UserOperationControllerState) => {
-            listener(state);
+          (newState: UserOperationControllerState) => {
+            listener(newState);
           },
         ),
     });
@@ -171,6 +187,7 @@ export class UserOperationController extends BaseControllerV2<
         await this.#applySnapData(metadata, transaction, snapId);
         await this.#updateGasFees(metadata);
         await this.#updateGas(metadata, bundler);
+        await this.#addPaymasterData(metadata, snapId);
 
         const resultCallbacks = await this.#approveUserOperation(metadata);
 
@@ -187,8 +204,8 @@ export class UserOperationController extends BaseControllerV2<
     })();
 
     const transactionHash = new Promise<string>((resolve, reject) => {
-      this.#pendingTracker.hub.once(`${id}:confirmed`, (metadata) => {
-        resolve(metadata.transactionHash as string);
+      this.#pendingTracker.hub.once(`${id}:confirmed`, (meta) => {
+        resolve(meta.transactionHash as string);
       });
 
       this.#pendingTracker.hub.once(`${id}:failed`, (_metadata, error) => {
@@ -242,7 +259,7 @@ export class UserOperationController extends BaseControllerV2<
       request: ({ method, params }) => provider.send(method, params),
     };
 
-    const response = await sendSnapRequest(snapId, {
+    const response = await sendSnapUserOperationRequest(snapId, {
       ethereum,
       to: transaction.to,
       value: transaction.value,
@@ -277,13 +294,31 @@ export class UserOperationController extends BaseControllerV2<
 
     log('Updating gas', id);
 
+    const paymasterAddress = process.env.PAYMASTER_ADDRESS;
+
+    const encodedValidUntilAfter = stripHexPrefix(
+      defaultAbiCoder.encode(['uint48', 'uint48'], [0, 0]),
+    );
+
+    const dummyPaymasterData = `${paymasterAddress}${encodedValidUntilAfter}${stripHexPrefix(
+      DUMMY_SIGNATURE,
+    )}`;
+
     const payload = {
       ...userOperation,
       callGasLimit: '0x1',
       preVerificationGas: '0x1',
       verificationGasLimit: '0x1',
       signature: DUMMY_SIGNATURE,
+      paymasterAndData: dummyPaymasterData,
     };
+
+    log('Estimating gas', {
+      paymasterAddress,
+      encodedValidUntilAfter,
+      dummySignature: payload.signature,
+      dummyPaymasterData: payload.paymasterAndData,
+    });
 
     const estimatedGas = await bundler.estimateUserOperationGas(
       payload,
@@ -291,16 +326,38 @@ export class UserOperationController extends BaseControllerV2<
     );
 
     userOperation.preVerificationGas = toHex(
-      Math.round(estimatedGas.preVerificationGas * 1.5),
+      Math.round(estimatedGas.preVerificationGas * GAS_BUFFER),
     );
 
     userOperation.verificationGasLimit = toHex(
-      Math.round(estimatedGas.verificationGasLimit * 1.5),
+      Math.round(estimatedGas.verificationGasLimit * GAS_BUFFER),
     );
 
     userOperation.callGasLimit = toHex(
-      Math.round(estimatedGas.callGasLimit * 1.5),
+      Math.round(estimatedGas.callGasLimit * GAS_BUFFER),
     );
+
+    this.#updateMetadata(metadata);
+  }
+
+  async #addPaymasterData(metadata: UserOperationMetadata, snapId: string) {
+    const { id, userOperation } = metadata;
+
+    log('Requesting paymaster from snap', { id, snapId });
+
+    const provider = new Web3Provider(this.#provider as any);
+
+    const ethereum: SnapProvider = {
+      request: ({ method, params }) => provider.send(method, params),
+    };
+
+    const response = await sendSnapPaymasterRequest(snapId, {
+      ethereum,
+      userOperation,
+      privateKey: await this.#getPrivateKey(),
+    });
+
+    userOperation.paymasterAndData = response.paymasterAndData;
 
     this.#updateMetadata(metadata);
   }
@@ -313,8 +370,6 @@ export class UserOperationController extends BaseControllerV2<
     );
 
     const { userOperation } = metadata;
-
-    log('Existing transaction', transaction);
 
     if (
       transaction?.txParams.maxFeePerGas &&

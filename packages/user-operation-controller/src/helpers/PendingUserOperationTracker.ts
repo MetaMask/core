@@ -1,15 +1,12 @@
+import type { Block } from '@ethersproject/providers';
 import type { BlockTracker } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
-import {
-  UserOperationMetadata,
-  UserOperationReceipt,
-  UserOperationStatus,
-} from '../types';
-import { UserOperationControllerState } from '../UserOperationController';
-import { Block } from '@ethersproject/providers';
+import type { UserOperationMetadata, UserOperationReceipt } from '../types';
+import { UserOperationStatus } from '../types';
+import type { UserOperationControllerState } from '../UserOperationController';
 import { getBundler } from './Bundler';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');

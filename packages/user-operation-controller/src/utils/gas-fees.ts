@@ -1,18 +1,16 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
+import type { Web3Provider } from '@ethersproject/providers';
 import { gweiDecToWEIBN, toHex } from '@metamask/controller-utils';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
+import { UserFeeLevel } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
 import { projectLogger } from '../logger';
-import { UserOperationMetadata } from '../types';
-import {
-  TransactionParams,
-  UserFeeLevel,
-} from '@metamask/transaction-controller';
-import { Web3Provider } from '@ethersproject/providers';
+import type { UserOperationMetadata } from '../types';
 
 export type UpdateGasFeesRequest = {
   getGasFeeEstimates: () => Promise<GasFeeState>;

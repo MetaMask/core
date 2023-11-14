@@ -1,10 +1,12 @@
+/* eslint-disable jsdoc/require-jsdoc */
 // Temporary until new keyring is available via KeyringController.
 
-import { arrayify } from '@ethersproject/bytes';
-import { UserOperation } from '../types';
-import { Wallet } from '@ethersproject/wallet';
-import { keccak256 } from '@ethersproject/keccak256';
 import { defaultAbiCoder } from '@ethersproject/abi';
+import { arrayify } from '@ethersproject/bytes';
+import { keccak256 } from '@ethersproject/keccak256';
+import { Wallet } from '@ethersproject/wallet';
+
+import type { UserOperation } from '../types';
 
 export async function signUserOperation(
   userOperation: UserOperation,
@@ -35,9 +37,7 @@ function getUserOperationHash(
   return keccak256(data);
 }
 
-function encodeUserOperationForSigning(
-  userOperation: UserOperation,
-): string {
+function encodeUserOperationForSigning(userOperation: UserOperation): string {
   return defaultAbiCoder.encode(
     [
       'address',

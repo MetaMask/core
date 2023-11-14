@@ -1,23 +1,14 @@
+/* eslint-disable jsdoc/require-jsdoc */
+
 import { BUNDLER_URL_BY_CHAIN_ID } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
-import {
+import type {
   BundlerEstimateUserOperationGasResponse,
   UserOperation,
   UserOperationReceipt,
 } from '../types';
 
 const log = createModuleLogger(projectLogger, 'bundler');
-
-export function getBundler(chainId: string): Bundler {
-  const chainIdKey = chainId as keyof typeof BUNDLER_URL_BY_CHAIN_ID;
-  const url = BUNDLER_URL_BY_CHAIN_ID[chainIdKey];
-
-  if (!url) {
-    throw new Error(`No bundler found for chain ID: ${chainId}`);
-  }
-
-  return new Bundler(url);
-}
 
 export class Bundler {
   #url: string;
@@ -76,9 +67,23 @@ export class Bundler {
     const responseJson = await response.json();
 
     if (responseJson.error) {
-      throw new Error(responseJson.error.message || responseJson.error);
+      const error = new Error(responseJson.error.message || responseJson.error);
+      (error as any).code = responseJson.error.code;
+
+      throw error;
     }
 
     return responseJson.result;
   }
+}
+
+export function getBundler(chainId: string): Bundler {
+  const chainIdKey = chainId as keyof typeof BUNDLER_URL_BY_CHAIN_ID;
+  const url = BUNDLER_URL_BY_CHAIN_ID[chainIdKey];
+
+  if (!url) {
+    throw new Error(`No bundler found for chain ID: ${chainId}`);
+  }
+
+  return new Bundler(url);
 }

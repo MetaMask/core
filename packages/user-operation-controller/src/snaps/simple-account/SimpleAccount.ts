@@ -1,70 +1,84 @@
-import { Web3Provider } from '@ethersproject/providers';
-import { OnUserOperationHandler } from '../types';
-import SimpleAccountABI from './abi/SimpleAccount.json';
-import SimpleAccountFactoryABI from './abi/SimpleAccountFactory.json';
-import EntrypointABI from './abi/Entrypoint.json';
-import { Contract } from '@ethersproject/contracts';
+/* eslint-disable jsdoc/require-jsdoc */
+
 import { AddressZero } from '@ethersproject/constants';
-import { ENTRYPOINT } from '../../constants';
-import { projectLogger, createModuleLogger } from '../../logger';
+import { Contract } from '@ethersproject/contracts';
+import type { Web3Provider } from '@ethersproject/providers';
 import { stripHexPrefix } from 'ethereumjs-util';
 
-const log = createModuleLogger(projectLogger, 'simple-account-snap');
+import { ENTRYPOINT } from '../../constants';
+import { projectLogger, createModuleLogger } from '../../logger';
+import EntrypointABI from './abi/Entrypoint.json';
+import SimpleAccountABI from './abi/SimpleAccount.json';
+import SimpleAccountFactoryABI from './abi/SimpleAccountFactory.json';
+
+const log = createModuleLogger(projectLogger, 'simple-account');
 
 const SIMPLE_ACCOUNT_FACTORY_ADDRESS =
   '0x9406Cc6185a346906296840746125a0E44976454';
 
-export const onUserOperationRequest: OnUserOperationHandler = async (
-  request,
-) => {
-  const { data, ethereum, to, value } = request;
-
+export function getInitCode(owner: string, salt: string): string {
   const SimpleAccountFactoryContract = new Contract(
     SIMPLE_ACCOUNT_FACTORY_ADDRESS,
     SimpleAccountFactoryABI,
   );
 
-  const potentialInitCode =
+  const initCode =
     SIMPLE_ACCOUNT_FACTORY_ADDRESS +
     stripHexPrefix(
       SimpleAccountFactoryContract.interface.encodeFunctionData(
         'createAccount',
-        [process.env.SIMPLE_ACCOUNT_OWNER, process.env.SIMPLE_ACCOUNT_SALT],
+        [owner, salt],
       ),
     );
 
   log('Generated init code', {
-    potentialInitCode,
-    owner: process.env.SIMPLE_ACCOUNT_OWNER,
-    salt: process.env.SIMPLE_ACCOUNT_SALT,
+    initCode,
+    owner,
+    salt,
   });
 
-  const provider = new Web3Provider(ethereum as any);
+  return initCode;
+}
+
+export async function getSender(
+  initCode: string,
+  provider: Web3Provider,
+): Promise<string> {
   const entrypointContract = new Contract(ENTRYPOINT, EntrypointABI, provider);
 
   const sender = await entrypointContract.callStatic
-    .getSenderAddress(potentialInitCode)
+    .getSenderAddress(initCode)
     .catch((error) => error.errorArgs.sender);
 
   log('Determined sender', sender);
 
+  return sender;
+}
+
+export function getCallData(
+  to: string | undefined,
+  value: string | undefined,
+  data: string | undefined,
+  sender: string,
+): string {
+  const simpleAccountContract = new Contract(sender, SimpleAccountABI);
+
+  return simpleAccountContract.interface.encodeFunctionData('execute', [
+    to ?? AddressZero,
+    value ?? '0x0',
+    data ?? '0x',
+  ]);
+}
+
+export async function getNonce(
+  sender: string,
+  isDeployed: boolean,
+  provider: Web3Provider,
+): Promise<string> {
   const simpleAccountContract = new Contract(
     sender,
     SimpleAccountABI,
     provider,
-  );
-
-  const code = await provider.getCode(sender);
-  const isDeployed = code && code !== '0x';
-  const initCode = isDeployed ? '0x' : potentialInitCode;
-
-  if (!isDeployed) {
-    log('Adding init code as contract not deployed');
-  }
-
-  const callData = simpleAccountContract.interface.encodeFunctionData(
-    'execute',
-    [to ?? AddressZero, value ?? '0x0', data ?? '0x'],
   );
 
   const nonce = isDeployed
@@ -75,14 +89,5 @@ export const onUserOperationRequest: OnUserOperationHandler = async (
     log('Retrieved nonce from smart contract', nonce);
   }
 
-  // Paymaster not supported
-  const paymasterAndData = '0x';
-
-  return {
-    callData,
-    initCode,
-    nonce,
-    paymasterAndData,
-    sender,
-  };
-};
+  return nonce;
+}

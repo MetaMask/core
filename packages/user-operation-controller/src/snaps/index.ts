@@ -1,20 +1,39 @@
-import { onUserOperationRequest as simpleAccountRequest } from './simple-account/SimpleAccount';
-import { OnUserOperationRequest, OnUserOperationResponse } from './types';
+/* eslint-disable jsdoc/require-jsdoc */
 
-const SNAP_REQUEST_BY_ID = {
-  'simple-account': simpleAccountRequest,
+import simpleAccountSnap from './simple-account';
+import type {
+  AccountSnap,
+  OnPaymasterRequest,
+  OnPaymasterResponse,
+  OnUserOperationRequest,
+  OnUserOperationResponse,
+} from './types';
+
+const SNAPS_BY_ID = {
+  'simple-account': simpleAccountSnap,
 };
 
-export function sendSnapRequest(
-  id: string,
+export function sendSnapUserOperationRequest(
+  snapId: string,
   request: OnUserOperationRequest,
 ): Promise<OnUserOperationResponse> {
-  const idKey = id as keyof typeof SNAP_REQUEST_BY_ID;
-  const snapRequest = SNAP_REQUEST_BY_ID[idKey];
+  return getAccountSnap(snapId).onUserOperationRequest(request);
+}
 
-  if (!snapRequest) {
-    throw new Error(`No SCA snap found for ID: ${id}`);
+export function sendSnapPaymasterRequest(
+  snapId: string,
+  request: OnPaymasterRequest,
+): Promise<OnPaymasterResponse> {
+  return getAccountSnap(snapId).onPaymasterRequest(request);
+}
+
+function getAccountSnap(snapId: string): AccountSnap {
+  const idKey = snapId as keyof typeof SNAPS_BY_ID;
+  const accountSnap = SNAPS_BY_ID[idKey];
+
+  if (!accountSnap) {
+    throw new Error(`No SCA snap found for ID: ${snapId}`);
   }
 
-  return snapRequest(request);
+  return accountSnap;
 }
