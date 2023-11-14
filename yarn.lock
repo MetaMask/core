@@ -1542,9 +1542,11 @@ __metadata:
   linkType: soft
 
 "@metamask/browser-passworder@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "@metamask/browser-passworder@npm:4.1.0"
-  checksum: f1edb3b75594b8e8d075b3134c9ce6c73573160eb48184ef722b9d96a5763db1e2e9acb166fc5c66c7c82936e134a02a3fb4c0022ca9a948857a30181cb84d7e
+  version: 4.2.0
+  resolution: "@metamask/browser-passworder@npm:4.2.0"
+  dependencies:
+    "@metamask/utils": ^8.2.0
+  checksum: 03b76357942d25a6316d6a03a8bc839cb18e53d9f95fc2787e0fbbcf13eeb2485ece47a2758e928d04635f8dbaa598794f2ecd0313e7c91f989bf11f2a0adec5
   languageName: node
   linkType: hard
 
