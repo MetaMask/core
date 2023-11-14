@@ -1374,7 +1374,7 @@ __metadata:
     "@metamask/eth-snap-keyring": ^2.0.0
     "@metamask/keyring-api": ^1.1.0
     "@metamask/keyring-controller": ^8.1.0
-    "@metamask/snaps-controllers": ^3.2.0
+    "@metamask/snaps-controllers": ^3.4.0
     "@metamask/snaps-utils": ^3.2.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
@@ -2464,9 +2464,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-controllers@npm:^3.2.0":
-  version: 3.2.0
-  resolution: "@metamask/snaps-controllers@npm:3.2.0"
+"@metamask/snaps-controllers@npm:^3.4.0":
+  version: 3.4.0
+  resolution: "@metamask/snaps-controllers@npm:3.4.0"
   dependencies:
     "@metamask/approval-controller": ^4.0.0
     "@metamask/base-controller": ^3.2.0
@@ -2477,9 +2477,9 @@ __metadata:
     "@metamask/post-message-stream": ^7.0.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/snaps-registry": ^2.1.0
-    "@metamask/snaps-rpc-methods": ^3.2.0
-    "@metamask/snaps-ui": ^3.1.0
-    "@metamask/snaps-utils": ^3.2.0
+    "@metamask/snaps-rpc-methods": ^4.0.0
+    "@metamask/snaps-sdk": ^1.0.0
+    "@metamask/snaps-utils": ^4.0.0
     "@metamask/utils": ^8.1.0
     "@xstate/fsm": ^2.0.0
     concat-stream: ^2.0.0
@@ -2491,11 +2491,11 @@ __metadata:
     readable-web-to-node-stream: ^3.0.2
     tar-stream: ^3.1.6
   peerDependencies:
-    "@metamask/snaps-execution-environments": ^3.1.0
+    "@metamask/snaps-execution-environments": ^3.3.0
   peerDependenciesMeta:
     "@metamask/snaps-execution-environments":
       optional: true
-  checksum: b007cfc9ace68040aa535dcce64327dd32bae7c9f5d5256ecee40293ea8510e56923e3bae52afdd5623851746c1a2cb4868a196307e91015c08efe70cf46639e
+  checksum: 1d24355c3d4049a2ce8c3d6090a44433291d67fe52c9aab43c5ba7616d15f1fb392d6c5e1d1991a44df38e7100bec395f8f16bd5199500277797e236d250ee76
   languageName: node
   linkType: hard
 
@@ -2526,19 +2526,32 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-rpc-methods@npm:^3.2.0":
-  version: 3.2.1
-  resolution: "@metamask/snaps-rpc-methods@npm:3.2.1"
+"@metamask/snaps-rpc-methods@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "@metamask/snaps-rpc-methods@npm:4.0.0"
   dependencies:
     "@metamask/key-tree": ^9.0.0
     "@metamask/permission-controller": ^5.0.0
     "@metamask/rpc-errors": ^6.1.0
-    "@metamask/snaps-ui": ^3.1.0
-    "@metamask/snaps-utils": ^3.2.0
+    "@metamask/snaps-sdk": ^1.0.0
+    "@metamask/snaps-utils": ^4.0.0
     "@metamask/utils": ^8.1.0
     "@noble/hashes": ^1.3.1
     superstruct: ^1.0.3
-  checksum: 82307f12939cc074f3521b708b4d5bfdadc8d25d52e402d1abf7c7e9d28245bcf7518243dbbf7c269c1df3e1570410f5b10abe91c4b5ec0723b7d3af55baa64d
+  checksum: 555d068a726cfeddee8c2f0cbc41e48a285ab1ffe9ecdb10b9a18882f7d9ab7bf92773628f709239fb672a2b123c26d229982bb926221481ee7a71c0751f12c1
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-sdk@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@metamask/snaps-sdk@npm:1.0.0"
+  dependencies:
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/providers": ^13.0.0
+    "@metamask/utils": ^8.1.0
+    is-svg: ^4.4.0
+    superstruct: ^1.0.3
+  checksum: 688d80aed46875428498bdaca1f3d40617a777c8f337da34a46aaf4816ae49d91256df2fba829a657201e93e904fe681c3004cb1ae02ad388efe1116b9da47d8
   languageName: node
   linkType: hard
 
@@ -2608,6 +2621,35 @@ __metadata:
     superstruct: ^1.0.3
     validate-npm-package-name: ^5.0.0
   checksum: 1e7ed6b0f0392c09708eb2537bc58ba41f5a55176741c1c79aeb11cb37e6976cc69c2010fec84618f21d50e84e33cfef056e19c55c50f76cc4e9f85bbf9ca2ae
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-utils@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "@metamask/snaps-utils@npm:4.0.0"
+  dependencies:
+    "@babel/core": ^7.23.2
+    "@babel/types": ^7.23.0
+    "@metamask/base-controller": ^3.2.0
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/permission-controller": ^5.0.0
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/snaps-registry": ^2.1.0
+    "@metamask/snaps-sdk": ^1.0.0
+    "@metamask/utils": ^8.1.0
+    "@noble/hashes": ^1.3.1
+    "@scure/base": ^1.1.1
+    chalk: ^4.1.2
+    cron-parser: ^4.5.0
+    fast-deep-equal: ^3.1.3
+    fast-json-stable-stringify: ^2.1.0
+    is-svg: ^4.4.0
+    rfdc: ^1.3.0
+    semver: ^7.5.4
+    ses: ^0.18.8
+    superstruct: ^1.0.3
+    validate-npm-package-name: ^5.0.0
+  checksum: 8811e7f95ebd31b9d035ae6620f261c444b1b0ab12507bd76d4daf4257013ab4e6f31577ce446d8ea8edad5fc0deeb2769908ceb00c36f0571d1d28374ca420b
   languageName: node
   linkType: hard
 
