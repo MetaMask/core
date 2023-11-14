@@ -3726,13 +3726,13 @@ describe('TransactionController', () => {
     };
     it.each([
       {
-        newStatus: TransactionStatus.signed as const,
+        newStatus: TransactionStatus.signed,
       },
       {
-        newStatus: TransactionStatus.submitted as const,
+        newStatus: TransactionStatus.submitted,
       },
       {
-        newStatus: TransactionStatus.failed as const,
+        newStatus: TransactionStatus.failed,
         errorMessage: 'Error mock',
       },
     ])(
@@ -3753,6 +3753,10 @@ describe('TransactionController', () => {
         const updatedTransaction = controller.state.transactions[0];
 
         expect(updatedTransaction?.status).toStrictEqual(newStatus);
+        expect(updatedTransaction?.hash).toStrictEqual(newHash);
+        expect(updatedTransaction?.custodyStatus).toStrictEqual(
+          newCustodyStatus,
+        );
       },
     );
 
