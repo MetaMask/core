@@ -183,7 +183,7 @@ export class RestrictedControllerMessenger<
    * @throws Will throw if an action handler that is not in the current namespace is being registered.
    * @template T - A type union of Action type strings that are namespaced by N.
    */
-  registerActionHandler<T extends Action['type']>(
+  registerActionHandler<T extends NamespacedName<N>>(
     action: T,
     handler: ActionHandler<Action, T>,
   ) {
