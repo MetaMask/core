@@ -20,7 +20,7 @@ export type ExtractActionResponse<
   T = Action['type'],
 > = Action extends {
   type: T;
-  handler: (...args: never[]) => infer H;
+  handler: (...args: never) => infer H;
 }
   ? H
   : never;
@@ -61,7 +61,7 @@ export type SelectorEventHandler<SelectorReturnValue> = (
 
 export type ActionConstraint = {
   type: string;
-  handler: (...args: never[]) => unknown;
+  handler: ((...args: never) => unknown) | ((...args: never[]) => unknown);
 };
 export type EventConstraint = {
   type: string;
