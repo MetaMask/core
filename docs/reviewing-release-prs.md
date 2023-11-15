@@ -19,19 +19,27 @@ This document shows you how to do that.
 
 ## 1. Review packages being published
 
-First, it is important to understand how the release automation knows which packages to publish, and which to ignore. Simply put, if the version for a package is bumped within the release PR, that version will be published. You may see changes made to a package within a release PR, but if the version is not being bumped, those changes will not be published (until some future release).
+First, it is important to understand how the release automation knows which packages to publish, and which to ignore. Simply put:
 
-So the first thing to do is to gather the list of packages that will be published by finding those in the PR that have a version bump. Ensure that there aren't any packages included in this list that should not be published. Assuming that there aren't any, take a note of the versions they have now and the versions they will have after the release.
+**If the version for a package is bumped within the release PR, that version will be published.**
+
+You may see changes made to a package within a release PR, but if the version is not being bumped, those changes will not be published (until some future release).
+
+So:
+
+- Gather the list of packages that will be published by finding those in the PR that have a version bump.
+- Ensure that there aren't any packages included in this list that should not be published.
+- Take a note of the versions they have now and the versions they will have after the release.
 
 Once you have this information, you'll want to review the changes to the packages.
 
-## 2. Review changes
+## 2. Review changes being published
 
-You can review changes to packages two ways.
+You can locate and review all of the changes that will be published in two ways:
 
 ### A. Review pull requests listed in new changelog entries
 
-New releases are accompanied by new changelog entries to the packages being published. These changelog entries are most likely to appear in the release PR itself, and these changelog entries are most likely to link to a PR that made the changes. So, a quick way to review the changes-to-be-published is to look through the linked PRs in the changelogs.
+New releases are accompanied by new changelog entries to the packages being published. These changelog entries are most likely to appear in the release PR itself, and these changelog entries are most likely to link to a PR that made the changes. So, a quick way to review the changes to be published is to look through the linked PRs in the changelogs.
 
 ### B. Review commits
 
@@ -61,9 +69,9 @@ You'll reference these changes in upcoming steps.
 
 ## 2. Review types of changes
 
-Now that you have a set of commits to reference, the next step is to begin to classify the changes in those commits so that they can be communicated effectively.
+Now that you have a better sense of the changes, the next step is to begin to classify them so that they can be communicated effectively.
 
-First, it's important to understand which changes are important to communicate and which are not. While some developers might care about every single change made to the code, the people who will end up using the packages in this monorepo — consumers — only care about that part of code they can actually see and work with. So here are the changes you will want to consider:
+First, it's important to understand which changes are important to communicate and which are not. While some developers might care about every single change made to the code, the people who will end up using the packages in this monorepo — consumers — only care about that part of code they can actually see and work with. So here are the changes to consider:
 
 - Changes to interfaces
 - Changes to behavior
@@ -77,7 +85,7 @@ Conversely, you generally should not need to worry about:
 - Changes to contributor-only documentation
 - Removal of runtime dependencies (unless it is being done to improve the size of the package)
 
-With that in mind, there are three categories to break changes into:
+With that in mind, there are three ways changes can be categorized:
 
 ### Breaking changes
 
@@ -147,11 +155,17 @@ Next, look over the changelogs of the packages which will be released to ensure 
 
 The [Keep a Changelog](https://keepachangelog.com/) specification defines a standard format for changelogs, and all MetaMask repositories, including the core monorepo, follow this format.
 
-One tenet of Keep a Changelog is that changelog entries should not be mere regurgitations of commit messages or pull request titles. An entry like "Support advanced gas fees in TransactionController" is adequate to understand the content of commit, but it is insufficient for a changelog. Keep in mind that consumers use software through an interface. It is fine to provide the greater context for a set of changes in a changelog entry, but at the very least, there should be explicit mention of the pieces of the interface — classes, methods, functions, and types — that have been added, updated, or removed. Also, if a version contains breaking changes, it is essential to explain how consumers who are upgrading to that version will need to change their code in order to adapt to the changes. Either way, consumers should not have to click through pull requests and scan commit diffs to obtain this information.
+One tenet of Keep a Changelog is that changelog entries should not be mere regurgitations of commit messages or pull request titles. An entry like "Support advanced gas fees in TransactionController" is adequate to understand the content of a commit, but it contains insufficient detail for a changelog. Keep in mind that since consumers use software through an interface, they want to know how that interface will change if they upgrade to a new version. So a changelog entry should list specifics — the classes, methods, functions, and types that have been added, updated, or removed. Also, if a version contains breaking changes, it should explain how consumers who are upgrading to that version will need to change their code in order to adapt to the changes. Consumers should not have to click through pull requests and scan commit diffs to obtain this information.
 
-Finally, a changelog entry should reference one or more pull requests that introduced the change. While `auto-changelog`, the tool that validates changelogs, does not require these pull request references to be present, they are nice to have so that consumers have an opportunity to dive into the context behind the change if they need to.
+Finally, a changelog entry should reference one or more pull requests that introduced the change. While `auto-changelog`, the tool that validates changelogs, does not require these pull request references to be present, they are useful so that consumers have an opportunity to dive into the context behind the change if they need to.
 
-Therefore, if there are any changelog entries that should be moved to a different category, or if there are any changelog entries that can be reworded to help consumers, or if there are changelog entries that are missing pull request references, notify the creator of the release PR, offering a suggestion as necessary.
+So, if you find any changelog entries that:
+
+- should be moved to a different category
+- can be reworded to help consumers
+- are missing pull request references
+
+notify the creator of the release PR, offering a suggestion as necessary.
 
 ## 5. Add missing changelog entries
 
