@@ -20,6 +20,13 @@ export type OnPaymasterRequest = {
   ethereum: SnapProvider;
 };
 
+export type OnUserOperationSignatureRequest = {
+  userOperation: UserOperation;
+  chainId: string;
+  // This is only required for the POC since we're not yet using the KeyringController.
+  privateKey: string;
+};
+
 export type OnUserOperationResponse = {
   callData: string;
   initCode: string;
@@ -31,6 +38,10 @@ export type OnPaymasterResponse = {
   paymasterAndData: string;
 };
 
+export type OnUserOperationSignatureResponse = {
+  signature: string;
+};
+
 export type OnUserOperationHandler = (
   request: OnUserOperationRequest,
 ) => Promise<OnUserOperationResponse>;
@@ -39,7 +50,12 @@ export type OnPaymasterHandler = (
   request: OnPaymasterRequest,
 ) => Promise<OnPaymasterResponse>;
 
+export type OnUserOperationSignatureHandler = (
+  request: OnUserOperationSignatureRequest,
+) => Promise<OnUserOperationSignatureResponse>;
+
 export type AccountSnap = {
   onUserOperationRequest: OnUserOperationHandler;
   onPaymasterRequest: OnPaymasterHandler;
+  onUserOperationSignatureRequest: OnUserOperationSignatureHandler;
 };

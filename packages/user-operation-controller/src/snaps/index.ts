@@ -7,6 +7,8 @@ import type {
   OnPaymasterResponse,
   OnUserOperationRequest,
   OnUserOperationResponse,
+  OnUserOperationSignatureRequest,
+  OnUserOperationSignatureResponse,
 } from './types';
 
 const SNAPS_BY_ID = {
@@ -25,6 +27,13 @@ export function sendSnapPaymasterRequest(
   request: OnPaymasterRequest,
 ): Promise<OnPaymasterResponse> {
   return getAccountSnap(snapId).onPaymasterRequest(request);
+}
+
+export function sendSnapUserOperationSignatureRequest(
+  snapId: string,
+  request: OnUserOperationSignatureRequest,
+): Promise<OnUserOperationSignatureResponse> {
+  return getAccountSnap(snapId).onUserOperationSignatureRequest(request);
 }
 
 function getAccountSnap(snapId: string): AccountSnap {

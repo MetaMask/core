@@ -34,12 +34,12 @@ import { projectLogger as log } from './logger';
 import {
   sendSnapPaymasterRequest,
   sendSnapUserOperationRequest,
+  sendSnapUserOperationSignatureRequest,
 } from './snaps';
 import type { SnapProvider } from './snaps/types';
 import type { UserOperation, UserOperationMetadata } from './types';
 import { UserOperationStatus } from './types';
 import { updateGasFees } from './utils/gas-fees';
-import { signUserOperation } from './utils/signature';
 import { getTransactionMetadata } from './utils/transaction';
 
 const DUMMY_SIGNATURE =
@@ -191,7 +191,7 @@ export class UserOperationController extends BaseControllerV2<
 
         const resultCallbacks = await this.#approveUserOperation(metadata);
 
-        await this.#signUserOperation(metadata);
+        await this.#signUserOperation(metadata, snapId);
         await this.#submitUserOperation(metadata, bundler);
 
         resultCallbacks?.success();
@@ -393,17 +393,16 @@ export class UserOperationController extends BaseControllerV2<
     return resultCallbacks;
   }
 
-  async #signUserOperation(metadata: UserOperationMetadata) {
+  async #signUserOperation(metadata: UserOperationMetadata, snapId: string) {
     const { id, chainId, userOperation } = metadata;
 
     log('Signing user operation', id, userOperation);
 
-    const signature = await signUserOperation(
+    const { signature } = await sendSnapUserOperationSignatureRequest(snapId, {
       userOperation,
-      ENTRYPOINT,
       chainId,
-      await this.#getPrivateKey(),
-    );
+      privateKey: await this.#getPrivateKey(),
+    });
 
     userOperation.signature = signature;
 

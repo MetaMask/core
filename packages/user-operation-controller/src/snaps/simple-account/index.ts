@@ -4,8 +4,14 @@
 import { Web3Provider } from '@ethersproject/providers';
 import { createModuleLogger } from '@metamask/utils';
 
+import { ENTRYPOINT } from '../../constants';
 import { projectLogger } from '../../logger';
-import type { OnPaymasterHandler, OnUserOperationHandler } from '../types';
+import type {
+  OnPaymasterHandler,
+  OnUserOperationHandler,
+  OnUserOperationSignatureHandler,
+} from '../types';
+import { signUserOperation } from './ecdsa';
 import { getCallData, getInitCode, getNonce, getSender } from './SimpleAccount';
 import { getPaymasterAndData } from './VerifyingPaymaster';
 
@@ -39,12 +45,9 @@ const onUserOperationRequest: OnUserOperationHandler = async (request) => {
 };
 
 const onPaymasterRequest: OnPaymasterHandler = async (request) => {
-  log(
-    'Received paymaster request',
-    process.env.SIMPLE_ACCOUNT_OWNER,
-    process.env.SIMPLE_ACCOUNT_SALT,
-    process.env.PAYMASTER_ADDRESS,
-  );
+  log('Received paymaster request', {
+    paymasterAddress: process.env.PAYMASTER_ADDRESS,
+  });
 
   const { userOperation, ethereum, privateKey } = request;
   const provider = new Web3Provider(ethereum as any);
@@ -68,7 +71,27 @@ const onPaymasterRequest: OnPaymasterHandler = async (request) => {
   return { paymasterAndData };
 };
 
+const onUserOperationSignatureRequest: OnUserOperationSignatureHandler = async (
+  request,
+) => {
+  log('Received user operation signature request');
+
+  const { chainId, privateKey, userOperation } = request;
+
+  const signature = await signUserOperation(
+    userOperation,
+    ENTRYPOINT,
+    chainId,
+    privateKey,
+  );
+
+  return {
+    signature,
+  };
+};
+
 export default {
   onUserOperationRequest,
   onPaymasterRequest,
+  onUserOperationSignatureRequest,
 };
