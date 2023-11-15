@@ -7,6 +7,10 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
 import type {
+  ExportableKeyEncryptor,
+  GenericEncryptor,
+} from '@metamask/eth-keyring-controller/dist/types';
+import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
@@ -167,17 +171,22 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
   string
 >;
 
+export type EncryptionOptions =
+  | { cacheEncryptionKey: true; encryptor?: ExportableKeyEncryptor }
+  | {
+      cacheEncryptionKey: false;
+      encryptor?: GenericEncryptor | ExportableKeyEncryptor;
+    };
+
 export type KeyringControllerOptions = {
   syncIdentities: PreferencesController['syncIdentities'];
   updateIdentities: PreferencesController['updateIdentities'];
   setSelectedAddress: PreferencesController['setSelectedAddress'];
   setAccountLabel?: PreferencesController['setAccountLabel'];
-  encryptor?: any;
   keyringBuilders?: { (): Keyring<Json>; type: string }[];
-  cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
-};
+} & EncryptionOptions;
 
 /**
  * @type KeyringObject
@@ -285,7 +294,7 @@ export class KeyringController extends BaseControllerV2<
     setAccountLabel,
     encryptor,
     keyringBuilders,
-    cacheEncryptionKey = false,
+    cacheEncryptionKey,
     messenger,
     state,
   }: KeyringControllerOptions) {
@@ -305,12 +314,22 @@ export class KeyringController extends BaseControllerV2<
       },
     });
 
-    this.#keyring = new EthKeyringController({
-      initState: state,
-      encryptor,
-      keyringBuilders,
-      cacheEncryptionKey,
-    });
+    if (cacheEncryptionKey) {
+      this.#keyring = new EthKeyringController({
+        initState: state,
+        encryptor,
+        keyringBuilders,
+        cacheEncryptionKey,
+      });
+    } else {
+      this.#keyring = new EthKeyringController({
+        initState: state,
+        encryptor,
+        keyringBuilders,
+        cacheEncryptionKey,
+      });
+    }
+
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));
