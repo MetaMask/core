@@ -1,14 +1,6 @@
-import type {
-  AddApprovalRequest,
-  ApprovalRequest,
-} from '@metamask/approval-controller';
+import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { ControllerMessenger } from '@metamask/base-controller';
-import type { InfuraNetworkType } from '@metamask/controller-utils';
-import {
-  ApprovalType,
-  BUILT_IN_NETWORKS,
-  isNetworkType,
-} from '@metamask/controller-utils';
+import { ApprovalType, isNetworkType } from '@metamask/controller-utils';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
@@ -33,6 +25,12 @@ const isConfirmationMethod = (method: string) => {
     'wallet_watchAsset',
     'wallet_switchEthereumChain',
     'eth_signTypedData_v4',
+    'wallet_addEthereumChain',
+    'wallet_requestPermissions',
+    'wallet_requestSnaps',
+    'personal_sign',
+    'eth_sign',
+    'eth_requestAccounts',
   ];
 
   return confirmationMethods.includes(method);
@@ -94,29 +92,38 @@ export const createQueuedRequestMiddleware = ({
       await messenger.call(
         QueuedRequestControllerActionTypes.enqueueRequest,
         async () => {
-          if (req.method === 'wallet_switchEthereumChain') {
+          if (
+            req.method === 'wallet_switchEthereumChain' ||
+            req.method === 'wallet_addEthereumChain'
+          ) {
             return next();
           }
 
-          const isBuiltIn = isNetworkType(networkClientIdForRequest);
-          let networkConfigurationForRequest;
-          if (isBuiltIn) {
-            const builtIn = BUILT_IN_NETWORKS[networkClientIdForRequest];
-            if (builtIn.chainId) {
-              // only the infura provided ones have chainid (rpc doesnt)
-              networkConfigurationForRequest = builtIn;
-            }
-          }
-
-          networkConfigurationForRequest ??= messenger.call(
+          const networkClientConfigurationForRequest = messenger.call(
             'NetworkController:getNetworkClientById',
             networkClientIdForRequest,
           ).configuration;
 
-          const currentProviderConfig = messenger.call(
+          const networkControllerState = messenger.call(
             'NetworkController:getState',
-          ).providerConfig;
+          );
 
+          const isBuiltIn = isNetworkType(networkClientIdForRequest);
+          let networkConfigurationForRequest;
+          if (!isBuiltIn) {
+            networkConfigurationForRequest =
+              networkControllerState.networkConfigurations[
+                networkClientIdForRequest
+              ];
+          } else {
+            // if its a built in
+            // Ideally we should be using only networkConfigurations, and networkClientIds &
+            // networkConfiguration.id should be the same thing.
+            networkConfigurationForRequest =
+              networkClientConfigurationForRequest;
+          }
+
+          const currentProviderConfig = networkControllerState.providerConfig;
           const currentChainId = currentProviderConfig.chainId;
 
           // if the 'globally selected network' is already on the correct chain for the request currently being processed
@@ -136,7 +143,7 @@ export const createQueuedRequestMiddleware = ({
           };
 
           try {
-            const approvedRequestData = (await messenger.call(
+            await messenger.call(
               'ApprovalController:addRequest',
               {
                 origin,
@@ -144,21 +151,14 @@ export const createQueuedRequestMiddleware = ({
                 requestData,
               },
               true,
-            )) as ApprovalRequest<typeof requestData> & {
-              type: InfuraNetworkType;
-            };
+            );
 
-            if (isBuiltIn) {
-              await messenger.call(
-                'NetworkController:setProviderType',
-                approvedRequestData.type,
-              );
-            } else {
-              await messenger.call(
-                'NetworkController:setActiveNetwork',
-                approvedRequestData.id,
-              );
-            }
+            const method = isBuiltIn ? 'setProviderType' : 'setActiveNetwork';
+
+            await messenger.call(
+              `NetworkController:${method}`,
+              networkClientIdForRequest,
+            );
 
             messenger.call(
               SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,

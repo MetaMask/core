@@ -3,8 +3,9 @@ import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 import type { Draft, Patch } from 'immer';
 
 import type {
+  ActionConstraint,
+  EventConstraint,
   RestrictedControllerMessenger,
-  Namespaced,
 } from './ControllerMessenger';
 
 enablePatches();
@@ -54,10 +55,39 @@ export type StateMetadata<T extends Record<string, Json>> = {
  * identifiable), or is set to a function that returns an anonymized
  * representation of this state.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface StatePropertyMetadata<T extends Json> {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
 }
+
+export type ControllerGetStateAction<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = {
+  type: `${ControllerName}:getState`;
+  handler: () => ControllerState;
+};
+
+export type ControllerStateChangeEvent<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = {
+  type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
+};
+
+export type ControllerActions<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = ControllerGetStateAction<ControllerName, ControllerState>;
+
+export type ControllerEvents<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = ControllerStateChangeEvent<ControllerName, ControllerState>;
 
 /**
  * Controller class that provides state management, subscriptions, and state metadata
@@ -65,7 +95,13 @@ export interface StatePropertyMetadata<T extends Json> {
 export class BaseController<
   N extends string,
   S extends Record<string, Json>,
-  messenger extends RestrictedControllerMessenger<N, any, any, string, string>,
+  messenger extends RestrictedControllerMessenger<
+    N,
+    ActionConstraint | ControllerActions<N, S>,
+    EventConstraint | ControllerEvents<N, S>,
+    string,
+    string
+  >,
 > {
   private internalState: S;
 
@@ -161,7 +197,7 @@ export class BaseController<
 
     this.internalState = nextState;
     this.messagingSystem.publish(
-      `${this.name}:stateChange` as Namespaced<N, any>,
+      `${this.name}:stateChange`,
       nextState,
       patches,
     );
@@ -180,7 +216,7 @@ export class BaseController<
     const nextState = applyPatches(this.internalState, patches);
     this.internalState = nextState;
     this.messagingSystem.publish(
-      `${this.name}:stateChange` as Namespaced<N, any>,
+      `${this.name}:stateChange`,
       nextState,
       patches,
     );
@@ -196,9 +232,7 @@ export class BaseController<
    * listeners from being garbage collected.
    */
   protected destroy() {
-    this.messagingSystem.clearEventSubscriptions(
-      `${this.name}:stateChange` as Namespaced<N, any>,
-    );
+    this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange`);
   }
 }
 
@@ -247,20 +281,20 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
   metadata: StateMetadata<S>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return Object.keys(state).reduce((persistedState, key) => {
+  return (Object.keys(state) as (keyof S)[]).reduce<
+    Partial<Record<keyof S, Json>>
+  >((persistedState, key) => {
     try {
-      const stateMetadata = metadata[key as keyof S];
+      const stateMetadata = metadata[key];
       if (!stateMetadata) {
-        throw new Error(`No metadata found for '${key}'`);
+        throw new Error(`No metadata found for '${String(key)}'`);
       }
       const propertyMetadata = stateMetadata[metadataProperty];
       const stateProperty = state[key];
       if (typeof propertyMetadata === 'function') {
-        persistedState[key as string] = propertyMetadata(
-          stateProperty as S[keyof S],
-        );
+        persistedState[key] = propertyMetadata(stateProperty);
       } else if (propertyMetadata) {
-        persistedState[key as string] = stateProperty;
+        persistedState[key] = stateProperty;
       }
       return persistedState;
     } catch (error) {
@@ -271,5 +305,5 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
       });
       return persistedState;
     }
-  }, {} as Record<string, Json>);
+  }, {}) as Record<keyof S, Json>;
 }

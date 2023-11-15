@@ -19,6 +19,9 @@ import type { TokensState } from './TokensController';
  *
  * CoinGecko API response representation
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface CoinGeckoResponse {
   [address: string]: {
     [currency: string]: number;
@@ -29,6 +32,9 @@ export interface CoinGeckoResponse {
  *
  * CoinGecko supported platform API representation
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface CoinGeckoPlatform {
   id: string;
   chain_identifier: null | number;
@@ -45,6 +51,9 @@ export interface CoinGeckoPlatform {
  * @property symbol - Symbol of the token
  * @property image - Image of the token, url or bit32 image
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Token {
   address: string;
   decimals: number;
@@ -66,6 +75,9 @@ export interface Token {
  * @property tokens - List of tokens to track exchange rates for
  * @property threshold - Threshold to invalidate the supportedChains
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
@@ -76,15 +88,24 @@ export interface TokenRatesConfig extends BaseConfig {
   threshold: number;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface ContractExchangeRates {
   [address: string]: number | undefined;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface SupportedChainsCache {
   timestamp: number;
   data: CoinGeckoPlatform[] | null;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface SupportedVsCurrenciesCache {
   timestamp: number;
   data: string[];
@@ -102,6 +123,9 @@ enum PollState {
  * @property contractExchangeRates - Hash of token contract addresses to exchange rates
  * @property supportedChains - Cached chain data
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
 }
