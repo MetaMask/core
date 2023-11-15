@@ -17,13 +17,10 @@ module.exports = merge(baseConfig, {
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 88.2,
-      functions: 96.15,
-      lines: 96.25,
-      statements: 96.5,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
-
-  // We rely on `window` to make requests
-  testEnvironment: '<rootDir>/jest.environment.js',
 });

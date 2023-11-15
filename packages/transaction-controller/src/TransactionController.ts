@@ -52,6 +52,7 @@ import type {
   TransactionMeta,
   TransactionReceipt,
   WalletDevice,
+  SecurityAlertResponse,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -59,7 +60,7 @@ import {
   TransactionStatus,
 } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import { estimateGas, updateGas } from './utils/gas';
+import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import {
   addInitialHistorySnapshot,
@@ -434,7 +435,6 @@ export class TransactionController extends BaseController<
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
-    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -522,7 +522,6 @@ export class TransactionController extends BaseController<
     this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
-      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
       this.onBootCleanup();
@@ -595,7 +594,7 @@ export class TransactionController extends BaseController<
       method?: string;
       origin?: string;
       requireApproval?: boolean | undefined;
-      securityAlertResponse?: Record<string, unknown>;
+      securityAlertResponse?: SecurityAlertResponse;
       sendFlowHistory?: SendFlowHistoryEntry[];
       swaps?: {
         hasApproveTx?: boolean;
@@ -605,7 +604,6 @@ export class TransactionController extends BaseController<
     } = {},
   ): Promise<Result> {
     const chainId = this.getChainId();
-    const { transactions } = this.state;
     txParams = normalizeTxParams(txParams);
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     validateTxParams(txParams, isEIP1559Compatible);
@@ -672,10 +670,7 @@ export class TransactionController extends BaseController<
         controllerHubEmitter: this.hub.emit.bind(this.hub) as any,
       });
 
-      transactions.push(transactionMeta);
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
+      this.addMetadata(transactionMeta);
       this.hub.emit(`unapprovedTransaction`, transactionMeta);
     }
 
@@ -719,12 +714,15 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
+    // If transaction is found for same action id, do not create a cancel transaction.
+    if (this.getTransactionWithActionId(actionId)) {
+      return;
+    }
+
     if (gasValues) {
       validateGasValues(gasValues);
     }
-    const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionId,
-    );
+    const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
     }
@@ -776,7 +774,7 @@ export class TransactionController extends BaseController<
         )) ||
       (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
-    const txParams: TransactionParams =
+    const newTxParams: TransactionParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             from: transactionMeta.txParams.from,
@@ -797,23 +795,43 @@ export class TransactionController extends BaseController<
             value: '0x0',
           };
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+    const unsignedEthTx = this.prepareUnsignedEthTx(newTxParams);
 
     const signedTx = await this.sign(
       unsignedEthTx,
       transactionMeta.txParams.from,
     );
-    await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
-    transactionMeta.estimatedBaseFee = estimatedBaseFee;
-    transactionMeta.status = TransactionStatus.cancelled;
+    const hash = await this.publishTransaction(rawTx);
+    const cancelTransactionMeta: TransactionMeta = {
+      actionId,
+      chainId: transactionMeta.chainId,
+      estimatedBaseFee,
+      hash,
+      id: random(),
+      originalGasEstimate: transactionMeta.txParams.gas,
+      status: TransactionStatus.submitted,
+      time: Date.now(),
+      type: TransactionType.cancel,
+      txParams: newTxParams,
+    };
+
+    this.addMetadata(cancelTransactionMeta);
 
     // stopTransaction has no approval request, so we assume the user has already approved the transaction
-    this.hub.emit('transaction-approved', { transactionMeta, actionId });
-    this.hub.emit('transaction-submitted', { transactionMeta, actionId });
+    this.hub.emit('transaction-approved', {
+      transactionMeta: cancelTransactionMeta,
+      actionId,
+    });
+    this.hub.emit('transaction-submitted', {
+      transactionMeta: cancelTransactionMeta,
+      actionId,
+    });
 
-    this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+    this.hub.emit(
+      `${cancelTransactionMeta.id}:finished`,
+      cancelTransactionMeta,
+    );
   }
 
   /**
@@ -853,8 +871,6 @@ export class TransactionController extends BaseController<
     if (!this.sign) {
       throw new Error('No sign method defined.');
     }
-
-    const { transactions } = this.state;
 
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
@@ -923,7 +939,7 @@ export class TransactionController extends BaseController<
     await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
     const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
-    const baseTransactionMeta = {
+    const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
       estimatedBaseFee,
       id: random(),
@@ -932,6 +948,7 @@ export class TransactionController extends BaseController<
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
       type: TransactionType.retry,
+      originalType: transactionMeta.type,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
@@ -950,8 +967,7 @@ export class TransactionController extends BaseController<
               gasPrice: newGasPrice,
             },
           };
-    transactions.push(newTransactionMeta);
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.addMetadata(newTransactionMeta);
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
     this.hub.emit('transaction-approved', {
@@ -982,6 +998,29 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Estimates required gas for a given transaction and add additional gas buffer with the given multiplier.
+   *
+   * @param transaction - The transaction params to estimate gas for.
+   * @param multiplier - The multiplier to use for the gas buffer.
+   */
+  async estimateGasBuffered(
+    transaction: TransactionParams,
+    multiplier: number,
+  ) {
+    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
+      transaction,
+      this.ethQuery,
+    );
+
+    const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
+
+    return {
+      gas,
+      simulationFails,
+    };
+  }
+
+  /**
    * Updates an existing transaction in state.
    *
    * @param transactionMeta - The new transaction to store in state.
@@ -997,6 +1036,34 @@ export class TransactionController extends BaseController<
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  /**
+   * Update the security alert response for a transaction.
+   *
+   * @param transactionId - ID of the transaction.
+   * @param securityAlertResponse - The new security alert response for the transaction.
+   */
+  updateSecurityAlertResponse(
+    transactionId: string,
+    securityAlertResponse: SecurityAlertResponse,
+  ) {
+    if (!securityAlertResponse) {
+      throw new Error(
+        'updateSecurityAlertResponse: securityAlertResponse should not be null',
+      );
+    }
+    const transactionMeta = this.getTransaction(transactionId);
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update security alert response as no transaction metadata found`,
+      );
+    }
+    const updatedMeta = merge(transactionMeta, { securityAlertResponse });
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updatesecurityAlertResponse - securityAlertResponse updated',
+    );
   }
 
   /**
@@ -1362,6 +1429,86 @@ export class TransactionController extends BaseController<
     return rawTransactions;
   }
 
+  /**
+   * Update a custodial transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param options - The custodial transaction options to update.
+   * @param options.custodyStatus - The new custody status value to be assigned.
+   * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
+   * @param options.hash - The new hash value to be assigned.
+   * @param options.status - The new status value to be assigned.
+   */
+  updateCustodialTransaction(
+    transactionId: string,
+    {
+      custodyStatus,
+      errorMessage,
+      hash,
+      status,
+    }: {
+      custodyStatus?: string;
+      errorMessage?: string;
+      hash?: string;
+      status?: TransactionStatus;
+    },
+  ) {
+    let transactionMeta;
+    transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update custodial transaction as no transaction metadata found`,
+      );
+    }
+
+    if (!transactionMeta.custodyId) {
+      throw new Error('Transaction must be a custodian transaction');
+    }
+
+    if (
+      status &&
+      ![
+        TransactionStatus.submitted,
+        TransactionStatus.signed,
+        TransactionStatus.failed,
+      ].includes(status)
+    ) {
+      throw new Error(
+        `Cannot update custodial transaction with status: ${status}`,
+      );
+    }
+    if (status === TransactionStatus.signed) {
+      transactionMeta.status = status;
+    }
+
+    if (status === TransactionStatus.submitted) {
+      transactionMeta.submittedTime = new Date().getTime();
+      transactionMeta.status = status;
+    }
+
+    if (status === TransactionStatus.failed) {
+      transactionMeta = {
+        ...transactionMeta,
+        error: normalizeTxError(new Error(errorMessage)),
+        status: TransactionStatus.failed,
+      };
+    }
+
+    if (custodyStatus) {
+      transactionMeta.custodyStatus = custodyStatus;
+    }
+
+    if (hash) {
+      transactionMeta.hash = hash;
+    }
+
+    this.updateTransaction(
+      transactionMeta,
+      `TransactionController:updateCustodialTransaction - Custodial transaction updated`,
+    );
+  }
+
   private async signExternalTransaction(
     transactionParams: TransactionParams,
   ): Promise<string> {
@@ -1369,15 +1516,15 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const normalizedtransactionParams = normalizeTxParams(transactionParams);
+    const normalizedTransactionParams = normalizeTxParams(transactionParams);
     const chainId = this.getChainId();
-    const type = isEIP1559Transaction(normalizedtransactionParams)
+    const type = isEIP1559Transaction(normalizedTransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
     const updatedTransactionParams = {
-      ...normalizedtransactionParams,
+      ...normalizedTransactionParams,
       type,
-      gasLimit: normalizedtransactionParams.gas,
+      gasLimit: normalizedTransactionParams.gas,
       chainId,
     };
 
@@ -1400,6 +1547,12 @@ export class TransactionController extends BaseController<
     const transactions = this.state.transactions.filter(
       ({ status }) => status !== TransactionStatus.unapproved,
     );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
+  private addMetadata(transactionMeta: TransactionMeta) {
+    const { transactions } = this.state;
+    transactions.push(transactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
@@ -1572,13 +1725,6 @@ export class TransactionController extends BaseController<
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
         throw rpcErrors.internal(finalMeta.error.message);
-
-      case TransactionStatus.cancelled:
-        const cancelError = rpcErrors.internal(
-          'User cancelled the transaction',
-        );
-        resultCallbacks?.error(cancelError);
-        throw cancelError;
 
       case TransactionStatus.submitted:
         resultCallbacks?.success();
@@ -1795,8 +1941,7 @@ export class TransactionController extends BaseController<
     return (
       status === TransactionStatus.rejected ||
       status === TransactionStatus.confirmed ||
-      status === TransactionStatus.failed ||
-      status === TransactionStatus.cancelled
+      status === TransactionStatus.failed
     );
   }
 
@@ -1808,7 +1953,6 @@ export class TransactionController extends BaseController<
    */
   private isLocalFinalState(status: TransactionStatus): boolean {
     return [
-      TransactionStatus.cancelled,
       TransactionStatus.confirmed,
       TransactionStatus.failed,
       TransactionStatus.rejected,

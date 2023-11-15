@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/controller-utils",
-  "version": "5.0.2",
-  "description": "Data and convenience functions shared by multiple packages",
+  "name": "@metamask/permission-log-controller",
+  "version": "0.0.0",
+  "description": "Controller with middleware for logging requests and responses to restricted and permissions-related methods",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/controller-utils#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/permission-log-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/controller-utils",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/permission-log-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
@@ -30,20 +30,19 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^8.2.0",
-    "@spruceid/siwe-parser": "1.1.3",
-    "eth-ens-namehash": "^2.0.8",
-    "ethereumjs-util": "^7.0.10",
-    "ethjs-unit": "^0.1.6",
-    "fast-deep-equal": "^3.1.3"
+    "@metamask/base-controller": "^3.2.3",
+    "@metamask/json-rpc-engine": "^7.3.0",
+    "@metamask/utils": "^8.2.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.3",
-    "@metamask/eth-query": "^4.0.0",
+    "@types/deep-freeze-strict": "^1.1.0",
     "@types/jest": "^27.4.1",
+    "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "nock": "^13.3.1",
+    "nanoid": "^3.1.31",
+    "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",

@@ -288,9 +288,24 @@ describe('NftDetectionController', () => {
     expect(spy.mock.calls).toHaveLength(2);
     await advanceTime({ clock, duration: DEFAULT_INTERVAL });
     expect(spy.mock.calls).toMatchObject([
-      ['mainnet', '0x1'],
-      ['mainnet', '0x1'],
-      ['mainnet', '0x1'],
+      [
+        {
+          networkClientId: 'mainnet',
+          userAddress: '0x1',
+        },
+      ],
+      [
+        {
+          networkClientId: 'mainnet',
+          userAddress: '0x1',
+        },
+      ],
+      [
+        {
+          networkClientId: 'mainnet',
+          userAddress: '0x1',
+        },
+      ],
     ]);
     nftDetection.stopAllPolling();
   });
@@ -360,7 +375,10 @@ describe('NftDetectionController', () => {
   it('should detect and add NFTs by networkClientId correctly', async () => {
     const selectedAddress = '0x1';
 
-    await nftDetection.detectNfts('mainnet', '0x1');
+    await nftDetection.detectNfts({
+      networkClientId: 'mainnet',
+      userAddress: '0x1',
+    });
 
     const nfts = nftController.state.allNfts[ChainId.mainnet][selectedAddress];
     expect(nfts).toStrictEqual([

@@ -37,6 +37,9 @@
       "path": "./packages/json-rpc-engine/tsconfig.build.json"
     },
     {
+      "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json"
+    },
+    {
       "path": "./packages/keyring-controller/tsconfig.build.json"
     },
     {
@@ -77,6 +80,9 @@
     },
     {
       "path": "./packages/queued-request-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/permission-log-controller/tsconfig.build.json"
     }
   ],
   "files": [],

@@ -24,6 +24,7 @@ export type UpdateGasRequest = {
 export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
+export const DEFAULT_GAS_MULTIPLIER = 1.5;
 
 export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
@@ -87,6 +88,32 @@ export async function estimateGas(
   };
 }
 
+export function addGasBuffer(
+  estimatedGas: string,
+  blockGasLimit: string,
+  multiplier: number,
+) {
+  const estimatedGasBN = hexToBN(estimatedGas);
+  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
+  const paddedGasBN = estimatedGasBN.muln(multiplier);
+
+  if (estimatedGasBN.gt(maxGasBN)) {
+    const estimatedGasHex = addHexPrefix(estimatedGas);
+    log('Using estimated value', estimatedGasHex);
+    return estimatedGasHex;
+  }
+
+  if (paddedGasBN.lt(maxGasBN)) {
+    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
+    log('Using padded estimate', paddedHex, multiplier);
+    return paddedHex;
+  }
+
+  const maxHex = addHexPrefix(BNToHex(maxGasBN));
+  log('Using 90% of block gas limit', maxHex);
+  return maxHex;
+}
+
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?]> {
@@ -107,26 +134,18 @@ async function getGas(
     request.ethQuery,
   );
 
-  const estimatedGasBN = hexToBN(estimatedGas);
-  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
-  const paddedGasBN = estimatedGasBN.muln(1.5);
-  const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-
-  if (estimatedGasBN.gt(maxGasBN) || isCustomNetwork) {
-    const estimatedGasHex = addHexPrefix(estimatedGas);
-    log('Using estimated value', estimatedGasHex);
-    return [estimatedGasHex, simulationFails];
+  if (providerConfig.type === NetworkType.rpc) {
+    log('Using original estimate as custom network');
+    return [estimatedGas, simulationFails];
   }
 
-  if (paddedGasBN.lt(maxGasBN)) {
-    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
-    log('Using 150% of estimated value', paddedHex);
-    return [paddedHex, simulationFails];
-  }
+  const bufferedGas = addGasBuffer(
+    estimatedGas,
+    blockGasLimit,
+    DEFAULT_GAS_MULTIPLIER,
+  );
 
-  const maxHex = addHexPrefix(BNToHex(maxGasBN));
-  log('Using 90% of block gas limit', maxHex);
-  return [maxHex, simulationFails];
+  return [bufferedGas, simulationFails];
 }
 
 async function requiresFixedGas({

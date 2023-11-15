@@ -41,6 +41,9 @@
       "path": "./packages/json-rpc-engine"
     },
     {
+      "path": "./packages/json-rpc-middleware-stream"
+    },
+    {
       "path": "./packages/keyring-controller"
     },
     {
@@ -78,6 +81,9 @@
     },
     {
       "path": "./packages/queued-request-controller"
+    },
+    {
+      "path": "./packages/permission-log-controller"
     }
   ],
   "files": [],
