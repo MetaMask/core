@@ -300,9 +300,11 @@ export class UserOperationController extends BaseControllerV2<
       defaultAbiCoder.encode(['uint48', 'uint48'], [0, 0]),
     );
 
-    const dummyPaymasterData = `${paymasterAddress}${encodedValidUntilAfter}${stripHexPrefix(
-      DUMMY_SIGNATURE,
-    )}`;
+    const dummyPaymasterData = paymasterAddress
+      ? `${paymasterAddress}${encodedValidUntilAfter}${stripHexPrefix(
+          DUMMY_SIGNATURE,
+        )}`
+      : '0x';
 
     const payload = {
       ...userOperation,
@@ -373,7 +375,8 @@ export class UserOperationController extends BaseControllerV2<
 
     if (
       transaction?.txParams.maxFeePerGas &&
-      transaction?.txParams.maxPriorityFeePerGas
+      transaction?.txParams.maxPriorityFeePerGas &&
+      userOperation.paymasterAndData === '0x'
     ) {
       userOperation.maxFeePerGas = transaction.txParams.maxFeePerGas;
 

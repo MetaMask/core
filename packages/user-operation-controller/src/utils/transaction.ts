@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 /* eslint-disable jsdoc/require-jsdoc */
 
 import type {
@@ -6,7 +7,10 @@ import type {
   TransactionParams,
   TransactionType,
 } from '@metamask/transaction-controller';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  UserFeeLevel,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
 
@@ -27,7 +31,7 @@ export function getTransactionMetadata(
     time,
     transactionParams,
     userOperation,
-    userFeeLevel,
+    userFeeLevel: originalUserFeeLevel,
   } = metadata;
 
   if (!transactionParams) {
@@ -72,15 +76,23 @@ export function getTransactionMetadata(
     userOperation?.callGasLimit,
   );
 
-  const maxFeePerGas =
-    userOperation.maxFeePerGas === '0x'
-      ? undefined
-      : userOperation.maxFeePerGas;
+  const hasPaymaster = userOperation.paymasterAndData !== '0x';
 
-  const maxPriorityFeePerGas =
-    userOperation.maxPriorityFeePerGas === '0x'
-      ? undefined
-      : userOperation.maxPriorityFeePerGas;
+  const maxFeePerGas = hasPaymaster
+    ? '0x0'
+    : userOperation.maxFeePerGas === '0x'
+    ? undefined
+    : userOperation.maxFeePerGas;
+
+  const maxPriorityFeePerGas = hasPaymaster
+    ? '0x0'
+    : userOperation.maxPriorityFeePerGas === '0x'
+    ? undefined
+    : userOperation.maxPriorityFeePerGas;
+
+  const userFeeLevel = hasPaymaster
+    ? UserFeeLevel.CUSTOM
+    : originalUserFeeLevel;
 
   const txParams = {
     ...transactionParams,
