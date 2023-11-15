@@ -100,7 +100,6 @@ Given this, there are many ways a change could be regarded as breaking:
 - Removing an export from the package
 - Renaming the package
 - Bumping the minimum supported Node.js version
-- Bumping the NPM version
 
 ### Additions
 
