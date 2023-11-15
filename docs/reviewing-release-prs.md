@@ -73,17 +73,17 @@ Now that you have a better sense of the changes, the next step is to begin to cl
 
 First, it's important to understand which changes are important to communicate and which are not. While some developers might care about every single change made to the code, the people who will end up using the packages in this monorepo — consumers — only care about that part of code they can actually see and work with. So here are the changes to consider:
 
-- Changes to interfaces
-- Changes to behavior
-- Changes to runtime dependencies (but only additions or upgrades)
-- Changes to consumer-facing documentation
+- Changes to interfaces ✅
+- Changes to behavior ✅
+- Changes to runtime dependencies (but only additions or upgrades) ✅
+- Changes to consumer-facing documentation ✅
 
 Conversely, you generally should not need to worry about:
 
-- Changes to internal tooling
-- Changes to developer-only dependencies
-- Changes to contributor-only documentation
-- Removal of runtime dependencies (unless it is being done to improve the size of the package)
+- Changes to internal tooling ❌
+- Changes to developer-only dependencies ❌
+- Changes to contributor-only documentation ❌
+- Removal of runtime dependencies ❌ (unless it is being done to improve the size of the package)
 
 With that in mind, there are three ways changes can be categorized:
 
@@ -112,13 +112,13 @@ Given this, there are many ways a change could be regarded as breaking:
 
 A change is an "addition" if it extends the surface area of a package's API. For example:
 
-- Adding an optional property to an existing type ✔︎
-- Adding an optional argument to an existing function or method ✔︎
-- Adding a new export to a package ✔︎
+- Adding an optional property to an existing type ✅
+- Adding an optional argument to an existing function or method ✅
+- Adding a new export to a package ✅
 
 It is important to remember that consumers care about capabilities first and interfaces second, so these would not count as an addition:
 
-- Adding a new dependency ✘
+- Adding a new dependency ❌
 
 ### Fixes
 
