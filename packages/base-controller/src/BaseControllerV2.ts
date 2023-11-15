@@ -97,8 +97,8 @@ export class BaseController<
   ControllerState extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<
     ControllerName,
-    ActionConstraint,
-    EventConstraint,
+    ActionConstraint | ControllerActions<ControllerName, ControllerState>,
+    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
     string,
     string
   >,
@@ -287,8 +287,8 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
   metadata: StateMetadata<ControllerState>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return (Object.keys(state) as (keyof S)[]).reduce<
-    Partial<Record<keyof S, Json>>
+  return (Object.keys(state) as (keyof ControllerState)[]).reduce<
+    Partial<Record<keyof ControllerState, Json>>
   >((persistedState, key) => {
     try {
       const stateMetadata = metadata[key];
@@ -311,5 +311,5 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
       });
       return persistedState;
     }
-  }, {}) as Record<keyof S, Json>;
+  }, {}) as Record<keyof ControllerState, Json>;
 }
