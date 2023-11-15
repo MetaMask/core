@@ -2570,7 +2570,7 @@ __metadata:
     fast-json-patch: ^3.1.1
     jest: ^27.5.1
     lodash: ^4.17.21
-    nonce-tracker: ^2.0.0
+    nonce-tracker: ^3.0.0
     sinon: ^9.2.4
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
@@ -8424,13 +8424,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nonce-tracker@npm:^2.0.0":
-  version: 2.0.0
-  resolution: "nonce-tracker@npm:2.0.0"
+"nonce-tracker@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "nonce-tracker@npm:3.0.0"
   dependencies:
     "@ethersproject/providers": ^5.7.2
     async-mutex: ^0.3.1
-  checksum: 7fc901b7a5e5f3b1c6431864780ab47c69aed096f1bcc0903242e7c9189b78612fe04d076cf451ea63aa646858fb3bd834fc707223295ad8e04a3d847e5d703e
+  checksum: f679e83359c3d0b1941cb8569057445b5430b7e5645216442c256b2061ffb08ebee07e15011d3d55acf75710e054abd924c1b1bb38847956ef9f3bb7eed622d4
   languageName: node
   linkType: hard
 
