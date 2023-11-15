@@ -158,7 +158,7 @@ export type NftMetadata = {
   lastSale?: ApiNftLastSale;
   transactionId?: string;
   tokenURI?: string | null;
-  error?: NFTFetchMetadataError | undefined;
+  error?: NFTFetchMetadataError;
 };
 
 /**
