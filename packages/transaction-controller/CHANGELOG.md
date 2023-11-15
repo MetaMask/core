@@ -5,6 +5,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [16.0.1]
+### Uncategorized
+- Fix misaligned mock eth query types in controller tests ([#2037](https://github.com/MetaMask/core/pull/2037))
+- Add `updateCustodialTransaction` method ([#2018](https://github.com/MetaMask/core/pull/2018))
+- Align core transaction metadata properties with extension metrics ([#1999](https://github.com/MetaMask/core/pull/1999))
+- Add `accessList` to txParam types ([#2016](https://github.com/MetaMask/core/pull/2016))
+- Adds `estimateGasBuffered` public method ([#2021](https://github.com/MetaMask/core/pull/2021))
+- Create additional `cancel` transaction for `stopTransaction` ([#1998](https://github.com/MetaMask/core/pull/1998))
+- Add method for adding params to transaction meta ([#1985](https://github.com/MetaMask/core/pull/1985))
+- Re-enable @typescript-eslint/consistent-type-definitions ([#1933](https://github.com/MetaMask/core/pull/1933))
+- Release 88.0.0 ([#1996](https://github.com/MetaMask/core/pull/1996))
+- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
+- Add gas values validation to transaction params ([#1978](https://github.com/MetaMask/core/pull/1978))
+- Mock console.error in particular `TransactionController` tests ([#1995](https://github.com/MetaMask/core/pull/1995))
+- Persist specific error properties in core transaction metadata ([#1915](https://github.com/MetaMask/core/pull/1915))
+- Align core transaction error messages with extension ([#1980](https://github.com/MetaMask/core/pull/1980))
+- Add swaps logic into `TransactionController` ([#1877](https://github.com/MetaMask/core/pull/1877))
+- Add hooks to support mmi logic ([#1787](https://github.com/MetaMask/core/pull/1787))
+- Add `approveTransactionsWithSameNonce` method to core transaction controller ([#1961](https://github.com/MetaMask/core/pull/1961))
+- Support advanced gas fees in `TransactionController` ([#1966](https://github.com/MetaMask/core/pull/1966))
+- Adds `clearUnapprovedTxs` function to `TransactionController` ([#1979](https://github.com/MetaMask/core/pull/1979))
+- Add `onBootCleanup` functionality to constructor and `onNetworkChange` ([#1916](https://github.com/MetaMask/core/pull/1916))
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
+- Refactor pending transaction tracker ([#1896](https://github.com/MetaMask/core/pull/1896))
+- Add `updatePreviousGasParams` to `TransactionController` ([#1943](https://github.com/MetaMask/core/pull/1943))
+- Add TransactionEvents to `TransactionController` ([#1894](https://github.com/MetaMask/core/pull/1894))
+- Typing fixes for `TransactionController.test.ts` ([#1954](https://github.com/MetaMask/core/pull/1954))
+- Change initApprovals method based on the extension ([#1867](https://github.com/MetaMask/core/pull/1867))
+
 ### Changed
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
 
@@ -250,7 +281,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.1...HEAD
+[16.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...@metamask/transaction-controller@16.0.1
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@15.0.0...@metamask/transaction-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@14.0.0...@metamask/transaction-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...@metamask/transaction-controller@14.0.0
