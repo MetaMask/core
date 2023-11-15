@@ -171,13 +171,6 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
   string
 >;
 
-export type EncryptionOptions =
-  | { cacheEncryptionKey: true; encryptor?: ExportableKeyEncryptor }
-  | {
-      cacheEncryptionKey: false;
-      encryptor?: GenericEncryptor | ExportableKeyEncryptor;
-    };
-
 export type KeyringControllerOptions = {
   syncIdentities: PreferencesController['syncIdentities'];
   updateIdentities: PreferencesController['updateIdentities'];
@@ -186,7 +179,16 @@ export type KeyringControllerOptions = {
   keyringBuilders?: { (): Keyring<Json>; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
-} & EncryptionOptions;
+} & (
+  | {
+      cacheEncryptionKey: true;
+      encryptor?: ExportableKeyEncryptor;
+    }
+  | {
+      cacheEncryptionKey?: false;
+      encryptor?: GenericEncryptor | ExportableKeyEncryptor;
+    }
+);
 
 /**
  * @type KeyringObject
@@ -294,7 +296,7 @@ export class KeyringController extends BaseControllerV2<
     setAccountLabel,
     encryptor,
     keyringBuilders,
-    cacheEncryptionKey,
+    cacheEncryptionKey = false,
     messenger,
     state,
   }: KeyringControllerOptions) {
@@ -314,22 +316,15 @@ export class KeyringController extends BaseControllerV2<
       },
     });
 
-    if (cacheEncryptionKey) {
-      this.#keyring = new EthKeyringController({
-        initState: state,
-        encryptor,
-        keyringBuilders,
-        cacheEncryptionKey,
-      });
-    } else {
-      this.#keyring = new EthKeyringController({
-        initState: state,
-        encryptor,
-        keyringBuilders,
-        cacheEncryptionKey,
-      });
-    }
-
+    // @ts-expect-error Types are enforced in `KeyringControllerOptions`
+    // constructor options, but typescript is not able to correctly infer the type of the
+    // `encryptor` property based on `cacheEncryptionKey` value here.
+    this.#keyring = new EthKeyringController({
+      initState: state,
+      encryptor,
+      keyringBuilders,
+      cacheEncryptionKey,
+    });
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));
