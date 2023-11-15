@@ -3705,4 +3705,118 @@ describe('TransactionController', () => {
       );
     });
   });
+
+  describe('updateCustodialTransaction', () => {
+    const transactionId = '1';
+    const statusMock = TransactionStatus.unapproved as const;
+    const baseTransaction = {
+      id: transactionId,
+      chainId: toHex(5),
+      status: statusMock,
+      time: 123456789,
+      txParams: {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+      },
+    };
+    const transactionMeta: TransactionMeta = {
+      ...baseTransaction,
+      custodyId: '123',
+      history: [{ ...baseTransaction }],
+    };
+    it.each([
+      {
+        newStatus: TransactionStatus.signed,
+      },
+      {
+        newStatus: TransactionStatus.submitted,
+      },
+      {
+        newStatus: TransactionStatus.failed,
+        errorMessage: 'Error mock',
+      },
+    ])(
+      'updates transaction status to $newStatus',
+      async ({ newStatus, errorMessage }) => {
+        const newHash = '1234';
+        const newCustodyStatus = 'submitted';
+        const controller = newController();
+        controller.state.transactions.push(transactionMeta);
+
+        controller.updateCustodialTransaction(transactionId, {
+          status: newStatus,
+          hash: newHash,
+          custodyStatus: newCustodyStatus,
+          errorMessage,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+
+        expect(updatedTransaction?.status).toStrictEqual(newStatus);
+        expect(updatedTransaction?.hash).toStrictEqual(newHash);
+        expect(updatedTransaction?.custodyStatus).toStrictEqual(
+          newCustodyStatus,
+        );
+      },
+    );
+
+    it('throws if custodial transaction does not exists', async () => {
+      const nonExistentId = 'nonExistentId';
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+
+      expect(() =>
+        controller.updateCustodialTransaction(nonExistentId, {
+          status: newStatus,
+        }),
+      ).toThrow(
+        'Cannot update custodial transaction as no transaction metadata found',
+      );
+    });
+
+    it('throws if transaction is not a custodial transaction', async () => {
+      const nonCustodialTransaction: TransactionMeta = {
+        ...baseTransaction,
+        history: [{ ...baseTransaction }],
+      };
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+      controller.state.transactions.push(nonCustodialTransaction);
+
+      expect(() =>
+        controller.updateCustodialTransaction(nonCustodialTransaction.id, {
+          status: newStatus,
+        }),
+      ).toThrow('Transaction must be a custodian transaction');
+    });
+
+    it('throws if status is invalid', async () => {
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      expect(() =>
+        controller.updateCustodialTransaction(transactionMeta.id, {
+          status: newStatus,
+        }),
+      ).toThrow(
+        `Cannot update custodial transaction with status: ${newStatus}`,
+      );
+    });
+
+    it('no property was updated', async () => {
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      controller.updateCustodialTransaction(transactionId, {});
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction?.status).toStrictEqual(transactionMeta.status);
+      expect(updatedTransaction?.custodyStatus).toStrictEqual(
+        transactionMeta.custodyStatus,
+      );
+      expect(updatedTransaction?.hash).toStrictEqual(transactionMeta.hash);
+    });
+  });
 });
