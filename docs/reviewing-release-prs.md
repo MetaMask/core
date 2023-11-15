@@ -59,11 +59,11 @@ git diff @metamask/<package-name>@<current-version>..HEAD -- packages/<package-n
 
 You'll reference these changes in upcoming steps.
 
-## 2. Determine impact of changes
+## 2. Review types of changes
 
-Now that you know what sort of changes are being made, the next step is look through the version bumps in the release PR and verify the impact of those changes so that it can be properly communicated.
+Now that you've located new commits, the next step is to begin to classify the changes in those commits so that the changes can be communicated effectively.
 
-First, it's helpful to understand what sort of changes are worth communicating. While a release could certainly ship with a list of every single change made to the code in this repository, this would be needless. The people who will end up using the packages in this monorepo — consumers — only care about that part of code they can actually see and work with. So when it comes to understanding impact, this is what you should pay attention to:
+First, it's important to understand which changes are important to communicate and which are not. While some developers might care about every single change made to the code, the people who will end up using the packages in this monorepo — consumers — only care about that part of code they can actually see and work with. So here are the changes that are worth announcing:
 
 - Changes to interfaces
 - Changes to behavior
