@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable n/no-process-env */
 
@@ -11,16 +12,26 @@ import type {
   OnUserOperationHandler,
   OnUserOperationSignatureHandler,
 } from '../types';
+import { BUNDLER_URL_BY_CHAIN_ID } from './constants';
 import { signUserOperation } from './ecdsa';
-import { getCallData, getInitCode, getNonce, getSender } from './SimpleAccount';
-import { getPaymasterAndData } from './VerifyingPaymaster';
+import {
+  getCallData,
+  getDummySignature,
+  getInitCode,
+  getNonce,
+  getSender,
+} from './SimpleAccount';
+import {
+  getDummyPaymasterAndData,
+  getPaymasterAndData,
+} from './VerifyingPaymaster';
 
 const log = createModuleLogger(projectLogger, 'simple-account-snap');
 
 const onUserOperationRequest: OnUserOperationHandler = async (request) => {
   log('Received user operation request');
 
-  const { data, ethereum, to, value } = request;
+  const { chainId, data, ethereum, to, value } = request;
 
   const provider = new Web3Provider(ethereum as any);
 
@@ -35,9 +46,15 @@ const onUserOperationRequest: OnUserOperationHandler = async (request) => {
   const isDeployed = Boolean(code) && code !== '0x';
   const initCode = isDeployed ? '0x' : potentialInitCode;
   const nonce = await getNonce(sender, isDeployed, provider);
+  const bundler = getBundler(chainId);
+  const dummySignature = getDummySignature();
+  const dummyPaymasterAndData = getDummyPaymasterAndData();
 
   return {
+    bundler,
     callData,
+    dummyPaymasterAndData,
+    dummySignature,
     initCode,
     nonce,
     sender,
@@ -89,6 +106,10 @@ const onUserOperationSignatureRequest: OnUserOperationSignatureHandler = async (
     signature,
   };
 };
+
+function getBundler(chainId: string): string | undefined {
+  return (BUNDLER_URL_BY_CHAIN_ID as any)[chainId];
+}
 
 export default {
   onUserOperationRequest,

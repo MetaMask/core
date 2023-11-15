@@ -87,6 +87,7 @@ export type UserOperationMetadata = {
   actualGasCost: string | null;
   actualGasUsed: string | null;
   baseFeePerGas: string | null;
+  bundlerUrl: string | null;
   chainId: string;
   error: UserOperationError | null;
   hash: string | null;

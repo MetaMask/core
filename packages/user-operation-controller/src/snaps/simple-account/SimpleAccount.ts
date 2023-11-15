@@ -10,6 +10,7 @@ import { projectLogger, createModuleLogger } from '../../logger';
 import EntrypointABI from './abi/Entrypoint.json';
 import SimpleAccountABI from './abi/SimpleAccount.json';
 import SimpleAccountFactoryABI from './abi/SimpleAccountFactory.json';
+import { DUMMY_SIGNATURE } from './constants';
 
 const log = createModuleLogger(projectLogger, 'simple-account');
 
@@ -90,4 +91,8 @@ export async function getNonce(
   }
 
   return nonce;
+}
+
+export function getDummySignature(): string {
+  return DUMMY_SIGNATURE;
 }

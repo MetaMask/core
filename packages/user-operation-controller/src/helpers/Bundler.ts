@@ -1,6 +1,5 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { BUNDLER_URL_BY_CHAIN_ID } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
 import type {
   BundlerEstimateUserOperationGasResponse,
@@ -26,7 +25,7 @@ export class Bundler {
       entrypoint,
     ]);
 
-    log('Estimated gas', response);
+    log('Estimated gas', { url: this.#url, response });
 
     return response as BundlerEstimateUserOperationGasResponse;
   }
@@ -34,6 +33,7 @@ export class Bundler {
   async getUserOperationReceipt(
     hash?: string,
   ): Promise<UserOperationReceipt | undefined> {
+    log('Getting user operation receipt', { url: this.#url, hash });
     return await this.#query('eth_getUserOperationReceipt', [hash]);
   }
 
@@ -41,7 +41,11 @@ export class Bundler {
     userOperation: UserOperation,
     entrypoint: string,
   ): Promise<string> {
-    log('Sending user operation', { userOperation, entrypoint });
+    log('Sending user operation', {
+      url: this.#url,
+      userOperation,
+      entrypoint,
+    });
 
     const hash = await this.#query('eth_sendUserOperation', [
       userOperation,
@@ -75,15 +79,4 @@ export class Bundler {
 
     return responseJson.result;
   }
-}
-
-export function getBundler(chainId: string): Bundler {
-  const chainIdKey = chainId as keyof typeof BUNDLER_URL_BY_CHAIN_ID;
-  const url = BUNDLER_URL_BY_CHAIN_ID[chainIdKey];
-
-  if (!url) {
-    throw new Error(`No bundler found for chain ID: ${chainId}`);
-  }
-
-  return new Bundler(url);
 }

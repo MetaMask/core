@@ -7,7 +7,7 @@ import { projectLogger } from '../logger';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerState } from '../UserOperationController';
-import { getBundler } from './Bundler';
+import { Bundler } from './Bundler';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
 
@@ -136,15 +136,15 @@ export class PendingUserOperationTracker {
   }
 
   async #checkUserOperation(metadata: UserOperationMetadata) {
-    const { chainId, hash, id } = metadata;
+    const { bundlerUrl, hash, id } = metadata;
 
-    if (!hash) {
-      log('Skipping user operation as no hash', id);
+    if (!hash || !bundlerUrl) {
+      log('Skipping user operation as missing hash or bundler', id);
       return;
     }
 
     try {
-      const receipt = await this.#getUserOperationReceipt(hash, chainId);
+      const receipt = await this.#getUserOperationReceipt(hash, bundlerUrl);
       const isSuccess = receipt?.success;
 
       if (receipt && !isSuccess) {
@@ -223,9 +223,9 @@ export class PendingUserOperationTracker {
 
   async #getUserOperationReceipt(
     hash: string,
-    chainId: string,
+    bundlerUrl: string,
   ): Promise<UserOperationReceipt | undefined> {
-    const bundler = getBundler(chainId);
+    const bundler = new Bundler(bundlerUrl);
     return bundler.getUserOperationReceipt(hash);
   }
 }

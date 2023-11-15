@@ -1,3 +1,4 @@
+/* eslint-disable n/no-process-env */
 /* eslint-disable jsdoc/require-jsdoc */
 
 import { defaultAbiCoder } from '@ethersproject/abi';
@@ -9,6 +10,7 @@ import { ENTRYPOINT } from '../../constants';
 import { createModuleLogger, projectLogger } from '../../logger';
 import type { UserOperation } from '../../types';
 import VerifyingPaymasterABI from './abi/VerifyingPaymaster.json';
+import { DUMMY_SIGNATURE } from './constants';
 import { signHash } from './ecdsa';
 
 const log = createModuleLogger(projectLogger, 'verifying-paymaster');
@@ -61,6 +63,22 @@ export async function getPaymasterAndData(
   return data;
 }
 
+export function getDummyPaymasterAndData(): string {
+  const paymasterAddress = process.env.PAYMASTER_ADDRESS;
+
+  if (!paymasterAddress) {
+    return '0x';
+  }
+
+  const encodedValidUntilAfter = stripHexPrefix(
+    defaultAbiCoder.encode(['uint48', 'uint48'], [0, 0]),
+  );
+
+  return `${paymasterAddress}${encodedValidUntilAfter}${stripHexPrefix(
+    DUMMY_SIGNATURE,
+  )}`;
+}
+
 async function verifyPaymasterData(
   userOperation: UserOperation,
   paymasterAndData: string,
@@ -78,7 +96,10 @@ async function verifyPaymasterData(
   const packedResult = result[1].toHexString() as string;
   const failed = packedResult.endsWith('1');
 
-  log('Validated paymaster data with contract', { packedResult, failed });
+  log('Validated paymaster data with contract', {
+    packedResult,
+    valid: !failed,
+  });
 
   return !failed;
 }

@@ -8,6 +8,7 @@ export type OnUserOperationRequest = {
   to?: string;
   value?: string;
   data?: string;
+  chainId: string;
   // This would be a global varable in a real snap.
   ethereum: SnapProvider;
 };
@@ -28,7 +29,10 @@ export type OnUserOperationSignatureRequest = {
 };
 
 export type OnUserOperationResponse = {
+  bundler?: string;
   callData: string;
+  dummyPaymasterAndData?: string;
+  dummySignature?: string;
   initCode: string;
   nonce: string;
   sender: string;

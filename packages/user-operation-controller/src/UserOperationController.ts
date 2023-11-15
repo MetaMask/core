@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable n/no-process-env */
 
-import { defaultAbiCoder } from '@ethersproject/abi';
 import { AddressZero } from '@ethersproject/constants';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
@@ -19,7 +19,6 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import { stripHexPrefix } from 'ethereumjs-util';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -27,8 +26,7 @@ import { v1 as random } from 'uuid';
 
 import type { BlockTracker, ProviderProxy } from '../../network-controller/src';
 import { ENTRYPOINT } from './constants';
-import type { Bundler } from './helpers/Bundler';
-import { getBundler } from './helpers/Bundler';
+import { Bundler } from './helpers/Bundler';
 import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
 import { projectLogger as log } from './logger';
 import {
@@ -41,9 +39,6 @@ import type { UserOperation, UserOperationMetadata } from './types';
 import { UserOperationStatus } from './types';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
-
-const DUMMY_SIGNATURE =
-  '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
 
 const GAS_BUFFER = 2;
 
@@ -178,13 +173,15 @@ export class UserOperationController extends BaseControllerV2<
     transaction: TransactionParams,
     { chainId, snapId }: { chainId: string; snapId: string },
   ) {
-    const bundler = getBundler(chainId);
     const metadata = this.#createMetadata(chainId);
     const { id } = metadata;
 
     const hash = (async () => {
       try {
-        await this.#applySnapData(metadata, transaction, snapId);
+        await this.#applySnapData(metadata, transaction, chainId, snapId);
+
+        const bundler = new Bundler(metadata.bundlerUrl!);
+
         await this.#updateGasFees(metadata);
         await this.#updateGas(metadata, bundler);
         await this.#addPaymasterData(metadata, snapId);
@@ -225,6 +222,7 @@ export class UserOperationController extends BaseControllerV2<
       actualGasCost: null,
       actualGasUsed: null,
       baseFeePerGas: null,
+      bundlerUrl: null,
       chainId,
       error: null,
       hash: null,
@@ -247,6 +245,7 @@ export class UserOperationController extends BaseControllerV2<
   async #applySnapData(
     metadata: UserOperationMetadata,
     transaction: TransactionParams,
+    chainId: string,
     snapId: string,
   ) {
     const { id, userOperation } = metadata;
@@ -259,18 +258,34 @@ export class UserOperationController extends BaseControllerV2<
       request: ({ method, params }) => provider.send(method, params),
     };
 
-    const response = await sendSnapUserOperationRequest(snapId, {
+    const {
+      bundler: bundlerUrl,
+      callData,
+      dummyPaymasterAndData,
+      dummySignature,
+      initCode,
+      nonce,
+      sender,
+    } = await sendSnapUserOperationRequest(snapId, {
+      chainId,
       ethereum,
       to: transaction.to,
       value: transaction.value,
       data: transaction.data,
     });
 
-    userOperation.callData = response.callData;
-    userOperation.initCode = response.initCode;
-    userOperation.nonce = response.nonce;
-    userOperation.sender = response.sender;
+    if (!bundlerUrl) {
+      throw new Error(`No bundler specified for chain ID: ${chainId}`);
+    }
 
+    userOperation.callData = callData;
+    userOperation.initCode = initCode;
+    userOperation.nonce = nonce;
+    userOperation.sender = sender;
+    userOperation.signature = dummySignature ?? '0x';
+    userOperation.paymasterAndData = dummyPaymasterAndData ?? '0x';
+
+    metadata.bundlerUrl = bundlerUrl;
     metadata.transactionParams = transaction as any;
 
     this.#updateMetadata(metadata);
@@ -294,33 +309,12 @@ export class UserOperationController extends BaseControllerV2<
 
     log('Updating gas', id);
 
-    const paymasterAddress = process.env.PAYMASTER_ADDRESS;
-
-    const encodedValidUntilAfter = stripHexPrefix(
-      defaultAbiCoder.encode(['uint48', 'uint48'], [0, 0]),
-    );
-
-    const dummyPaymasterData = paymasterAddress
-      ? `${paymasterAddress}${encodedValidUntilAfter}${stripHexPrefix(
-          DUMMY_SIGNATURE,
-        )}`
-      : '0x';
-
     const payload = {
       ...userOperation,
       callGasLimit: '0x1',
       preVerificationGas: '0x1',
       verificationGasLimit: '0x1',
-      signature: DUMMY_SIGNATURE,
-      paymasterAndData: dummyPaymasterData,
     };
-
-    log('Estimating gas', {
-      paymasterAddress,
-      encodedValidUntilAfter,
-      dummySignature: payload.signature,
-      dummyPaymasterData: payload.paymasterAndData,
-    });
 
     const estimatedGas = await bundler.estimateUserOperationGas(
       payload,
