@@ -4,7 +4,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { revokePermissionsHandler } from './revokePermissions';
 
 describe('revokePermissions RPC method', () => {
-  it('returns the values of the object returned by requestPermissionsForOrigin', async () => {
+  it('revokes permissions using revokePermissionsForOrigin', async () => {
     const { implementation } = revokePermissionsHandler;
     const mockRevokePermissionsForOrigin = jest.fn();
 
