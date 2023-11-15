@@ -7,15 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [16.0.0]
-### Uncategorized
-- Extract/fix FakeProvider for use among packages ([#2039](https://github.com/MetaMask/core/pull/2039))
-- Release 90.0.0 ([#2014](https://github.com/MetaMask/core/pull/2014))
-- Revert "Release 90.0.0" ([#2012](https://github.com/MetaMask/core/pull/2012))
-- Release 90.0.0 ([#2011](https://github.com/MetaMask/core/pull/2011))
-- Re-enable @typescript-eslint/consistent-type-definitions ([#1933](https://github.com/MetaMask/core/pull/1933))
-
 ### Changed
-- Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+- **BREAKING:** Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+  - This is breaking because it changes the type of the EthQuery instance this controller creates internally and exports under the `getEthQuery` action. Please consult the [changelog for `@metamask/eth-query` 4.0.0](https://github.com/MetaMask/eth-query/blob/main/CHANGELOG.md#400) for more.
 
 ## [15.2.0]
 ### Changed
