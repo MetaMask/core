@@ -1,8 +1,9 @@
 import { query, fromHex, toHex } from '@metamask/controller-utils';
-import EthQuery, { type Provider } from '@metamask/eth-query';
+import EthQuery from '@metamask/eth-query';
 import { BN } from 'ethereumjs-util';
 import { when } from 'jest-when';
 
+import { FakeProvider } from '../../../tests/fake-provider';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 
 jest.mock('@metamask/controller-utils', () => {
@@ -34,7 +35,7 @@ function times<T>(n: number, fn: (n: number) => T): T[] {
 }
 
 describe('fetchBlockFeeHistory', () => {
-  const mockEthQuery = new EthQuery({} as Provider);
+  const mockEthQuery = new EthQuery(new FakeProvider());
   describe('with a minimal set of arguments', () => {
     const latestBlockNumber = 3;
     const numberOfRequestedBlocks = 3;

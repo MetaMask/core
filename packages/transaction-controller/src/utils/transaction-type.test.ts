@@ -1,5 +1,6 @@
-import EthQuery, { type Provider } from '@metamask/eth-query';
+import EthQuery from '@metamask/eth-query';
 
+import { FakeProvider } from '../../../../tests/fake-provider';
 import { TransactionType } from '../types';
 import { determineTransactionType } from './transaction-type';
 
@@ -23,7 +24,7 @@ describe('determineTransactionType', () => {
         data: '0xa9059cbb0000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C970000000000000000000000000000000000000000000000000000000000000000a',
         from: FROM_MOCK,
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
 
     expect(result).toMatchObject({
@@ -44,7 +45,7 @@ describe('determineTransactionType', () => {
       const resultWithEmptyValue = await determineTransactionType(
         txParams,
 
-        new MockEthQuery({} as Provider),
+        new MockEthQuery(new FakeProvider()),
       );
       expect(resultWithEmptyValue).toMatchObject({
         type: TransactionType.tokenMethodTransfer,
@@ -57,7 +58,7 @@ describe('determineTransactionType', () => {
           ...txParams,
         },
 
-        new MockEthQuery({} as Provider),
+        new MockEthQuery(new FakeProvider()),
       );
 
       expect(resultWithEmptyValue2).toMatchObject({
@@ -71,7 +72,7 @@ describe('determineTransactionType', () => {
           ...txParams,
         },
 
-        new MockEthQuery({} as Provider),
+        new MockEthQuery(new FakeProvider()),
       );
       expect(resultWithValue).toMatchObject({
         type: TransactionType.contractInteraction,
@@ -88,7 +89,7 @@ describe('determineTransactionType', () => {
     }
     const result = await determineTransactionType(
       txParams,
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.simpleSend,
@@ -107,7 +108,7 @@ describe('determineTransactionType', () => {
         ...txParams,
         data: '0x095ea7b30000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C9700000000000000000000000000000000000000000000000000000000000000005',
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.tokenMethodApprove,
@@ -127,7 +128,7 @@ describe('determineTransactionType', () => {
         to: '',
         data: '0xabd',
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.deployContract,
@@ -146,7 +147,7 @@ describe('determineTransactionType', () => {
         ...txParams,
         data: '0xabd',
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.simpleSend,
@@ -165,7 +166,7 @@ describe('determineTransactionType', () => {
         ...txParams,
         data: '0xabd',
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.simpleSend,
@@ -184,7 +185,7 @@ describe('determineTransactionType', () => {
         ...txParams,
         data: 'abd',
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.contractInteraction,
@@ -203,7 +204,7 @@ describe('determineTransactionType', () => {
         ...txParams,
         data: '',
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.contractInteraction,
@@ -224,7 +225,7 @@ describe('determineTransactionType', () => {
         value: '0x5af3107a4000',
         data: '0x095ea7b30000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C9700000000000000000000000000000000000000000000000000000000000000005',
       },
-      new MockEthQuery({} as Provider),
+      new MockEthQuery(new FakeProvider()),
     );
     expect(result).toMatchObject({
       type: TransactionType.contractInteraction,

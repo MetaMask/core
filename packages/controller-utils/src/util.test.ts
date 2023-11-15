@@ -1,7 +1,8 @@
-import EthQuery, { type Provider } from '@metamask/eth-query';
+import EthQuery from '@metamask/eth-query';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 
+import { FakeProvider } from '../../../tests/fake-provider';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 import * as util from './util';
 
@@ -443,7 +444,7 @@ describe('util', () => {
           }
         }
         const result = await util.query(
-          new MockEthQuery({} as Provider),
+          new MockEthQuery(new FakeProvider()),
           'getBlockByHash',
           ['0x1234'],
         );
@@ -457,7 +458,7 @@ describe('util', () => {
           }
         }
         await expect(
-          util.query(new MockEthQuery({} as Provider), 'getBlockByHash', [
+          util.query(new MockEthQuery(new FakeProvider()), 'getBlockByHash', [
             '0x1234',
           ]),
         ).rejects.toThrow('uh oh');
@@ -475,7 +476,7 @@ describe('util', () => {
           }
         }
         const result = await util.query(
-          new MockEthQuery({} as Provider),
+          new MockEthQuery(new FakeProvider()),
           'eth_getBlockByHash',
           ['0x1234'],
         );
@@ -489,9 +490,11 @@ describe('util', () => {
           }
         }
         await expect(
-          util.query(new MockEthQuery({} as Provider), 'eth_getBlockByHash', [
-            '0x1234',
-          ]),
+          util.query(
+            new MockEthQuery(new FakeProvider()),
+            'eth_getBlockByHash',
+            ['0x1234'],
+          ),
         ).rejects.toThrow('uh oh');
       });
     });
