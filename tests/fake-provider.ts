@@ -96,52 +96,52 @@ export class FakeProvider extends SafeEventEmitterProvider {
    * @param options.stubs - A set of objects that allow specifying the behavior
    * of specific invocations of `sendAsync` matching a `method`.
    */
-  constructor({ stubs = [] }: FakeProviderEngineOptions) {
+  constructor({ stubs = [] }: FakeProviderEngineOptions = {}) {
     super({ engine: new JsonRpcEngine() });
     this.#originalStubs = stubs;
     this.#stubs = this.#originalStubs.slice();
     this.calledStubs = [];
   }
 
-  send = (
-    payload: JsonRpcRequest<any>,
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+  sendAsync = (
+    payload: JsonRpcRequest,
+    callback: (error: unknown, providerRes?: any) => void,
   ) => {
     return this.#handleSend(payload, callback);
   };
 
-  sendAsync = (
-    payload: JsonRpcRequest<any>,
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+  send = (
+    req: JsonRpcRequest,
+    callback: (error: unknown, providerRes?: any) => void,
   ) => {
-    return this.#handleSend(payload, callback);
+    return this.#handleSend(req, callback);
   };
 
   #handleSend(
-    payload: JsonRpcRequest<any>,
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+    req: JsonRpcRequest,
+    callback: (error: unknown, providerRes?: any) => void,
   ) {
-    if (Array.isArray(payload)) {
+    if (Array.isArray(req)) {
       throw new Error("Arrays aren't supported");
     }
 
     const index = this.#stubs.findIndex((stub) => {
       return (
-        stub.request.method === payload.method &&
+        stub.request.method === req.method &&
         (!('params' in stub.request) ||
-          isDeepStrictEqual(stub.request.params, payload.params))
+          isDeepStrictEqual(stub.request.params, req.params))
       );
     });
 
     if (index === -1) {
       const matchingCalledStubs = this.calledStubs.filter((stub) => {
         return (
-          stub.request.method === payload.method &&
+          stub.request.method === req.method &&
           (!('params' in stub.request) ||
-            isDeepStrictEqual(stub.request.params, payload.params))
+            isDeepStrictEqual(stub.request.params, req.params))
         );
       });
-      let message = `Could not find any stubs matching: ${inspect(payload, {
+      let message = `Could not find any stubs matching: ${inspect(req, {
         depth: null,
       })}`;
       if (matchingCalledStubs.length > 0) {
@@ -153,7 +153,9 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
       throw new Error(message);
     } else {
-      const stub = this.#stubs[index];
+      // We are already checking that this stub exists above.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const stub = this.#stubs[index]!;
 
       if (stub.discardAfterMatching !== false) {
         this.#stubs.splice(index, 1);
