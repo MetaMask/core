@@ -12,3 +12,4 @@ export {
   getPersistentState,
 } from './BaseControllerV2';
 export * from './ControllerMessenger';
+export * from './RestrictedControllerMessenger';
