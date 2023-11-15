@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [19.0.0]
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
-- **BREAKING:** Add optional `networkClientId` and `userAddress` args to remaining `NftController` public methods ([#2006](https://github.com/MetaMask/core/pull/2006))
+- Add optional `networkClientId` and `userAddress` args to remaining `NftController` public methods ([#2006](https://github.com/MetaMask/core/pull/2006))
   - `watchNft`, `removeNft`, `removeAndIgnoreNft`, `removeNftContract`, `updateNftFavoriteStatus`, and `checkAndUpdateAllNftsOwnershipStatus` methods on `NftController` all now accept an optional options object argument containing `networkClientId` and `userAddress` to identify where in state to mutate.
   - **BREAKING**: `addNft` no longer accepts a `chainId` property in its options argument since this value can be retrieved by the `networkClientId` property and is therefore redundant.
   - **BREAKING**: The third and fourth arguments on NftController's `addNftVerifyOwnership` method, have been replaced with an options object containing optional properties `networkClientId`, `userAddress` and `source`. This method signature is more aligned with the options pattern for passing `networkClientId` and `userAddress` on this controller and elsewhere.
