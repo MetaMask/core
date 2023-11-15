@@ -143,9 +143,9 @@ Now that you've categorized the changes being released, the next step is to veri
 
 [Semantic Versioning](https://semver.org/) dictates that versions should be bumped in the following manner:
 
-- If the release contains any breaking changes, bump the **major** (first) part of the version.
-- Otherwise, if it extends the surface area of the package, bump the **minor** (second) part of the version.
-- Otherwise, bump the **patch** (third) part of the version.
+- If the release contains any breaking changes, bump the **MAJOR** (first) part of the version.
+- Otherwise, if it extends the surface area of the package, bump the **MINOR** (second) part of the version.
+- Otherwise, bump the **PATCH** (third) part of the version.
 
 If there are any packages being bumped whose new versions do not align to this scheme, then notify the creator of the release PR so that they can update the versions appropriately.
 
@@ -155,15 +155,18 @@ Next, look over the changelogs of the packages which will be released to ensure 
 
 The [Keep a Changelog](https://keepachangelog.com/) specification defines a standard format for changelogs, and all MetaMask repositories, including the core monorepo, follow this format.
 
-One tenet of Keep a Changelog is that changelog entries should not be mere regurgitations of commit messages or pull request titles. An entry like "Support advanced gas fees in TransactionController" is adequate to understand the content of a commit, but it contains insufficient detail for a changelog. Keep in mind that since consumers use software through an interface, they want to know how that interface will change if they upgrade to a new version. So a changelog entry should list specifics — the classes, methods, functions, and types that have been added, updated, or removed. Also, if a version contains breaking changes, it should explain how consumers who are upgrading to that version will need to change their code in order to adapt to the changes. Consumers should not have to click through pull requests and scan commit diffs to obtain this information.
+One tenet of Keep a Changelog is that **changelog entries should not be mere regurgitations of commit messages or pull request titles**. An entry like "Support advanced gas fees in TransactionController" is adequate to understand the content of a commit, but it contains insufficient detail for a changelog. Keep in mind that since consumers use software through an interface, they want to know how that interface will change if they upgrade to a new version. So, a changelog entry should list specifics, i.e., the classes, methods, functions, and types that have been added, updated, or removed. If a version contains breaking changes, the changelog should explain how consumers who are upgrading to that version will need to adapt to the changes. Either way, consumers should not have to click through pull requests and scan commit diffs to obtain this information.
 
-Finally, a changelog entry should reference one or more pull requests that introduced the change. While `auto-changelog`, the tool that validates changelogs, does not require these pull request references to be present, they are useful so that consumers have an opportunity to dive into the context behind the change if they need to.
+A changelog entry should reference one or more pull requests that introduced the change. While `auto-changelog`, the tool that validates changelogs, does not require these pull request references to be present, they are useful so that consumers have an opportunity to dive into the context behind the change if they need to.
+
+Conversely, some pull requests contain multiple changes and thus may need to split up into multiple changelog entries. That's totally okay!
 
 So, if you find any changelog entries that:
 
 - should be moved to a different category
 - can be reworded to help consumers
 - are missing pull request references
+- can be split up into multiple entries
 
 notify the creator of the release PR, offering a suggestion as necessary.
 
