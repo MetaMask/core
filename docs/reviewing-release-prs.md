@@ -61,13 +61,13 @@ You'll reference these changes in upcoming steps.
 
 ## 2. Review types of changes
 
-Now that you've located new commits, the next step is to begin to classify the changes in those commits so that the changes can be communicated effectively.
+Now that you have a set of commits to reference, the next step is to begin to classify the changes in those commits so that they can be communicated effectively.
 
-First, it's important to understand which changes are important to communicate and which are not. While some developers might care about every single change made to the code, the people who will end up using the packages in this monorepo — consumers — only care about that part of code they can actually see and work with. So here are the changes that are worth announcing:
+First, it's important to understand which changes are important to communicate and which are not. While some developers might care about every single change made to the code, the people who will end up using the packages in this monorepo — consumers — only care about that part of code they can actually see and work with. So here are the changes you will want to consider:
 
 - Changes to interfaces
 - Changes to behavior
-- Changes to runtime dependencies
+- Changes to runtime dependencies (but only additions or upgrades)
 - Changes to consumer-facing documentation
 
 Conversely, you generally should not need to worry about:
@@ -75,12 +75,13 @@ Conversely, you generally should not need to worry about:
 - Changes to internal tooling
 - Changes to developer-only dependencies
 - Changes to contributor-only documentation
+- Removal of runtime dependencies (unless it is being done to improve the size of the package)
 
-With that in mind, there are four categories of changes that determine the level of impact.
+With that in mind, there are three categories to break changes into:
 
 ### Breaking changes
 
-If a consumer upgrades a package to a new version without making any modifications to their code, that version is "breaking" if it causes:
+A change is "breaking" if it is included in a version of a package, which, after a consumer upgrades to it, causes one of the following:
 
 - An error at runtime
 - An error at compile time (e.g., a TypeScript type error)
@@ -94,69 +95,61 @@ Given this, there are many ways a change could be regarded as breaking:
 - Adding a required property to a TypeScript type
 - Narrowing the type of a property in a TypeScript type
 - Narrowing the type of an argument in a function
-- Adding a parameter to a TypeScript type
-- Removing a parameter from a TypeScript type
+- Adding or removing a parameter to a TypeScript type
 - Upgrading a runtime dependency to a version which causes any of the above
 - Removing an export from the package
-- Renaming the package
 - Bumping the minimum supported Node.js version
 
 ### Additions
 
-Minimally, this category could cover any actions that extend the surface area of a package in some way:
+A change is an "addition" if it extends the surface area of a package's API. For example:
 
-- Adding an optional property to an existing type
-- Adding an optional argument to an existing function or method
-- Adding a new export to a package
+- Adding an optional property to an existing type ✔︎
+- Adding an optional argument to an existing function or method ✔︎
+- Adding a new export to a package ✔︎
 
-However, it is important to remember that consumers care about capabilities first and interfaces second. So, some additions could also be more simply regarded as changes. For instance:
+It is important to remember that consumers care about capabilities first and interfaces second, so these would not count as an addition:
 
-- Adding a new dependency
-
-### Removals
-
-In most cases, removing something from a package will cause a breaking change, and thus should be categorized as such. There are some rare instances, however, when this is not the case:
-
-- Removing a runtime dependency
+- Adding a new dependency ✘
 
 ### Fixes
 
-There are a few different kinds of changes that could be filed under this category.
+A change is a "fix" when it corrects unintentional or buggy behavior. For example:
 
-- Fixing a security vulnerability.
-- Correcting a mistake introduced in a previous release. For example, a function was supposed to be included but was not.
-- Realigning confusing or illogical behavior. This is tricky, because the longer buggy behavior is allowed to persist, the more consumers may rely upon it. In this case, it would be more thoughtful to call out a change in this behavior as breaking, even if the new behavior makes more sense. (As an example, read about the [history of MetaMask's signing methods](https://github.com/MetaMask/metamask-docs/blob/72e1a066ea1a81a7964dbc9aa83381493a2cd3eb/wallet/concepts/signing-methods.md).) But for minor cases, a "fix" may be more appropriate.
+- Patching a security vulnerability
+- Correcting a mistake introduced in a previous release (for example, a function was supposed to be included but was not)
+- Realigning confusing or illogical behavior
+
+Note that in some cases, a fix may need to be announced as a breaking change, especially if the undesirable behavior has existed for a while. (As an example, read about the [history of MetaMask's signing methods](https://github.com/MetaMask/metamask-docs/blob/72e1a066ea1a81a7964dbc9aa83381493a2cd3eb/wallet/concepts/signing-methods.md).)
 
 ### Everything else
 
-These constitute changes which cannot be neatly categorized as breaking, or as an addition, deletion, or fix, such as:
+Some changes cannot be neatly categorized as breaking, or as an addition or fix, such as:
 
-- Adding, upgrading, or removing a runtime dependency
+- Adding or upgrading a runtime dependency
 - Modifying behavior in a low-impact, non-surprising way
 
 ## 3. Review new version strings
 
-Now that you understand the changes being made and what sort of impact they are likely to have on consumers, the next step is to verify that the impact is being appropriately communicated via version strings.
+Now that you've categorized the changes being released, the next step is to verify that the versions of each package being bumped accurately embody those categories.
 
-[Semantic Versioning](https://semver.org/) (SemVer) dictates that versions should be bumped in the following manner:
+[Semantic Versioning](https://semver.org/) dictates that versions should be bumped in the following manner:
 
-- If there are any changes you would categorize as a breaking change, bump the **major** (first) part of the version.
-- Otherwise, if there are any changes you would categorize as an addition, bump the **minor** (second) part of the version.
+- If the release contains any breaking changes, bump the **major** (first) part of the version.
+- Otherwise, if it extends the surface area of the package, bump the **minor** (second) part of the version.
 - Otherwise, bump the **patch** (third) part of the version.
 
-If there are any packages being bumped whose new versions understate their impact, then notify the creator of the release PR so that they can update the versions appropriately.
+If there are any packages being bumped whose new versions do not align to this scheme, then notify the creator of the release PR so that they can update the versions appropriately.
 
-## 4. Review existing changelog entries
+## 4. Review wording of existing changelog entries
 
-Next, look over the changelogs in the packages-to-be-released to ensure that they are well formed and that they list all changes that will be released.
+Next, look over the changelogs of the packages which will be released to ensure that they are well formed and that they list all changes that will be released.
 
 The [Keep a Changelog](https://keepachangelog.com/) specification defines a standard format for changelogs, and all MetaMask repositories, including the core monorepo, follow this format.
 
-You might notice that the categories listed in this spec match the same ones listed above in this document. This is not a coincidence!
+One tenet of Keep a Changelog is that changelog entries should not be mere regurgitations of commit messages or pull request titles. An entry like "Support advanced gas fees in TransactionController" is adequate to understand the content of commit, but it is insufficient for a changelog. Keep in mind that consumers use software through an interface. It is fine to provide the greater context for a set of changes in a changelog entry, but at the very least, there should be explicit mention of the pieces of the interface — classes, methods, functions, and types — that have been added, updated, or removed. Also, if a version contains breaking changes, it is essential to explain how consumers who are upgrading to that version will need to change their code in order to adapt to the changes. Either way, consumers should not have to click through pull requests and scan commit diffs to obtain this information.
 
-One tenet of Keep a Changelog is that changelog entries should not be mere regurgitations of commit messages or pull request titles. An item like "Support advanced gas fees in TransactionController" provides adequate clues for others to guess the content of a commit, but it is insufficient for a changelog. Keep in mind how consumers use software: through an interface. It is fine to provide the greater context for a set of changes in a changelog entry, but at the very least, there should be explicit mention of the pieces of the interface — classes, methods, functions, and types — that have been added, updated, or removed. Also, if a version contains breaking changes, it is essential to explain how consumers who are upgrading to that version will need to change their code in order to adapt to the changes. Either way, consumers should not have to click through pull requests and scan commit diffs to obtain this information.
-
-Finally, a changelog entry may reference one or more pull requests that introduced the change. While `auto-changelog`, the tool used to validate changelogs, does not require these references to be present, they are nice to have so that consumers have an opportunity to dive into the context behind the change if they need to.
+Finally, a changelog entry should reference one or more pull requests that introduced the change. While `auto-changelog`, the tool that validates changelogs, does not require these pull request references to be present, they are nice to have so that consumers have an opportunity to dive into the context behind the change if they need to.
 
 Therefore, if there are any changelog entries that should be moved to a different category, or if there are any changelog entries that can be reworded to help consumers, or if there are changelog entries that are missing pull request references, notify the creator of the release PR, offering a suggestion as necessary.
 
@@ -164,9 +157,9 @@ Therefore, if there are any changelog entries that should be moved to a differen
 
 Finally, look over the changelogs one more time to ensure that they aren't missing anything. There are three ways that entries could get omitted:
 
-- Although the `create-release-branch` tool helps to autopopulate changelog entries, it does not remove the human element entirely, and it is possible that the creator of the release PR may have inadvertently removed some entries before pushing up the branch.
-- While a release PR is open, more changes may be made to packages that are already planned for release.
-- Finally, if the version of a package in the monorepo is updated, the manifests of any dependents of that package will be updated so that they match the same version. This is unusual because bumps to dependencies usually happen _before_ a release PR, but is essential to document just the same.
+1. Although the `create-release-branch` tool helps to autopopulate changelog entries, it does not remove the human element entirely, and it is possible that the creator of the release PR may have inadvertently removed some entries before pushing up the branch.
+2. While a release PR is open, pull requests may be merged to `main` which make more changes to packages that are already planned for release.
+3. Finally, if the version of a package in the monorepo is updated, the manifests of any dependents of that package will automatically be updated so that they match the same version. This is unusual because bumps to dependencies usually happen _before_ a release PR, but is essential to document these bumps in the changelogs.
 
 Therefore, review the [changes committed since the previous release](#review-changes) and look for changed versions of workspace dependencies. If any are missing from changelogs, notify the creator of the release PR so that they can add them, offering a suggestion as appropriate.
 
