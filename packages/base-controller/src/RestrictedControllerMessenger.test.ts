@@ -502,6 +502,29 @@ describe('RestrictedControllerMessenger', () => {
     ).not.toThrow();
   });
 
+  it('should allow calling an internal action', () => {
+    type CountAction = {
+      type: 'CountController:count';
+      handler: (increment: number) => void;
+    };
+    const controllerMessenger = new ControllerMessenger<CountAction, never>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: ['CountController:count'],
+    });
+
+    let count = 0;
+    restrictedControllerMessenger.registerActionHandler(
+      'CountController:count',
+      (increment: number) => {
+        count += increment;
+      },
+    );
+    restrictedControllerMessenger.call('CountController:count', 1);
+
+    expect(count).toBe(1);
+  });
+
   it('should allow calling an external action', () => {
     type CountAction = {
       type: 'CountController:count';
@@ -527,6 +550,29 @@ describe('RestrictedControllerMessenger', () => {
     restrictedControllerMessenger.call('CountController:count', 1);
 
     expect(count).toBe(1);
+  });
+
+  it('should allow subscribing to an internal event', () => {
+    type MessageEvent = {
+      type: 'MessageController:message';
+      payload: [string];
+    };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedEvents: ['MessageController:message'],
+    });
+
+    const handler = sinon.stub();
+    restrictedControllerMessenger.subscribe(
+      'MessageController:message',
+      handler,
+    );
+
+    restrictedControllerMessenger.publish('MessageController:message', 'hello');
+
+    expect(handler.calledWithExactly('hello')).toBe(true);
+    expect(handler.callCount).toBe(1);
   });
 
   it('should allow subscribing to an external event', () => {
@@ -577,7 +623,7 @@ describe('RestrictedControllerMessenger', () => {
 
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: ['MessageController:reset', 'CountController:count'],
+      allowedActions: ['CountController:count'],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
@@ -625,7 +671,7 @@ describe('RestrictedControllerMessenger', () => {
 
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:ping', 'CountController:update'],
+      allowedEvents: ['CountController:update'],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',

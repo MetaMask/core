@@ -92,10 +92,9 @@ export class RestrictedControllerMessenger<
    * @throws Will throw if an action handler that is not in the current namespace is being registered.
    * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
    */
-  registerActionHandler<ActionType extends Action['type']>(
-    action: ActionType,
-    handler: ActionHandler<Action, ActionType>,
-  ) {
+  registerActionHandler<
+    ActionType extends Action['type'] & NamespacedName<Namespace>,
+  >(action: ActionType, handler: ActionHandler<Action, ActionType>) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
@@ -117,9 +116,9 @@ export class RestrictedControllerMessenger<
    * @param action - The action type. This is a unqiue identifier for this action.
    * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
    */
-  unregisterActionHandler<ActionType extends NamespacedName<Namespace>>(
-    action: ActionType,
-  ) {
+  unregisterActionHandler<
+    ActionType extends Action['type'] & NamespacedName<Namespace>,
+  >(action: ActionType) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
@@ -139,24 +138,31 @@ export class RestrictedControllerMessenger<
    *
    * The action type being called must be on the action allowlist.
    *
-   * @param action - The action type. This is a unqiue identifier for this action.
+   * @param actionType - The action type. This is a unqiue identifier for this action.
    * @param params - The action parameters. These must match the type of the parameters of the
    * registered action handler.
    * @throws Will throw when no handler has been registered for the given type.
    * @template ActionType - A type union of allowed Action type strings.
    * @returns The action return value.
    */
-  call<ActionType extends AllowedAction & NamespacedName>(
-    action: ActionType,
+  call<
+    ActionType extends
+      | AllowedAction
+      | (Action['type'] & NamespacedName<Namespace>),
+  >(
+    actionType: ActionType,
     ...params: ExtractActionParameters<Action, ActionType>
   ): ExtractActionResponse<Action, ActionType> {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.#allowedActions === null) {
-      throw new Error('No actions allowed');
-    } else if (!this.#allowedActions.includes(action)) {
-      throw new Error(`Action missing from allow list: ${action}`);
+    if (!this.#isAllowedAction(actionType)) {
+      throw new Error(`Action missing from allow list: ${actionType}`);
     }
-    return this.#controllerMessenger.call(action, ...params);
+    const response = this.#controllerMessenger.call<ActionType>(
+      actionType,
+      ...params,
+    );
+
+    return response;
   }
 
   /**
@@ -171,7 +177,7 @@ export class RestrictedControllerMessenger<
    * match the type of this payload.
    * @template EventType - A type union of Event type strings that are namespaced by Namespace.
    */
-  publish<EventType extends NamespacedName<Namespace>>(
+  publish<EventType extends Event['type'] & NamespacedName<Namespace>>(
     event: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
@@ -196,10 +202,11 @@ export class RestrictedControllerMessenger<
    * match the type of the payload for this event type.
    * @template EventType - A type union of Event type strings.
    */
-  subscribe<EventType extends AllowedEvent & NamespacedName>(
-    eventType: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
-  ): void;
+  subscribe<
+    EventType extends
+      | AllowedEvent
+      | (Event['type'] & NamespacedName<Namespace>),
+  >(eventType: EventType, handler: ExtractEventHandler<Event, EventType>): void;
 
   /**
    * Subscribe to an event, with a selector.
@@ -221,7 +228,9 @@ export class RestrictedControllerMessenger<
    * @template SelectorReturnValue - The selector return value.
    */
   subscribe<
-    EventType extends AllowedEvent & NamespacedName,
+    EventType extends
+      | AllowedEvent
+      | (Event['type'] & NamespacedName<Namespace>),
     SelectorReturnValue,
   >(
     eventType: EventType,
@@ -233,7 +242,9 @@ export class RestrictedControllerMessenger<
   ): void;
 
   subscribe<
-    EventType extends AllowedEvent & NamespacedName,
+    EventType extends
+      | AllowedEvent
+      | (Event['type'] & NamespacedName<Namespace>),
     SelectorReturnValue,
   >(
     event: EventType,
@@ -244,9 +255,7 @@ export class RestrictedControllerMessenger<
     >,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.#allowedEvents === null) {
-      throw new Error('No events allowed');
-    } else if (!this.#allowedEvents.includes(event)) {
+    if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
 
@@ -268,14 +277,13 @@ export class RestrictedControllerMessenger<
    * @throws Will throw when the given event handler is not registered for this event.
    * @template EventType - A type union of allowed Event type strings.
    */
-  unsubscribe<EventType extends AllowedEvent & NamespacedName>(
-    event: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
-  ) {
+  unsubscribe<
+    EventType extends
+      | AllowedEvent
+      | (Event['type'] & NamespacedName<Namespace>),
+  >(event: EventType, handler: ExtractEventHandler<Event, EventType>) {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.#allowedEvents === null) {
-      throw new Error('No events allowed');
-    } else if (!this.#allowedEvents.includes(event)) {
+    if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
     this.#controllerMessenger.unsubscribe(event, handler);
@@ -291,15 +299,59 @@ export class RestrictedControllerMessenger<
    * @param event - The event type. This is a unique identifier for this event.
    * @template EventType - A type union of Event type strings that are namespaced by Namespace.
    */
-  clearEventSubscriptions<EventType extends NamespacedName<Namespace>>(
-    event: EventType,
-  ) {
+  clearEventSubscriptions<
+    EventType extends Event['type'] & NamespacedName<Namespace>,
+  >(event: EventType) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!event.startsWith(`${this.#controllerName}:`)) {
+    if (!this.#isInCurrentNamespace(event)) {
       throw new Error(
         `Only allowed clearing events prefixed by '${this.#controllerName}:'`,
       );
     }
     this.#controllerMessenger.clearEventSubscriptions(event);
+  }
+
+  /**
+   * Determine whether the given event type is allowed. Event types are
+   * allowed if they are in the current namespace or on the list of
+   * allowed events.
+   *
+   * @param eventType - The event type to check.
+   * @returns Whether the event type is allowed.
+   */
+  #isAllowedEvent(eventType: Event['type']): eventType is AllowedEvent {
+    // Safely upcast to allow runtime check
+    const allowedEvents: string[] | null = this.#allowedEvents;
+    return (
+      this.#isInCurrentNamespace(eventType) ||
+      (allowedEvents !== null && allowedEvents.includes(eventType))
+    );
+  }
+
+  /**
+   * Determine whether the given action type is allowed. Action types
+   * are allowed if they are in the current namespace or on the list of
+   * allowed actions.
+   *
+   * @param actionType - The action type to check.
+   * @returns Whether the action type is allowed.
+   */
+  #isAllowedAction(actionType: Action['type']): actionType is AllowedAction {
+    // Safely upcast to allow runtime check
+    const allowedActions: string[] | null = this.#allowedActions;
+    return (
+      this.#isInCurrentNamespace(actionType) ||
+      (allowedActions !== null && allowedActions.includes(actionType))
+    );
+  }
+
+  /**
+   * Determine whether the given name is within the current namespace.
+   *
+   * @param name - The name to check
+   * @returns Whether the name is within the current namespace
+   */
+  #isInCurrentNamespace(name: string): name is NamespacedName<Namespace> {
+    return name.startsWith(`${this.#controllerName}:`);
   }
 }
