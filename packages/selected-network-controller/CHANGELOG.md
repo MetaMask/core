@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.1.2]
+### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
 
 ## [3.1.1]
 ### Changed

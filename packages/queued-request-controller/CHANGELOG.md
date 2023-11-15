@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.1.4]
-### Uncategorized
-- Release 90.0.0 ([#2014](https://github.com/MetaMask/core/pull/2014))
-- Revert "Release 90.0.0" ([#2012](https://github.com/MetaMask/core/pull/2012))
-- Release 90.0.0 ([#2011](https://github.com/MetaMask/core/pull/2011))
+### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
 
 ## [0.1.3]
 ### Changed

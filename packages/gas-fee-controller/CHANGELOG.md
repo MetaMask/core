@@ -7,17 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [10.0.1]
-### Uncategorized
-- Fix misaligned mock eth query types in controller tests ([#2037](https://github.com/MetaMask/core/pull/2037))
-- Release 88.0.0 ([#1996](https://github.com/MetaMask/core/pull/1996))
-- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
-- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
-- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
-- Re-enable @typescript-eslint/no-loss-of-precision ([#1939](https://github.com/MetaMask/core/pull/1939))
-- Release/86.0.0 ([#1956](https://github.com/MetaMask/core/pull/1956))
-
 ### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [10.0.0]
 ### Added
