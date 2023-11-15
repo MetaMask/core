@@ -7,45 +7,45 @@ export type ActionHandler<
 
 export type ExtractActionParameters<
   Action extends ActionConstraint,
-  T = Action['type'],
+  ActionType = Action['type'],
 > = Action extends {
-  type: T;
-  handler: (...args: infer H) => unknown;
+  type: ActionType;
+  handler: (...args: infer HandlerArgs) => unknown;
 }
-  ? H
+  ? HandlerArgs
   : never;
 
 export type ExtractActionResponse<
   Action extends ActionConstraint,
-  T = Action['type'],
+  ActionType = Action['type'],
 > = Action extends {
-  type: T;
-  handler: (...args: infer _) => infer H;
+  type: ActionType;
+  handler: (...args: infer _) => infer HandlerReturnValue;
 }
-  ? H
+  ? HandlerReturnValue
   : never;
 
 export type ExtractEventHandler<
   Event extends EventConstraint,
-  T = Event['type'],
+  EventType = Event['type'],
 > = Event extends {
-  type: T;
-  payload: infer P;
+  type: EventType;
+  payload: infer Payload;
 }
-  ? P extends unknown[]
-    ? (...payload: P) => void
+  ? Payload extends unknown[]
+    ? (...payload: Payload) => void
     : never
   : never;
 
 export type ExtractEventPayload<
   Event extends EventConstraint,
-  T = Event['type'],
+  EventType = Event['type'],
 > = Event extends {
-  type: T;
-  payload: infer P;
+  type: EventType;
+  payload: infer Payload;
 }
-  ? P extends unknown[]
-    ? P
+  ? Payload extends unknown[]
+    ? Payload
     : never
   : never;
 
@@ -181,7 +181,7 @@ export class RestrictedControllerMessenger<
    * @param action - The action type. This is a unqiue identifier for this action.
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
-* @throws Will throw if an action handler that is not in the current namespace is being registered.
+   * @throws Will throw if an action handler that is not in the current namespace is being registered.
    * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
    */
   registerActionHandler<ActionType extends Action['type']>(
