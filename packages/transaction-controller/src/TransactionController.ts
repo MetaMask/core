@@ -435,7 +435,6 @@ export class TransactionController extends BaseController<
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
-    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -523,7 +522,6 @@ export class TransactionController extends BaseController<
     this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
-      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
       this.onBootCleanup();
@@ -1431,6 +1429,86 @@ export class TransactionController extends BaseController<
     return rawTransactions;
   }
 
+  /**
+   * Update a custodial transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param options - The custodial transaction options to update.
+   * @param options.custodyStatus - The new custody status value to be assigned.
+   * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
+   * @param options.hash - The new hash value to be assigned.
+   * @param options.status - The new status value to be assigned.
+   */
+  updateCustodialTransaction(
+    transactionId: string,
+    {
+      custodyStatus,
+      errorMessage,
+      hash,
+      status,
+    }: {
+      custodyStatus?: string;
+      errorMessage?: string;
+      hash?: string;
+      status?: TransactionStatus;
+    },
+  ) {
+    let transactionMeta;
+    transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update custodial transaction as no transaction metadata found`,
+      );
+    }
+
+    if (!transactionMeta.custodyId) {
+      throw new Error('Transaction must be a custodian transaction');
+    }
+
+    if (
+      status &&
+      ![
+        TransactionStatus.submitted,
+        TransactionStatus.signed,
+        TransactionStatus.failed,
+      ].includes(status)
+    ) {
+      throw new Error(
+        `Cannot update custodial transaction with status: ${status}`,
+      );
+    }
+    if (status === TransactionStatus.signed) {
+      transactionMeta.status = status;
+    }
+
+    if (status === TransactionStatus.submitted) {
+      transactionMeta.submittedTime = new Date().getTime();
+      transactionMeta.status = status;
+    }
+
+    if (status === TransactionStatus.failed) {
+      transactionMeta = {
+        ...transactionMeta,
+        error: normalizeTxError(new Error(errorMessage)),
+        status: TransactionStatus.failed,
+      };
+    }
+
+    if (custodyStatus) {
+      transactionMeta.custodyStatus = custodyStatus;
+    }
+
+    if (hash) {
+      transactionMeta.hash = hash;
+    }
+
+    this.updateTransaction(
+      transactionMeta,
+      `TransactionController:updateCustodialTransaction - Custodial transaction updated`,
+    );
+  }
+
   private async signExternalTransaction(
     transactionParams: TransactionParams,
   ): Promise<string> {
@@ -1438,15 +1516,15 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const normalizedtransactionParams = normalizeTxParams(transactionParams);
+    const normalizedTransactionParams = normalizeTxParams(transactionParams);
     const chainId = this.getChainId();
-    const type = isEIP1559Transaction(normalizedtransactionParams)
+    const type = isEIP1559Transaction(normalizedTransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
     const updatedTransactionParams = {
-      ...normalizedtransactionParams,
+      ...normalizedTransactionParams,
       type,
-      gasLimit: normalizedtransactionParams.gas,
+      gasLimit: normalizedTransactionParams.gas,
       chainId,
     };
 
