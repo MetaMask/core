@@ -75,7 +75,8 @@ First, it's important to understand which changes are important to communicate a
 
 - Changes to interfaces ✅
 - Changes to behavior ✅
-- Changes to runtime dependencies (but only additions or upgrades) ✅
+- Additions of runtime dependencies ✅
+- Upgrades to runtime dependencies ✅
 - Changes to consumer-facing documentation ✅
 
 Conversely, you generally should not need to worry about:
@@ -89,7 +90,7 @@ With that in mind, there are three ways changes can be categorized:
 
 ### Breaking changes
 
-A change is "breaking" if it is included in a version of a package, which, after a consumer upgrades to it, causes one of the following:
+A change is "breaking" if it is included in a version of a package, which, after a consumer upgrades to it and makes no further changes, causes one of the following:
 
 - An error at runtime
 - An error at compile time (e.g., a TypeScript type error)
