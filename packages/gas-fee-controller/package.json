@@ -33,8 +33,8 @@
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/network-controller": "^15.2.0",
-    "@metamask/polling-controller": "^1.0.1",
+    "@metamask/network-controller": "^16.0.0",
+    "@metamask/polling-controller": "^1.0.2",
     "@metamask/utils": "^8.2.0",
     "@types/uuid": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
@@ -57,7 +57,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^15.2.0"
+    "@metamask/network-controller": "^16.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
