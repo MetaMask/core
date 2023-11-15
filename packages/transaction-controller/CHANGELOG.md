@@ -51,7 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change `initApprovals` method based on the extension ([#1867](https://github.com/MetaMask/core/pull/1867))
   - Catch of the `initApprovals` method to skip logging when the error is `userRejectedRequest`.
 - `stopTransaction` now creates a cancel transaction with same nonce instead of changing type to cancel ([#1998](https://github.com/MetaMask/core/pull/1998))
-- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
