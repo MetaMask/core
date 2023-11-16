@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [5.0.0]
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to ^9.0.0
-- Bump snaps-utils and snaps-controller to 3.2.0 ([#1977](https://github.com/MetaMask/core/pull/1977))
+- Bump snaps-utils and snaps-controller to 3.2.0 ([#1944](https://github.com/MetaMask/core/pull/1944), [#1977](https://github.com/MetaMask/core/pull/1977))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 - Bump @metamask/keyring-api from 1.0.0 to 1.1.0 ([#1951](https://github.com/MetaMask/core/pull/1951))
 - Bump @metamask/snaps-utils from 3.0.0 to 3.1.0 ([#1917](https://github.com/MetaMask/core/pull/1917))
-- Bump @metamask/snaps-controllers from 3.0.0 to 3.1.1 ([#1944](https://github.com/MetaMask/core/pull/1944))
 
 ## [4.0.0]
 ### Changed
