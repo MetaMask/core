@@ -67,7 +67,7 @@ git diff @metamask/<package-name>@<current-version>..HEAD -- packages/<package-n
 
 You'll reference these changes in upcoming steps.
 
-## 2. Review types of changes
+## 3. Review types of changes
 
 Now that you have a better sense of the changes, the next step is to begin to classify them so that they can be communicated effectively.
 
@@ -138,7 +138,7 @@ Some changes cannot be neatly categorized as breaking, or as an addition or fix,
 - Adding or upgrading a runtime dependency
 - Modifying behavior in a low-impact, non-surprising way
 
-## 3. Review new version strings
+## 4. Review new version strings
 
 Now that you've categorized the changes being released, the next step is to verify that the versions of each package being bumped accurately embody those categories.
 
@@ -150,7 +150,7 @@ Now that you've categorized the changes being released, the next step is to veri
 
 If there are any packages being bumped whose new versions do not align to this scheme, then notify the creator of the release PR so that they can update the versions appropriately.
 
-## 4. Review wording of existing changelog entries
+## 5. Review wording of existing changelog entries
 
 Next, look over the changelogs of the packages which will be released to ensure that they are well formed and that they list all changes that will be released.
 
@@ -160,7 +160,7 @@ One tenet of Keep a Changelog is that **changelog entries should not be mere reg
 
 A changelog entry should reference one or more pull requests that introduced the change. While `auto-changelog`, the tool that validates changelogs, does not require these pull request references to be present, they are useful so that consumers have an opportunity to dive into the context behind the change if they need to.
 
-Conversely, some pull requests contain multiple changes and thus may need to split up into multiple changelog entries. That's totally okay!
+Conversely, some pull requests contain multiple changes and thus may need to split up into multiple changelog entries.
 
 So, if you find any changelog entries that:
 
@@ -171,7 +171,7 @@ So, if you find any changelog entries that:
 
 notify the creator of the release PR, offering a suggestion as necessary.
 
-## 5. Add missing changelog entries
+## 6. Add missing changelog entries
 
 Finally, look over the changelogs one more time to ensure that they aren't missing anything. There are three ways that entries could get omitted:
 
@@ -181,6 +181,6 @@ Finally, look over the changelogs one more time to ensure that they aren't missi
 
 Therefore, review the [changes committed since the previous release](#review-changes) and look for changed versions of workspace dependencies. If any are missing from changelogs, notify the creator of the release PR so that they can add them, offering a suggestion as appropriate.
 
-## 6. Approve the release
+## 7. Approve the release
 
 That's it! You can now rest easy knowing that all of the changes in the new release are accounted for and that consumers will be sufficiently notified once it has been created.
