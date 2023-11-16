@@ -141,7 +141,9 @@ describe('Token service', () => {
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+        )
         .reply(200, sampleTokenList)
         .persist();
 
@@ -153,7 +155,9 @@ describe('Token service', () => {
     it('should return undefined if the fetch is aborted', async () => {
       const abortController = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+        )
         // well beyond time it will take to abort
         .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
@@ -171,7 +175,9 @@ describe('Token service', () => {
     it('should return undefined if the fetch fails with a network error', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+        )
         .replyWithError('Example network error')
         .persist();
 
@@ -183,7 +189,9 @@ describe('Token service', () => {
     it('should return undefined if the fetch fails with an unsuccessful status code', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+        )
         .reply(500)
         .persist();
 
@@ -195,7 +203,9 @@ describe('Token service', () => {
     it('should return undefined if the fetch fails with a timeout', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleDecimalChainId}`)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+        )
         // well beyond timeout
         .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
@@ -308,17 +318,5 @@ describe('Token service', () => {
         ),
       ).rejects.toThrow(TOKEN_METADATA_NO_SUPPORT_ERROR);
     });
-  });
-
-  it('should call the tokens api and return undefined', async () => {
-    const { signal } = new AbortController();
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${sampleDecimalChainId}`)
-      .reply(404, undefined)
-      .persist();
-
-    const tokens = await fetchTokenListByChainId(sampleChainId, signal);
-
-    expect(tokens).toBeUndefined();
   });
 });

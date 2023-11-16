@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Update TokenListController to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
 
 ## [19.0.0]
 ### Changed
