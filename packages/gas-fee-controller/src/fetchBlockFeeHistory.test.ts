@@ -1,7 +1,9 @@
 import { query, fromHex, toHex } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import { BN } from 'ethereumjs-util';
 import { when } from 'jest-when';
 
+import { FakeProvider } from '../../../tests/fake-provider';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 
 jest.mock('@metamask/controller-utils', () => {
@@ -33,23 +35,20 @@ function times<T>(n: number, fn: (n: number) => T): T[] {
 }
 
 describe('fetchBlockFeeHistory', () => {
-  const ethQuery = { eth: 'query' };
-
+  const mockEthQuery = new EthQuery(new FakeProvider());
   describe('with a minimal set of arguments', () => {
     const latestBlockNumber = 3;
     const numberOfRequestedBlocks = 3;
 
     beforeEach(() => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'blockNumber')
+        .calledWith(mockEthQuery, 'blockNumber')
         .mockResolvedValue(new BN(latestBlockNumber));
     });
 
     it('should return a representation of fee history from the Ethereum network, organized by block rather than type of data', async () => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(numberOfRequestedBlocks),
           toHex(latestBlockNumber),
           [],
@@ -70,7 +69,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
       });
 
@@ -98,8 +97,7 @@ describe('fetchBlockFeeHistory', () => {
 
     it('should be able to handle an "empty" response from eth_feeHistory', async () => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(numberOfRequestedBlocks),
           toHex(latestBlockNumber),
           [],
@@ -111,7 +109,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
       });
 
@@ -120,8 +118,7 @@ describe('fetchBlockFeeHistory', () => {
 
     it('should be able to handle an response with undefined baseFeePerGas from eth_feeHistory', async () => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(numberOfRequestedBlocks),
           toHex(latestBlockNumber),
           [],
@@ -132,7 +129,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
       });
 
@@ -158,8 +155,7 @@ describe('fetchBlockFeeHistory', () => {
       });
 
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'blockNumber')
+        .calledWith(mockEthQuery, 'blockNumber')
         .mockResolvedValue(new BN(latestBlockNumber));
 
       expectedChunks.forEach(({ startBlockNumber, endBlockNumber }) => {
@@ -171,8 +167,7 @@ describe('fetchBlockFeeHistory', () => {
           .map((block) => block.gasUsedRatio);
 
         when(mockedQuery)
-          // @ts-expect-error Mock eth query does not fulfill type requirements
-          .calledWith(ethQuery, 'eth_feeHistory', [
+          .calledWith(mockEthQuery, 'eth_feeHistory', [
             toHex(endBlockNumber - startBlockNumber + 1),
             toHex(endBlockNumber),
             [],
@@ -185,7 +180,7 @@ describe('fetchBlockFeeHistory', () => {
       });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
       });
 
@@ -208,8 +203,7 @@ describe('fetchBlockFeeHistory', () => {
       const numberOfRequestedBlocks = 3;
       const endBlock = new BN(latestBlockNumber);
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(numberOfRequestedBlocks),
           toHex(endBlock),
           [],
@@ -221,7 +215,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
         endBlock,
       });
@@ -236,15 +230,13 @@ describe('fetchBlockFeeHistory', () => {
 
     beforeEach(() => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'blockNumber')
+        .calledWith(mockEthQuery, 'blockNumber')
         .mockResolvedValue(new BN(latestBlockNumber));
     });
 
     it('should match each item in the "reward" key from the response to its percentile', async () => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(numberOfRequestedBlocks),
           toHex(latestBlockNumber),
           [10, 20, 30],
@@ -278,7 +270,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
         percentiles: [10, 20, 30],
       });
@@ -319,8 +311,7 @@ describe('fetchBlockFeeHistory', () => {
 
     it('should be able to handle an "empty" response from eth_feeHistory including an empty "reward" array', async () => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(numberOfRequestedBlocks),
           toHex(latestBlockNumber),
           [10, 20, 30],
@@ -333,7 +324,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
         percentiles: [10, 20, 30],
       });
@@ -348,8 +339,7 @@ describe('fetchBlockFeeHistory', () => {
 
     it('includes an extra block with an estimated baseFeePerGas', async () => {
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(numberOfRequestedBlocks),
           toHex(latestBlockNumber),
           [],
@@ -370,7 +360,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       const feeHistory = await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
         includeNextBlock: true,
       });
@@ -415,8 +405,7 @@ describe('fetchBlockFeeHistory', () => {
       const endBlock = new BN(latestBlockNumber);
 
       when(mockedQuery)
-        // @ts-expect-error Mock eth query does not fulfill type requirements
-        .calledWith(ethQuery, 'eth_feeHistory', [
+        .calledWith(mockEthQuery, 'eth_feeHistory', [
           toHex(latestBlockNumber),
           toHex(latestBlockNumber),
           [],
@@ -429,7 +418,7 @@ describe('fetchBlockFeeHistory', () => {
         });
 
       await fetchBlockFeeHistory({
-        ethQuery,
+        ethQuery: mockEthQuery,
         numberOfBlocks: numberOfRequestedBlocks,
         endBlock,
       });
