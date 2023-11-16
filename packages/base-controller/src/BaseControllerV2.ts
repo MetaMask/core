@@ -2,11 +2,8 @@ import type { Json } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-import type {
-  ActionConstraint,
-  EventConstraint,
-  RestrictedControllerMessenger,
-} from './ControllerMessenger';
+import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
+import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
 enablePatches();
 
