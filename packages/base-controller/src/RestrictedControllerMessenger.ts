@@ -61,6 +61,8 @@ export class RestrictedControllerMessenger<
    * should be alowed to call.
    * @param options.allowedEvents - The list of events that this restricted controller messenger
    * should be allowed to subscribe to.
+   * @throws Will throw if an internal action that is in the current namespace is being registered as an allowed action
+   * @throws Will throw if an internal event that is in the current namespace is being registered as an allowed event.
    */
   constructor({
     controllerMessenger,
@@ -75,7 +77,21 @@ export class RestrictedControllerMessenger<
   }) {
     this.#controllerMessenger = controllerMessenger;
     this.#controllerName = name;
+    if (allowedActions?.some((action) => this.#isInCurrentNamespace(action))) {
+      throw new Error(
+        `Only allow listing external actions not prefixed by '${
+          this.#controllerName
+        }:'`,
+      );
+    }
     this.#allowedActions = allowedActions || null;
+    if (allowedEvents?.some((event) => this.#isInCurrentNamespace(event))) {
+      throw new Error(
+        `Only allow listing external events not prefixed by '${
+          this.#controllerName
+        }:'`,
+      );
+    }
     this.#allowedEvents = allowedEvents || null;
   }
 
