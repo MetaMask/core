@@ -1375,7 +1375,7 @@ __metadata:
     "@metamask/keyring-api": ^1.1.0
     "@metamask/keyring-controller": ^8.1.0
     "@metamask/snaps-controllers": ^3.2.0
-    "@metamask/snaps-utils": ^3.2.0
+    "@metamask/snaps-utils": ^4.0.1
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
@@ -2545,6 +2545,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/snaps-sdk@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@metamask/snaps-sdk@npm:1.1.0"
+  dependencies:
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/providers": ^13.0.0
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/utils": ^8.1.0
+    is-svg: ^4.4.0
+    superstruct: ^1.0.3
+  checksum: bd4dd25959bab214c3f9c0235e3b94740f900ced64b0ca09afbdedff8d927ff127b8d009fed285359be1c057eb57dd27aa824a6b331026baae7c674bee75c6e2
+  languageName: node
+  linkType: hard
+
 "@metamask/snaps-ui@npm:^3.0.1, @metamask/snaps-ui@npm:^3.1.0":
   version: 3.1.0
   resolution: "@metamask/snaps-ui@npm:3.1.0"
@@ -2611,6 +2625,35 @@ __metadata:
     superstruct: ^1.0.3
     validate-npm-package-name: ^5.0.0
   checksum: 1e7ed6b0f0392c09708eb2537bc58ba41f5a55176741c1c79aeb11cb37e6976cc69c2010fec84618f21d50e84e33cfef056e19c55c50f76cc4e9f85bbf9ca2ae
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-utils@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "@metamask/snaps-utils@npm:4.0.1"
+  dependencies:
+    "@babel/core": ^7.23.2
+    "@babel/types": ^7.23.0
+    "@metamask/base-controller": ^3.2.0
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/permission-controller": ^5.0.0
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/snaps-registry": ^2.1.0
+    "@metamask/snaps-sdk": ^1.1.0
+    "@metamask/utils": ^8.1.0
+    "@noble/hashes": ^1.3.1
+    "@scure/base": ^1.1.1
+    chalk: ^4.1.2
+    cron-parser: ^4.5.0
+    fast-deep-equal: ^3.1.3
+    fast-json-stable-stringify: ^2.1.0
+    is-svg: ^4.4.0
+    rfdc: ^1.3.0
+    semver: ^7.5.4
+    ses: ^0.18.8
+    superstruct: ^1.0.3
+    validate-npm-package-name: ^5.0.0
+  checksum: 381a031b6ec5fe62cf3ecf2706f9de49820ba9a092ff16245fec60d56dbe665df793e5e7cb20777ef0cfebba56eec0610e9e2b520e2ba715bc3260f7e0d0df7e
   languageName: node
   linkType: hard
 
