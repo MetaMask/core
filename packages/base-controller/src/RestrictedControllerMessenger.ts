@@ -33,16 +33,16 @@ export class RestrictedControllerMessenger<
   AllowedAction extends string,
   AllowedEvent extends string,
 > {
-  private readonly controllerMessenger: ControllerMessenger<
+  readonly #controllerMessenger: ControllerMessenger<
     ActionConstraint,
     EventConstraint
   >;
 
-  private readonly controllerName: Namespace;
+  readonly #controllerName: Namespace;
 
-  private readonly allowedActions: AllowedAction[] | null;
+  readonly #allowedActions: AllowedAction[] | null;
 
-  private readonly allowedEvents: AllowedEvent[] | null;
+  readonly #allowedEvents: AllowedEvent[] | null;
 
   /**
    * Constructs a restricted controller messenger
@@ -73,10 +73,10 @@ export class RestrictedControllerMessenger<
     allowedActions?: AllowedAction[];
     allowedEvents?: AllowedEvent[];
   }) {
-    this.controllerMessenger = controllerMessenger;
-    this.controllerName = name;
-    this.allowedActions = allowedActions || null;
-    this.allowedEvents = allowedEvents || null;
+    this.#controllerMessenger = controllerMessenger;
+    this.#controllerName = name;
+    this.#allowedActions = allowedActions || null;
+    this.#allowedEvents = allowedEvents || null;
   }
 
   /**
@@ -97,12 +97,14 @@ export class RestrictedControllerMessenger<
     handler: ActionHandler<Action, ActionType>,
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!action.startsWith(`${this.controllerName}:`)) {
+    if (!action.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed registering action handlers prefixed by '${this.controllerName}:'`,
+        `Only allowed registering action handlers prefixed by '${
+          this.#controllerName
+        }:'`,
       );
     }
-    this.controllerMessenger.registerActionHandler(action, handler);
+    this.#controllerMessenger.registerActionHandler(action, handler);
   }
 
   /**
@@ -119,12 +121,14 @@ export class RestrictedControllerMessenger<
     action: ActionType,
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!action.startsWith(`${this.controllerName}:`)) {
+    if (!action.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed unregistering action handlers prefixed by '${this.controllerName}:'`,
+        `Only allowed unregistering action handlers prefixed by '${
+          this.#controllerName
+        }:'`,
       );
     }
-    this.controllerMessenger.unregisterActionHandler(action);
+    this.#controllerMessenger.unregisterActionHandler(action);
   }
 
   /**
@@ -147,12 +151,12 @@ export class RestrictedControllerMessenger<
     ...params: ExtractActionParameters<Action, ActionType>
   ): ExtractActionResponse<Action, ActionType> {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.allowedActions === null) {
+    if (this.#allowedActions === null) {
       throw new Error('No actions allowed');
-    } else if (!this.allowedActions.includes(action)) {
+    } else if (!this.#allowedActions.includes(action)) {
       throw new Error(`Action missing from allow list: ${action}`);
     }
-    return this.controllerMessenger.call(action, ...params);
+    return this.#controllerMessenger.call(action, ...params);
   }
 
   /**
@@ -172,12 +176,12 @@ export class RestrictedControllerMessenger<
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!event.startsWith(`${this.controllerName}:`)) {
+    if (!event.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed publishing events prefixed by '${this.controllerName}:'`,
+        `Only allowed publishing events prefixed by '${this.#controllerName}:'`,
       );
     }
-    this.controllerMessenger.publish(event, ...payload);
+    this.#controllerMessenger.publish(event, ...payload);
   }
 
   /**
@@ -240,16 +244,16 @@ export class RestrictedControllerMessenger<
     >,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.allowedEvents === null) {
+    if (this.#allowedEvents === null) {
       throw new Error('No events allowed');
-    } else if (!this.allowedEvents.includes(event)) {
+    } else if (!this.#allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
 
     if (selector) {
-      return this.controllerMessenger.subscribe(event, handler, selector);
+      return this.#controllerMessenger.subscribe(event, handler, selector);
     }
-    return this.controllerMessenger.subscribe(event, handler);
+    return this.#controllerMessenger.subscribe(event, handler);
   }
 
   /**
@@ -269,12 +273,12 @@ export class RestrictedControllerMessenger<
     handler: ExtractEventHandler<Event, EventType>,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.allowedEvents === null) {
+    if (this.#allowedEvents === null) {
       throw new Error('No events allowed');
-    } else if (!this.allowedEvents.includes(event)) {
+    } else if (!this.#allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
-    this.controllerMessenger.unsubscribe(event, handler);
+    this.#controllerMessenger.unsubscribe(event, handler);
   }
 
   /**
@@ -291,11 +295,11 @@ export class RestrictedControllerMessenger<
     event: EventType,
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!event.startsWith(`${this.controllerName}:`)) {
+    if (!event.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed clearing events prefixed by '${this.controllerName}:'`,
+        `Only allowed clearing events prefixed by '${this.#controllerName}:'`,
       );
     }
-    this.controllerMessenger.clearEventSubscriptions(event);
+    this.#controllerMessenger.clearEventSubscriptions(event);
   }
 }
