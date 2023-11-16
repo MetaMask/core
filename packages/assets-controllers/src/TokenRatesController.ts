@@ -521,7 +521,7 @@ export class TokenRatesController extends PollingControllerV1<
    * @param nativeCurrency - The native currency ticker against which to fetch exchange rates
    * @param chainSlug - The unique slug used to id the chain by the coingecko api
    * should be used to query token exchange rates.
-   * @param tokenAddresses - The addresses for the token contracts.
+   * @param tokenAddresses - The addresses for the token contracts against which to fetch exchange rates.
    * @returns An object with conversion rates for each token
    * related to the network's native currency.
    */
