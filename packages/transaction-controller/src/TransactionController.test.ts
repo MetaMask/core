@@ -2524,12 +2524,17 @@ describe('TransactionController', () => {
 
     it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
       const droppedEventListener = jest.fn();
+      const changedStatusEventListener = jest.fn();
       const controller = newController({
         options: {
           disableHistory: true,
         },
       });
       controller.hub.on('transaction-dropped', droppedEventListener);
+      controller.hub.on(
+        'transaction-status-update',
+        changedStatusEventListener,
+      );
 
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
@@ -2552,7 +2557,7 @@ describe('TransactionController', () => {
       };
       const externalBaseFeePerGas = '0x14';
 
-      // Submitted local unapproved transaction
+      // Local unapproved transaction
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
         id: localTransactionIdWithSameNonce,
@@ -2576,6 +2581,10 @@ describe('TransactionController', () => {
         (transaction) => transaction.id === localTransactionIdWithSameNonce,
       );
 
+      const externalTx = controller.state.transactions.find(
+        (transaction) => transaction.id === externalTransactionId,
+      );
+
       expect(droppedTx?.status).toBe(TransactionStatus.dropped);
 
       expect(droppedTx?.replacedById).toBe(externalTransactionId);
@@ -2584,6 +2593,14 @@ describe('TransactionController', () => {
       expect(droppedEventListener).toHaveBeenCalledTimes(1);
       expect(droppedEventListener).toHaveBeenCalledWith({
         transactionMeta: droppedTx,
+      });
+
+      expect(changedStatusEventListener).toHaveBeenCalledTimes(2);
+      expect(changedStatusEventListener.mock.calls[0][0]).toStrictEqual({
+        transactionMeta: droppedTx,
+      });
+      expect(changedStatusEventListener.mock.calls[1][0]).toStrictEqual({
+        transactionMeta: externalTx,
       });
     });
 
@@ -3305,9 +3322,14 @@ describe('TransactionController', () => {
     });
 
     it('sets status to failed on transaction-failed event', async () => {
+      const changedStatusEventListener = jest.fn();
       const controller = newController({
         options: { disableHistory: true },
       });
+      controller.hub.on(
+        'transaction-status-update',
+        changedStatusEventListener,
+      );
 
       const errorMock = new Error('TestError');
       const expectedTransactionError: TransactionError = {
@@ -3326,13 +3348,18 @@ describe('TransactionController', () => {
         errorMock,
       );
 
-      expect(controller.state.transactions).toStrictEqual([
-        {
-          ...TRANSACTION_META_MOCK,
-          status: TransactionStatus.failed,
-          error: expectedTransactionError,
-        },
-      ]);
+      const failedTx = {
+        ...TRANSACTION_META_MOCK,
+        status: TransactionStatus.failed,
+        error: expectedTransactionError,
+      };
+
+      expect(controller.state.transactions[0]).toStrictEqual(failedTx);
+
+      expect(changedStatusEventListener).toHaveBeenCalledTimes(1);
+      expect(changedStatusEventListener).toHaveBeenCalledWith({
+        transactionMeta: failedTx,
+      });
     });
 
     it('updates transaction on transaction-updated event', async () => {
