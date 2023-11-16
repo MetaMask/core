@@ -1430,7 +1430,6 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
@@ -1449,7 +1448,6 @@ __metadata:
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    immer: ^9.0.6
     jest: ^27.5.1
     nanoid: ^3.1.31
     sinon: ^9.2.4
@@ -1488,7 +1486,6 @@ __metadata:
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
-    immer: ^9.0.6
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
     multiformats: ^9.5.2
@@ -1879,7 +1876,6 @@ __metadata:
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
     ethjs-unit: ^0.1.6
-    immer: ^9.0.6
     jest: ^27.5.1
     jest-when: ^3.4.2
     nock: ^13.3.1
@@ -2060,7 +2056,6 @@ __metadata:
     "@types/jest": ^27.4.1
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
-    immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
@@ -2114,7 +2109,6 @@ __metadata:
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    immer: ^9.0.6
     jest: ^27.5.1
     nanoid: ^3.1.31
     ts-jest: ^27.1.4
@@ -2337,7 +2331,6 @@ __metadata:
     "@metamask/rpc-errors": ^6.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
@@ -2421,7 +2414,6 @@ __metadata:
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
-    immer: ^9.0.6
     jest: ^27.5.1
     lodash: ^4.17.21
     ts-jest: ^27.1.4

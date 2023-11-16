@@ -33,8 +33,7 @@
   "dependencies": {
     "@metamask/base-controller": "^3.2.3",
     "@metamask/utils": "^8.2.0",
-    "async-mutex": "^0.2.6",
-    "immer": "^9.0.6"
+    "async-mutex": "^0.2.6"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.3",

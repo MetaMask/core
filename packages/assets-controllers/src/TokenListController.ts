@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -9,7 +13,6 @@ import type {
 import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import type { Patch } from 'immer';
 
 import {
   isTokenListSupportedForNetwork,
@@ -49,21 +52,28 @@ export type TokenListState = {
   preventPollingOnNetworkRestart: boolean;
 };
 
-export type TokenListStateChange = {
-  type: `${typeof name}:stateChange`;
-  payload: [TokenListState, Patch[]];
-};
+export type TokenListStateChange = ControllerStateChangeEvent<
+  typeof name,
+  TokenListState
+>;
 
-export type GetTokenListState = {
-  type: `${typeof name}:getState`;
-  handler: () => TokenListState;
-};
+export type TokenListControllerEvents = TokenListStateChange;
+
+export type GetTokenListState = ControllerGetStateAction<
+  typeof name,
+  TokenListState
+>;
+
+export type TokenListControllerActions = GetTokenListState;
+
+type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
-  TokenListStateChange | NetworkControllerStateChangeEvent,
-  NetworkControllerGetNetworkClientByIdAction['type'],
-  TokenListStateChange['type'] | NetworkControllerStateChangeEvent['type']
+  TokenListControllerActions | AllowedActions,
+  TokenListControllerEvents | NetworkControllerStateChangeEvent,
+  AllowedActions['type'],
+  (TokenListControllerEvents | NetworkControllerStateChangeEvent)['type']
 >;
 
 const metadata = {

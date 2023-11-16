@@ -39,7 +39,6 @@
     "@types/uuid": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
     "ethjs-unit": "^0.1.6",
-    "immer": "^9.0.6",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
