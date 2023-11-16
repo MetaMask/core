@@ -1538,7 +1538,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/browser-passworder@npm:^4.1.0":
+"@metamask/browser-passworder@npm:^4.2.0":
   version: 4.2.0
   resolution: "@metamask/browser-passworder@npm:4.2.0"
   dependencies:
@@ -1790,18 +1790,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-keyring-controller@npm:^14.0.0":
-  version: 14.0.0
-  resolution: "@metamask/eth-keyring-controller@npm:14.0.0"
+"@metamask/eth-keyring-controller@npm:^15.0.0":
+  version: 15.0.0
+  resolution: "@metamask/eth-keyring-controller@npm:15.0.0"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
-    "@metamask/browser-passworder": ^4.1.0
+    "@metamask/browser-passworder": ^4.2.0
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.0
-    "@metamask/eth-simple-keyring": ^6.0.0
+    "@metamask/eth-simple-keyring": ^6.0.1
     "@metamask/obs-store": ^8.1.0
-    "@metamask/utils": ^8.1.0
-  checksum: 56337a2e129b7def7255a4099a574b837371db0151856451cbb40a17a0ef381d965d8afc38d48b6d8f3293c2643c9fe22340a155055b27e959de33932dd9f19d
+    "@metamask/utils": ^8.2.0
+  checksum: b878c47f58b06833584e933d4886be17c20766398e007d221bd252badf58ded8012ee41922116e9e8962ec3de00722d85a9e361f4d066c9c7d727a715c6831f7
   languageName: node
   linkType: hard
 
@@ -1830,7 +1830,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-simple-keyring@npm:^6.0.0":
+"@metamask/eth-simple-keyring@npm:^6.0.1":
   version: 6.0.1
   resolution: "@metamask/eth-simple-keyring@npm:6.0.1"
   dependencies:
@@ -1973,7 +1973,7 @@ __metadata:
     "@keystonehq/metamask-airgapped-keyring": ^0.13.1
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
-    "@metamask/eth-keyring-controller": ^14.0.0
+    "@metamask/eth-keyring-controller": ^15.0.0
     "@metamask/eth-sig-util": ^7.0.0
     "@metamask/message-manager": ^7.3.5
     "@metamask/preferences-controller": ^4.4.3

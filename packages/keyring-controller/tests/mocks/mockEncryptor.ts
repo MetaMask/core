@@ -1,8 +1,10 @@
+import type { ExportableKeyEncryptor } from '@metamask/eth-keyring-controller/dist/types';
+
 const mockHex = '0xabcdef0123456789';
 export const mockKey = Buffer.alloc(32);
 let cacheVal: any;
 
-export default class MockEncryptor {
+export default class MockEncryptor implements ExportableKeyEncryptor {
   async encrypt(password: string, dataObj: any) {
     return JSON.stringify({
       ...this.encryptWithKey(password, dataObj),
@@ -14,7 +16,7 @@ export default class MockEncryptor {
     return cacheVal || {};
   }
 
-  async encryptWithKey(_key: string, dataObj: any) {
+  async encryptWithKey(_key: unknown, dataObj: any) {
     cacheVal = dataObj;
     return {
       data: mockHex,
@@ -37,8 +39,8 @@ export default class MockEncryptor {
     };
   }
 
-  async decryptWithKey(key: string, text: string) {
-    return this.decrypt(key, text);
+  async decryptWithKey(key: unknown, text: string) {
+    return this.decrypt(key as string, text);
   }
 
   async keyFromPassword(_password: string) {
