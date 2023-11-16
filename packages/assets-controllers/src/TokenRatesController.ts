@@ -126,7 +126,6 @@ enum PollState {
  * Token rates controller state
  * @property contractExchangeRates - Hash of token contract addresses to exchange rates (single globally selected chain, will be deprecated soon)
  * @property contractExchangeRatesByChainId - Hash of token contract addresses to exchange rates keyed by chain ID and native currency (ticker)
- * @property supportedChains - Cached chain data
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
