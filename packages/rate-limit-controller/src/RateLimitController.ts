@@ -1,4 +1,7 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ActionConstraint,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Patch } from 'immer';
@@ -10,7 +13,7 @@ import type { Patch } from 'immer';
  * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
  */
 export type RateLimitedApi = {
-  method: (...args: any[]) => any;
+  method: ActionConstraint['handler'];
   rateLimitTimeout?: number;
   rateLimitCount?: number;
 };
@@ -121,11 +124,11 @@ export class RateLimitController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:call` as const,
-      ((
+      (
         origin: string,
         type: keyof RateLimitedApis,
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
-      ) => this.call(origin, type, ...args)) as any,
+      ) => this.call(origin, type, ...args),
     );
   }
 
@@ -135,7 +138,6 @@ export class RateLimitController<
    * @param origin - The requesting origin.
    * @param type - The type of API call to make.
    * @param args - Arguments for the API call.
-   * @returns `false` if rate-limited, and `true` otherwise.
    */
   async call<ApiType extends keyof RateLimitedApis>(
     origin: string,
@@ -155,7 +157,9 @@ export class RateLimitController<
       throw new Error('Invalid api type');
     }
 
-    return implementation(...args);
+    return implementation(...args) as ReturnType<
+      RateLimitedApis[ApiType]['method']
+    >;
   }
 
   /**

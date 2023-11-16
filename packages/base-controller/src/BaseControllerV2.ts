@@ -2,10 +2,8 @@ import type { Json } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-import type {
-  RestrictedControllerMessenger,
-  Namespaced,
-} from './ControllerMessenger';
+import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
+import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
 enablePatches();
 
@@ -62,15 +60,47 @@ export interface StatePropertyMetadata<T extends Json> {
   anonymous: boolean | StateDeriver<T>;
 }
 
+export type ControllerGetStateAction<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = {
+  type: `${ControllerName}:getState`;
+  handler: () => ControllerState;
+};
+
+export type ControllerStateChangeEvent<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = {
+  type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
+};
+
+export type ControllerActions<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = ControllerGetStateAction<ControllerName, ControllerState>;
+
+export type ControllerEvents<
+  ControllerName extends string,
+  ControllerState extends Record<string, unknown>,
+> = ControllerStateChangeEvent<ControllerName, ControllerState>;
+
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
 export class BaseController<
-  N extends string,
-  S extends Record<string, Json>,
-  messenger extends RestrictedControllerMessenger<N, any, any, string, string>,
+  ControllerName extends string,
+  ControllerState extends Record<string, Json>,
+  messenger extends RestrictedControllerMessenger<
+    ControllerName,
+    ActionConstraint | ControllerActions<ControllerName, ControllerState>,
+    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
+    string,
+    string
+  >,
 > {
-  private internalState: S;
+  private internalState: ControllerState;
 
   protected messagingSystem: messenger;
 
@@ -79,9 +109,9 @@ export class BaseController<
    *
    * This is used by the ComposableController to construct a composed application state.
    */
-  public readonly name: N;
+  public readonly name: ControllerName;
 
-  public readonly metadata: StateMetadata<S>;
+  public readonly metadata: StateMetadata<ControllerState>;
 
   /**
    * The existence of the `subscribe` property is how the ComposableController detects whether a
@@ -95,7 +125,7 @@ export class BaseController<
    *
    * @param options - Controller options.
    * @param options.messenger - Controller messaging system.
-   * @param options.metadata - State metadata, describing how to "anonymize" the state, and which
+   * @param options.metadata - ControllerState metadata, describing how to "anonymize" the state, and which
    * parts should be persisted.
    * @param options.name - The name of the controller, used as a namespace for events and actions.
    * @param options.state - Initial controller state.
@@ -107,9 +137,9 @@ export class BaseController<
     state,
   }: {
     messenger: messenger;
-    metadata: StateMetadata<S>;
-    name: N;
-    state: S;
+    metadata: StateMetadata<ControllerState>;
+    name: ControllerName;
+    state: ControllerState;
   }) {
     this.messagingSystem = messenger;
     this.name = name;
@@ -148,8 +178,10 @@ export class BaseController<
    * @returns An object that has the next state, patches applied in the update and inverse patches to
    * rollback the update.
    */
-  protected update(callback: (state: Draft<S>) => void | S): {
-    nextState: S;
+  protected update(
+    callback: (state: Draft<ControllerState>) => void | ControllerState,
+  ): {
+    nextState: ControllerState;
     patches: Patch[];
     inversePatches: Patch[];
   } {
@@ -157,14 +189,14 @@ export class BaseController<
     // produceWithPatches here.
     const [nextState, patches, inversePatches] = (
       produceWithPatches as unknown as (
-        state: S,
+        state: ControllerState,
         cb: typeof callback,
-      ) => [S, Patch[], Patch[]]
+      ) => [ControllerState, Patch[], Patch[]]
     )(this.internalState, callback);
 
     this.internalState = nextState;
     this.messagingSystem.publish(
-      `${this.name}:stateChange` as Namespaced<N, any>,
+      `${this.name}:stateChange`,
       nextState,
       patches,
     );
@@ -183,7 +215,7 @@ export class BaseController<
     const nextState = applyPatches(this.internalState, patches);
     this.internalState = nextState;
     this.messagingSystem.publish(
-      `${this.name}:stateChange` as Namespaced<N, any>,
+      `${this.name}:stateChange`,
       nextState,
       patches,
     );
@@ -199,9 +231,7 @@ export class BaseController<
    * listeners from being garbage collected.
    */
   protected destroy() {
-    this.messagingSystem.clearEventSubscriptions(
-      `${this.name}:stateChange` as Namespaced<N, any>,
-    );
+    this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange`);
   }
 }
 
@@ -216,9 +246,11 @@ export class BaseController<
  * anonymized state.
  * @returns The anonymized controller state.
  */
-export function getAnonymizedState<S extends Record<string, Json>>(
-  state: S,
-  metadata: StateMetadata<S>,
+export function getAnonymizedState<
+  ControllerState extends Record<string, Json>,
+>(
+  state: ControllerState,
+  metadata: StateMetadata<ControllerState>,
 ): Record<string, Json> {
   return deriveStateFromMetadata(state, metadata, 'anonymous');
 }
@@ -230,9 +262,11 @@ export function getAnonymizedState<S extends Record<string, Json>>(
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
  * @returns The subset of controller state that should be persisted.
  */
-export function getPersistentState<S extends Record<string, Json>>(
-  state: S,
-  metadata: StateMetadata<S>,
+export function getPersistentState<
+  ControllerState extends Record<string, Json>,
+>(
+  state: ControllerState,
+  metadata: StateMetadata<ControllerState>,
 ): Record<string, Json> {
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
@@ -245,25 +279,25 @@ export function getPersistentState<S extends Record<string, Json>>(
  * @param metadataProperty - The metadata property to use to derive state.
  * @returns The metadata-derived controller state.
  */
-function deriveStateFromMetadata<S extends Record<string, Json>>(
-  state: S,
-  metadata: StateMetadata<S>,
+function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
+  state: ControllerState,
+  metadata: StateMetadata<ControllerState>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return Object.keys(state).reduce((persistedState, key) => {
+  return (Object.keys(state) as (keyof ControllerState)[]).reduce<
+    Partial<Record<keyof ControllerState, Json>>
+  >((persistedState, key) => {
     try {
-      const stateMetadata = metadata[key as keyof S];
+      const stateMetadata = metadata[key];
       if (!stateMetadata) {
-        throw new Error(`No metadata found for '${key}'`);
+        throw new Error(`No metadata found for '${String(key)}'`);
       }
       const propertyMetadata = stateMetadata[metadataProperty];
       const stateProperty = state[key];
       if (typeof propertyMetadata === 'function') {
-        persistedState[key as string] = propertyMetadata(
-          stateProperty as S[keyof S],
-        );
+        persistedState[key] = propertyMetadata(stateProperty);
       } else if (propertyMetadata) {
-        persistedState[key as string] = stateProperty;
+        persistedState[key] = stateProperty;
       }
       return persistedState;
     } catch (error) {
@@ -274,5 +308,5 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
       });
       return persistedState;
     }
-  }, {} as Record<string, Json>);
+  }, {}) as Record<keyof ControllerState, Json>;
 }
