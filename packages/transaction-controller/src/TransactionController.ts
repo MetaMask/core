@@ -20,6 +20,7 @@ import type {
   BlockTrackerProxy,
 } from '@metamask/network-controller';
 import {
+  ORIGIN_METAMASK,
   BNToHex,
   fractionBN,
   hexToBN,
@@ -34,6 +35,7 @@ import {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
+import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -50,14 +52,15 @@ import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import {
   SecurityAlertResponse,
+  SubmitHistoryEntry,
   Transaction,
   TransactionMeta,
   TransactionStatus,
   WalletDevice,
 } from './types';
-import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 
 const HARDFORK = 'london';
+const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
  * @type Result
@@ -115,6 +118,7 @@ export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
   lastFetchedBlockNumbers: { [key: string]: number };
+  submitHistory: SubmitHistoryEntry[];
 }
 
 /**
@@ -262,6 +266,7 @@ export class TransactionController extends BaseController<
       methodData: {},
       transactions: [],
       lastFetchedBlockNumbers: {},
+      submitHistory: [],
     };
 
     this.initialize();
@@ -569,9 +574,18 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.transaction.from,
     );
+
     const rawTransaction = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+
+    await this.publishTransaction(
+      rawTransaction,
+      txParams,
+      transactionMeta.chainId,
+      'cancel',
+    );
+
     transactionMeta.status = TransactionStatus.cancelled;
+
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
 
@@ -668,15 +682,21 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.from,
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
-    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+
+    const transactionHash = await this.publishTransaction(
       rawTransaction,
-    ]);
+      txParams,
+      transactionMeta.chainId,
+      ORIGIN_METAMASK,
+    );
+
     const baseTransactionMeta = {
       ...transactionMeta,
       id: random(),
       time: Date.now(),
       transactionHash,
     };
+
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
@@ -694,8 +714,11 @@ export class TransactionController extends BaseController<
               gasPrice: newGasPrice,
             },
           };
+
     transactions.push(newTransactionMeta);
+
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
@@ -1225,12 +1248,19 @@ export class TransactionController extends BaseController<
 
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
-      const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+
+      const transactionHash = await this.publishTransaction(
         rawTransaction,
-      ]);
+        txParams,
+        currentChainId,
+        transactionMeta.origin,
+      );
+
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
+
       this.updateTransaction(transactionMeta);
+
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
@@ -1241,6 +1271,27 @@ export class TransactionController extends BaseController<
       }
       releaseLock();
     }
+  }
+
+  private async publishTransaction(
+    rawTransaction: string,
+    transaction: Record<string, unknown>,
+    chainId?: string,
+    origin?: string,
+  ): Promise<string> {
+    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+      rawTransaction,
+    ]);
+
+    this.updateSubmitHistory(
+      rawTransaction,
+      transactionHash,
+      transaction,
+      chainId,
+      origin,
+    );
+
+    return transactionHash;
   }
 
   /**
@@ -1353,6 +1404,36 @@ export class TransactionController extends BaseController<
       status,
       this.state.transactions,
     );
+  }
+
+  private updateSubmitHistory(
+    rawTransaction: string,
+    hash: string,
+    transaction: Record<string, unknown>,
+    chainId?: string,
+    origin?: string,
+  ): void {
+    const { rpcTarget: networkUrl, type: networkType } =
+      this.getNetworkState().providerConfig;
+
+    const submitHistoryEntry: SubmitHistoryEntry = {
+      chainId,
+      hash,
+      networkType,
+      networkUrl,
+      origin,
+      time: Date.now(),
+      transaction,
+      rawTransaction,
+    };
+
+    const submitHistory = [submitHistoryEntry, ...this.state.submitHistory];
+
+    if (submitHistory.length > SUBMIT_HISTORY_LIMIT) {
+      submitHistory.pop();
+    }
+
+    this.update({ submitHistory });
   }
 }
 
