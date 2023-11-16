@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Uncategorized
+- Update `eth-keyring-controller` ([#2041](https://github.com/MetaMask/core/pull/2041))
+- Bump @metamask/scure-bip39 from 2.1.0 to 2.1.1 ([#1868](https://github.com/MetaMask/core/pull/1868))
+- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
+- Add persistAllKeyrings action to KeyringController ([#1965](https://github.com/MetaMask/core/pull/1965))
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
+- Bump @metamask/eth-keyring-controller from 13.0.1 to 14.0.0 ([#1771](https://github.com/MetaMask/core/pull/1771))
+
 ## [8.1.0]
 ### Changed
 - Adds additional options to KeyringTypes enum ([#1839](https://github.com/MetaMask/core/pull/1839))
@@ -222,7 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.1.0...@metamask/keyring-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.3...@metamask/keyring-controller@8.1.0
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.2...@metamask/keyring-controller@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...@metamask/keyring-controller@8.0.2
