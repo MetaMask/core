@@ -6,9 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.1.4]
+## [7.0.0]
 ### Changed
-- Bump dependency on `@metamask/keyring-controller` to ^9.0.0
+- **BREAKING**: Add `@metamask/keyring-controller` as a dependency and peer dependency
+  - This was relied upon by past versions, but this was not reflected in the package manifest until now
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [6.1.3]
@@ -101,8 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.4...HEAD
-[6.1.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.3...@metamask/signature-controller@6.1.4
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.3...@metamask/signature-controller@7.0.0
 [6.1.3]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.2...@metamask/signature-controller@6.1.3
 [6.1.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.1...@metamask/signature-controller@6.1.2
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.0...@metamask/signature-controller@6.1.1
