@@ -1,6 +1,9 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import type { Patch } from 'immer';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;
@@ -40,15 +43,15 @@ export type AnnouncementControllerActions =
 export type AnnouncementControllerEvents =
   AnnouncementControllerStateChangeEvent;
 
-export type AnnouncementControllerGetStateAction = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => AnnouncementControllerState;
-};
+export type AnnouncementControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AnnouncementControllerState
+>;
 
-export type AnnouncementControllerStateChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [AnnouncementControllerState, Patch[]];
-};
+export type AnnouncementControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AnnouncementControllerState
+>;
 
 const controllerName = 'AnnouncementController';
 
