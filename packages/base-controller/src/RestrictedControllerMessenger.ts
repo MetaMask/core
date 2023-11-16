@@ -96,7 +96,7 @@ export class RestrictedControllerMessenger<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
   >(action: ActionType, handler: ActionHandler<Action, ActionType>) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!action.startsWith(`${this.#controllerName}:`)) {
+    if (!this.#isInCurrentNamespace(action)) {
       throw new Error(
         `Only allowed registering action handlers prefixed by '${
           this.#controllerName
@@ -120,7 +120,7 @@ export class RestrictedControllerMessenger<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
   >(action: ActionType) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!action.startsWith(`${this.#controllerName}:`)) {
+    if (!this.#isInCurrentNamespace(action)) {
       throw new Error(
         `Only allowed unregistering action handlers prefixed by '${
           this.#controllerName
@@ -182,7 +182,7 @@ export class RestrictedControllerMessenger<
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!event.startsWith(`${this.#controllerName}:`)) {
+    if (!this.#isInCurrentNamespace(event)) {
       throw new Error(
         `Only allowed publishing events prefixed by '${this.#controllerName}:'`,
       );
