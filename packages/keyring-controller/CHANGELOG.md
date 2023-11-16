@@ -7,14 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [9.0.0]
-### Uncategorized
-- Update `eth-keyring-controller` ([#2041](https://github.com/MetaMask/core/pull/2041))
-- Bump @metamask/scure-bip39 from 2.1.0 to 2.1.1 ([#1868](https://github.com/MetaMask/core/pull/1868))
-- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
-- Add persistAllKeyrings action to KeyringController ([#1965](https://github.com/MetaMask/core/pull/1965))
-- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
-- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
-- Bump @metamask/eth-keyring-controller from 13.0.1 to 14.0.0 ([#1771](https://github.com/MetaMask/core/pull/1771))
+### Changed
+- **BREAKING** Change `encryptor` constructor option property type to `GenericEncryptor | ExportableKeyEncryptor | undefined`  ([#2041](https://github.com/MetaMask/core/pull/2041))
+  - When the controller is instantiated with `cacheEncryptionKey: true`, `encryptor` may no longer be of type `GenericEncryptor`.
+- Bump dependency on `@metamask/scure-bip39` 2.1.1 ([#1868](https://github.com/MetaMask/core/pull/1868))
+- Bump dependency on `@metamask/utils` to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Bump @metamask/eth-keyring-controller to 14.0.0 ([#1771](https://github.com/MetaMask/core/pull/1771))
+
+### Added
+- Add `KeyringController:persistAllKeyrings` messenger action ([#1965](https://github.com/MetaMask/core/pull/1965))
 
 ## [8.1.0]
 ### Changed

@@ -7,17 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.1.4]
-### Uncategorized
-- Refactor controllers to use `"getState"` action, `"stateChange"` event types defined in `base-controller` ([#2029](https://github.com/MetaMask/core/pull/2029))
-- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
+### Changed
+- Bump dependency on `@metamask/keyring-controller` to ^9.0.0
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
-- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
-- Release/85.0.0 ([#1912](https://github.com/MetaMask/core/pull/1912))
-- bump `@metamask/auto-changelog` to `^3.4.2` ([#1905](https://github.com/MetaMask/core/pull/1905))
-- Release 83.0.0 ([#1903](https://github.com/MetaMask/core/pull/1903))
-- Revert "Release 83.0.0" ([#1901](https://github.com/MetaMask/core/pull/1901))
-- Release 83.0.0 ([#1897](https://github.com/MetaMask/core/pull/1897))
-- Bump @metamask/auto-changelog from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
 
 ## [6.1.3]
 ### Changed
