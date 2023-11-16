@@ -1373,7 +1373,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/eth-snap-keyring": ^2.0.0
     "@metamask/keyring-api": ^1.1.0
-    "@metamask/keyring-controller": ^8.1.0
+    "@metamask/keyring-controller": ^9.0.0
     "@metamask/snaps-controllers": ^3.2.0
     "@metamask/snaps-utils": ^3.2.0
     "@metamask/utils": ^8.2.0
@@ -1389,7 +1389,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/keyring-controller": ^8.1.0
+    "@metamask/keyring-controller": ^9.0.0
   languageName: unknown
   linkType: soft
 
@@ -1963,7 +1963,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@^8.1.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^9.0.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -2406,7 +2406,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/keyring-controller": ^8.1.0
+    "@metamask/keyring-controller": ^9.0.0
     "@metamask/logging-controller": ^1.0.4
     "@metamask/message-manager": ^7.3.5
     "@metamask/rpc-errors": ^6.1.0
@@ -2422,7 +2422,7 @@ __metadata:
     typescript: ~4.8.4
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
-    "@metamask/keyring-controller": ^8.1.0
+    "@metamask/keyring-controller": ^9.0.0
     "@metamask/logging-controller": ^1.0.4
   languageName: unknown
   linkType: soft
