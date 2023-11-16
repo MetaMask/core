@@ -2422,6 +2422,7 @@ __metadata:
     typescript: ~4.8.4
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
+    "@metamask/keyring-controller": ^8.1.0
     "@metamask/logging-controller": ^1.0.4
   languageName: unknown
   linkType: soft

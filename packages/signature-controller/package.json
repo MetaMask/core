@@ -33,6 +33,7 @@
     "@metamask/approval-controller": "^4.1.0",
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
+    "@metamask/keyring-controller": "^9.0.0",
     "@metamask/logging-controller": "^1.0.4",
     "@metamask/message-manager": "^7.3.5",
     "@metamask/rpc-errors": "^6.1.0",
@@ -42,7 +43,6 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.3",
-    "@metamask/keyring-controller": "^9.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -53,6 +53,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^4.1.0",
+    "@metamask/keyring-controller": "^9.0.0",
     "@metamask/logging-controller": "^1.0.4"
   },
   "engines": {
