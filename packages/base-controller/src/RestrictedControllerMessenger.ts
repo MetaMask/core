@@ -113,7 +113,8 @@ export class RestrictedControllerMessenger<
    *
    * The action type being unregistered *must* be in the current namespace.
    *
-   * @param action - The action type. This is a unqiue identifier for this action.
+   * @param action - The action type. This is a unique identifier for this action.
+   * @throws Will throw if an action handler that is not in the current namespace is being unregistered.
    * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
    */
   unregisterActionHandler<
@@ -175,6 +176,7 @@ export class RestrictedControllerMessenger<
    * @param event - The event type. This is a unique identifier for this event.
    * @param payload - The event payload. The type of the parameters for each event handler must
    * match the type of this payload.
+   * @throws Will throw if an event that is not in the current namespace is being published.
    * @template EventType - A type union of Event type strings that are namespaced by Namespace.
    */
   publish<EventType extends Event['type'] & NamespacedName<Namespace>>(
@@ -200,6 +202,7 @@ export class RestrictedControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param handler - The event handler. The type of the parameters for this event handler must
    * match the type of the payload for this event type.
+   * @throws Will throw if the given event is not an allowed event for this controller messenger.
    * @template EventType - A type union of Event type strings.
    */
   subscribe<
@@ -274,7 +277,7 @@ export class RestrictedControllerMessenger<
    *
    * @param event - The event type. This is a unique identifier for this event.
    * @param handler - The event handler to unregister.
-   * @throws Will throw when the given event handler is not registered for this event.
+   * @throws Will throw when the given event is not an allowed event for this controller messenger.
    * @template EventType - A type union of allowed Event type strings.
    */
   unsubscribe<
@@ -297,6 +300,7 @@ export class RestrictedControllerMessenger<
    * The event type being cleared *must* be in the current namespace.
    *
    * @param event - The event type. This is a unique identifier for this event.
+   * @throws Will throw if a subscription for an event that is not in the current namespace is being cleared.
    * @template EventType - A type union of Event type strings that are namespaced by Namespace.
    */
   clearEventSubscriptions<
