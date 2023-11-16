@@ -165,7 +165,7 @@ function setupController({
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
-    allowedActions: ['ApprovalController:addRequest'],
+    allowedActions: [],
   });
 
   const approvalController = new ApprovalController({

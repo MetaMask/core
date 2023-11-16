@@ -49,7 +49,7 @@ function getRestrictedMessenger(
     never
   >({
     name,
-    allowedActions: ['RateLimitController:call'],
+    allowedActions: [],
   }) as RateLimitMessenger<RateLimitedApis>;
 }
 
