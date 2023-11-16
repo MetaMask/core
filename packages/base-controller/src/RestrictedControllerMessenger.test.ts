@@ -11,7 +11,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: ['CountController:count'],
     });
 
     let count = 0;
@@ -36,7 +35,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<MessageAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: ['MessageController:reset', 'MessageController:concat'],
     });
 
     let message = '';
@@ -71,7 +69,6 @@ describe('RestrictedControllerMessenger', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: ['CountController:increment'],
     });
 
     let count = 0;
@@ -94,7 +91,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<MessageAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: ['MessageController:message'],
     });
 
     const messages: Record<string, string> = {};
@@ -122,7 +118,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<AddAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MathController',
-      allowedActions: ['MathController:add'],
     });
 
     restrictedControllerMessenger.registerActionHandler(
@@ -145,7 +140,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
-      allowedActions: ['PingController:ping'],
     });
 
     restrictedControllerMessenger.registerActionHandler(
@@ -166,7 +160,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
-      allowedActions: ['PingController:ping'],
     });
 
     expect(() => {
@@ -179,7 +172,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<PingAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
-      allowedActions: ['PingController:ping'],
     });
 
     expect(() => {
@@ -212,7 +204,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler = sinon.stub();
@@ -234,7 +225,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:complexMessage'],
     });
 
     const handler = sinon.stub();
@@ -263,7 +253,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message', 'MessageController:ping'],
     });
 
     const messageHandler = sinon.stub();
@@ -292,7 +281,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, PingEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
-      allowedEvents: ['PingController:ping'],
     });
 
     const handler = sinon.stub();
@@ -311,7 +299,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler = sinon.stub();
@@ -338,7 +325,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler = sinon.stub();
@@ -365,7 +351,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler1 = sinon.stub();
@@ -395,7 +380,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler = sinon.stub();
@@ -421,7 +405,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler = sinon.stub();
@@ -441,7 +424,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler1 = sinon.stub();
@@ -467,7 +449,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler = sinon.stub();
@@ -492,7 +473,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     expect(() =>
@@ -510,7 +490,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: ['CountController:count'],
     });
 
     let count = 0;
@@ -560,7 +539,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedEvents: ['MessageController:message'],
     });
 
     const handler = sinon.stub();
