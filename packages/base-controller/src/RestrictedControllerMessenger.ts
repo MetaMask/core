@@ -242,6 +242,7 @@ export class RestrictedControllerMessenger<
    * @param selector - The selector function used to select relevant data from
    * the event payload. The type of the parameters for this selector must match
    * the type of the payload for this event type.
+   * @throws Will throw if the given event is not an allowed event for this controller messenger.
    * @template EventType - A type union of Event type strings.
    * @template SelectorReturnValue - The selector return value.
    */
@@ -291,7 +292,7 @@ export class RestrictedControllerMessenger<
    *
    * @param event - The event type. This is a unique identifier for this event.
    * @param handler - The event handler to unregister.
-   * @throws Will throw when the given event is not an allowed event for this controller messenger.
+   * @throws Will throw if the given event is not an allowed event for this controller messenger.
    * @template EventType - A type union of allowed Event type strings.
    */
   unsubscribe<
