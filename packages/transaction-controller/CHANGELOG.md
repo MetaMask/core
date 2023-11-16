@@ -8,32 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.0.0]
 ### Added
-- **BREAKING:** Add swaps logic into `TransactionController` ([#1877](https://github.com/MetaMask/core/pull/1877))
+- **BREAKING:** Add additional support swaps support ([#1877](https://github.com/MetaMask/core/pull/1877))
   - Swap transaction updates can be prevented by setting `disableSwaps` as `true`. If not set it will default to `false`.
-  - This value MUST be set to true in mobile, since mobile doesn't use any swap logic.
   - If `disableSwaps` is `false` or not set, then the `createSwapsTransaction` callback MUST be defined.
-- Add hooks to support mmi logic ([#1787](https://github.com/MetaMask/core/pull/1787))
-  - Add the option in the construction `hooks` giving the possibility to pass callback functions additional logic to execute.
-  - Add the optional callback in hooks `getAdditionalSignArguments` returns additional arguments required to sign a transaction.
-  - Add the optional callback in hooks `beforeApproveOnInit` additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
-  - Add the optional callback in hooks `afterSign` additional logic to execute after signing a transaction. Return false to not change the status to signed.
-  - Add the optional callback in hooks `beforePublish` additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
-- Add `onBootCleanup` functionality to constructor and `onNetworkChange` ([#1916](https://github.com/MetaMask/core/pull/1916))
-  - Initialises approvals of `TransactionStatus.unapproved` transactions on active network
-  - Refreshes the gas values for `TransactionStatus.unapproved` transactions on active network
-  - Submits the `TransactionStatus.approved` transactions on active network
-- Support advanced gas fees in `TransactionController` ([#1966](https://github.com/MetaMask/core/pull/1966))
-  - `getSavedGasFees` callback added as an optional parameter in constructor.
-  - Setting `getSavedGasFees` callback will make saved gas fees (`advancedGasFees` in the `PreferencesController` state) be taken into account when updating gas fees.
-- Add updateCustodialTransaction to update the custodial transactions associated with a specific transaction ID. ([#2018](https://github.com/MetaMask/core/pull/2018))
+- Add optional hooks to support alternate flows ([#1787](https://github.com/MetaMask/core/pull/1787))
+  - Add the `getAdditionalSignArguments` hook to provide additional arguments when signing.
+  - Add the `beforeApproveOnInit` hook to execute additional logic before starting an approval flow for a transaction during initialization. Return `false` to skip the transaction.
+  - Add the `afterSign` hook to execute additional logic after signing a transaction. Return `false` to not change the `status` to `signed`.
+  - Add the `beforePublish` hook to execute additional logic before publishing a transaction. Return `false` to prevent the transaction being submitted.
+- Add additional persisted transaction support during initialization and on network change ([#1916](https://github.com/MetaMask/core/pull/1916))
+  - Initialise approvals for unapproved transactions on the current network.
+  - Add missing gas values for unapproved transactions on the current network.
+  - Submit any approved transactions on the current network.
+- Support saved gas fees ([#1966](https://github.com/MetaMask/core/pull/1966))
+  - Add optional `getSavedGasFees` callback to constructor.
+- Add `updateCustodialTransaction` method to update custodial transactions ([#2018](https://github.com/MetaMask/core/pull/2018))
 - Add `accessList` to txParam types ([#2016](https://github.com/MetaMask/core/pull/2016))
-- Adds `estimateGasBuffered` public method ([#2021](https://github.com/MetaMask/core/pull/2021))
-- Add method for adding params to transaction meta ([#1985](https://github.com/MetaMask/core/pull/1985))
-- Add gas values validation to transaction params ([#1978](https://github.com/MetaMask/core/pull/1978))
-- Add `approveTransactionsWithSameNonce` public method to core transaction controller ([#1961](https://github.com/MetaMask/core/pull/1961))
-- Add `clearUnapprovedTxs` public method to `TransactionController` ([#1979](https://github.com/MetaMask/core/pull/1979))
-- Add `updatePreviousGasParams` public method to `TransactionController` ([#1943](https://github.com/MetaMask/core/pull/1943))
-- Add `TransactionEvents` to be emitted from `TransactionController` ([#1894](https://github.com/MetaMask/core/pull/1894))
+- Add `estimateGasBuffered` method to estimate gas and apply a specific buffer multiplier ([#2021](https://github.com/MetaMask/core/pull/2021))
+- Add `updateSecurityAlertResponse` method ([#1985](https://github.com/MetaMask/core/pull/1985))
+- Add gas values validation ([#1978](https://github.com/MetaMask/core/pull/1978))
+- Add `approveTransactionsWithSameNonce` method ([#1961](https://github.com/MetaMask/core/pull/1961))
+- Add `clearUnapprovedTransactions` method ([#1979](https://github.com/MetaMask/core/pull/1979))
+- Add `updatePreviousGasParams` method ([#1943](https://github.com/MetaMask/core/pull/1943))
+- Emit additional events to support metrics in the clients ([#1894](https://github.com/MetaMask/core/pull/1894))
 - Populate the `firstRetryBlockNumber`, `retryCount`, and `warning` properties in the transaction metadata. ([#1896](https://github.com/MetaMask/core/pull/1896))
 
 ### Changed
@@ -41,16 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This can be disabled by setting the new `pendingTransactions.isResubmitEnabled` constructor option to `false`.
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
 - Persist specific error properties in core transaction metadata ([#1915](https://github.com/MetaMask/core/pull/1915))
-  - create `TxError` type with specific properties to support both clients.
-  - Updated `failTransaction` to use the new type.
+  - Create `TransactionError` type with explicit properties.
 - Align core transaction error messages with extension ([#1980](https://github.com/MetaMask/core/pull/1980))
-  - `processApproval` when the user rejects the request: MetaMask Tx Signature: User denied transaction signature.`
-  - `validateParamRecipient` to use `@metamask/rpc-errors`: `Invalid "to" address.`
-  - `validateParamFrom` to use `@metamask/rpc-errors`: `Invalid "from" address.`
-  - `validateIfTransactionUnapproved`: ``TransactionsController: Can only call ${fnName} on an unapproved transaction.`
-- Change `initApprovals` method based on the extension ([#1867](https://github.com/MetaMask/core/pull/1867))
   - Catch of the `initApprovals` method to skip logging when the error is `userRejectedRequest`.
-- `stopTransaction` now creates a cancel transaction with same nonce instead of changing type to cancel ([#1998](https://github.com/MetaMask/core/pull/1998))
+- Create an additional transaction metadata entry when calling `stopTransaction` ([#1998](https://github.com/MetaMask/core/pull/1998))
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
 - Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.1
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
