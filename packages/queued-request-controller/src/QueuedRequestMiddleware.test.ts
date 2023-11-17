@@ -1,45 +1,25 @@
-import type {
-  AddApprovalRequest,
-  ApprovalController,
-} from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import type { ApprovalController } from '@metamask/approval-controller';
 import { NetworkType } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
   NetworkController,
-  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
-  NetworkControllerSetActiveNetworkAction,
-  NetworkControllerSetProviderTypeAction,
   ProviderConfig,
 } from '@metamask/network-controller';
 import { defaultState as networkControllerDefaultState } from '@metamask/network-controller';
 import { serializeError } from '@metamask/rpc-errors';
-import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 
-import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
+import { buildMessenger } from '../tests/utils';
+import type { QueuedRequestMiddlewareMessenger } from './QueuedRequestMiddleware';
 import {
   createQueuedRequestMiddleware,
   type QueuedRequestMiddlewareJsonRpcRequest,
 } from './QueuedRequestMiddleware';
 
-const buildMessenger = () => {
-  return new ControllerMessenger<
-    | QueuedRequestControllerEnqueueRequestAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | NetworkControllerGetStateAction
-    | NetworkControllerSetActiveNetworkAction
-    | NetworkControllerSetProviderTypeAction
-    | NetworkControllerGetNetworkClientByIdAction
-    | AddApprovalRequest,
-    never
-  >();
-};
-
 const buildMocks = (
-  messenger: ReturnType<typeof buildMessenger>,
+  messenger: QueuedRequestMiddlewareMessenger,
   mocks: {
     getNetworkClientById?: NetworkController['getNetworkClientById'];
     getProviderConfig?: () => ProviderConfig;
