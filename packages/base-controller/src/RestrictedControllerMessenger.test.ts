@@ -300,9 +300,10 @@ describe('RestrictedControllerMessenger', () => {
     });
 
     expect(() => {
-      // @ts-expect-error suppressing to test runtime error handling
       restrictedControllerMessenger.registerActionHandler(
+        // @ts-expect-error suppressing to test runtime error handling
         'CountController:count',
+        () => undefined,
       );
     }).toThrow(
       `Only allowed registering action handlers prefixed by 'PingController:'`,
