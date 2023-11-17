@@ -20,7 +20,7 @@ import type {
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
-import NonceTracker from 'nonce-tracker';
+import { NonceTracker } from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
