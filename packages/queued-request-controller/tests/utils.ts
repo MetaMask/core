@@ -28,7 +28,5 @@ export function buildQueuedRequestControllerMessenger(
 ) {
   return messenger.getRestricted({
     name: 'QueuedRequestController',
-    allowedActions: [],
-    allowedEvents: [],
   });
 }
