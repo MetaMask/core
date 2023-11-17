@@ -5,8 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [19.0.0]
 ### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- Add optional `networkClientId` and `userAddress` args to remaining `NftController` public methods ([#2006](https://github.com/MetaMask/core/pull/2006))
+  - `watchNft`, `removeNft`, `removeAndIgnoreNft`, `removeNftContract`, `updateNftFavoriteStatus`, and `checkAndUpdateAllNftsOwnershipStatus` methods on `NftController` all now accept an optional options object argument containing `networkClientId` and `userAddress` to identify where in state to mutate.
+  - **BREAKING**: `addNft` no longer accepts a `chainId` property in its options argument since this value can be retrieved by the `networkClientId` property and is therefore redundant.
+  - **BREAKING**: The third and fourth arguments on NftController's `addNftVerifyOwnership` method, have been replaced with an options object containing optional properties `networkClientId`, `userAddress` and `source`. This method signature is more aligned with the options pattern for passing `networkClientId` and `userAddress` on this controller and elsewhere.
+  - **BREAKING**: `checkAndUpdateSingleNftOwnershipStatus` on NftController no longer accepts a `chainId` in its options argument. This is replaced with an optional `networkClientId` property which can be used to fetch chainId.
+   ***BREAKING**: The fourth argument of the `isNftOwner` method on `NftController` is now an options object with an optional `networkClientId` property. This method signature is more aligned with the options pattern for passing `networkClientId` on this controller and elsewhere.
+  - **BREAKING**: `validateWatchNft` method on `NftController` is now private.
+  - **BREAKING**: `detectNfts` on `NftDetectionController` now accepts a single object argument with optional properties `networkClientId` and `userAddress`, rather than taking these as two sequential arguments.
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+- Bump dependency on `@metamask/polling-controller` to ^1.0.2
+- Bump `@metamask/utils` from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
+### Fixed
+- Add name and symbol to the payload returned by the `ERC1155Standard` class `getDetails` method for `ERC1155` contracts ([#1727](https://github.com/MetaMask/core/pull/1727))
 
 ## [18.0.0]
 ### Changed
@@ -367,7 +383,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@18.0.0...@metamask/assets-controllers@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@17.0.0...@metamask/assets-controllers@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@16.0.0...@metamask/assets-controllers@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@15.0.0...@metamask/assets-controllers@16.0.0

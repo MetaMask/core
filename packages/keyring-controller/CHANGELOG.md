@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Added
+- Add `KeyringController:persistAllKeyrings` messenger action ([#1965](https://github.com/MetaMask/core/pull/1965))
+
+### Changed
+- **BREAKING** Change `encryptor` constructor option property type to `GenericEncryptor | ExportableKeyEncryptor | undefined`  ([#2041](https://github.com/MetaMask/core/pull/2041))
+  - When the controller is instantiated with `cacheEncryptionKey: true`, `encryptor` may no longer be of type `GenericEncryptor`.
+- Bump dependency on `@metamask/scure-bip39` 2.1.1 ([#1868](https://github.com/MetaMask/core/pull/1868))
+- Bump dependency on `@metamask/utils` to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Bump @metamask/eth-keyring-controller to 14.0.0 ([#1771](https://github.com/MetaMask/core/pull/1771))
+
 ## [8.1.0]
 ### Changed
 - Adds additional options to KeyringTypes enum ([#1839](https://github.com/MetaMask/core/pull/1839))
@@ -222,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.1.0...@metamask/keyring-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.3...@metamask/keyring-controller@8.1.0
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.2...@metamask/keyring-controller@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...@metamask/keyring-controller@8.0.2

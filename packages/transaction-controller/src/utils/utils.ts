@@ -1,7 +1,7 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { getKnownPropertyNames } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
-import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
+import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker';
 
 import type {
   GasPriceValue,

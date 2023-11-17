@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "16.0.0",
+  "version": "17.0.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -37,9 +37,9 @@
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^10.0.0",
+    "@metamask/gas-fee-controller": "^10.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",
-    "@metamask/network-controller": "^15.2.0",
+    "@metamask/network-controller": "^16.0.0",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.2.0",
     "async-mutex": "^0.2.6",
@@ -47,7 +47,7 @@
     "ethereumjs-util": "^7.0.10",
     "fast-json-patch": "^3.1.1",
     "lodash": "^4.17.21",
-    "nonce-tracker": "^1.1.0",
+    "nonce-tracker": "^3.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -66,8 +66,8 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^4.1.0",
-    "@metamask/gas-fee-controller": "^10.0.0",
-    "@metamask/network-controller": "^15.2.0",
+    "@metamask/gas-fee-controller": "^10.0.1",
+    "@metamask/network-controller": "^16.0.0",
     "babel-runtime": "^6.26.0"
   },
   "engines": {
