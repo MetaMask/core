@@ -1,9 +1,11 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 
 import type {
+  AllowedActions,
   QueuedRequestControllerActions,
   QueuedRequestControllerEvents,
 } from '../src/QueuedRequestController';
+import { controllerName } from '../src/QueuedRequestController';
 
 /**
  * Build a controller messenger that includes all events used by the selected network
@@ -13,7 +15,7 @@ import type {
  */
 export function buildMessenger() {
   return new ControllerMessenger<
-    QueuedRequestControllerActions,
+    QueuedRequestControllerActions | AllowedActions,
     QueuedRequestControllerEvents
   >();
 }
@@ -27,6 +29,15 @@ export function buildQueuedRequestControllerMessenger(
   messenger = buildMessenger(),
 ) {
   return messenger.getRestricted({
-    name: 'QueuedRequestController',
+    name: controllerName,
+    allowedActions: [
+      `NetworkController:getState`,
+      `NetworkController:setActiveNetwork`,
+      `NetworkController:setProviderType`,
+      `NetworkController:getNetworkClientById`,
+      `SelectedNetworkController:setNetworkClientIdForDomain`,
+      `ApprovalController:addRequest`,
+    ],
+    allowedEvents: [],
   });
 }
