@@ -3,7 +3,7 @@ import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
-import type NonceTracker from 'nonce-tracker';
+import type { NonceTracker } from 'nonce-tracker';
 
 import { projectLogger } from '../logger';
 import type { TransactionState } from '../TransactionController';
