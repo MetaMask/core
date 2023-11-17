@@ -3,6 +3,40 @@ import * as sinon from 'sinon';
 import { ControllerMessenger } from './ControllerMessenger';
 
 describe('RestrictedControllerMessenger', () => {
+  it('should throw when initializing a RestrictedControllerMessenger with an internal action as an allowed action', () => {
+    type CountAction = {
+      type: 'CountController:count';
+      handler: (increment: number) => void;
+    };
+    const controllerMessenger = new ControllerMessenger<CountAction, never>();
+
+    expect(() => {
+      controllerMessenger.getRestricted({
+        name: 'CountController',
+        allowedActions: ['CountController:count'],
+      });
+    }).toThrow(
+      `Only allow listing external actions not prefixed by 'CountController:'`,
+    );
+  });
+
+  it('should throw when initializing a RestrictedControllerMessenger with an internal event as an allowed event', () => {
+    type MessageEvent = {
+      type: 'MessageController:message';
+      payload: [string];
+    };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+
+    expect(() => {
+      controllerMessenger.getRestricted({
+        name: 'MessageController',
+        allowedEvents: ['MessageController:message'],
+      });
+    }).toThrow(
+      `Only allow listing external events not prefixed by 'MessageController:'`,
+    );
+  });
+
   it('should allow registering and calling an action handler', () => {
     type CountAction = {
       type: 'CountController:count';
