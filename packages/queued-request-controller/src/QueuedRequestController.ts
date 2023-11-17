@@ -10,7 +10,7 @@ import type {
 } from '@metamask/network-controller';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 
-const controllerName = `QueuedRequestController`;
+export const controllerName = 'QueuedRequestController';
 
 export const QueuedRequestControllerActionTypes = {
   enqueueRequest: `${controllerName}:enqueueRequest` as const,
@@ -38,7 +38,7 @@ export type QueuedRequestControllerEvents =
 export type QueuedRequestControllerActions =
   QueuedRequestControllerEnqueueRequestAction;
 
-type AllowedActions =
+export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
   | NetworkControllerSetProviderTypeAction
