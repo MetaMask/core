@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `nonce-tracker` to ^3.0.0 ([#2040](https://github.com/MetaMask/core/pull/2040))
+- Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/gas-fee-controller` to ^11.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/network-controller` to ^17.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
 ## [17.0.0]
 ### Added
 - **BREAKING:** Add additional support swaps support ([#1877](https://github.com/MetaMask/core/pull/1877))
@@ -288,7 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@17.0.0...@metamask/transaction-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...@metamask/transaction-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@15.0.0...@metamask/transaction-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@14.0.0...@metamask/transaction-controller@15.0.0

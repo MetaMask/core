@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/utils` to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
 ## [3.0.1]
 ### Changed
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
@@ -37,7 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@3.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@3.0.1...@metamask/name-controller@4.0.0
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@3.0.0...@metamask/name-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@2.0.0...@metamask/name-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@1.0.0...@metamask/name-controller@2.0.0

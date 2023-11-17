@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+### Added
+- Add `ControllerGetStateAction` and `ControllerStateChangeEvent` types ([#1890](https://github.com/MetaMask/core/pull/1890), [#2029](https://github.com/MetaMask/core/pull/2029))
+- Add `NamespacedName` type ([#1890](https://github.com/MetaMask/core/pull/1890))
+  - This is the narrowest supertype of all names defined within a given namespace.
+
+### Changed
+- **BREAKING:** Narrow controller messenger `ActionConstraint['handler']` type to remove usage of `any` ([#1890](https://github.com/MetaMask/core/pull/1890))
+  - This type is now defined as the universal supertype of all action handlers, meaning any functions can be safely assigned to it, regardless of argument types, number of arguments, or return value type.
+- **BREAKING:** Alter controller messenger `ActionHandler` type so `Action` type parameter must satisfy (updated) `ActionConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
+- **BREAKING:** Alter controller messenger `ExtractActionParameters` utility type so `Action` type parameter must satisfy (updated) `ActionConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
+- **BREAKING:** Alter controller messenger `ExtractEventHandler` utility type so `Event` type parameter must satisfy `EventConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
+- **BREAKING:** Alter controller messenger `ExtractEventPayload` utility type so `Event` type parameter must satisfy `EventConstraint` and `Event['payload']` must be an array (to match behavior of `ExtractEventHandler`) ([#1890](https://github.com/MetaMask/core/pull/1890))
+- **BREAKING:** Alter `controller messenger SelectorFunction` type so its `Event` parameter must satisfy `EventConstraint`, and so it returns a function whose arguments satisfy an event payload via `ExtractEventPayload` ([#1890](https://github.com/MetaMask/core/pull/1890))
+- The restricted controller messenger now allows calling all internal events and actions ([#2050](https://github.com/MetaMask/core/pull/2050))
+  - Previously internal events and actions were only usable if they were listed as "allowed". They are still permitted to be listed as "allowed" now, but it is no longer necessary.
+- Bump `@metamask/utils` to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
 ## [3.2.3]
 ### Changed
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
@@ -73,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.3...@metamask/base-controller@4.0.0
 [3.2.3]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.2...@metamask/base-controller@3.2.3
 [3.2.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.1...@metamask/base-controller@3.2.2
 [3.2.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.0...@metamask/base-controller@3.2.1

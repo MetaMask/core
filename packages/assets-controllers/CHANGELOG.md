@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+### Added
+- **BREAKING**: `TokenRatesControllerState` now has required `contractExchangeRatesByChainId` property which an object keyed by `chainId` and `nativeCurrency` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- **BREAKING**: `TokenRatesController` constructor params now requires `getNetworkClientById` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- Add types `CurrencyRateControllerEvents` and `CurrencyRateControllerActions` ([#2029](https://github.com/MetaMask/core/pull/2029))
+- Add polling-related methods to TokenRatesController ([#2015](https://github.com/MetaMask/core/pull/2015))
+  - `startPollingByNetworkClientId`
+  - `stopPollingByPollingToken`
+  - `stopAllPolling`
+  - `_executePoll`
+- Add `updateExchangeRatesByChainId` method to TokenRatesController ([#2015](https://github.com/MetaMask/core/pull/2015))
+  - This is a lower-level version of `updateExchangeRates` that takes chain ID, native currency, and token addresses.
+- `TokenRatesController` constructor params now accepts optional `interval` and `threshold` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.fetchExchangeRate()` now accepts an optional `tokenAddresses` as the last parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.getChainSlug()` now accepts an optional `chainId` parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.fetchAndMapExchangeRates()` now accepts an optional `tokenAddresses` as the last parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+
+### Changed
+- **BREAKING:** Bump dependency on `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/network-controller` to ^17.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/polling-controller` to ^2.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/preferences-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
 ## [19.0.0]
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
@@ -383,7 +409,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...@metamask/assets-controllers@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@18.0.0...@metamask/assets-controllers@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@17.0.0...@metamask/assets-controllers@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@16.0.0...@metamask/assets-controllers@17.0.0
