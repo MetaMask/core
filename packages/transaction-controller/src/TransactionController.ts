@@ -53,6 +53,7 @@ import type {
   TransactionReceipt,
   WalletDevice,
   SecurityAlertResponse,
+  EditableTransactionParams,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -1372,6 +1373,61 @@ export class TransactionController extends BaseController<
    */
   async getNonceLock(address: string): Promise<NonceLock> {
     return this.nonceTracker.getNonceLock(address);
+  }
+
+  /**
+   * Updates the editable parameters of a transaction.
+   *
+   * @param txId - The ID of the transaction to update.
+   * @param params - The editable parameters to update.
+   * @param params.data - Data to pass with the transaction.
+   * @param params.gas - Maximum number of units of gas to use for the transaction.
+   * @param params.gasPrice - Price per gas for legacy transactions.
+   * @param params.from - Address to send the transaction from.
+   * @param params.to - Address to send the transaction to.
+   * @param params.value - Value associated with the transaction.
+   * @returns The updated transaction metadata.
+   */
+  async updateEditableParams(
+    txId: string,
+    { data, gas, gasPrice, from, to, value }: EditableTransactionParams,
+  ) {
+    const transactionMeta = this.getTransaction(txId);
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update editable params as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, 'updateEditableParams');
+
+    const editableParams: Partial<TransactionMeta> = {
+      txParams: {
+        data,
+        from: from ?? transactionMeta.txParams.from,
+        to,
+        value,
+        gas,
+        gasPrice,
+      },
+    };
+    editableParams.txParams = pickBy(
+      editableParams.txParams,
+      (prop) => prop !== undefined,
+    ) as TransactionParams;
+
+    const updatedTransaction = merge(transactionMeta, editableParams);
+    const { type } = await determineTransactionType(
+      updatedTransaction.txParams,
+      this.ethQuery,
+    );
+    updatedTransaction.type = type;
+
+    this.updateTransaction(
+      updatedTransaction,
+      `Update Editable Params for ${txId}`,
+    );
+    return this.getTransaction(txId);
   }
 
   /**

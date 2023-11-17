@@ -646,6 +646,41 @@ export interface TransactionParams {
 }
 
 /**
+ * Properties that can be updated in a transaction.
+ */
+export type EditableTransactionParams = {
+  /**
+   * Data to pass with this transaction.
+   */
+  data?: string;
+
+  /**
+   * Maximum number of units of gas to use.
+   */
+  gas?: string;
+
+  /**
+   * Price per gas for legacy txs.
+   */
+  gasPrice?: string;
+
+  /**
+   * Address to send this transaction from.
+   */
+  from?: string;
+
+  /**
+   * Address to send this transaction to.
+   */
+  to?: string;
+
+  /**
+   * Value associated with this transaction.
+   */
+  value?: string;
+};
+
+/**
  * Standard data concerning a transaction processed by the blockchain.
  */
 // This interface was created before this ESLint rule was added.
