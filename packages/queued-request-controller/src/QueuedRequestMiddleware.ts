@@ -1,23 +1,23 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { ControllerMessenger } from '@metamask/base-controller';
 import { ApprovalType, isNetworkType } from '@metamask/controller-utils';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
-import type {
-  NetworkClientId,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerSetActiveNetworkAction,
-  NetworkControllerSetProviderTypeAction,
-} from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { serializeError } from '@metamask/rpc-errors';
-import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
+import type {
+  AllowedActions,
+  QueuedRequestControllerActions,
+  QueuedRequestControllerEvents,
+} from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
+
+export type QueuedRequestMiddlewareMessenger = ControllerMessenger<
+  QueuedRequestControllerActions | AllowedActions,
+  QueuedRequestControllerEvents
+>;
 
 export type QueuedRequestMiddlewareJsonRpcRequest = JsonRpcRequest & {
   networkClientId?: NetworkClientId;
@@ -55,17 +55,7 @@ export const createQueuedRequestMiddleware = ({
   messenger,
   useRequestQueue,
 }: {
-  messenger: ControllerMessenger<
-    | QueuedRequestControllerEnqueueRequestAction
-    | NetworkControllerGetStateAction
-    | NetworkControllerSetActiveNetworkAction
-    | NetworkControllerSetProviderTypeAction
-    | NetworkControllerGetNetworkClientByIdAction
-    | NetworkControllerFindNetworkClientIdByChainIdAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | AddApprovalRequest,
-    never
-  >;
+  messenger: QueuedRequestMiddlewareMessenger;
   useRequestQueue: () => boolean;
 }): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return createAsyncMiddleware(
