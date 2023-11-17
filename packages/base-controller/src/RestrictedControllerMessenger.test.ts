@@ -155,11 +155,186 @@ describe('RestrictedControllerMessenger', () => {
     }).toThrow('A handler for PingController:ping has already been registered');
   });
 
-  it('should throw when calling unregistered action', () => {
-    type CountAction = { type: 'PingController:ping'; handler: () => void };
+  it('should throw when registering an external action as an action handler', () => {
+    type CountAction = {
+      type: 'CountController:count';
+      handler: (increment: number) => void;
+    };
+    const controllerMessenger = new ControllerMessenger<CountAction, never>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+    });
+
+    expect(() => {
+      restrictedControllerMessenger.registerActionHandler(
+        // @ts-expect-error: suppressing to test runtime error handling
+        'OtherController:other',
+        () => undefined,
+      );
+    }).toThrow(
+      `Only allowed registering action handlers prefixed by 'CountController:'`,
+    );
+  });
+
+  it('should throw when publishing an event that is not in the current namespace', () => {
+    type MessageEvent = {
+      type: 'MessageController:message';
+      payload: [string];
+    };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedEvents: [],
+    });
+
+    expect(() => {
+      restrictedControllerMessenger.subscribe(
+        // @ts-expect-error: suppressing to test runtime error handling
+        'OtherController:other',
+        () => undefined,
+      );
+    }).toThrow(`Event missing from allow list: OtherController:other`);
+  });
+
+  it('should throw when publishing an external event', () => {
+    type MessageEvent = {
+      type: 'MessageController:message';
+      payload: [string];
+    };
+    type OtherEvent = {
+      type: 'OtherController:other';
+      payload: [unknown];
+    };
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      MessageEvent | OtherEvent
+    >();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedEvents: ['OtherController:other'],
+    });
+
+    expect(() => {
+      restrictedControllerMessenger.publish(
+        // @ts-expect-error: suppressing to test runtime error handling
+        'OtherController:other',
+        () => undefined,
+      );
+    }).toThrow(
+      `Only allowed publishing events prefixed by 'MessageController:'`,
+    );
+  });
+
+  it('should throw when unsubscribing to an event that is not an allowed event', () => {
+    type MessageEvent = {
+      type: 'MessageController:message';
+      payload: [string];
+    };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedEvents: [],
+    });
+
+    expect(() => {
+      restrictedControllerMessenger.unsubscribe(
+        // @ts-expect-error: suppressing to test runtime error handling
+        'OtherController:other',
+        () => undefined,
+      );
+    }).toThrow(`Event missing from allow list: OtherController:other`);
+  });
+
+  it('should throw when clearing the subscription for an external event', () => {
+    type MessageEvent = {
+      type: 'MessageController:message';
+      payload: [string];
+    };
+    type OtherEvent = {
+      type: 'OtherController:other';
+      payload: [unknown];
+    };
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      MessageEvent | OtherEvent
+    >();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedEvents: ['OtherController:other'],
+    });
+
+    expect(() => {
+      restrictedControllerMessenger.clearEventSubscriptions(
+        // @ts-expect-error: suppressing to test runtime error handling
+        'OtherController:other',
+      );
+    }).toThrow(`Only allowed clearing events prefixed by 'MessageController:'`);
+  });
+
+  it('should throw when calling an external action that is not an allowed action', () => {
+    type CountAction = {
+      type: 'CountController:count';
+      handler: (increment: number) => void;
+    };
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
+    });
+
+    expect(() => {
+      // @ts-expect-error suppressing to test runtime error handling
+      restrictedControllerMessenger.call('CountController:count');
+    }).toThrow('Action missing from allow list: CountController:count');
+  });
+
+  it('should throw when registering an external action handler', () => {
+    type CountAction = {
+      type: 'CountController:count';
+      handler: (increment: number) => void;
+    };
+    const controllerMessenger = new ControllerMessenger<CountAction, never>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'PingController',
+      allowedActions: ['CountController:count'],
+    });
+
+    expect(() => {
+      // @ts-expect-error suppressing to test runtime error handling
+      restrictedControllerMessenger.registerActionHandler(
+        'CountController:count',
+      );
+    }).toThrow(
+      `Only allowed registering action handlers prefixed by 'PingController:'`,
+    );
+  });
+
+  it('should throw when unregistering an external action handler', () => {
+    type CountAction = {
+      type: 'CountController:count';
+      handler: (increment: number) => void;
+    };
+    const controllerMessenger = new ControllerMessenger<CountAction, never>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'PingController',
+      allowedActions: ['CountController:count'],
+    });
+    expect(() => {
+      restrictedControllerMessenger.unregisterActionHandler(
+        // @ts-expect-error suppressing to test runtime error handling
+        'CountController:count',
+      );
+    }).toThrow(
+      `Only allowed unregistering action handlers prefixed by 'PingController:'`,
+    );
+  });
+
+  it('should throw when calling unregistered action', () => {
+    type PingAction = { type: 'PingController:ping'; handler: () => void };
+    const controllerMessenger = new ControllerMessenger<PingAction, never>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'PingController',
+      allowedActions: [],
     });
 
     expect(() => {
