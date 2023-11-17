@@ -1,6 +1,9 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import type { Patch } from 'immer';
 
 import type {
   NameProvider,
@@ -49,15 +52,15 @@ export type NameControllerState = {
   nameSources: Record<string, SourceEntry>;
 };
 
-export type GetNameState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => NameControllerState;
-};
+export type GetNameState = ControllerGetStateAction<
+  typeof controllerName,
+  NameControllerState
+>;
 
-export type NameStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [NameControllerState, Patch[]];
-};
+export type NameStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  NameControllerState
+>;
 
 export type NameControllerActions = GetNameState;
 
