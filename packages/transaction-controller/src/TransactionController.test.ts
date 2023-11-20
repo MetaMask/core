@@ -3291,9 +3291,11 @@ describe('TransactionController', () => {
 
     it('bubbles on transaction-confirmed event', async () => {
       const listener = jest.fn();
+      const statusUpdateListener = jest.fn();
       const controller = newController();
 
       controller.hub.on(`${TRANSACTION_META_MOCK.id}:confirmed`, listener);
+      controller.hub.on(`transaction-status-update`, statusUpdateListener);
 
       firePendingTransactionTrackerEvent(
         'transaction-confirmed',
@@ -3302,6 +3304,11 @@ describe('TransactionController', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+
+      expect(statusUpdateListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdateListener).toHaveBeenCalledWith({
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
     });
 
     it('sets status to dropped on transaction-dropped event', async () => {

@@ -2206,6 +2206,7 @@ export class TransactionController extends BaseController<
       (transactionMeta: TransactionMeta) => {
         this.hub.emit('transaction-confirmed', { transactionMeta });
         this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
+        this.onTransactionStatusChange(transactionMeta);
       },
     );
 
