@@ -1,4 +1,3 @@
-import { isPlainObject } from '@metamask/controller-utils';
 import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
 import type {
   Json,
@@ -57,13 +56,15 @@ async function revokePermissionsImplementation(
 ): Promise<void> {
   const { params } = req;
 
-  if (!isPlainObject(params)) {
+  const param = params?.[0];
+
+  if (!param) {
     return end(invalidParams({ data: { request: req } }));
   }
 
   // For now, this API revokes the entire permission key
   // even if caveats are specified.
-  const permissionKeys = Object.keys(params);
+  const permissionKeys = Object.keys(param);
 
   if (permissionKeys.length === 0) {
     return end(invalidParams({ data: { request: req } }));
