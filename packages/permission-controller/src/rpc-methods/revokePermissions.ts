@@ -1,9 +1,10 @@
 import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
-import type {
-  Json,
-  JsonRpcRequest,
-  NonEmptyArray,
-  PendingJsonRpcResponse,
+import {
+  isNonEmptyArray,
+  type Json,
+  type JsonRpcRequest,
+  type NonEmptyArray,
+  type PendingJsonRpcResponse,
 } from '@metamask/utils';
 
 import { invalidParams } from '../errors';
@@ -66,13 +67,11 @@ async function revokePermissionsImplementation(
   // even if caveats are specified.
   const permissionKeys = Object.keys(param);
 
-  if (permissionKeys.length === 0) {
+  if (!isNonEmptyArray(permissionKeys)) {
     return end(invalidParams({ data: { request: req } }));
   }
 
-  revokePermissionsForOrigin(
-    permissionKeys as NonEmptyArray<PermissionConstraint['parentCapability']>,
-  );
+  revokePermissionsForOrigin(permissionKeys);
 
   res.result = null;
 
