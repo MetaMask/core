@@ -135,7 +135,7 @@ export interface NftContract {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 
-enum NFTFetchMetadataError {
+export enum NFTFetchMetadataError {
   OPEN_SEA = 'Opensea import error',
   URI = 'URI import error',
   BOTH = 'Both import failed',

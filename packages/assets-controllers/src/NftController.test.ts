@@ -33,7 +33,7 @@ import { v4 } from 'uuid';
 import { AssetsContractController } from './AssetsContractController';
 import { getFormattedIpfsUrl } from './assetsUtil';
 import { Source } from './constants';
-import { NftController } from './NftController';
+import { NftController, NFTFetchMetadataError } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -2080,7 +2080,7 @@ describe('NftController', () => {
       expect(nftController.state.ignoredNfts).toHaveLength(1);
     });
 
-    it('should add NFT with metadata hosted in IPFS', async () => {
+    it('should add NFT with metadata hosted in IPFS and not on opensea', async () => {
       const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
@@ -2189,7 +2189,7 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         tokenURI:
           'https://bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm.ipfs.cloudflare-ipfs.com',
-        error: 'Opensea import error',
+        error: NFTFetchMetadataError.OPEN_SEA,
       });
     });
 
@@ -2443,7 +2443,7 @@ describe('NftController', () => {
       ]);
     });
 
-    it('should add an NFT with the correct chainId/userAddress and metadata when passed a userAddress', async () => {
+    it('should add an NFT with the correct chainId/userAddress and metadata when passed a userAddress from on chain but not opensea', async () => {
       const userAddress = '0x123ABC';
       nock('https://testtokenuri-1.com')
         .get('/')
@@ -2529,6 +2529,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-1.com',
           isCurrentlyOwned: true,
+          error: NFTFetchMetadataError.OPEN_SEA,
         },
       ]);
 
