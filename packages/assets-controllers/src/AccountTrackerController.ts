@@ -1,5 +1,4 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import {
   BNToHex,
   query,
@@ -7,6 +6,12 @@ import {
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
+import type {
+  NetworkClientId,
+  NetworkController,
+  NetworkState,
+} from '@metamask/network-controller';
+import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -49,23 +54,24 @@ export interface AccountTrackerConfig extends BaseConfig {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AccountTrackerState extends BaseState {
   accounts: { [address: string]: AccountInformation };
+  accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
 }
 
 /**
  * Controller that tracks the network balances for all user accounts.
  */
-export class AccountTrackerController extends BaseController<
+export class AccountTrackerController extends PollingControllerV1<
   AccountTrackerConfig,
   AccountTrackerState
 > {
-  private ethQuery?: EthQuery;
+  private _provider?: Provider;
 
   private readonly mutex = new Mutex();
 
   private handle?: ReturnType<typeof setTimeout>;
 
   private syncAccounts() {
-    const { accounts } = this.state;
+    const { accounts, accountsByChainId } = this.state;
     const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
     const newAddresses = addresses.filter(
@@ -77,11 +83,24 @@ export class AccountTrackerController extends BaseController<
     newAddresses.forEach((address) => {
       accounts[address] = { balance: '0x0' };
     });
+    Object.keys(accountsByChainId).forEach((chainId) => {
+      addresses.forEach((address) => {
+        accountsByChainId[chainId][address] = {
+          balance: '0x0',
+        };
+      });
+    });
 
     oldAddresses.forEach((address) => {
       delete accounts[address];
     });
-    this.update({ accounts: { ...accounts } });
+    Object.keys(accountsByChainId).forEach((chainId) => {
+      addresses.forEach((address) => {
+        delete accountsByChainId[chainId][address];
+      });
+    });
+
+    this.update({ accounts, accountsByChainId });
   }
 
   /**
@@ -95,6 +114,10 @@ export class AccountTrackerController extends BaseController<
 
   private readonly getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
 
+  private readonly getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
+
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
   /**
    * Creates an AccountTracker instance.
    *
@@ -103,6 +126,8 @@ export class AccountTrackerController extends BaseController<
    * @param options.getIdentities - Gets the identities from the Preferences store.
    * @param options.getSelectedAddress - Gets the selected address from the Preferences store.
    * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
+   * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
+   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -112,6 +137,8 @@ export class AccountTrackerController extends BaseController<
       getIdentities,
       getSelectedAddress,
       getMultiAccountBalancesEnabled,
+      getCurrentChainId,
+      getNetworkClientById,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -119,6 +146,8 @@ export class AccountTrackerController extends BaseController<
       getIdentities: () => PreferencesState['identities'];
       getSelectedAddress: () => PreferencesState['selectedAddress'];
       getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
+      getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
+      getNetworkClientById: NetworkController['getNetworkClientById'];
     },
     config?: Partial<AccountTrackerConfig>,
     state?: Partial<AccountTrackerState>,
@@ -127,11 +156,13 @@ export class AccountTrackerController extends BaseController<
     this.defaultConfig = {
       interval: 10000,
     };
-    this.defaultState = { accounts: {} };
+    this.defaultState = { accounts: {}, accountsByChainId: {} };
     this.initialize();
     this.getIdentities = getIdentities;
     this.getSelectedAddress = getSelectedAddress;
     this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
+    this.getCurrentChainId = getCurrentChainId;
+    this.getNetworkClientById = getNetworkClientById;
     onPreferencesStateChange(() => {
       this.refresh();
     });
@@ -146,11 +177,38 @@ export class AccountTrackerController extends BaseController<
    * @param provider - Provider used to create a new underlying EthQuery instance.
    */
   set provider(provider: Provider) {
-    this.ethQuery = new EthQuery(provider);
+    this._provider = provider;
   }
 
   get provider() {
     throw new Error('Property only used for setting');
+  }
+
+  /**
+   * Resolves a networkClientId to a network client config
+   * or globally selected network config if not provided
+   *
+   * @param networkClientId - Optional networkClientId to fetch a network client with
+   * @returns network client config
+   */
+  #getCorrectNetworkClient(networkClientId?: NetworkClientId): {
+    chainId: string;
+    ethQuery: EthQuery;
+  } {
+    if (networkClientId) {
+      const networkClient = this.getNetworkClientById(networkClientId);
+
+      return {
+        chainId: networkClient.configuration.chainId,
+        ethQuery: new EthQuery(networkClient.provider),
+      };
+    }
+
+    assert(this._provider, 'Provider not set.');
+    return {
+      chainId: this.getCurrentChainId(),
+      ethQuery: new EthQuery(this._provider),
+    };
   }
 
   /**
@@ -169,14 +227,23 @@ export class AccountTrackerController extends BaseController<
     }, this.config.interval);
   }
 
+  // TODO
+  async _executePoll(networkClientId: string): Promise<void> {
+    this.refresh(networkClientId);
+  }
+
   /**
    * Refreshes the balances of the accounts depending on the multi-account setting.
    * If multi-account is disabled, only updates the selected account balance.
    * If multi-account is enabled, updates balances for all accounts.
+   *
+   * @param networkClientId - Optional networkClientId to fetch a network client with
    */
-  refresh = async () => {
+  refresh = async (networkClientId?: NetworkClientId) => {
     this.syncAccounts();
-    const accounts = { ...this.state.accounts };
+    const { chainId, ethQuery } =
+      this.#getCorrectNetworkClient(networkClientId);
+    const { accounts, accountsByChainId } = this.state;
     const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
 
     const accountsToUpdate = isMultiAccountBalancesEnabled
@@ -184,26 +251,30 @@ export class AccountTrackerController extends BaseController<
       : [this.getSelectedAddress()];
 
     for (const address of accountsToUpdate) {
-      accounts[address] = {
-        balance: BNToHex(await this.getBalanceFromChain(address)),
+      accountsByChainId[chainId][address] = {
+        balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
       };
     }
 
-    this.update({ accounts });
+    this.update({ accountsByChainId });
+    if (chainId === this.getCurrentChainId()) {
+      this.update({ accounts: accountsByChainId[chainId] });
+    }
   };
 
   /**
    * Fetches the balance of a given address from the blockchain.
    *
    * @param address - The account address to fetch the balance for.
+   * @param ethQuery - The EthQuery instance to query getBalnce with.
    * @returns A promise that resolves to the balance in a hex string format.
    */
   private async getBalanceFromChain(
     address: string,
+    ethQuery: EthQuery,
   ): Promise<string | undefined> {
     return await safelyExecuteWithTimeout(async () => {
-      assert(this.ethQuery, 'Provider not set.');
-      return await query(this.ethQuery, 'getBalance', [address]);
+      return await query(ethQuery, 'getBalance', [address]);
     });
   }
 
@@ -211,16 +282,19 @@ export class AccountTrackerController extends BaseController<
    * Sync accounts balances with some additional addresses.
    *
    * @param addresses - the additional addresses, may be hardware wallet addresses.
+   * @param networkClientId - Optional networkClientId to fetch a network client with.
    * @returns accounts - addresses with synced balance
    */
   async syncBalanceWithAddresses(
     addresses: string[],
+    networkClientId?: NetworkClientId,
   ): Promise<Record<string, { balance: string }>> {
+    const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
+
     return await Promise.all(
       addresses.map((address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
-          assert(this.ethQuery, 'Provider not set.');
-          const balance = await query(this.ethQuery, 'getBalance', [address]);
+          const balance = await query(ethQuery, 'getBalance', [address]);
           return [address, balance];
         });
       }),
