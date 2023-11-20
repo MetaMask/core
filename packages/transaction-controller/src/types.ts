@@ -32,8 +32,9 @@ export type Events = {
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
   ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
   [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:publish-skip`]: [tansactionMeta: TransactionMeta];
   [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
 };
 

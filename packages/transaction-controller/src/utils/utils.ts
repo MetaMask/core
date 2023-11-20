@@ -41,11 +41,17 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  */
 export function normalizeTxParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
+
   for (const key of getKnownPropertyNames(NORMALIZERS)) {
     if (txParams[key]) {
       normalizedTxParams[key] = NORMALIZERS[key](txParams[key]);
     }
   }
+
+  if (!normalizedTxParams.value) {
+    normalizedTxParams.value = '0x0';
+  }
+
   return normalizedTxParams;
 }
 
@@ -187,5 +193,29 @@ export function normalizeTxError(
     stack: error.stack,
     code: error?.code,
     rpc: error?.value,
+  };
+}
+
+/**
+ * Normalize an object containing gas fee values.
+ *
+ * @param gasFeeValues - An object containing gas fee values.
+ * @returns An object containing normalized gas fee values.
+ */
+export function normalizeGasFeeValues(
+  gasFeeValues: GasPriceValue | FeeMarketEIP1559Values,
+): GasPriceValue | FeeMarketEIP1559Values {
+  const normalize = (value: any) =>
+    typeof value === 'string' ? addHexPrefix(value) : value;
+
+  if ('gasPrice' in gasFeeValues) {
+    return {
+      gasPrice: normalize(gasFeeValues.gasPrice),
+    };
+  }
+
+  return {
+    maxFeePerGas: normalize(gasFeeValues.maxFeePerGas),
+    maxPriorityFeePerGas: normalize(gasFeeValues.maxPriorityFeePerGas),
   };
 }

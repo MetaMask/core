@@ -33,7 +33,7 @@ import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import { merge, pickBy } from 'lodash';
+import { keyBy, mapValues, merge, pickBy, sortBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
 import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
@@ -82,6 +82,7 @@ import {
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
   normalizeTxError,
+  normalizeGasFeeValues,
 } from './utils/utils';
 import {
   validateTransactionOrigin,
@@ -720,8 +721,11 @@ export class TransactionController extends BaseController<
     }
 
     if (gasValues) {
+      // Not good practice to reassign a parameter but temporarily avoiding a larger refactor.
+      gasValues = normalizeGasFeeValues(gasValues);
       validateGasValues(gasValues);
     }
+
     const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
@@ -781,7 +785,7 @@ export class TransactionController extends BaseController<
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: '2',
+            type: '0x2',
             nonce: transactionMeta.txParams.nonce,
             to: transactionMeta.txParams.from,
             value: '0x0',
@@ -857,8 +861,11 @@ export class TransactionController extends BaseController<
     }
 
     if (gasValues) {
+      // Not good practice to reassign a parameter but temporarily avoiding a larger refactor.
+      gasValues = normalizeGasFeeValues(gasValues);
       validateGasValues(gasValues);
     }
+
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionId,
     );
@@ -922,7 +929,7 @@ export class TransactionController extends BaseController<
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: '2',
+            type: '0x2',
           }
         : {
             ...transactionMeta.txParams,
@@ -1434,7 +1441,6 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to update.
    * @param options - The custodial transaction options to update.
-   * @param options.custodyStatus - The new custody status value to be assigned.
    * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
    * @param options.hash - The new hash value to be assigned.
    * @param options.status - The new status value to be assigned.
@@ -1442,19 +1448,16 @@ export class TransactionController extends BaseController<
   updateCustodialTransaction(
     transactionId: string,
     {
-      custodyStatus,
       errorMessage,
       hash,
       status,
     }: {
-      custodyStatus?: string;
       errorMessage?: string;
       hash?: string;
       status?: TransactionStatus;
     },
   ) {
-    let transactionMeta;
-    transactionMeta = this.getTransaction(transactionId);
+    const transactionMeta = this.getTransaction(transactionId);
 
     if (!transactionMeta) {
       throw new Error(
@@ -1478,35 +1481,148 @@ export class TransactionController extends BaseController<
         `Cannot update custodial transaction with status: ${status}`,
       );
     }
-    if (status === TransactionStatus.signed) {
-      transactionMeta.status = status;
-    }
+
+    const updatedTransactionMeta = merge(
+      transactionMeta,
+      pickBy({ hash, status }),
+    );
 
     if (status === TransactionStatus.submitted) {
-      transactionMeta.submittedTime = new Date().getTime();
-      transactionMeta.status = status;
+      updatedTransactionMeta.submittedTime = new Date().getTime();
     }
 
     if (status === TransactionStatus.failed) {
-      transactionMeta = {
-        ...transactionMeta,
-        error: normalizeTxError(new Error(errorMessage)),
-        status: TransactionStatus.failed,
-      };
-    }
-
-    if (custodyStatus) {
-      transactionMeta.custodyStatus = custodyStatus;
-    }
-
-    if (hash) {
-      transactionMeta.hash = hash;
+      updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
     }
 
     this.updateTransaction(
-      transactionMeta,
+      updatedTransactionMeta,
       `TransactionController:updateCustodialTransaction - Custodial transaction updated`,
     );
+  }
+
+  /**
+   * Creates approvals for all unapproved transactions persisted.
+   */
+  initApprovals() {
+    const chainId = this.getChainId();
+    const unapprovedTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.status === TransactionStatus.unapproved &&
+        transaction.chainId === chainId,
+    );
+
+    for (const txMeta of unapprovedTxs) {
+      this.processApproval(txMeta, {
+        shouldShowRequest: false,
+      }).catch((error) => {
+        if (error?.code === errorCodes.provider.userRejectedRequest) {
+          return;
+        }
+        console.error('Error during persisted transaction approval', error);
+      });
+    }
+  }
+
+  /**
+   * Search transaction metadata for matching entries.
+   *
+   * @param opts - Options bag.
+   * @param opts.searchCriteria - An object containing values or functions for transaction properties to filter transactions with.
+   * @param opts.initialList - The transactions to search. Defaults to the current state.
+   * @param opts.filterToCurrentNetwork - Whether to filter the results to the current network. Defaults to true.
+   * @param opts.limit - The maximum number of transactions to return. No limit by default.
+   * @returns An array of transactions matching the provided options.
+   */
+  getTransactions({
+    searchCriteria = {},
+    initialList,
+    filterToCurrentNetwork = true,
+    limit,
+  }: {
+    searchCriteria?: any;
+    initialList?: TransactionMeta[];
+    filterToCurrentNetwork?: boolean;
+    limit?: number;
+  } = {}) {
+    const chainId = this.getChainId();
+    // searchCriteria is an object that might have values that aren't predicate
+    // methods. When providing any other value type (string, number, etc), we
+    // consider this shorthand for "check the value at key for strict equality
+    // with the provided value". To conform this object to be only methods, we
+    // mapValues (lodash) such that every value on the object is a method that
+    // returns a boolean.
+    const predicateMethods = mapValues(searchCriteria, (predicate) => {
+      return typeof predicate === 'function'
+        ? predicate
+        : (v: any) => v === predicate;
+    });
+
+    // If an initial list is provided we need to change it back into an object
+    // first, so that it matches the shape of our state. This is done by the
+    // lodash keyBy method. This is the edge case for this method, typically
+    // initialList will be undefined.
+    const transactionsToFilter = initialList
+      ? keyBy(initialList, 'id')
+      : this.state.transactions;
+
+    // Combine sortBy and pickBy to transform our state object into an array of
+    // matching transactions that are sorted by time.
+    const filteredTransactions = sortBy(
+      pickBy(transactionsToFilter, (transaction) => {
+        if (filterToCurrentNetwork && transaction.chainId !== chainId) {
+          return false;
+        }
+        // iterate over the predicateMethods keys to check if the transaction
+        // matches the searchCriteria
+        for (const [key, predicate] of Object.entries(predicateMethods)) {
+          // We return false early as soon as we know that one of the specified
+          // search criteria do not match the transaction. This prevents
+          // needlessly checking all criteria when we already know the criteria
+          // are not fully satisfied. We check both txParams and the base
+          // object as predicate keys can be either.
+          if (key in transaction.txParams) {
+            if (predicate((transaction.txParams as any)[key]) === false) {
+              return false;
+            }
+          } else if (predicate((transaction as any)[key]) === false) {
+            return false;
+          }
+        }
+
+        return true;
+      }),
+      'time',
+    );
+    if (limit !== undefined) {
+      // We need to have all transactions of a given nonce in order to display
+      // necessary details in the UI. We use the size of this set to determine
+      // whether we have reached the limit provided, thus ensuring that all
+      // transactions of nonces we include will be sent to the UI.
+      const nonces = new Set();
+      const txs = [];
+      // By default, the transaction list we filter from is sorted by time ASC.
+      // To ensure that filtered results prefers the newest transactions we
+      // iterate from right to left, inserting transactions into front of a new
+      // array. The original order is preserved, but we ensure that newest txs
+      // are preferred.
+      for (let i = filteredTransactions.length - 1; i > -1; i--) {
+        const txMeta = filteredTransactions[i];
+        const { nonce } = txMeta.txParams;
+        if (!nonces.has(nonce)) {
+          if (nonces.size < limit) {
+            nonces.add(nonce);
+          } else {
+            continue;
+          }
+        }
+        // Push transaction into the beginning of our array to ensure the
+        // original order is preserved.
+        txs.unshift(txMeta);
+      }
+      return txs;
+    }
+    return filteredTransactions;
   }
 
   private async signExternalTransaction(
@@ -1584,8 +1700,6 @@ export class TransactionController extends BaseController<
   }
 
   private onBootCleanup() {
-    this.createApprovalsForUnapprovedTransactions();
-    this.loadGasValuesForUnapprovedTransactions();
     this.submitApprovedTransactions();
   }
 
@@ -1607,38 +1721,6 @@ export class TransactionController extends BaseController<
         /* istanbul ignore next */
         console.error('Error during persisted transaction approval', error);
       });
-    }
-  }
-
-  /**
-   * Update the gas values of all unapproved transactions on current chain.
-   */
-  private async loadGasValuesForUnapprovedTransactions() {
-    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
-      TransactionStatus.unapproved,
-    );
-
-    const results = await Promise.allSettled(
-      unapprovedTransactions.map(async (transactionMeta) => {
-        await this.updateGasProperties(transactionMeta);
-        this.updateTransaction(
-          transactionMeta,
-          'TransactionController:loadGasValuesForUnapprovedTransactions - Gas values updated',
-        );
-      }),
-    );
-
-    for (const [index, result] of results.entries()) {
-      if (result.status === 'rejected') {
-        const transactionMeta = unapprovedTransactions[index];
-        this.failTransaction(transactionMeta, result.reason);
-        /* istanbul ignore next */
-        console.error(
-          'Error while loading gas values for persisted transaction id: ',
-          transactionMeta.id,
-          result.reason,
-        );
-      }
     }
   }
 
@@ -1686,7 +1768,17 @@ export class TransactionController extends BaseController<
           const acceptResult = await this.requestApproval(transactionMeta, {
             shouldShowRequest,
           });
+
           resultCallbacks = acceptResult.resultCallbacks;
+
+          if (resultCallbacks) {
+            this.hub.once(`${transactionId}:publish-skip`, () => {
+              resultCallbacks?.success();
+
+              // Remove the reference to prevent additional reports once submitted.
+              resultCallbacks = undefined;
+            });
+          }
         }
 
         const { isCompleted: isTxCompleted } =
@@ -1806,23 +1898,17 @@ export class TransactionController extends BaseController<
       const txParams: TransactionParams = isEIP1559
         ? {
             ...baseTxParams,
-            maxFeePerGas: transactionMeta.txParams.maxFeePerGas,
-            maxPriorityFeePerGas: transactionMeta.txParams.maxPriorityFeePerGas,
             estimatedBaseFee: transactionMeta.txParams.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-            type: '2',
+            type: '0x2',
           }
         : baseTxParams;
 
-      // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
-      if (isEIP1559) {
-        delete txParams.gasPrice;
-      }
-
-      const rawTx = await this.signTransaction(transactionMeta);
+      const rawTx = await this.signTransaction(transactionMeta, txParams);
 
       if (!this.beforePublish(transactionMeta)) {
         log('Skipping publishing transaction based on hook');
+        this.hub.emit(`${transactionMeta.id}:publish-skip`, transactionMeta);
         return;
       }
 
@@ -2301,9 +2387,8 @@ export class TransactionController extends BaseController<
 
   private async signTransaction(
     transactionMeta: TransactionMeta,
+    txParams: TransactionParams,
   ): Promise<string | undefined> {
-    const { txParams } = transactionMeta;
-
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
     this.inProcessOfSigning.add(transactionMeta.id);
     const signedTx = await this.sign?.(
@@ -2318,7 +2403,13 @@ export class TransactionController extends BaseController<
     }
 
     if (!this.afterSign(transactionMeta, signedTx)) {
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController#signTransaction - Update after sign',
+      );
+
       log('Skipping signed status based on hook');
+
       return undefined;
     }
 

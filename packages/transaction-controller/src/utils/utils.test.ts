@@ -50,6 +50,7 @@ describe('utils', () => {
         estimatedBaseFee: '0xestimatedBaseFee',
       });
     });
+
     it('normalizeTransaction if type is zero', () => {
       const normalized = util.normalizeTxParams({
         ...commonInput,
@@ -67,6 +68,13 @@ describe('utils', () => {
         maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
         estimatedBaseFee: '0xestimatedBaseFee',
         type: '0x0',
+      });
+    });
+
+    it('sets value if not specified', () => {
+      expect(util.normalizeTxParams({ from: '0xfrom' })).toStrictEqual({
+        from: '0xfrom',
+        value: '0x0',
       });
     });
   });
@@ -269,6 +277,35 @@ describe('utils', () => {
         ...errorBase,
         code: 'ERROR_CODE',
         rpc: { code: 'rpc data' },
+      });
+    });
+  });
+
+  describe('normalizeGasFeeValues', () => {
+    it('returns normalized object if legacy gas fees', () => {
+      expect(
+        util.normalizeGasFeeValues({ gasPrice: '1A', test: 'value' } as any),
+      ).toStrictEqual({ gasPrice: '0x1A' });
+    });
+
+    it('returns normalized object if 1559 gas fees', () => {
+      expect(
+        util.normalizeGasFeeValues({
+          maxFeePerGas: '1A',
+          maxPriorityFeePerGas: '2B3C',
+          test: 'value',
+        } as any),
+      ).toStrictEqual({ maxFeePerGas: '0x1A', maxPriorityFeePerGas: '0x2B3C' });
+    });
+
+    it('returns empty 1559 object if missing gas fees', () => {
+      expect(
+        util.normalizeGasFeeValues({
+          test: 'value',
+        } as any),
+      ).toStrictEqual({
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
       });
     });
   });
