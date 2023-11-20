@@ -5,6 +5,7 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
@@ -14,7 +15,6 @@ import {
   NetworkClientType,
 } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
-import HttpProvider from 'ethjs-provider-http';
 
 import { mockNetwork } from '../../../tests/mock-network';
 import {
