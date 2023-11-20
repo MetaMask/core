@@ -41,6 +41,7 @@
     "@metamask/auto-changelog": "^3.4.3",
     "@metamask/eth-query": "^4.0.0",
     "@types/jest": "^27.4.1",
+    "bn.js": "^5.2.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "nock": "^13.3.1",

@@ -84,7 +84,6 @@ module.exports = {
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,
       // so in that case use their published versions
-      '<rootDir>/../../types/@metamask/$1.d.ts',
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
   },
