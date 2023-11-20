@@ -38,7 +38,6 @@ import type {
   TransactionParams,
   TransactionHistoryEntry,
   TransactionError,
-  EditableTransactionParams,
 } from './types';
 import { TransactionStatus, TransactionType, WalletDevice } from './types';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
@@ -3823,7 +3822,7 @@ describe('TransactionController', () => {
 
   describe('updateEditableParams', () => {
     const transactionId = '1';
-    const params: EditableTransactionParams = {
+    const params = {
       data: '0x0',
       from: ACCOUNT_2_MOCK,
       gas: '0x0',
@@ -3832,20 +3831,6 @@ describe('TransactionController', () => {
       value: '0x0',
     };
 
-    // const existingTransactionMeta: TransactionMeta = {
-    //   // Mock the existing transaction metadata
-    //   id: txId,
-    //   // Add other necessary properties for testing
-    //   txParams: {
-    //     data: 'originalData',
-    //     gas: '50000',
-    //     gasPrice: '1000000000',
-    //     from: 'originalSender',
-    //     to: 'originalRecipient',
-    //     value: '5000000000000000000',
-    //   },
-    //   // Add other necessary properties for testing
-    // };
     const baseTransaction = {
       id: transactionId,
       chainId: toHex(5),

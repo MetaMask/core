@@ -53,7 +53,6 @@ import type {
   TransactionReceipt,
   WalletDevice,
   SecurityAlertResponse,
-  EditableTransactionParams,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -1391,7 +1390,21 @@ export class TransactionController extends BaseController<
    */
   async updateEditableParams(
     txId: string,
-    { data, gas, gasPrice, from, to, value }: EditableTransactionParams,
+    {
+      data,
+      gas,
+      gasPrice,
+      from,
+      to,
+      value,
+    }: {
+      data?: string;
+      gas?: string;
+      gasPrice?: string;
+      from?: string;
+      to?: string;
+      value?: string;
+    },
   ) {
     const transactionMeta = this.getTransaction(txId);
     if (!transactionMeta) {
@@ -1402,19 +1415,19 @@ export class TransactionController extends BaseController<
 
     validateIfTransactionUnapproved(transactionMeta, 'updateEditableParams');
 
-    const editableParams: Partial<TransactionMeta> = {
+    const editableParams = {
       txParams: {
         data,
-        from: from ?? transactionMeta.txParams.from,
+        from,
         to,
         value,
         gas,
         gasPrice,
       },
-    };
+    } as Partial<TransactionMeta>;
+
     editableParams.txParams = pickBy(
       editableParams.txParams,
-      (prop) => prop !== undefined,
     ) as TransactionParams;
 
     const updatedTransaction = merge(transactionMeta, editableParams);
