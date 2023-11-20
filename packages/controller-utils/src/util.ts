@@ -1,4 +1,5 @@
 import type EthQuery from '@metamask/eth-query';
+import { fromWei, toWei } from '@metamask/ethjs-unit';
 import type { Hex, Json } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import ensNamehash from 'eth-ens-namehash';
@@ -10,7 +11,6 @@ import {
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';
-import { fromWei, toWei } from 'ethjs-unit';
 import deepEqual from 'fast-deep-equal';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
@@ -108,7 +108,7 @@ export function gweiDecToWEIBN(n: number | string) {
  */
 export function weiHexToGweiDec(hex: string) {
   const hexWei = new BN(stripHexPrefix(hex), 16);
-  return fromWei(hexWei, 'gwei').toString(10);
+  return fromWei(hexWei, 'gwei');
 }
 
 /**

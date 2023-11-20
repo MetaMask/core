@@ -7,6 +7,10 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
 import type {
+  ExportableKeyEncryptor,
+  GenericEncryptor,
+} from '@metamask/eth-keyring-controller/dist/types';
+import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
@@ -172,12 +176,19 @@ export type KeyringControllerOptions = {
   updateIdentities: PreferencesController['updateIdentities'];
   setSelectedAddress: PreferencesController['setSelectedAddress'];
   setAccountLabel?: PreferencesController['setAccountLabel'];
-  encryptor?: any;
   keyringBuilders?: { (): Keyring<Json>; type: string }[];
-  cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
-};
+} & (
+  | {
+      cacheEncryptionKey: true;
+      encryptor?: ExportableKeyEncryptor;
+    }
+  | {
+      cacheEncryptionKey?: false;
+      encryptor?: GenericEncryptor | ExportableKeyEncryptor;
+    }
+);
 
 /**
  * @type KeyringObject
@@ -267,28 +278,28 @@ export class KeyringController extends BaseControllerV2<
   /**
    * Creates a KeyringController instance.
    *
-   * @param opts - Initial options used to configure this controller
-   * @param opts.syncIdentities - Sync identities with the given list of addresses.
-   * @param opts.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param opts.setSelectedAddress - Set the selected address.
-   * @param opts.setAccountLabel - Set a new name for account.
-   * @param opts.encryptor - An optional object for defining encryption schemes.
-   * @param opts.keyringBuilders - Set a new name for account.
-   * @param opts.cacheEncryptionKey - Whether to cache or not encryption key.
-   * @param opts.messenger - A restricted controller messenger.
-   * @param opts.state - Initial state to set on this controller.
+   * @param options - Initial options used to configure this controller
+   * @param options.syncIdentities - Sync identities with the given list of addresses.
+   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param options.setSelectedAddress - Set the selected address.
+   * @param options.setAccountLabel - Set a new name for account.
+   * @param options.encryptor - An optional object for defining encryption schemes.
+   * @param options.keyringBuilders - Set a new name for account.
+   * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
+   * @param options.messenger - A restricted controller messenger.
+   * @param options.state - Initial state to set on this controller.
    */
-  constructor({
-    syncIdentities,
-    updateIdentities,
-    setSelectedAddress,
-    setAccountLabel,
-    encryptor,
-    keyringBuilders,
-    cacheEncryptionKey = false,
-    messenger,
-    state,
-  }: KeyringControllerOptions) {
+  constructor(options: KeyringControllerOptions) {
+    const {
+      syncIdentities,
+      updateIdentities,
+      setSelectedAddress,
+      setAccountLabel,
+      keyringBuilders,
+      messenger,
+      state,
+    } = options;
+
     super({
       name,
       metadata: {
@@ -305,12 +316,21 @@ export class KeyringController extends BaseControllerV2<
       },
     });
 
-    this.#keyring = new EthKeyringController({
-      initState: state,
-      encryptor,
-      keyringBuilders,
-      cacheEncryptionKey,
-    });
+    if (options.cacheEncryptionKey) {
+      this.#keyring = new EthKeyringController({
+        initState: state,
+        encryptor: options.encryptor,
+        keyringBuilders,
+        cacheEncryptionKey: options.cacheEncryptionKey,
+      });
+    } else {
+      this.#keyring = new EthKeyringController({
+        initState: state,
+        encryptor: options.encryptor,
+        keyringBuilders,
+        cacheEncryptionKey: options.cacheEncryptionKey ?? false,
+      });
+    }
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));

@@ -15,6 +15,8 @@ import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 } from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import type { FakeProviderStub } from '../../../tests/fake-provider';
+import { FakeProvider } from '../../../tests/fake-provider';
 import { NetworkStatus } from '../src/constants';
 import type { NetworkClient } from '../src/create-network-client';
 import { createNetworkClient } from '../src/create-network-client';
@@ -29,8 +31,6 @@ import type {
 import { NetworkController } from '../src/NetworkController';
 import type { Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import type { FakeProviderStub } from './fake-provider';
-import { FakeProvider } from './fake-provider';
 
 jest.mock('../src/create-network-client');
 

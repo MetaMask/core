@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "90.0.0",
+  "version": "92.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -50,6 +50,7 @@
     "@types/node": "^16.18.54",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "bn.js": "^5.2.1",
     "eslint": "^8.44.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-import-resolver-typescript": "^2.5.0",

@@ -1,9 +1,12 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type { ControllerGetStateAction } from '@metamask/base-controller';
+import {
+  BaseControllerV2,
+  type ControllerStateChangeEvent,
+  type RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
-import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 
 import {
@@ -240,19 +243,19 @@ export type ErrorResult = Record<string, never>;
 
 // Event Types
 
-export type ApprovalStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ApprovalControllerState, Patch[]];
-};
+export type ApprovalStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ApprovalControllerEvents = ApprovalStateChange;
 
 // Action Types
 
-export type GetApprovalsState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => ApprovalControllerState;
-};
+export type GetApprovalsState = ControllerGetStateAction<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;

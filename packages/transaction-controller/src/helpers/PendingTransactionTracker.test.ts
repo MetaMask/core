@@ -2,7 +2,7 @@
 
 import { query } from '@metamask/controller-utils';
 import type { BlockTracker } from '@metamask/network-controller';
-import type NonceTracker from 'nonce-tracker';
+import type { NonceTracker } from 'nonce-tracker';
 
 import { TransactionStatus } from '../types';
 import { PendingTransactionTracker } from './PendingTransactionTracker';

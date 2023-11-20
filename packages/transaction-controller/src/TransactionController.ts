@@ -34,8 +34,8 @@ import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
-import NonceTracker from 'nonce-tracker';
-import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
+import { NonceTracker } from 'nonce-tracker';
+import type { NonceLock } from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
@@ -462,6 +462,7 @@ export class TransactionController extends BaseController<
       hooks?.getAdditionalSignArguments ?? (() => []);
 
     this.nonceTracker = new NonceTracker({
+      // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
       provider,
       blockTracker,
       getPendingTransactions: (address) =>

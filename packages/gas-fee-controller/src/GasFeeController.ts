@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import {
   convertHexToDecimal,
   safelyExecute,
@@ -16,7 +20,6 @@ import type {
 } from '@metamask/network-controller';
 import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
-import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
@@ -216,26 +219,27 @@ export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
 
 const name = 'GasFeeController';
 
-export type GasFeeStateChange = {
-  type: `${typeof name}:stateChange`;
-  payload: [GasFeeState, Patch[]];
-};
+export type GasFeeStateChange = ControllerStateChangeEvent<
+  typeof name,
+  GasFeeState
+>;
 
-export type GetGasFeeState = {
-  type: `${typeof name}:getState`;
-  handler: () => GasFeeState;
-};
+export type GetGasFeeState = ControllerGetStateAction<typeof name, GasFeeState>;
+
+export type GasFeeControllerActions = GetGasFeeState;
+
+export type GasFeeControllerEvents = GasFeeStateChange;
+
+type AllowedActions =
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetEIP1559CompatibilityAction;
 
 type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
-  | GetGasFeeState
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction,
-  GasFeeStateChange | NetworkControllerStateChangeEvent,
-  | NetworkControllerGetStateAction['type']
-  | NetworkControllerGetNetworkClientByIdAction['type']
-  | NetworkControllerGetEIP1559CompatibilityAction['type'],
+  GasFeeControllerActions | AllowedActions,
+  GasFeeControllerEvents | NetworkControllerStateChangeEvent,
+  AllowedActions['type'],
   NetworkControllerStateChangeEvent['type']
 >;
 

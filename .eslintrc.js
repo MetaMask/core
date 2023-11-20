@@ -81,6 +81,13 @@ module.exports = {
         'n/shebang': 'off',
       },
     },
+    {
+      files: ['**/jest.environment.js'],
+      rules: {
+        // These files run under Node, and thus `require(...)` is expected.
+        'n/global-require': 'off',
+      },
+    },
   ],
   rules: {
     // Left disabled because various properties throughough this repo are snake_case because the
