@@ -1295,7 +1295,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-provider@npm:^2.1.0, @metamask/eth-json-rpc-provider@npm:^2.2.0":
+"@metamask/eth-json-rpc-provider@npm:^2.1.0, @metamask/eth-json-rpc-provider@npm:^2.3.0":
   version: 2.3.0
   resolution: "@metamask/eth-json-rpc-provider@npm:2.3.0"
   dependencies:
@@ -1316,6 +1316,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-query@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "@metamask/eth-query@npm:4.0.0"
+  dependencies:
+    json-rpc-random-id: ^1.0.0
+    xtend: ^4.0.1
+  checksum: f2e529cf2aa362c20b81433f69840c2830444b3e060a3d9cc778235b8f595f4e1e3a6505b7f14930c4e1566efc9de0ee879e4566f3a6ab184521bdf40f5895d4
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-sig-util@npm:^7.0.0":
   version: 7.0.0
   resolution: "@metamask/eth-sig-util@npm:7.0.0"
@@ -1331,7 +1341,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/json-rpc-engine@npm:^7.1.1, @metamask/json-rpc-engine@npm:^7.2.0, @metamask/json-rpc-engine@npm:^7.3.0":
+"@metamask/json-rpc-engine@npm:^7.1.1, @metamask/json-rpc-engine@npm:^7.3.0":
   version: 7.3.0
   resolution: "@metamask/json-rpc-engine@npm:7.3.0"
   dependencies:
@@ -1342,17 +1352,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/network-controller@npm:^15.0.0":
-  version: 15.2.0
-  resolution: "@metamask/network-controller@npm:15.2.0"
+"@metamask/network-controller@npm:^16.0.0":
+  version: 16.0.0
+  resolution: "@metamask/network-controller@npm:16.0.0"
   dependencies:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-json-rpc-infura": ^9.0.0
     "@metamask/eth-json-rpc-middleware": ^12.0.1
-    "@metamask/eth-json-rpc-provider": ^2.2.0
-    "@metamask/eth-query": ^3.0.1
-    "@metamask/json-rpc-engine": ^7.2.0
+    "@metamask/eth-json-rpc-provider": ^2.3.0
+    "@metamask/eth-query": ^4.0.0
+    "@metamask/json-rpc-engine": ^7.3.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.2.0
@@ -1360,7 +1370,7 @@ __metadata:
     eth-block-tracker: ^8.0.0
     immer: ^9.0.6
     uuid: ^8.3.2
-  checksum: 331937360ac503a5000cf6277159852a23ff7d5cd72155665467e170c3cf213e4970a1706d24765201434dd5c4a088fa5e029011a78b1be87de51ca7b4011a5f
+  checksum: 43ca74fa632ba5914b6683d1633222ccf9569cd5c530d8b5d0cb63ef12c566cabbabdc18989dc30d76854c156a8407f442841a01eb9cb7aef0bcf7762fc3e5f1
   languageName: node
   linkType: hard
 
@@ -1396,7 +1406,7 @@ __metadata:
     "@metamask/eslint-config-jest": ^10.0.0
     "@metamask/eslint-config-nodejs": ^10.0.0
     "@metamask/eslint-config-typescript": ^10.0.0
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^16.0.0
     "@types/jest": ^26.0.24
     "@types/lodash": ^4.14.194
     "@types/node": ^16.18.31
