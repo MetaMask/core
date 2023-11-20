@@ -120,17 +120,14 @@ export class ControllerMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > {
-  private readonly actions = new Map<Action['type'], unknown>();
+  readonly #actions = new Map<Action['type'], unknown>();
 
-  private readonly events = new Map<
-    Event['type'],
-    EventSubscriptionMap<Event>
-  >();
+  readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
 
   /**
    * A cache of selector return values for their respective handlers.
    */
-  private readonly eventPayloadCache = new Map<
+  readonly #eventPayloadCache = new Map<
     GenericEventHandler,
     unknown | undefined
   >();
@@ -150,12 +147,12 @@ export class ControllerMessenger<
     actionType: ActionType,
     handler: ActionHandler<Action, ActionType>,
   ) {
-    if (this.actions.has(actionType)) {
+    if (this.#actions.has(actionType)) {
       throw new Error(
         `A handler for ${actionType} has already been registered`,
       );
     }
-    this.actions.set(actionType, handler);
+    this.#actions.set(actionType, handler);
   }
 
   /**
@@ -169,7 +166,7 @@ export class ControllerMessenger<
   unregisterActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
   ) {
-    this.actions.delete(actionType);
+    this.#actions.delete(actionType);
   }
 
   /**
@@ -178,7 +175,7 @@ export class ControllerMessenger<
    * This prevents all actions from being called.
    */
   clearActions() {
-    this.actions.clear();
+    this.#actions.clear();
   }
 
   /**
@@ -198,7 +195,7 @@ export class ControllerMessenger<
     actionType: ActionType,
     ...params: ExtractActionParameters<Action, ActionType>
   ): ExtractActionResponse<Action, ActionType> {
-    const handler = this.actions.get(actionType) as ActionHandler<
+    const handler = this.#actions.get(actionType) as ActionHandler<
       Action,
       ActionType
     >;
@@ -225,17 +222,17 @@ export class ControllerMessenger<
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
-    const subscribers = this.events.get(eventType);
+    const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
       for (const [handler, selector] of subscribers.entries()) {
         try {
           if (selector) {
-            const previousValue = this.eventPayloadCache.get(handler);
+            const previousValue = this.#eventPayloadCache.get(handler);
             const newValue = selector(...payload);
 
             if (newValue !== previousValue) {
-              this.eventPayloadCache.set(handler, newValue);
+              this.#eventPayloadCache.set(handler, newValue);
               handler(newValue, previousValue);
             }
           } else {
@@ -301,10 +298,10 @@ export class ControllerMessenger<
       SelectorReturnValue
     >,
   ): void {
-    let subscribers = this.events.get(eventType);
+    let subscribers = this.#events.get(eventType);
     if (!subscribers) {
       subscribers = new Map();
-      this.events.set(eventType, subscribers);
+      this.#events.set(eventType, subscribers);
     }
 
     subscribers.set(handler, selector);
@@ -324,7 +321,7 @@ export class ControllerMessenger<
     eventType: EventType,
     handler: ExtractEventHandler<Event, EventType>,
   ) {
-    const subscribers = this.events.get(eventType);
+    const subscribers = this.#events.get(eventType);
 
     if (!subscribers || !subscribers.has(handler)) {
       throw new Error(`Subscription not found for event: ${eventType}`);
@@ -332,7 +329,7 @@ export class ControllerMessenger<
 
     const selector = subscribers.get(handler);
     if (selector) {
-      this.eventPayloadCache.delete(handler);
+      this.#eventPayloadCache.delete(handler);
     }
 
     subscribers.delete(handler);
@@ -349,7 +346,7 @@ export class ControllerMessenger<
   clearEventSubscriptions<EventType extends Event['type']>(
     eventType: EventType,
   ) {
-    this.events.delete(eventType);
+    this.#events.delete(eventType);
   }
 
   /**
@@ -358,7 +355,7 @@ export class ControllerMessenger<
    * This will remove all subscribed handlers for all events.
    */
   clearSubscriptions() {
-    this.events.clear();
+    this.#events.clear();
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
+import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker';
 
 import type {
   GasPriceValue,

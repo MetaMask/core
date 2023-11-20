@@ -1,10 +1,11 @@
 import type {
   ActionConstraint,
   RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Patch } from 'immer';
 
 /**
  * @type RateLimitedApi
@@ -32,17 +33,11 @@ const name = 'RateLimitController';
 
 export type RateLimitStateChange<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = {
-  type: `${typeof name}:stateChange`;
-  payload: [RateLimitState<RateLimitedApis>, Patch[]];
-};
+> = ControllerStateChangeEvent<typeof name, RateLimitedApis>;
 
 export type GetRateLimitState<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = {
-  type: `${typeof name}:getState`;
-  handler: () => RateLimitState<RateLimitedApis>;
-};
+> = ControllerGetStateAction<typeof name, RateLimitedApis>;
 
 export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
   type: `${typeof name}:call`;
@@ -53,12 +48,16 @@ export type RateLimitControllerActions<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>;
 
+export type RateLimitControllerEvents<
+  RateLimitedApis extends Record<string, RateLimitedApi>,
+> = RateLimitStateChange<RateLimitedApis>;
+
 export type RateLimitMessenger<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = RestrictedControllerMessenger<
   typeof name,
   RateLimitControllerActions<RateLimitedApis>,
-  RateLimitStateChange<RateLimitedApis>,
+  RateLimitControllerEvents<RateLimitedApis>,
   never,
   never
 >;

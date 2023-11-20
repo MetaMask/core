@@ -33,7 +33,6 @@
     "@metamask/base-controller": "^3.2.3",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.2.0",
-    "immer": "^9.0.6",
     "nanoid": "^3.1.31"
   },
   "devDependencies": {

@@ -3,7 +3,11 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type {
@@ -44,7 +48,6 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
 import { bufferToHex } from 'ethereumjs-util';
 import EventEmitter from 'events';
-import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 
 const controllerName = 'SignatureController';
@@ -95,15 +98,15 @@ type TypedMessageSigningOptions = {
   parseJsonData: boolean;
 };
 
-export type GetSignatureState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => SignatureControllerState;
-};
+export type GetSignatureState = ControllerGetStateAction<
+  typeof controllerName,
+  SignatureControllerState
+>;
 
-export type SignatureStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [SignatureControllerState, Patch[]];
-};
+export type SignatureStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  SignatureControllerState
+>;
 
 export type SignatureControllerActions = GetSignatureState;
 

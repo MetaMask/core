@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
@@ -18,7 +22,7 @@ import type {
 import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
-import type { Patch, Draft } from 'immer';
+import type { Draft } from 'immer';
 import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
@@ -32,10 +36,10 @@ export type AccountsControllerState = {
   };
 };
 
-export type AccountsControllerGetStateAction = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => AccountsControllerState;
-};
+export type AccountsControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AccountsControllerState
+>;
 
 export type AccountsControllerSetSelectedAccountAction = {
   type: `${typeof controllerName}:setSelectedAccount`;
@@ -78,10 +82,10 @@ export type AccountsControllerActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetAccountsAction;
 
-export type AccountsControllerChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [AccountsControllerState, Patch[]];
-};
+export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AccountsControllerState
+>;
 
 export type AccountsControllerSelectedAccountChangeEvent = {
   type: `${typeof controllerName}:selectedAccountChange`;

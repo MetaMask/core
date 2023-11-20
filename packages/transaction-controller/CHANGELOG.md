@@ -5,8 +5,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [17.0.0]
+### Added
+- **BREAKING:** Add additional support swaps support ([#1877](https://github.com/MetaMask/core/pull/1877))
+  - Swap transaction updates can be prevented by setting `disableSwaps` as `true`. If not set it will default to `false`.
+  - If `disableSwaps` is `false` or not set, then the `createSwapsTransaction` callback MUST be defined.
+- Add optional hooks to support alternate flows ([#1787](https://github.com/MetaMask/core/pull/1787))
+  - Add the `getAdditionalSignArguments` hook to provide additional arguments when signing.
+  - Add the `beforeApproveOnInit` hook to execute additional logic before starting an approval flow for a transaction during initialization. Return `false` to skip the transaction.
+  - Add the `afterSign` hook to execute additional logic after signing a transaction. Return `false` to not change the `status` to `signed`.
+  - Add the `beforePublish` hook to execute additional logic before publishing a transaction. Return `false` to prevent the transaction being submitted.
+- Add additional persisted transaction support during initialization and on network change ([#1916](https://github.com/MetaMask/core/pull/1916))
+  - Initialise approvals for unapproved transactions on the current network.
+  - Add missing gas values for unapproved transactions on the current network.
+  - Submit any approved transactions on the current network.
+- Support saved gas fees ([#1966](https://github.com/MetaMask/core/pull/1966))
+  - Add optional `getSavedGasFees` callback to constructor.
+- Add `updateCustodialTransaction` method to update custodial transactions ([#2018](https://github.com/MetaMask/core/pull/2018))
+- Add `accessList` to txParam types ([#2016](https://github.com/MetaMask/core/pull/2016))
+- Add `estimateGasBuffered` method to estimate gas and apply a specific buffer multiplier ([#2021](https://github.com/MetaMask/core/pull/2021))
+- Add `updateSecurityAlertResponse` method ([#1985](https://github.com/MetaMask/core/pull/1985))
+- Add gas values validation ([#1978](https://github.com/MetaMask/core/pull/1978))
+- Add `approveTransactionsWithSameNonce` method ([#1961](https://github.com/MetaMask/core/pull/1961))
+- Add `clearUnapprovedTransactions` method ([#1979](https://github.com/MetaMask/core/pull/1979))
+- Add `updatePreviousGasParams` method ([#1943](https://github.com/MetaMask/core/pull/1943))
+- Emit additional events to support metrics in the clients ([#1894](https://github.com/MetaMask/core/pull/1894))
+- Populate the `firstRetryBlockNumber`, `retryCount`, and `warning` properties in the transaction metadata. ([#1896](https://github.com/MetaMask/core/pull/1896))
+
 ### Changed
+- **BREAKING:** Pending transactions are now automatically resubmitted. ([#1896](https://github.com/MetaMask/core/pull/1896))
+  - This can be disabled by setting the new `pendingTransactions.isResubmitEnabled` constructor option to `false`.
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- Persist specific error properties in core transaction metadata ([#1915](https://github.com/MetaMask/core/pull/1915))
+  - Create `TransactionError` type with explicit properties.
+- Align core transaction error messages with extension ([#1980](https://github.com/MetaMask/core/pull/1980))
+  - Catch of the `initApprovals` method to skip logging when the error is `userRejectedRequest`.
+- Create an additional transaction metadata entry when calling `stopTransaction` ([#1998](https://github.com/MetaMask/core/pull/1998))
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+- Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.1
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [16.0.0]
 ### Changed
@@ -250,7 +288,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...@metamask/transaction-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@15.0.0...@metamask/transaction-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@14.0.0...@metamask/transaction-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...@metamask/transaction-controller@14.0.0
