@@ -3,9 +3,12 @@ import type EthQuery from '@metamask/eth-query';
 import { merge, pickBy } from 'lodash';
 
 import { CHAIN_IDS } from '../constants';
+import { createModuleLogger, projectLogger } from '../logger';
 import type { Events, TransactionMeta } from '../types';
 import { TransactionType } from '../types';
 import { validateIfTransactionUnapproved } from './utils';
+
+const log = createModuleLogger(projectLogger, 'swaps');
 
 /**
  * Interval in milliseconds between checks of post transaction balance
@@ -205,19 +208,26 @@ export async function updatePostTransactionBalance(
   updatedTransactionMeta: TransactionMeta;
   approvalTransactionMeta?: TransactionMeta;
 }> {
-  const transactionId = transactionMeta.id;
+  log('Updating post transaction balance', transactionMeta.id);
 
+  const transactionId = transactionMeta.id;
   let latestTransactionMeta, approvalTransactionMeta;
+
   for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
+    log('Querying balance', { attempt: i });
+
     const postTransactionBalance = await query(ethQuery, 'getBalance', [
       transactionMeta.txParams.from,
     ]);
+
     latestTransactionMeta = getTransaction(transactionId) as TransactionMeta;
+
     approvalTransactionMeta = latestTransactionMeta.approvalTxId
       ? getTransaction(latestTransactionMeta.approvalTxId)
       : undefined;
 
     latestTransactionMeta.postTxBalance = postTransactionBalance.toString(16);
+
     const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
       transactionMeta.destinationTokenAddress as string,
       transactionMeta.chainId,
@@ -227,8 +237,18 @@ export async function updatePostTransactionBalance(
       !isDefaultTokenAddress ||
       transactionMeta.preTxBalance !== latestTransactionMeta.postTxBalance
     ) {
+      log('Finishing post balance update', {
+        isDefaultTokenAddress,
+        preTxBalance: transactionMeta.preTxBalance,
+        postTxBalance: latestTransactionMeta.postTxBalance,
+      });
+
       break;
     }
+
+    log('Waiting for balance to update', {
+      delay: UPDATE_POST_TX_BALANCE_TIMEOUT,
+    });
 
     await sleep(UPDATE_POST_TX_BALANCE_TIMEOUT);
   }
@@ -237,6 +257,9 @@ export async function updatePostTransactionBalance(
     latestTransactionMeta as TransactionMeta,
     'TransactionController#updatePostTransactionBalance - Add post transaction balance',
   );
+
+  log('Completed post balance update', latestTransactionMeta?.postTxBalance);
+
   return {
     updatedTransactionMeta: latestTransactionMeta as TransactionMeta,
     approvalTransactionMeta,

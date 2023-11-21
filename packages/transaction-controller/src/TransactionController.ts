@@ -467,18 +467,14 @@ export class TransactionController extends BaseController<
       // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
       provider,
       blockTracker,
-      getPendingTransactions: (address) =>
-        getAndFormatTransactionsForNonceTracker(
-          address,
-          TransactionStatus.submitted,
-          this.state.transactions,
-        ),
-      getConfirmedTransactions: (address) =>
-        getAndFormatTransactionsForNonceTracker(
-          address,
-          TransactionStatus.confirmed,
-          this.state.transactions,
-        ),
+      getPendingTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.submitted,
+      ),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
     });
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
@@ -1153,28 +1149,15 @@ export class TransactionController extends BaseController<
       );
       this.onTransactionStatusChange(transactionMeta);
 
-      if (transactionMeta.type === TransactionType.swap) {
-        updatePostTransactionBalance(transactionMeta, {
-          ethQuery: this.ethQuery,
-          getTransaction: this.getTransaction.bind(this),
-          updateTransaction: this.updateTransaction.bind(this),
-        })
-          .then(({ updatedTransactionMeta, approvalTransactionMeta }) => {
-            this.hub.emit('post-transaction-balance-updated', {
-              transactionMeta: updatedTransactionMeta,
-              approvalTransactionMeta,
-            });
-          })
-          .catch((error) => {
-            /* istanbul ignore next */
-            log('Error while updating post transaction balance', error);
-          });
-      }
+      // Intentional given potential duration of process.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.updatePostBalance(transactionMeta);
+
       this.hub.emit('transaction-confirmed', {
         transactionMeta,
       });
     } catch (error) {
-      console.error(error);
+      console.error('Failed to confirm external transaction', error);
     }
   }
 
@@ -2215,7 +2198,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionMeta - Nominated external transaction to be added to state.
    */
-  private async addExternalTransaction(transactionMeta: TransactionMeta) {
+  private addExternalTransaction(transactionMeta: TransactionMeta) {
     const chainId = this.getChainId();
     const { transactions } = this.state;
     const fromAddress = transactionMeta?.txParams?.from;
@@ -2363,11 +2346,7 @@ export class TransactionController extends BaseController<
   private addPendingTransactionTrackerListeners() {
     this.pendingTransactionTracker.hub.on(
       'transaction-confirmed',
-      (transactionMeta: TransactionMeta) => {
-        this.hub.emit('transaction-confirmed', { transactionMeta });
-        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
-        this.onTransactionStatusChange(transactionMeta);
-      },
+      this.onConfirmedTransaction.bind(this),
     );
 
     this.pendingTransactionTracker.hub.on(
@@ -2434,6 +2413,54 @@ export class TransactionController extends BaseController<
   private onTransactionStatusChange(transactionMeta: TransactionMeta) {
     this.hub.emit('transaction-status-update', { transactionMeta });
   }
-}
 
-export default TransactionController;
+  private getNonceTrackerTransactions(
+    status: TransactionStatus,
+    address: string,
+  ) {
+    const currentChainId = this.getChainId();
+
+    return getAndFormatTransactionsForNonceTracker(
+      currentChainId,
+      address,
+      status,
+      this.state.transactions,
+    );
+  }
+
+  private onConfirmedTransaction(transactionMeta: TransactionMeta) {
+    log('Processing confirmed transaction', transactionMeta.id);
+
+    this.hub.emit('transaction-confirmed', { transactionMeta });
+    this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
+
+    this.onTransactionStatusChange(transactionMeta);
+
+    // Intentional given potential duration of process.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.updatePostBalance(transactionMeta);
+  }
+
+  private async updatePostBalance(transactionMeta: TransactionMeta) {
+    try {
+      if (transactionMeta.type !== TransactionType.swap) {
+        return;
+      }
+
+      const { updatedTransactionMeta, approvalTransactionMeta } =
+        await updatePostTransactionBalance(transactionMeta, {
+          ethQuery: this.ethQuery,
+          getTransaction: this.getTransaction.bind(this),
+          updateTransaction: this.updateTransaction.bind(this),
+        });
+
+      this.hub.emit('post-transaction-balance-updated', {
+        transactionMeta: updatedTransactionMeta,
+        approvalTransactionMeta,
+      });
+    } catch (error) {
+      /* istanbul ignore next */
+      log('Error while updating post transaction balance', error);
+    }
+  }
+}

@@ -185,7 +185,7 @@ describe('utils', () => {
   });
 
   describe('getAndFormatTransactionsForNonceTracker', () => {
-    it('should return an array of formatted NonceTrackerTransaction objects filtered by fromAddress and transactionStatus', () => {
+    it('returns formatted transactions filtered by chain, from, isTransfer, and status', () => {
       const fromAddress = '0x123';
       const inputTransactions: TransactionMeta[] = [
         {
@@ -224,6 +224,31 @@ describe('utils', () => {
           },
           status: TransactionStatus.approved,
         },
+        {
+          id: '4',
+          chainId: '0x2',
+          time: 123459,
+          txParams: {
+            from: fromAddress,
+            gas: '0x103',
+            value: '0x203',
+            nonce: '0x4',
+          },
+          status: TransactionStatus.confirmed,
+        },
+        {
+          id: '5',
+          chainId: '0x2',
+          isTransfer: true,
+          time: 123460,
+          txParams: {
+            from: fromAddress,
+            gas: '0x104',
+            value: '0x204',
+            nonce: '0x5',
+          },
+          status: TransactionStatus.confirmed,
+        },
       ];
 
       const expectedResult: NonceTrackerTransaction[] = [
@@ -232,18 +257,20 @@ describe('utils', () => {
           history: [{}],
           txParams: {
             from: fromAddress,
-            gas: '0x100',
-            value: '0x200',
-            nonce: '0x1',
+            gas: '0x103',
+            value: '0x203',
+            nonce: '0x4',
           },
         },
       ];
 
       const result = util.getAndFormatTransactionsForNonceTracker(
+        '0x2',
         fromAddress,
         TransactionStatus.confirmed,
         inputTransactions,
       );
+
       expect(result).toStrictEqual(expectedResult);
     });
   });
