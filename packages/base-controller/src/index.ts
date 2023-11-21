@@ -5,13 +5,13 @@ export type {
   StateDeriver,
   StateMetadata,
   StatePropertyMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from './BaseControllerV2';
 export {
-  BaseController as BaseControllerV2,
+  BaseController,
   getAnonymizedState,
   getPersistentState,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
 } from './BaseControllerV2';
 export * from './ControllerMessenger';
 export * from './RestrictedControllerMessenger';
