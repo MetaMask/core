@@ -192,4 +192,4 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 }
 
-export default BaseControllerV1;
+export default BaseController;
