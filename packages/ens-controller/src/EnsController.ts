@@ -4,7 +4,7 @@ import type {
 } from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
@@ -77,7 +77,7 @@ const ZERO_X_ERROR_ADDRESS = '0x';
  * Controller that manages a list ENS names and their resolved addresses
  * by chainId. A null address indicates an unresolved ENS name.
  */
-export class EnsController extends BaseControllerV2<
+export class EnsController extends BaseController<
   typeof name,
   EnsControllerState,
   EnsControllerMessenger

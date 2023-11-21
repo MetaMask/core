@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;
@@ -77,7 +77,7 @@ export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller for managing in-app announcements.
  */
-export class AnnouncementController extends BaseControllerV2<
+export class AnnouncementController extends BaseController<
   typeof controllerName,
   AnnouncementControllerState,
   AnnouncementControllerMessenger

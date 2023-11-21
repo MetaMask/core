@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 
 import type {
   NameProvider,
@@ -104,7 +104,7 @@ export type SetNameRequest = {
 /**
  * Controller for storing and deriving names for values such as Ethereum addresses.
  */
-export class NameController extends BaseControllerV2<
+export class NameController extends BaseController<
   typeof controllerName,
   NameControllerState,
   NameControllerMessenger

@@ -12,7 +12,7 @@ import * as sinon from 'sinon';
 
 import { ComposableController } from './ComposableController';
 
-// Mock BaseControllerV2 classes
+// Mock BaseController classes
 
 type FooControllerState = {
   foo: string;
@@ -37,7 +37,7 @@ const fooControllerStateMetadata = {
   },
 };
 
-class FooController extends BaseControllerV2<
+class FooController extends BaseController<
   'FooController',
   FooControllerState,
   FooMessenger
@@ -58,13 +58,13 @@ class FooController extends BaseControllerV2<
   }
 }
 
-// Mock BaseController classes
+// Mock BaseControllerV1 classes
 
 type BarControllerState = BaseState & {
   bar: string;
 };
 
-class BarController extends BaseController<never, BarControllerState> {
+class BarController extends BaseControllerV1<never, BarControllerState> {
   defaultState = {
     bar: 'bar',
   };
@@ -163,7 +163,7 @@ describe('ComposableController', () => {
     });
   });
 
-  describe('BaseControllerV2', () => {
+  describe('BaseController', () => {
     it('should compose controller state', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
@@ -264,7 +264,7 @@ describe('ComposableController', () => {
     });
   });
 
-  describe('Mixed BaseController and BaseControllerV2', () => {
+  describe('Mixed BaseControllerV1 and BaseController', () => {
     it('should compose controller state', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
@@ -329,7 +329,7 @@ describe('ComposableController', () => {
       });
     });
 
-    it('should notify listeners of BaseController state change', () => {
+    it('should notify listeners of BaseControllerV1 state change', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
@@ -371,7 +371,7 @@ describe('ComposableController', () => {
       });
     });
 
-    it('should notify listeners of BaseControllerV2 state change', () => {
+    it('should notify listeners of BaseController state change', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
@@ -430,7 +430,7 @@ describe('ComposableController', () => {
       expect(
         () => new ComposableController([barController, fooController]),
       ).toThrow(
-        'Messaging system required if any BaseControllerV2 controllers are used',
+        'Messaging system required if any BaseController controllers are used',
       );
     });
   });

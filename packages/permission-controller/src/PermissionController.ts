@@ -13,7 +13,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { NonEmptyArray } from '@metamask/controller-utils';
 import {
   isNonEmptyArray,
@@ -511,7 +511,7 @@ export type PermissionControllerOptions<
 export class PermissionController<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
   ControllerCaveatSpecification extends CaveatSpecificationConstraint,
-> extends BaseControllerV2<
+> extends BaseController<
   typeof controllerName,
   PermissionControllerState<
     ExtractPermission<
@@ -565,7 +565,7 @@ export class PermissionController<
    * @param options.unrestrictedMethods - The callable names of all JSON-RPC
    * methods ignored by the new controller.
    * @param options.messenger - The controller messenger. See
-   * {@link BaseControllerV2} for more information.
+   * {@link BaseController} for more information.
    * @param options.state - Existing state to hydrate the controller with at
    * initialization.
    */
