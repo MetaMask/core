@@ -383,7 +383,7 @@ export class TransactionController extends BaseController<
       disableSendFlowHistory: boolean;
       disableSwaps: boolean;
       getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-      getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
+      getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getGasFeeEstimates?: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
@@ -444,7 +444,7 @@ export class TransactionController extends BaseController<
     this.registry = new MethodRegistry({ provider });
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
-      getCurrentAccountEIP1559Compatibility;
+      getCurrentAccountEIP1559Compatibility ?? (() => Promise.resolve(true));
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
     this.getGasFeeEstimates =
@@ -602,10 +602,14 @@ export class TransactionController extends BaseController<
       type?: TransactionType;
     } = {},
   ): Promise<Result> {
-    const chainId = this.getChainId();
+    log('Adding transaction', txParams);
+
     txParams = normalizeTxParams(txParams);
+
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
+
     validateTxParams(txParams, isEIP1559Compatible);
+
     if (origin) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
@@ -624,6 +628,8 @@ export class TransactionController extends BaseController<
       type ?? (await determineTransactionType(txParams, this.ethQuery)).type;
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
+    const chainId = this.getChainId();
+
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     const transactionMeta: TransactionMeta = existingTransactionMeta || {
       // Add actionId to txMeta to check if same actionId is seen again
@@ -1653,7 +1659,10 @@ export class TransactionController extends BaseController<
   }
 
   private async updateGasProperties(transactionMeta: TransactionMeta) {
-    const isEIP1559Compatible = await this.getEIP1559Compatibility();
+    const isEIP1559Compatible =
+      (await this.getEIP1559Compatibility()) &&
+      transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
+
     const chainId = this.getChainId();
 
     await updateGas({
@@ -1867,10 +1876,12 @@ export class TransactionController extends BaseController<
         ...transactionMeta.txParams,
         gasLimit: transactionMeta.txParams.gas,
       };
+
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - Transaction approved',
       );
+
       this.onTransactionStatusChange(transactionMeta);
 
       const isEIP1559 = isEIP1559Transaction(transactionMeta.txParams);
@@ -1879,7 +1890,6 @@ export class TransactionController extends BaseController<
         ? {
             ...baseTxParams,
             estimatedBaseFee: transactionMeta.txParams.estimatedBaseFee,
-            // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
             type: TransactionEnvelopeType.feeMarket,
           }
         : baseTxParams;
@@ -2335,8 +2345,9 @@ export class TransactionController extends BaseController<
   private async getEIP1559Compatibility() {
     const currentNetworkIsEIP1559Compatible =
       await this.getCurrentNetworkEIP1559Compatibility();
+
     const currentAccountIsEIP1559Compatible =
-      this.getCurrentAccountEIP1559Compatibility?.() ?? true;
+      await this.getCurrentAccountEIP1559Compatibility();
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
@@ -2369,6 +2380,8 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     txParams: TransactionParams,
   ): Promise<string | undefined> {
+    log('Signing transaction', txParams);
+
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
     this.inProcessOfSigning.add(transactionMeta.id);
     const signedTx = await this.sign?.(
