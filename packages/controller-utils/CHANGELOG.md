@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This affects `query`: the `sendAsync` method on the given EthQuery must now have a narrower type
 - Bump `@metamask/utils` from ^8.1.0 to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 - Change `BUILT_IN_NETWORKS` so that `rpc` entry now has a dummy `ticker` ([#1794](https://github.com/MetaMask/core/pull/1794))
+- Replace `ethjs-unit` ^0.1.6 with `@metamask/ethjs-unit` ^0.2.1 ([#2064](https://github.com/MetaMask/core/pull/2064))
 
 ### Fixed
 - Move `@metamask/eth-query` from a development dependency to a runtime dependency ([#1815](https://github.com/MetaMask/core/pull/1815))
