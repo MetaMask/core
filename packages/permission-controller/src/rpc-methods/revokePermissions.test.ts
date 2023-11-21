@@ -3,6 +3,18 @@ import { rpcErrors } from '@metamask/rpc-errors';
 
 import { revokePermissionsHandler } from './revokePermissions';
 
+describe('revokePermissionsHandler', () => {
+  it('has the expected shape', () => {
+    expect(revokePermissionsHandler).toStrictEqual({
+      methodNames: ['wallet_revokePermissions'],
+      implementation: expect.any(Function),
+      hookNames: {
+        revokePermissionsForOrigin: true,
+      },
+    });
+  });
+});
+
 describe('revokePermissions RPC method', () => {
   it('revokes permissions using revokePermissionsForOrigin', async () => {
     const { implementation } = revokePermissionsHandler;
