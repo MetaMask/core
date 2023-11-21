@@ -103,7 +103,7 @@ describe('ComposableController', () => {
     sinon.restore();
   });
 
-  describe('BaseController', () => {
+  describe('BaseControllerV1', () => {
     it('should compose controller state', () => {
       const composableMessenger = new ControllerMessenger().getRestricted<
         'ComposableController',
@@ -163,7 +163,7 @@ describe('ComposableController', () => {
     });
   });
 
-  describe('BaseController', () => {
+  describe('BaseControllerV2', () => {
     it('should compose controller state', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
@@ -264,7 +264,7 @@ describe('ComposableController', () => {
     });
   });
 
-  describe('Mixed BaseControllerV1 and BaseController', () => {
+  describe('Mixed BaseControllerV1 and BaseControllerV2', () => {
     it('should compose controller state', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
@@ -371,7 +371,7 @@ describe('ComposableController', () => {
       });
     });
 
-    it('should notify listeners of BaseController state change', () => {
+    it('should notify listeners of BaseControllerV2 state change', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
@@ -430,7 +430,7 @@ describe('ComposableController', () => {
       expect(
         () => new ComposableController([barController, fooController]),
       ).toThrow(
-        'Messaging system required if any BaseController controllers are used',
+        'Messaging system required if any BaseControllerV2 controllers are used',
       );
     });
   });
