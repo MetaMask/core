@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
+### Added
+- Add new handler to `permissionRpcMethods.handlers` for `wallet_revokePermissions` RPC method ([#1889](https://github.com/MetaMask/core/pull/1889))
+
 ### Changed
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
   - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- **BREAKING:** Update `PermittedRpcMethodHooks` type so it must support signature for `wallet_revokePermission` hook ([#1889](https://github.com/MetaMask/core/pull/1889))
 - Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
 - Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
 
