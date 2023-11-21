@@ -11,7 +11,7 @@ import type {
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import {
   query,
   NetworkType,
@@ -210,7 +210,7 @@ export interface TransactionControllerEventEmitter extends EventEmitter {
 /**
  * Controller responsible for submitting and managing transactions.
  */
-export class TransactionController extends BaseController<
+export class TransactionController extends BaseControllerV1<
   TransactionConfig,
   TransactionState
 > {
@@ -1967,7 +1967,7 @@ export class TransactionController extends BaseController<
    * representation, this function will not break apart transactions with the
    * same nonce, created on the same day, per network. Not accounting for transactions of the same
    * nonce, same day and network combo can result in confusing or broken experiences
-   * in the UI. The transactions are then updated using the BaseController update.
+   * in the UI. The transactions are then updated using the BaseControllerV1 update.
    *
    * @param transactions - The transactions to be applied to the state.
    * @returns The trimmed list of transactions.

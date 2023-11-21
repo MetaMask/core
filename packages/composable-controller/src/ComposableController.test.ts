@@ -4,7 +4,7 @@ import type {
 } from '@metamask/base-controller';
 import {
   BaseController,
-  BaseControllerV2,
+  BaseControllerV1,
   ControllerMessenger,
 } from '@metamask/base-controller';
 import type { Patch } from 'immer';
@@ -85,7 +85,7 @@ type BazControllerState = BaseState & {
   baz: string;
 };
 
-class BazController extends BaseController<never, BazControllerState> {
+class BazController extends BaseControllerV1<never, BazControllerState> {
   defaultState = {
     baz: 'baz',
   };

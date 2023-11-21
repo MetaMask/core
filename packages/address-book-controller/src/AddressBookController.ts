@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import {
   normalizeEnsName,
   isValidHexAddress,
@@ -70,7 +70,7 @@ export interface AddressBookState extends BaseState {
 /**
  * Controller that manages a list of recipient addresses associated with nicknames.
  */
-export class AddressBookController extends BaseController<
+export class AddressBookController extends BaseControllerV1<
   BaseConfig,
   AddressBookState
 > {
