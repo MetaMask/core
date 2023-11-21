@@ -23,7 +23,7 @@ This document outlines the process for migrating a MetaMask library that complie
 - Preserve any TypeScript compiler flags that are enabled in the source repo but not in core.
 - Resolve all errors or issues resulting from these changes.
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/28)
-  
+
 ### 5. Add any missing files required in subpackages of the core monorepo (e.g. LICENSE)
 
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/24)
@@ -81,7 +81,7 @@ This document outlines the process for migrating a MetaMask library that complie
 - https://github.com/MetaMask/core/pull/1764
 - **Remove**: `.github/`, `.git*`, `scripts/`, `.depcheckrc.json`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
 - **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `jest.config.js`, `tsconfig*.json`, `typedoc.json`
-  
+
 ### 3. Replace config files
 
 - https://github.com/MetaMask/core/pull/1765
@@ -90,7 +90,7 @@ This document outlines the process for migrating a MetaMask library that complie
 - Add tsconfig reference paths for non-root packages that are upstream dependencies of the migration target.
 - Keep Jest coverage threshold values.
 - Add `deepmerge` as a devDependency.
-  
+
 ### 4. Align dependencies and build scripts with monorepo
 
 - https://github.com/MetaMask/core/pull/1766
@@ -105,7 +105,7 @@ This document outlines the process for migrating a MetaMask library that complie
   - If it's behind:
     - Bump if it's an internal dependency (i.e. the dependency is another sub-package in the monorepo).
     - If it's external, bump only if there are no resulting breaking changes that need to be resolved.
-  
+
 ### 5. Add exception for non-MIT license
 
 - If the migration target uses a non-MIT license, add exception entries in the root `constraints.pro` file.
@@ -169,6 +169,7 @@ This document outlines the process for migrating a MetaMask library that complie
 
 ```markdown
 This library has now been migrated into the [core monorepo](https://github.com/metamask/core/). This PR has been locked and this repo will be archived shortly. Going forward, releases of this library will only include changes made in the core repo.
+
 - Please push this branch to core and open a new PR there.
 - Optionally, add a link pointing to the discussion in this PR to provide context.
 ```
@@ -176,7 +177,21 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 - Leave a note in the source repo's README announcing the migration and pointing to core.
 
 ```html
-<table><tr><td><p align="center"><b>⚠️ PLEASE READ ⚠️</b></p><p align="center">This package has been migrated to our <a href="https://github.com/MetaMask/core"><code>core</code></a> monorepo, and this repository has been archived. Please note that all future development and feature releases will take place in the <a href="https://github.com/MetaMask/core"><code>core</code></a> repository.</p></td></tr></table>
+<table>
+  <tr>
+    <td>
+      <p align="center"><b>⚠️ PLEASE READ ⚠️</b></p>
+      <p align="center">
+        This package has been migrated to our
+        <a href="https://github.com/MetaMask/core"><code>core</code></a>
+        monorepo, and this repository has been archived. Please note that all
+        future development and feature releases will take place in the
+        <a href="https://github.com/MetaMask/core"><code>core</code></a>
+        repository.
+      </p>
+    </td>
+  </tr>
+</table>
 ```
 
 - Archive the source repo to prevent any changes from being pushed to it going forward.
