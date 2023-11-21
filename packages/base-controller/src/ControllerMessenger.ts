@@ -86,10 +86,15 @@ type EventSubscriptionMap<
  * @template Namespace - The namespace we're checking for.
  * @template Name - The full string, including the namespace.
  */
-export type Namespaced<
+export type NamespacedBy<
   Namespace extends string,
   Name,
 > = Name extends `${Namespace}:${string}` ? Name : never;
+
+export type NotNamespacedBy<
+  Namespace extends string,
+  Name,
+> = Name extends `${Namespace}:${string}` ? never : Name;
 
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
