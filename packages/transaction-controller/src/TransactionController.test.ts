@@ -3931,7 +3931,7 @@ describe('TransactionController', () => {
         ).toStrictEqual([transactions[0], transactions[2]]);
       });
 
-      it('returns limited number of transactions sorted by descending time', () => {
+      it('returns limited number of transactions sorted by ascending time', () => {
         const controller = newController();
 
         const transactions: TransactionMeta[] = [
@@ -3945,17 +3945,23 @@ describe('TransactionController', () => {
           {
             chainId: '0x1',
             id: 'testId2',
-
-            status: TransactionStatus.unapproved,
+            status: TransactionStatus.confirmed,
             time: 2,
-            txParams: { from: '0x2', nonce: '0x2' },
+            txParams: { from: '0x1', nonce: '0x2' },
           },
           {
             chainId: '0x1',
             id: 'testId3',
-            status: TransactionStatus.submitted,
+            status: TransactionStatus.unapproved,
             time: 3,
-            txParams: { from: '0x1', nonce: '0x3' },
+            txParams: { from: '0x2', nonce: '0x3' },
+          },
+          {
+            chainId: '0x1',
+            id: 'testId4',
+            status: TransactionStatus.submitted,
+            time: 4,
+            txParams: { from: '0x1', nonce: '0x4' },
           },
         ];
 
@@ -3965,9 +3971,9 @@ describe('TransactionController', () => {
           controller.getTransactions({
             searchCriteria: { from: '0x1' },
             filterToCurrentNetwork: false,
-            limit: 1,
+            limit: 2,
           }),
-        ).toStrictEqual([transactions[2]]);
+        ).toStrictEqual([transactions[1], transactions[3]]);
       });
 
       it('returns limited number of transactions except for duplicate nonces', () => {
@@ -3996,6 +4002,13 @@ describe('TransactionController', () => {
             time: 3,
             txParams: { from: '0x1', nonce: '0x1' },
           },
+          {
+            chainId: '0x1',
+            id: 'testId4',
+            status: TransactionStatus.submitted,
+            time: 4,
+            txParams: { from: '0x1', nonce: '0x3' },
+          },
         ];
 
         controller.state.transactions = transactions;
@@ -4004,9 +4017,9 @@ describe('TransactionController', () => {
           controller.getTransactions({
             searchCriteria: { from: '0x1' },
             filterToCurrentNetwork: false,
-            limit: 1,
+            limit: 2,
           }),
-        ).toStrictEqual([transactions[0], transactions[2]]);
+        ).toStrictEqual([transactions[0], transactions[2], transactions[3]]);
       });
     });
   });

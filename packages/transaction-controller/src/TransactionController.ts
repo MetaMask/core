@@ -33,7 +33,7 @@ import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import { keyBy, mapValues, merge, pickBy, sortBy } from 'lodash';
+import { mapValues, merge, pickBy, sortBy } from 'lodash';
 import { NonceTracker } from 'nonce-tracker';
 import type { NonceLock } from 'nonce-tracker';
 import { v1 as random } from 'uuid';
@@ -786,7 +786,7 @@ export class TransactionController extends BaseController<
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: '0x2',
+            type: TransactionEnvelopeType.feeMarket,
             nonce: transactionMeta.txParams.nonce,
             to: transactionMeta.txParams.from,
             value: '0x0',
@@ -930,7 +930,7 @@ export class TransactionController extends BaseController<
             gasLimit: transactionMeta.txParams.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: '0x2',
+            type: TransactionEnvelopeType.feeMarket,
           }
         : {
             ...transactionMeta.txParams,
@@ -1545,7 +1545,7 @@ export class TransactionController extends BaseController<
     initialList?: TransactionMeta[];
     filterToCurrentNetwork?: boolean;
     limit?: number;
-  } = {}) {
+  } = {}): TransactionMeta[] {
     const chainId = this.getChainId();
     // searchCriteria is an object that might have values that aren't predicate
     // methods. When providing any other value type (string, number, etc), we
@@ -1559,13 +1559,7 @@ export class TransactionController extends BaseController<
         : (v: any) => v === predicate;
     });
 
-    // If an initial list is provided we need to change it back into an object
-    // first, so that it matches the shape of our state. This is done by the
-    // lodash keyBy method. This is the edge case for this method, typically
-    // initialList will be undefined.
-    const transactionsToFilter = initialList
-      ? keyBy(initialList, 'id')
-      : this.state.transactions;
+    const transactionsToFilter = initialList ?? this.state.transactions;
 
     // Combine sortBy and pickBy to transform our state object into an array of
     // matching transactions that are sorted by time.
@@ -1901,7 +1895,7 @@ export class TransactionController extends BaseController<
             ...baseTxParams,
             estimatedBaseFee: transactionMeta.txParams.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-            type: '0x2',
+            type: TransactionEnvelopeType.feeMarket,
           }
         : baseTxParams;
 

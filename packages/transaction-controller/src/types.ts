@@ -321,7 +321,7 @@ type TransactionMetaBase = {
   /**
    * The metadata of the swap transaction.
    */
-  swapMetaData?: Record<string, unknown>;
+  swapMetaData?: Record<string, any>;
 
   /**
    * The value of the token being swapped.
@@ -689,9 +689,9 @@ export interface TransactionReceipt {
   status?: string;
 
   /**
-   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
+   * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
-  transactionIndex?: number;
+  transactionIndex?: string;
 }
 
 /**
