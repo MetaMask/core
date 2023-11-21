@@ -23,13 +23,7 @@ const stateMetadata = {
   nameSources: { persist: true, anonymous: false },
 };
 
-export type NameControllerState = {
-  // Type > Value > Variation > Entry
-  names: Record<NameType, Record<string, Record<string, NameEntry>>>;
-  nameSources: Record<string, SourceEntry>;
-};
-
-const getDefaultState = (): NameControllerState => ({
+const getDefaultState = () => ({
   names: {
     [NameType.ETHEREUM_ADDRESS]: {},
   },
@@ -50,6 +44,12 @@ export type NameEntry = {
 
 export type SourceEntry = {
   label: string;
+};
+
+export type NameControllerState = {
+  // Type > Value > Variation > Entry
+  names: Record<NameType, Record<string, Record<string, NameEntry>>>;
+  nameSources: Record<string, SourceEntry>;
 };
 
 export type GetNameState = ControllerGetStateAction<
