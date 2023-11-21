@@ -10,5 +10,8 @@ export {
   BaseController as BaseControllerV2,
   getAnonymizedState,
   getPersistentState,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
 } from './BaseControllerV2';
 export * from './ControllerMessenger';
+export * from './RestrictedControllerMessenger';

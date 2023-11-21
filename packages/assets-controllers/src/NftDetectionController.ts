@@ -286,7 +286,7 @@ export class NftDetectionController extends PollingControllerV1<
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    await this.detectNfts(networkClientId, options.address);
+    await this.detectNfts({ networkClientId, userAddress: options.address });
   }
 
   /**
@@ -338,35 +338,33 @@ export class NftDetectionController extends PollingControllerV1<
     return networkClient.configuration.chainId === ChainId.mainnet;
   };
 
-  private getCorrectChainId(networkClientId?: NetworkClientId) {
-    if (networkClientId) {
-      return this.getNetworkClientById(networkClientId).configuration.chainId;
-    }
-    return this.config.chainId;
-  }
-
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
    * added.
    *
-   * @param networkClientId - The network client ID to detect NFTs on.
-   * @param accountAddress - The address to detect NFTs for.
+   * @param options - Options bag.
+   * @param options.networkClientId - The network client ID to detect NFTs on.
+   * @param options.userAddress - The address to detect NFTs for.
    */
-  async detectNfts(networkClientId?: NetworkClientId, accountAddress?: string) {
-    const chainId = this.getCorrectChainId(networkClientId);
-
-    const selectedAddress = accountAddress || this.config.selectedAddress;
-
+  async detectNfts(
+    {
+      networkClientId,
+      userAddress,
+    }: {
+      networkClientId?: NetworkClientId;
+      userAddress: string;
+    } = { userAddress: this.config.selectedAddress },
+  ) {
     /* istanbul ignore if */
     if (!this.isMainnet() || this.disabled) {
       return;
     }
     /* istanbul ignore else */
-    if (!selectedAddress) {
+    if (!userAddress) {
       return;
     }
 
-    const apiNfts = await this.getOwnerNfts(selectedAddress);
+    const apiNfts = await this.getOwnerNfts(userAddress);
     const addNftPromises = apiNfts.map(async (nft: ApiNft) => {
       const {
         token_id,
@@ -424,9 +422,9 @@ export class NftDetectionController extends PollingControllerV1<
 
         await this.addNft(address, token_id, {
           nftMetadata,
-          userAddress: selectedAddress,
-          chainId,
+          userAddress,
           source: Source.Detected,
+          networkClientId,
         });
       }
     });

@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
@@ -19,7 +23,6 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
-import type { Patch } from 'immer';
 import { v4 as random } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -359,10 +362,10 @@ export type BlockTrackerProxy = SwappableProxy<
  */
 export type ProviderProxy = SwappableProxy<ProxyWithAccessibleTarget<Provider>>;
 
-export type NetworkControllerStateChangeEvent = {
-  type: `NetworkController:stateChange`;
-  payload: [NetworkState, Patch[]];
-};
+export type NetworkControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof name,
+  NetworkState
+>;
 
 /**
  * `networkWillChange` is published when the current network is about to be
@@ -410,10 +413,10 @@ export type NetworkControllerEvents =
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent;
 
-export type NetworkControllerGetStateAction = {
-  type: `NetworkController:getState`;
-  handler: () => NetworkState;
-};
+export type NetworkControllerGetStateAction = ControllerGetStateAction<
+  typeof name,
+  NetworkState
+>;
 
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
@@ -1013,7 +1016,6 @@ export class NetworkController extends BaseControllerV2<
     }
 
     const networkClient = this.getNetworkClientById(networkClientId);
-    // @ts-expect-error TODO: Provider type alignment
     const ethQuery = new EthQuery(networkClient.provider);
 
     return new Promise((resolve, reject) => {
@@ -1583,7 +1585,6 @@ export class NetworkController extends BaseControllerV2<
       });
     }
 
-    // @ts-expect-error TODO: Provider type alignment
     this.#ethQuery = new EthQuery(this.#providerProxy);
   }
 }

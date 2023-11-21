@@ -85,6 +85,16 @@ type TransactionMetaBase = {
   chainId: Hex;
 
   /**
+   * A string representing a name of transaction contract method.
+   */
+  contractMethodName?: string;
+
+  /**
+   * The balance of the token that is being sent.
+   */
+  currentTokenBalance?: string;
+
+  /**
    * Unique ID for custodian transaction.
    */
   custodyId?: string;
@@ -93,6 +103,16 @@ type TransactionMetaBase = {
    * Custodian transaction status.
    */
   custodyStatus?: string;
+
+  /**
+   * The custom token amount is the amount set by the user.
+   */
+  customTokenAmount?: string;
+
+  /**
+   * The dapp proposed token amount.
+   */
+  dappProposedTokenAmount?: string;
 
   /**
    * Gas values provided by the dApp.
@@ -140,6 +160,13 @@ type TransactionMetaBase = {
   estimateUsed?: string;
 
   /**
+   * The chosen amount which will be the same as the originally proposed token
+   * amount if the user does not edit the  amount or will be a custom token
+   * amount set by the user.
+   */
+  finalApprovalAmount?: string;
+
+  /**
    * The number of the latest block when the transaction submit was first retried.
    */
   firstRetryBlockNumber?: string;
@@ -177,9 +204,21 @@ type TransactionMetaBase = {
   origin?: string;
 
   /**
+   * The original dapp proposed token approval amount before edit by user.
+   */
+  originalApprovalAmount?: string;
+
+  /**
    * The original gas estimation of the transaction.
    */
   originalGasEstimate?: string;
+
+  /**
+   * When we speed up a transaction, we set the type as Retry and we lose
+   * information about type of transaction that is being set up, so we use
+   * original type to track that information.
+   */
+  originalType?: TransactionType;
 
   /**
    * Account transaction balance after swap.
@@ -538,6 +577,16 @@ export interface TransactionParams {
    * Estimated base fee for this transaction.
    */
   estimatedBaseFee?: string;
+
+  /**
+   * Which estimate level that the API suggested.
+   */
+  estimateSuggested?: string;
+
+  /**
+   * Which estimate level was used
+   */
+  estimateUsed?: string;
 
   /**
    * Address to send this transaction from.

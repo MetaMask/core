@@ -12,6 +12,7 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   BlockTracker,
   NetworkState,
@@ -19,8 +20,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import HttpProvider from 'ethjs-provider-http';
-import NonceTracker from 'nonce-tracker';
+import { NonceTracker } from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -2197,6 +2197,31 @@ describe('TransactionController', () => {
   });
 
   describe('speedUpTransaction', () => {
+    it('creates additional transaction', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        options: {
+          getCurrentNetworkEIP1559Compatibility: () => false,
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.originalType).toBe(transactionMeta.type);
+      expect(speedUpTransaction.type).toBe(TransactionType.retry);
+    });
+
     it('should avoid creating speedup transaction if actionId already exist', async () => {
       const mockActionId = 'mockActionId';
       const controller = newController();
@@ -3712,6 +3737,120 @@ describe('TransactionController', () => {
       ).toThrow(
         'Cannot update security alert response as no transaction metadata found',
       );
+    });
+  });
+
+  describe('updateCustodialTransaction', () => {
+    const transactionId = '1';
+    const statusMock = TransactionStatus.unapproved as const;
+    const baseTransaction = {
+      id: transactionId,
+      chainId: toHex(5),
+      status: statusMock,
+      time: 123456789,
+      txParams: {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+      },
+    };
+    const transactionMeta: TransactionMeta = {
+      ...baseTransaction,
+      custodyId: '123',
+      history: [{ ...baseTransaction }],
+    };
+    it.each([
+      {
+        newStatus: TransactionStatus.signed,
+      },
+      {
+        newStatus: TransactionStatus.submitted,
+      },
+      {
+        newStatus: TransactionStatus.failed,
+        errorMessage: 'Error mock',
+      },
+    ])(
+      'updates transaction status to $newStatus',
+      async ({ newStatus, errorMessage }) => {
+        const newHash = '1234';
+        const newCustodyStatus = 'submitted';
+        const controller = newController();
+        controller.state.transactions.push(transactionMeta);
+
+        controller.updateCustodialTransaction(transactionId, {
+          status: newStatus,
+          hash: newHash,
+          custodyStatus: newCustodyStatus,
+          errorMessage,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+
+        expect(updatedTransaction?.status).toStrictEqual(newStatus);
+        expect(updatedTransaction?.hash).toStrictEqual(newHash);
+        expect(updatedTransaction?.custodyStatus).toStrictEqual(
+          newCustodyStatus,
+        );
+      },
+    );
+
+    it('throws if custodial transaction does not exists', async () => {
+      const nonExistentId = 'nonExistentId';
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+
+      expect(() =>
+        controller.updateCustodialTransaction(nonExistentId, {
+          status: newStatus,
+        }),
+      ).toThrow(
+        'Cannot update custodial transaction as no transaction metadata found',
+      );
+    });
+
+    it('throws if transaction is not a custodial transaction', async () => {
+      const nonCustodialTransaction: TransactionMeta = {
+        ...baseTransaction,
+        history: [{ ...baseTransaction }],
+      };
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+      controller.state.transactions.push(nonCustodialTransaction);
+
+      expect(() =>
+        controller.updateCustodialTransaction(nonCustodialTransaction.id, {
+          status: newStatus,
+        }),
+      ).toThrow('Transaction must be a custodian transaction');
+    });
+
+    it('throws if status is invalid', async () => {
+      const newStatus = TransactionStatus.approved as const;
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      expect(() =>
+        controller.updateCustodialTransaction(transactionMeta.id, {
+          status: newStatus,
+        }),
+      ).toThrow(
+        `Cannot update custodial transaction with status: ${newStatus}`,
+      );
+    });
+
+    it('no property was updated', async () => {
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      controller.updateCustodialTransaction(transactionId, {});
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction?.status).toStrictEqual(transactionMeta.status);
+      expect(updatedTransaction?.custodyStatus).toStrictEqual(
+        transactionMeta.custodyStatus,
+      );
+      expect(updatedTransaction?.hash).toStrictEqual(transactionMeta.hash);
     });
   });
 });
