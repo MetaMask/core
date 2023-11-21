@@ -34,8 +34,8 @@ function getSubjectMetadataControllerMessenger() {
   return [
     controllerMessenger.getRestricted<
       typeof controllerName,
-      SubjectMetadataControllerActions['type'] | HasPermissions['type'],
-      SubjectMetadataControllerEvents['type']
+      HasPermissions['type'],
+      never
     >({
       name: controllerName,
       allowedActions: ['PermissionController:hasPermissions'],
