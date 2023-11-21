@@ -1,5 +1,5 @@
-export type { BaseConfig, BaseState, Listener } from './BaseController';
-export { BaseController } from './BaseController';
+export type { BaseConfig, BaseState, Listener } from './BaseControllerV1';
+export { BaseController as BaseControllerV1 } from './BaseControllerV1';
 export type {
   Listener as ListenerV2,
   StateDeriver,

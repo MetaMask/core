@@ -30,6 +30,8 @@ export interface BaseState {
 }
 
 /**
+ * @deprecated in favor of controller-messenger pattern implemented in BaseControllerV2
+ *
  * Controller class that provides configuration, state management, and subscriptions.
  *
  * The core purpose of every controller is to maintain an internal data object
@@ -68,7 +70,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   private readonly internalListeners: Listener<S>[] = [];
 
   /**
-   * Creates a BaseController instance. Both initial state and initial
+   * Creates a BaseControllerV1 instance. Both initial state and initial
    * configuration options are merged with defaults upon initialization.
    *
    * @param config - Initial options used to configure this controller.
@@ -190,4 +192,4 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 }
 
-export default BaseController;
+export default BaseControllerV1;
