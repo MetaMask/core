@@ -384,21 +384,29 @@ export class ControllerMessenger<
    * module that this messenger has been created for. The authority to publish events and register
    * actions under this namespace is granted to this restricted messenger instance.
    * @template AllowedAction - A type union of the 'type' string for any allowed actions.
+   * This must not include internal actions that are in the messenger's namespace.
    * @template AllowedEvent - A type union of the 'type' string for any allowed events.
+   * This must not include internal events that are in the messenger's namespace.
    * @returns The restricted controller messenger.
    */
   getRestricted<
     Namespace extends string,
-    AllowedAction extends string,
-    AllowedEvent extends string,
+    AllowedAction extends NotNamespacedBy<Namespace, Action['type']>,
+    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']>,
   >({
     name,
     allowedActions,
     allowedEvents,
   }: {
     name: Namespace;
-    allowedActions?: Extract<Action['type'], AllowedAction>[];
-    allowedEvents?: Extract<Event['type'], AllowedEvent>[];
+    allowedActions?: NotNamespacedBy<
+      Namespace,
+      Extract<Action['type'], AllowedAction>
+    >[];
+    allowedEvents?: NotNamespacedBy<
+      Namespace,
+      Extract<Event['type'], AllowedEvent>
+    >[];
   }): RestrictedControllerMessenger<
     Namespace,
     | NarrowToNamespace<Action, Namespace>
