@@ -430,7 +430,7 @@ describe('ComposableController', () => {
       expect(
         () => new ComposableController([barController, fooController]),
       ).toThrow(
-        'Messaging system required if any BaseControllerV2 controllers are used',
+        'Messaging system required if any BaseController controllers are used',
       );
     });
   });
