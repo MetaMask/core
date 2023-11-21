@@ -38,7 +38,7 @@ export interface BaseState {
  * called "state". Each controller is responsible for its own state, and all global wallet state
  * is tracked in a controller as state.
  */
-export class BaseController<C extends BaseConfig, S extends BaseState> {
+export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
   /**
    * Default options used to configure this controller
    */
@@ -192,4 +192,4 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 }
 
-export default BaseController;
+export default BaseControllerV1;
