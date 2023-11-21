@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
   - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
 - Bump `nonce-tracker` to ^3.0.0 ([#2040](https://github.com/MetaMask/core/pull/2040))
+- The controller now emits a `transaction-status-update` event each time the status of a transaction changes (e.g. submitted, rejected, etc.) ([#2027](https://github.com/MetaMask/core/pull/2027))
 - Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
 - Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
 - Bump `@metamask/gas-fee-controller` to ^11.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
