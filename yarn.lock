@@ -1473,7 +1473,7 @@ __metadata:
     "@metamask/contract-metadata": ^2.4.0
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^4.0.0
-    "@metamask/ethjs-provider-http": ^0.2.0
+    "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": ^16.0.0
     "@metamask/polling-controller": ^1.0.2
@@ -1861,12 +1861,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ethjs-provider-http@npm:^0.2.0":
-  version: 0.2.0
-  resolution: "@metamask/ethjs-provider-http@npm:0.2.0"
+"@metamask/ethjs-provider-http@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@metamask/ethjs-provider-http@npm:0.3.0"
   dependencies:
     xhr2: 0.2.1
-  checksum: 97a9e168b9ad4bf26a9ed7b1c2f785c42d7a3829dea32ef47445a9035163f6632d32895b1f231dcf9641197626a4c54385c6a9de199bfe83fd316498d1e4b456
+  peerDependencies:
+    "@babel/runtime": ^7.0.0
+  checksum: 54cf5ee3539133e1b055cb3037e491ad7187a0c8268554dfcb56cf9f4827e4d70147d7e3601e1868edff3da1ffa00c8dca1f189fa82d79babeb7c316ce19b5d0
   languageName: node
   linkType: hard
 
@@ -2569,7 +2571,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^4.0.0
-    "@metamask/ethjs-provider-http": ^0.2.0
+    "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^10.0.1
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^16.0.0
