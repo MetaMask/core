@@ -154,7 +154,6 @@ export class RestrictedControllerMessenger<
     actionType: ActionType,
     ...params: ExtractActionParameters<Action, ActionType>
   ): ExtractActionResponse<Action, ActionType> {
-    /* istanbul ignore next */ // Branches unreachable with valid types
     if (!this.#isAllowedAction(actionType)) {
       throw new Error(`Action missing from allow list: ${actionType}`);
     }
@@ -257,7 +256,6 @@ export class RestrictedControllerMessenger<
       SelectorReturnValue
     >,
   ) {
-    /* istanbul ignore next */ // Branches unreachable with valid types
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
@@ -285,7 +283,6 @@ export class RestrictedControllerMessenger<
       | AllowedEvent
       | (Event['type'] & NamespacedName<Namespace>),
   >(event: EventType, handler: ExtractEventHandler<Event, EventType>) {
-    /* istanbul ignore next */ // Branches unreachable with valid types
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
@@ -306,7 +303,6 @@ export class RestrictedControllerMessenger<
   clearEventSubscriptions<
     EventType extends Event['type'] & NamespacedName<Namespace>,
   >(event: EventType) {
-    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(event)) {
       throw new Error(
         `Only allowed clearing events prefixed by '${this.#controllerName}:'`,

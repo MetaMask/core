@@ -292,6 +292,7 @@ export class TransactionController extends BaseController<
       newTransactionMeta,
       'TransactionController#failTransaction - Add error message and set status to failed',
     );
+    this.onTransactionStatusChange(newTransactionMeta);
     this.hub.emit(`${transactionMeta.id}:finished`, newTransactionMeta);
   }
 
@@ -1143,6 +1144,7 @@ export class TransactionController extends BaseController<
         transactionMeta,
         'TransactionController:confirmExternalTransaction - Add external transaction',
       );
+      this.onTransactionStatusChange(transactionMeta);
 
       if (transactionMeta.type === TransactionType.swap) {
         updatePostTransactionBalance(transactionMeta, {
@@ -1373,6 +1375,75 @@ export class TransactionController extends BaseController<
    */
   async getNonceLock(address: string): Promise<NonceLock> {
     return this.nonceTracker.getNonceLock(address);
+  }
+
+  /**
+   * Updates the editable parameters of a transaction.
+   *
+   * @param txId - The ID of the transaction to update.
+   * @param params - The editable parameters to update.
+   * @param params.data - Data to pass with the transaction.
+   * @param params.gas - Maximum number of units of gas to use for the transaction.
+   * @param params.gasPrice - Price per gas for legacy transactions.
+   * @param params.from - Address to send the transaction from.
+   * @param params.to - Address to send the transaction to.
+   * @param params.value - Value associated with the transaction.
+   * @returns The updated transaction metadata.
+   */
+  async updateEditableParams(
+    txId: string,
+    {
+      data,
+      gas,
+      gasPrice,
+      from,
+      to,
+      value,
+    }: {
+      data?: string;
+      gas?: string;
+      gasPrice?: string;
+      from?: string;
+      to?: string;
+      value?: string;
+    },
+  ) {
+    const transactionMeta = this.getTransaction(txId);
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update editable params as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, 'updateEditableParams');
+
+    const editableParams = {
+      txParams: {
+        data,
+        from,
+        to,
+        value,
+        gas,
+        gasPrice,
+      },
+    } as Partial<TransactionMeta>;
+
+    editableParams.txParams = pickBy(
+      editableParams.txParams,
+    ) as TransactionParams;
+
+    const updatedTransaction = merge(transactionMeta, editableParams);
+    const { type } = await determineTransactionType(
+      updatedTransaction.txParams,
+      this.ethQuery,
+    );
+    updatedTransaction.type = type;
+
+    this.updateTransaction(
+      updatedTransaction,
+      `Update Editable Params for ${txId}`,
+    );
+    return this.getTransaction(txId);
   }
 
   /**
@@ -1780,7 +1851,6 @@ export class TransactionController extends BaseController<
         return;
       }
 
-      const { approved: status } = TransactionStatus;
       let nonceToUse = nonce;
       // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
       // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
@@ -1789,7 +1859,7 @@ export class TransactionController extends BaseController<
         nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
       }
 
-      transactionMeta.status = status;
+      transactionMeta.status = TransactionStatus.approved;
       transactionMeta.txParams.nonce = nonceToUse;
       transactionMeta.txParams.chainId = chainId;
 
@@ -1801,6 +1871,7 @@ export class TransactionController extends BaseController<
         transactionMeta,
         'TransactionController#approveTransaction - Transaction approved',
       );
+      this.onTransactionStatusChange(transactionMeta);
 
       const isEIP1559 = isEIP1559Transaction(transactionMeta.txParams);
 
@@ -1835,14 +1906,15 @@ export class TransactionController extends BaseController<
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
-      this.hub.emit('transaction-submitted', {
-        transactionMeta,
-      });
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - Transaction submitted',
       );
+      this.hub.emit('transaction-submitted', {
+        transactionMeta,
+      });
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+      this.onTransactionStatusChange(transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
@@ -1874,15 +1946,16 @@ export class TransactionController extends BaseController<
       return;
     }
     transactionMeta.status = TransactionStatus.rejected;
+    const transactions = this.state.transactions.filter(
+      ({ id }) => id !== transactionId,
+    );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     this.hub.emit('transaction-rejected', {
       transactionMeta,
       actionId,
     });
-    const transactions = this.state.transactions.filter(
-      ({ id }) => id !== transactionId,
-    );
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.onTransactionStatusChange(transactionMeta);
   }
 
   /**
@@ -2216,6 +2289,7 @@ export class TransactionController extends BaseController<
       transactionMeta,
       'TransactionController#setTransactionStatusDropped - Transaction dropped',
     );
+    this.onTransactionStatusChange(transactionMeta);
   }
 
   /**
@@ -2281,6 +2355,7 @@ export class TransactionController extends BaseController<
       (transactionMeta: TransactionMeta) => {
         this.hub.emit('transaction-confirmed', { transactionMeta });
         this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
+        this.onTransactionStatusChange(transactionMeta);
       },
     );
 
@@ -2329,6 +2404,7 @@ export class TransactionController extends BaseController<
       transactionMeta,
       'TransactionController#approveTransaction - Transaction signed',
     );
+    this.onTransactionStatusChange(transactionMeta);
 
     const rawTx = bufferToHex(signedTx.serialize());
     transactionMeta.rawTx = rawTx;
@@ -2337,6 +2413,10 @@ export class TransactionController extends BaseController<
       'TransactionController#approveTransaction - RawTransaction added',
     );
     return rawTx;
+  }
+
+  private onTransactionStatusChange(transactionMeta: TransactionMeta) {
+    this.hub.emit('transaction-status-update', { transactionMeta });
   }
 }
 

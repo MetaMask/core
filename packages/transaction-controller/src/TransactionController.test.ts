@@ -12,6 +12,7 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   BlockTracker,
   NetworkState,
@@ -19,7 +20,6 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import HttpProvider from 'ethjs-provider-http';
 import { NonceTracker } from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -2549,12 +2549,17 @@ describe('TransactionController', () => {
 
     it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
       const droppedEventListener = jest.fn();
+      const changedStatusEventListener = jest.fn();
       const controller = newController({
         options: {
           disableHistory: true,
         },
       });
       controller.hub.on('transaction-dropped', droppedEventListener);
+      controller.hub.on(
+        'transaction-status-update',
+        changedStatusEventListener,
+      );
 
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
@@ -2577,7 +2582,7 @@ describe('TransactionController', () => {
       };
       const externalBaseFeePerGas = '0x14';
 
-      // Submitted local unapproved transaction
+      // Local unapproved transaction
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
         id: localTransactionIdWithSameNonce,
@@ -2601,6 +2606,10 @@ describe('TransactionController', () => {
         (transaction) => transaction.id === localTransactionIdWithSameNonce,
       );
 
+      const externalTx = controller.state.transactions.find(
+        (transaction) => transaction.id === externalTransactionId,
+      );
+
       expect(droppedTx?.status).toBe(TransactionStatus.dropped);
 
       expect(droppedTx?.replacedById).toBe(externalTransactionId);
@@ -2609,6 +2618,14 @@ describe('TransactionController', () => {
       expect(droppedEventListener).toHaveBeenCalledTimes(1);
       expect(droppedEventListener).toHaveBeenCalledWith({
         transactionMeta: droppedTx,
+      });
+
+      expect(changedStatusEventListener).toHaveBeenCalledTimes(2);
+      expect(changedStatusEventListener.mock.calls[0][0]).toStrictEqual({
+        transactionMeta: droppedTx,
+      });
+      expect(changedStatusEventListener.mock.calls[1][0]).toStrictEqual({
+        transactionMeta: externalTx,
       });
     });
 
@@ -3299,9 +3316,11 @@ describe('TransactionController', () => {
 
     it('bubbles on transaction-confirmed event', async () => {
       const listener = jest.fn();
+      const statusUpdateListener = jest.fn();
       const controller = newController();
 
       controller.hub.on(`${TRANSACTION_META_MOCK.id}:confirmed`, listener);
+      controller.hub.on(`transaction-status-update`, statusUpdateListener);
 
       firePendingTransactionTrackerEvent(
         'transaction-confirmed',
@@ -3310,6 +3329,11 @@ describe('TransactionController', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+
+      expect(statusUpdateListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdateListener).toHaveBeenCalledWith({
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
     });
 
     it('sets status to dropped on transaction-dropped event', async () => {
@@ -3330,9 +3354,14 @@ describe('TransactionController', () => {
     });
 
     it('sets status to failed on transaction-failed event', async () => {
+      const changedStatusEventListener = jest.fn();
       const controller = newController({
         options: { disableHistory: true },
       });
+      controller.hub.on(
+        'transaction-status-update',
+        changedStatusEventListener,
+      );
 
       const errorMock = new Error('TestError');
       const expectedTransactionError: TransactionError = {
@@ -3351,13 +3380,18 @@ describe('TransactionController', () => {
         errorMock,
       );
 
-      expect(controller.state.transactions).toStrictEqual([
-        {
-          ...TRANSACTION_META_MOCK,
-          status: TransactionStatus.failed,
-          error: expectedTransactionError,
-        },
-      ]);
+      const failedTx = {
+        ...TRANSACTION_META_MOCK,
+        status: TransactionStatus.failed,
+        error: expectedTransactionError,
+      };
+
+      expect(controller.state.transactions[0]).toStrictEqual(failedTx);
+
+      expect(changedStatusEventListener).toHaveBeenCalledTimes(1);
+      expect(changedStatusEventListener).toHaveBeenCalledWith({
+        transactionMeta: failedTx,
+      });
     });
 
     it('updates transaction on transaction-updated event', async () => {
@@ -3817,6 +3851,70 @@ describe('TransactionController', () => {
         transactionMeta.custodyStatus,
       );
       expect(updatedTransaction?.hash).toStrictEqual(transactionMeta.hash);
+    });
+  });
+
+  describe('updateEditableParams', () => {
+    const transactionId = '1';
+    const params = {
+      data: '0x0',
+      from: ACCOUNT_2_MOCK,
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: ACCOUNT_MOCK,
+      value: '0x0',
+    };
+
+    const baseTransaction = {
+      id: transactionId,
+      chainId: toHex(5),
+      status: TransactionStatus.unapproved as const,
+      time: 123456789,
+      txParams: {
+        data: 'originalData',
+        gas: '50000',
+        gasPrice: '1000000000',
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        value: '5000000000000000000',
+      },
+    };
+    const transactionMeta: TransactionMeta = {
+      ...baseTransaction,
+      history: [{ ...baseTransaction }],
+    };
+
+    it('updates editable params and returns updated transaction metadata', async () => {
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.txParams).toStrictEqual(params);
+    });
+
+    it('throws an error if no transaction metadata is found', async () => {
+      const controller = newController();
+      await expect(
+        controller.updateEditableParams(transactionId, params),
+      ).rejects.toThrow(
+        'Cannot update editable params as no transaction metadata found',
+      );
+    });
+
+    it('throws an error if the transaction is not unapproved', async () => {
+      const controller = newController();
+      controller.state.transactions.push({
+        ...transactionMeta,
+        status: TransactionStatus.submitted as const,
+      });
+      await expect(controller.updateEditableParams(transactionId, params))
+        .rejects
+        .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
+      Current tx status: ${TransactionStatus.submitted}`);
     });
   });
 });
