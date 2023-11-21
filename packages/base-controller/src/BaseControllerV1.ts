@@ -30,7 +30,7 @@ export interface BaseState {
 }
 
 /**
- * @deprecated in favor of controller-messenger pattern implemented in BaseControllerV2
+ * @deprecated This class has been renamed to BaseControllerV1 and is no longer recommended for use for controllers. Please use BaseController (formerly BaseControllerV2) instead.
  *
  * Controller class that provides configuration, state management, and subscriptions.
  *
