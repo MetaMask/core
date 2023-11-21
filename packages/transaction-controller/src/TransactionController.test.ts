@@ -3853,4 +3853,68 @@ describe('TransactionController', () => {
       expect(updatedTransaction?.hash).toStrictEqual(transactionMeta.hash);
     });
   });
+
+  describe('updateEditableParams', () => {
+    const transactionId = '1';
+    const params = {
+      data: '0x0',
+      from: ACCOUNT_2_MOCK,
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: ACCOUNT_MOCK,
+      value: '0x0',
+    };
+
+    const baseTransaction = {
+      id: transactionId,
+      chainId: toHex(5),
+      status: TransactionStatus.unapproved as const,
+      time: 123456789,
+      txParams: {
+        data: 'originalData',
+        gas: '50000',
+        gasPrice: '1000000000',
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        value: '5000000000000000000',
+      },
+    };
+    const transactionMeta: TransactionMeta = {
+      ...baseTransaction,
+      history: [{ ...baseTransaction }],
+    };
+
+    it('updates editable params and returns updated transaction metadata', async () => {
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.txParams).toStrictEqual(params);
+    });
+
+    it('throws an error if no transaction metadata is found', async () => {
+      const controller = newController();
+      await expect(
+        controller.updateEditableParams(transactionId, params),
+      ).rejects.toThrow(
+        'Cannot update editable params as no transaction metadata found',
+      );
+    });
+
+    it('throws an error if the transaction is not unapproved', async () => {
+      const controller = newController();
+      controller.state.transactions.push({
+        ...transactionMeta,
+        status: TransactionStatus.submitted as const,
+      });
+      await expect(controller.updateEditableParams(transactionId, params))
+        .rejects
+        .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
+      Current tx status: ${TransactionStatus.submitted}`);
+    });
+  });
 });

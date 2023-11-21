@@ -1378,6 +1378,75 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Updates the editable parameters of a transaction.
+   *
+   * @param txId - The ID of the transaction to update.
+   * @param params - The editable parameters to update.
+   * @param params.data - Data to pass with the transaction.
+   * @param params.gas - Maximum number of units of gas to use for the transaction.
+   * @param params.gasPrice - Price per gas for legacy transactions.
+   * @param params.from - Address to send the transaction from.
+   * @param params.to - Address to send the transaction to.
+   * @param params.value - Value associated with the transaction.
+   * @returns The updated transaction metadata.
+   */
+  async updateEditableParams(
+    txId: string,
+    {
+      data,
+      gas,
+      gasPrice,
+      from,
+      to,
+      value,
+    }: {
+      data?: string;
+      gas?: string;
+      gasPrice?: string;
+      from?: string;
+      to?: string;
+      value?: string;
+    },
+  ) {
+    const transactionMeta = this.getTransaction(txId);
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update editable params as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, 'updateEditableParams');
+
+    const editableParams = {
+      txParams: {
+        data,
+        from,
+        to,
+        value,
+        gas,
+        gasPrice,
+      },
+    } as Partial<TransactionMeta>;
+
+    editableParams.txParams = pickBy(
+      editableParams.txParams,
+    ) as TransactionParams;
+
+    const updatedTransaction = merge(transactionMeta, editableParams);
+    const { type } = await determineTransactionType(
+      updatedTransaction.txParams,
+      this.ethQuery,
+    );
+    updatedTransaction.type = type;
+
+    this.updateTransaction(
+      updatedTransaction,
+      `Update Editable Params for ${txId}`,
+    );
+    return this.getTransaction(txId);
+  }
+
+  /**
    * Signs and returns the raw transaction data for provided transaction params list.
    *
    * @param listOfTxParams - The list of transaction params to approve.
