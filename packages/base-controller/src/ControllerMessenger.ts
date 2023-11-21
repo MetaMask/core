@@ -1,11 +1,9 @@
 import { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
-export type ActionHandler<
-  Action extends ActionConstraint,
-  ActionType = Action['type'],
-> = (
-  ...args: ExtractActionParameters<Action, ActionType>
-) => ExtractActionResponse<Action, ActionType>;
+export type ActionConstraint = {
+  type: string;
+  handler: ((...args: never) => unknown) | ((...args: never[]) => unknown);
+};
 
 export type ExtractActionParameters<
   Action extends ActionConstraint,
@@ -26,6 +24,18 @@ export type ExtractActionResponse<
 }
   ? HandlerReturnValue
   : never;
+
+export type ActionHandler<
+  Action extends ActionConstraint,
+  ActionType = Action['type'],
+> = (
+  ...args: ExtractActionParameters<Action, ActionType>
+) => ExtractActionResponse<Action, ActionType>;
+
+export type EventConstraint = {
+  type: string;
+  payload: unknown[];
+};
 
 export type ExtractEventHandler<
   Event extends EventConstraint,
@@ -60,15 +70,6 @@ export type SelectorEventHandler<SelectorReturnValue> = (
   newValue: SelectorReturnValue,
   previousValue: SelectorReturnValue | undefined,
 ) => void;
-
-export type ActionConstraint = {
-  type: string;
-  handler: ((...args: never) => unknown) | ((...args: never[]) => unknown);
-};
-export type EventConstraint = {
-  type: string;
-  payload: unknown[];
-};
 
 type EventSubscriptionMap<
   Event extends EventConstraint,

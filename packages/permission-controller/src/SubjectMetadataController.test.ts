@@ -1,7 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
-import type { HasPermissions } from './PermissionController';
+import type { HasAnyPermissions } from './PermissionController';
 import type {
   SubjectMetadataControllerActions,
   SubjectMetadataControllerEvents,
@@ -21,29 +21,29 @@ const controllerName = 'SubjectMetadataController';
  */
 function getSubjectMetadataControllerMessenger() {
   const controllerMessenger = new ControllerMessenger<
-    SubjectMetadataControllerActions | HasPermissions,
+    SubjectMetadataControllerActions | HasAnyPermissions,
     SubjectMetadataControllerEvents
   >();
 
-  const hasPermissionsSpy = jest.fn();
+  const hasAnyPermissionsSpy = jest.fn();
   controllerMessenger.registerActionHandler(
-    'PermissionController:hasPermissions',
-    hasPermissionsSpy,
+    'PermissionController:hasAnyPermissions',
+    hasAnyPermissionsSpy,
   );
 
   return [
     controllerMessenger.getRestricted<
       typeof controllerName,
-      SubjectMetadataControllerActions['type'] | HasPermissions['type'],
+      SubjectMetadataControllerActions['type'] | HasAnyPermissions['type'],
       SubjectMetadataControllerEvents['type']
     >({
       name: controllerName,
       allowedActions: [
-        'PermissionController:hasPermissions',
+        'PermissionController:hasAnyPermissions',
         'SubjectMetadataController:getState',
       ],
     }) as SubjectMetadataControllerMessenger,
-    hasPermissionsSpy,
+    hasAnyPermissionsSpy,
   ] as const;
 }
 
@@ -83,10 +83,10 @@ describe('SubjectMetadataController', () => {
     });
 
     it('trims subject metadata state on startup', () => {
-      const [messenger, hasPermissionsSpy] =
+      const [messenger, hasAnyPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
-      hasPermissionsSpy.mockImplementationOnce(() => false);
-      hasPermissionsSpy.mockImplementationOnce(() => true);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => false);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => true);
 
       const controller = new SubjectMetadataController({
         messenger,
@@ -121,7 +121,7 @@ describe('SubjectMetadataController', () => {
 
   describe('clearState', () => {
     it('clears the controller state, and continues to function normally afterwards', () => {
-      const [messenger, hasPermissionsSpy] =
+      const [messenger, hasAnyPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
@@ -129,7 +129,7 @@ describe('SubjectMetadataController', () => {
       });
 
       // No subject will have permissions.
-      hasPermissionsSpy.mockImplementation(() => false);
+      hasAnyPermissionsSpy.mockImplementation(() => false);
 
       // Add subjects up to the cache limit
       controller.addSubjectMetadata(getSubjectMetadata('foo.com', 'foo'));
@@ -182,13 +182,13 @@ describe('SubjectMetadataController', () => {
     });
 
     it('does not delete metadata for subjects with permissions if cache size is exceeded', () => {
-      const [messenger, hasPermissionsSpy] =
+      const [messenger, hasAnyPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
         subjectCacheLimit: 1,
       });
-      hasPermissionsSpy.mockImplementationOnce(() => true);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => true);
 
       controller.addSubjectMetadata({ origin: 'foo.com', name: 'foo' });
       controller.addSubjectMetadata({ origin: 'bar.io', name: 'bar' });
@@ -201,13 +201,13 @@ describe('SubjectMetadataController', () => {
     });
 
     it('deletes metadata for subjects without permissions if cache size is exceeded', () => {
-      const [messenger, hasPermissionsSpy] =
+      const [messenger, hasAnyPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
         subjectCacheLimit: 1,
       });
-      hasPermissionsSpy.mockImplementationOnce(() => false);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => false);
 
       controller.addSubjectMetadata({ origin: 'foo.com', name: 'foo' });
       controller.addSubjectMetadata({ origin: 'bar.io', name: 'bar' });
@@ -221,13 +221,13 @@ describe('SubjectMetadataController', () => {
 
   describe('getSubjectMetadata', () => {
     it('returns the subject metadata for the given origin', () => {
-      const [messenger, hasPermissionsSpy] =
+      const [messenger, hasAnyPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
         subjectCacheLimit: 1,
       });
-      hasPermissionsSpy.mockImplementationOnce(() => true);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => true);
 
       controller.addSubjectMetadata(
         getSubjectMetadata('foo.com', 'foo', SubjectType.Snap),
@@ -249,7 +249,7 @@ describe('SubjectMetadataController', () => {
 
   describe('trimMetadataState', () => {
     it('deletes all subjects without permissions from state', () => {
-      const [messenger, hasPermissionsSpy] =
+      const [messenger, hasAnyPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
@@ -269,10 +269,10 @@ describe('SubjectMetadataController', () => {
         },
       });
 
-      hasPermissionsSpy.mockImplementationOnce(() => true);
-      hasPermissionsSpy.mockImplementationOnce(() => false);
-      hasPermissionsSpy.mockImplementationOnce(() => false);
-      hasPermissionsSpy.mockImplementationOnce(() => true);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => true);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => false);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => false);
+      hasAnyPermissionsSpy.mockImplementationOnce(() => true);
 
       controller.trimMetadataState();
       expect(controller.state).toStrictEqual({

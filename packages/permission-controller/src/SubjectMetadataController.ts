@@ -8,7 +8,7 @@ import type { Json } from '@metamask/utils';
 
 import type {
   GenericPermissionController,
-  HasPermissions,
+  HasAnyPermissions,
   PermissionSubjectMetadata,
 } from './PermissionController';
 
@@ -77,7 +77,7 @@ export type SubjectMetadataStateChange = ControllerStateChangeEvent<
 
 export type SubjectMetadataControllerEvents = SubjectMetadataStateChange;
 
-type AllowedActions = HasPermissions;
+type AllowedActions = HasAnyPermissions;
 
 export type SubjectMetadataControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -106,7 +106,7 @@ export class SubjectMetadataController extends BaseControllerV2<
 
   private readonly subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
 
-  private readonly subjectHasPermissions: GenericPermissionController['hasPermissions'];
+  private readonly subjectHasAnyPermissions: GenericPermissionController['hasAnyPermissions'];
 
   constructor({
     messenger,
@@ -119,8 +119,8 @@ export class SubjectMetadataController extends BaseControllerV2<
       );
     }
 
-    const hasPermissions = (origin: string) => {
-      return messenger.call('PermissionController:hasPermissions', origin);
+    const hasAnyPermissions = (origin: string) => {
+      return messenger.call('PermissionController:hasAnyPermissions', origin);
     };
 
     super({
@@ -128,11 +128,11 @@ export class SubjectMetadataController extends BaseControllerV2<
       metadata: stateMetadata,
       messenger,
       state: {
-        ...SubjectMetadataController.getTrimmedState(state, hasPermissions),
+        ...SubjectMetadataController.getTrimmedState(state, hasAnyPermissions),
       },
     });
 
-    this.subjectHasPermissions = hasPermissions;
+    this.subjectHasAnyPermissions = hasAnyPermissions;
     this.subjectCacheLimit = subjectCacheLimit;
     this.subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
 
@@ -191,7 +191,7 @@ export class SubjectMetadataController extends BaseControllerV2<
         cachedOrigin,
       );
 
-      if (!this.subjectHasPermissions(cachedOrigin)) {
+      if (!this.subjectHasAnyPermissions(cachedOrigin)) {
         originToForget = cachedOrigin;
       }
     }
@@ -225,7 +225,7 @@ export class SubjectMetadataController extends BaseControllerV2<
       return SubjectMetadataController.getTrimmedState(
         // Typecast: ts(2589)
         draftState as any,
-        this.subjectHasPermissions,
+        this.subjectHasAnyPermissions,
       );
     });
   }
@@ -236,7 +236,7 @@ export class SubjectMetadataController extends BaseControllerV2<
    * the controller's state is initialized.
    *
    * @param state - The state object to trim.
-   * @param hasPermissions - A function that returns a boolean indicating
+   * @param hasAnyPermissions - A function that returns a boolean indicating
    * whether a particular subject (identified by its origin) has any
    * permissions.
    * @returns The new state object. If the specified `state` object has no
@@ -245,7 +245,7 @@ export class SubjectMetadataController extends BaseControllerV2<
    */
   private static getTrimmedState(
     state: Partial<SubjectMetadataControllerState>,
-    hasPermissions: SubjectMetadataController['subjectHasPermissions'],
+    hasAnyPermissions: SubjectMetadataController['subjectHasAnyPermissions'],
   ): SubjectMetadataControllerState {
     const { subjectMetadata = {} } = state;
 
@@ -253,7 +253,7 @@ export class SubjectMetadataController extends BaseControllerV2<
       subjectMetadata: Object.keys(subjectMetadata).reduce<
         Record<SubjectOrigin, SubjectMetadata>
       >((newSubjectMetadata, origin) => {
-        if (hasPermissions(origin)) {
+        if (hasAnyPermissions(origin)) {
           newSubjectMetadata[origin] = subjectMetadata[origin];
         }
         return newSubjectMetadata;

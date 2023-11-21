@@ -907,12 +907,12 @@ describe('PermissionController', () => {
     });
   });
 
-  describe('hasPermissions', () => {
+  describe('hasAnyPermissions', () => {
     it('correctly indicates whether an origin has any permissions', () => {
       const controller = getDefaultPermissionControllerWithState();
 
-      expect(controller.hasPermissions('metamask.io')).toBe(true);
-      expect(controller.hasPermissions('foo.bar')).toBe(false);
+      expect(controller.hasAnyPermissions('metamask.io')).toBe(true);
+      expect(controller.hasAnyPermissions('foo.bar')).toBe(false);
     });
   });
 
@@ -4892,7 +4892,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('action: PermissionController:hasPermissions', () => {
+    it('action: PermissionController:hasAnyPermissions', () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -4901,11 +4901,11 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const hasPermissionsSpy = jest.spyOn(controller, 'hasPermissions');
+      const hasAnyPermissionsSpy = jest.spyOn(controller, 'hasAnyPermissions');
 
-      expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
-        false,
-      );
+      expect(
+        messenger.call('PermissionController:hasAnyPermissions', 'foo'),
+      ).toBe(false);
 
       controller.grantPermissions({
         subject: { origin: 'foo' },
@@ -4914,12 +4914,12 @@ describe('PermissionController', () => {
         },
       });
 
-      expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
-        true,
-      );
-      expect(hasPermissionsSpy).toHaveBeenCalledTimes(2);
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
+      expect(
+        messenger.call('PermissionController:hasAnyPermissions', 'foo'),
+      ).toBe(true);
+      expect(hasAnyPermissionsSpy).toHaveBeenCalledTimes(2);
+      expect(hasAnyPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
+      expect(hasAnyPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
     });
 
     it('action: PermissionController:getPermissions', () => {

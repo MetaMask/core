@@ -219,9 +219,9 @@ export type GetPermissions = {
 /**
  * Checks whether the specified subject has any permissions.
  */
-export type HasPermissions = {
-  type: `${typeof controllerName}:hasPermissions`;
-  handler: GenericPermissionController['hasPermissions'];
+export type HasAnyPermissions = {
+  type: `${typeof controllerName}:hasAnyPermissions`;
+  handler: GenericPermissionController['hasAnyPermissions'];
 };
 
 /**
@@ -307,7 +307,7 @@ export type PermissionControllerActions =
   | GetSubjects
   | GetPermissions
   | HasPermission
-  | HasPermissions
+  | HasAnyPermissions
   | GrantPermissions
   | RequestPermissions
   | RevokeAllPermissions
@@ -753,8 +753,8 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:hasPermissions` as const,
-      (origin: OriginString) => this.hasPermissions(origin),
+      `${controllerName}:hasAnyPermissions` as const,
+      (origin: OriginString) => this.hasAnyPermissions(origin),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -955,7 +955,7 @@ export class PermissionController<
    * @param origin - The origin of the subject to check.
    * @returns Whether the subject has any permissions.
    */
-  hasPermissions(origin: OriginString): boolean {
+  hasAnyPermissions(origin: OriginString): boolean {
     return Boolean(this.state.subjects[origin]);
   }
 
