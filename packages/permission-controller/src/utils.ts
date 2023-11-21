@@ -21,6 +21,7 @@ import type {
 export enum MethodNames {
   requestPermissions = 'wallet_requestPermissions',
   getPermissions = 'wallet_getPermissions',
+  revokePermissions = 'wallet_revokePermissions',
 }
 
 /**
