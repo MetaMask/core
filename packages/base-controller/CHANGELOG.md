@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ControllerGetStateAction` and `ControllerStateChangeEvent` types ([#1890](https://github.com/MetaMask/core/pull/1890), [#2029](https://github.com/MetaMask/core/pull/2029))
 - Add `NamespacedName` type ([#1890](https://github.com/MetaMask/core/pull/1890))
   - This is the narrowest supertype of all names defined within a given namespace.
+- Add `NotNamespacedBy` type, which matches a non-namespaced action/event name ([#2051](https://github.com/MetaMask/core/pull/2051))
 
 ### Changed
 - **BREAKING:** Narrow controller messenger `ActionConstraint['handler']` type to remove usage of `any` ([#1890](https://github.com/MetaMask/core/pull/1890))
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The restricted controller messenger now allows calling all internal events and actions by default and prohibits explicitly allowlisting any of them ([#2050](https://github.com/MetaMask/core/pull/2050), [#2051](https://github.com/MetaMask/core/pull/2051))
   - Previously internal events and actions were only usable if they were listed as "allowed" via the `allowedActions` or `allowedEvents` options to the `RestrictedControllerMessenger` constructor or `ControllerMessenger.getRestricted()`. Now this works implicitly.
   - In fact, attempting to allowlist any of them will raise a type error, as otherwise, it would be possible to specify a partial list of allowed actions or events, and that would be misleading, since all of them are allowed anyway.
+- **BREAKING:** Rename `Namespaced` type to `NamespacedBy` ([#2051](https://github.com/MetaMask/core/pull/2051))
 - Bump `@metamask/utils` to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [3.2.3]
