@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';
 
@@ -109,7 +109,7 @@ export abstract class AbstractMessageManager<
   M extends AbstractMessage,
   P extends AbstractMessageParams,
   PM extends AbstractMessageParamsMetamask,
-> extends BaseController<BaseConfig, MessageManagerState<M>> {
+> extends BaseControllerV1<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
 
   protected getCurrentChainId: getCurrentChainId | undefined;

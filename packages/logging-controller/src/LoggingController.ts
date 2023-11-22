@@ -1,5 +1,5 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { v1 as random } from 'uuid';
 
 import type { Log } from './logTypes';
@@ -61,7 +61,7 @@ const defaultState = {
 /**
  * Controller that manages a list of logs for signature requests.
  */
-export class LoggingController extends BaseControllerV2<
+export class LoggingController extends BaseController<
   typeof name,
   LoggingControllerState,
   LoggingControllerMessenger

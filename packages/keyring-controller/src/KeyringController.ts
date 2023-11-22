@@ -4,7 +4,7 @@ import type {
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
 import type {
   ExportableKeyEncryptor,
@@ -254,7 +254,7 @@ function assertHasUint8ArrayMnemonic(
  * with the internal keyring controller and handling certain complex operations that involve the
  * keyrings.
  */
-export class KeyringController extends BaseControllerV2<
+export class KeyringController extends BaseController<
   typeof name,
   KeyringControllerState,
   KeyringControllerMessenger

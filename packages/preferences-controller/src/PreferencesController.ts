@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
@@ -62,7 +62,7 @@ export interface PreferencesState extends BaseState {
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
-export class PreferencesController extends BaseController<
+export class PreferencesController extends BaseControllerV1<
   BaseConfig,
   PreferencesState
 > {

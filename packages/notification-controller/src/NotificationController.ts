@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { hasProperty } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
@@ -89,7 +89,7 @@ const defaultState = {
 /**
  * Controller that handles storing notifications and showing them to the user
  */
-export class NotificationController extends BaseControllerV2<
+export class NotificationController extends BaseController<
   typeof name,
   NotificationControllerState,
   NotificationControllerMessenger

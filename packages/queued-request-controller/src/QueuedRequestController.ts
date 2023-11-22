@@ -1,5 +1,5 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 
 const controllerName = 'QueuedRequestController';
 
@@ -53,7 +53,7 @@ export type QueuedRequestControllerOptions = {
  * an `enqueueRequest` method for adding requests to the queue. The controller initializes with a count of zero and
  * registers message handlers for request enqueuing. It also publishes count changes to inform external observers.
  */
-export class QueuedRequestController extends BaseControllerV2<
+export class QueuedRequestController extends BaseController<
   typeof controllerName,
   QueuedRequestControllerState,
   QueuedRequestControllerMessenger

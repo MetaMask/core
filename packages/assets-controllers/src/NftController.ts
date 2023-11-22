@@ -5,7 +5,7 @@ import type {
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -226,7 +226,7 @@ export type NftControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class NftController extends BaseController<NftConfig, NftState> {
+export class NftController extends BaseControllerV1<NftConfig, NftState> {
   private readonly mutex = new Mutex();
 
   private readonly messagingSystem: NftControllerMessenger;
