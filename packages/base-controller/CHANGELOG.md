@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ControllerGetStateAction` and `ControllerStateChangeEvent` types ([#1890](https://github.com/MetaMask/core/pull/1890), [#2029](https://github.com/MetaMask/core/pull/2029))
 - Add `NamespacedName` type ([#1890](https://github.com/MetaMask/core/pull/1890))
   - This is the narrowest supertype of all names defined within a given namespace.
-- Add `NotNamespacedBy` type, which matches a non-namespaced action/event name ([#2051](https://github.com/MetaMask/core/pull/2051))
+- Add `NotNamespacedBy` type, which matches an action/event name if and only if it is not prefixed by a given namespace ([#2051](https://github.com/MetaMask/core/pull/2051))
 
 ### Changed
 - **BREAKING:** Alter controller messenger `ActionHandler` type so `Action` type parameter must satisfy (updated) `ActionConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
