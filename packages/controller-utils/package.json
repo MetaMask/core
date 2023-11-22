@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "5.0.2",
+  "version": "6.0.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",

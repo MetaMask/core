@@ -8,7 +8,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type {
   KeyringControllerSignMessageAction,
@@ -134,7 +134,7 @@ export type SignatureControllerOptions = {
 /**
  * Controller for creating signing requests requiring user approval.
  */
-export class SignatureController extends BaseControllerV2<
+export class SignatureController extends BaseController<
   typeof controllerName,
   SignatureControllerState,
   SignatureControllerMessenger
