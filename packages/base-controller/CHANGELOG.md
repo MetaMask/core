@@ -5,23 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- [`base-controller`] Enforce that `RestrictedControllerMessenger` is not initialized with internal actions/events in allow lists ([#2051](https://github.com/MetaMask/core/pull/2051))
-- Deprecate `BaseControllerV1` and use `BaseControllerV2` as default ([#2078](https://github.com/MetaMask/core/pull/2078))
-- [`base-controller`] Add `RestrictedControllerMessenger` tests for runtime error handling ([#2058](https://github.com/MetaMask/core/pull/2058))
-- feat(base-controller): Allow using internal events/actions ([#2050](https://github.com/MetaMask/core/pull/2050))
-- Refactor controllers to use `"getState"` action, `"stateChange"` event types defined in `base-controller` ([#2029](https://github.com/MetaMask/core/pull/2029))
-- refactor(base-controller): Replace `private` keyword ([#2048](https://github.com/MetaMask/core/pull/2048))
-- refactor: Move RestrictedControllerMessenger to separate file ([#2045](https://github.com/MetaMask/core/pull/2045))
-- [`base-controller`] Fix single-letter type param names ([#2030](https://github.com/MetaMask/core/pull/2030))
-- [`base-controller`] Fix all `any` usage, apply universal supertype for functions ([#1890](https://github.com/MetaMask/core/pull/1890))
-- Re-enable @typescript-eslint/consistent-type-definitions ([#1933](https://github.com/MetaMask/core/pull/1933))
-- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
-- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
-- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
-- bump `@metamask/auto-changelog` to `^3.4.2` ([#1905](https://github.com/MetaMask/core/pull/1905))
-- Bump @metamask/auto-changelog from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
-- Remove `for..in` loops and reenable eslint rules: `guard-for-in`, `no-for-in-array` ([#1865](https://github.com/MetaMask/core/pull/1865))
 
 ## [3.2.3]
 ### Changed
