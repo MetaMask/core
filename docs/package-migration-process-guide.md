@@ -4,7 +4,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ## Phase A: **Preparation** in the _Source Repo_
 
-### 1. Add the following migration notice to the README
+### **[PR#1]** 1. Add the following migration notice to the README
 
 ```markdown
 <table><tr><td><p align="center"><b>⚠️ PLEASE READ ⚠️</b></p><p align="center">This package is currently being migrated to our <a href="https://github.com/MetaMask/core"><code>core</code></a> monorepo. Please do not make any commits to this repository while this migration is taking place, as they will not be transferred over. Also, please re-open PRs that are under active development in the core repo.</p></td></tr></table>
@@ -16,7 +16,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### 3. Add the source repo to the ZenHub workspace repo filter so that its issues/PRs show up on the board
 
-### 4. Align dependency versions and TypeScript, ESLint, Prettier configurations with the core monorepo
+### **[PR#2]** 4. Align dependency versions and TypeScript, ESLint, Prettier configurations with the core monorepo
 
 - If the dependency versions of the migration target are ahead of core, consider updating the core dependencies first.
 - Apply the configurations of the core monorepo to the source repo files.
@@ -24,24 +24,24 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Resolve all errors or issues resulting from these changes.
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/28)
 
-### 5. Review the `metamask-module-template`, and add any missing files or elements (e.g. LICENSE)
+### **[PR#3]** 5. Review the `metamask-module-template`, and add any missing files or elements (e.g. LICENSE)
 
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/24)
 
-### 6. If applicable, rename the migration target package so that it is prepended by the `@metamask/` namespace
+### **[PR#4]** 6. If applicable, rename the migration target package so that it is prepended by the `@metamask/` namespace
 
 - Modify the "name" field in `package.json`.
 - Update the title of the README.md.
 - Add a CHANGELOG entry for the rename.
 
-### 7. Create a new release of the migration target from the source repo
+### **[PR#5]** 7. Create a new release of the migration target from the source repo
 
 - All subsequent releases of the migration target will be made from the core monorepo.
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/29)
 
 ## Phase B: **Staging** from the core monorepo's `merged-packages/` directory
 
-### 0. Migrate the source repo's git history into the `merged-packages/` temporary directory in core
+### **[PR#6]** 0. Migrate the source repo's git history into the `merged-packages/` temporary directory in core
 
 1. [Install `git-filter-repo`](https://github.com/newren/git-filter-repo/blob/main/INSTALL.md). This tool is like Git's `filter-branch` command, but much easier to use and much less error-prone.
 2. Navigate to a temporary directory: `cd /tmp`
@@ -74,13 +74,13 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Verify that the tag diff links in CHANGELOG are working.
 - Identify and create tags for release commits that were untagged in the original repo.
 
-### 2. Remove files and directories that will be replaced by files in the monorepo root directory
+### **[PR#7]** 2. Remove files and directories that will be replaced by files in the monorepo root directory
 
 - **Remove**: `.github/`, `.git*`, `scripts/`, `.depcheckrc.json`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
 - **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `jest.config.js`, `tsconfig*.json`, `typedoc.json`
 - [Example PR](https://github.com/MetaMask/core/pull/1764)
 
-### 3. Replace config files
+### **[PR#8]** 3. Replace config files
 
 - Update `tsconfig*.json`, `typedoc.json`, `jest.config.js` to extend from corresponding files in root. Copy contents of corresponding files in other non-root packages.
 - Keep TypeScript compiler flags and compilation target.
@@ -89,7 +89,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Add `deepmerge` as a devDependency.
 - [Example PR](https://github.com/MetaMask/core/pull/1765)
 
-### 4. Align dependencies and build scripts with monorepo
+### **[PR#9]** 4. Align dependencies and build scripts with monorepo
 
 - Remove redundant build scripts that are already listed in the root package.json (including `prepack`)
 - Identify validator fixes for CHANGELOG by navigating to `merged-packages/<package-name>`, running `../../scripts/validate-changelog.sh @metamask/<package-name>`, and applying the diffs.
@@ -104,14 +104,14 @@ This document outlines the process for migrating a MetaMask library into the cor
     - If it's external, bump only if there are no resulting breaking changes that need to be resolved.
 - [Example PR](https://github.com/MetaMask/core/pull/1766)
 
-### 5. Add exception for non-MIT license
+### **[PR#10]** 5. Add exception for non-MIT license
 
 - If the migration target uses a non-MIT license, add exception entries in the root `constraints.pro` file.
   - Add 2 rules to license section of `constraints.pro`: Exclude (`\=`) from MIT rule and include in ISC rule (`==`)
 - Make sure the new rule doesn't break any of the existing package.json files by running `yarn constraints`.
 - [Example PR](https://github.com/MetaMask/core/pull/1888)
 
-### 6. Update the README to reflect its new status as a non-root package in the monorepo
+### **[PR#11]** 6. Update the README to reflect its new status as a non-root package in the monorepo
 
 - Preserve package intro sentence/paragraph.
 - Add/modify "Installation" section.
@@ -119,7 +119,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Remove "Test", "Build" and other instructions on common development tasks.
 - Add "Contributing" section.
 
-## Phase C: **Integration** into the core monorepo's `packages/` directory
+## **[PR#12]** Phase C: **Integration** into the core monorepo's `packages/` directory
 
 - The following steps of "Phase C" need to happen in a single PR.
 - [Example PR](https://github.com/MetaMask/core/pull/1738)
@@ -171,7 +171,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 - Optionally, add a link pointing to the discussion in this PR to provide context.
 ```
 
-3. Leave a note in the source repo's README announcing the migration and pointing to core.
+3. **[PR#13]** Leave a note in the source repo's README announcing the migration and pointing to core.
 
 ```html
 <table>
@@ -195,7 +195,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 
 ### Core
 
-1. Add migration target to README dependency graph using the `generate-dependency-graph` build script.
+1. **[PR#14]** Add migration target to README dependency graph using the `generate-dependency-graph` build script.
 2. Fix downstream errors that were marked with `@ts-expect-error TODO:` during the migration process.
-3. Record any changes made to packages during the migration process in their respective CHANGELOGs.
-4. Use the `yarn create-release-branch` tool to publish a release of core with a new version for the migrated package and any updated downstream packages.
+3. **[PR#15]** Record any changes made to packages during the migration process in their respective CHANGELOGs.
+4. **[PR#16]** Use the `yarn create-release-branch` tool to publish a release of core with a new version for the migrated package and any updated downstream packages.
