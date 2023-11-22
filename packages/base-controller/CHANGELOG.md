@@ -24,8 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This should encourage use of `BaseController` v2 for new controllers going forward.
   - If your controller is importing `BaseControllerV2`, you will need to import `BaseController` instead.
   - If your controller is still importing `BaseController` v1, you will need to import and use `BaseControllerV1` instead. That said, please consider migrating your controller to v2.
-- The restricted controller messenger now allows calling all internal events and actions ([#2050](https://github.com/MetaMask/core/pull/2050))
-  - Previously internal events and actions were only usable if they were listed as "allowed". They are still permitted to be listed as "allowed" now, but it is no longer necessary.
+- **BREAKING:** The restricted controller messenger now allows calling all internal events and actions by default and prohibits explicitly allowlisting any of them ([#2050](https://github.com/MetaMask/core/pull/2050), [#2078](https://github.com/MetaMask/core/pull/2078))
+  - Previously internal events and actions were only usable if they were listed as "allowed" via the `allowedActions` or `allowedEvents` options to the `RestrictedControllerMessenger` constructor or `ControllerMessenger.getRestricted()`. Now this works implicitly.
+  - In fact, attempting to allowlist any of them will raise a type error, as otherwise, it would be possible to specify a partial list of allowed actions or events, and that would be misleading, since all of them are allowed anyway.
 - Bump `@metamask/utils` to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [3.2.3]
