@@ -2306,25 +2306,6 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
-    allowedActions: [
-      'KeyringController:getState',
-      'KeyringController:signMessage',
-      'KeyringController:signPersonalMessage',
-      'KeyringController:signTypedMessage',
-      'KeyringController:decryptMessage',
-      'KeyringController:getEncryptionPublicKey',
-      'KeyringController:getKeyringsByType',
-      'KeyringController:getKeyringForAccount',
-      'KeyringController:getAccounts',
-      'KeyringController:persistAllKeyrings',
-    ],
-    allowedEvents: [
-      'KeyringController:stateChange',
-      'KeyringController:lock',
-      'KeyringController:unlock',
-      'KeyringController:accountRemoved',
-      'KeyringController:qrKeyringStateChange',
-    ],
   });
 }
 

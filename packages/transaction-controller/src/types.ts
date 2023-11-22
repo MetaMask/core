@@ -28,12 +28,14 @@ export type Events = {
   ['transaction-rejected']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
+  ['transaction-status-update']: [{ transactionMeta: TransactionMeta }];
   ['transaction-submitted']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
   ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
   [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:publish-skip`]: [tansactionMeta: TransactionMeta];
   [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
 };
 
@@ -320,7 +322,7 @@ type TransactionMetaBase = {
   /**
    * The metadata of the swap transaction.
    */
-  swapMetaData?: Record<string, unknown>;
+  swapMetaData?: Record<string, any>;
 
   /**
    * The value of the token being swapped.
@@ -688,9 +690,9 @@ export interface TransactionReceipt {
   status?: string;
 
   /**
-   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
+   * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
-  transactionIndex?: number;
+  transactionIndex?: string;
 }
 
 /**

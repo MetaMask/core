@@ -5,7 +5,6 @@ import type {
   SelectedNetworkControllerAction,
   SelectedNetworkControllerEvent,
 } from '../src/SelectedNetworkController';
-import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
 
 /**
  * Build a controller messenger that includes all events used by the selected network
@@ -37,10 +36,7 @@ export function buildSelectedNetworkControllerMessenger(
   );
   return messenger.getRestricted({
     name: 'SelectedNetworkController',
-    allowedActions: [
-      ...Object.values(SelectedNetworkControllerActionTypes),
-      'NetworkController:getNetworkClientById',
-    ],
+    allowedActions: ['NetworkController:getNetworkClientById'],
     allowedEvents: ['NetworkController:stateChange'],
   });
 }

@@ -8,6 +8,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
+import { getKnownPropertyNames } from '@metamask/utils';
 import assert from 'assert';
 import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
@@ -21,6 +22,8 @@ import { NetworkStatus } from '../src/constants';
 import type { NetworkClient } from '../src/create-network-client';
 import { createNetworkClient } from '../src/create-network-client';
 import type {
+  NetworkClientId,
+  NetworkConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
   NetworkControllerOptions,
@@ -3627,6 +3630,158 @@ describe('NetworkController', () => {
     });
   });
 
+  for (const [name, getNetworkConfigurationByNetworkClientId] of [
+    [
+      'getNetworkConfigurationByNetworkClientId',
+      ({
+        controller,
+        networkClientId,
+      }: {
+        controller: NetworkController;
+        networkClientId: NetworkClientId;
+      }) =>
+        controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+    ],
+    [
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
+      ({
+        messenger,
+        networkClientId,
+      }: {
+        messenger: ControllerMessenger<
+          NetworkControllerActions,
+          NetworkControllerEvents
+        >;
+        networkClientId: NetworkClientId;
+      }) =>
+        messenger.call(
+          'NetworkController:getNetworkConfigurationByNetworkClientId',
+          networkClientId,
+        ),
+    ],
+  ] as const) {
+    // This is a string!
+    // eslint-disable-next-line jest/valid-title
+    describe(String(name), () => {
+      const infuraProjectId = 'some-infura-project-id';
+      const expectedInfuraNetworkConfigurationsByType: Record<
+        InfuraNetworkType,
+        NetworkConfiguration
+      > = {
+        [InfuraNetworkType.goerli]: {
+          rpcUrl: 'https://goerli.infura.io/v3/some-infura-project-id',
+          chainId: '0x5' as const,
+          ticker: 'GoerliETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://goerli.etherscan.io',
+          },
+        },
+        [InfuraNetworkType.sepolia]: {
+          rpcUrl: 'https://sepolia.infura.io/v3/some-infura-project-id',
+          chainId: '0xaa36a7' as const,
+          ticker: 'SepoliaETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://sepolia.etherscan.io',
+          },
+        },
+        [InfuraNetworkType.mainnet]: {
+          rpcUrl: 'https://mainnet.infura.io/v3/some-infura-project-id',
+          chainId: '0x1' as const,
+          ticker: 'ETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://etherscan.io',
+          },
+        },
+        [InfuraNetworkType['linea-goerli']]: {
+          rpcUrl: 'https://linea-goerli.infura.io/v3/some-infura-project-id',
+          chainId: '0xe704' as const,
+          ticker: 'LineaETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://goerli.lineascan.build',
+          },
+        },
+        [InfuraNetworkType['linea-mainnet']]: {
+          rpcUrl: 'https://linea-mainnet.infura.io/v3/some-infura-project-id',
+          chainId: '0xe708' as const,
+          ticker: 'ETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://lineascan.build',
+          },
+        },
+      };
+
+      it.each(getKnownPropertyNames(InfuraNetworkType))(
+        'constructs a network configuration for the %s network',
+        async (infuraNetworkType) => {
+          await withController(
+            { infuraProjectId },
+            ({ controller, messenger }) => {
+              const networkConfiguration =
+                getNetworkConfigurationByNetworkClientId({
+                  controller,
+                  messenger,
+                  networkClientId: infuraNetworkType,
+                });
+
+              expect(networkConfiguration).toStrictEqual(
+                expectedInfuraNetworkConfigurationsByType[infuraNetworkType],
+              );
+            },
+          );
+        },
+      );
+
+      it('returns the network configuration in state that matches the given ID, if there is one', async () => {
+        await withController(
+          {
+            infuraProjectId,
+            state: {
+              networkConfigurations: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  rpcUrl: 'https://test.network',
+                  chainId: toHex(111),
+                  ticker: 'TICKER',
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                },
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            const networkConfiguration =
+              getNetworkConfigurationByNetworkClientId({
+                controller,
+                messenger,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              });
+
+            expect(networkConfiguration).toStrictEqual({
+              rpcUrl: 'https://test.network',
+              chainId: toHex(111),
+              ticker: 'TICKER',
+              id: 'AAAA-AAAA-AAAA-AAAA',
+            });
+          },
+        );
+      });
+
+      it('returns undefined if the given ID does not match a network configuration in state', async () => {
+        await withController(
+          { infuraProjectId },
+          ({ controller, messenger }) => {
+            const networkConfiguration =
+              getNetworkConfigurationByNetworkClientId({
+                controller,
+                messenger,
+                networkClientId: 'nonexistent',
+              });
+
+            expect(networkConfiguration).toBeUndefined();
+          },
+        );
+      });
+    });
+  }
+
   describe('upsertNetworkConfiguration', () => {
     describe('when the rpcUrl of the given network configuration does not match an existing network configuration', () => {
       it('adds the network configuration to state without updating or removing any existing network configurations', async () => {
@@ -7069,17 +7224,6 @@ function buildMessenger() {
 function buildNetworkControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'NetworkController',
-    allowedActions: [
-      'NetworkController:getProviderConfig',
-      'NetworkController:getEthQuery',
-    ],
-    allowedEvents: [
-      'NetworkController:stateChange',
-      'NetworkController:infuraIsBlocked',
-      'NetworkController:infuraIsUnblocked',
-      'NetworkController:networkDidChange',
-      'NetworkController:networkWillChange',
-    ],
   });
 }
 

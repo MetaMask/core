@@ -1,5 +1,5 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type {
   BlockTrackerProxy,
   NetworkClientId,
@@ -97,7 +97,7 @@ export type NetworkProxy = {
 /**
  * Controller for getting and setting the network for a particular domain.
  */
-export class SelectedNetworkController extends BaseControllerV2<
+export class SelectedNetworkController extends BaseController<
   typeof controllerName,
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger

@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   NetworksTicker,
@@ -11,6 +11,7 @@ import {
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
+  isInfuraNetworkType,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
@@ -189,18 +190,6 @@ function isErrorWithCode(error: unknown): error is { code: string | number } {
 }
 
 /**
- * Returns whether the given argument is a type that our Infura middleware
- * recognizes.
- *
- * @param type - A type to compare.
- * @returns True or false, depending on whether the given type is one that our
- * Infura middleware recognizes.
- */
-function isInfuraProviderType(type: string): type is InfuraNetworkType {
-  return Object.keys(InfuraNetworkType).includes(type);
-}
-
-/**
  * Builds an identifier for an Infura network client for lookup purposes.
  *
  * @param infuraNetworkOrProviderConfig - The name of an Infura network or a
@@ -262,7 +251,7 @@ function buildCustomNetworkClientId(
 function isInfuraProviderConfig(
   providerConfig: ProviderConfig,
 ): providerConfig is ProviderConfig & { type: InfuraNetworkType } {
-  return isInfuraProviderType(providerConfig.type);
+  return isInfuraNetworkType(providerConfig.type);
 }
 
 /**
@@ -453,6 +442,11 @@ export type NetworkControllerSetActiveNetworkAction = {
   handler: NetworkController['setActiveNetwork'];
 };
 
+export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
+  type: `NetworkController:getNetworkConfigurationByNetworkClientId`;
+  handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
@@ -461,7 +455,8 @@ export type NetworkControllerActions =
   | NetworkControllerGetEIP1559CompatibilityAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerSetActiveNetworkAction
-  | NetworkControllerSetProviderTypeAction;
+  | NetworkControllerSetProviderTypeAction
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -532,7 +527,7 @@ type AutoManagedNetworkClientRegistry = {
 /**
  * Controller that creates and manages an Ethereum network provider.
  */
-export class NetworkController extends BaseControllerV2<
+export class NetworkController extends BaseController<
   typeof name,
   NetworkState,
   NetworkControllerMessenger
@@ -626,6 +621,11 @@ export class NetworkController extends BaseControllerV2<
       this.findNetworkClientIdByChainId.bind(this),
     );
 
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getNetworkConfigurationByNetworkClientId`,
+      this.getNetworkConfigurationByNetworkClientId.bind(this),
+    );
+
     this.#previousProviderConfig = this.state.providerConfig;
   }
 
@@ -698,7 +698,7 @@ export class NetworkController extends BaseControllerV2<
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    if (isInfuraProviderType(networkClientId)) {
+    if (isInfuraNetworkType(networkClientId)) {
       const infuraNetworkClient =
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
           networkClientId
@@ -756,7 +756,7 @@ export class NetworkController extends BaseControllerV2<
    * @param networkClientId - The ID of the network client to update.
    */
   async lookupNetworkByClientId(networkClientId: NetworkClientId) {
-    const isInfura = isInfuraProviderType(networkClientId);
+    const isInfura = isInfuraNetworkType(networkClientId);
     let updatedNetworkStatus: NetworkStatus;
     let updatedIsEIP1559Compatible: boolean | undefined;
 
@@ -945,7 +945,7 @@ export class NetworkController extends BaseControllerV2<
       `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
     );
     assert.ok(
-      isInfuraProviderType(type),
+      isInfuraNetworkType(type),
       `Unknown Infura provider type "${type}".`,
     );
 
@@ -1110,6 +1110,32 @@ export class NetworkController extends BaseControllerV2<
   async resetConnection() {
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
     await this.#refreshNetwork();
+  }
+
+  /**
+   * Returns a configuration object for the network identified by the given
+   * network client ID. If given an Infura network type, constructs one based on
+   * what we know about the network; otherwise attempts locates a network
+   * configuration in state that corresponds to the network client ID.
+   *
+   * @param networkClientId - The network client ID.
+   * @returns The configuration for the referenced network if one exists, or
+   * undefined otherwise.
+   */
+  getNetworkConfigurationByNetworkClientId(
+    networkClientId: NetworkClientId,
+  ): NetworkConfiguration | undefined {
+    if (isInfuraNetworkType(networkClientId)) {
+      const rpcUrl = `https://${networkClientId}.infura.io/v3/${
+        this.#infuraProjectId
+      }`;
+      return {
+        rpcUrl,
+        ...BUILT_IN_NETWORKS[networkClientId],
+      };
+    }
+
+    return this.state.networkConfigurations[networkClientId];
   }
 
   /**

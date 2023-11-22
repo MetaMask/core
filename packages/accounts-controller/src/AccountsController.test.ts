@@ -194,12 +194,6 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:getAccounts',
       'KeyringController:getKeyringForAccount',
       'KeyringController:getKeyringsByType',
-      'AccountsController:listAccounts',
-      'AccountsController:setAccountName',
-      'AccountsController:setSelectedAccount',
-      'AccountsController:updateAccounts',
-      'AccountsController:getSelectedAccount',
-      'AccountsController:getAccountByAddress',
     ],
   });
 }

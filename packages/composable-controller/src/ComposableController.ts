@@ -1,17 +1,17 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 
 /**
  * List of child controller instances
  *
- * This type encompasses controllers based up either BaseController or
- * BaseControllerV2. The BaseControllerV2 type can't be included directly
+ * This type encompasses controllers based up either BaseControllerV1 or
+ * BaseController. The BaseController type can't be included directly
  * because the generic parameters it expects require knowing the exact state
- * shape, so instead we look for an object with the BaseControllerV2 properties
+ * shape, so instead we look for an object with the BaseController properties
  * that we use in the ComposableController (name and state).
  */
 export type ControllerList = (
-  | BaseController<any, any>
+  | BaseControllerV1<any, any>
   | { name: string; state: Record<string, unknown> }
 )[];
 
@@ -21,7 +21,7 @@ export type ComposableControllerRestrictedMessenger =
 /**
  * Controller that can be used to compose multiple controllers together.
  */
-export class ComposableController extends BaseController<never, any> {
+export class ComposableController extends BaseControllerV1<never, any> {
   private readonly controllers: ControllerList = [];
 
   private readonly messagingSystem?: ComposableControllerRestrictedMessenger;
@@ -35,7 +35,7 @@ export class ComposableController extends BaseController<never, any> {
    * Creates a ComposableController instance.
    *
    * @param controllers - Map of names to controller instances.
-   * @param messenger - The controller messaging system, used for communicating with BaseControllerV2 controllers.
+   * @param messenger - The controller messaging system, used for communicating with BaseController controllers.
    */
   constructor(
     controllers: ControllerList,
@@ -53,8 +53,8 @@ export class ComposableController extends BaseController<never, any> {
     this.messagingSystem = messenger;
     this.controllers.forEach((controller) => {
       const { name } = controller;
-      if ((controller as BaseController<any, any>).subscribe !== undefined) {
-        (controller as BaseController<any, any>).subscribe((state) => {
+      if ((controller as BaseControllerV1<any, any>).subscribe !== undefined) {
+        (controller as BaseControllerV1<any, any>).subscribe((state) => {
           this.update({ [name]: state });
         });
       } else if (this.messagingSystem) {
@@ -66,7 +66,7 @@ export class ComposableController extends BaseController<never, any> {
         );
       } else {
         throw new Error(
-          `Messaging system required if any BaseControllerV2 controllers are used`,
+          `Messaging system required if any BaseController controllers are used`,
         );
       }
     });
