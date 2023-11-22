@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Add `isInfuraNetworkType` type guard for `InfuraNetworkType`
+- Add `isInfuraNetworkType` type guard for `InfuraNetworkType` ([#2055](https://github.com/MetaMask/core/pull/2055))
 
 ## [6.0.0]
 ### Changed
