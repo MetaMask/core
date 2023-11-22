@@ -11,7 +11,7 @@ jobs:
       matrix:
         node-version: [16.x, 18.x, 20.x]
     outputs:
-      child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
+      child-workspace-packages: ${{ steps.child-workspace-packages.outputs.child-workspace-packages }}
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
@@ -20,10 +20,10 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
       - run: yarn --immutable
-      - name: Fetch workspace package names
-        id: workspace-package-names
+      - name: Fetch child workspace package names
+        id: child-workspace-packages
         run: |
-          echo "child-workspace-package-names=$(yarn child-workspace-package-names-as-json)" >> "$GITHUB_OUTPUT"
+          echo "child-workspace-packages=$(yarn child-workspace-packages-as-json)" >> "$GITHUB_OUTPUT"
         shell: bash
 
   lint:
@@ -57,7 +57,7 @@ jobs:
     strategy:
       matrix:
         node-version: [20.x]
-        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+        package: ${{ fromJson(needs.prepare.outputs.child-workspace-packages) }}
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
@@ -66,7 +66,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
       - run: yarn --immutable
-      - run: yarn workspace ${{ matrix.package-name }} changelog:validate
+      - run: yarn workspace ${{ matrix.package.name }} changelog:validate
       - name: Require clean working directory
         shell: bash
         run: |
@@ -106,7 +106,7 @@ jobs:
     strategy:
       matrix:
         node-version: [16.x, 18.x, 20.x]
-        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+        package: ${{ fromJson(needs.prepare.outputs.child-workspace-packages) }}
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
@@ -115,12 +115,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
       - run: yarn --immutable
-      - run: yarn workspace ${{ matrix.package-name }} run test:verbose
+      - run: yarn workspace ${{ matrix.package.name }} run test:verbose
       - name: Check for a Jest coverage threshold bump
         shell: bash
         run: |
-          if ! git diff --exit-code jest.config.js; then
-            echo "Jest coverage has increased"
+          if ! git diff --exit-code packages/${{ matrix.package.location }}/jest.config.js; then
+            echo "It appears that the test coverage has increased, but this is not reflected in the coverage thresholds."
+            echo "Please re-run the following command locally to automatically adjust coverage thresholds:"
+            echo "    yarn workspace ${{ matrix.package.name }} run test:verbose"
             exit 1
           fi
       - name: Require clean working directory
