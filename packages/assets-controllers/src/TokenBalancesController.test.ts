@@ -123,8 +123,6 @@ describe('TokenBalancesController', () => {
     const messenger: NetworkControllerMessenger =
       new ControllerMessenger().getRestricted({
         name: 'NetworkController',
-        allowedEvents: ['NetworkController:stateChange'],
-        allowedActions: [],
       });
 
     new NetworkController({

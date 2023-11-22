@@ -8,6 +8,7 @@ import type {
   ExtractEventHandler,
   ExtractEventPayload,
   NamespacedName,
+  NotNamespacedBy,
   SelectorEventHandler,
   SelectorFunction,
 } from './ControllerMessenger';
@@ -24,7 +25,9 @@ import type {
  * @template Action - A type union of all Action types.
  * @template Event - A type union of all Event types.
  * @template AllowedAction - A type union of the 'type' string for any allowed actions.
+ * This must not include internal actions that are in the messenger's namespace.
  * @template AllowedEvent - A type union of the 'type' string for any allowed events.
+ * This must not include internal events that are in the messenger's namespace.
  */
 export class RestrictedControllerMessenger<
   Namespace extends string,
@@ -40,9 +43,9 @@ export class RestrictedControllerMessenger<
 
   readonly #controllerName: Namespace;
 
-  readonly #allowedActions: AllowedAction[] | null;
+  readonly #allowedActions: NotNamespacedBy<Namespace, AllowedAction>[] | null;
 
-  readonly #allowedEvents: AllowedEvent[] | null;
+  readonly #allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[] | null;
 
   /**
    * Constructs a restricted controller messenger
@@ -70,13 +73,13 @@ export class RestrictedControllerMessenger<
   }: {
     controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
     name: Namespace;
-    allowedActions?: AllowedAction[];
-    allowedEvents?: AllowedEvent[];
+    allowedActions?: NotNamespacedBy<Namespace, AllowedAction>[];
+    allowedEvents?: NotNamespacedBy<Namespace, AllowedEvent>[];
   }) {
     this.#controllerMessenger = controllerMessenger;
     this.#controllerName = name;
-    this.#allowedActions = allowedActions || null;
-    this.#allowedEvents = allowedEvents || null;
+    this.#allowedActions = allowedActions ?? null;
+    this.#allowedEvents = allowedEvents ?? null;
   }
 
   /**
@@ -226,6 +229,7 @@ export class RestrictedControllerMessenger<
    * @param selector - The selector function used to select relevant data from
    * the event payload. The type of the parameters for this selector must match
    * the type of the payload for this event type.
+   * @throws Will throw if the given event is not an allowed event for this controller messenger.
    * @template EventType - A type union of Event type strings.
    * @template SelectorReturnValue - The selector return value.
    */
@@ -275,7 +279,7 @@ export class RestrictedControllerMessenger<
    *
    * @param event - The event type. This is a unique identifier for this event.
    * @param handler - The event handler to unregister.
-   * @throws Will throw when the given event is not an allowed event for this controller messenger.
+   * @throws Will throw if the given event is not an allowed event for this controller messenger.
    * @template EventType - A type union of allowed Event type strings.
    */
   unsubscribe<
@@ -319,7 +323,11 @@ export class RestrictedControllerMessenger<
    * @param eventType - The event type to check.
    * @returns Whether the event type is allowed.
    */
-  #isAllowedEvent(eventType: Event['type']): eventType is AllowedEvent {
+  #isAllowedEvent(
+    eventType: Event['type'],
+  ): eventType is
+    | NamespacedName<Namespace>
+    | NotNamespacedBy<Namespace, AllowedEvent> {
     // Safely upcast to allow runtime check
     const allowedEvents: string[] | null = this.#allowedEvents;
     return (
@@ -336,7 +344,11 @@ export class RestrictedControllerMessenger<
    * @param actionType - The action type to check.
    * @returns Whether the action type is allowed.
    */
-  #isAllowedAction(actionType: Action['type']): actionType is AllowedAction {
+  #isAllowedAction(
+    actionType: Action['type'],
+  ): actionType is
+    | NamespacedName<Namespace>
+    | NotNamespacedBy<Namespace, AllowedAction> {
     // Safely upcast to allow runtime check
     const allowedActions: string[] | null = this.#allowedActions;
     return (
