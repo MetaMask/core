@@ -18,6 +18,7 @@ import {
   ERC20,
   NetworksTicker,
 } from '@metamask/controller-utils';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   NetworkState,
   ProviderConfig,
@@ -25,7 +26,6 @@ import type {
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
-import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
 import * as sinon from 'sinon';
 import { v4 } from 'uuid';
@@ -165,7 +165,6 @@ function setupController({
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
-    allowedActions: ['ApprovalController:addRequest'],
   });
 
   const approvalController = new ApprovalController({

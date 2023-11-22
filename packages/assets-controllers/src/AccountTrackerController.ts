@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import {
   BNToHex,
   query,
@@ -54,7 +54,7 @@ export interface AccountTrackerState extends BaseState {
 /**
  * Controller that tracks the network balances for all user accounts.
  */
-export class AccountTrackerController extends BaseController<
+export class AccountTrackerController extends BaseControllerV1<
   AccountTrackerConfig,
   AccountTrackerState
 > {

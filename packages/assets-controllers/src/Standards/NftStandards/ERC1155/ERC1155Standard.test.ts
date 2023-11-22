@@ -1,5 +1,5 @@
 import { Web3Provider } from '@ethersproject/providers';
-import HttpProvider from 'ethjs-provider-http';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import nock from 'nock';
 
 import { ERC1155Standard } from './ERC1155Standard';

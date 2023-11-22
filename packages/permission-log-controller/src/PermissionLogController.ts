@@ -1,5 +1,5 @@
 import {
-  BaseControllerV2,
+  BaseController,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
@@ -93,7 +93,7 @@ const name = 'PermissionLogController';
  * Controller with middleware for logging requests and responses to restricted
  * and permissions-related methods.
  */
-export class PermissionLogController extends BaseControllerV2<
+export class PermissionLogController extends BaseController<
   typeof name,
   PermissionLogControllerState,
   PermissionLogControllerMessenger

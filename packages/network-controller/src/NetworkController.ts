@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   NetworksTicker,
@@ -527,7 +527,7 @@ type AutoManagedNetworkClientRegistry = {
 /**
  * Controller that creates and manages an Ethereum network provider.
  */
-export class NetworkController extends BaseControllerV2<
+export class NetworkController extends BaseController<
   typeof name,
   NetworkState,
   NetworkControllerMessenger

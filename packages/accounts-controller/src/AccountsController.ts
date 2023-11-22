@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
@@ -133,7 +133,7 @@ const defaultState: AccountsControllerState = {
  * The accounts controller also listens for snap state changes and updates the internal accounts accordingly.
  *
  */
-export class AccountsController extends BaseControllerV2<
+export class AccountsController extends BaseController<
   typeof controllerName,
   AccountsControllerState,
   AccountsControllerMessenger

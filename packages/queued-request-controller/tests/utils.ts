@@ -4,10 +4,6 @@ import type {
   QueuedRequestControllerActions,
   QueuedRequestControllerEvents,
 } from '../src/QueuedRequestController';
-import {
-  QueuedRequestControllerActionTypes,
-  QueuedRequestControllerEventTypes,
-} from '../src/QueuedRequestController';
 
 /**
  * Build a controller messenger that includes all events used by the selected network
@@ -32,7 +28,5 @@ export function buildQueuedRequestControllerMessenger(
 ) {
   return messenger.getRestricted({
     name: 'QueuedRequestController',
-    allowedActions: [...Object.values(QueuedRequestControllerActionTypes)],
-    allowedEvents: [...Object.values(QueuedRequestControllerEventTypes)],
   });
 }
