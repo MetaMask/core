@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Alter controller messenger `ExtractEventHandler` utility type so `Event` type parameter must satisfy `EventConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
 - **BREAKING:** Alter controller messenger `ExtractEventPayload` utility type so `Event` type parameter must satisfy `EventConstraint` and `Event['payload']` must be an array (to match behavior of `ExtractEventHandler`) ([#1890](https://github.com/MetaMask/core/pull/1890))
 - **BREAKING:** Alter `controller messenger SelectorFunction` type so its `Event` parameter must satisfy `EventConstraint`, and so it returns a function whose arguments satisfy an event payload via `ExtractEventPayload` ([#1890](https://github.com/MetaMask/core/pull/1890))
+- **BREAKING:** `BaseController` is now renamed to `BaseControllerV1` and has been deprecated; `BaseController` now points to what was previously called `BaseControllerV2` ([#2078](https://github.com/MetaMask/core/pull/2078))
+  - This should encourage use of `BaseController` v2 for new controllers going forward.
+  - If your controller is importing `BaseControllerV2`, you will need to import `BaseController` instead.
+  - If your controller is still importing `BaseController` v1, you will need to import and use `BaseControllerV1` instead. That said, please consider migrating your controller to v2.
 - The restricted controller messenger now allows calling all internal events and actions ([#2050](https://github.com/MetaMask/core/pull/2050))
   - Previously internal events and actions were only usable if they were listed as "allowed". They are still permitted to be listed as "allowed" now, but it is no longer necessary.
 - Bump `@metamask/utils` to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
