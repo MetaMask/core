@@ -30,13 +30,15 @@ export interface BaseState {
 }
 
 /**
+ * @deprecated This class has been renamed to BaseControllerV1 and is no longer recommended for use for controllers. Please use BaseController (formerly BaseControllerV2) instead.
+ *
  * Controller class that provides configuration, state management, and subscriptions.
  *
  * The core purpose of every controller is to maintain an internal data object
  * called "state". Each controller is responsible for its own state, and all global wallet state
  * is tracked in a controller as state.
  */
-export class BaseController<C extends BaseConfig, S extends BaseState> {
+export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
   /**
    * Default options used to configure this controller
    */
@@ -68,7 +70,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   private readonly internalListeners: Listener<S>[] = [];
 
   /**
-   * Creates a BaseController instance. Both initial state and initial
+   * Creates a BaseControllerV1 instance. Both initial state and initial
    * configuration options are merged with defaults upon initialization.
    *
    * @param config - Initial options used to configure this controller.
@@ -190,4 +192,4 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 }
 
-export default BaseController;
+export default BaseControllerV1;

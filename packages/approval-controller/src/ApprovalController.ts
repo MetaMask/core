@@ -1,6 +1,6 @@
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import {
-  BaseControllerV2,
+  BaseController,
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
@@ -338,7 +338,7 @@ export type ApprovalControllerActions =
  * Adding a request returns a promise that resolves or rejects when the request
  * is approved or denied, respectively.
  */
-export class ApprovalController extends BaseControllerV2<
+export class ApprovalController extends BaseController<
   typeof controllerName,
   ApprovalControllerState,
   ApprovalControllerMessenger
