@@ -123,7 +123,7 @@ jobs:
       - name: Check for a Jest coverage threshold bump
         shell: bash
         run: |
-          if ! git diff --exit-code packages/${{ matrix.package.location }}/jest.config.js; then
+          if ! git diff --exit-code ${{ matrix.package.location }}/jest.config.js; then
             echo "It appears that the test coverage has increased, but this is not reflected in the coverage thresholds."
             echo "Please re-run the following command locally to automatically adjust coverage thresholds:"
             echo "    yarn workspace ${{ matrix.package.name }} run test:verbose"
