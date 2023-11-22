@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `NotNamespacedBy` type, which matches a non-namespaced action/event name ([#2051](https://github.com/MetaMask/core/pull/2051))
 
 ### Changed
-- **BREAKING:** Narrow controller messenger `ActionConstraint['handler']` type to remove usage of `any` ([#1890](https://github.com/MetaMask/core/pull/1890))
-  - This type is now defined as the universal supertype of all action handlers, meaning any functions can be safely assigned to it, regardless of argument types, number of arguments, or return value type.
+- Alter controller messenger `ActionConstraint['handler']` type to remove usage of `any` ([#1890](https://github.com/MetaMask/core/pull/1890))
+  - This type is now defined as the universal supertype of all functions, meaning any function can be safely assigned as an action handler, regardless of argument types, number of arguments, or return value type.
 - **BREAKING:** Alter controller messenger `ActionHandler` type so `Action` type parameter must satisfy (updated) `ActionConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
 - **BREAKING:** Alter controller messenger `ExtractActionParameters` utility type so `Action` type parameter must satisfy (updated) `ActionConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
 - **BREAKING:** Alter controller messenger `ExtractEventHandler` utility type so `Event` type parameter must satisfy `EventConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
