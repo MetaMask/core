@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "lib": ["ES2017", "DOM"]
+  },
+  "include": ["../../types", "./src"]
+}

@@ -1,0 +1,84 @@
+{
+  "name": "@metamask/assets-controllers",
+  "version": "20.0.0",
+  "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/assets-controllers#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest --reporters=jest-silent-reporter",
+    "test:clean": "jest --clearCache",
+    "test:verbose": "jest --verbose",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@ethersproject/address": "^5.7.0",
+    "@ethersproject/bignumber": "^5.7.0",
+    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
+    "@metamask/abi-utils": "^2.0.2",
+    "@metamask/approval-controller": "^5.0.0",
+    "@metamask/base-controller": "^4.0.0",
+    "@metamask/contract-metadata": "^2.4.0",
+    "@metamask/controller-utils": "^6.0.0",
+    "@metamask/eth-query": "^4.0.0",
+    "@metamask/metamask-eth-abis": "3.0.0",
+    "@metamask/network-controller": "^17.0.0",
+    "@metamask/polling-controller": "^2.0.0",
+    "@metamask/preferences-controller": "^5.0.0",
+    "@metamask/rpc-errors": "^6.1.0",
+    "@metamask/utils": "^8.2.0",
+    "@types/uuid": "^8.3.0",
+    "async-mutex": "^0.2.6",
+    "ethereumjs-util": "^7.0.10",
+    "multiformats": "^9.5.2",
+    "single-call-balance-checker-abi": "^1.0.0",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/ethjs-provider-http": "^0.2.0",
+    "@types/jest": "^27.4.1",
+    "@types/node": "^16.18.54",
+    "deepmerge": "^4.2.2",
+    "jest": "^27.5.1",
+    "jest-environment-jsdom": "^27.5.1",
+    "jest-it-up": "^3.0.0",
+    "nock": "^13.3.1",
+    "sinon": "^9.2.4",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.8.4"
+  },
+  "peerDependencies": {
+    "@metamask/approval-controller": "^5.0.0",
+    "@metamask/network-controller": "^17.0.0",
+    "@metamask/preferences-controller": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

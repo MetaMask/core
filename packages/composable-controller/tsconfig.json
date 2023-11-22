@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../address-book-controller"
+    },
+    {
+      "path": "../assets-controllers"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../ens-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../preferences-controller"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

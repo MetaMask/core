@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../approval-controller" },
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../gas-fee-controller" },
+    { "path": "../network-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}

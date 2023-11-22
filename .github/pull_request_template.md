@@ -1,52 +1,52 @@
-<!--
-Thanks for your contribution!
+## Explanation
 
-Please ensure that any applicable requirements below are satisfied before submitting this pull request. This will help ensure a quick and efficient review cycle.
+<!--
+Thanks for your contribution! Take a moment to answer these questions so that reviewers have the information they need to properly understand your changes:
+
+* What is the current state of things and why does it need to change?
+* What is the solution your changes offer and how does it work?
+* Are there any changes whose purpose might not obvious to those unfamiliar with the domain?
+* If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
+* If you had to upgrade a dependency, why did you do so?
 -->
 
-**PR Title**
+## References
 
-- A brief description of changes. If the PR has breaking changes add `BREAKING:`
-  to the start of the PR title.
+<!--
+Are there any issues that this pull request is tied to? Are there other links that reviewers should consult to understand these changes better?
 
-**Description**
+For example:
 
-_Itemize the changes you have made into the categories below_
+* Fixes #12345
+* Related to #67890
+-->
 
-- BREAKING:
+## Changelog
 
-  - _Describe the how to patch your code for the breaking changes_
-  - _Create PRs for other projects with patches to breaking changes_
+<!--
+If you're making any consumer-facing changes, list those changes here as if you were updating a changelog, using the template below as a guide.
 
-- FIXED:
+(CATEGORY is one of BREAKING, ADDED, CHANGED, DEPRECATED, REMOVED, or FIXED. For security-related issues, follow the Security Advisory process.)
 
-  - _Describe the fix/bug addressed_
+Please take care to name the exact pieces of the API you've added or changed (e.g. types, interfaces, functions, or methods).
 
-- CHANGED:
+If there are any breaking changes, make sure to offer a solution for consumers to follow once they upgrade to the changes.
 
-  - _Describe the change you have made to existing functionality_
+Finally, if you're only making changes to development scripts or tests, you may replace the template below with "None".
+-->
 
-- REMOVED:
+### `@metamask/package-a`
 
-  - _Describe functionality removed and why_
+- **<CATEGORY>**: Your change here
+- **<CATEGORY>**: Your change here
 
-- ADDED:
+### `@metamask/package-b`
 
-  - _Describe functionality added and why_
+- **<CATEGORY>**: Your change here
+- **<CATEGORY>**: Your change here
 
-- DEPRECATED:
+## Checklist
 
-  - _Describe what was deprecated and why_
-
-- SECURITY:
-
-  - _These should not be in a standard PR and addressed using the Security Advisory process_
-
-**Checklist**
-
-- [ ] Tests are included if applicable
-- [ ] Any added code is fully documented
-
-**Issue**
-
-Resolves #???
+- [ ] I've updated the test suite for new or updated code as appropriate
+- [ ] I've updated documentation (JSDoc, Markdown, etc.) for new or updated code as appropriate
+- [ ] I've highlighted breaking changes using the "BREAKING" category above as appropriate

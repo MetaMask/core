@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "rootDir": "../.."
+  },
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../json-rpc-engine"
+    }
+  ],
+  "include": ["../../types", "../../tests", "./src", "./tests"]
+}

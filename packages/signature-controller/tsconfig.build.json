@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    {
+      "path": "../approval-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../message-manager/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../logging-controller/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}
