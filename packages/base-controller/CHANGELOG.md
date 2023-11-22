@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Alter controller messenger `ExtractActionParameters` utility type so `Action` type parameter must satisfy (updated) `ActionConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
 - **BREAKING:** Alter controller messenger `ExtractEventHandler` utility type so `Event` type parameter must satisfy `EventConstraint` ([#1890](https://github.com/MetaMask/core/pull/1890))
 - **BREAKING:** Alter controller messenger `ExtractEventPayload` utility type so `Event` type parameter must satisfy `EventConstraint` and `Event['payload']` must be an array (to match behavior of `ExtractEventHandler`) ([#1890](https://github.com/MetaMask/core/pull/1890))
-- **BREAKING:** Alter `controller messenger SelectorFunction` type so its `Event` parameter must satisfy `EventConstraint`, and so it returns a function whose arguments satisfy an event payload via `ExtractEventPayload` ([#1890](https://github.com/MetaMask/core/pull/1890))
+- **BREAKING:** Alter controller messenger `SelectorFunction` type so that its generic parameter `Args` is replaced by `Event`, which must satisfy `EventConstraint`, and it returns a function whose arguments satisfy the event payload type specified by `Event` ([#1890](https://github.com/MetaMask/core/pull/1890))
 - **BREAKING:** `BaseController` is now renamed to `BaseControllerV1` and has been deprecated; `BaseController` now points to what was previously called `BaseControllerV2` ([#2078](https://github.com/MetaMask/core/pull/2078))
   - This should encourage use of `BaseController` v2 for new controllers going forward.
   - If your controller is importing `BaseControllerV2`, you will need to import `BaseController` instead.
