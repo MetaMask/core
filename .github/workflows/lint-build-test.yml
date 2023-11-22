@@ -23,7 +23,7 @@ jobs:
       - name: Fetch child workspace package names
         id: child-workspace-packages
         run: |
-          echo "child-workspace-packages=$(yarn child-workspace-packages-as-json)" >> "$GITHUB_OUTPUT"
+          echo child-workspace-packages="$(yarn child-workspace-packages-as-json)" >> "$GITHUB_OUTPUT"
         shell: bash
 
   lint:
