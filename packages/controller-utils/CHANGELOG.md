@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Replace ethjs packages with @metamask/ethjs forks ([#2064](https://github.com/MetaMask/core/pull/2064))
+- Fix misaligned mock eth query types in controller tests ([#2037](https://github.com/MetaMask/core/pull/2037))
+- Re-enable @typescript-eslint/consistent-type-definitions ([#1933](https://github.com/MetaMask/core/pull/1933))
+- Bump @metamask/auto-changelog from 3.4.2 to 3.4.3 ([#1997](https://github.com/MetaMask/core/pull/1997))
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Change `test` build scripts to only show output for failed tests by default ([#1949](https://github.com/MetaMask/core/pull/1949))
+- Re-enable @typescript-eslint/no-loss-of-precision ([#1939](https://github.com/MetaMask/core/pull/1939))
+- bump `@metamask/auto-changelog` to `^3.4.2` ([#1905](https://github.com/MetaMask/core/pull/1905))
+- Bump @metamask/auto-changelog from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
+- chore(controller-utils): move @metamask/eth-query from deps to devDeps ([#1815](https://github.com/MetaMask/core/pull/1815))
+- Add `ticker` to `NetworkClientConfiguration` ([#1794](https://github.com/MetaMask/core/pull/1794))
+
 ### Changed
 - Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
 

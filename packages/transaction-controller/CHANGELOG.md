@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Deprecate `BaseControllerV1` and use `BaseControllerV2` as default ([#2078](https://github.com/MetaMask/core/pull/2078))
+- Add method to get transactions ([#2065](https://github.com/MetaMask/core/pull/2065))
+- Add `updateEditableParams` in Transaction Controller ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Add `transaction-status-update` event ([#2027](https://github.com/MetaMask/core/pull/2027))
+- Replace ethjs packages with @metamask/ethjs forks ([#2064](https://github.com/MetaMask/core/pull/2064))
+- deps: nonce-tracker@^1.1.0->^3.0.0 ([#2040](https://github.com/MetaMask/core/pull/2040))
 
 ## [17.0.0]
 ### Added

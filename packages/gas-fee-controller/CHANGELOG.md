@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- [`base-controller`] Enforce that `RestrictedControllerMessenger` is not initialized with internal actions/events in allow lists ([#2051](https://github.com/MetaMask/core/pull/2051))
+- Replace ethjs packages with @metamask/ethjs forks ([#2064](https://github.com/MetaMask/core/pull/2064))
+- Refactor controllers to use `"getState"` action, `"stateChange"` event types defined in `base-controller` ([#2029](https://github.com/MetaMask/core/pull/2029))
 
 ## [10.0.1]
 ### Changed
