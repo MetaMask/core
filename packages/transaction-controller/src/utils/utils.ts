@@ -41,11 +41,17 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  */
 export function normalizeTxParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
+
   for (const key of getKnownPropertyNames(NORMALIZERS)) {
     if (txParams[key]) {
       normalizedTxParams[key] = NORMALIZERS[key](txParams[key]);
     }
   }
+
+  if (!normalizedTxParams.value) {
+    normalizedTxParams.value = '0x0';
+  }
+
   return normalizedTxParams;
 }
 
@@ -120,19 +126,23 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 /**
  * Helper function to filter and format transactions for the nonce tracker.
  *
+ * @param currentChainId - Chain ID of the current network.
  * @param fromAddress - Address of the account from which the transactions to filter from are sent.
  * @param transactionStatus - Status of the transactions for which to filter.
  * @param transactions - Array of transactionMeta objects that have been prefiltered.
  * @returns Array of transactions formatted for the nonce tracker.
  */
 export function getAndFormatTransactionsForNonceTracker(
+  currentChainId: string,
   fromAddress: string,
   transactionStatus: TransactionStatus,
   transactions: TransactionMeta[],
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ status, txParams: { from } }) =>
+      ({ chainId, isTransfer, status, txParams: { from } }) =>
+        !isTransfer &&
+        chainId === currentChainId &&
         status === transactionStatus &&
         from.toLowerCase() === fromAddress.toLowerCase(),
     )
@@ -187,5 +197,29 @@ export function normalizeTxError(
     stack: error.stack,
     code: error?.code,
     rpc: error?.value,
+  };
+}
+
+/**
+ * Normalize an object containing gas fee values.
+ *
+ * @param gasFeeValues - An object containing gas fee values.
+ * @returns An object containing normalized gas fee values.
+ */
+export function normalizeGasFeeValues(
+  gasFeeValues: GasPriceValue | FeeMarketEIP1559Values,
+): GasPriceValue | FeeMarketEIP1559Values {
+  const normalize = (value: any) =>
+    typeof value === 'string' ? addHexPrefix(value) : value;
+
+  if ('gasPrice' in gasFeeValues) {
+    return {
+      gasPrice: normalize(gasFeeValues.gasPrice),
+    };
+  }
+
+  return {
+    maxFeePerGas: normalize(gasFeeValues.maxFeePerGas),
+    maxPriorityFeePerGas: normalize(gasFeeValues.maxPriorityFeePerGas),
   };
 }
