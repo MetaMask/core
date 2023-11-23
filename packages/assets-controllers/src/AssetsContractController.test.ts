@@ -52,11 +52,6 @@ async function setupAssetContractControllers() {
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: [
-        'NetworkController:stateChange',
-        'NetworkController:networkDidChange',
-      ],
-      allowedActions: [],
     });
   const network = new NetworkController({
     infuraProjectId: networkClientConfiguration.infuraProjectId,

@@ -1,7 +1,7 @@
 import * as sinon from 'sinon';
 
-import type { BaseConfig, BaseState } from './BaseController';
-import { BaseController } from './BaseController';
+import type { BaseConfig, BaseState } from './BaseControllerV1';
+import { BaseControllerV1 as BaseController } from './BaseControllerV1';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };

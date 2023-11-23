@@ -43,13 +43,8 @@ function getUnrestrictedMessenger() {
 function getRestrictedMessenger(
   controllerMessenger = getUnrestrictedMessenger(),
 ) {
-  return controllerMessenger.getRestricted<
-    typeof name,
-    RateLimitControllerActions<RateLimitedApis>['type'],
-    never
-  >({
+  return controllerMessenger.getRestricted<typeof name, never, never>({
     name,
-    allowedActions: ['RateLimitController:call'],
   }) as RateLimitMessenger<RateLimitedApis>;
 }
 

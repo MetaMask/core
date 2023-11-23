@@ -591,10 +591,7 @@ const getRestrictedMessenger = (
   const messenger = controllerMessenger.getRestricted({
     name,
     allowedActions: ['NetworkController:getNetworkClientById'],
-    allowedEvents: [
-      'TokenListController:stateChange',
-      'NetworkController:stateChange',
-    ],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   return messenger;

@@ -71,15 +71,8 @@ const setupNetworkController = async ({
 }) => {
   const restrictedMessenger = unrestrictedMessenger.getRestricted({
     name: 'NetworkController',
-    allowedActions: [
-      'NetworkController:getState',
-      'NetworkController:getNetworkClientById',
-      'NetworkController:getEIP1559Compatibility',
-    ],
-    allowedEvents: [
-      'NetworkController:stateChange',
-      'NetworkController:networkDidChange',
-    ],
+    allowedActions: [],
+    allowedEvents: [],
   });
 
   const networkController = new NetworkController({
