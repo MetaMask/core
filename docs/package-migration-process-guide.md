@@ -41,7 +41,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ## Phase B: **Staging** from the core monorepo's `merged-packages/` directory
 
-### **[PR#6]** 0. Migrate the source repo's git history into the `merged-packages/` temporary directory in core
+### **[PR#6]** 1. Migrate the source repo's git history into the `merged-packages/` temporary directory in core
 
 1. [Install `git-filter-repo`](https://github.com/newren/git-filter-repo/blob/main/INSTALL.md). This tool is like Git's `filter-branch` command, but much easier to use and much less error-prone.
 2. Navigate to a temporary directory: `cd /tmp`
@@ -63,7 +63,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Merge PR **without squashing** to preserve the migrated git commit history.
 - [Example PR](https://github.com/MetaMask/core/pull/1872)
 
-### 1. Port tags
+### 2. Port tags
 
 - Use the `scripts/migrate-tags.sh` tool to port the source repo's release tags into the migrated git history in core, following [these instructions](./migrate-tags.md).
 - Port the tags locally with the correct package name prefixes.
@@ -75,13 +75,13 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Verify that the tag diff links in CHANGELOG are working.
 - Identify and create tags for release commits that were untagged in the original repo.
 
-### **[PR#7]** 2. Remove files and directories that will be replaced by files in the monorepo root directory
+### **[PR#7]** 3. Remove files and directories that will be replaced by files in the monorepo root directory
 
 - **Remove**: `.github/`, `.git*`, `scripts/`, `.depcheckrc.json`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
 - **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `jest.config.js`, `tsconfig*.json`, `typedoc.json`
 - [Example PR](https://github.com/MetaMask/core/pull/1764)
 
-### **[PR#8]** 3. Replace config files
+### **[PR#8]** 4. Replace config files
 
 - Update `tsconfig*.json`, `typedoc.json`, `jest.config.js` to extend from corresponding files in root. Copy contents of corresponding files in other non-root packages.
 - Keep TypeScript compiler flags and compilation target.
@@ -90,7 +90,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Add `deepmerge` as a devDependency.
 - [Example PR](https://github.com/MetaMask/core/pull/1765)
 
-### **[PR#9]** 4. Align dependencies and build scripts with monorepo
+### **[PR#9]** 5. Align dependencies and build scripts with monorepo
 
 - Remove redundant build scripts that are already listed in the root package.json (including `prepack`)
 - Identify validator fixes for CHANGELOG by navigating to `merged-packages/<package-name>`, running `../../scripts/validate-changelog.sh @metamask/<package-name>`, and applying the diffs.
@@ -105,14 +105,14 @@ This document outlines the process for migrating a MetaMask library into the cor
     - If it's external, bump only if there are no resulting breaking changes that need to be resolved.
 - [Example PR](https://github.com/MetaMask/core/pull/1766)
 
-### **[PR#10]** 5. Add exception for non-MIT license
+### **[PR#10]** 6. Add exception for non-MIT license
 
 - If the migration target uses a non-MIT license, add exception entries in the root `constraints.pro` file.
   - Add 2 rules to license section of `constraints.pro`: Exclude (`\=`) from MIT rule and include in ISC rule (`==`)
 - Make sure the new rule doesn't break any of the existing package.json files by running `yarn constraints`.
 - [Example PR](https://github.com/MetaMask/core/pull/1888)
 
-### **[PR#11]** 6. Update the README to reflect its new status as a non-root package in the monorepo
+### **[PR#11]** 7. Update the README to reflect its new status as a non-root package in the monorepo
 
 - Preserve package intro sentence/paragraph.
 - Add/modify "Installation" section.
