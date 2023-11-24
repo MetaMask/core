@@ -61,7 +61,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 - DO NOT rebase the `migrate-<package-name>` branch.
 - Ensure that superfluous merge commits don't pollute the migrated git history. If necessary, replace the PR branch with a cleaned-up post-migration commit history by rerunning the git history migration steps before merging the PR.
-  - For this, coordinate with the team to minimize the window of time that the PR is open.
+  - Coordinate with the team to minimize the time that this PR stays open.
   - For further context on this point: https://github.com/MetaMask/core/pull/1804#issuecomment-1771445829
 - Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to temporarily enable merge commits into main.
 - Merge PR **without squashing** to preserve the migrated git commit history.
@@ -127,9 +127,10 @@ This document outlines the process for migrating a MetaMask library into the cor
 ## **[PR#12]** Phase C: **Integration** into the core monorepo's `packages/` directory
 
 - The following steps of "Phase C" need to happen in a single PR.
+- Coordinate with the team to minimize the time that this PR stays open to avoid merge conflicts with the main branch from accumulating.
 - [Example PR](https://github.com/MetaMask/core/pull/1738)
 
-### 1. Move the migration target directory from `merged-packages/` into `packages/`.
+### 1. Move the migration target directory from `merged-packages/` into `packages/`
 
 - Run `yarn install` in the root directory.
 - Check that all tests are passing in migration target by running `yarn workspace @metamask/<package-name> test`.
@@ -155,7 +156,12 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Create a separate issue for resolving the marked errors as soon as the migration is completed.
   - e.g. https://github.com/MetaMask/core/issues/1823
 
-### 5. Finalize merge
+### 5. Record changes made to any core package in its CHANGELOG, under the `## [Unreleased]` heading
+
+- CHANGELOG entries should be recorded in the migration target's downstream packages for version bumps to the migration target's current release.
+- [Example PR](https://github.com/MetaMask/core/pull/2003/files): this step can be performed either as a part of Phase C, or in a separate, subsequent PR.
+
+### 6. Finalize merge
 
 - Check that all tests are passing in all subpackages of core and CI.
 - Double-check that dependency version bumps or other changes made to main while the PR was open are correctly merged and reflected.
@@ -201,5 +207,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 
 1. **[PR#14]** Add migration target to the list of packages in the README as well as the dependency graph in the README (the latter can be updated automatically by running `yarn generate-dependency-graph`).
 2. Fix downstream errors that were marked with `@ts-expect-error TODO:` during the migration process.
-3. **[PR#15]** Record any changes made to packages during the migration process in their respective CHANGELOGs.
-4. **[PR#16]** Use the `yarn create-release-branch` tool to publish a release of core with a new version for the migrated package and any updated downstream packages.
+
+- If possible, perform this step before the first post-migration release of the migrated package.
+
+3. **[PR#15]** Use the `yarn create-release-branch` tool to publish a release of core with a new version for the migrated package and any updated downstream packages.
