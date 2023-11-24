@@ -40,7 +40,7 @@ const buildMocks = (
   } = {},
 ) => {
   const mockGetNetworkClientById =
-    mocks.getNetworkClientById ||
+    mocks.getNetworkClientById ??
     jest.fn().mockReturnValue({
       configuration: {
         chainId: '0x1',
@@ -77,7 +77,7 @@ const buildMocks = (
     mockEnqueueRequest,
   );
 
-  const mockAddRequest = mocks.addRequest || jest.fn().mockResolvedValue(true);
+  const mockAddRequest = mocks.addRequest ?? jest.fn().mockResolvedValue(true);
   messenger.registerActionHandler(
     'ApprovalController:addRequest',
     mockAddRequest,
