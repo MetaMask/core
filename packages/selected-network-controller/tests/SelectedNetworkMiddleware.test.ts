@@ -1,8 +1,12 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { PendingJsonRpcResponse } from '@metamask/utils';
 
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
-import type { SelectedNetworkMiddlewareMessenger } from '../src/SelectedNetworkMiddleware';
+import type {
+  SelectedNetworkMiddlewareJsonRpcRequest,
+  SelectedNetworkMiddlewareMessenger,
+} from '../src/SelectedNetworkMiddleware';
 import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
 const buildMessenger = (): SelectedNetworkMiddlewareMessenger => {
@@ -12,6 +16,29 @@ const buildMessenger = (): SelectedNetworkMiddlewareMessenger => {
 const noop = jest.fn();
 
 describe('createSelectedNetworkMiddleware', () => {
+  it('throws if not provided an origin', async () => {
+    const messenger = buildMessenger();
+    const middleware = createSelectedNetworkMiddleware(messenger);
+    const req: SelectedNetworkMiddlewareJsonRpcRequest = {
+      id: '123',
+      jsonrpc: '2.0',
+      method: 'anything',
+      networkClientId: 'anything',
+    };
+
+    await expect(
+      () =>
+        new Promise((resolve, reject) =>
+          middleware(
+            req,
+            {} as PendingJsonRpcResponse<typeof req>,
+            resolve,
+            reject,
+          ),
+        ),
+    ).rejects.toThrow("Request object is lacking an 'origin'");
+  });
+
   it('puts networkClientId on request', async () => {
     const messenger = buildMessenger();
     const middleware = createSelectedNetworkMiddleware(messenger);
