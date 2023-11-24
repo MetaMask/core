@@ -10,7 +10,7 @@ import type {
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
 
-const controllerName = 'SelectedNetworkController';
+export const controllerName = 'SelectedNetworkController';
 
 const stateMetadata = {
   domains: { persist: true, anonymous: false },
