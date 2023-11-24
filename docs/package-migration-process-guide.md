@@ -14,6 +14,9 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### 2. Disable `dependabot` dependency upgrades
 
+- [Disable dependabot alerts](https://docs.github.com/en/code-security/dependabot/dependabot-alerts/configuring-dependabot-alerts#enabling-or-disabling-dependabot-alerts-for-a-repository) for the repo.
+- Delete the source repo's `.github/dependabot.yml` file.
+
 ### 3. Add the source repo to the ZenHub workspace repo filter so that its issues/PRs show up on the board
 
 ### **[PR#2]** 4. Align dependency versions and TypeScript, ESLint, Prettier configurations with the core monorepo
