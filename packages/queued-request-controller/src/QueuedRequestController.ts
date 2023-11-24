@@ -1,14 +1,5 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type {
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerSetActiveNetworkAction,
-  NetworkControllerSetProviderTypeAction,
-} from '@metamask/network-controller';
-import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 
 export const controllerName = 'QueuedRequestController';
 
@@ -38,21 +29,12 @@ export type QueuedRequestControllerEvents =
 export type QueuedRequestControllerActions =
   QueuedRequestControllerEnqueueRequestAction;
 
-export type AllowedActions =
-  | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction
-  | NetworkControllerSetProviderTypeAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
-  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-  | AddApprovalRequest;
-
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   QueuedRequestControllerActions,
   QueuedRequestControllerEvents,
-  AllowedActions['type'],
-  string
+  never,
+  never
 >;
 
 export type QueuedRequestControllerOptions = {
