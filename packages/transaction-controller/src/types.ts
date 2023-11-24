@@ -100,6 +100,9 @@ type TransactionMetaBase = {
    */
   custodyId?: string;
 
+  /** The optional custom nonce override as a decimal string. */
+  customNonceValue?: string;
+
   /**
    * Custodian transaction status.
    */
