@@ -16,6 +16,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 - [Disable dependabot alerts](https://docs.github.com/en/code-security/dependabot/dependabot-alerts/configuring-dependabot-alerts#enabling-or-disabling-dependabot-alerts-for-a-repository) for the repo.
 - Delete the source repo's `.github/dependabot.yml` file.
+- Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to perform this step.
 
 ### 3. Add the source repo to the ZenHub workspace repo filter so that its issues/PRs show up on the board
 
@@ -62,7 +63,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Ensure that superfluous merge commits don't pollute the migrated git history. If necessary, replace the PR branch with a cleaned-up post-migration commit history by rerunning the git history migration steps before merging the PR.
   - For this, coordinate with the team to minimize the window of time that the PR is open.
   - For further context on this point: https://github.com/MetaMask/core/pull/1804#issuecomment-1771445829
-- Contact admins to temporarily enable merge commits into main.
+- Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to temporarily enable merge commits into main.
 - Merge PR **without squashing** to preserve the migrated git commit history.
 - [Example PR](https://github.com/MetaMask/core/pull/1872)
 
@@ -194,7 +195,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 </table>
 ```
 
-4. Archive the source repo to prevent any changes from being pushed to it going forward. Contact admins to perform this step.
+4. Archive the source repo to prevent any changes from being pushed to it going forward. Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to perform this step.
 
 ### Core
 
