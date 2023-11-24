@@ -12,4 +12,8 @@ export {
   QueuedRequestControllerEventTypes,
   QueuedRequestController,
 } from './QueuedRequestController';
-export * from './QueuedRequestMiddleware';
+export type {
+  QueuedRequestMiddlewareMessenger,
+  QueuedRequestMiddlewareJsonRpcRequest,
+} from './QueuedRequestMiddleware';
+export { createQueuedRequestMiddleware } from './QueuedRequestMiddleware';
