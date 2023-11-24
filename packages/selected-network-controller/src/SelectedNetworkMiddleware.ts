@@ -4,21 +4,21 @@ import type {
   NetworkClientId,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type {
   SelectedNetworkControllerGetNetworkClientIdForDomainAction,
   SelectedNetworkControllerSetNetworkClientIdForDomainAction,
 } from './SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
+export type SelectedNetworkMiddlewareJsonRpcRequest = JsonRpcRequest & {
+  networkClientId?: NetworkClientId;
+  origin?: string;
+};
 
 export const createSelectedNetworkMiddleware = (
-  messenger: ControllerMessenger<
-    | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | NetworkControllerGetStateAction,
-    never
-  >,
-): JsonRpcMiddleware<any, any> => {
+  messenger: SelectedNetworkMiddlewareMessenger,
+): JsonRpcMiddleware<JsonRpcParams, Json> => {
   const getNetworkClientIdForDomain = (origin: string) =>
     messenger.call(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
@@ -38,7 +38,11 @@ export const createSelectedNetworkMiddleware = (
   const getDefaultNetworkClientId = () =>
     messenger.call('NetworkController:getState').selectedNetworkClientId;
 
-  return (req: any, _, next) => {
+  return (req: SelectedNetworkMiddlewareJsonRpcRequest, _, next) => {
+    if (!req.origin) {
+      throw new Error("Request object is lacking an 'origin'");
+    }
+
     if (getNetworkClientIdForDomain(req.origin) === undefined) {
       setNetworkClientIdForDomain(req.origin, getDefaultNetworkClientId());
     }
