@@ -3,14 +3,24 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type {
   NetworkClientId,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type {
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
-  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerActions,
+  SelectedNetworkControllerEvents,
 } from './SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
+
+export type MiddlewareAllowedActions = NetworkControllerGetStateAction;
+export type MiddlewareAllowedEvents = NetworkControllerStateChangeEvent;
+
+export type SelectedNetworkMiddlewareMessenger = ControllerMessenger<
+  SelectedNetworkControllerActions | MiddlewareAllowedActions,
+  SelectedNetworkControllerEvents | MiddlewareAllowedEvents
+>;
+
 export type SelectedNetworkMiddlewareJsonRpcRequest = JsonRpcRequest & {
   networkClientId?: NetworkClientId;
   origin?: string;

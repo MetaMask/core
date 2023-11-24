@@ -68,21 +68,24 @@ export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
   handler: (domain: string, NetworkClientId: NetworkClientId) => void;
 };
 
-export type SelectedNetworkControllerAction =
+export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetSelectedNetworkStateAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | SelectedNetworkControllerSetNetworkClientIdForDomainAction;
 
-export type SelectedNetworkControllerEvent =
+export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+
+export type SelectedNetworkControllerEvents =
   SelectedNetworkControllerStateChangeEvent;
+
+export type AllowedEvents = NetworkControllerStateChangeEvent;
 
 export type SelectedNetworkControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  SelectedNetworkControllerAction,
-  NetworkControllerStateChangeEvent | SelectedNetworkControllerEvent,
-  string,
-  string
+  SelectedNetworkControllerActions | AllowedActions,
+  SelectedNetworkControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 export type SelectedNetworkControllerOptions = {
