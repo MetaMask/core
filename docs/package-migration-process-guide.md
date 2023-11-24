@@ -65,9 +65,10 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### 1. Port tags
 
-- Use the `scripts/migrate-tags.sh` tool to port the source repo's release tags into the migrated git history in core Follow these [instructions](https://github.com/MetaMask/core/issues/1800).
+- Use the `scripts/migrate-tags.sh` tool to port the source repo's release tags into the migrated git history in core, following [these instructions](./migrate-tags.md).
 - Port the tags locally with the correct package name prefixes.
-- Push the ported tags to a fork of the core monorepo for testing.
+- Create a fork of the core monorepo for testing.
+- Push the ported tags to a fork of the core monorepo for testing. **Do not run the script against `MetaMask/core` before testing it on a fork.**
 - Verify that the tag diff links in CHANGELOG are working.
 - The diff between last tag before migration and first one after will always include the entire history of the monorepo.
 - Push the ported tags to the core repo.
@@ -154,7 +155,6 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 - Check that all tests are passing in all subpackages of core and CI.
 - Double-check that dependency version bumps or other changes made to main while the PR was open are correctly merged and reflected.
-- Merge `packages/<package-name>` directory into core main branch.
 
 ## Phase D: Clean-up and Release
 
@@ -195,7 +195,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 
 ### Core
 
-1. **[PR#14]** Add migration target to README dependency graph using the `generate-dependency-graph` build script.
+1. **[PR#14]** Add migration target to the list of packages in the README as well as the dependency graph in the README (the latter can be updated automatically by running `yarn generate-dependency-graph`).
 2. Fix downstream errors that were marked with `@ts-expect-error TODO:` during the migration process.
 3. **[PR#15]** Record any changes made to packages during the migration process in their respective CHANGELOGs.
 4. **[PR#16]** Use the `yarn create-release-branch` tool to publish a release of core with a new version for the migrated package and any updated downstream packages.
