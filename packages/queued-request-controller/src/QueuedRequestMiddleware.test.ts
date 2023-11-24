@@ -1,4 +1,5 @@
 import type { ApprovalController } from '@metamask/approval-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
@@ -11,12 +12,20 @@ import { serializeError } from '@metamask/rpc-errors';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { buildMessenger } from '../tests/utils';
 import type { QueuedRequestMiddlewareMessenger } from './QueuedRequestMiddleware';
 import {
   createQueuedRequestMiddleware,
   type QueuedRequestMiddlewareJsonRpcRequest,
 } from './QueuedRequestMiddleware';
+
+/**
+ * Build a controller messenger that includes all actions and events used by the queued request controller middleware.
+ *
+ * @returns The controller messenger.
+ */
+function buildMessenger(): QueuedRequestMiddlewareMessenger {
+  return new ControllerMessenger();
+}
 
 const buildMocks = (
   messenger: QueuedRequestMiddlewareMessenger,
