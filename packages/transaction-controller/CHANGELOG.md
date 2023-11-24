@@ -6,6 +6,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.1.0]
+### Added
+- Add `cancelMultiplier` and `speedUpMultiplier` constructor arguments to optionally override the default multipliers of `1.5` and `1.1` respectively ([#2678](https://github.com/MetaMask/core/pull/2678))
+
+### Changed
+- Populate the `preTxBalance` property before publishing transactions with the `swap` type ([#2678](https://github.com/MetaMask/core/pull/2678))
+- Change the status of transactions with matching nonces to `dropped` when confirming a transaction ([#2678](https://github.com/MetaMask/core/pull/2678))
+
+## [18.0.0]
+### Added
+- Add `updateEditableParams` method ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Add `initApprovals` method to trigger the approval flow for any pending transactions during initialisation ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Add `getTransactions` method to search transactions using the given criteria and options ([#2056](https://github.com/MetaMask/core/pull/2056))
+
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- **BREAKING:** Add `finished` and `publish-skip` events to `Events` type
+- **BREAKING:** Update `TransactionReceipt` type so `transactionIndex` is now a string rather than a number ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `nonce-tracker` to ^3.0.0 ([#2040](https://github.com/MetaMask/core/pull/2040))
+- The controller now emits a `transaction-status-update` event each time the status of a transaction changes (e.g. submitted, rejected, etc.) ([#2027](https://github.com/MetaMask/core/pull/2027))
+- Make `getCurrentAccountEIP1559Compatibility` constructor parameter optional ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Normalize the gas values provided to the `speedUpTransaction` and `stopTransaction` methods ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Persist any property changes performed by the `afterSign` hook ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Report success to the approver if publishing is skipped by the `beforePublish` hook ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Update `postTxBalance` after all swap transactions ([#2056](https://github.com/MetaMask/core/pull/2056))
+- Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/gas-fee-controller` to ^11.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/network-controller` to ^17.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
 ## [17.0.0]
 ### Added
 - **BREAKING:** Add additional support swaps support ([#1877](https://github.com/MetaMask/core/pull/1877))
@@ -288,7 +319,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.1.0...HEAD
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.0.0...@metamask/transaction-controller@18.1.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@17.0.0...@metamask/transaction-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...@metamask/transaction-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@15.0.0...@metamask/transaction-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@14.0.0...@metamask/transaction-controller@15.0.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "9.0.0",
+  "version": "10.0.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -31,10 +31,10 @@
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
-    "@metamask/base-controller": "^3.2.3",
+    "@metamask/base-controller": "^4.0.0",
     "@metamask/eth-keyring-controller": "^15.0.0",
-    "@metamask/message-manager": "^7.3.5",
-    "@metamask/preferences-controller": "^4.4.3",
+    "@metamask/message-manager": "^7.3.6",
+    "@metamask/preferences-controller": "^5.0.0",
     "@metamask/utils": "^8.2.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
@@ -60,7 +60,7 @@
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
-    "@metamask/preferences-controller": "^4.4.3"
+    "@metamask/preferences-controller": "^5.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

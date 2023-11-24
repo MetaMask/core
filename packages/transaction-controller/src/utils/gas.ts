@@ -12,6 +12,7 @@ import type { ProviderConfig } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
+import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionParams } from '../types';
 
@@ -139,10 +140,15 @@ async function getGas(
     return [estimatedGas, simulationFails];
   }
 
+  const bufferMultiplier =
+    GAS_BUFFER_CHAIN_OVERRIDES[
+      providerConfig.chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
+    ] ?? DEFAULT_GAS_MULTIPLIER;
+
   const bufferedGas = addGasBuffer(
     estimatedGas,
     blockGasLimit,
-    DEFAULT_GAS_MULTIPLIER,
+    bufferMultiplier,
   );
 
   return [bufferedGas, simulationFails];
