@@ -15,8 +15,5 @@ export {
   SelectedNetworkControllerEventTypes,
   SelectedNetworkController,
 } from './SelectedNetworkController';
-export type {
-  SelectedNetworkMiddlewareMessenger,
-  SelectedNetworkMiddlewareJsonRpcRequest,
-} from './SelectedNetworkMiddleware';
+export type { SelectedNetworkMiddlewareJsonRpcRequest } from './SelectedNetworkMiddleware';
 export { createSelectedNetworkMiddleware } from './SelectedNetworkMiddleware';

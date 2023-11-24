@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Add `QueuedRequestMiddlewareMessenger`, `QueuedRequestMiddlewareJsonRpcRequest` types ([#1970](https://github.com/MetaMask/core/pull/1970)).
+- Add `QueuedRequestMiddlewareJsonRpcRequest` type ([#1970](https://github.com/MetaMask/core/pull/1970)).
 
 ### Changed
 - **BREAKING:** `QueuedRequestControllerMessenger` is defined with empty allow lists ([#1970](https://github.com/MetaMask/core/pull/1970)).
