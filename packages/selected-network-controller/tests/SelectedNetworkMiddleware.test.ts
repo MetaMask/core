@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { PendingJsonRpcResponse } from '@metamask/utils';
+import type { JsonRpcResponse } from '@metamask/utils';
 
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
 import type {
@@ -29,12 +29,7 @@ describe('createSelectedNetworkMiddleware', () => {
     await expect(
       () =>
         new Promise((resolve, reject) =>
-          middleware(
-            req,
-            {} as PendingJsonRpcResponse<typeof req>,
-            resolve,
-            reject,
-          ),
+          middleware(req, {} as JsonRpcResponse<typeof req>, resolve, reject),
         ),
     ).rejects.toThrow("Request object is lacking an 'origin'");
   });
@@ -57,7 +52,7 @@ describe('createSelectedNetworkMiddleware', () => {
     );
 
     await new Promise((resolve) =>
-      middleware(req, {} as PendingJsonRpcResponse<typeof req>, resolve, noop),
+      middleware(req, {} as JsonRpcResponse<typeof req>, resolve, noop),
     );
 
     expect(req.networkClientId).toBe('mockNetworkClientId');
@@ -93,7 +88,7 @@ describe('createSelectedNetworkMiddleware', () => {
     );
 
     await new Promise((resolve) =>
-      middleware(req, {} as PendingJsonRpcResponse<typeof req>, resolve, noop),
+      middleware(req, {} as JsonRpcResponse<typeof req>, resolve, noop),
     );
 
     expect(mockGetNetworkClientIdForDomain).toHaveBeenCalledWith('example.com');
