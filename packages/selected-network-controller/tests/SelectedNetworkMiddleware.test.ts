@@ -1,21 +1,12 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { NetworkControllerGetStateAction } from '@metamask/network-controller';
 
-import type {
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
-  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
-} from '../src/SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
+import type { SelectedNetworkMiddlewareMessenger } from '../src/SelectedNetworkMiddleware';
 import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
-const buildMessenger = () => {
-  return new ControllerMessenger<
-    | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | NetworkControllerGetStateAction,
-    never
-  >();
+const buildMessenger = (): SelectedNetworkMiddlewareMessenger => {
+  return new ControllerMessenger();
 };
 
 const noop = jest.fn();
