@@ -27,6 +27,10 @@ export function updateTransactionHistory(
   transactionMeta: TransactionMeta,
   note: string,
 ): void {
+  if (!transactionMeta.history) {
+    return;
+  }
+
   const currentState = snapshotFromTransactionMeta(transactionMeta);
   const previousState = replayHistory(
     transactionMeta.history as TransactionHistory,

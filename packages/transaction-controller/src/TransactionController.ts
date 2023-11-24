@@ -255,6 +255,10 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
+  private readonly cancelMultiplier: number;
+
+  private readonly speedUpMultiplier: number;
+
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
@@ -327,6 +331,7 @@ export class TransactionController extends BaseControllerV1<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
+   * @param options.cancelMultiplier - Multiplier used to determine a transaction's increased gas fee during cancellation.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
@@ -348,6 +353,7 @@ export class TransactionController extends BaseControllerV1<
    * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
+   * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
    * @param options.hooks - The controller hooks.
    * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
    * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
@@ -360,6 +366,7 @@ export class TransactionController extends BaseControllerV1<
   constructor(
     {
       blockTracker,
+      cancelMultiplier,
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
@@ -376,9 +383,11 @@ export class TransactionController extends BaseControllerV1<
       pendingTransactions = {},
       provider,
       securityProviderRequest,
+      speedUpMultiplier,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
+      cancelMultiplier?: number;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
       disableSwaps: boolean;
@@ -402,6 +411,7 @@ export class TransactionController extends BaseControllerV1<
       };
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
+      speedUpMultiplier?: number;
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -452,6 +462,8 @@ export class TransactionController extends BaseControllerV1<
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
+    this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
+    this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -730,6 +742,8 @@ export class TransactionController extends BaseControllerV1<
       validateGasValues(gasValues);
     }
 
+    log('Creating cancel transaction', transactionId, gasValues);
+
     const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
@@ -742,7 +756,7 @@ export class TransactionController extends BaseControllerV1<
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
       transactionMeta.txParams.gasPrice,
-      CANCEL_RATE,
+      this.cancelMultiplier,
     );
 
     const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
@@ -756,7 +770,7 @@ export class TransactionController extends BaseControllerV1<
     const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
     const minMaxFeePerGas = getIncreasedPriceFromExisting(
       existingMaxFeePerGas,
-      CANCEL_RATE,
+      this.cancelMultiplier,
     );
     const maxFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
@@ -770,7 +784,7 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta.txParams?.maxPriorityFeePerGas;
     const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
       existingMaxPriorityFeePerGas,
-      CANCEL_RATE,
+      this.cancelMultiplier,
     );
     const maxPriorityFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
@@ -809,8 +823,23 @@ export class TransactionController extends BaseControllerV1<
       unsignedEthTx,
       transactionMeta.txParams.from,
     );
+
     const rawTx = bufferToHex(signedTx.serialize());
+
+    const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
+
+    const oldFee = newTxParams.maxFeePerGas
+      ? transactionMeta.txParams.maxFeePerGas
+      : transactionMeta.txParams.gasPrice;
+
+    log('Submitting cancel transaction', {
+      oldFee,
+      newFee,
+      txParams: newTxParams,
+    });
+
     const hash = await this.publishTransaction(rawTx);
+
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
       chainId: transactionMeta.chainId,
@@ -870,6 +899,8 @@ export class TransactionController extends BaseControllerV1<
       validateGasValues(gasValues);
     }
 
+    log('Creating speed up transaction', transactionId, gasValues);
+
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionId,
     );
@@ -886,7 +917,7 @@ export class TransactionController extends BaseControllerV1<
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
       transactionMeta.txParams.gasPrice,
-      SPEED_UP_RATE,
+      this.speedUpMultiplier,
     );
 
     const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
@@ -900,7 +931,7 @@ export class TransactionController extends BaseControllerV1<
     const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
     const minMaxFeePerGas = getIncreasedPriceFromExisting(
       existingMaxFeePerGas,
-      SPEED_UP_RATE,
+      this.speedUpMultiplier,
     );
     const maxFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
@@ -914,7 +945,7 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta.txParams?.maxPriorityFeePerGas;
     const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
       existingMaxPriorityFeePerGas,
-      SPEED_UP_RATE,
+      this.speedUpMultiplier,
     );
     const maxPriorityFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
@@ -947,9 +978,20 @@ export class TransactionController extends BaseControllerV1<
       unsignedEthTx,
       transactionMeta.txParams.from,
     );
+
     await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
+
+    const newFee = txParams.maxFeePerGas ?? txParams.gasPrice;
+
+    const oldFee = txParams.maxFeePerGas
+      ? transactionMeta.txParams.maxFeePerGas
+      : transactionMeta.txParams.gasPrice;
+
+    log('Submitting speed up transaction', { oldFee, newFee, txParams });
+
     const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
       estimatedBaseFee,
@@ -961,6 +1003,7 @@ export class TransactionController extends BaseControllerV1<
       type: TransactionType.retry,
       originalType: transactionMeta.type,
     };
+
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
@@ -978,6 +1021,7 @@ export class TransactionController extends BaseControllerV1<
               gasPrice: newGasPrice,
             },
           };
+
     this.addMetadata(newTransactionMeta);
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
@@ -985,6 +1029,7 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta: newTransactionMeta,
       actionId,
     });
+
     this.hub.emit('transaction-submitted', {
       transactionMeta: newTransactionMeta,
       actionId,
@@ -1975,18 +2020,37 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
+      if (transactionMeta.type === TransactionType.swap) {
+        log('Determining pre-transaction balance');
+
+        const preTxBalance = await query(this.ethQuery, 'getBalance', [from]);
+
+        transactionMeta.preTxBalance = preTxBalance;
+
+        log('Updated pre-transaction balance', transactionMeta.preTxBalance);
+      }
+
+      log('Publishing transaction', txParams);
+
       const hash = await this.publishTransaction(rawTx);
+
+      log('Publish successful', hash);
+
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
+
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - Transaction submitted',
       );
+
       this.hub.emit('transaction-submitted', {
         transactionMeta,
       });
+
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+
       this.onTransactionStatusChange(transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
@@ -2452,7 +2516,9 @@ export class TransactionController extends BaseControllerV1<
     log('Signing transaction', txParams);
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+
     this.inProcessOfSigning.add(transactionMeta.id);
+
     const signedTx = await this.sign?.(
       unsignedEthTx,
       txParams.from,
@@ -2476,19 +2542,25 @@ export class TransactionController extends BaseControllerV1<
     }
 
     await this.updateTransactionMetaRSV(transactionMeta, signedTx);
+
     transactionMeta.status = TransactionStatus.signed;
+
     this.updateTransaction(
       transactionMeta,
       'TransactionController#approveTransaction - Transaction signed',
     );
+
     this.onTransactionStatusChange(transactionMeta);
 
     const rawTx = bufferToHex(signedTx.serialize());
+
     transactionMeta.rawTx = rawTx;
+
     this.updateTransaction(
       transactionMeta,
       'TransactionController#approveTransaction - RawTransaction added',
     );
+
     return rawTx;
   }
 
@@ -2512,6 +2584,8 @@ export class TransactionController extends BaseControllerV1<
 
   private onConfirmedTransaction(transactionMeta: TransactionMeta) {
     log('Processing confirmed transaction', transactionMeta.id);
+
+    this.markNonceDuplicatesDropped(transactionMeta.id);
 
     this.hub.emit('transaction-confirmed', { transactionMeta });
     this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
