@@ -148,6 +148,9 @@ export enum SupportedTokenDetectionNetworks {
   aurora = '0x4e454152', // decimal: 1313161554
   linea_goerli = '0xe704', // decimal: 59140
   linea_mainnet = '0xe708', // decimal: 59144
+  europa_skale = '0x79f99296', // decimal: 2046399126
+  calypso_skale = '0x5d456c62', // decimal: 1564830818
+  nebula_skale = '0x585eb4b1', // decimal: 1482601649
 }
 
 /**

@@ -270,6 +270,30 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
+    it('returns true for the SKALE Europa DeFi Hub network', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.europa_skale,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true for the SKALE Calypso NFT Hub network', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.calypso_skale,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true for the SKALE Nebula Gaming Hub network', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.nebula_skale,
+        ),
+      ).toBe(true);
+    });
+
     it('returns false for testnets such as Goerli', () => {
       expect(assetsUtil.isTokenDetectionSupportedForNetwork(toHex(5))).toBe(
         false,

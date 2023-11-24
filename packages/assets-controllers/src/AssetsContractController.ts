@@ -39,6 +39,12 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x10dAd7Ca3921471f616db788D9300DC97Db01783',
   [SupportedTokenDetectionNetworks.linea_mainnet]:
     '0xF62e6a41561b3650a69Bb03199C735e3E3328c0D',
+  [SupportedTokenDetectionNetworks.europa_skale]:
+    '0xb44d3D2865841F4051332AF90EbE028e01f92f7C',
+  [SupportedTokenDetectionNetworks.calypso_skale]:
+    '0x546753F1B9cd13459DB496C42735a503953668f8',
+  [SupportedTokenDetectionNetworks.nebula_skale]:
+    '0xcA0A9b4E85F35d2C4Ef66EEE98B522fFC07f0416',
 };
 
 export const MISSING_PROVIDER_ERROR =
