@@ -48,7 +48,10 @@ async function applyTransforms(
   // You may choose to disable linting during e.g. dev builds since lint failures cause
   // an error to be thrown.
   if (wasModified && shouldLintTransformedFiles) {
-    await lintTransformedFile(newFileContent);
+    // You probably only need a singleton ESLint instance for your linting purposes.
+    // See the lintTransformedFile documentation for important notes about usage.
+    const eslintInstance = getESLintInstance();
+    await lintTransformedFile(eslintInstance, filePath, newFileContent);
   }
   return newFileContent;
 }

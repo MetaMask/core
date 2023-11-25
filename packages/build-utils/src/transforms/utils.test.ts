@@ -12,7 +12,7 @@ describe('transform utils', () => {
       );
 
       expect(
-        await lintTransformedFile(mockESLint, '/* JavaScript */', 'file.js'),
+        await lintTransformedFile(mockESLint, 'file.js', '/* JavaScript */'),
       ).toBeUndefined();
     });
 
@@ -22,7 +22,7 @@ describe('transform utils', () => {
       );
 
       await expect(async () =>
-        lintTransformedFile(mockESLint, '/* JavaScript */', 'file.js'),
+        lintTransformedFile(mockESLint, 'file.js', '/* JavaScript */'),
       ).rejects.toThrow(
         /Transformed file "file\.js" appears to be ignored by ESLint\.$/u,
       );
@@ -39,7 +39,7 @@ describe('transform utils', () => {
       );
 
       await expect(async () =>
-        lintTransformedFile(mockESLint, '/* JavaScript */', 'file.js'),
+        lintTransformedFile(mockESLint, 'file.js', '/* JavaScript */'),
       ).rejects.toThrow(
         /Lint errors encountered for transformed file "file\.js":\n\n {4}some-eslint-rule\n {4}You violated the rule!\n\n$/u,
       );
@@ -57,7 +57,7 @@ describe('transform utils', () => {
       );
 
       await expect(async () =>
-        lintTransformedFile(mockESLint, '/* JavaScript */', 'file.js'),
+        lintTransformedFile(mockESLint, 'file.js', '/* JavaScript */'),
       ).rejects.toThrow(
         /Lint errors encountered for transformed file "file\.js":\n\n {4}<Unknown rule>\n {4}You violated the rule!\n\n$/u,
       );

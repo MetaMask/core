@@ -18,19 +18,20 @@ const TAB = '    ';
  * needs to be initialized with the options `{ baseConfig, useEslintrc: false}`,
  * where `baseConfig` is the desired ESLint configuration for linting. If using
  * your project's regular `.eslintrc` file, you may need to modify certain rules
- * for linting to pass after code fences are removed.
- * @param content - The file content.
+ * for linting to pass after code fences are removed. Stylistic rules are
+ * particularly likely to cause problems.
  * @param filePath - The path to the file.
+ * @param fileContent - The file content.
  * @returns Returns `undefined` or throws an error if linting produced
  * any errors, or if the linted file is ignored.
  */
 export async function lintTransformedFile(
   eslintInstance: ESLint,
-  content: string,
   filePath: string,
+  fileContent: string,
 ): Promise<void> {
   const lintResult = (
-    await eslintInstance.lintText(content, { filePath, warnIgnored: false })
+    await eslintInstance.lintText(fileContent, { filePath, warnIgnored: false })
   )[0];
 
   // This indicates that the file is ignored, which should never be the case for
