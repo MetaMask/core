@@ -1,31 +1,11 @@
-import { ESLint } from 'eslint';
-
 import { lintTransformedFile } from '..';
-
-let mockESLint: any;
-
-jest.mock('eslint', () => ({
-  ESLint: class MockESLint {
-    lintText: () => any;
-
-    constructor() {
-      if (mockESLint) {
-        throw new Error('Mock ESLint ref already assigned!');
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-this-alias, consistent-this
-      mockESLint = this;
-
-      // eslint-disable-next-line jest/prefer-spy-on
-      this.lintText = jest.fn();
-    }
-  },
-}));
-
-mockESLint = new ESLint();
 
 describe('transform utils', () => {
   describe('lintTransformedFile', () => {
+    const mockESLint: any = {
+      lintText: jest.fn(),
+    };
+
     it('returns if linting passes with no errors', async () => {
       mockESLint.lintText.mockImplementationOnce(async () =>
         Promise.resolve([{ errorCount: 0 }]),

@@ -37,7 +37,7 @@ async function applyTransforms(
   filePath: string,
   fileContent: string,
   features: FeatureLabels,
-  shouldLintTransformedFiles: boolean,
+  shouldLintTransformedFiles: boolean = true,
 ): string {
   const [newFileContent, wasModified] = removeFencedCode(
     filePath,

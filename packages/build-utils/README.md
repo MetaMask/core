@@ -1,4 +1,4 @@
-# `@metamask/build-utilities`
+# `@metamask/build-utils`
 
 Utilities for building MetaMask applications.
 
