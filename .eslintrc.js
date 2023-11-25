@@ -9,6 +9,7 @@ module.exports = {
     'docs',
     'coverage',
     'merged-packages',
+    'package-template',
   ],
   overrides: [
     {
@@ -75,7 +76,7 @@ module.exports = {
       },
     },
     {
-      files: ['scripts/*.ts'],
+      files: ['scripts/**/*.ts'],
       rules: {
         // All scripts will have shebangs.
         'n/shebang': 'off',
