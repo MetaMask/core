@@ -3,6 +3,11 @@ import type { Argv, CommandModule, Arguments } from 'yargs';
 import type { PackageData } from './utils';
 import { finalizeAndWriteData, readMonorepoFiles } from './utils';
 
+// TODO
+// - Check if package already exists, error if so
+// - Lint new files
+// - Run: yarn generate-dependency-graph
+
 type CreatePackageOptions = {
   name: string;
   description: string;

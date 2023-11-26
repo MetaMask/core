@@ -105,8 +105,9 @@ export async function finalizeAndWriteData(
   updateTsConfigs(packageData, monorepoFileData);
 
   // Write package files
-  await createPackageDirectory(packageData.directoryName);
-  await writeFiles(PACKAGES_PATH, await processTemplateFiles(packageData));
+  const packagePath = path.join(PACKAGES_PATH, packageData.directoryName);
+  await createPackageDirectory(packagePath);
+  await writeFiles(packagePath, await processTemplateFiles(packageData));
 
   // Write monorepo files
   await fs.writeFile(
@@ -141,12 +142,11 @@ function updateTsConfigs(
 }
 
 /**
- * Creates a new package directory in the monorepo.
+ * Creates a new package directory in the monorepo, including the `/src` directory.
  *
- * @param packageDirectoryName - The name of the package directory.
+ * @param packagePath - The absolute path of the package directory to create.
  */
-async function createPackageDirectory(packageDirectoryName: string) {
-  const packagePath = path.join(PACKAGES_PATH, packageDirectoryName);
+async function createPackageDirectory(packagePath: string) {
   await fs.mkdir(path.join(packagePath, 'src'), { recursive: true });
 }
 
