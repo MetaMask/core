@@ -15,7 +15,7 @@ type CreatePackageOptions = {
 };
 
 /**
- * The yargs command module for creating a new monorepo package.
+ * The yargs command for creating a new monorepo package.
  */
 export const newPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'new',
@@ -61,8 +61,8 @@ export const newPackage: CommandModule<object, CreatePackageOptions> = {
           }
         }
 
-        if (!args.name?.startsWith('@metamask/')) {
-          args.name = `@metamask/${args.name}`;
+        if (!(args.name as string).startsWith('@metamask/')) {
+          args.name = `@metamask/${args.name as string}`;
         }
 
         return true;
@@ -75,7 +75,7 @@ export const newPackage: CommandModule<object, CreatePackageOptions> = {
 };
 
 /**
- * The yargs command module for creating a monorepo package with some default values.
+ * The yargs command for creating a monorepo package with some default values.
  */
 export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'default',
@@ -101,7 +101,7 @@ export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
  */
 export async function createPackageHandler(
   args: Arguments<CreatePackageOptions>,
-) {
+): Promise<void> {
   const monorepoFileData = await readMonorepoFiles();
   const packageData: PackageData = {
     name: args.name,

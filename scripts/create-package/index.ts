@@ -2,7 +2,7 @@
 
 import yargs from 'yargs';
 
-import { newPackage, defaultPackage } from './create-package';
+import { newPackage, defaultPackage } from './commands';
 
 (() => {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
