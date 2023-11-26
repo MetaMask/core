@@ -57,6 +57,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
  */
 export type ProviderConfig = {
   rpcUrl?: string;
+  iconUrl?: string;
   type: NetworkType;
   chainId: Hex;
   ticker: string;
@@ -90,8 +91,9 @@ export type NetworkMetadata = {
  *
  * @property rpcUrl - RPC target URL.
  * @property chainId - Network ID as per EIP-155
- * @property nickname - Personalized network name.
  * @property ticker - Currency ticker.
+ * @property nickname - Personalized network name.
+ * @property iconUrl - Personalized network icon url.
  * @property rpcPrefs - Personalized preferences.
  */
 export type NetworkConfiguration = {
@@ -99,6 +101,7 @@ export type NetworkConfiguration = {
   chainId: Hex;
   ticker: string;
   nickname?: string;
+  iconUrl?: string;
   rpcPrefs?: {
     blockExplorerUrl: string;
   };
@@ -219,9 +222,9 @@ function buildCustomNetworkClientId(
   ...args:
     | [NetworkConfigurationId]
     | [
-        ProviderConfig & { type: typeof NetworkType.rpc; rpcUrl: string },
-        NetworkConfigurations,
-      ]
+      ProviderConfig & { type: typeof NetworkType.rpc; rpcUrl: string },
+      NetworkConfigurations,
+    ]
 ): CustomNetworkClientId {
   if (args.length === 1) {
     return args[0];
@@ -637,8 +640,8 @@ export class NetworkController extends BaseController<
   getProviderAndBlockTracker(): {
     provider: SwappableProxy<ProxyWithAccessibleTarget<Provider>> | undefined;
     blockTracker:
-      | SwappableProxy<ProxyWithAccessibleTarget<BlockTracker>>
-      | undefined;
+    | SwappableProxy<ProxyWithAccessibleTarget<BlockTracker>>
+    | undefined;
   } {
     return {
       provider: this.#providerProxy,
@@ -701,7 +704,7 @@ export class NetworkController extends BaseController<
     if (isInfuraNetworkType(networkClientId)) {
       const infuraNetworkClient =
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          networkClientId
+        networkClientId
         ];
       if (!infuraNetworkClient) {
         throw new Error(
@@ -713,7 +716,7 @@ export class NetworkController extends BaseController<
 
     const customNetworkClient =
       autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-        networkClientId
+      networkClientId
       ];
     if (!customNetworkClient) {
       throw new Error(
@@ -997,6 +1000,7 @@ export class NetworkController extends BaseController<
       state.providerConfig.ticker = targetNetwork.ticker;
       state.providerConfig.nickname = targetNetwork.nickname;
       state.providerConfig.rpcPrefs = targetNetwork.rpcPrefs;
+      state.providerConfig.iconUrl = targetNetwork.iconUrl;
       state.providerConfig.id = targetNetwork.id;
     });
 
@@ -1176,9 +1180,9 @@ export class NetworkController extends BaseController<
   ): Promise<string> {
     const sanitizedNetworkConfiguration: NetworkConfiguration = pick(
       networkConfiguration,
-      ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'],
+      ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs', 'iconUrl'],
     );
-    const { rpcUrl, chainId, ticker } = sanitizedNetworkConfiguration;
+    const { rpcUrl, chainId, ticker, iconUrl } = sanitizedNetworkConfiguration;
 
     assertIsStrictHexString(chainId);
     if (!isSafeChainId(chainId)) {
@@ -1201,6 +1205,16 @@ export class NetworkController extends BaseController<
     } catch (e: any) {
       if (e.message.includes('Invalid URL')) {
         throw new Error('rpcUrl must be a valid URL');
+      }
+    }
+
+    if (iconUrl !== undefined) {
+      try {
+        new URL(iconUrl);
+      } catch (e: any) {
+        if (e.message.includes('Invalid URL')) {
+          throw new Error('rpcUrl must be a valid URL');
+        }
       }
     }
     if (!ticker) {
@@ -1499,12 +1513,12 @@ export class NetworkController extends BaseController<
    */
   #buildIdentifiedNetworkClientConfigurationsFromProviderConfig():
     | [
-        [
-          NetworkClientType.Custom,
-          CustomNetworkClientId,
-          CustomNetworkClientConfiguration,
-        ],
-      ]
+      [
+        NetworkClientType.Custom,
+        CustomNetworkClientId,
+        CustomNetworkClientConfiguration,
+      ],
+    ]
     | [] {
     const { providerConfig } = this.state;
 
