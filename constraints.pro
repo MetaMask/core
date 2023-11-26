@@ -281,7 +281,7 @@ gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-r
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:clean" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test:only-clean', 'jest --clearCache') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test:only-clean', 'jest --clearCache && rm -rf coverage') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:verbose" script.
