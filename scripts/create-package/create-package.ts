@@ -1,37 +1,7 @@
 import type { Argv, CommandModule, Arguments } from 'yargs';
 
-/**
- * ```
- * TODO
- * - References in tsconfig.json and tsconfig.build.json
- *  - We could prompt the user about their intra-monorepo dependencies
- *  - This would help with dependencies and peerDependencies also
- * - License options
- *   - If not MIT, create empty license file for now -> Y
- * - Option for just some defaults? -> Y
- *
- * Placeholders:
- *
- * CURRENT_YEAR
- * NODE_VERSION
- * PACKAGE_NAME
- * PACKAGE_DESCRIPTION
- * PACKAGE_DIRECTORY_NAME
- *
- * Plan:
- * - Get cwd
- * - Create function for getting all the remaining package data (placeholders)
- *   - By prompting the user, except:
- *     - CURRENT_YEAR, NODE_VERSION (.nvrmc)
- * - Read and modify all the relevant monorepo files (like tsconfig etc.)
- *   - tsconfig.json, tsconfig.build.json
- * - Read and modify all the relevant template files
- *   - We can just do a simple string replace on all of them for the placeholders.
- *   - Set package.json
- * - Write package files to packages/PACKAGE_DIRECTORY_NAME
- * - Rewrite monorepo files
- * - Regenerate dependency graph (execute package command)
- */
+import type { PackageData } from './utils';
+import { finalizeAndWriteData, readMonorepoFiles } from './utils';
 
 type CreatePackageOptions = {
   name: string;
@@ -39,6 +9,9 @@ type CreatePackageOptions = {
   mitLicense: boolean;
 };
 
+/**
+ * The yargs command module for creating a new monorepo package.
+ */
 export const newPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'new',
   describe:
@@ -70,15 +43,21 @@ export const newPackage: CommandModule<object, CreatePackageOptions> = {
         },
       })
       .check((args) => {
+        // Trim all strings and ensure they are not empty.
         for (const key in args) {
-          if (
-            typeof args[key] === 'string' &&
-            (args[key] as string).trim() === ''
-          ) {
-            throw new Error(
-              `The argument "${key}" must not be an empty string.`,
-            );
+          if (typeof args[key] === 'string') {
+            args[key] = (args[key] as string).trim();
+
+            if (args[key] === '') {
+              throw new Error(
+                `The argument "${key}" was processed to an empty string. Please provide a value with non-whitespace characters.`,
+              );
+            }
           }
+        }
+
+        if (!args.name?.startsWith('@metamask/')) {
+          args.name = `@metamask/${args.name}`;
         }
 
         return true;
@@ -90,14 +69,17 @@ export const newPackage: CommandModule<object, CreatePackageOptions> = {
     createPackageHandler(args),
 };
 
+/**
+ * The yargs command module for creating a monorepo package with some default values.
+ */
 export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'default',
   describe: 'Create a new monorepo package with default values.',
   builder: (argv: Argv) => {
     argv.check((args) => {
-      args.name = 'new-package';
+      args.name = '@metamask/new-package';
       args.description = 'A new MetaMask package.';
-      args['mit-license'] = true;
+      args.mitLicense = true;
 
       return true;
     });
@@ -115,5 +97,15 @@ export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
 export async function createPackageHandler(
   args: Arguments<CreatePackageOptions>,
 ) {
-  console.log('createPackageHandler', args);
+  const monorepoFileData = await readMonorepoFiles();
+  const packageData: PackageData = {
+    name: args.name,
+    description: args.description,
+    mitLicense: args.mitLicense,
+    directoryName: args.name.slice('@metamask/'.length),
+    nodeVersion: monorepoFileData.nodeVersion,
+    currentYear: new Date().getFullYear().toString(),
+  };
+
+  await finalizeAndWriteData(packageData, monorepoFileData);
 }
