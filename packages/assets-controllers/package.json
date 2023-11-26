@@ -25,9 +25,9 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
+    "test:only-clean": "jest --clearCache && rm -rf coverage",
     "test:verbose": "jest --verbose && jest-it-up",
-    "test:watch": "jest --watch",
-    "test:only-clean": "jest --clearCache && rm -rf coverage"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@ethersproject/address": "^5.7.0",

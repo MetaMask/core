@@ -36,9 +36,9 @@
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
+    "test:only-clean": "jest --clearCache && rm -rf coverage",
     "test:verbose": "jest --verbose && jest-it-up",
-    "test:watch": "jest --watch",
-    "test:only-clean": "jest --clearCache && rm -rf coverage"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/rpc-errors": "^6.1.0",
