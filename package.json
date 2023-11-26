@@ -29,7 +29,8 @@
     "setup": "yarn install",
     "test": "yarn workspaces foreach --parallel --verbose run test --silent --collectCoverage=false",
     "test:clean": "yarn workspaces foreach --parallel --verbose run test:only-clean && yarn test",
-    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose"
+    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
+    "test:verbose:clean": "yarn workspaces foreach --parallel --verbose run test:only-clean && yarn workspaces foreach --parallel --verbose run test:verbose"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"

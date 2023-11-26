@@ -119,7 +119,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
       - run: yarn --immutable
-      - run: yarn workspace ${{ matrix.package.name }} run test:verbose
+      - run: yarn workspace ${{ matrix.package.name }} run test:verbose:clean
       - name: Check for a Jest coverage threshold bump
         shell: bash
         run: |
