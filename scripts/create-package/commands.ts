@@ -4,7 +4,6 @@ import type { PackageData } from './utils';
 import { finalizeAndWriteData, readMonorepoFiles } from './utils';
 
 // TODO
-// - Check if package already exists, error if so
 // - Lint new files
 // - Run: yarn generate-dependency-graph
 
@@ -70,6 +69,7 @@ export const newPackage: CommandModule<object, CreatePackageOptions> = {
 
     return argv as Argv<CreatePackageOptions>;
   },
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   handler: async (args: Arguments<CreatePackageOptions>) =>
     createPackageHandler(args),
 };
@@ -90,6 +90,7 @@ export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
     });
     return argv as Argv<CreatePackageOptions>;
   },
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   handler: async (args: Arguments<CreatePackageOptions>) =>
     createPackageHandler(args),
 };

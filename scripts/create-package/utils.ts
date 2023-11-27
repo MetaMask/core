@@ -1,4 +1,5 @@
-import { promises as fs } from 'fs';
+import execa from 'execa';
+import { existsSync, promises as fs } from 'fs';
 import path from 'path';
 import { coerce as semverCoerce } from 'semver';
 
@@ -92,7 +93,8 @@ function getNodeVersion(nvmrc: string): string {
 }
 
 /**
- * Writes the package files to the monorepo.
+ * Finalizes package and repo files, writes them to disk, and performs necessary
+ * postprocessing (e.g. running `yarn install`).
  *
  * @param packageData - The package data.
  * @param monorepoFileData - The monorepo file data.
@@ -101,11 +103,13 @@ export async function finalizeAndWriteData(
   packageData: PackageData,
   monorepoFileData: MonorepoFileData,
 ) {
-  // Update tsconfig files
-  updateTsConfigs(packageData, monorepoFileData);
+  const packagePath = path.join(PACKAGES_PATH, packageData.directoryName);
+  if (existsSync(packagePath)) {
+    throw new Error(`The package directory already exists: ${packagePath}`);
+  }
 
   // Write package files
-  const packagePath = path.join(PACKAGES_PATH, packageData.directoryName);
+  updateTsConfigs(packageData, monorepoFileData);
   await createPackageDirectory(packagePath);
   await writeFiles(packagePath, await processTemplateFiles(packageData));
 
@@ -118,6 +122,9 @@ export async function finalizeAndWriteData(
     MONOREPO_TS_CONFIG_BUILD,
     JSON.stringify(monorepoFileData.tsConfigBuild, null, 2),
   );
+
+  // Postprocess
+  await execa('yarn', ['install'], { cwd: REPO_ROOT });
 }
 
 /**
