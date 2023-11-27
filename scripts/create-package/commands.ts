@@ -3,7 +3,7 @@ import type { Argv, CommandModule, Arguments } from 'yargs';
 import type { PackageData } from './utils';
 import { finalizeAndWriteData, readMonorepoFiles } from './utils';
 
-type CreatePackageOptions = {
+export type CreatePackageOptions = {
   name: string;
   description: string;
 };
