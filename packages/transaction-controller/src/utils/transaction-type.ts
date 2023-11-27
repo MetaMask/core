@@ -32,34 +32,43 @@ export async function determineTransactionType(
     return { type: TransactionType.deployContract, getCodeResponse: undefined };
   }
 
-  const { contractCode: resultCode, isContractAddress } =
+  const { contractCode: getCodeResponse, isContractAddress } =
     await readAddressAsContract(ethQuery, to);
 
   if (!isContractAddress) {
-    return { type: TransactionType.simpleSend, getCodeResponse: resultCode };
+    return { type: TransactionType.simpleSend, getCodeResponse };
   }
 
   const hasValue = txParams.value && Number(txParams.value) !== 0;
 
-  const name = parseStandardTokenTransactionData(data)?.name;
-  if (name !== undefined) {
-    const tokenMethodName = [
-      TransactionType.tokenMethodApprove,
-      TransactionType.tokenMethodSetApprovalForAll,
-      TransactionType.tokenMethodTransfer,
-      TransactionType.tokenMethodTransferFrom,
-      TransactionType.tokenMethodSafeTransferFrom,
-    ].find((methodName) => methodName.toLowerCase() === name.toLowerCase());
+  const contractInteractionResult = {
+    type: TransactionType.contractInteraction,
+    getCodeResponse,
+  };
 
-    if (data && tokenMethodName && !hasValue) {
-      return { type: tokenMethodName, getCodeResponse: resultCode };
-    }
+  if (!data || hasValue) {
+    return contractInteractionResult;
   }
 
-  return {
-    type: TransactionType.contractInteraction,
-    getCodeResponse: resultCode,
-  };
+  const name = parseStandardTokenTransactionData(data)?.name;
+
+  if (!name) {
+    return contractInteractionResult;
+  }
+
+  const tokenMethodName = [
+    TransactionType.tokenMethodApprove,
+    TransactionType.tokenMethodSetApprovalForAll,
+    TransactionType.tokenMethodTransfer,
+    TransactionType.tokenMethodTransferFrom,
+    TransactionType.tokenMethodSafeTransferFrom,
+  ].find((methodName) => methodName.toLowerCase() === name.toLowerCase());
+
+  if (tokenMethodName) {
+    return { type: tokenMethodName, getCodeResponse };
+  }
+
+  return contractInteractionResult;
 }
 
 /**
