@@ -126,8 +126,11 @@ export async function finalizeAndWriteData(
   );
 
   // Postprocess
+  // Ensure the new package is added to the lockfile.
   console.log('Running "yarn install"...');
   await execa('yarn', ['install'], { cwd: REPO_ROOT });
+
+  // Ensures that the new package is included in the dependency graph.
   console.log('Running "yarn generate-dependency-graph"...');
   await execa('yarn', ['generate-dependency-graph'], { cwd: REPO_ROOT });
 }
