@@ -1,9 +1,12 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type { ControllerGetStateAction } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+  type RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
-import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 
 import {
@@ -240,19 +243,19 @@ export type ErrorResult = Record<string, never>;
 
 // Event Types
 
-export type ApprovalStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ApprovalControllerState, Patch[]];
-};
+export type ApprovalStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ApprovalControllerEvents = ApprovalStateChange;
 
 // Action Types
 
-export type GetApprovalsState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => ApprovalControllerState;
-};
+export type GetApprovalsState = ControllerGetStateAction<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;
@@ -335,7 +338,7 @@ export type ApprovalControllerActions =
  * Adding a request returns a promise that resolves or rejects when the request
  * is approved or denied, respectively.
  */
-export class ApprovalController extends BaseControllerV2<
+export class ApprovalController extends BaseController<
   typeof controllerName,
   ApprovalControllerState,
   ApprovalControllerMessenger

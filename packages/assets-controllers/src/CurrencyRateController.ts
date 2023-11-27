@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import {
   TESTNET_TICKER_SYMBOLS,
   FALL_BACK_VS_CURRENCY,
@@ -9,7 +13,6 @@ import type {
 } from '@metamask/network-controller';
 import { PollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
-import type { Patch } from 'immer';
 
 import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
 
@@ -35,24 +38,26 @@ export type CurrencyRateState = {
 
 const name = 'CurrencyRateController';
 
-export type CurrencyRateStateChange = {
-  type: `${typeof name}:stateChange`;
-  payload: [CurrencyRateState, Patch[]];
-};
+export type CurrencyRateStateChange = ControllerStateChangeEvent<
+  typeof name,
+  CurrencyRateState
+>;
 
-export type GetCurrencyRateState = {
-  type: `${typeof name}:getState`;
-  handler: () => CurrencyRateState;
-};
+export type CurrencyRateControllerEvents = CurrencyRateStateChange;
 
-type AllowedActions =
-  | NetworkControllerGetNetworkClientByIdAction
-  | GetCurrencyRateState;
+export type GetCurrencyRateState = ControllerGetStateAction<
+  typeof name,
+  CurrencyRateState
+>;
+
+export type CurrencyRateControllerActions = GetCurrencyRateState;
+
+type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
 type CurrencyRateMessenger = RestrictedControllerMessenger<
   typeof name,
-  AllowedActions,
-  CurrencyRateStateChange,
+  CurrencyRateControllerActions | AllowedActions,
+  CurrencyRateControllerEvents,
   AllowedActions['type'],
   never
 >;

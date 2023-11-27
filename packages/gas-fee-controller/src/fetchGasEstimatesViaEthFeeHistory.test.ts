@@ -1,3 +1,4 @@
+import EthQuery from '@metamask/eth-query';
 import { BN } from 'ethereumjs-util';
 import { when } from 'jest-when';
 
@@ -31,7 +32,8 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
     number: new BN(1),
     baseFeePerGas: new BN(100_000_000_000),
   };
-  const ethQuery = {
+  const mockEthQuery = {
+    sendAsync: EthQuery.prototype.sendAsync,
     blockNumber: async () => latestBlock.number,
     getBlockByNumber: async () => latestBlock,
   };
@@ -73,7 +75,7 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
     mockedFetchLatestBlock.mockResolvedValue(latestBlock);
     when(mockedFetchBlockFeeHistory)
       .calledWith({
-        ethQuery,
+        ethQuery: mockEthQuery,
         endBlock: latestBlock.number,
         numberOfBlocks: 5,
         percentiles: [10, 20, 30],
@@ -84,8 +86,9 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
       .calledWith(blocks)
       .mockReturnValue(levelSpecificEstimates);
 
-    // @ts-expect-error Mock eth query does not fulfill type requirements
-    const gasFeeEstimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
+    const gasFeeEstimates = await fetchGasEstimatesViaEthFeeHistory(
+      mockEthQuery,
+    );
 
     expect(gasFeeEstimates).toStrictEqual({
       ...levelSpecificEstimates,

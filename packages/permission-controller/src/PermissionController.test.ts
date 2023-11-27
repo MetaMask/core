@@ -476,8 +476,8 @@ function getPermissionControllerMessenger(
 ) {
   return messenger.getRestricted<
     typeof controllerName,
-    PermissionControllerActions['type'] | AllowedActions['type'],
-    PermissionControllerEvents['type']
+    AllowedActions['type'],
+    never
   >({
     name: controllerName,
     allowedActions: [

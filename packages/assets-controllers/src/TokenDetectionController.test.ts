@@ -109,10 +109,7 @@ const setupTokenListController = (
   const tokenListMessenger = controllerMessenger.getRestricted({
     name: 'TokenListController',
     allowedActions: [],
-    allowedEvents: [
-      'TokenListController:stateChange',
-      'NetworkController:stateChange',
-    ],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   const tokenList = new TokenListController({
