@@ -113,4 +113,5 @@ export async function createPackageHandler(
   };
 
   await finalizeAndWriteData(packageData, monorepoFileData);
+  console.log(`Created package "${packageData.name}"!`);
 }
