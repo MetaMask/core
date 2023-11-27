@@ -34,6 +34,11 @@ enum Placeholders {
   PackageDirectoryName = 'PACKAGE_DIRECTORY_NAME',
 }
 
+const allPlaceholdersRegex = new RegExp(
+  Object.values(Placeholders).join('|'),
+  'gu',
+);
+
 /**
  * The data necessary to create a new package.
  */
@@ -221,12 +226,22 @@ function processTemplateContent(
 ): string {
   const { name, description, nodeVersion, currentYear } = packageData;
 
-  return content
-    .replace(Placeholders.PackageName, name)
-    .replace(Placeholders.PackageDescription, description)
-    .replace(Placeholders.PackageDirectoryName, packageData.directoryName)
-    .replace(Placeholders.NodeVersion, nodeVersion)
-    .replace(Placeholders.CurrentYear, currentYear);
+  return content.replace(allPlaceholdersRegex, (match) => {
+    switch (match) {
+      case Placeholders.CurrentYear:
+        return currentYear;
+      case Placeholders.NodeVersion:
+        return nodeVersion;
+      case Placeholders.PackageName:
+        return name;
+      case Placeholders.PackageDescription:
+        return description;
+      case Placeholders.PackageDirectoryName:
+        return packageData.directoryName;
+      default:
+        throw new Error(`Unknown placeholder: ${match}`);
+    }
+  });
 }
 
 /**
