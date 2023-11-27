@@ -5,16 +5,8 @@ import { format as prettierFormat } from 'prettier';
 import { coerce as semverCoerce } from 'semver';
 
 import prettierRc from '../../.prettierrc';
+import { MonorepoFiles, Placeholders } from './constants';
 import { readAllFiles, writeFiles } from './fs-utils';
-
-/**
- * The monorepo files that need to be parsed or modified.
- */
-export enum MonorepoFiles {
-  TsConfig = 'tsconfig.json',
-  TsConfigBuild = 'tsconfig.build.json',
-  Nvmrc = '.nvmrc',
-}
 
 const PACKAGE_TEMPLATE_DIR = path.join(__dirname, 'package-template');
 const REPO_ROOT = path.join(__dirname, '..', '..');
@@ -22,18 +14,6 @@ const REPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);
 const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MonorepoFiles.TsConfigBuild);
 const REPO_NVMRC = path.join(REPO_ROOT, MonorepoFiles.Nvmrc);
 const PACKAGES_PATH = path.join(REPO_ROOT, 'packages');
-
-/**
- * Placeholder values in package template files that will be replaced with
- * actual values corresponding to the new package.
- */
-enum Placeholders {
-  CurrentYear = 'CURRENT_YEAR',
-  NodeVersion = 'NODE_VERSION',
-  PackageName = 'PACKAGE_NAME',
-  PackageDescription = 'PACKAGE_DESCRIPTION',
-  PackageDirectoryName = 'PACKAGE_DIRECTORY_NAME',
-}
 
 const allPlaceholdersRegex = new RegExp(
   Object.values(Placeholders).join('|'),
