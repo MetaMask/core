@@ -125,6 +125,7 @@ export async function finalizeAndWriteData(
 
   // Postprocess
   await execa('yarn', ['install'], { cwd: REPO_ROOT });
+  await execa('yarn', ['generate-dependency-graph'], { cwd: REPO_ROOT });
 }
 
 /**

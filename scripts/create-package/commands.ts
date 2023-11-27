@@ -5,7 +5,6 @@ import { finalizeAndWriteData, readMonorepoFiles } from './utils';
 
 // TODO
 // - Lint new files
-// - Run: yarn generate-dependency-graph
 
 type CreatePackageOptions = {
   name: string;
