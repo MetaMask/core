@@ -108,12 +108,14 @@ export async function finalizeAndWriteData(
     throw new Error(`The package directory already exists: ${packagePath}`);
   }
 
-  // Write package files
-  updateTsConfigs(packageData, monorepoFileData);
+  console.log('Writing package and monorepo files...');
+
+  // Read and write package files
   await createPackageDirectory(packagePath);
   await writeFiles(packagePath, await processTemplateFiles(packageData));
 
   // Write monorepo files
+  updateTsConfigs(packageData, monorepoFileData);
   await writeJsonFile(
     REPO_TS_CONFIG,
     JSON.stringify(monorepoFileData.tsConfig),
@@ -124,7 +126,9 @@ export async function finalizeAndWriteData(
   );
 
   // Postprocess
+  console.log('Running "yarn install"...');
   await execa('yarn', ['install'], { cwd: REPO_ROOT });
+  console.log('Running "yarn generate-dependency-graph"...');
   await execa('yarn', ['generate-dependency-graph'], { cwd: REPO_ROOT });
 }
 
@@ -175,7 +179,7 @@ async function createPackageDirectory(packagePath: string) {
 }
 
 /**
- * Reads the template files and processes them with the specified package data.
+ * Reads the template files and updates them with the specified package data.
  *
  * @param packageData - The package data.
  * @returns A map of file paths to processed template file contents.

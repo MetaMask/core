@@ -99,6 +99,8 @@ export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
 export async function createPackageHandler(
   args: Arguments<CreatePackageOptions>,
 ): Promise<void> {
+  console.log(`Attempting to create package "${args.name}"...`);
+
   const monorepoFileData = await readMonorepoFiles();
   const packageData: PackageData = {
     name: args.name,
