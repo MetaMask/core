@@ -10,7 +10,7 @@ import { readAllFiles, writeFiles } from './fs-utils';
 /**
  * The monorepo files that need to be parsed or modified.
  */
-enum MonorepoFiles {
+export enum MonorepoFiles {
   TsConfig = 'tsconfig.json',
   TsConfigBuild = 'tsconfig.build.json',
   Nvmrc = '.nvmrc',
