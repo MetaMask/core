@@ -6,6 +6,9 @@ import { coerce as semverCoerce } from 'semver';
 
 import prettierRc from '../../.prettierrc';
 
+/**
+ * The monorepo files that need to be parsed or modified.
+ */
 enum MonorepoFiles {
   TsConfig = 'tsconfig.json',
   TsConfigBuild = 'tsconfig.build.json',
@@ -19,12 +22,16 @@ const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MonorepoFiles.TsConfigBuild);
 const REPO_NVMRC = path.join(REPO_ROOT, MonorepoFiles.Nvmrc);
 const PACKAGES_PATH = path.join(REPO_ROOT, 'packages');
 
+/**
+ * Placeholder values in package template files that will be replaced with
+ * actual values corresponding to the new package.
+ */
 enum Placeholders {
-  CURRENT_YEAR = 'CURRENT_YEAR',
-  NODE_VERSION = 'NODE_VERSION',
-  PACKAGE_NAME = 'PACKAGE_NAME',
-  PACKAGE_DESCRIPTION = 'PACKAGE_DESCRIPTION',
-  PACKAGE_DIRECTORY_NAME = 'PACKAGE_DIRECTORY_NAME',
+  CurrentYear = 'CURRENT_YEAR',
+  NodeVersion = 'NODE_VERSION',
+  PackageName = 'PACKAGE_NAME',
+  PackageDescription = 'PACKAGE_DESCRIPTION',
+  PackageDirectoryName = 'PACKAGE_DIRECTORY_NAME',
 }
 
 /**
@@ -215,14 +222,11 @@ function processTemplateContent(
   const { name, description, nodeVersion, currentYear } = packageData;
 
   return content
-    .replace(new RegExp(Placeholders.PACKAGE_NAME, 'gu'), name)
-    .replace(new RegExp(Placeholders.PACKAGE_DESCRIPTION, 'gu'), description)
-    .replace(
-      new RegExp(Placeholders.PACKAGE_DIRECTORY_NAME, 'gu'),
-      packageData.directoryName,
-    )
-    .replace(new RegExp(Placeholders.NODE_VERSION, 'gu'), nodeVersion)
-    .replace(new RegExp(Placeholders.CURRENT_YEAR, 'gu'), currentYear);
+    .replace(Placeholders.PackageName, name)
+    .replace(Placeholders.PackageDescription, description)
+    .replace(Placeholders.PackageDirectoryName, packageData.directoryName)
+    .replace(Placeholders.NodeVersion, nodeVersion)
+    .replace(Placeholders.CurrentYear, currentYear);
 }
 
 /**

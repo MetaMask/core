@@ -1,5 +1,8 @@
 #!yarn ts-node
 
+// A yargs application for creating new monorepo packages.
+// Run `yarn create-package --help` for more information.
+
 import yargs from 'yargs';
 
 import { newPackage, defaultPackage } from './commands';
