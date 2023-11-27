@@ -1,7 +1,10 @@
 import execa from 'execa';
 import { existsSync, promises as fs } from 'fs';
 import path from 'path';
+import { format as prettierFormat } from 'prettier';
 import { coerce as semverCoerce } from 'semver';
+
+import prettierRc from '../../.prettierrc';
 
 enum MonorepoFiles {
   TsConfig = 'tsconfig.json',
@@ -11,12 +14,9 @@ enum MonorepoFiles {
 
 const PACKAGE_TEMPLATE_DIR = path.join(__dirname, 'package-template');
 const REPO_ROOT = path.join(__dirname, '..', '..');
-const MONOREPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);
-const MONOREPO_TS_CONFIG_BUILD = path.join(
-  REPO_ROOT,
-  MonorepoFiles.TsConfigBuild,
-);
-const MONOREPO_NVMRC = path.join(REPO_ROOT, MonorepoFiles.Nvmrc);
+const REPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);
+const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MonorepoFiles.TsConfigBuild);
+const REPO_NVMRC = path.join(REPO_ROOT, MonorepoFiles.Nvmrc);
 const PACKAGES_PATH = path.join(REPO_ROOT, 'packages');
 
 enum Placeholders {
@@ -63,9 +63,9 @@ type Tsconfig = {
  */
 export async function readMonorepoFiles(): Promise<MonorepoFileData> {
   const [tsConfig, tsConfigBuild, nvmrc] = await Promise.all([
-    fs.readFile(MONOREPO_TS_CONFIG, 'utf-8'),
-    fs.readFile(MONOREPO_TS_CONFIG_BUILD, 'utf-8'),
-    fs.readFile(MONOREPO_NVMRC, 'utf-8'),
+    fs.readFile(REPO_TS_CONFIG, 'utf-8'),
+    fs.readFile(REPO_TS_CONFIG_BUILD, 'utf-8'),
+    fs.readFile(REPO_NVMRC, 'utf-8'),
   ]);
 
   return {
@@ -114,18 +114,34 @@ export async function finalizeAndWriteData(
   await writeFiles(packagePath, await processTemplateFiles(packageData));
 
   // Write monorepo files
-  await fs.writeFile(
-    MONOREPO_TS_CONFIG,
-    JSON.stringify(monorepoFileData.tsConfig, null, 2),
+  await writeJsonFile(
+    REPO_TS_CONFIG,
+    JSON.stringify(monorepoFileData.tsConfig),
   );
-  await fs.writeFile(
-    MONOREPO_TS_CONFIG_BUILD,
-    JSON.stringify(monorepoFileData.tsConfigBuild, null, 2),
+  await writeJsonFile(
+    REPO_TS_CONFIG_BUILD,
+    JSON.stringify(monorepoFileData.tsConfigBuild),
   );
 
   // Postprocess
   await execa('yarn', ['install'], { cwd: REPO_ROOT });
   await execa('yarn', ['generate-dependency-graph'], { cwd: REPO_ROOT });
+}
+
+/**
+ * Formats a JSON file with `prettier` and writes it to disk.
+ *
+ * @param filePath - The absolute path of the file to write.
+ * @param fileContent - The file content to write.
+ */
+async function writeJsonFile(
+  filePath: string,
+  fileContent: string,
+): Promise<void> {
+  await fs.writeFile(
+    filePath,
+    prettierFormat(fileContent, { ...prettierRc, parser: 'json' }),
+  );
 }
 
 /**
