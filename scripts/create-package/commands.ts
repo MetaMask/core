@@ -6,7 +6,6 @@ import { finalizeAndWriteData, readMonorepoFiles } from './utils';
 type CreatePackageOptions = {
   name: string;
   description: string;
-  mitLicense: boolean;
 };
 
 /**
@@ -31,14 +30,6 @@ export const newPackage: CommandModule<object, CreatePackageOptions> = {
           describe:
             'A short description of the package, as used in package.json.',
           type: 'string',
-          requiresArg: true,
-        },
-
-        'mit-license': {
-          description:
-            'Whether the package is MIT-licensed. If not, an empty license file will be provided.',
-          type: 'boolean',
-          default: true,
           requiresArg: true,
         },
       })
@@ -80,7 +71,6 @@ export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
     argv.check((args) => {
       args.name = '@metamask/new-package';
       args.description = 'A new MetaMask package.';
-      args.mitLicense = true;
 
       return true;
     });
@@ -105,7 +95,6 @@ export async function createPackageHandler(
   const packageData: PackageData = {
     name: args.name,
     description: args.description,
-    mitLicense: args.mitLicense,
     directoryName: args.name.slice('@metamask/'.length),
     nodeVersion: monorepoFileData.nodeVersion,
     currentYear: new Date().getFullYear().toString(),

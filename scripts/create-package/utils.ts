@@ -46,7 +46,6 @@ const allPlaceholdersRegex = new RegExp(
 export type PackageData = Readonly<{
   name: string;
   description: string;
-  mitLicense: boolean;
   directoryName: string;
   nodeVersion: string;
   currentYear: string;
@@ -239,6 +238,7 @@ function processTemplateContent(
         return description;
       case Placeholders.PackageDirectoryName:
         return packageData.directoryName;
+      /* istanbul ignore next: should be impossible */
       default:
         throw new Error(`Unknown placeholder: ${match}`);
     }
