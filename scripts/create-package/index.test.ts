@@ -2,7 +2,7 @@ import cli from './cli';
 
 jest.mock('./cli');
 
-describe('main', () => {
+describe('create-packages/index', () => {
   it('executes the CLI application', async () => {
     const mock = cli as jest.MockedFunction<typeof cli>;
     mock.mockRejectedValue('foo');

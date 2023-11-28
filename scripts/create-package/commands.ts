@@ -11,7 +11,7 @@ export type CreatePackageOptions = {
 /**
  * The yargs command for creating a new monorepo package.
  */
-export const newPackage: CommandModule<object, CreatePackageOptions> = {
+const newPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'new',
   describe:
     'Create a new monorepo package. Handles a lot of the boilerplate for you.',
@@ -64,7 +64,7 @@ export const newPackage: CommandModule<object, CreatePackageOptions> = {
 /**
  * The yargs command for creating a monorepo package with some default values.
  */
-export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
+const defaultPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'default',
   describe: 'Create a new monorepo package with default values.',
   builder: (argv: Argv) => {
@@ -80,6 +80,9 @@ export const defaultPackage: CommandModule<object, CreatePackageOptions> = {
   handler: async (args: Arguments<CreatePackageOptions>) =>
     createPackageHandler(args),
 };
+
+const commands = [newPackage, defaultPackage];
+export default commands;
 
 /**
  * Creates a new monorepo package.
