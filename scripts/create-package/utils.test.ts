@@ -202,6 +202,9 @@ describe('create-package/utils', () => {
       await expect(
         finalizeAndWriteData(packageData, monorepoFileData),
       ).rejects.toThrow(/^The package directory already exists:/u);
+
+      expect(fs.promises.mkdir).not.toHaveBeenCalled();
+      expect(fs.promises.writeFile).not.toHaveBeenCalled();
     });
   });
 });
