@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [18.2.0]
-### Uncategorized
-- Support custom nonce value ([#3579](https://github.com/MetaMask/core/pull/3579))
-- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
+### Added
+- Add the `customNonceValue` property to the transaction metadata ([#3579](https://github.com/MetaMask/core/pull/3579))
+
+### Changed
+- Update transaction metadata after approval if the approval result includes the `value.txMeta` property  ([#3579](https://github.com/MetaMask/core/pull/3579))
+- Add `type` property to all incoming transactions ([#3579](https://github.com/MetaMask/core/pull/3579))
 
 ## [18.1.0]
 ### Added
