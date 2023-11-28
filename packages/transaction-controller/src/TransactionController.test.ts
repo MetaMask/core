@@ -213,7 +213,7 @@ function buildMockMessenger({
 
   if (delay) {
     promise = new Promise((res, rej) => {
-      approve = () => res({ resultCallbacks });
+      approve = (value?: any) => res({ resultCallbacks, value });
       reject = rej;
     });
   }
@@ -237,7 +237,7 @@ function buildMockMessenger({
 
   return {
     messenger,
-    approve: approve as unknown as () => void,
+    approve: approve as unknown as (value?: any) => void,
     reject: reject as unknown as (reason: unknown) => void,
   };
 }
@@ -454,7 +454,7 @@ describe('TransactionController', () => {
   let messengerMock: TransactionControllerMessenger;
   let rejectMessengerMock: TransactionControllerMessenger;
   let delayMessengerMock: TransactionControllerMessenger;
-  let approveTransaction: () => void;
+  let approveTransaction: (value?: any) => void;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
@@ -1340,6 +1340,29 @@ describe('TransactionController', () => {
         }
 
         expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if approval result includes updated metadata', async () => {
+        const controller = newController();
+
+        const { result } = await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
+
+        const transaction = controller.state.transactions[0];
+
+        approveTransaction({
+          txMeta: { ...transaction, customNonceValue: '123' },
+        });
+
+        await result;
+
+        expect(controller.state.transactions).toStrictEqual([
+          expect.objectContaining({
+            customNonceValue: '123',
+          }),
+        ]);
       });
 
       describe('fails', () => {

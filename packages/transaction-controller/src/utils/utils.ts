@@ -1,7 +1,6 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { getKnownPropertyNames } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
-import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker';
 
 import type {
   GasPriceValue,
@@ -121,46 +120,6 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   }
   const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
   throw new Error(errorMsg);
-}
-
-/**
- * Helper function to filter and format transactions for the nonce tracker.
- *
- * @param currentChainId - Chain ID of the current network.
- * @param fromAddress - Address of the account from which the transactions to filter from are sent.
- * @param transactionStatus - Status of the transactions for which to filter.
- * @param transactions - Array of transactionMeta objects that have been prefiltered.
- * @returns Array of transactions formatted for the nonce tracker.
- */
-export function getAndFormatTransactionsForNonceTracker(
-  currentChainId: string,
-  fromAddress: string,
-  transactionStatus: TransactionStatus,
-  transactions: TransactionMeta[],
-): NonceTrackerTransaction[] {
-  return transactions
-    .filter(
-      ({ chainId, isTransfer, status, txParams: { from } }) =>
-        !isTransfer &&
-        chainId === currentChainId &&
-        status === transactionStatus &&
-        from.toLowerCase() === fromAddress.toLowerCase(),
-    )
-    .map(({ status, txParams: { from, gas, value, nonce } }) => {
-      // the only value we care about is the nonce
-      // but we need to return the other values to satisfy the type
-      // TODO: refactor nonceTracker to not require this
-      return {
-        status,
-        history: [{}],
-        txParams: {
-          from: from ?? '',
-          gas: gas ?? '',
-          value: value ?? '',
-          nonce: nonce ?? '',
-        },
-      };
-    });
 }
 
 /**
