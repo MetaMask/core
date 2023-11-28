@@ -197,7 +197,7 @@ export class AccountTrackerController extends PollingControllerV1<
    */
   #getCorrectNetworkClient(networkClientId?: NetworkClientId): {
     chainId: string;
-    ethQuery: EthQuery;
+    ethQuery?: EthQuery;
   } {
     if (networkClientId) {
       const networkClient = this.getNetworkClientById(networkClientId);
@@ -208,10 +208,9 @@ export class AccountTrackerController extends PollingControllerV1<
       };
     }
 
-    assert(this._provider, 'Provider not set.');
     return {
       chainId: this.getCurrentChainId(),
-      ethQuery: new EthQuery(this._provider),
+      ethQuery: this._provider ? new EthQuery(this._provider) : undefined,
     };
   }
 
@@ -275,9 +274,10 @@ export class AccountTrackerController extends PollingControllerV1<
    */
   private async getBalanceFromChain(
     address: string,
-    ethQuery: EthQuery,
+    ethQuery?: EthQuery,
   ): Promise<string | undefined> {
     return await safelyExecuteWithTimeout(async () => {
+      assert(ethQuery, 'Provider not set.');
       return await query(ethQuery, 'getBalance', [address]);
     });
   }
@@ -298,6 +298,7 @@ export class AccountTrackerController extends PollingControllerV1<
     return await Promise.all(
       addresses.map((address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
+          assert(ethQuery, 'Provider not set.');
           const balance = await query(ethQuery, 'getBalance', [address]);
           return [address, balance];
         });
