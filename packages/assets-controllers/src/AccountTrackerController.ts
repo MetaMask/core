@@ -162,6 +162,7 @@ export class AccountTrackerController extends PollingControllerV1<
       [getCurrentChainId()]: {}
     } };
     this.initialize();
+    this.setIntervalLength(this.config.interval)
     this.getIdentities = getIdentities;
     this.getSelectedAddress = getSelectedAddress;
     this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
