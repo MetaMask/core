@@ -72,22 +72,24 @@ export class AccountTrackerController extends PollingControllerV1<
 
   private syncAccounts() {
     const { accounts, accountsByChainId } = this.state;
+
     const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
-    const newAddresses = addresses.filter(
-      (address) => !existing.includes(address),
-    );
     const oldAddresses = existing.filter(
       (address) => !addresses.includes(address),
     );
-    newAddresses.forEach((address) => {
-      accounts[address] = { balance: '0x0' };
+    addresses.forEach((address) => {
+      if (!accounts[address])  {
+        accounts[address] = { balance: '0x0' };
+      }
     });
     Object.keys(accountsByChainId).forEach((chainId) => {
       addresses.forEach((address) => {
-        accountsByChainId[chainId][address] = {
-          balance: '0x0',
-        };
+        if (!accountsByChainId[chainId][address]) {
+          accountsByChainId[chainId][address] = {
+            balance: '0x0',
+          };
+        }
       });
     });
 
@@ -95,7 +97,7 @@ export class AccountTrackerController extends PollingControllerV1<
       delete accounts[address];
     });
     Object.keys(accountsByChainId).forEach((chainId) => {
-      addresses.forEach((address) => {
+      oldAddresses.forEach((address) => {
         delete accountsByChainId[chainId][address];
       });
     });
@@ -156,7 +158,9 @@ export class AccountTrackerController extends PollingControllerV1<
     this.defaultConfig = {
       interval: 10000,
     };
-    this.defaultState = { accounts: {}, accountsByChainId: {} };
+    this.defaultState = { accounts: {}, accountsByChainId: {
+      [getCurrentChainId()]: {}
+    } };
     this.initialize();
     this.getIdentities = getIdentities;
     this.getSelectedAddress = getSelectedAddress;
