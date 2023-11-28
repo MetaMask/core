@@ -70,8 +70,12 @@ export class AccountTrackerController extends PollingControllerV1<
 
   private handle?: ReturnType<typeof setTimeout>;
 
-  private syncAccounts() {
+  private syncAccounts(chainId: string) {
     const { accounts, accountsByChainId } = this.state;
+
+    if (!accountsByChainId[chainId]) {
+      accountsByChainId[chainId] = {}
+    }
 
     const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
@@ -248,9 +252,9 @@ export class AccountTrackerController extends PollingControllerV1<
    * @param networkClientId - Optional networkClientId to fetch a network client with
    */
   refresh = async (networkClientId?: NetworkClientId) => {
-    this.syncAccounts();
     const { chainId, ethQuery } =
       this.#getCorrectNetworkClient(networkClientId);
+    this.syncAccounts(chainId);
     const { accounts, accountsByChainId } = this.state;
     const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
 
