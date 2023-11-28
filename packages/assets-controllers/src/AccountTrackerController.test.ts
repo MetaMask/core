@@ -110,8 +110,20 @@ describe('AccountTrackerController', () => {
 
       await controller.refresh();
 
-      expect(controller.state.accounts[ADDRESS_1].balance).toBeDefined();
-      expect(controller.state.accounts[ADDRESS_1].balance).toBe('0x10');
+      expect(controller.state).toStrictEqual({
+        accounts: {
+          [ADDRESS_1]: {
+            balance: '0x10'
+          }
+        },
+        accountsByChainId: {
+          '0x1': {
+            [ADDRESS_1]: {
+              balance: '0x10'
+            }
+          }
+        }
+      })
     });
 
     it('should sync addresses', () => {
