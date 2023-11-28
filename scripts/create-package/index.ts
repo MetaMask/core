@@ -1,4 +1,6 @@
-#!yarn ts-node
+/**
+ * Entry point file for the create-package CLI.
+ */
 
 import cli from './cli';
 
