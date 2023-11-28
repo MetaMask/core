@@ -43,6 +43,10 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x151E24A486D7258dd7C33Fb67E4bB01919B7B32c',
   [SupportedTokenDetectionNetworks.optimism]:
     '0xB1c568e9C3E6bdaf755A60c7418C269eb11524FC',
+  [SupportedTokenDetectionNetworks.base]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.zksync]:
+    '0x458fEd3144680a5b8bcfaa0F9594aa19B4Ea2D34',
 };
 
 export const MISSING_PROVIDER_ERROR =
