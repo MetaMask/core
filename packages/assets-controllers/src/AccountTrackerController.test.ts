@@ -13,6 +13,10 @@ jest.mock('@metamask/controller-utils', () => {
   };
 });
 
+const ADDRESS_1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+const ADDRESS_2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+
+
 const mockedQuery = query as jest.Mock<
   ReturnType<typeof query>,
   Parameters<typeof query>
@@ -38,9 +42,14 @@ describe('AccountTrackerController', () => {
       getIdentities: () => ({}),
       getSelectedAddress: () => '',
       getMultiAccountBalancesEnabled: () => true,
+      getCurrentChainId: () => '0x1',
+      getNetworkClientById: jest.fn(),
     });
     expect(controller.state).toStrictEqual({
       accounts: {},
+      accountsByChainId: {
+        '0x1': {}
+      }
     });
   });
 
@@ -50,6 +59,8 @@ describe('AccountTrackerController', () => {
       getIdentities: () => ({}),
       getSelectedAddress: () => '',
       getMultiAccountBalancesEnabled: () => true,
+      getCurrentChainId: () => '0x1',
+      getNetworkClientById: jest.fn(),
     });
     expect(() => console.log(controller.provider)).toThrow(
       'Property only used for setting',
@@ -57,45 +68,45 @@ describe('AccountTrackerController', () => {
   });
 
   it('should get real balance', async () => {
-    const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-
     mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
 
     const controller = new AccountTrackerController(
       {
         onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
-          return { [address]: {} as ContactEntry };
+          return { [ADDRESS_1]: {} as ContactEntry };
         },
-        getSelectedAddress: () => address,
+        getSelectedAddress: () => ADDRESS_1,
         getMultiAccountBalancesEnabled: () => true,
+        getCurrentChainId: () => '0x1',
+        getNetworkClientById: jest.fn(),
       },
       { provider },
     );
 
     await controller.refresh();
 
-    expect(controller.state.accounts[address].balance).toBeDefined();
-    expect(controller.state.accounts[address].balance).toBe('0x10');
+    expect(controller.state.accounts[ADDRESS_1].balance).toBeDefined();
+    expect(controller.state.accounts[ADDRESS_1].balance).toBe('0x10');
   });
 
   it('should sync balance with addresses', async () => {
-    const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-
     const controller = new AccountTrackerController(
       {
         onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
           return {};
         },
-        getSelectedAddress: () => address,
+        getSelectedAddress: () => ADDRESS_1,
         getMultiAccountBalancesEnabled: () => true,
+        getCurrentChainId: () => '0x1',
+        getNetworkClientById: jest.fn(),
       },
       { provider },
     );
     mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
-    const result = await controller.syncBalanceWithAddresses([address]);
-    expect(result[address].balance).toBe('0x10');
+    const result = await controller.syncBalanceWithAddresses([ADDRESS_1]);
+    expect(result[ADDRESS_1].balance).toBe('0x10');
   });
 
   it('should sync addresses', () => {
@@ -103,23 +114,51 @@ describe('AccountTrackerController', () => {
       {
         onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
-          return { baz: {} as ContactEntry };
+          return {
+            bar: {} as ContactEntry,
+            baz: {} as ContactEntry
+          };
         },
         getSelectedAddress: () => '0x0',
         getMultiAccountBalancesEnabled: () => true,
+        getCurrentChainId: () => '0x1',
+        getNetworkClientById: jest.fn(),
       },
       { provider },
       {
         accounts: {
-          bar: { balance: '' },
-          foo: { balance: '' },
+          bar: { balance: '0x1' },
+          foo: { balance: '0x2' },
         },
+        accountsByChainId: {
+          '0x1': {
+            bar: { balance: '0x1' },
+            foo: { balance: '0x2' },
+          },
+          '0x2': {
+            baz: { balance: '0xa' },
+            foo: { balance: '0xb' },
+          }
+        }
       },
     );
     controller.refresh();
-    expect(controller.state.accounts).toStrictEqual({
-      baz: { balance: '0x0' },
-    });
+    expect(controller.state).toStrictEqual({
+      accounts: {
+        bar: { balance: '0x1' },
+        baz: { balance: '0x0' },
+      },
+      accountsByChainId: {
+        '0x1': {
+          bar: { balance: '0x1' },
+          baz: { balance: '0x0' },
+        },
+        '0x2': {
+          bar: { balance: '0x0' },
+          baz: { balance: '0xa' }
+        }
+      }
+    })
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
@@ -130,6 +169,8 @@ describe('AccountTrackerController', () => {
         getIdentities: () => ({}),
         getSelectedAddress: () => '0x0',
         getMultiAccountBalancesEnabled: () => true,
+        getCurrentChainId: () => '0x1',
+        getNetworkClientById: jest.fn(),
       },
       { provider },
     );
@@ -150,6 +191,8 @@ describe('AccountTrackerController', () => {
           getIdentities: () => ({}),
           getSelectedAddress: () => '',
           getMultiAccountBalancesEnabled: () => true,
+          getCurrentChainId: () => '0x1',
+          getNetworkClientById: jest.fn(),
         },
         { provider, interval: 100 },
       );
@@ -165,9 +208,6 @@ describe('AccountTrackerController', () => {
   });
 
   it('should update only selected address balance when multi-account is disabled', async () => {
-    const address1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const address2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
-
     jest
       .spyOn(AccountTrackerController.prototype, 'poll')
       .mockImplementationOnce(async () => Promise.resolve());
@@ -179,26 +219,35 @@ describe('AccountTrackerController', () => {
         onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
           return {
-            [address1]: {} as ContactEntry,
-            [address2]: {} as ContactEntry,
+            [ADDRESS_1]: {} as ContactEntry,
+            [ADDRESS_2]: {} as ContactEntry,
           };
         },
-        getSelectedAddress: () => address1,
+        getSelectedAddress: () => ADDRESS_1,
         getMultiAccountBalancesEnabled: () => false,
+        getCurrentChainId: () => '0x1',
+        getNetworkClientById: jest.fn(),
       },
       { provider },
     );
 
     await controller.refresh();
 
-    expect(controller.state.accounts[address1].balance).toBe('0x10');
-    expect(controller.state.accounts[address2].balance).toBe('0x0');
+    expect(controller.state).toStrictEqual({
+      accounts: {
+        [ADDRESS_1]: { balance: '0x10' },
+        [ADDRESS_2]: { balance: '0x0' }
+      },
+      accountsByChainId: {
+        '0x1': {
+          [ADDRESS_1]: { balance: '0x10' },
+          [ADDRESS_2]: { balance: '0x0' }
+        }
+      }
+    })
   });
 
   it('should update all address balances when multi-account is enabled', async () => {
-    const address1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const address2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
-
     jest
       .spyOn(AccountTrackerController.prototype, 'poll')
       .mockImplementationOnce(async () => Promise.resolve());
@@ -211,19 +260,31 @@ describe('AccountTrackerController', () => {
         onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
           return {
-            [address1]: {} as ContactEntry,
-            [address2]: {} as ContactEntry,
+            [ADDRESS_1]: {} as ContactEntry,
+            [ADDRESS_2]: {} as ContactEntry,
           };
         },
-        getSelectedAddress: () => address1,
+        getSelectedAddress: () => ADDRESS_1,
         getMultiAccountBalancesEnabled: () => true,
+        getCurrentChainId: () => '0x1',
+        getNetworkClientById: jest.fn(),
       },
       { provider },
     );
 
     await controller.refresh();
 
-    expect(controller.state.accounts[address1].balance).toBe('0x11');
-    expect(controller.state.accounts[address2].balance).toBe('0x12');
+    expect(controller.state).toStrictEqual({
+      accounts: {
+        [ADDRESS_1]: { balance: '0x11' },
+        [ADDRESS_2]: { balance: '0x12' }
+      },
+      accountsByChainId: {
+        '0x1': {
+          [ADDRESS_1]: { balance: '0x11' },
+          [ADDRESS_2]: { balance: '0x12' }
+        }
+      }
+    })
   });
 });
