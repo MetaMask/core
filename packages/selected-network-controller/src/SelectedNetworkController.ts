@@ -86,6 +86,7 @@ export type SelectedNetworkControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type SelectedNetworkControllerOptions = {
+  state?: SelectedNetworkControllerState;
   messenger: SelectedNetworkControllerMessenger;
 };
 
@@ -109,13 +110,17 @@ export class SelectedNetworkController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the EncryptionPublicKey controller.
+   * @param options.state - The controllers initial state.
    */
-  constructor({ messenger }: SelectedNetworkControllerOptions) {
+  constructor({
+    messenger,
+    state = getDefaultState(),
+  }: SelectedNetworkControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
-      state: getDefaultState(),
+      state,
     });
     this.#registerMessageHandlers();
   }
