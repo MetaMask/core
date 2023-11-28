@@ -70,30 +70,32 @@ export class AccountTrackerController extends PollingControllerV1<
 
   private handle?: ReturnType<typeof setTimeout>;
 
-  private syncAccounts(chainId: string) {
+  private syncAccounts(newChainId: string) {
     const { accounts, accountsByChainId } = this.state;
 
-    if (!accountsByChainId[chainId]) {
-      accountsByChainId[chainId] = {}
+    const existing = Object.keys(accounts);
+    if (!accountsByChainId[newChainId]) {
+      accountsByChainId[newChainId] = {};
+      existing.forEach((address) => {
+        accountsByChainId[newChainId][address] = { balance: '0x0' };
+      });
     }
 
     const addresses = Object.keys(this.getIdentities());
-    const existing = Object.keys(accounts);
+    const newAddresses = addresses.filter(
+      (address) => !existing.includes(address),
+    );
     const oldAddresses = existing.filter(
       (address) => !addresses.includes(address),
     );
-    addresses.forEach((address) => {
-      if (!accounts[address])  {
-        accounts[address] = { balance: '0x0' };
-      }
+    newAddresses.forEach((address) => {
+      accounts[address] = { balance: '0x0' };
     });
     Object.keys(accountsByChainId).forEach((chainId) => {
-      addresses.forEach((address) => {
-        if (!accountsByChainId[chainId][address]) {
-          accountsByChainId[chainId][address] = {
-            balance: '0x0',
-          };
-        }
+      newAddresses.forEach((address) => {
+        accountsByChainId[chainId][address] = {
+          balance: '0x0',
+        };
       });
     });
 
@@ -162,11 +164,14 @@ export class AccountTrackerController extends PollingControllerV1<
     this.defaultConfig = {
       interval: 10000,
     };
-    this.defaultState = { accounts: {}, accountsByChainId: {
-      [getCurrentChainId()]: {}
-    } };
+    this.defaultState = {
+      accounts: {},
+      accountsByChainId: {
+        [getCurrentChainId()]: {},
+      },
+    };
     this.initialize();
-    this.setIntervalLength(this.config.interval)
+    this.setIntervalLength(this.config.interval);
     this.getIdentities = getIdentities;
     this.getSelectedAddress = getSelectedAddress;
     this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
