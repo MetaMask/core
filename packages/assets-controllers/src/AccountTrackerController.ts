@@ -231,7 +231,11 @@ export class AccountTrackerController extends PollingControllerV1<
     }, this.config.interval);
   }
 
-  // TODO
+  /**
+   * Refreshes the balances of the accounts using the networkClientId
+   *
+   * @param networkClientId - The network client ID used to get balances.
+   */
   async _executePoll(networkClientId: string): Promise<void> {
     this.refresh(networkClientId);
   }
