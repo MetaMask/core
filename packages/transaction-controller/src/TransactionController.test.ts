@@ -213,7 +213,7 @@ function buildMockMessenger({
 
   if (delay) {
     promise = new Promise((res, rej) => {
-      approve = () => res({ resultCallbacks });
+      approve = (value?: any) => res({ resultCallbacks, value });
       reject = rej;
     });
   }
@@ -237,7 +237,7 @@ function buildMockMessenger({
 
   return {
     messenger,
-    approve: approve as unknown as () => void,
+    approve: approve as unknown as (value?: any) => void,
     reject: reject as unknown as (reason: unknown) => void,
   };
 }
@@ -454,7 +454,7 @@ describe('TransactionController', () => {
   let messengerMock: TransactionControllerMessenger;
   let rejectMessengerMock: TransactionControllerMessenger;
   let delayMessengerMock: TransactionControllerMessenger;
-  let approveTransaction: () => void;
+  let approveTransaction: (value?: any) => void;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
@@ -1340,6 +1340,29 @@ describe('TransactionController', () => {
         }
 
         expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if approval result includes updated metadata', async () => {
+        const controller = newController();
+
+        const { result } = await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
+
+        const transaction = controller.state.transactions[0];
+
+        approveTransaction({
+          txMeta: { ...transaction, customNonceValue: '123' },
+        });
+
+        await result;
+
+        expect(controller.state.transactions).toStrictEqual([
+          expect.objectContaining({
+            customNonceValue: '123',
+          }),
+        ]);
       });
 
       describe('fails', () => {
@@ -3056,25 +3079,125 @@ describe('TransactionController', () => {
       )[1](...args);
     }
 
-    it('bubbles on transaction-confirmed event', async () => {
-      const listener = jest.fn();
-      const statusUpdateListener = jest.fn();
-      const controller = newController();
+    describe('on transaction-confirmed event', () => {
+      it('bubbles event', async () => {
+        const listener = jest.fn();
+        const statusUpdateListener = jest.fn();
+        const controller = newController();
 
-      controller.hub.on(`${TRANSACTION_META_MOCK.id}:confirmed`, listener);
-      controller.hub.on(`transaction-status-update`, statusUpdateListener);
+        controller.hub.on(`${TRANSACTION_META_MOCK.id}:confirmed`, listener);
+        controller.hub.on(`transaction-status-update`, statusUpdateListener);
 
-      firePendingTransactionTrackerEvent(
-        'transaction-confirmed',
-        TRANSACTION_META_MOCK,
-      );
+        firePendingTransactionTrackerEvent(
+          'transaction-confirmed',
+          TRANSACTION_META_MOCK,
+        );
 
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(TRANSACTION_META_MOCK);
 
-      expect(statusUpdateListener).toHaveBeenCalledTimes(1);
-      expect(statusUpdateListener).toHaveBeenCalledWith({
-        transactionMeta: TRANSACTION_META_MOCK,
+        expect(statusUpdateListener).toHaveBeenCalledTimes(1);
+        expect(statusUpdateListener).toHaveBeenCalledWith({
+          transactionMeta: TRANSACTION_META_MOCK,
+        });
+      });
+
+      it('marks duplicate nonce transactions as dropped', async () => {
+        const controller = newController();
+
+        const confirmed = {
+          ...TRANSACTION_META_MOCK,
+          id: 'testId1',
+          chainId: MOCK_NETWORK.state.providerConfig.chainId,
+          hash: '0x3',
+          status: TransactionStatus.confirmed,
+          txParams: { ...TRANSACTION_META_MOCK.txParams, nonce: '0x1' },
+        };
+
+        const duplicate_1 = {
+          ...confirmed,
+          id: 'testId2',
+          status: TransactionStatus.submitted,
+        };
+
+        const duplicate_2 = {
+          ...duplicate_1,
+          id: 'testId3',
+          status: TransactionStatus.approved,
+        };
+
+        const duplicate_3 = {
+          ...duplicate_1,
+          id: 'testId4',
+          status: TransactionStatus.failed,
+        };
+
+        const wrongChain = {
+          ...duplicate_1,
+          id: 'testId5',
+          chainId: '0x2',
+          txParams: { ...duplicate_1.txParams },
+        };
+
+        const wrongNonce = {
+          ...duplicate_1,
+          id: 'testId6',
+          txParams: { ...duplicate_1.txParams, nonce: '0x2' },
+        };
+
+        const wrongFrom = {
+          ...duplicate_1,
+          id: 'testId7',
+          txParams: { ...duplicate_1.txParams, from: '0x2' },
+        };
+
+        controller.state.transactions = [
+          confirmed,
+          wrongChain,
+          wrongNonce,
+          wrongFrom,
+          duplicate_1,
+          duplicate_2,
+          duplicate_3,
+        ] as any;
+
+        firePendingTransactionTrackerEvent('transaction-confirmed', confirmed);
+
+        expect(
+          controller.state.transactions.map((tx) => tx.status),
+        ).toStrictEqual([
+          TransactionStatus.confirmed,
+          TransactionStatus.submitted,
+          TransactionStatus.submitted,
+          TransactionStatus.submitted,
+          TransactionStatus.dropped,
+          TransactionStatus.dropped,
+          TransactionStatus.failed,
+        ]);
+
+        expect(
+          controller.state.transactions.map((tx) => tx.replacedBy),
+        ).toStrictEqual([
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          confirmed.hash,
+          confirmed.hash,
+          confirmed.hash,
+        ]);
+
+        expect(
+          controller.state.transactions.map((tx) => tx.replacedById),
+        ).toStrictEqual([
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          confirmed.id,
+          confirmed.id,
+          confirmed.id,
+        ]);
       });
     });
 
