@@ -67,12 +67,15 @@ import {
   updateTransactionHistory,
 } from './utils/history';
 import {
+  getAndFormatTransactionsForNonceTracker,
+  getNextNonce,
+} from './utils/nonce';
+import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
-  getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
   normalizeTxParams,
   isEIP1559Transaction,
@@ -1882,6 +1885,26 @@ export class TransactionController extends BaseControllerV1<
               resultCallbacks = undefined;
             });
           }
+
+          const approvalValue = acceptResult.value as
+            | {
+                txMeta?: TransactionMeta;
+              }
+            | undefined;
+
+          const updatedTransaction = approvalValue?.txMeta;
+
+          if (updatedTransaction) {
+            log('Updating transaction with approval data', {
+              customNonce: updatedTransaction.customNonceValue,
+              params: updatedTransaction.txParams,
+            });
+
+            this.updateTransaction(
+              updatedTransaction,
+              'TransactionController#processApproval - Updated with approval data',
+            );
+          }
         }
 
         const { isCompleted: isTxCompleted } =
@@ -1951,10 +1974,13 @@ export class TransactionController extends BaseControllerV1<
     const chainId = this.getChainId();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
+
     const {
-      txParams: { nonce, from },
+      txParams: { from },
     } = transactionMeta;
-    let nonceLock;
+
+    let releaseNonceLock: (() => void) | undefined;
+
     try {
       if (!this.sign) {
         releaseLock();
@@ -1974,16 +2000,15 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      let nonceToUse = nonce;
-      // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
-      // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
-      if (!nonceToUse) {
-        nonceLock = await this.nonceTracker.getNonceLock(from);
-        nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
-      }
+      const [nonce, releaseNonce] = await getNextNonce(
+        transactionMeta,
+        this.nonceTracker,
+      );
+
+      releaseNonceLock = releaseNonce;
 
       transactionMeta.status = TransactionStatus.approved;
-      transactionMeta.txParams.nonce = nonceToUse;
+      transactionMeta.txParams.nonce = nonce;
       transactionMeta.txParams.chainId = chainId;
 
       const baseTxParams = {
@@ -2057,9 +2082,7 @@ export class TransactionController extends BaseControllerV1<
     } finally {
       this.inProcessOfSigning.delete(transactionId);
       // must set transaction to submitted/failed before releasing lock
-      if (nonceLock) {
-        nonceLock.releaseLock();
-      }
+      releaseNonceLock?.();
       releaseLock();
     }
   }
