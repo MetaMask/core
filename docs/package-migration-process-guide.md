@@ -62,6 +62,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 11. Open a pull request in the core repo that reflects the above changes.
 
 > [!WARNING]
+>
 > - DO NOT rebase the `migrate-<package-name>` branch, as this will disrupt the git history.
 > - Ensure that superfluous merge commits to the main branch don't pollute the migrated git history.
 >   - Coordinate with the team to minimize the time that this PR stays open.
