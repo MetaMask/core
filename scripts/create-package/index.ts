@@ -3,8 +3,9 @@
  */
 
 import cli from './cli';
+import commands from './commands';
 
-cli(process.argv).catch((error) => {
+cli(process.argv, commands).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

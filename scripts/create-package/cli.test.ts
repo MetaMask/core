@@ -1,17 +1,21 @@
-import cli from './cli';
+import type { CommandModule } from 'yargs';
 
-// Much of the functionality of the CLI is implemented in ./commands, so we
-// end up testing a lot of that here. We mock it out so that we can use
-// jest.spyOn() to mock out the handler functions where relevant.
-jest.mock('./commands', () => {
-  const actual = jest.requireActual('./commands');
-  return {
-    __esModule: true,
-    ...actual,
-  };
-});
+import cli from './cli';
+import commands from './commands';
 
 jest.mock('./utils');
+
+/**
+ * A map of command names to command modules, as opposed to the array expected
+ * by yargs.
+ */
+const commandMap = (commands as CommandModule[]).reduce<
+  Record<string, CommandModule>
+>((map, commandModule) => {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  map[commandModule.command! as string] = commandModule;
+  return map;
+}, {});
 
 /**
  * Returns a mock `process.argv` array with the provided arguments. Includes
@@ -42,36 +46,14 @@ function getParsedArgv(command: string, name: string, description: string) {
   };
 }
 
-/**
- * Gets the command module `handler` function for a given command.
- *
- * @param command - The command to get the handler for.
- * @returns The handler function for the given command.
- */
-async function getCommandHandler(command: 'new' | 'default') {
-  const { default: commands } = await import('./commands');
-
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const { handler } = commands.find(
-    (commandModule) => commandModule.command === command,
-  )!;
-
-  return handler;
-}
-
 describe('create-package/cli', () => {
   beforeEach(async () => {
     // yargs sometimes calls process.exit() internally. We don't want that.
     jest.spyOn(process, 'exit').mockImplementation();
 
     // We actually check these.
-    jest.spyOn(console, 'error').mockImplementation();
-    jest.spyOn(console, 'log').mockImplementation();
-
-    const commands = await import('./commands');
-    commands.default.forEach((command) => {
-      jest.spyOn(command, 'handler').mockImplementation();
-    });
+    jest.spyOn(console, 'error');
+    jest.spyOn(console, 'log');
   });
 
   afterEach(() => {
@@ -79,7 +61,7 @@ describe('create-package/cli', () => {
   });
 
   it('should display help if requested', async () => {
-    expect(await cli(getMockArgv('help'))).toBeUndefined();
+    expect(await cli(getMockArgv('help'), commands)).toBeUndefined();
 
     expect(console.log).toHaveBeenCalledWith(
       expect.stringMatching(/^create-package <cmd> \[args\]/u),
@@ -87,13 +69,23 @@ describe('create-package/cli', () => {
   });
 
   it('should error if no command is specified', async () => {
-    expect(await cli(getMockArgv())).toBeUndefined();
+    expect(await cli(getMockArgv(), commands)).toBeUndefined();
 
     expect(console.error).toHaveBeenCalledWith('You must specify a command.');
   });
 
   it('should error if a string option contains only whitespace', async () => {
-    expect(await cli(getMockArgv('new', '--name', '  '))).toBeUndefined();
+    // For whatever reason, yargs still continues to execute the command even
+    // though an error is thrown in the check function. This may be due to one
+    // of jest's cursed modifications of the runtime environment. But, we can
+    // see that the correct error is logged, and we can verify that yargs exits
+    // when using the command line.
+    const newCommand = commandMap.new;
+    jest.spyOn(newCommand, 'handler').mockImplementation();
+
+    expect(
+      await cli(getMockArgv('new', '--name', '  '), commands),
+    ).toBeUndefined();
 
     expect(console.error).toHaveBeenCalledWith(
       'The argument "name" was processed to an empty string. Please provide a value with non-whitespace characters.',
@@ -102,14 +94,18 @@ describe('create-package/cli', () => {
 
   describe('command: new', () => {
     it('should create a new package', async () => {
-      const handler = await getCommandHandler('new');
+      const newCommand = commandMap.new;
+      jest.spyOn(newCommand, 'handler').mockImplementation();
 
       expect(
-        await cli(getMockArgv('new', '--name', 'foo', '--description', 'bar')),
+        await cli(
+          getMockArgv('new', '--name', 'foo', '--description', 'bar'),
+          commands,
+        ),
       ).toBeUndefined();
 
-      expect(handler).toHaveBeenCalledTimes(1);
-      expect(handler).toHaveBeenCalledWith(
+      expect(newCommand.handler).toHaveBeenCalledTimes(1);
+      expect(newCommand.handler).toHaveBeenCalledWith(
         expect.objectContaining(getParsedArgv('new', 'foo', 'bar')),
       );
     });
@@ -117,12 +113,13 @@ describe('create-package/cli', () => {
 
   describe('command: default', () => {
     it('should create a new package with default values', async () => {
-      const handler = await getCommandHandler('default');
+      const defaultCommand = commandMap.default;
+      jest.spyOn(defaultCommand, 'handler').mockImplementation();
 
-      expect(await cli(getMockArgv('default'))).toBeUndefined();
+      expect(await cli(getMockArgv('default'), commands)).toBeUndefined();
 
-      expect(handler).toHaveBeenCalledTimes(1);
-      expect(handler).toHaveBeenCalledWith(
+      expect(defaultCommand.handler).toHaveBeenCalledTimes(1);
+      expect(defaultCommand.handler).toHaveBeenCalledWith(
         expect.objectContaining(
           getParsedArgv('default', 'new-package', 'A new MetaMask package.'),
         ),

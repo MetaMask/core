@@ -1,4 +1,5 @@
 import cli from './cli';
+import commands from './commands';
 
 jest.mock('./cli');
 
@@ -12,7 +13,7 @@ describe('create-packages/index', () => {
     await import('.');
 
     expect(cli).toHaveBeenCalledTimes(1);
-    expect(cli).toHaveBeenCalledWith(process.argv);
+    expect(cli).toHaveBeenCalledWith(process.argv, commands);
     expect(console.error).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledWith('foo');
     expect(process.exitCode).toBe(1);

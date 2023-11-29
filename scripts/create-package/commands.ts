@@ -34,19 +34,6 @@ const newPackage: CommandModule<object, CreatePackageOptions> = {
         },
       })
       .check((args) => {
-        // Trim all strings and ensure they are not empty.
-        for (const key in args) {
-          if (typeof args[key] === 'string') {
-            args[key] = (args[key] as string).trim();
-
-            if (args[key] === '') {
-              throw new Error(
-                `The argument "${key}" was processed to an empty string. Please provide a value with non-whitespace characters.`,
-              );
-            }
-          }
-        }
-
         if (!(args.name as string).startsWith('@metamask/')) {
           args.name = `@metamask/${args.name as string}`;
         }
