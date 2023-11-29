@@ -67,25 +67,47 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Merge PR **without squashing** to preserve the migrated git commit history.
 - [Example PR](https://github.com/MetaMask/core/pull/1872)
 
-### 2. Port tags
+### **[PR#7]** 2. Update the CHANGELOG tag diff links so that they follow the core repo's tag naming convention
 
-- Use the `scripts/migrate-tags.sh` tool to port the source repo's release tags into the migrated git history in core, following [these instructions](./migrate-tags.md).
-- Port the tags locally with the correct package name prefixes.
-- Create a fork of the core monorepo for testing.
-- Push the ported tags to a fork of the core monorepo for testing. **Do not run the script against `MetaMask/core` before testing it on a fork.**
-- Verify that the tag diff links in CHANGELOG are working.
-- The diff between last tag before migration and first one after will always include the entire history of the monorepo.
-- Push the ported tags to the core repo.
-- Verify that the tag diff links in CHANGELOG are working.
-- Identify and create tags for release commits that were untagged in the original repo.
+- The core repo tags for non-root packages should be formatted as: `<package-name>@[version-number]`.
+  - For all releases following the migration, the package name should be prepended with the `@metamask/` namespace.
+- Make updates to the CHANGELOG tag diff links so that they follow this naming scheme:
+  1. Navigate to `merged-packages/<package-name>`
+  2. Run this command: `../../scripts/validate-changelog.sh @metamask/<package-name>`
+  3. Apply the diffs outputed by the script.
+- If the package has been renamed or needs to be renamed with the `@metamask/` namespace, supply two arguments to the script: `versionBeforePackageRename`, `tagPrefixBeforePackageRename`.
+- For further instructions on using the script, see: https://github.com/MetaMask/auto-changelog#validate.
 
-### **[PR#7]** 3. Remove files and directories that will be replaced by files in the monorepo root directory
+### 3. Port tags
+
+- Following [these instructions](./migrate-tags.md), use the `scripts/migrate-tags.sh` tool to port the source repo's release tags onto the migrated git history in core.
+
+1. Port the tags locally.
+
+- Use the script to ensure that the tags have the correct package name prefixes.
+
+2. Create a fork of the core monorepo for testing, and push the ported tags to the test fork.
+
+- **Do not run the script against `MetaMask/core` before testing it on a fork.**
+
+3. From the fork, verify that the tag diff links in CHANGELOG are working.
+
+- Note: The diff between any tag before migration and any tag after will always include the entire history of the monorepo. This is due to the nature of the process we use for git history migration, and is a WONTFIX issue.
+- The correct diff can be derived using `git log --ancestry-path`, but GitHub compare links don't support --ancestry-path.
+
+4. Push the ported tags to the core repo.
+
+5. From the core repo, verify that the tag diff links in CHANGELOG are working.
+
+6. Manually create tags for release commits that were never tagged in the original repo.
+
+### **[PR#8]** 4. Remove files and directories that will be replaced by files in the monorepo root directory
 
 - **Remove**: `.github/`, `.git*`, `scripts/`, `.depcheckrc.json`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
 - **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `jest.config.js`, `tsconfig*.json`, `typedoc.json`
 - [Example PR](https://github.com/MetaMask/core/pull/1764)
 
-### **[PR#8]** 4. Replace config files
+### **[PR#9]** 5. Replace config files
 
 - Update `tsconfig*.json`, `typedoc.json`, `jest.config.js` to extend from corresponding files in root. Copy contents of corresponding files in other non-root packages.
 - Keep TypeScript compiler flags and compilation target.
@@ -94,7 +116,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Add `deepmerge` as a devDependency.
 - [Example PR](https://github.com/MetaMask/core/pull/1765)
 
-### **[PR#9]** 5. Align dependencies and build scripts with monorepo
+### **[PR#10]** 6. Align dependencies and build scripts with monorepo
 
 - Remove redundant build scripts that are already listed in the root package.json (including `prepack`)
 - Identify validator fixes for CHANGELOG by navigating to `merged-packages/<package-name>`, running `../../scripts/validate-changelog.sh @metamask/<package-name>`, and applying the diffs.
@@ -109,14 +131,14 @@ This document outlines the process for migrating a MetaMask library into the cor
     - If it's external, bump only if there are no resulting breaking changes that need to be resolved.
 - [Example PR](https://github.com/MetaMask/core/pull/1766)
 
-### **[PR#10]** 6. Add exception for non-MIT license
+### **[PR#11]** 7. Add exception for non-MIT license
 
 - If the migration target uses a non-MIT license, add exception entries in the root `constraints.pro` file.
   - Add 2 rules to license section of `constraints.pro`: Exclude (`\=`) from MIT rule and include in ISC rule (`==`)
 - Make sure the new rule doesn't break any of the existing package.json files by running `yarn constraints`.
 - [Example PR](https://github.com/MetaMask/core/pull/1888)
 
-### **[PR#11]** 7. Update the README to reflect its new status as a non-root package in the monorepo
+### **[PR#12]** 8. Update the README to reflect its new status as a non-root package in the monorepo
 
 - Preserve package intro sentence/paragraph.
 - Add/modify "Installation" section.
@@ -181,7 +203,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 - Optionally, add a link pointing to the discussion in this PR to provide context.
 ```
 
-3. **[PR#13]** Leave a note in the source repo's README announcing the migration and pointing to core.
+3. **[PR#14]** Leave a note in the source repo's README announcing the migration and pointing to core.
 
 ```html
 <table>
@@ -205,9 +227,9 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 
 ### Core
 
-1. **[PR#14]** Add migration target to the list of packages in the README as well as the dependency graph in the README (the latter can be updated automatically by running `yarn generate-dependency-graph`).
+1. **[PR#15]** Add migration target to the list of packages in the README as well as the dependency graph in the README (the latter can be updated automatically by running `yarn generate-dependency-graph`).
 2. Fix downstream errors that were marked with `@ts-expect-error TODO:` during the migration process.
 
 - If possible, perform this step before the first post-migration release of the migrated package.
 
-3. **[PR#15]** Use the `yarn create-release-branch` tool to publish a release of core with a new version for the migrated package and any updated downstream packages.
+3. **[PR#16]** Use the `yarn create-release-branch` tool to publish a release of core with a new version for the migrated package and any updated downstream packages.
