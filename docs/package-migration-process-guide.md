@@ -80,7 +80,7 @@ This document outlines the process for migrating a MetaMask library into the cor
   1. Navigate to `merged-packages/<package-name>`
   2. Run this command: `../../scripts/validate-changelog.sh @metamask/<package-name>`
   3. Apply the diffs outputed by the script.
-- If the package has been renamed or needs to be renamed with the `@metamask/` namespace, supply two arguments to the script: `versionBeforePackageRename`, `tagPrefixBeforePackageRename`.
+- If the package has been renamed or needs to be renamed with the `@metamask/` namespace, supply two arguments to the script: `--version-before-package-rename`, `--tag-prefix-before-package-rename`.
 - For further instructions on using the script, see: https://github.com/MetaMask/auto-changelog#validate.
 
 ### 3. Port tags
