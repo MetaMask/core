@@ -50,6 +50,7 @@ linkStyle default opacity:0.5
   approval_controller(["@metamask/approval-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
+  build_utils(["@metamask/build-utils"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   ens_controller(["@metamask/ens-controller"]);
@@ -134,9 +135,9 @@ linkStyle default opacity:0.5
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
+  signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> message_manager;
-  signature_controller --> keyring_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
