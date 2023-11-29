@@ -8,8 +8,8 @@ import type {
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type {
-  SelectedNetworkControllerActions,
-  SelectedNetworkControllerEvents,
+  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
 } from './SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
 
@@ -17,8 +17,10 @@ export type MiddlewareAllowedActions = NetworkControllerGetStateAction;
 export type MiddlewareAllowedEvents = NetworkControllerStateChangeEvent;
 
 export type SelectedNetworkMiddlewareMessenger = ControllerMessenger<
-  SelectedNetworkControllerActions | MiddlewareAllowedActions,
-  SelectedNetworkControllerEvents | MiddlewareAllowedEvents
+  | SelectedNetworkControllerGetNetworkClientIdForDomainAction
+  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+  | MiddlewareAllowedActions,
+  MiddlewareAllowedEvents
 >;
 
 export type SelectedNetworkMiddlewareJsonRpcRequest = JsonRpcRequest & {
