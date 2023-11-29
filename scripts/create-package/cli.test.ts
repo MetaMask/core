@@ -72,7 +72,17 @@ describe('create-package/cli', () => {
   it('should error if no command is specified', async () => {
     expect(await cli(getMockArgv(), commands)).toBeUndefined();
 
-    expect(console.error).toHaveBeenCalledWith('You must specify a command.');
+    expect(console.error).toHaveBeenCalledWith(
+      'You must specify a command. See --help.',
+    );
+  });
+
+  it('should error if more than one command is specified', async () => {
+    expect(await cli(getMockArgv('foo', 'bar'), commands)).toBeUndefined();
+
+    expect(console.error).toHaveBeenCalledWith(
+      'You may not specify more than one command. See --help.',
+    );
   });
 
   it('should error if a string option contains only whitespace', async () => {

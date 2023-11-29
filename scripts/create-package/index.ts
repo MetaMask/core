@@ -1,5 +1,5 @@
 /**
- * Entry point file for the create-package CLI.
+ * Entry point file for the `create-package` CLI.
  */
 
 import cli from './cli';

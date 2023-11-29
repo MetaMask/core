@@ -1,5 +1,5 @@
 /**
- * File system utilities that are completely agnostic of our use case.
+ * File system utilities that are agnostic of your use case.
  */
 
 import { promises as fs } from 'fs';

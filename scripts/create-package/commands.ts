@@ -33,6 +33,10 @@ const newPackage: CommandModule<object, CreatePackageOptions> = {
           requiresArg: true,
         },
       })
+      .example(
+        '$0 new --name fabulous-package --description "A fabulous package."',
+        'Create a new package with the given name and description.',
+      )
       .check((args) => {
         if (!(args.name as string).startsWith('@metamask/')) {
           args.name = `@metamask/${args.name as string}`;
@@ -55,12 +59,14 @@ const defaultPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'default',
   describe: 'Create a new monorepo package with default values.',
   builder: (argv: Argv) => {
-    argv.check((args) => {
-      args.name = '@metamask/new-package';
-      args.description = 'A new MetaMask package.';
+    argv
+      .example('$0 default', 'Create a new package with default values.')
+      .check((args) => {
+        args.name = '@metamask/new-package';
+        args.description = 'A new MetaMask package.';
 
-      return true;
-    });
+        return true;
+      });
     return argv as Argv<CreatePackageOptions>;
   },
   // eslint-disable-next-line @typescript-eslint/no-misused-promises

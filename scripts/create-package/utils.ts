@@ -164,6 +164,7 @@ function updateTsConfigs(
   );
 }
 
+// TODO: Make this function more generic and move it to fs-utils.ts
 /**
  * Creates a new package directory in the monorepo, including the `/src` directory.
  *
