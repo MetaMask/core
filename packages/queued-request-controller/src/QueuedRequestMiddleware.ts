@@ -16,10 +16,7 @@ import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from 
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type {
-  QueuedRequestControllerActions,
-  QueuedRequestControllerEvents,
-} from './QueuedRequestController';
+import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
 
 export type MiddlewareAllowedActions =
@@ -32,8 +29,8 @@ export type MiddlewareAllowedActions =
   | AddApprovalRequest;
 
 export type QueuedRequestMiddlewareMessenger = ControllerMessenger<
-  QueuedRequestControllerActions | MiddlewareAllowedActions,
-  QueuedRequestControllerEvents
+  QueuedRequestControllerEnqueueRequestAction | MiddlewareAllowedActions,
+  never
 >;
 
 export type QueuedRequestMiddlewareJsonRpcRequest = JsonRpcRequest & {
