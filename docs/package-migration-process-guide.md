@@ -227,7 +227,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 </table>
 ```
 
-4. Archive the source repo to prevent any changes from being pushed to it going forward. 
+4. Archive the source repo to prevent any changes from being pushed to it going forward.
 
 - Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to perform this step.
 
