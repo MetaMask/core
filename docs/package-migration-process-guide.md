@@ -12,10 +12,10 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/38)
 
-### 2. Disable `dependabot` dependency upgrades
+### 2. Disable `dependabot` dependency version updates and security alerts
 
 - [Disable dependabot alerts](https://docs.github.com/en/code-security/dependabot/dependabot-alerts/configuring-dependabot-alerts#enabling-or-disabling-dependabot-alerts-for-a-repository) for the repo.
-- Delete the source repo's `.github/dependabot.yml` file.
+- [Disable dependabot dependency version updates](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates#disabling-dependabot-version-updates) from settings, or delete the source repo's `.github/dependabot.yml` file.
 - Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to perform this step.
 
 ### 3. Add the source repo to the ZenHub workspace repo filter so that its issues/PRs show up on the board
@@ -25,14 +25,14 @@ This document outlines the process for migrating a MetaMask library into the cor
 - If the dependency versions of the migration target are ahead of core, consider updating the core dependencies first.
 - Apply the configurations of the core monorepo to the source repo files.
   - Preserve any TypeScript compiler flags that are enabled in the source repo but not in core.
-- Resolve all errors or issues resulting from these changes.
+- Resolve any errors or issues resulting from these changes.
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/28)
 
 ### **[PR#3]** 5. Review the `metamask-module-template`, and add any missing files or elements (e.g. LICENSE)
 
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/24)
 
-### **[PR#4]** 6. If applicable, rename the migration target package so that it is prepended by the `@metamask/` namespace
+### **[PR#4]** 6. Rename the migration target package so that it is prepended by the `@metamask/` namespace (skip if not applicable)
 
 - Modify the "name" field in `package.json`.
 - Update the title of the README.md.
@@ -47,6 +47,8 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### **[PR#6]** 1. Migrate the source repo's git history into the `merged-packages/` temporary directory in core
 
+#### Steps
+
 1. [Install `git-filter-repo`](https://github.com/newren/git-filter-repo/blob/main/INSTALL.md). This tool is like Git's `filter-branch` command, but much easier to use and much less error-prone.
 2. Navigate to a temporary directory: `cd /tmp`
 3. Clone the repo for the library you want to migrate: `git clone https://github.com/MetaMask/<repo-name>` (e.g. `<repo-name>` = `utils`). Do **NOT** use an existing clone.
@@ -59,12 +61,15 @@ This document outlines the process for migrating a MetaMask library into the cor
 10. Merge the library into the monorepo: `git merge --allow-unrelated-histories <package-name>/<primary-branch>` (e.g. `<primary-branch>` = `main`)
 11. Open a pull request in the core repo that reflects the above changes.
 
-- DO NOT rebase the `migrate-<package-name>` branch.
-- Ensure that superfluous merge commits don't pollute the migrated git history. If necessary, replace the PR branch with a cleaned-up post-migration commit history by rerunning the git history migration steps before merging the PR.
+#### Caution
+
+- DO NOT rebase the `migrate-<package-name>` branch, as this will disrupt the git history.
+- Ensure that superfluous merge commits to the main branch don't pollute the migrated git history.
   - Coordinate with the team to minimize the time that this PR stays open.
-  - For further context on this point: https://github.com/MetaMask/core/pull/1804#issuecomment-1771445829
-- Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to temporarily enable merge commits into main.
+  - If necessary, replace the PR branch with a cleaned-up commit history by rerunning the git history migration steps before merging the PR.
+  - For further context on this: https://github.com/MetaMask/core/pull/1804#issuecomment-1771445829
 - Merge PR **without squashing** to preserve the migrated git commit history.
+  - Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to temporarily enable merge commits into main.
 - [Example PR](https://github.com/MetaMask/core/pull/1872)
 
 ### **[PR#7]** 2. Update the CHANGELOG tag diff links so that they follow the core repo's tag naming convention
@@ -109,19 +114,16 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### **[PR#9]** 5. Replace config files
 
-- Update `tsconfig*.json`, `typedoc.json`, `jest.config.js` to extend from corresponding files in root. Copy contents of corresponding files in other non-root packages.
-- Keep TypeScript compiler flags and compilation target.
+- Update `tsconfig*.json`, `typedoc.json`, `jest.config.js` to extend from the corresponding files in the root directory by copying the contents of these files from other non-root packages.
+- Preserve TypeScript compiler flags and its compilation target.
 - Add tsconfig reference paths for non-root packages that are upstream dependencies of the migration target.
-- Keep Jest coverage threshold values.
+- Preserve Jest coverage threshold values.
 - Add `deepmerge` as a devDependency.
 - [Example PR](https://github.com/MetaMask/core/pull/1765)
 
 ### **[PR#10]** 6. Align dependencies and build scripts with monorepo
 
 - Remove redundant build scripts that are already listed in the root package.json (including `prepack`)
-- Identify validator fixes for CHANGELOG by navigating to `merged-packages/<package-name>`, running `../../scripts/validate-changelog.sh @metamask/<package-name>`, and applying the diffs.
-  - If the package has been renamed or needs to be renamed with the `@metamask/` namespace, supply two arguments: `versionBeforePackageRename`, `tagPrefixBeforePackageRename`.
-  - See https://github.com/MetaMask/auto-changelog#validate
 - Remove redundant dependencies that are already listed in the root package.json.
   - Exception: do not remove TypeScript.
 - Align dependency versions with other non-root packages.
@@ -134,19 +136,19 @@ This document outlines the process for migrating a MetaMask library into the cor
 ### **[PR#11]** 7. Add exception for non-MIT license
 
 - If the migration target uses a non-MIT license, add exception entries in the root `constraints.pro` file.
-  - Add 2 rules to license section of `constraints.pro`: Exclude (`\=`) from MIT rule and include in ISC rule (`==`)
+  - In the license section of `constraints.pro`: Exclude (`\=`) and include (`==`) the package in the appropriate license rules.
 - Make sure the new rule doesn't break any of the existing package.json files by running `yarn constraints`.
 - [Example PR](https://github.com/MetaMask/core/pull/1888)
 
 ### **[PR#12]** 8. Update the README to reflect its new status as a non-root package in the monorepo
 
-- Preserve package intro sentence/paragraph.
-- Add/modify "Installation" section.
-- Preserve "Usage" section.
+- Preserve the opening sentence/paragraph that introduces the package.
+- Add or modify an "Installation" section (see the READMEs of other non-root packages for examples).
+- Preserve the "Usage" section.
 - Remove "Test", "Build" and other instructions on common development tasks.
-- Add "Contributing" section.
+- Add a "Contributing" section (see the READMEs of other non-root packages for examples).
 
-## **[PR#12]** Phase C: **Integration** into the core monorepo's `packages/` directory
+## **[PR#13]** Phase C: **Integration** into the core monorepo's `packages/` directory
 
 - The following steps of "Phase C" need to happen in a single PR.
 - Coordinate with the team to minimize the time that this PR stays open to avoid merge conflicts with the main branch from accumulating.
@@ -205,6 +207,8 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 
 3. **[PR#14]** Leave a note in the source repo's README announcing the migration and pointing to core.
 
+- This note should replace the notice added in step A-1.
+
 ```html
 <table>
   <tr>
@@ -223,7 +227,9 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 </table>
 ```
 
-4. Archive the source repo to prevent any changes from being pushed to it going forward. Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to perform this step.
+4. Archive the source repo to prevent any changes from being pushed to it going forward. 
+
+- Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to perform this step.
 
 ### Core
 
