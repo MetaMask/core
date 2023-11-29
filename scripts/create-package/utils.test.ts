@@ -111,6 +111,7 @@ describe('create-package/utils', () => {
       (fs.existsSync as jest.Mock).mockReturnValueOnce(false);
 
       (fsUtils.readAllFiles as jest.Mock).mockResolvedValueOnce({
+        src: null,
         'src/index.ts': 'export default 42;',
         'src/index.test.ts': 'export default 42;',
         'mock1.file':
@@ -123,15 +124,6 @@ describe('create-package/utils', () => {
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
-      // createPackageDirectory
-      expect(fs.promises.mkdir).toHaveBeenCalledTimes(1);
-      expect(fs.promises.mkdir).toHaveBeenCalledWith(
-        expect.stringMatching(/packages\/foo\/src$/u),
-        {
-          recursive: true,
-        },
-      );
-
       // processTemplateFiles and writeFiles
       expect(fsUtils.readAllFiles).toHaveBeenCalledTimes(1);
       expect(fsUtils.readAllFiles).toHaveBeenCalledWith(
@@ -142,6 +134,7 @@ describe('create-package/utils', () => {
       expect(fsUtils.writeFiles).toHaveBeenCalledWith(
         expect.stringMatching(/packages\/foo$/u),
         {
+          src: null,
           'src/index.ts': 'export default 42;',
           'src/index.test.ts': 'export default 42;',
           'mock1.file': '2023 20.0.0 @metamask/foo A foo package. foo',

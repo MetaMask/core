@@ -6,6 +6,7 @@ import { coerce as semverCoerce } from 'semver';
 
 import prettierRc from '../../.prettierrc';
 import { MonorepoFiles, Placeholders } from './constants';
+import type { FileMap } from './fs-utils';
 import { readAllFiles, writeFiles } from './fs-utils';
 
 const PACKAGE_TEMPLATE_DIR = path.join(__dirname, 'package-template');
@@ -103,7 +104,6 @@ export async function finalizeAndWriteData(
   console.log('Writing package and monorepo files...');
 
   // Read and write package files
-  await createPackageDirectory(packagePath);
   await writeFiles(packagePath, await processTemplateFiles(packageData));
 
   // Write monorepo files
@@ -164,16 +164,6 @@ function updateTsConfigs(
   );
 }
 
-// TODO: Make this function more generic and move it to fs-utils.ts
-/**
- * Creates a new package directory in the monorepo, including the `/src` directory.
- *
- * @param packagePath - The absolute path of the package directory to create.
- */
-async function createPackageDirectory(packagePath: string) {
-  await fs.mkdir(path.join(packagePath, 'src'), { recursive: true });
-}
-
 /**
  * Reads the template files and updates them with the specified package data.
  *
@@ -182,12 +172,13 @@ async function createPackageDirectory(packagePath: string) {
  */
 async function processTemplateFiles(
   packageData: PackageData,
-): Promise<Record<string, string>> {
-  const result: Record<string, string> = {};
+): Promise<FileMap> {
+  const result: FileMap = {};
   const templateFiles = await readAllFiles(PACKAGE_TEMPLATE_DIR);
 
   for (const [relativePath, content] of Object.entries(templateFiles)) {
-    result[relativePath] = processTemplateContent(packageData, content);
+    result[relativePath] =
+      content === null ? null : processTemplateContent(packageData, content);
   }
 
   return result;
