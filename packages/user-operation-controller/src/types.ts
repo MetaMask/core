@@ -137,17 +137,22 @@ export type SignUserOperationRequest = {
 };
 
 export type PrepareUserOperationResponse = {
-  bundler?: string;
+  bundler: string;
   callData: string;
   dummyPaymasterAndData?: string;
   dummySignature?: string;
-  initCode: string;
+  gas?: {
+    callGasLimit: string;
+    preVerificationGas: string;
+    verificationGasLimit: string;
+  };
+  initCode?: string;
   nonce: string;
   sender: string;
 };
 
 export type UpdateUserOperationResponse = {
-  paymasterAndData: string;
+  paymasterAndData?: string;
 };
 
 export type SignUserOperationResponse = {

@@ -8,7 +8,7 @@ import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { ENTRYPOINT } from './constants';
+import { EMPTY_BYTES, ENTRYPOINT } from './constants';
 import { Bundler } from './helpers/Bundler';
 import { projectLogger as log } from './logger';
 import type {
@@ -17,8 +17,15 @@ import type {
   UserOperationMetadata,
 } from './types';
 import { UserOperationStatus } from './types';
+import {
+  validateAddUserOperatioOptions,
+  validateAddUserOperationRequest,
+  validatePrepareUserOperationResponse,
+  validateSignUserOperationResponse,
+  validateUpdateUserOperationResponse,
+} from './utils/validation';
 
-const GAS_BUFFER = 2;
+const GAS_BUFFER = 1.5;
 
 const controllerName = 'UserOperationController';
 
@@ -75,7 +82,7 @@ export class UserOperationController extends BaseController<
   #provider: Provider;
 
   /**
-   * Construct a UserOperation controller.
+   * Construct a UserOperationController instance.
    *
    * @param options - Controller options.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
@@ -96,28 +103,25 @@ export class UserOperationController extends BaseController<
   }
 
   async addUserOperation(
-    {
-      data,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      to,
-      value,
-    }: {
+    request: {
       data?: string;
       maxFeePerGas: string;
       maxPriorityFeePerGas: string;
       to?: string;
       value?: string;
     },
-    {
-      chainId,
-      smartContractAccount,
-    }: { chainId: string; smartContractAccount: SmartContractAccount },
+    options: { chainId: string; smartContractAccount: SmartContractAccount },
   ) {
+    validateAddUserOperationRequest(request);
+    validateAddUserOperatioOptions(options);
+
+    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
+    const { chainId, smartContractAccount } = options;
     const metadata = this.#createMetadata(chainId);
     const { id } = metadata;
+    let throwError = false;
 
-    const hash = (async () => {
+    const hashValue = (async () => {
       try {
         await this.#prepareUserOperation(
           to,
@@ -141,9 +145,19 @@ export class UserOperationController extends BaseController<
         return metadata.hash as string;
       } catch (error) {
         this.#failUserOperation(metadata, error);
-        throw error;
+
+        if (throwError) {
+          throw error;
+        }
+
+        return undefined;
       }
     })();
+
+    const hash = async () => {
+      throwError = true;
+      return hashValue as Promise<string>;
+    };
 
     return {
       id,
@@ -190,15 +204,7 @@ export class UserOperationController extends BaseController<
 
     const provider = this.#provider;
 
-    const {
-      bundler: bundlerUrl,
-      callData,
-      dummyPaymasterAndData,
-      dummySignature,
-      initCode,
-      nonce,
-      sender,
-    } = await smartContractAccount.prepareUserOperation({
+    const response = await smartContractAccount.prepareUserOperation({
       chainId,
       data,
       provider,
@@ -206,16 +212,29 @@ export class UserOperationController extends BaseController<
       value,
     });
 
-    if (!bundlerUrl) {
-      throw new Error(`No bundler specified for chain ID: ${chainId}`);
-    }
+    validatePrepareUserOperationResponse(response);
+
+    const {
+      bundler: bundlerUrl,
+      callData,
+      dummyPaymasterAndData,
+      dummySignature,
+      gas,
+      initCode,
+      nonce,
+      sender,
+    } = response;
 
     userOperation.callData = callData;
-    userOperation.initCode = initCode;
+    userOperation.callGasLimit = gas?.callGasLimit ?? EMPTY_BYTES;
+    userOperation.initCode = initCode ?? EMPTY_BYTES;
     userOperation.nonce = nonce;
-    userOperation.paymasterAndData = dummyPaymasterAndData ?? '0x';
+    userOperation.paymasterAndData = dummyPaymasterAndData ?? EMPTY_BYTES;
+    userOperation.preVerificationGas = gas?.preVerificationGas ?? EMPTY_BYTES;
     userOperation.sender = sender;
-    userOperation.signature = dummySignature ?? '0x';
+    userOperation.signature = dummySignature ?? EMPTY_BYTES;
+    userOperation.verificationGasLimit =
+      gas?.verificationGasLimit ?? EMPTY_BYTES;
 
     metadata.bundlerUrl = bundlerUrl;
 
@@ -230,6 +249,17 @@ export class UserOperationController extends BaseController<
 
     log('Updating gas', id);
 
+    // Previous validation ensures that all gas values are set or none are.
+    if (userOperation.callGasLimit !== EMPTY_BYTES) {
+      log('Skipping gas estimation as already set', {
+        callGasLimit: userOperation.callGasLimit,
+        preVerificationGas: userOperation.preVerificationGas,
+        verificationGasLimit: userOperation.verificationGasLimit,
+      });
+
+      return;
+    }
+
     const payload = {
       ...userOperation,
       callGasLimit: '0x1',
@@ -237,22 +267,15 @@ export class UserOperationController extends BaseController<
       verificationGasLimit: '0x1',
     };
 
-    const estimatedGas = await bundler.estimateUserOperationGas(
-      payload,
-      ENTRYPOINT,
-    );
+    const { preVerificationGas, verificationGasLimit, callGasLimit } =
+      await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
 
-    userOperation.preVerificationGas = toHex(
-      Math.round(estimatedGas.preVerificationGas * GAS_BUFFER),
-    );
+    const normalizeGas = (value: number) =>
+      toHex(Math.round(value * GAS_BUFFER));
 
-    userOperation.verificationGasLimit = toHex(
-      Math.round(estimatedGas.verificationGasLimit * GAS_BUFFER),
-    );
-
-    userOperation.callGasLimit = toHex(
-      Math.round(estimatedGas.callGasLimit * GAS_BUFFER),
-    );
+    userOperation.callGasLimit = normalizeGas(callGasLimit);
+    userOperation.preVerificationGas = normalizeGas(preVerificationGas);
+    userOperation.verificationGasLimit = normalizeGas(verificationGasLimit);
 
     this.#updateMetadata(metadata);
   }
@@ -272,7 +295,9 @@ export class UserOperationController extends BaseController<
       userOperation,
     });
 
-    userOperation.paymasterAndData = response.paymasterAndData;
+    validateUpdateUserOperationResponse(response);
+
+    userOperation.paymasterAndData = response.paymasterAndData ?? EMPTY_BYTES;
 
     this.#updateMetadata(metadata);
   }
@@ -285,10 +310,14 @@ export class UserOperationController extends BaseController<
 
     log('Signing user operation', id, userOperation);
 
-    const { signature } = await smartContractAccount.signUserOperation({
+    const response = await smartContractAccount.signUserOperation({
       userOperation,
       chainId,
     });
+
+    validateSignUserOperationResponse(response);
+
+    const { signature } = response;
 
     userOperation.signature = signature;
 
@@ -336,17 +365,17 @@ export class UserOperationController extends BaseController<
 
   #createEmptyUserOperation(): UserOperation {
     return {
-      callData: '0x',
-      callGasLimit: '0x',
-      initCode: '0x',
-      maxFeePerGas: '0x',
-      maxPriorityFeePerGas: '0x',
-      nonce: '0x',
-      paymasterAndData: '0x',
-      preVerificationGas: '0x',
+      callData: EMPTY_BYTES,
+      callGasLimit: EMPTY_BYTES,
+      initCode: EMPTY_BYTES,
+      maxFeePerGas: EMPTY_BYTES,
+      maxPriorityFeePerGas: EMPTY_BYTES,
+      nonce: EMPTY_BYTES,
+      paymasterAndData: EMPTY_BYTES,
+      preVerificationGas: EMPTY_BYTES,
       sender: AddressZero,
-      signature: '0x',
-      verificationGasLimit: '0x',
+      signature: EMPTY_BYTES,
+      verificationGasLimit: EMPTY_BYTES,
     };
   }
 

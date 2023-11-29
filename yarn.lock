@@ -1604,7 +1604,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:^3.4.2, @metamask/auto-changelog@npm:^3.4.3":
+"@metamask/auto-changelog@npm:^3.4.3":
   version: 3.4.3
   resolution: "@metamask/auto-changelog@npm:3.4.3"
   dependencies:
@@ -2780,7 +2780,7 @@ __metadata:
     "@ethersproject/providers": ^5.7.0
     "@ethersproject/wallet": ^5.7.0
     "@metamask/approval-controller": ^5.0.0
-    "@metamask/auto-changelog": ^3.4.2
+    "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^6.1.0
     "@metamask/gas-fee-controller": ^11.0.0
@@ -2794,6 +2794,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^27.5.1
     lodash: ^4.17.21
+    superstruct: ^1.0.3
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
     typedoc-plugin-missing-exports: ^2.0.0
