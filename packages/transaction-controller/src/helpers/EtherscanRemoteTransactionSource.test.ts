@@ -1,7 +1,7 @@
 import { v1 as random } from 'uuid';
 
 import { CHAIN_IDS } from '../constants';
-import { TransactionStatus } from '../types';
+import { TransactionStatus, TransactionType } from '../types';
 import type {
   EtherscanTokenTransactionMeta,
   EtherscanTransactionMeta,
@@ -116,6 +116,7 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
     to: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.to,
     value: '0xb1a2bc2ec50000',
   },
+  type: TransactionType.incoming,
   verifiedOnBlockchain: false,
 };
 

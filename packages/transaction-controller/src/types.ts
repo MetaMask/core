@@ -105,6 +105,9 @@ type TransactionMetaBase = {
    */
   custodyStatus?: string;
 
+  /** The optional custom nonce override as a decimal string. */
+  customNonceValue?: string;
+
   /**
    * The custom token amount is the amount set by the user.
    */
