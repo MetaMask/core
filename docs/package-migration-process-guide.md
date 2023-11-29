@@ -61,15 +61,15 @@ This document outlines the process for migrating a MetaMask library into the cor
 10. Merge the library into the monorepo: `git merge --allow-unrelated-histories <package-name>/<primary-branch>` (e.g. `<primary-branch>` = `main`)
 11. Open a pull request in the core repo that reflects the above changes.
 
-#### Caution
+> [!WARNING]
+> - DO NOT rebase the `migrate-<package-name>` branch, as this will disrupt the git history.
+> - Ensure that superfluous merge commits to the main branch don't pollute the migrated git history.
+>   - Coordinate with the team to minimize the time that this PR stays open.
+>   - If necessary, replace the PR branch with a cleaned-up commit history by rerunning the git history migration steps before merging the PR.
+>   - For further context on this: https://github.com/MetaMask/core/pull/1804#issuecomment-1771445829
+> - Merge PR **without squashing** to preserve the migrated git commit history.
+>   - Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to temporarily enable merge commits into main.
 
-- DO NOT rebase the `migrate-<package-name>` branch, as this will disrupt the git history.
-- Ensure that superfluous merge commits to the main branch don't pollute the migrated git history.
-  - Coordinate with the team to minimize the time that this PR stays open.
-  - If necessary, replace the PR branch with a cleaned-up commit history by rerunning the git history migration steps before merging the PR.
-  - For further context on this: https://github.com/MetaMask/core/pull/1804#issuecomment-1771445829
-- Merge PR **without squashing** to preserve the migrated git commit history.
-  - Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to temporarily enable merge commits into main.
 - [Example PR](https://github.com/MetaMask/core/pull/1872)
 
 ### **[PR#7]** 2. Update the CHANGELOG tag diff links so that they follow the core repo's tag naming convention
