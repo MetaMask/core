@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `QueuedRequestMiddlewareJsonRpcRequest` type ([#1970](https://github.com/MetaMask/core/pull/1970)).
 
 ### Changed
-- **BREAKING:** `QueuedRequestControllerMessenger` can no longer be defined with any allowed events ([#1970](https://github.com/MetaMask/core/pull/1970)).
+- **BREAKING:** `QueuedRequestControllerMessenger` can no longer be defined with any allowed actions or events ([#1970](https://github.com/MetaMask/core/pull/1970)).
 - Move `@metamask/approval-controller` from devDependency to dependency ([#1970](https://github.com/MetaMask/core/pull/1970)).
 
 ## [0.2.0]
