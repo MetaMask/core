@@ -1,41 +1,77 @@
-import type { CommandModule } from 'yargs';
-
 import cli from './cli';
-import * as commandModule from './commands';
 
+// Much of the functionality of the CLI is implemented in ./commands, so we
+// end up testing a lot of that here. We mock it out so that we can use
+// jest.spyOn() to mock out the handler functions where relevant.
 jest.mock('./commands', () => {
   const actual = jest.requireActual('./commands');
-  actual.default.forEach((command: CommandModule) => {
-    // eslint-disable-next-line jest/prefer-spy-on
-    command.handler = jest.fn();
-  });
-
-  return actual.default;
+  return {
+    __esModule: true,
+    ...actual,
+  };
 });
 
 jest.mock('./utils');
 
-const getMockArgv = (...args: string[]) => {
+/**
+ * Returns a mock `process.argv` array with the provided arguments. Includes
+ * default values for `process.argv[0]` and `process.argv[1]`.
+ *
+ * @param args - The arguments to include in the mock argv array.
+ * @returns The mock argv array.
+ */
+function getMockArgv(...args: string[]) {
   return ['/mock/path', '/mock/entry/path', ...args];
-};
+}
 
-const getParsedArgv = (command: string, name: string, description: string) => ({
-  _: [command],
-  $0: 'create-package',
-  name: `@metamask/${name}`,
-  description,
-});
+/**
+ * Returns the parsed `yargs.Arguments` object for a given command, name, and
+ * description.
+ *
+ * @param command - The command.
+ * @param name - The name.
+ * @param description - The description.
+ * @returns The parsed argv object.
+ */
+function getParsedArgv(command: string, name: string, description: string) {
+  return {
+    _: [command],
+    $0: 'create-package',
+    name: `@metamask/${name}`,
+    description,
+  };
+}
+
+/**
+ * Gets the command module `handler` function for a given command.
+ *
+ * @param command - The command to get the handler for.
+ * @returns The handler function for the given command.
+ */
+async function getCommandHandler(command: 'new' | 'default') {
+  const { default: commands } = await import('./commands');
+
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const { handler } = commands.find(
+    (commandModule) => commandModule.command === command,
+  )!;
+
+  return handler;
+}
 
 describe('create-package/cli', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-
+  beforeEach(async () => {
     // yargs sometimes calls process.exit() internally. We don't want that.
     jest.spyOn(process, 'exit').mockImplementation();
 
     // We actually check these.
     jest.spyOn(console, 'error').mockImplementation();
     jest.spyOn(console, 'log').mockImplementation();
+
+    const commands = await import('./commands');
+    commands.default.forEach((command) => {
+      jest.spyOn(command, 'handler').mockImplementation();
+    });
   });
 
   afterEach(() => {
@@ -65,12 +101,9 @@ describe('create-package/cli', () => {
   });
 
   describe('command: new', () => {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { handler } = commandModule.default.find(
-      (command) => command.command === 'new',
-    )!;
-
     it('should create a new package', async () => {
+      const handler = await getCommandHandler('new');
+
       expect(
         await cli(getMockArgv('new', '--name', 'foo', '--description', 'bar')),
       ).toBeUndefined();
@@ -83,12 +116,9 @@ describe('create-package/cli', () => {
   });
 
   describe('command: default', () => {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { handler } = commandModule.default.find(
-      (command) => command.command === 'default',
-    )!;
-
     it('should create a new package with default values', async () => {
+      const handler = await getCommandHandler('default');
+
       expect(await cli(getMockArgv('default'))).toBeUndefined();
 
       expect(handler).toHaveBeenCalledTimes(1);
