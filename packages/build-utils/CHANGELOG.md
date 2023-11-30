@@ -6,4 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/MetaMask/core/
+## [1.0.0]
+### Uncategorized
+- `@metamask/build-utils`: Convert @types/eslint to production dependency ([#3588](https://github.com/MetaMask/controllers/pull/3588))
+
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/build-utils@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/build-utils@1.0.0
