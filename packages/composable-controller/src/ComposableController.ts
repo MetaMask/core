@@ -74,8 +74,9 @@ export class ComposableController extends BaseController<
   /**
    * Creates a ComposableController instance.
    *
-   * @param controllers - List of controller instances.
-   * @param messenger - The controller messaging system, used for communicating with BaseController controllers.
+   * @param options - Initial options used to configure this controller
+   * @param options.controllers - List of child controller instances to compose.
+   * @param options.messenger - A restricted controller messenger.
    */
 
   constructor({
