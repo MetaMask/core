@@ -23,6 +23,16 @@ type ControllerInstance =
  */
 export type ControllerList = ControllerInstance[];
 
+/**
+ * Determines if the given controller is an instance of BaseControllerV1
+ * @param controller - Controller instance to check
+ * @returns True if the controller is an instance of BaseControllerV1
+ */
+function isBaseControllerV1(
+  controller: ControllerInstance,
+): controller is BaseControllerV1<any, any> {
+  return 'subscribe' in controller && controller.subscribe !== undefined;
+}
 
 export type ComposableControllerState = {
   [name: string]: ControllerInstance['state'];
@@ -78,30 +88,11 @@ export class ComposableController extends BaseControllerV1<never, any> {
       controllers.reduce((state, controller) => {
         state[controller.name] = controller.state;
         return state;
-      }, {} as any),
+
+    this.#controllers = controllers;
+    this.#controllers.forEach((controller) =>
+      this.#updateChildController(controller),
     );
-    this.initialize();
-    this.controllers = controllers;
-    this.messagingSystem = messenger;
-    this.controllers.forEach((controller) => {
-      const { name } = controller;
-      if ((controller as BaseControllerV1<any, any>).subscribe !== undefined) {
-        (controller as BaseControllerV1<any, any>).subscribe((state) => {
-          this.update({ [name]: state });
-        });
-      } else if (this.messagingSystem) {
-        (this.messagingSystem.subscribe as any)(
-          `${name}:stateChange`,
-          (state: any) => {
-            this.update({ [name]: state });
-          },
-        );
-      } else {
-        throw new Error(
-          `Messaging system required if any BaseController controllers are used`,
-        );
-      }
-    });
   }
 
   /**
@@ -117,6 +108,33 @@ export class ComposableController extends BaseControllerV1<never, any> {
       flatState = { ...flatState, ...controller.state };
     }
     return flatState;
+  }
+
+  /**
+   * Adds a child controller instance to composable controller state,
+   * or updates the state of a child controller.
+   * @param controller - Controller instance to update
+   */
+  #updateChildController(controller: ControllerInstance): void {
+    const { name } = controller;
+    if (isBaseControllerV1(controller)) {
+      controller.subscribe((childState) => {
+        this.update((state) => ({
+          ...state,
+          [name]: childState,
+        }));
+      });
+    } else {
+      this.messagingSystem.subscribe(
+        `${String(name)}:stateChange`,
+        (childState: Record<string, unknown>) => {
+          this.update((state) => ({
+            ...state,
+            [name]: childState,
+          }));
+        },
+      );
+    }
   }
 }
 
