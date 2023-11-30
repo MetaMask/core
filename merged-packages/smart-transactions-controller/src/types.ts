@@ -117,3 +117,5 @@ export type SignedTransaction = any;
 
 // TODO
 export type SignedCanceledTransaction = any;
+
+export type Hex = `0x${string}`;

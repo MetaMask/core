@@ -25,12 +25,12 @@
     "test:watch": "jest --watchAll"
   },
   "dependencies": {
-    "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/bytes": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^6.0.0",
+    "@metamask/base-controller": "^4.0.0",
+    "@metamask/controller-utils": "^6.1.0",
+    "@metamask/eth-query": "^4.0.0",
     "@metamask/network-controller": "^17.0.0",
+    "@metamask/polling-controller": "^2.0.0",
     "bignumber.js": "^9.0.1",
     "fast-json-patch": "^3.1.0",
     "lodash": "^4.17.21"
@@ -45,6 +45,7 @@
     "@types/jest": "^26.0.24",
     "@types/lodash": "^4.14.194",
     "@types/node": "^16.18.31",
+    "@types/sinon": "^9.0.10",
     "@typescript-eslint/eslint-plugin": "^5.33.0",
     "@typescript-eslint/parser": "^5.33.0",
     "eslint": "^8.21.0",
@@ -59,6 +60,7 @@
     "nock": "^13.3.1",
     "prettier": "^2.8.8",
     "prettier-plugin-packagejson": "^2.4.3",
+    "sinon": "^9.2.4",
     "ts-jest": "^26.5.6",
     "typescript": "~4.4.4"
   },
