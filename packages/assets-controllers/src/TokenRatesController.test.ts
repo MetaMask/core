@@ -952,30 +952,33 @@ describe('TokenRatesController', () => {
 
   describe('updateExchangeRates', () => {
     it('should not update exchange rates if legacy polling is disabled', async () => {
-      const controller = new TokenRatesController({
-        chainId: '0x1',
-        ticker: NetworksTicker.mainnet,
-        selectedAddress: defaultSelectedAddress,
-        onPreferencesStateChange: jest.fn(),
-        onTokensStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
-        getNetworkClientById: jest.fn(),
-      }, {
-        allTokens: {
-          '0x1': {
-            [defaultSelectedAddress]: [
-              {
-                address: '0x123',
-                decimals: 18,
-                symbol: 'DAI',
-                aggregators: [],
-              },
-              { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
-            ],
-          },
+      const controller = new TokenRatesController(
+        {
+          chainId: '0x1',
+          ticker: NetworksTicker.mainnet,
+          selectedAddress: defaultSelectedAddress,
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn(),
         },
-        disabled: true,
-      });
+        {
+          allTokens: {
+            '0x1': {
+              [defaultSelectedAddress]: [
+                {
+                  address: '0x123',
+                  decimals: 18,
+                  symbol: 'DAI',
+                  aggregators: [],
+                },
+                { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
+              ],
+            },
+          },
+          disabled: true,
+        },
+      );
       expect(controller.state.contractExchangeRates).toStrictEqual({});
       expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
 
@@ -1066,16 +1069,19 @@ describe('TokenRatesController', () => {
 
     it('should not update state when disabled', async () => {
       const tokenAddress = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
-      const controller = new TokenRatesController({
-        interval: 100,
-        chainId: '0x2',
-        ticker: 'ticker',
-        selectedAddress: '0xdeadbeef',
-        onPreferencesStateChange: jest.fn(),
-        onTokensStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
-        getNetworkClientById: jest.fn(),
-      }, { disabled: true });
+      const controller = new TokenRatesController(
+        {
+          interval: 100,
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: '0xdeadbeef',
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn(),
+        },
+        { disabled: true },
+      );
       expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
 
       await controller.updateExchangeRatesByChainId({
