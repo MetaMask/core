@@ -1,8 +1,12 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+  BaseControllerV1,
+} from '@metamask/base-controller';
 
-/**
- * List of child controller instances
+const controllerName = 'ComposableController';
+
 /*
  * This type encompasses controllers based up either BaseControllerV1 or
  * BaseController. The BaseController type can't be included directly
@@ -19,6 +23,32 @@ type ControllerInstance =
  */
 export type ControllerList = ControllerInstance[];
 
+
+export type ComposableControllerState = {
+  [name: string]: ControllerInstance['state'];
+};
+
+export type ComposableControllerGetStateAction = ControllerGetStateAction<
+  `${typeof controllerName}`,
+  ComposableControllerState
+>;
+
+export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
+  `${typeof controllerName}`,
+  ComposableControllerState
+>;
+
+export type ComposableControllerActions = ComposableControllerGetStateAction;
+
+export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
+
+export type ComposableControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  ControllerGetStateAction<string, Record<string, unknown>>,
+  ControllerStateChangeEvent<string, Record<string, unknown>>,
+  string,
+  string
+>;
 
 /**
  * Controller that can be used to compose multiple controllers together.
