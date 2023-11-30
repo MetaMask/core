@@ -210,8 +210,12 @@ export class SelectedNetworkController extends BaseController<
       state.perDomainNetwork = enabled;
       return state;
     });
-    Object.entries(this.state.domains).forEach(([domain, networkClientId]) => {
-      this.setNetworkClientIdForDomain(domain, networkClientId);
+    Object.keys(this.state.domains).forEach((domain) => {
+      // when perDomainNetwork is false, getNetworkClientIdForDomain always returns the networkClientId for the domain 'metamask'
+      this.setNetworkClientIdForDomain(
+        domain,
+        this.getNetworkClientIdForDomain(domain),
+      );
     });
   }
 }
