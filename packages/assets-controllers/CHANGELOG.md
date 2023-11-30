@@ -5,6 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add `codefiTokenPricesServiceV2`
+  - This object can be used for the new `tokenPricesService` argument for TokenRatesController in client code. It uses an internal API to fetch prices for tokens instead of CoinGecko.
+
+### Changed
+- **BREAKING:** TokenRatesController now takes a required argument `tokenPricesService` ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This object is responsible for fetching the prices for tokens held by this controller.
+- **BREAKING:** Update signature of `TokenRatesController.updateExchangeRatesByChainId` ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - Rename `tokenAddresses` argument to `tokenContractAddresses`
+  - Change the type of `tokenContractAddresses` from `string[]` to `Hex[]`
+- **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This method now takes an object with shape `{ tokenContractAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
+
+### Removed
+- **BREAKING:** Remove `fetchExchangeRate` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This method (not to be confused with `updateExchangeRate`, which is still present) was only ever intended to be used internally and should not be accessed directly.
+- **BREAKING:** Remove `getChainSlug` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This method was previously used in conjunction with accessing the CoinGecko API. There is no equivalent.
+- **BREAKING:** Remove `CoinGeckoResponse` and `CoinGeckoPlatform` types ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - These types were previously used to represent data returned from the CoinGecko API. There is no equivalent.
 
 ## [20.0.0]
 ### Added
