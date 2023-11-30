@@ -106,6 +106,13 @@ export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
 }
 
+const PriceApi = {
+  BASE_URL: 'https://price.api.cx.metamask.io',
+  getTokenPriceURL(chainId: string, query: string) {
+    return `${this.BASE_URL}/v2/chains/${chainId}/spot-prices?${query}`;
+  },
+};
+
 const CoinGeckoApi = {
   BASE_URL: 'https://api.coingecko.com/api/v3',
   getTokenPriceURL(chainSlug: string, query: string) {
@@ -136,7 +143,7 @@ function findChainSlug(
   const chain =
     data.find(
       ({ chain_identifier }) =>
-        chain_identifier !== null && toHex(chain_identifier) === chainId,
+        chain_identifier !== null && String(chain_identifier) === chainId,
     ) ?? null;
   return chain?.id || null;
 }
@@ -321,17 +328,14 @@ export class TokenRatesController extends BaseController<
   /**
    * Fetches a pairs of token address and native currency.
    *
-   * @param chainSlug - Chain string identifier.
    * @param vsCurrency - Query according to tokens in tokenList and native currency.
    * @returns The exchange rates for the given pairs.
    */
-  async fetchExchangeRate(
-    chainSlug: string,
-    vsCurrency: string,
-  ): Promise<CoinGeckoResponse> {
+  async fetchExchangeRate(vsCurrency: string): Promise<CoinGeckoResponse> {
+    const { chainId } = this.config;
     const tokenPairs = this.tokenList.map((token) => token.address).join(',');
-    const query = `contract_addresses=${tokenPairs}&vs_currencies=${vsCurrency.toLowerCase()}`;
-    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
+    const query = `tokenAddresses=${tokenPairs}&vsCurrency=${vsCurrency.toLowerCase()}`;
+    return handleFetch(PriceApi.getTokenPriceURL(chainId, query));
   }
 
   /**
@@ -417,14 +421,12 @@ export class TokenRatesController extends BaseController<
    * to token/nativeCurrency.
    *
    * @param nativeCurrency - The native currency of the currently active network.
-   * @param slug - The unique slug used to id the chain by the coingecko api
    * should be used to query token exchange rates.
    * @returns An object with conversion rates for each token
    * related to the network's native currency.
    */
   async fetchAndMapExchangeRates(
     nativeCurrency: string,
-    slug: string,
   ): Promise<ContractExchangeRates> {
     const contractExchangeRates: ContractExchangeRates = {};
 
@@ -435,7 +437,7 @@ export class TokenRatesController extends BaseController<
 
     if (nativeCurrencySupported) {
       // If it is we can do a simple fetch against the CoinGecko API
-      const prices = await this.fetchExchangeRate(slug, nativeCurrency);
+      const prices = await this.fetchExchangeRate(nativeCurrency);
       this.tokenList.forEach((token) => {
         const price = prices[token.address.toLowerCase()];
         contractExchangeRates[toChecksumHexAddress(token.address)] = price
@@ -452,7 +454,7 @@ export class TokenRatesController extends BaseController<
           tokenExchangeRates,
           { conversionRate: vsCurrencyToNativeCurrencyConversionRate },
         ] = await Promise.all([
-          this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY),
+          this.fetchExchangeRate(FALL_BACK_VS_CURRENCY),
           fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
       } catch (error) {
