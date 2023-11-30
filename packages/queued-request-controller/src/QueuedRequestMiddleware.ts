@@ -19,6 +19,25 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
 
+export type MiddlewareAllowedActions =
+  | NetworkControllerGetStateAction
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerSetProviderTypeAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+  | AddApprovalRequest;
+
+export type QueuedRequestMiddlewareMessenger = ControllerMessenger<
+  QueuedRequestControllerEnqueueRequestAction | MiddlewareAllowedActions,
+  never
+>;
+
+export type QueuedRequestMiddlewareJsonRpcRequest = JsonRpcRequest & {
+  networkClientId?: NetworkClientId;
+  origin?: string;
+};
+
 const isConfirmationMethod = (method: string) => {
   const confirmationMethods = [
     'eth_sendTransaction',
@@ -50,28 +69,11 @@ export const createQueuedRequestMiddleware = ({
   messenger,
   useRequestQueue,
 }: {
-  messenger: ControllerMessenger<
-    | QueuedRequestControllerEnqueueRequestAction
-    | NetworkControllerGetStateAction
-    | NetworkControllerSetActiveNetworkAction
-    | NetworkControllerSetProviderTypeAction
-    | NetworkControllerGetNetworkClientByIdAction
-    | NetworkControllerFindNetworkClientIdByChainIdAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | AddApprovalRequest,
-    never
-  >;
+  messenger: QueuedRequestMiddlewareMessenger;
   useRequestQueue: () => boolean;
 }): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return createAsyncMiddleware(
-    async (
-      req: JsonRpcRequest & {
-        origin?: string;
-        networkClientId?: NetworkClientId;
-      },
-      res,
-      next,
-    ) => {
+    async (req: QueuedRequestMiddlewareJsonRpcRequest, res, next) => {
       const { origin, networkClientId: networkClientIdForRequest } = req;
 
       if (!origin) {

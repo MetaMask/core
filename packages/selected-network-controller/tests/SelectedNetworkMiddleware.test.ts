@@ -1,33 +1,46 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { NetworkControllerGetStateAction } from '@metamask/network-controller';
+import type { JsonRpcResponse } from '@metamask/utils';
 
-import type {
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
-  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
-} from '../src/SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
+import type {
+  SelectedNetworkMiddlewareJsonRpcRequest,
+  SelectedNetworkMiddlewareMessenger,
+} from '../src/SelectedNetworkMiddleware';
 import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
-const buildMessenger = () => {
-  return new ControllerMessenger<
-    | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | NetworkControllerGetStateAction,
-    never
-  >();
+const buildMessenger = (): SelectedNetworkMiddlewareMessenger => {
+  return new ControllerMessenger();
 };
 
 const noop = jest.fn();
 
 describe('createSelectedNetworkMiddleware', () => {
+  it('throws if not provided an origin', async () => {
+    const messenger = buildMessenger();
+    const middleware = createSelectedNetworkMiddleware(messenger);
+    const req: SelectedNetworkMiddlewareJsonRpcRequest = {
+      id: '123',
+      jsonrpc: '2.0',
+      method: 'anything',
+      networkClientId: 'anything',
+    };
+
+    await expect(
+      () =>
+        new Promise((resolve, reject) =>
+          middleware(req, {} as JsonRpcResponse<typeof req>, resolve, reject),
+        ),
+    ).rejects.toThrow("Request object is lacking an 'origin'");
+  });
+
   it('puts networkClientId on request', async () => {
     const messenger = buildMessenger();
     const middleware = createSelectedNetworkMiddleware(messenger);
 
     const req = {
       origin: 'example.com',
-    } as any;
+    } as SelectedNetworkMiddlewareJsonRpcRequest;
 
     const mockGetNetworkClientIdForDomain = jest
       .fn()
@@ -38,7 +51,9 @@ describe('createSelectedNetworkMiddleware', () => {
       mockGetNetworkClientIdForDomain,
     );
 
-    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+    await new Promise((resolve) =>
+      middleware(req, {} as JsonRpcResponse<typeof req>, resolve, noop),
+    );
 
     expect(req.networkClientId).toBe('mockNetworkClientId');
   });
@@ -49,7 +64,7 @@ describe('createSelectedNetworkMiddleware', () => {
 
     const req = {
       origin: 'example.com',
-    } as any;
+    } as SelectedNetworkMiddlewareJsonRpcRequest;
 
     const mockGetNetworkClientIdForDomain = jest
       .fn()
@@ -72,7 +87,9 @@ describe('createSelectedNetworkMiddleware', () => {
       mockNetworkControllerGetState,
     );
 
-    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+    await new Promise((resolve) =>
+      middleware(req, {} as JsonRpcResponse<typeof req>, resolve, noop),
+    );
 
     expect(mockGetNetworkClientIdForDomain).toHaveBeenCalledWith('example.com');
     expect(mockNetworkControllerGetState).toHaveBeenCalled();
@@ -86,7 +103,7 @@ describe('createSelectedNetworkMiddleware', () => {
   it('implements the json-rpc-engine middleware interface appropriately', async () => {
     const engine = new JsonRpcEngine();
     const messenger = buildMessenger();
-    engine.push((req: any, _, next) => {
+    engine.push((req: SelectedNetworkMiddlewareJsonRpcRequest, _, next) => {
       req.origin = 'foobar';
       next();
     });

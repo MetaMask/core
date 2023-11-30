@@ -1,8 +1,44 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 
-import type { SelectedNetworkControllerOptions } from '../src/SelectedNetworkController';
-import { SelectedNetworkController } from '../src/SelectedNetworkController';
-import { buildSelectedNetworkControllerMessenger } from './utils';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  SelectedNetworkControllerActions,
+  SelectedNetworkControllerEvents,
+  SelectedNetworkControllerMessenger,
+  SelectedNetworkControllerOptions,
+} from '../src/SelectedNetworkController';
+import {
+  SelectedNetworkController,
+  controllerName,
+} from '../src/SelectedNetworkController';
+
+/**
+ * Build a restricted controller messenger for the selected network controller.
+ *
+ * @param messenger - A controller messenger.
+ * @returns The network controller restricted messenger.
+ */
+export function buildSelectedNetworkControllerMessenger(
+  messenger = new ControllerMessenger<
+    SelectedNetworkControllerActions | AllowedActions,
+    SelectedNetworkControllerEvents | AllowedEvents
+  >(),
+): SelectedNetworkControllerMessenger {
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    jest.fn().mockReturnValue({
+      provider: { sendAsync: jest.fn() },
+      blockTracker: { getLatestBlock: jest.fn() },
+    }),
+  );
+  return messenger.getRestricted({
+    name: controllerName,
+    allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedEvents: ['NetworkController:stateChange'],
+  });
+}
 
 jest.mock('@metamask/swappable-obj-proxy');
 const createEventEmitterProxyMock = jest.mocked(createEventEmitterProxy);
