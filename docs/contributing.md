@@ -167,7 +167,7 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 
    Run `yarn create-release-branch`. This command creates a release branch named `release/<new release version>` and pre-updates the changelogs for all packages with changes. It also generates a file and opens it in your editor, allowing you to specify which packages you want to include in the next release and their versions. Follow the instructions at the top of the file to update it accordingly.
 
-1. **Review and update changelogs for relevant packages.**
+2. **Review and update changelogs for relevant packages.**
 
    First, review all pre-updated changelogs to understand the recent changes. Then, for the packages you intend to release, update these sections in each changelog:
 
@@ -179,19 +179,19 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 
     After finalizing the changelogs and ensuring the release specification is valid, save and close the file. The tool will automatically commit all the changes to the release branch. Note that any changes made to the changelogs of packages not included in the release will be discarded.
 
-2. **Submit a pull request for the release branch so that it can be reviewed and tested.**
+3. **Submit a pull request for the release branch so that it can be reviewed and tested.**
 
    Make sure the title of the pull request follows the pattern "Release \<new version\>".
 
    If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
 
-3. **"Squash & Merge" the release.**
+4. **"Squash & Merge" the release.**
 
    This step triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub.
 
    Pay attention to the box you see when you press the green button and ensure that the final name of the commit follows the pattern "Release \<new version\>".
 
-4. **Publish the release on NPM.**
+5. **Publish the release on NPM.**
 
    The `publish-release` GitHub Action workflow runs the `publish-npm` job, which publishes relevant packages to NPM. It requires approval from the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team to complete. If you're not on the team, ask a member to approve it for you; otherwise, approve the job.
 
