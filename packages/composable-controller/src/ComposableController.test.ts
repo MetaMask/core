@@ -428,7 +428,11 @@ describe('ComposableController', () => {
       });
       const fooController = new FooController(fooControllerMessenger);
       expect(
-        () => new ComposableController([barController, fooController]),
+        () =>
+          // @ts-expect-error - Suppressing type error to test for runtime error handling
+          new ComposableController({
+            controllers: [barController, fooController],
+          }),
       ).toThrow(
         'Messaging system required if any BaseController controllers are used',
       );
