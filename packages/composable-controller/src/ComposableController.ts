@@ -1,3 +1,4 @@
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -63,31 +64,42 @@ export type ComposableControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller that can be used to compose multiple controllers together.
  */
-export class ComposableController extends BaseControllerV1<never, any> {
-  private readonly controllers: ControllerList = [];
-
-  private readonly messagingSystem?: ComposableControllerRestrictedMessenger;
-
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'ComposableController';
+export class ComposableController extends BaseController<
+  typeof controllerName,
+  ComposableControllerState,
+  ComposableControllerMessenger
+> {
+  readonly #controllers: ControllerList = [];
 
   /**
    * Creates a ComposableController instance.
    *
-   * @param controllers - Map of names to controller instances.
+   * @param controllers - List of controller instances.
    * @param messenger - The controller messaging system, used for communicating with BaseController controllers.
    */
-  constructor(
-    controllers: ControllerList,
-    messenger?: ComposableControllerRestrictedMessenger,
-  ) {
-    super(
-      undefined,
-      controllers.reduce((state, controller) => {
+
+  constructor({
+    controllers,
+    messenger,
+  }: {
+    controllers: ControllerList;
+    messenger: ComposableControllerMessenger;
+  }) {
+    if (messenger === undefined) {
+      throw new Error(
+        `Messaging system required if any BaseController controllers are used`,
+      );
+    }
+
+    super({
+      name: controllerName,
+      metadata: {},
+      state: controllers.reduce((state, controller) => {
         state[controller.name] = controller.state;
         return state;
+      }, {} as ComposableControllerState),
+      messenger,
+    });
 
     this.#controllers = controllers;
     this.#controllers.forEach((controller) =>
@@ -104,7 +116,7 @@ export class ComposableController extends BaseControllerV1<never, any> {
    */
   get flatState() {
     let flatState = {};
-    for (const controller of this.controllers) {
+    for (const controller of this.#controllers) {
       flatState = { ...flatState, ...controller.state };
     }
     return flatState;
