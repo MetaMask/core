@@ -444,7 +444,6 @@ export class TokenRatesController extends PollingControllerV1<
     if (this.tokenList.length === 0 || this.disabled) {
       return;
     }
-
     const { chainId, nativeCurrency } = this.config;
     const tokenAddresses = this.tokenList.map((token) => token.address);
     await this.updateExchangeRatesByChainId({
@@ -476,7 +475,7 @@ export class TokenRatesController extends PollingControllerV1<
     nativeCurrency: string;
     tokenAddresses: string[];
   }) {
-    if (!tokenAddresses.length) {
+    if (tokenAddresses.length === 0 || this.disabled) {
       return;
     }
     const chainSlug = await this.getChainSlug(chainId);

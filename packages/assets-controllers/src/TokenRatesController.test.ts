@@ -960,15 +960,29 @@ describe('TokenRatesController', () => {
         onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
         getNetworkClientById: jest.fn(),
+      }, {
+        allTokens: {
+          '0x1': {
+            [defaultSelectedAddress]: [
+              {
+                address: '0x123',
+                decimals: 18,
+                symbol: 'DAI',
+                aggregators: [],
+              },
+              { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
+        disabled: true,
       });
-      controller.disabled = true;
-
-      const updateExchangeRatesByChainIdSpy = jest
-        .spyOn(controller, 'updateExchangeRatesByChainId')
-        .mockResolvedValue();
+      expect(controller.state.contractExchangeRates).toStrictEqual({});
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
 
       await controller.updateExchangeRates();
-      expect(updateExchangeRatesByChainIdSpy).not.toHaveBeenCalled();
+
+      expect(controller.state.contractExchangeRates).toStrictEqual({});
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
     });
 
     it('should update legacy state after updateExchangeRatesByChainId', async () => {
@@ -1047,6 +1061,29 @@ describe('TokenRatesController', () => {
         nativeCurrency: 'ETH',
         tokenAddresses: [],
       });
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
+    });
+
+    it('should not update state when disabled', async () => {
+      const tokenAddress = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
+      const controller = new TokenRatesController({
+        interval: 100,
+        chainId: '0x2',
+        ticker: 'ticker',
+        selectedAddress: '0xdeadbeef',
+        onPreferencesStateChange: jest.fn(),
+        onTokensStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
+        getNetworkClientById: jest.fn(),
+      }, { disabled: true });
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
+
+      await controller.updateExchangeRatesByChainId({
+        chainId: '0x1',
+        nativeCurrency: 'ETH',
+        tokenAddresses: [tokenAddress],
+      });
+
       expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
     });
 
