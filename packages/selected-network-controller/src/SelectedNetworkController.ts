@@ -166,11 +166,10 @@ export class SelectedNetworkController extends BaseController<
     }
 
     this.update((state) => {
-      if (state.perDomainNetwork) {
-        state.domains[domain] = networkClientId;
-        return;
+      state.domains[domain] = networkClientId;
+      if (!state.perDomainNetwork) {
+        state.domains[METAMASK_DOMAIN] = networkClientId;
       }
-      state.domains[METAMASK_DOMAIN] = networkClientId;
     });
   }
 
@@ -204,5 +203,15 @@ export class SelectedNetworkController extends BaseController<
     }
 
     return networkProxy;
+  }
+
+  setPerDomainNetwork(enabled: boolean) {
+    this.update((state) => {
+      state.perDomainNetwork = enabled;
+      return state;
+    });
+    Object.entries(this.state.domains).forEach(([domain, networkClientId]) => {
+      this.setNetworkClientIdForDomain(domain, networkClientId);
+    });
   }
 }
