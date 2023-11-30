@@ -10,5 +10,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/build-utils@1.0.0...HEAD
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/build-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/build-utils@1.0.0
