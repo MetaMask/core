@@ -13,8 +13,7 @@ export type CreatePackageOptions = {
  */
 const newPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'new',
-  describe:
-    'Create a new monorepo package. Handles a lot of the boilerplate for you.',
+  describe: 'Create a new monorepo package.',
   builder: (argv: Argv<object>) => {
     argv
       .options({
@@ -57,7 +56,7 @@ const newPackage: CommandModule<object, CreatePackageOptions> = {
  */
 const defaultPackage: CommandModule<object, CreatePackageOptions> = {
   command: 'default',
-  describe: 'Create a new monorepo package with default values.',
+  describe: 'Create a new monorepo package, with default values.',
   builder: (argv: Argv) => {
     argv
       .example('$0 default', 'Create a new package with default values.')
