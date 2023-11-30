@@ -952,40 +952,23 @@ describe('TokenRatesController', () => {
 
   describe('updateExchangeRates', () => {
     it('should not update exchange rates if legacy polling is disabled', async () => {
-      const controller = new TokenRatesController(
-        {
-          chainId: '0x1',
-          ticker: NetworksTicker.mainnet,
-          selectedAddress: defaultSelectedAddress,
-          onPreferencesStateChange: jest.fn(),
-          onTokensStateChange: jest.fn(),
-          onNetworkStateChange: jest.fn(),
-          getNetworkClientById: jest.fn(),
-        },
-        {
-          allTokens: {
-            '0x1': {
-              [defaultSelectedAddress]: [
-                {
-                  address: '0x123',
-                  decimals: 18,
-                  symbol: 'DAI',
-                  aggregators: [],
-                },
-                { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
-              ],
-            },
-          },
-          disabled: true,
-        },
-      );
-      expect(controller.state.contractExchangeRates).toStrictEqual({});
-      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
+      const controller = new TokenRatesController({
+        chainId: '0x1',
+        ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: jest.fn(),
+        onTokensStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
+        getNetworkClientById: jest.fn(),
+      });
+      controller.disabled = true;
+
+      const updateExchangeRatesByChainIdSpy = jest
+        .spyOn(controller, 'updateExchangeRatesByChainId')
+        .mockResolvedValue();
 
       await controller.updateExchangeRates();
-
-      expect(controller.state.contractExchangeRates).toStrictEqual({});
-      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
+      expect(updateExchangeRatesByChainIdSpy).not.toHaveBeenCalled();
     });
 
     it('should update legacy state after updateExchangeRatesByChainId', async () => {
