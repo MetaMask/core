@@ -192,7 +192,7 @@ export class TokensController extends BaseControllerV1<
   constructor({
     chainId: initialChainId,
     onPreferencesStateChange,
-    onNetworkStateChange,
+    onNetworkDidChange,
     onTokenListStateChange,
     getERC20TokenName,
     getNetworkClientById,
@@ -204,7 +204,7 @@ export class TokensController extends BaseControllerV1<
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
-    onNetworkStateChange: (
+    onNetworkDidChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
     onTokenListStateChange: (
@@ -253,7 +253,7 @@ export class TokensController extends BaseControllerV1<
       });
     });
 
-    onNetworkStateChange(({ providerConfig }) => {
+    onNetworkDidChange(({ providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = providerConfig;
