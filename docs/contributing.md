@@ -163,41 +163,70 @@ To use a preview build for a package within a project, you need to override the 
 
 The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process.
 
-1. **Create a release branch.**
+1. **Initiate the Release Branch and Pre-Update Changelogs**
 
-   Run `yarn create-release-branch`. This tool generates a file and opens it in your editor, where you can specify which packages you want to include in the next release and which versions they should receive. Instructions are provided for you at the top; read them and update the file accordingly.
+   Run `yarn create-release-branch`. This command creates a release branch named `release/<new release version>` and pre-updates the changelogs for all packages with changes. It also generates a file and opens it in your editor, allowing you to specify which packages you want to include in the next release and their versions. Follow the instructions at the top of the file to update it accordingly.
 
-   When you're ready to continue, save and close the file.
+1. **Review and update changelogs for relevant packages.**
 
-2. **Update changelogs for relevant packages.**
+   First, review all pre-updated changelogs to understand the recent changes. Then, for the packages you intend to release, update these sections in each changelog:
 
-   At this point you will be on a new release branch, and a new section will have been added to the changelog of each package you specified in the previous step.
+   - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines.
+   - Remove entries that don't affect end-users, unless they are significant.
+   - Reword entries for clarity and user comprehension.
+   - Consolidate related changes into single entries where appropriate.
+   - Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
 
-   For each changelog, review the new section and make the appropriate changes:
+    After finalizing the changelogs and ensuring the release specification is valid, save and close the file. The tool will automatically commit all the changes to the release branch. Note that any changes made to the changelogs of packages not included in the release will be discarded.
 
-   - Move each entry into the appropriate category (review the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/#types) spec for the full list of categories and the correct ordering of all categories).
-   - Remove any changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
-   - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
-   - Consolidate related changes into one change entry if it makes it easier to comprehend.
-
-   Run `yarn changelog:validate` to check that all changelogs are correctly formatted.
-
-   Commit and push the branch.
-
-3. **Submit a pull request for the release branch so that it can be reviewed and tested.**
+2. **Submit a pull request for the release branch so that it can be reviewed and tested.**
 
    Make sure the title of the pull request follows the pattern "Release \<new version\>".
 
    If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
 
-4. **"Squash & Merge" the release.**
+3. **"Squash & Merge" the release.**
 
    This step triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub.
 
    Pay attention to the box you see when you press the green button and ensure that the final name of the commit follows the pattern "Release \<new version\>".
 
-5. **Publish the release on NPM.**
+4. **Publish the release on NPM.**
 
    The `publish-release` GitHub Action workflow runs the `publish-npm` job, which publishes relevant packages to NPM. It requires approval from the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team to complete. If you're not on the team, ask a member to approve it for you; otherwise, approve the job.
 
    Once the `publish-npm` job has finished, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
+
+### Handling Common Errors
+
+If an error occurs, re-edit the release spec and rerun `yarn create-release-branch`. Common errors include:
+
+- **Invalid Version Specifier:**
+
+  - Error: `* Line 14: "invalid_version" is not a valid version specifier...`
+  - Resolution: Use "major", "minor", "patch", or a specific version number like "1.2.3".
+
+- **Version Equal to Current:**
+
+  - Error: `* Line 14: "1.2.3" is not a valid version specifier...`
+  - Resolution: Specify a version greater than the current version of the package.
+
+- **Version Less Than Current:**
+
+  - Error: `* Line 14: "1.2.2" is not a valid version specifier...`
+  - Resolution: Specify a version greater than the current version of the package.
+
+- **Releasing Packages with Breaking Changes:**
+
+  - Error: `* The following dependents of package '@metamask/a'...`
+  - Resolution: Include dependent packages in the release or use "intentionally-skip" if certain they are unaffected.
+
+- **Dependencies/Peer Dependencies Missing:**
+  - Error: `* The following packages, which are dependencies...`
+  - Resolution: Include necessary dependencies or peer dependencies in the release or use "intentionally-skip" if certain they are unaffected.
+
+### Workflow Recommendations
+
+- **Minimize Packages in Releases:** Include only essential packages.
+- **Changelog Management:** Carefully review and update changelogs for all packages, particularly those intended for release.
+- **Handling Common Errors:** Be prepared to re-edit and rerun the process in case of errors.√
