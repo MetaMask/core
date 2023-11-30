@@ -3,20 +3,22 @@ import { BaseControllerV1 } from '@metamask/base-controller';
 
 /**
  * List of child controller instances
- *
+/*
  * This type encompasses controllers based up either BaseControllerV1 or
  * BaseController. The BaseController type can't be included directly
  * because the generic parameters it expects require knowing the exact state
  * shape, so instead we look for an object with the BaseController properties
  * that we use in the ComposableController (name and state).
  */
-export type ControllerList = (
+type ControllerInstance =
   | BaseControllerV1<any, any>
-  | { name: string; state: Record<string, unknown> }
-)[];
+  | { name: string; state: Record<string, unknown> };
 
-export type ComposableControllerRestrictedMessenger =
-  RestrictedControllerMessenger<'ComposableController', never, any, never, any>;
+/**
+ * List of child controller instances
+ */
+export type ControllerList = ControllerInstance[];
+
 
 /**
  * Controller that can be used to compose multiple controllers together.
