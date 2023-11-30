@@ -284,32 +284,13 @@ export class TokenRatesController extends BaseController<
    * @param vsCurrency - Query according to tokens in tokenList and native currency.
    * @returns The exchange rates for the given pairs.
    */
-  fetchExchangeRate(
+  async fetchExchangeRate(
     chainSlug: string,
     vsCurrency: string,
-  ): Promise<CoinGeckoResponse>[] {
-    const tokenPairs = this.tokenList.map((token) => token.address);
-
-    const tokenPairsChunks = (chunkSize: number) =>
-      tokenPairs.reduce((resultArray: string[][], item, index) => {
-        const chunkIndex = Math.floor(index / chunkSize);
-        if (!resultArray[chunkIndex]) {
-          resultArray[chunkIndex] = [];
-        }
-
-        resultArray[chunkIndex].push(item);
-
-        return resultArray;
-      }, []);
-
-    const tokensPairsChunks = tokenPairsChunks(10);
-
-    return tokensPairsChunks.map((tokenPairsChunk) => {
-      const query = `contract_addresses=${tokenPairsChunk.join(
-        ',',
-      )}&vs_currencies=${vsCurrency.toLowerCase()}`;
-      return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
-    });
+  ): Promise<CoinGeckoResponse> {
+    const tokenPairs = this.tokenList.map((token) => token.address).join(',');
+    const query = `contract_addresses=${tokenPairs}&vs_currencies=${vsCurrency.toLowerCase()}`;
+    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
   }
 
   /**
@@ -412,6 +393,8 @@ export class TokenRatesController extends BaseController<
     nativeCurrency: string,
     slug: string,
   ): Promise<ContractExchangeRates> {
+    // Clear exchange rates before fetching new ones.
+    this.update({ contractExchangeRates: {} });
     // Set new native currency to prevent this method from being called multiple times
     this.configure({ previousNativeCurrency: nativeCurrency });
 
@@ -425,10 +408,7 @@ export class TokenRatesController extends BaseController<
 
       if (nativeCurrencySupported) {
         // If it is we can do a simple fetch against the CoinGecko API
-        const res = await Promise.all(
-          this.fetchExchangeRate(slug, nativeCurrency),
-        );
-        const prices = Object.assign({}, ...res);
+        const prices = await this.fetchExchangeRate(slug, nativeCurrency);
         this.tokenList.forEach((token) => {
           const price = prices[token.address.toLowerCase()];
           contractExchangeRates[toChecksumHexAddress(token.address)] = price
@@ -439,13 +419,13 @@ export class TokenRatesController extends BaseController<
         // if native currency is not supported we need to use a fallback vsCurrency, get the exchange rates
         // in token/fallback-currency format and convert them to expected token/nativeCurrency format.
         const [
-          res,
+          tokenExchangeRates,
           { conversionRate: vsCurrencyToNativeCurrencyConversionRate = 0 },
         ] = await Promise.all([
-          Promise.all(this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY)),
+          this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY),
           fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
-        const tokenExchangeRates: CoinGeckoResponse = Object.assign({}, ...res);
+
         for (const [tokenAddress, conversion] of Object.entries(
           tokenExchangeRates,
         )) {
@@ -457,6 +437,8 @@ export class TokenRatesController extends BaseController<
         }
       }
     } catch (error) {
+      // If there is an error catched we clean the state
+      this.update({ contractExchangeRates: {} });
       if (
         error instanceof Error &&
         error.message.includes('market does not exist for this coin pair')
