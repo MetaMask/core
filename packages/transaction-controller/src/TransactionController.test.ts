@@ -20,7 +20,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import { NonceTracker } from 'nonce-tracker';
+import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -573,7 +573,7 @@ describe('TransactionController', () => {
       releaseLock: () => Promise.resolve(),
     });
 
-    NonceTracker.prototype.getNonceLock = getNonceLockSpy;
+    NonceTrackerPackage.NonceTracker.prototype.getNonceLock = getNonceLockSpy;
 
     incomingTransactionHelperMock = {
       hub: {
@@ -616,6 +616,52 @@ describe('TransactionController', () => {
       expect(controller.config).toStrictEqual({
         txHistoryLimit: 40,
         sign: expect.any(Function),
+      });
+    });
+
+    describe('nonce tracker', () => {
+      it('uses external pending transactions', async () => {
+        const nonceTrackerMock = jest
+          .spyOn(NonceTrackerPackage, 'NonceTracker')
+          .mockImplementation();
+
+        const externalPendingTransactions = [
+          {
+            from: '0x1',
+          },
+          { from: '0x2' },
+        ];
+
+        const getExternalPendingTransactions = jest
+          .fn()
+          .mockReturnValueOnce(externalPendingTransactions);
+
+        const controller = newController({
+          options: { getExternalPendingTransactions },
+        });
+
+        controller.state.transactions = [
+          {
+            ...TRANSACTION_META_MOCK,
+            chainId: MOCK_NETWORK.state.providerConfig.chainId,
+            status: TransactionStatus.submitted,
+          },
+        ];
+
+        const pendingTransactions =
+          nonceTrackerMock.mock.calls[0][0].getPendingTransactions(
+            ACCOUNT_MOCK,
+          );
+
+        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
+        expect(pendingTransactions).toStrictEqual([
+          expect.any(Object),
+          ...externalPendingTransactions,
+        ]);
+        expect(getExternalPendingTransactions).toHaveBeenCalledTimes(1);
+        expect(getExternalPendingTransactions).toHaveBeenCalledWith(
+          ACCOUNT_MOCK,
+        );
       });
     });
 
@@ -1143,10 +1189,12 @@ describe('TransactionController', () => {
       const firstTransaction = controller.state.transactions[0];
 
       // eslint-disable-next-line jest/prefer-spy-on
-      NonceTracker.prototype.getNonceLock = jest.fn().mockResolvedValue({
-        nextNonce: NONCE_MOCK + 1,
-        releaseLock: () => Promise.resolve(),
-      });
+      NonceTrackerPackage.NonceTracker.prototype.getNonceLock = jest
+        .fn()
+        .mockResolvedValue({
+          nextNonce: NONCE_MOCK + 1,
+          releaseLock: () => Promise.resolve(),
+        });
 
       const { result: secondResult } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
