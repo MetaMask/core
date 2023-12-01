@@ -7,12 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.1.0]
-### Uncategorized
-- add method to reset proxies when flag toggled ([#3593](https://github.com/MetaMask/core/pull/3593))
-- allow initial state to be passed into the constructor ([#3585](https://github.com/MetaMask/core/pull/3585))
-
 ### Added
 - Add `SelectedNetworkMiddlewareJsonRpcRequest` type ([#1970](https://github.com/MetaMask/core/pull/1970)).
+- Add method to reset proxies when flag toggled ([#3593](https://github.com/MetaMask/core/pull/3593)).
+- Add `state` as a constructor argument ([#3585](https://github.com/MetaMask/core/pull/3585)).
 
 ### Changed
 - **BREAKING:** Rename `SelectedNetworkControllerAction` to `SelectedNetworkControllerActions` and `SelectedNetworkControllerEvent` to `SelectedNetworkControllerEvents` for consistency with corresponding type exports from other controllers ([#1970](https://github.com/MetaMask/core/pull/1970)).
