@@ -1,6 +1,6 @@
 {
   "name": "@metamask/build-utils",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Utilities for building MetaMask applications",
   "keywords": [
     "MetaMask",
@@ -30,11 +30,11 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^8.2.0"
+    "@metamask/utils": "^8.2.0",
+    "@types/eslint": "^8.44.7"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.3",
-    "@types/eslint": "^8.44.7",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "eslint": "^8.44.0",
