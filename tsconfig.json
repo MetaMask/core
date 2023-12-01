@@ -23,6 +23,9 @@
       "path": "./packages/base-controller"
     },
     {
+      "path": "./packages/build-utils"
+    },
+    {
       "path": "./packages/composable-controller"
     },
     {

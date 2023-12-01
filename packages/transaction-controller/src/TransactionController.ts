@@ -35,7 +35,10 @@ import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { mapValues, merge, pickBy, sortBy } from 'lodash';
 import { NonceTracker } from 'nonce-tracker';
-import type { NonceLock } from 'nonce-tracker';
+import type {
+  NonceLock,
+  Transaction as NonceTrackerTransaction,
+} from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
@@ -67,12 +70,15 @@ import {
   updateTransactionHistory,
 } from './utils/history';
 import {
+  getAndFormatTransactionsForNonceTracker,
+  getNextNonce,
+} from './utils/nonce';
+import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
-  getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
   normalizeTxParams,
   isEIP1559Transaction,
@@ -247,6 +253,10 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getSelectedAddress: () => string;
 
+  private readonly getExternalPendingTransactions: (
+    address: string,
+  ) => NonceTrackerTransaction[];
+
   private readonly messagingSystem: TransactionControllerMessenger;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
@@ -335,12 +345,13 @@ export class TransactionController extends BaseControllerV1<
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
-   * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+   * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
+   * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
@@ -370,12 +381,13 @@ export class TransactionController extends BaseControllerV1<
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
-      getSavedGasFees,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
+      getExternalPendingTransactions,
       getGasFeeEstimates,
       getNetworkState,
       getPermittedAccounts,
+      getSavedGasFees,
       getSelectedAddress,
       incomingTransactions = {},
       messenger,
@@ -391,12 +403,15 @@ export class TransactionController extends BaseControllerV1<
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
       disableSwaps: boolean;
-      getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
       getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+      getExternalPendingTransactions?: (
+        address: string,
+      ) => NonceTrackerTransaction[];
       getGasFeeEstimates?: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getPermittedAccounts: (origin?: string) => Promise<string[]>;
+      getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
       getSelectedAddress: () => string;
       incomingTransactions?: {
         includeTokenTransfers?: boolean;
@@ -461,6 +476,8 @@ export class TransactionController extends BaseControllerV1<
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
+    this.getExternalPendingTransactions =
+      getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
     this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
     this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
@@ -479,10 +496,8 @@ export class TransactionController extends BaseControllerV1<
       // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
       provider,
       blockTracker,
-      getPendingTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.submitted,
-      ),
+      getPendingTransactions:
+        this.getNonceTrackerPendingTransactions.bind(this),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
         TransactionStatus.confirmed,
@@ -1496,6 +1511,10 @@ export class TransactionController extends BaseControllerV1<
   async approveTransactionsWithSameNonce(
     listOfTxParams: TransactionParams[] = [],
   ): Promise<string | string[]> {
+    log('Approving transactions with same nonce', {
+      transactions: listOfTxParams,
+    });
+
     if (listOfTxParams.length === 0) {
       return '';
     }
@@ -1521,6 +1540,8 @@ export class TransactionController extends BaseControllerV1<
       const fromAddress = initialTx.from;
       nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
       const nonce = nonceLock.nextNonce;
+
+      log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
 
       rawTransactions = await Promise.all(
         listOfTxParams.map((txParams) => {
@@ -1882,6 +1903,26 @@ export class TransactionController extends BaseControllerV1<
               resultCallbacks = undefined;
             });
           }
+
+          const approvalValue = acceptResult.value as
+            | {
+                txMeta?: TransactionMeta;
+              }
+            | undefined;
+
+          const updatedTransaction = approvalValue?.txMeta;
+
+          if (updatedTransaction) {
+            log('Updating transaction with approval data', {
+              customNonce: updatedTransaction.customNonceValue,
+              params: updatedTransaction.txParams,
+            });
+
+            this.updateTransaction(
+              updatedTransaction,
+              'TransactionController#processApproval - Updated with approval data',
+            );
+          }
         }
 
         const { isCompleted: isTxCompleted } =
@@ -1951,10 +1992,13 @@ export class TransactionController extends BaseControllerV1<
     const chainId = this.getChainId();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
+
     const {
-      txParams: { nonce, from },
+      txParams: { from },
     } = transactionMeta;
-    let nonceLock;
+
+    let releaseNonceLock: (() => void) | undefined;
+
     try {
       if (!this.sign) {
         releaseLock();
@@ -1974,16 +2018,15 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      let nonceToUse = nonce;
-      // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
-      // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
-      if (!nonceToUse) {
-        nonceLock = await this.nonceTracker.getNonceLock(from);
-        nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
-      }
+      const [nonce, releaseNonce] = await getNextNonce(
+        transactionMeta,
+        this.nonceTracker,
+      );
+
+      releaseNonceLock = releaseNonce;
 
       transactionMeta.status = TransactionStatus.approved;
-      transactionMeta.txParams.nonce = nonceToUse;
+      transactionMeta.txParams.nonce = nonce;
       transactionMeta.txParams.chainId = chainId;
 
       const baseTxParams = {
@@ -2057,9 +2100,7 @@ export class TransactionController extends BaseControllerV1<
     } finally {
       this.inProcessOfSigning.delete(transactionId);
       // must set transaction to submitted/failed before releasing lock
-      if (nonceLock) {
-        nonceLock.releaseLock();
-      }
+      releaseNonceLock?.();
       releaseLock();
     }
   }
@@ -2566,6 +2607,18 @@ export class TransactionController extends BaseControllerV1<
 
   private onTransactionStatusChange(transactionMeta: TransactionMeta) {
     this.hub.emit('transaction-status-update', { transactionMeta });
+  }
+
+  private getNonceTrackerPendingTransactions(address: string) {
+    const standardPendingTransactions = this.getNonceTrackerTransactions(
+      TransactionStatus.submitted,
+      address,
+    );
+
+    const externalPendingTransactions =
+      this.getExternalPendingTransactions(address);
+
+    return [...standardPendingTransactions, ...externalPendingTransactions];
   }
 
   private getNonceTrackerTransactions(
