@@ -36,7 +36,7 @@
     "@metamask/json-rpc-engine": "^7.3.0",
     "@metamask/network-controller": "^17.0.0",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/selected-network-controller": "^4.0.0",
+    "@metamask/selected-network-controller": "^5.0.0",
     "@metamask/swappable-obj-proxy": "^2.1.0",
     "@metamask/utils": "^8.2.0"
   },
@@ -57,7 +57,7 @@
   "peerDependencies": {
     "@metamask/approval-controller": "^5.0.0",
     "@metamask/network-controller": "^17.0.0",
-    "@metamask/selected-network-controller": "^4.0.0"
+    "@metamask/selected-network-controller": "^5.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
