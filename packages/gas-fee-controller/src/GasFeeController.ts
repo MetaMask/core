@@ -15,7 +15,6 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
-  NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';

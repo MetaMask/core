@@ -105,8 +105,7 @@ describe('TokensController', () => {
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkDidChange: (listener) =>
-        (onNetworkDidChangeListener = listener),
+      onNetworkDidChange: (listener) => (onNetworkDidChangeListener = listener),
       onTokenListStateChange,
       config: {
         selectedAddress: defaultSelectedAddress,

@@ -50,8 +50,7 @@ type MainControllerMessenger = ControllerMessenger<
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetEIP1559CompatibilityAction,
-  | GasFeeStateChange
-  | NetworkControllerNetworkDidChangeEvent
+  GasFeeStateChange | NetworkControllerNetworkDidChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {

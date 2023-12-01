@@ -181,7 +181,7 @@ export class TokensController extends BaseControllerV1<
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getERC20TokenName - Gets the ERC-20 token name.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
