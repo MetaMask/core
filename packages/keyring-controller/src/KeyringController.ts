@@ -10,7 +10,13 @@ import type {
   ExportableKeyEncryptor,
   GenericEncryptor,
 } from '@metamask/eth-keyring-controller/dist/types';
-import type { EthKeyring } from '@metamask/keyring-api';
+import type {
+  EthBaseTransaction,
+  EthBaseUserOperation,
+  EthKeyring,
+  EthUserOperation,
+  EthUserOperationPatch,
+} from '@metamask/keyring-api';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
@@ -800,6 +806,49 @@ export class KeyringController extends BaseController<
     opts?: Record<string, unknown>,
   ): Promise<TxData> {
     return this.#keyring.signTransaction(transaction, from, opts);
+  }
+
+  /**
+   * Convert a base transaction to a base UserOperation.
+   *
+   * @param from - Address of the sender.
+   * @param transactions - Base transactions to include in the UserOperation.
+   * @returns A pseudo-UserOperation that can be used to construct a real.
+   */
+  async prepareUserOperation(
+    from: string,
+    transactions: EthBaseTransaction[],
+  ): Promise<EthBaseUserOperation> {
+    return await this.#keyring.prepareUserOperation(from, transactions);
+  }
+
+  /**
+   * Patches properties of a UserOperation. Currently, only the
+   * `paymasterAndData` can be patched.
+   *
+   * @param from - Address of the sender.
+   * @param userOp - UserOperation to patch.
+   * @returns A patch to apply to the UserOperation.
+   */
+  async patchUserOperation(
+    from: string,
+    userOp: EthUserOperation,
+  ): Promise<EthUserOperationPatch> {
+    return await this.#keyring.patchUserOperation(from, userOp);
+  }
+
+  /**
+   * Signs an UserOperation.
+   *
+   * @param from - Address of the sender.
+   * @param userOp - UserOperation to sign.
+   * @returns The signature of the UserOperation.
+   */
+  async signUserOperation(
+    from: string,
+    userOp: EthUserOperation,
+  ): Promise<string> {
+    return await this.#keyring.signUserOperation(from, userOp);
   }
 
   /**
