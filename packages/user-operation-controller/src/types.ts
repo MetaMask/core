@@ -1,5 +1,4 @@
 import type { Provider } from '@metamask/network-controller';
-import type { TransactionParams } from '@metamask/transaction-controller';
 
 export type UserOperation = {
   /** The data to pass to the sender during the main execution call. */
@@ -85,9 +84,6 @@ export type UserOperationError = {
 };
 
 export type UserOperationMetadata = {
-  actualGasCost: string | null;
-  actualGasUsed: string | null;
-  baseFeePerGas: string | null;
   bundlerUrl: string | null;
   chainId: string;
   error: UserOperationError | null;
@@ -95,9 +91,6 @@ export type UserOperationMetadata = {
   id: string;
   status: UserOperationStatus;
   time: number;
-  transactionHash: string | null;
-  transactionParams: Required<TransactionParams> | null;
-  userFeeLevel: string | null;
   userOperation: UserOperation;
 };
 

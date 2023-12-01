@@ -156,7 +156,7 @@ export class UserOperationController extends BaseController<
 
     const hash = async () => {
       throwError = true;
-      return hashValue as Promise<string>;
+      return await hashValue;
     };
 
     return {
@@ -167,9 +167,6 @@ export class UserOperationController extends BaseController<
 
   #createMetadata(chainId: string): UserOperationMetadata {
     const metadata = {
-      actualGasCost: null,
-      actualGasUsed: null,
-      baseFeePerGas: null,
       bundlerUrl: null,
       chainId,
       error: null,
@@ -177,10 +174,7 @@ export class UserOperationController extends BaseController<
       id: random(),
       status: UserOperationStatus.Unapproved,
       time: Date.now(),
-      transactionHash: null,
-      transactionParams: null,
       userOperation: this.#createEmptyUserOperation(),
-      userFeeLevel: null,
     };
 
     this.#updateMetadata(metadata);
