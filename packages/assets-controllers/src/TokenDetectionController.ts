@@ -164,18 +164,19 @@ export class TokenDetectionController extends PollingController<
     });
 
     this.getTokensState = getTokensState;
-    this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
     this.getBalancesInSingleCall = getBalancesInSingleCall;
-    this.getNetworkClientById = getNetworkClientById;
 
-    onTokenListStateChange(({ tokenList }) => {
-      const hasTokens = Object.keys(tokenList).length;
+    this.messagingSystem.subscribe(
+      'TokenListController:stateChange',
+      ({ tokenList }) => {
+        const hasTokens = Object.keys(tokenList).length;
 
-      if (hasTokens) {
-        this.detectTokens();
-      }
-    });
+        if (hasTokens) {
+          this.detectTokens();
+        }
+      },
+    );
 
     onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
       const {
@@ -201,21 +202,25 @@ export class TokenDetectionController extends PollingController<
       }
     });
 
-    onNetworkStateChange(({ providerConfig: { chainId } }) => {
-      const { chainId: currentChainId } = this.config;
-      const isDetectionEnabledForNetwork =
-        isTokenDetectionSupportedForNetwork(chainId);
-      const isChainIdChanged = currentChainId !== chainId;
+    this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      ({ providerConfig: { chainId } }) => {
+        const { chainId: currentChainId } = this.state;
+        const isDetectionEnabledForNetwork =
+          isTokenDetectionSupportedForNetwork(chainId);
+        const isChainIdChanged = currentChainId !== chainId;
 
-      this.configure({
-        chainId,
-        isDetectionEnabledForNetwork,
-      });
+        this.update(() => ({
+          ...this.state,
+          chainId,
+          isDetectionEnabledForNetwork,
+        }));
 
-      if (isDetectionEnabledForNetwork && isChainIdChanged) {
-        this.detectTokens();
-      }
-    });
+        if (isDetectionEnabledForNetwork && isChainIdChanged) {
+          this.detectTokens();
+        }
+      },
+    );
   }
 
   /**
@@ -256,9 +261,15 @@ export class TokenDetectionController extends PollingController<
 
   private getCorrectChainId(networkClientId?: NetworkClientId) {
     if (networkClientId) {
-      return this.getNetworkClientById(networkClientId).configuration.chainId;
+      const {
+        configuration: { chainId },
+      } = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      );
+      return chainId;
     }
-    return this.config.chainId;
+    return this.state.chainId;
   }
 
   _executePoll(
@@ -302,7 +313,9 @@ export class TokenDetectionController extends PollingController<
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
-    const { tokenList } = this.getTokenListState();
+    const { tokenList } = this.messagingSystem.call(
+      'TokenListController:getState',
+    );
     const tokensToDetect: string[] = [];
     for (const address of Object.keys(tokenList)) {
       if (!tokensAddresses.includes(address)) {
