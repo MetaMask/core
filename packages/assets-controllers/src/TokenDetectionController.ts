@@ -1,11 +1,17 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import type {
+  RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
 import { PollingControllerV1 } from '@metamask/polling-controller';
@@ -14,32 +20,65 @@ import type { Hex } from '@metamask/utils';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import type { TokenListState } from './TokenListController';
+import type {
+  GetTokenListState,
+  TokenListStateChange,
+} from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
 /**
- * @type TokenDetectionConfig
+ * @type TokenDetectionState
  *
- * TokenDetection configuration
+ * TokenDetection state
  * @property interval - Polling interval used to fetch new token rates
  * @property selectedAddress - Vault selected address
  * @property chainId - The chain ID of the current network
+ * @property disabled - Determines if this controller is enabled
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TokenDetectionConfig extends BaseConfig {
+export type TokenDetectionState = {
   interval: number;
   selectedAddress: string;
   chainId: Hex;
+  disabled: boolean;
   isDetectionEnabledFromPreferences: boolean;
   isDetectionEnabledForNetwork: boolean;
-}
+};
+
+const controllerName = 'TokenDetectionController';
+
+export type TokenDetectionControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  TokenDetectionState
+>;
+
+export type TokenDetectionControllerActions =
+  TokenDetectionControllerGetStateAction;
+
+type AllowedActions =
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | GetTokenListState;
+
+export type TokenDetectionControllerStateChangeEvent =
+  ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
+
+export type TokenDetectionControllerEvents =
+  TokenDetectionControllerStateChangeEvent;
+
+type AllowedEvents = NetworkControllerStateChangeEvent | TokenListStateChange;
+
+export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  TokenDetectionControllerActions | AllowedActions,
+  TokenDetectionControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
