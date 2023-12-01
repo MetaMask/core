@@ -1,6 +1,4 @@
-import { AddressZero } from '@ethersproject/constants';
-
-import { EMPTY_BYTES, ENTRYPOINT } from './constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
 import { Bundler } from './helpers/Bundler';
 import {
   UserOperationStatus,
@@ -207,7 +205,7 @@ describe('UserOperationController', () => {
           nonce: EMPTY_BYTES,
           paymasterAndData: EMPTY_BYTES,
           preVerificationGas: EMPTY_BYTES,
-          sender: AddressZero,
+          sender: ADDRESS_ZERO,
           signature: EMPTY_BYTES,
           verificationGasLimit: EMPTY_BYTES,
         },

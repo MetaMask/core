@@ -1,4 +1,3 @@
-import { AddressZero } from '@ethersproject/constants';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
@@ -7,7 +6,7 @@ import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { EMPTY_BYTES, ENTRYPOINT } from './constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
 import { Bundler } from './helpers/Bundler';
 import { projectLogger as log } from './logger';
 import type {
@@ -367,7 +366,7 @@ export class UserOperationController extends BaseController<
       nonce: EMPTY_BYTES,
       paymasterAndData: EMPTY_BYTES,
       preVerificationGas: EMPTY_BYTES,
-      sender: AddressZero,
+      sender: ADDRESS_ZERO,
       signature: EMPTY_BYTES,
       verificationGasLimit: EMPTY_BYTES,
     };

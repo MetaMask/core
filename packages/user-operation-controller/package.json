@@ -31,18 +31,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/bytes": "^5.7.0",
-    "@ethersproject/constants": "^5.7.0",
-    "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/keccak256": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
-    "@ethersproject/wallet": "^5.7.0",
     "@metamask/base-controller": "^4.0.0",
     "@metamask/controller-utils": "^6.1.0",
     "@metamask/utils": "^8.2.0",
-    "async-mutex": "^0.2.6",
-    "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
     "superstruct": "^1.0.3",
