@@ -5,20 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Changed
-- determineTransactionType: Moved parseStandardTokenTransactionData call and made it more readable ([#1969](https://github.com/MetaMask/core/pull/1969))
-
-## [18.3.0]
-### Added
-- Add optional `getExternalPendingTransactions` callback argument to constructor ([#3587](https://github.com/MetaMask/core/pull/3587))
-
-## [18.2.0]
-### Added
-- Add the `customNonceValue` property to the transaction metadata ([#3579](https://github.com/MetaMask/core/pull/3579))
-
-### Changed
-- Update transaction metadata after approval if the approval result includes the `value.txMeta` property  ([#3579](https://github.com/MetaMask/core/pull/3579))
-- Add `type` property to all incoming transactions ([#3579](https://github.com/MetaMask/core/pull/3579))
 
 ## [18.1.0]
 ### Added
@@ -333,9 +319,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.0...HEAD
-[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.2.0...@metamask/transaction-controller@18.3.0
-[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.1.0...@metamask/transaction-controller@18.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.1.0...HEAD
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.0.0...@metamask/transaction-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@17.0.0...@metamask/transaction-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...@metamask/transaction-controller@17.0.0
