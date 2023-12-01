@@ -95,6 +95,19 @@ export class UserOperationController extends BaseController<
     this.hub = new EventEmitter();
   }
 
+  /**
+   * Create and submit a user operation.
+   *
+   * @param request - Information required to create a user operation.
+   * @param request.data - Data to include in the resulting transaction.
+   * @param request.maxFeePerGas - Maximum fee per gas to pay towards the transaction.
+   * @param request.maxPriorityFeePerGas - Maximum priority fee per gas to pay towards the transaction.
+   * @param request.to - Destination address of the resulting transaction.
+   * @param request.value - Value to include in the resulting transaction.
+   * @param options - Configuration options when creating a user operation.
+   * @param options.chainId - Chain ID of the resulting transaction.
+   * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce.
+   */
   async addUserOperation(
     request: {
       data?: string;

@@ -1,13 +1,20 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import { createModuleLogger, projectLogger } from '../logger';
-import type {
-  BundlerEstimateUserOperationGasResponse,
-  UserOperation,
-} from '../types';
+import type { UserOperation } from '../types';
 
 const log = createModuleLogger(projectLogger, 'bundler');
 
+export type BundlerEstimateUserOperationGasResponse = {
+  preVerificationGas: number;
+  verificationGas: number;
+  verificationGasLimit: number;
+  callGasLimit: number;
+};
+
+/**
+ * A helper class for interacting with a bundler.
+ */
 export class Bundler {
   #url: string;
 
@@ -15,6 +22,13 @@ export class Bundler {
     this.#url = url;
   }
 
+  /**
+   * Estimate the gas required to execute a user operation.
+   *
+   * @param userOperation - The user operation to estimate gas for.
+   * @param entrypoint - The address of entrypoint to use for the user operation.
+   * @returns The estimated gas limits for the user operation.
+   */
   async estimateUserOperationGas(
     userOperation: UserOperation,
     entrypoint: string,
@@ -29,6 +43,12 @@ export class Bundler {
     return response as BundlerEstimateUserOperationGasResponse;
   }
 
+  /**
+   * Submit a user operation to the bundler.
+   * @param userOperation - The signed user operation to submit.
+   * @param entrypoint - The address of entrypoint to use for the user operation.
+   * @returns The hash of the user operation.
+   */
   async sendUserOperation(
     userOperation: UserOperation,
     entrypoint: string,
