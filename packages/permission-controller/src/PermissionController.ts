@@ -87,6 +87,7 @@ import {
   PermissionType,
 } from './Permission';
 import { getPermissionMiddlewareFactory } from './permission-middleware';
+import { PermissionTree } from './PermissionTree';
 import type { GetSubjectMetadata } from './SubjectMetadataController';
 import { MethodNames } from './utils';
 
@@ -531,6 +532,8 @@ export class PermissionController<
 
   private readonly _unrestrictedMethods: ReadonlySet<string>;
 
+  private readonly permissionTree: PermissionTree;
+
   /**
    * The names of all JSON-RPC methods that will be ignored by the controller.
    *
@@ -615,6 +618,8 @@ export class PermissionController<
     this._permissionSpecifications = deepFreeze({
       ...permissionSpecifications,
     });
+
+    this.permissionTree = new PermissionTree(this._permissionSpecifications);
 
     this.registerMessageHandlers();
     this.createPermissionMiddleware = getPermissionMiddlewareFactory({
@@ -1539,7 +1544,7 @@ export class PermissionController<
    * @param options.subject - The subject to grant permissions to.
    * @returns The granted permissions.
    */
-  grantPermissions({
+  async grantPermissions({
     approvedPermissions,
     requestData,
     preserveExistingPermissions = true,
@@ -1549,12 +1554,15 @@ export class PermissionController<
     subject: PermissionSubjectMetadata;
     preserveExistingPermissions?: boolean;
     requestData?: Record<string, unknown>;
-  }): SubjectPermissions<
-    ExtractPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >
-  > {
+  }): Promise<{
+    permissions: SubjectPermissions<
+      ExtractPermission<
+        ControllerPermissionSpecification,
+        ControllerCaveatSpecification
+      >
+    >;
+    data?: Record<string, unknown>;
+  }> {
     const { origin } = subject;
 
     if (!origin || typeof origin !== 'string') {
@@ -1574,8 +1582,26 @@ export class PermissionController<
       >
     >;
 
+    const populatedRequest =
+      this.permissionTree.getPopulatedRequest(approvedPermissions);
+
+    const sideEffects = this.getSideEffects(populatedRequest);
+
+    let data;
+
+    if (Object.values(sideEffects.permittedHandlers).length > 0) {
+      const sideEffectsData = await this.executeSideEffects(sideEffects, {
+        permissions: populatedRequest,
+        metadata: requestData as PermissionsRequestMetadata,
+      });
+      data = Object.keys(sideEffects.permittedHandlers).reduce(
+        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
+        {},
+      );
+    }
+
     for (const [requestedTarget, approvedPermission] of Object.entries(
-      approvedPermissions,
+      populatedRequest,
     )) {
       if (!this.targetExists(requestedTarget)) {
         throw methodNotFound(requestedTarget);
@@ -1639,7 +1665,7 @@ export class PermissionController<
     }
 
     this.setValidatedPermissions(origin, permissions);
-    return permissions;
+    return { permissions, data };
   }
 
   /**
@@ -1890,38 +1916,14 @@ export class PermissionController<
     const { permissions: approvedPermissions, ...requestData } =
       approvedRequest;
 
-    const sideEffects = this.getSideEffects(approvedPermissions);
+    const { permissions, data } = await this.grantPermissions({
+      subject,
+      approvedPermissions,
+      preserveExistingPermissions,
+      requestData,
+    });
 
-    if (Object.values(sideEffects.permittedHandlers).length > 0) {
-      const sideEffectsData = await this.executeSideEffects(
-        sideEffects,
-        approvedRequest,
-      );
-      const mappedData = Object.keys(sideEffects.permittedHandlers).reduce(
-        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
-        {},
-      );
-
-      return [
-        this.grantPermissions({
-          subject,
-          approvedPermissions,
-          preserveExistingPermissions,
-          requestData,
-        }),
-        { data: mappedData, ...metadata },
-      ];
-    }
-
-    return [
-      this.grantPermissions({
-        subject,
-        approvedPermissions,
-        preserveExistingPermissions,
-        requestData,
-      }),
-      metadata,
-    ];
+    return [permissions, { data, ...metadata }];
   }
 
   /**

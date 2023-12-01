@@ -11,6 +11,13 @@ import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 import assert from 'assert';
 
+import {
+  CaveatMutatorOperation,
+  constructPermission,
+  MethodNames,
+  PermissionController,
+  PermissionType,
+} from '.';
 import type {
   AsyncRestrictedMethod,
   Caveat,
@@ -24,13 +31,6 @@ import type {
   RestrictedMethodOptions,
   RestrictedMethodParameters,
   ValidPermission,
-} from '.';
-import {
-  CaveatMutatorOperation,
-  constructPermission,
-  MethodNames,
-  PermissionController,
-  PermissionType,
 } from '.';
 import * as errors from './errors';
 import type { EndowmentGetterParams } from './Permission';
@@ -199,6 +199,11 @@ const PermissionKeys = {
   wallet_noopWithRequiredCaveat: 'wallet_noopWithRequiredCaveat',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
   snap_foo: 'snap_foo',
+  snap_bar: 'snap_bar',
+  snap_baz: 'snap_baz',
+  snap_xyz: 'snap_xyz',
+  snap_abc: 'snap_abc',
+  snap_def: 'snap_def',
   endowmentAnySubject: 'endowmentAnySubject',
   endowmentSnapsOnly: 'endowmentSnapsOnly',
 } as const;
@@ -231,6 +236,11 @@ const PermissionNames = {
   wallet_noopWithRequiredCaveat: PermissionKeys.wallet_noopWithRequiredCaveat,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
   snap_foo: PermissionKeys.snap_foo,
+  snap_bar: PermissionKeys.snap_bar,
+  snap_baz: PermissionKeys.snap_baz,
+  snap_xyz: PermissionKeys.snap_xyz,
+  snap_abc: PermissionKeys.snap_abc,
+  snap_def: PermissionKeys.snap_def,
   endowmentAnySubject: PermissionKeys.endowmentAnySubject,
   endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
 } as const;
@@ -417,6 +427,55 @@ function getDefaultPermissionSpecifications() {
       targetName: PermissionKeys.snap_foo,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_bar],
+    },
+    [PermissionKeys.snap_bar]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_bar,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_baz],
+    },
+    [PermissionKeys.snap_baz]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_baz,
+      allowedCaveats: [CaveatTypes.filterArrayResponse],
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+    },
+    [PermissionKeys.snap_xyz]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_xyz,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_baz],
+    },
+    [PermissionKeys.snap_abc]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_abc,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_def],
+    },
+    [PermissionKeys.snap_def]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_def,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       subjectTypes: [SubjectType.Snap],
@@ -613,6 +672,7 @@ describe('PermissionController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
   describe('constructor', () => {
     it('initializes a new PermissionController', () => {
       const controller = getDefaultPermissionController();
@@ -805,11 +865,11 @@ describe('PermissionController', () => {
   });
 
   describe('getSubjectNames', () => {
-    it('gets all subject names', () => {
+    it('gets all subject names', async () => {
       const controller = getDefaultPermissionController();
       expect(controller.getSubjectNames()).toStrictEqual([]);
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -818,7 +878,7 @@ describe('PermissionController', () => {
 
       expect(controller.getSubjectNames()).toStrictEqual(['foo']);
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'bar' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -917,14 +977,14 @@ describe('PermissionController', () => {
   });
 
   describe('revokeAllPermissions', () => {
-    it('revokes all permissions for the specified subject', () => {
+    it('revokes all permissions for the specified subject', async () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(controller.state).toStrictEqual(getExistingPermissionState());
 
       controller.revokeAllPermissions('metamask.io');
       expect(controller.state).toStrictEqual({ subjects: {} });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -936,13 +996,13 @@ describe('PermissionController', () => {
       expect(controller.state).toStrictEqual({ subjects: {} });
     });
 
-    it('throws an error if the specified subject has no permissions', () => {
+    it('throws an error if the specified subject has no permissions', async () => {
       const controller = getDefaultPermissionController();
       expect(() => controller.revokeAllPermissions('metamask.io')).toThrow(
         new errors.UnrecognizedSubjectError('metamask.io'),
       );
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'metamask.io' },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {},
@@ -967,12 +1027,12 @@ describe('PermissionController', () => {
       expect(controller.state).toStrictEqual({ subjects: {} });
     });
 
-    it('revokes a permission from an origin with multiple permissions', () => {
+    it('revokes a permission from an origin with multiple permissions', async () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(controller.state).toStrictEqual(getExistingPermissionState());
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {},
@@ -1027,7 +1087,7 @@ describe('PermissionController', () => {
   });
 
   describe('revokePermissions', () => {
-    it('revokes different permissions for multiple subjects', () => {
+    it('revokes different permissions for multiple subjects', async () => {
       const controller = getDefaultPermissionController();
       const origin0 = 'origin0';
       const origin1 = 'origin1';
@@ -1035,21 +1095,21 @@ describe('PermissionController', () => {
       const origin3 = 'origin3';
       const origin4 = 'origin4';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: origin0 },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: origin1 },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: origin2 },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1057,7 +1117,7 @@ describe('PermissionController', () => {
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: origin3 },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1065,7 +1125,7 @@ describe('PermissionController', () => {
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: origin4 },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1250,11 +1310,11 @@ describe('PermissionController', () => {
   });
 
   describe('hasCaveat', () => {
-    it('indicates whether a permission has a particular caveat', () => {
+    it('indicates whether a permission has a particular caveat', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1301,11 +1361,11 @@ describe('PermissionController', () => {
   });
 
   describe('getCaveat', () => {
-    it('gets existing caveats', () => {
+    it('gets existing caveats', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1355,11 +1415,11 @@ describe('PermissionController', () => {
   });
 
   describe('addCaveat', () => {
-    it('adds a caveat to the specified permission', () => {
+    it('adds a caveat to the specified permission', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1391,11 +1451,11 @@ describe('PermissionController', () => {
       });
     });
 
-    it(`appends a caveat to the specified permission's existing caveats`, () => {
+    it(`appends a caveat to the specified permission's existing caveats`, async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
@@ -1449,11 +1509,11 @@ describe('PermissionController', () => {
       });
     });
 
-    it('throws an error if a corresponding caveat already exists', () => {
+    it('throws an error if a corresponding caveat already exists', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
@@ -1499,11 +1559,11 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws an error if the permission fails to validate with the added caveat', () => {
+    it('throws an error if the permission fails to validate with the added caveat', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
@@ -1532,11 +1592,11 @@ describe('PermissionController', () => {
   });
 
   describe('updateCaveat', () => {
-    it('updates an existing caveat', () => {
+    it('updates an existing caveat', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -1608,11 +1668,11 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws an error if no corresponding caveat exists', () => {
+    it('throws an error if no corresponding caveat exists', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1635,11 +1695,11 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws an error if the updated caveat fails to validate', () => {
+    it('throws an error if the updated caveat fails to validate', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
@@ -1660,11 +1720,11 @@ describe('PermissionController', () => {
   });
 
   describe('removeCaveat', () => {
-    it('removes an existing caveat', () => {
+    it('removes an existing caveat', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -1714,11 +1774,11 @@ describe('PermissionController', () => {
       });
     });
 
-    it('removes an existing caveat, without modifying other caveats of the same permission', () => {
+    it('removes an existing caveat, without modifying other caveats of the same permission', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
@@ -1790,11 +1850,11 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws an error if no corresponding caveat exists', () => {
+    it('throws an error if no corresponding caveat exists', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -1835,11 +1895,11 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws an error if the permission fails to validate after caveat removal', () => {
+    it('throws an error if the permission fails to validate after caveat removal', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_noopWithRequiredCaveat]: {
@@ -1873,10 +1933,10 @@ describe('PermissionController', () => {
      *
      * @returns The permission controller instance
      */
-    const getMultiCaveatController = () => {
+    const getMultiCaveatController = async () => {
       const controller = getDefaultPermissionController();
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: MultiCaveatOrigins.a },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -1885,7 +1945,7 @@ describe('PermissionController', () => {
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: MultiCaveatOrigins.b },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -1907,7 +1967,7 @@ describe('PermissionController', () => {
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: MultiCaveatOrigins.c },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
@@ -2003,8 +2063,8 @@ describe('PermissionController', () => {
     };
 
     // This is effectively a test of the above test utilities.
-    it('multi-caveat controller has expected state', () => {
-      const controller = getMultiCaveatController();
+    it('multi-caveat controller has expected state', async () => {
+      const controller = await getMultiCaveatController();
       expect(controller.state).toStrictEqual(getMultiCaveatStateMatcher());
     });
 
@@ -2025,8 +2085,8 @@ describe('PermissionController', () => {
       expect(controller.state).toStrictEqual({ subjects: {} });
     });
 
-    it('does nothing if the mutator returns the "noop" operation', () => {
-      const controller = getMultiCaveatController();
+    it('does nothing if the mutator returns the "noop" operation', async () => {
+      const controller = await getMultiCaveatController();
 
       // Although there are caveats, we always return the "noop" operation, and
       // therefore nothing happens.
@@ -2039,8 +2099,8 @@ describe('PermissionController', () => {
       expect(controller.state).toStrictEqual(getMultiCaveatStateMatcher());
     });
 
-    it('updates the value of all caveats of a particular type', () => {
-      const controller = getMultiCaveatController();
+    it('updates the value of all caveats of a particular type', async () => {
+      const controller = await getMultiCaveatController();
 
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
@@ -2077,8 +2137,8 @@ describe('PermissionController', () => {
       );
     });
 
-    it('selectively updates the value of all caveats of a particular type', () => {
-      const controller = getMultiCaveatController();
+    it('selectively updates the value of all caveats of a particular type', async () => {
+      const controller = await getMultiCaveatController();
 
       let counter = 0;
       const mutator: any = () => {
@@ -2112,8 +2172,8 @@ describe('PermissionController', () => {
       );
     });
 
-    it('deletes all caveats of a particular type', () => {
-      const controller = getMultiCaveatController();
+    it('deletes all caveats of a particular type', async () => {
+      const controller = await getMultiCaveatController();
 
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
@@ -2144,8 +2204,8 @@ describe('PermissionController', () => {
       );
     });
 
-    it('revokes permissions associated with a caveat', () => {
-      const controller = getMultiCaveatController();
+    it('revokes permissions associated with a caveat', async () => {
+      const controller = await getMultiCaveatController();
 
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterObjectResponse,
@@ -2166,8 +2226,8 @@ describe('PermissionController', () => {
       expect(controller.state).toStrictEqual(matcher);
     });
 
-    it('deletes subject if all permissions are revoked', () => {
-      const controller = getMultiCaveatController();
+    it('deletes subject if all permissions are revoked', async () => {
+      const controller = await getMultiCaveatController();
 
       let counter = 0;
       const mutator: any = () => {
@@ -2191,8 +2251,8 @@ describe('PermissionController', () => {
       expect(controller.state).toStrictEqual(matcher);
     });
 
-    it('throws if caveat validation fails after a value is updated', () => {
-      const controller = getMultiCaveatController();
+    it('throws if caveat validation fails after a value is updated', async () => {
+      const controller = await getMultiCaveatController();
 
       expect(() =>
         controller.updatePermissionsByCaveat(
@@ -2207,8 +2267,8 @@ describe('PermissionController', () => {
       ).toThrow(`${CaveatTypes.filterArrayResponse} values must be arrays`);
     });
 
-    it('throws if permission validation fails after a value is updated', () => {
-      const controller = getMultiCaveatController();
+    it('throws if permission validation fails after a value is updated', async () => {
+      const controller = await getMultiCaveatController();
 
       expect(() =>
         controller.updatePermissionsByCaveat(CaveatTypes.noopCaveat, () => {
@@ -2217,8 +2277,8 @@ describe('PermissionController', () => {
       ).toThrow('noopWithRequiredCaveat permission validation failed');
     });
 
-    it('throws if mutator returns unrecognized operation', () => {
-      const controller = getMultiCaveatController();
+    it('throws if mutator returns unrecognized operation', async () => {
+      const controller = await getMultiCaveatController();
 
       expect(() =>
         controller.updatePermissionsByCaveat(
@@ -2232,11 +2292,11 @@ describe('PermissionController', () => {
   });
 
   describe('grantPermissions', () => {
-    it('grants new permission', () => {
+    it('grants new permission', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -2257,11 +2317,11 @@ describe('PermissionController', () => {
       });
     });
 
-    it('grants new permissions (multiple at once)', () => {
+    it('grants new permissions (multiple at once)', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -2288,19 +2348,19 @@ describe('PermissionController', () => {
       });
     });
 
-    it('grants new permissions (multiple origins)', () => {
+    it('grants new permissions (multiple origins)', async () => {
       const controller = getDefaultPermissionController();
       const origin1 = 'metamask.io';
       const origin2 = 'infura.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: origin1 },
         approvedPermissions: {
           wallet_getSecretObject: {},
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: origin2 },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -2333,7 +2393,7 @@ describe('PermissionController', () => {
       });
     });
 
-    it('grants new permission (endowment with caveats)', () => {
+    it('grants new permission (endowment with caveats)', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const origin = 'npm:@metamask/test-snap-bip44';
@@ -2352,7 +2412,7 @@ describe('PermissionController', () => {
 
       const controller = getDefaultPermissionController(options);
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.endowmentSnapsOnly]: {
@@ -2399,7 +2459,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('preserves existing permissions if preserveExistingPermissions is true', () => {
+    it('preserves existing permissions if preserveExistingPermissions is true', async () => {
       const controller = getDefaultPermissionControllerWithState();
       const origin = 'metamask.io';
 
@@ -2416,7 +2476,7 @@ describe('PermissionController', () => {
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           wallet_getSecretObject: {},
@@ -2441,7 +2501,7 @@ describe('PermissionController', () => {
       });
     });
 
-    it('overwrites existing permissions if preserveExistingPermissions is false', () => {
+    it('overwrites existing permissions if preserveExistingPermissions is false', async () => {
       const controller = getDefaultPermissionControllerWithState();
       const origin = 'metamask.io';
 
@@ -2458,7 +2518,7 @@ describe('PermissionController', () => {
         },
       });
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           wallet_getSecretObject: {},
@@ -2480,47 +2540,59 @@ describe('PermissionController', () => {
       });
     });
 
-    it('throws if the origin is invalid', () => {
+    it('throws if the origin is invalid', async () => {
       const controller = getDefaultPermissionController();
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin: '' },
           approvedPermissions: {
             wallet_getSecretArray: {},
           },
-        }),
-      ).toThrow(new errors.InvalidSubjectIdentifierError(''));
+        });
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toStrictEqual(new errors.InvalidSubjectIdentifierError(''));
 
-      expect(() =>
-        controller.grantPermissions({
+      try {
+        await controller.grantPermissions({
           subject: { origin: 2 as any },
           approvedPermissions: {
             wallet_getSecretArray: {},
           },
-        }),
-      ).toThrow(new errors.InvalidSubjectIdentifierError(2));
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(new errors.InvalidSubjectIdentifierError(2));
     });
 
-    it('throws if the target does not exist', () => {
+    it('throws if the target does not exist', async () => {
       const controller = getDefaultPermissionController();
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin: 'metamask.io' },
           approvedPermissions: {
             wallet_getSecretFalafel: {},
           },
-        }),
-      ).toThrow(errors.methodNotFound('wallet_getSecretFalafel'));
+        });
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toStrictEqual(
+        errors.methodNotFound('wallet_getSecretFalafel'),
+      );
     });
 
-    it('throws if an approved permission is malformed', () => {
+    it('throws if an approved permission is malformed', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
@@ -2528,8 +2600,11 @@ describe('PermissionController', () => {
               parentCapability: 'wallet_getSecretObject',
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toStrictEqual(
         new errors.InvalidApprovedPermissionError(
           origin,
           'wallet_getSecretArray',
@@ -2537,8 +2612,8 @@ describe('PermissionController', () => {
         ),
       );
 
-      expect(() =>
-        controller.grantPermissions({
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
@@ -2549,8 +2624,12 @@ describe('PermissionController', () => {
               parentCapability: 'wallet_getSecretArray',
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.InvalidApprovedPermissionError(
           origin,
           'wallet_getSecretObject',
@@ -2559,12 +2638,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if an approved permission has duplicate caveats', () => {
+    it('throws if an approved permission has duplicate caveats', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
@@ -2575,8 +2654,12 @@ describe('PermissionController', () => {
               ],
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.DuplicateCaveatError(
           CaveatTypes.filterArrayResponse,
           origin,
@@ -2585,20 +2668,24 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat is not a plain object', () => {
+    it('throws if a requested caveat is not a plain object', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
               caveats: [[]] as any,
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.InvalidCaveatError(
           [],
           origin,
@@ -2606,16 +2693,20 @@ describe('PermissionController', () => {
         ),
       );
 
-      expect(() =>
-        controller.grantPermissions({
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
               caveats: ['foo'] as any,
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.InvalidCaveatError(
           [],
           origin,
@@ -2624,12 +2715,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat has more than two keys', () => {
+    it('throws if a requested caveat has more than two keys', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
@@ -2641,8 +2732,12 @@ describe('PermissionController', () => {
               ] as any,
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.InvalidCaveatFieldsError(
           {
             ...{ type: CaveatTypes.filterArrayResponse, value: ['foo'] },
@@ -2654,12 +2749,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat type is not a string', () => {
+    it('throws if a requested caveat type is not a string', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
@@ -2671,8 +2766,12 @@ describe('PermissionController', () => {
               ] as any,
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.InvalidCaveatTypeError(
           {
             type: 2,
@@ -2684,20 +2783,24 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat type does not exist', () => {
+    it('throws if a requested caveat type does not exist', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
               caveats: [{ type: 'fooType', value: 'bar' }],
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.UnrecognizedCaveatTypeError(
           'fooType',
           origin,
@@ -2706,12 +2809,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat has no value field', () => {
+    it('throws if a requested caveat has no value field', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
@@ -2723,8 +2826,12 @@ describe('PermissionController', () => {
               ] as any,
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.CaveatMissingValueError(
           {
             type: CaveatTypes.filterArrayResponse,
@@ -2736,49 +2843,110 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat has a value that is not valid JSON', () => {
+    it('throws if a requested caveat has a value that is not valid JSON', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
+      let error;
       const circular: any = { foo: 'bar' };
       circular.circular = circular;
 
-      [{ foo: () => undefined }, circular, { foo: BigInt(10) }].forEach(
-        (invalidValue) => {
-          expect(() =>
-            controller.grantPermissions({
-              subject: { origin },
-              approvedPermissions: {
-                wallet_getSecretArray: {
-                  caveats: [
-                    {
-                      type: CaveatTypes.filterArrayResponse,
-                      value: invalidValue,
-                    },
-                  ],
+      const invalidValue1 = { foo: () => undefined };
+      const invalidValue2 = circular;
+      const invalidValue3 = { foo: BigInt(10) };
+      try {
+        await controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            wallet_getSecretArray: {
+              caveats: [
+                {
+                  type: CaveatTypes.filterArrayResponse,
+                  value: invalidValue1 as unknown as Json,
                 },
-              },
-            }),
-          ).toThrow(
-            new errors.CaveatInvalidJsonError(
-              {
-                type: CaveatTypes.filterArrayResponse,
-                value: invalidValue,
-              },
-              origin,
-              PermissionNames.wallet_getSecretArray,
-            ),
-          );
-        },
+              ],
+            },
+          },
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
+        new errors.CaveatInvalidJsonError(
+          {
+            type: CaveatTypes.filterArrayResponse,
+            value: invalidValue1,
+          },
+          origin,
+          PermissionNames.wallet_getSecretArray,
+        ),
+      );
+
+      try {
+        await controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            wallet_getSecretArray: {
+              caveats: [
+                {
+                  type: CaveatTypes.filterArrayResponse,
+                  value: invalidValue2,
+                },
+              ],
+            },
+          },
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
+        new errors.CaveatInvalidJsonError(
+          {
+            type: CaveatTypes.filterArrayResponse,
+            value: invalidValue2,
+          },
+          origin,
+          PermissionNames.wallet_getSecretArray,
+        ),
+      );
+
+      try {
+        await controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            wallet_getSecretArray: {
+              caveats: [
+                {
+                  type: CaveatTypes.filterArrayResponse,
+                  value: invalidValue3 as unknown as Json,
+                },
+              ],
+            },
+          },
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
+        new errors.CaveatInvalidJsonError(
+          {
+            type: CaveatTypes.filterArrayResponse,
+            value: invalidValue3,
+          },
+          origin,
+          PermissionNames.wallet_getSecretArray,
+        ),
       );
     });
 
-    it('throws if caveat validation fails', () => {
+    it('throws if caveat validation fails', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             [PermissionNames.wallet_getSecretObject]: {
@@ -2790,16 +2958,20 @@ describe('PermissionController', () => {
               ],
             },
           },
-        }),
-      ).toThrow(new Error('NoopCaveat value must be null'));
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(new Error('NoopCaveat value must be null'));
     });
 
-    it('throws if the requested permission specifies disallowed caveats', () => {
+    it('throws if the requested permission specifies disallowed caveats', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretObject: {
@@ -2811,8 +2983,12 @@ describe('PermissionController', () => {
               ],
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.ForbiddenCaveatError(
           CaveatTypes.filterArrayResponse,
           origin,
@@ -2821,12 +2997,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if the requested permission specifies caveats, and no caveats are allowed', () => {
+    it('throws if the requested permission specifies caveats, and no caveats are allowed', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             wallet_doubleNumber: {
@@ -2838,8 +3014,12 @@ describe('PermissionController', () => {
               ],
             },
           },
-        }),
-      ).toThrow(
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
         new errors.ForbiddenCaveatError(
           CaveatTypes.filterArrayResponse,
           origin,
@@ -2848,12 +3028,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if the permission validator throws', () => {
+    it('throws if the permission validator throws', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
-
-      expect(() =>
-        controller.grantPermissions({
+      let error;
+      try {
+        await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
             [PermissionNames.wallet_noopWithValidator]: {
@@ -2862,8 +3042,14 @@ describe('PermissionController', () => {
               ],
             },
           },
-        }),
-      ).toThrow(new Error('noop permission validation failed'));
+        });
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toStrictEqual(
+        new Error('noop permission validation failed'),
+      );
     });
   });
 
@@ -3846,12 +4032,13 @@ describe('PermissionController', () => {
         },
       ]);
 
-      expect(callActionSpy).toHaveBeenCalledTimes(4);
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         1,
         'SubjectMetadataController:getSubjectMetadata',
         origin,
       );
+
       expect(callActionSpy).toHaveBeenNthCalledWith(
         2,
         'ApprovalController:addRequest',
@@ -3866,11 +4053,13 @@ describe('PermissionController', () => {
         },
         true,
       );
+
       expect(callActionSpy).toHaveBeenNthCalledWith(
         3,
         'SubjectMetadataController:getSubjectMetadata',
         origin,
       );
+
       expect(callActionSpy).toHaveBeenNthCalledWith(
         4,
         'SubjectMetadataController:getSubjectMetadata',
@@ -4504,7 +4693,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.endowmentAnySubject]: {},
@@ -4523,7 +4712,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -4562,7 +4751,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -4581,7 +4770,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_doubleNumber]: {},
@@ -4601,7 +4790,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -4622,7 +4811,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -4683,7 +4872,7 @@ describe('PermissionController', () => {
       );
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_doubleNumber]: {},
@@ -4704,7 +4893,7 @@ describe('PermissionController', () => {
   });
 
   describe('controller actions', () => {
-    it('action: PermissionController:clearPermissions', () => {
+    it('action: PermissionController:clearPermissions', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -4715,7 +4904,7 @@ describe('PermissionController', () => {
       >(options);
       const clearStateSpy = jest.spyOn(controller, 'clearState');
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -4755,7 +4944,7 @@ describe('PermissionController', () => {
         }),
       );
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           [PermissionNames.endowmentAnySubject]: {},
@@ -4802,7 +4991,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('action: PermissionController:getSubjectNames', () => {
+    it('action: PermissionController:getSubjectNames', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -4817,7 +5006,7 @@ describe('PermissionController', () => {
         messenger.call('PermissionController:getSubjectNames'),
       ).toStrictEqual([]);
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -4830,7 +5019,7 @@ describe('PermissionController', () => {
       expect(getSubjectNamesSpy).toHaveBeenCalledTimes(2);
     });
 
-    it('action: PermissionController:hasPermission', () => {
+    it('action: PermissionController:hasPermission', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -4849,7 +5038,7 @@ describe('PermissionController', () => {
         ),
       ).toBe(false);
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -4892,7 +5081,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('action: PermissionController:hasPermissions', () => {
+    it('action: PermissionController:hasPermissions', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -4907,7 +5096,7 @@ describe('PermissionController', () => {
         false,
       );
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -4922,7 +5111,7 @@ describe('PermissionController', () => {
       expect(hasPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
     });
 
-    it('action: PermissionController:getPermissions', () => {
+    it('action: PermissionController:getPermissions', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -4937,7 +5126,7 @@ describe('PermissionController', () => {
         messenger.call('PermissionController:getPermissions', 'foo'),
       ).toBeUndefined();
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -4956,7 +5145,7 @@ describe('PermissionController', () => {
       expect(getPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
     });
 
-    it('action: PermissionController:revokeAllPermissions', () => {
+    it('action: PermissionController:revokeAllPermissions', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -4966,7 +5155,7 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -4990,7 +5179,7 @@ describe('PermissionController', () => {
       expect(revokeAllPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
     });
 
-    it('action: PermissionController:revokePermissionForAllSubjects', () => {
+    it('action: PermissionController:revokePermissionForAllSubjects', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5000,7 +5189,7 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
           wallet_getSecretArray: {},
@@ -5040,12 +5229,15 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      const result = messenger.call('PermissionController:grantPermissions', {
-        subject: { origin: 'foo' },
-        approvedPermissions: { wallet_getSecretArray: {} },
-      });
+      const result = await messenger.call(
+        'PermissionController:grantPermissions',
+        {
+          subject: { origin: 'foo' },
+          approvedPermissions: { wallet_getSecretArray: {} },
+        },
+      );
 
-      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(result.permissions).toHaveProperty('wallet_getSecretArray');
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         true,
       );
@@ -5110,7 +5302,7 @@ describe('PermissionController', () => {
 
       const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
 
-      await messenger.call(
+      messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
         'wallet_getSecretArray',
@@ -5145,7 +5337,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
@@ -5168,7 +5360,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -5193,7 +5385,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
@@ -5325,7 +5517,7 @@ describe('PermissionController', () => {
       );
       const origin = 'metamask.io';
 
-      controller.grantPermissions({
+      await controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
           [PermissionNames.wallet_doubleNumber]: {},
@@ -5353,5 +5545,216 @@ describe('PermissionController', () => {
       delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
+  });
+
+  describe('permission groups', () => {
+    it('grants the child permissions in a single permission group', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'npm:@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementation(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+
+      await controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_foo: {},
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              snap_foo: getPermissionMatcher({
+                parentCapability: 'snap_foo',
+                invoker: origin,
+              }),
+              snap_bar: getPermissionMatcher({
+                parentCapability: 'snap_bar',
+                invoker: origin,
+              }),
+              snap_baz: getPermissionMatcher({
+                parentCapability: 'snap_baz',
+                invoker: origin,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+
+    it('grants the child permissions of multiple permission groups', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'npm:@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementation(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+
+      await controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_foo: {},
+          snap_abc: {},
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              snap_foo: getPermissionMatcher({
+                parentCapability: 'snap_foo',
+                invoker: origin,
+              }),
+              snap_bar: getPermissionMatcher({
+                parentCapability: 'snap_bar',
+                invoker: origin,
+              }),
+              snap_baz: getPermissionMatcher({
+                parentCapability: 'snap_baz',
+                invoker: origin,
+              }),
+              snap_abc: getPermissionMatcher({
+                parentCapability: 'snap_abc',
+                invoker: origin,
+              }),
+              snap_def: getPermissionMatcher({
+                parentCapability: 'snap_def',
+                invoker: origin,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(callActionSpy).toHaveBeenCalledTimes(5);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+
+    it('can handle when overlapping permission groups are granted', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'npm:@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementation(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      const filterArrayResponse = {
+        type: 'filterArrayResponse',
+        value: ['foo'],
+      };
+
+      await controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_foo: {},
+          snap_xyz: {},
+          snap_baz: {
+            caveats: [filterArrayResponse],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              snap_foo: getPermissionMatcher({
+                parentCapability: 'snap_foo',
+                invoker: origin,
+              }),
+              snap_bar: getPermissionMatcher({
+                parentCapability: 'snap_bar',
+                invoker: origin,
+              }),
+              snap_baz: getPermissionMatcher({
+                parentCapability: 'snap_baz',
+                caveats: [filterArrayResponse],
+                invoker: origin,
+              }),
+              snap_xyz: getPermissionMatcher({
+                parentCapability: 'snap_xyz',
+                invoker: origin,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(callActionSpy).toHaveBeenCalledTimes(4);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+  });
+
+  it('throws when child permissions are requested outside of their parent group', async () => {
+    const controller = getDefaultPermissionController();
+    const origin = 'npm:@metamask/example-snap';
+    let error;
+    try {
+      await controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_baz: {},
+        },
+      });
+    } catch (err) {
+      error = err;
+    }
+
+    expect(error).toStrictEqual(
+      new Error(
+        'Invalid permission request, child permissions must also have their parent permissions requested.',
+      ),
+    );
   });
 });
