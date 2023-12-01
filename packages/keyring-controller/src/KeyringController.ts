@@ -10,12 +10,13 @@ import type {
   ExportableKeyEncryptor,
   GenericEncryptor,
 } from '@metamask/eth-keyring-controller/dist/types';
+import type { EthKeyring } from '@metamask/keyring-api';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
 import type { PreferencesController } from '@metamask/preferences-controller';
-import type { Eip1024EncryptedData, Hex, Keyring, Json } from '@metamask/utils';
+import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import {
@@ -176,7 +177,7 @@ export type KeyringControllerOptions = {
   updateIdentities: PreferencesController['updateIdentities'];
   setSelectedAddress: PreferencesController['setSelectedAddress'];
   setAccountLabel?: PreferencesController['setAccountLabel'];
-  keyringBuilders?: { (): Keyring<Json>; type: string }[];
+  keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
 } & (
@@ -234,8 +235,8 @@ const defaultState: KeyringControllerState = {
  * @throws When the keyring does not have a mnemonic
  */
 function assertHasUint8ArrayMnemonic(
-  keyring: Keyring<Json>,
-): asserts keyring is Keyring<Json> & { mnemonic: Uint8Array } {
+  keyring: EthKeyring<Json>,
+): asserts keyring is EthKeyring<Json> & { mnemonic: Uint8Array } {
   if (
     !(
       hasProperty(keyring, 'mnemonic') && keyring.mnemonic instanceof Uint8Array
@@ -400,7 +401,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to keyring current state and added account
    */
   async addNewAccountForKeyring(
-    keyring: Keyring<Json>,
+    keyring: EthKeyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
     const oldAccounts = await this.getAccounts();
@@ -1003,7 +1004,7 @@ export class KeyringController extends BaseController<
     // @metamask/utils, but we can use the `addNewAccount` method
     // as it internally calls `addAccounts` from on the keyring instance,
     // which is supported by QRKeyring API.
-    await this.#keyring.addNewAccount(keyring as unknown as Keyring<Json>);
+    await this.#keyring.addNewAccount(keyring as unknown as EthKeyring<Json>);
     const newAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(newAccounts);
     newAccounts.forEach((address: string) => {

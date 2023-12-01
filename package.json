@@ -40,6 +40,11 @@
   "simple-git-hooks": {
     "pre-push": "yarn lint"
   },
+  "resolutions": {
+    "@metamask/rpc-methods@^0.38.1-flask.1": "patch:@metamask/rpc-methods@npm%3A0.38.1-flask.1#./.yarn/patches/@metamask-rpc-methods-npm-0.38.1-flask.1-081e1eb5b3.patch",
+    "@metamask/eth-keyring-controller": "github:MetaMask/KeyringController#d9bce4b8ed51d73ab07f142cf014b06e983520ac",
+    "@metamask/keyring-api": "github:MetaMask/keyring-api#67ffc9aa68526c7475889e8b551adf0bd7120cf8"
+  },
   "devDependencies": {
     "@babel/core": "^7.23.5",
     "@babel/plugin-transform-modules-commonjs": "^7.23.3",
