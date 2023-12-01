@@ -1,8 +1,9 @@
 import { isHexString } from '@metamask/utils';
+import type { Struct, StructError } from 'superstruct';
 import {
-  any,
   assert,
   define,
+  func,
   object,
   optional,
   refine,
@@ -32,7 +33,7 @@ export function validateAddUserOperationRequest(request: any) {
     value: optional(Hex),
   });
 
-  assert(request, ValidRequest, 'Invalid request to add user operation');
+  validate(request, ValidRequest, 'Invalid request to add user operation');
 }
 
 /**
@@ -44,10 +45,14 @@ export function validateAddUserOperatioOptions(options: any) {
 
   const ValidOptions = object({
     chainId: Hex,
-    smartContractAccount: any(),
+    smartContractAccount: object({
+      prepareUserOperation: func(),
+      updateUserOperation: func(),
+      signUserOperation: func(),
+    }),
   });
 
-  assert(options, ValidOptions, 'Invalid options to add user operation');
+  validate(options, ValidOptions, 'Invalid options to add user operation');
 }
 
 /**
@@ -63,7 +68,6 @@ export function validatePrepareUserOperationResponse(
     object({
       bundler: string(),
       callData: Hex,
-      callGasLimit: optional(Hex),
       dummyPaymasterAndData: optional(Hex),
       dummySignature: optional(Hex),
       gas: optional(
@@ -75,9 +79,7 @@ export function validatePrepareUserOperationResponse(
       ),
       initCode: optional(Hex),
       nonce: Hex,
-      preVerificationGas: optional(Hex),
       sender: Hex,
-      verificationGasLimit: optional(Hex),
     }),
     'ValidPrepareUserOperationResponse',
     ({ gas, dummySignature }) => {
@@ -85,11 +87,12 @@ export function validatePrepareUserOperationResponse(
         return 'Must specify dummySignature if not specifying gas';
       }
 
+      /* istanbul ignore next */
       return true;
     },
   );
 
-  assert(
+  validate(
     response,
     ValidResponse,
     'Invalid response when preparing user operation',
@@ -103,13 +106,15 @@ export function validatePrepareUserOperationResponse(
 export function validateUpdateUserOperationResponse(
   response: UpdateUserOperationResponse,
 ) {
-  const Hex = defineHex();
+  const HexOrEmptyBytes = defineHex();
 
-  const ValidResponse = object({
-    paymasterAndData: optional(Hex),
-  });
+  const ValidResponse = optional(
+    object({
+      paymasterAndData: optional(HexOrEmptyBytes),
+    }),
+  );
 
-  assert(
+  validate(
     response,
     ValidResponse,
     'Invalid response when updating user operation',
@@ -129,11 +134,38 @@ export function validateSignUserOperationResponse(
     signature: Hex,
   });
 
-  assert(
+  validate(
     response,
     ValidResponse,
     'Invalid response when signing user operation',
   );
+}
+
+/**
+ * Validate data against a struct.
+ * @param data - The data to validate.
+ * @param struct - The struct to validate against.
+ * @param message - The message to throw if validation fails.
+ */
+function validate(data: any, struct: Struct<any>, message: string) {
+  try {
+    assert(data, struct, message);
+  } catch (error: any) {
+    const causes = error
+      .failures()
+      .map((failure: StructError) => {
+        if (!failure.path.length) {
+          return failure.message;
+        }
+
+        return `${failure.path.join('.')} - ${failure.message}`;
+      })
+      .join('\n');
+
+    const finalMessage = `${message}\n${causes}`;
+
+    throw new Error(finalMessage);
+  }
 }
 
 /**
