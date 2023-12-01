@@ -11,6 +11,13 @@ import {
 } from './types';
 import type { UserOperationControllerMessenger } from './UserOperationController';
 import { UserOperationController } from './UserOperationController';
+import {
+  validateAddUserOperationRequest,
+  validateAddUserOperatioOptions,
+  validatePrepareUserOperationResponse,
+  validateSignUserOperationResponse,
+  validateUpdateUserOperationResponse,
+} from './utils/validation';
 
 jest.mock('./utils/validation');
 jest.mock('./helpers/Bundler');
@@ -93,6 +100,26 @@ describe('UserOperationController', () => {
   const messenger = createMessengerMock();
   const smartContractAccount = createSmartContractAccountMock();
   const bundlerMock = createBundlerMock();
+
+  const validateAddUserOperationRequestMock = jest.mocked(
+    validateAddUserOperationRequest,
+  );
+
+  const validateAddUserOperationOptionsMock = jest.mocked(
+    validateAddUserOperatioOptions,
+  );
+
+  const validatePrepareUserOperationResponseMock = jest.mocked(
+    validatePrepareUserOperationResponse,
+  );
+
+  const validateUpdateUserOperationResponseMock = jest.mocked(
+    validateUpdateUserOperationResponse,
+  );
+
+  const validateSignUserOperationResponseMock = jest.mocked(
+    validateSignUserOperationResponse,
+  );
 
   Bundler.prototype.estimateUserOperationGas =
     bundlerMock.estimateUserOperationGas;
@@ -367,6 +394,59 @@ describe('UserOperationController', () => {
       });
 
       await new Promise((resolve) => setImmediate(resolve));
+    });
+
+    it('validates arguments', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      } as any);
+
+      await controller.addUserOperation(ADD_USER_OPERATION_REQUEST_MOCK, {
+        ...ADD_USER_OPERATION_OPTIONS_MOCK,
+        smartContractAccount,
+      });
+
+      expect(validateAddUserOperationRequestMock).toHaveBeenCalledTimes(1);
+      expect(validateAddUserOperationRequestMock).toHaveBeenCalledWith(
+        ADD_USER_OPERATION_REQUEST_MOCK,
+      );
+
+      expect(validateAddUserOperationOptionsMock).toHaveBeenCalledTimes(1);
+      expect(validateAddUserOperationOptionsMock).toHaveBeenCalledWith({
+        ...ADD_USER_OPERATION_OPTIONS_MOCK,
+        smartContractAccount,
+      });
+    });
+
+    it('validates responses from account', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      } as any);
+
+      const { hash } = await controller.addUserOperation(
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        {
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+        },
+      );
+
+      await hash();
+
+      expect(validatePrepareUserOperationResponseMock).toHaveBeenCalledTimes(1);
+      expect(validatePrepareUserOperationResponseMock).toHaveBeenCalledWith(
+        PREPARE_USER_OPERATION_RESPONSE_MOCK,
+      );
+
+      expect(validateUpdateUserOperationResponseMock).toHaveBeenCalledTimes(1);
+      expect(validateUpdateUserOperationResponseMock).toHaveBeenCalledWith(
+        UPDATE_USER_OPERATION_RESPONSE_MOCK,
+      );
+
+      expect(validateSignUserOperationResponseMock).toHaveBeenCalledTimes(1);
+      expect(validateSignUserOperationResponseMock).toHaveBeenCalledWith(
+        SIGN_USER_OPERATION_RESPONSE_MOCK,
+      );
     });
   });
 });
