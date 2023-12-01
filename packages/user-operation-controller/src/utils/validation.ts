@@ -1,4 +1,4 @@
-import { isHexString } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
 import type { Struct, StructError } from 'superstruct';
 import {
   assert,
@@ -63,13 +63,14 @@ export function validatePrepareUserOperationResponse(
   response: PrepareUserOperationResponse,
 ) {
   const Hex = defineHex();
+  const HexOrEmptyBytes = defineHexOrEmptyBytes();
 
   const ValidResponse = refine(
     object({
       bundler: string(),
       callData: Hex,
-      dummyPaymasterAndData: optional(Hex),
-      dummySignature: optional(Hex),
+      dummyPaymasterAndData: optional(HexOrEmptyBytes),
+      dummySignature: optional(HexOrEmptyBytes),
       gas: optional(
         object({
           callGasLimit: Hex,
@@ -77,13 +78,13 @@ export function validatePrepareUserOperationResponse(
           verificationGasLimit: Hex,
         }),
       ),
-      initCode: optional(Hex),
+      initCode: optional(HexOrEmptyBytes),
       nonce: Hex,
       sender: Hex,
     }),
     'ValidPrepareUserOperationResponse',
     ({ gas, dummySignature }) => {
-      if (!gas && !dummySignature) {
+      if (!gas && (!dummySignature || dummySignature === EMPTY_BYTES)) {
         return 'Must specify dummySignature if not specifying gas';
       }
 
@@ -173,7 +174,9 @@ function validate(data: any, struct: Struct<any>, message: string) {
  * @returns The Hex superstruct type.
  */
 function defineHex() {
-  return define<string>('Hex', (value) => isHexString(value));
+  return define<string>('Hexadecimal String', (value) =>
+    isStrictHexString(value),
+  );
 }
 
 /**
@@ -182,7 +185,7 @@ function defineHex() {
  */
 function defineHexOrEmptyBytes() {
   return define<string>(
-    'HexOrEmptyBytes',
-    (value) => isHexString(value) || value === EMPTY_BYTES,
+    'Hexadecimal String or 0x',
+    (value) => isStrictHexString(value) || value === EMPTY_BYTES,
   );
 }

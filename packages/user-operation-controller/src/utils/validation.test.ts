@@ -118,43 +118,43 @@ describe('validation', () => {
         'maxFeePerGas',
         'missing',
         undefined,
-        'Expected a value of type `Hex`, but received: `undefined`',
+        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
       ],
       [
         'maxPriorityFeePerGas',
         'missing',
         undefined,
-        'Expected a value of type `Hex`, but received: `undefined`',
+        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
       ],
       [
         'data',
         'wrong type',
         123,
-        'Expected a value of type `HexOrEmptyBytes`, but received: `123`',
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
       ],
       [
         'maxFeePerGas',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
       [
         'maxPriorityFeePerGas',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
       [
         'to',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
       [
         'value',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
     ])(
       'throws if %s is %s',
@@ -185,7 +185,7 @@ describe('validation', () => {
         'chainId',
         'missing',
         undefined,
-        'Expected a value of type `Hex`, but received: `undefined`',
+        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
       ],
       [
         'smartContractAccount',
@@ -215,7 +215,7 @@ describe('validation', () => {
         'chainId',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
       [
         'smartContractAccount',
@@ -276,57 +276,57 @@ describe('validation', () => {
         'callData',
         'missing',
         undefined,
-        'Expected a value of type `Hex`, but received: `undefined`',
+        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
       ],
       [
         'nonce',
         'missing',
         undefined,
-        'Expected a value of type `Hex`, but received: `undefined`',
+        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
       ],
       [
         'sender',
         'missing',
         undefined,
-        'Expected a value of type `Hex`, but received: `undefined`',
+        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
       ],
       ['bundler', 'wrong type', 123, 'Expected a string, but received: 123'],
       [
         'callData',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
       [
         'dummyPaymasterAndData',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
       ],
       [
         'dummySignature',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
       ],
       ['gas', 'wrong type', 123, 'Expected an object, but received: 123'],
       [
         'initCode',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
       ],
       [
         'nonce',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
       [
         'sender',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
     ])(
       'throws if %s is %s',
@@ -343,15 +343,18 @@ describe('validation', () => {
       },
     );
 
-    it('throws if no gas and no dummy signature', () => {
-      const response = cloneDeep(PREPARE_USER_OPERATION_RESPONSE_MOCK);
-      (response as any).gas = undefined;
-      (response as any).dummySignature = undefined;
+    it.each([undefined, '0x'])(
+      'throws if no gas and dummy signature is %s',
+      (dummySignature) => {
+        const response = cloneDeep(PREPARE_USER_OPERATION_RESPONSE_MOCK);
+        (response as any).gas = undefined;
+        (response as any).dummySignature = dummySignature;
 
-      expect(() => validatePrepareUserOperationResponse(response)).toThrow(
-        'Invalid response when preparing user operation\nMust specify dummySignature if not specifying gas',
-      );
-    });
+        expect(() => validatePrepareUserOperationResponse(response)).toThrow(
+          'Invalid response when preparing user operation\nMust specify dummySignature if not specifying gas',
+        );
+      },
+    );
   });
 
   describe('validateUpdateUserOperationResponse', () => {
@@ -361,7 +364,7 @@ describe('validation', () => {
         'paymasterAndData',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
     ])(
       'throws if %s is %s',
@@ -392,13 +395,13 @@ describe('validation', () => {
         'signature',
         'missing',
         undefined,
-        'Expected a value of type `Hex`, but received: `undefined`',
+        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
       ],
       [
         'signature',
         'wrong type',
         123,
-        'Expected a value of type `Hex`, but received: `123`',
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
     ])(
       'throws if %s is %s',
