@@ -2,7 +2,6 @@ import { AddressZero } from '@ethersproject/constants';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
-import type { Provider } from '@metamask/network-controller';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -65,7 +64,6 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 
 export type UserOperationControllerOptions = {
   messenger: UserOperationControllerMessenger;
-  provider: Provider;
   state?: Partial<UserOperationControllerState>;
 };
 
@@ -79,17 +77,14 @@ export class UserOperationController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #provider: Provider;
-
   /**
    * Construct a UserOperationController instance.
    *
    * @param options - Controller options.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
-   * @param options.provider - The provider proxy to manage requests to the current network.
    * @param options.state - Initial state to set on the controller.
    */
-  constructor({ messenger, provider, state }: UserOperationControllerOptions) {
+  constructor({ messenger, state }: UserOperationControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
@@ -98,8 +93,6 @@ export class UserOperationController extends BaseController<
     });
 
     this.hub = new EventEmitter();
-
-    this.#provider = provider;
   }
 
   async addUserOperation(
@@ -196,12 +189,9 @@ export class UserOperationController extends BaseController<
 
     log('Preparing user operation', { id });
 
-    const provider = this.#provider;
-
     const response = await smartContractAccount.prepareUserOperation({
       chainId,
       data,
-      provider,
       to,
       value,
     });
@@ -282,10 +272,7 @@ export class UserOperationController extends BaseController<
 
     log('Requesting paymaster data', { id });
 
-    const provider = this.#provider;
-
     const response = await smartContractAccount.updateUserOperation({
-      provider,
       userOperation,
     });
 

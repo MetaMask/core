@@ -1,5 +1,3 @@
-import type { Provider } from '@metamask/network-controller';
-
 export type UserOperation = {
   /** The data to pass to the sender during the main execution call. */
   callData: string;
@@ -114,13 +112,11 @@ export type UserOperationReceipt = {
 export type PrepareUserOperationRequest = {
   chainId: string;
   data?: string;
-  provider?: Provider;
   to?: string;
   value?: string;
 };
 
 export type UpdateUserOperationRequest = {
-  provider?: Provider;
   userOperation: UserOperation;
 };
 
