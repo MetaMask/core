@@ -139,8 +139,8 @@ describe('TokenBalancesController', () => {
     const assets = new TokensController({
       chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkDidChange: (listener) =>
+        messenger.subscribe('NetworkController:networkDidChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
@@ -171,7 +171,7 @@ describe('TokenBalancesController', () => {
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toBeGreaterThan(0);
 
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should handle `getERC20BalanceOf` error case', async () => {
@@ -179,8 +179,8 @@ describe('TokenBalancesController', () => {
     const assets = new TokensController({
       chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkDidChange: (listener) =>
+        messenger.subscribe('NetworkController:networkDidChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
@@ -221,7 +221,7 @@ describe('TokenBalancesController', () => {
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toBeGreaterThan(0);
 
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should subscribe to new sibling assets controllers', async () => {
@@ -229,15 +229,15 @@ describe('TokenBalancesController', () => {
     const assetsContract = new AssetsContractController({
       chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkDidChange: (listener) =>
+        messenger.subscribe('NetworkController:networkDidChange', listener),
       getNetworkClientById: jest.fn(),
     });
     const tokensController = new TokensController({
       chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkDidChange: (listener) =>
+        messenger.subscribe('NetworkController:networkDidChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
@@ -267,7 +267,7 @@ describe('TokenBalancesController', () => {
     expect(updateBalances.called).toBe(true);
 
     stub.restore();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should update token balances when detected tokens are added', async () => {
