@@ -2725,7 +2725,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^18.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -2779,13 +2779,9 @@ __metadata:
     "@ethersproject/keccak256": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@ethersproject/wallet": ^5.7.0
-    "@metamask/approval-controller": ^5.0.0
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^6.1.0
-    "@metamask/gas-fee-controller": ^11.0.0
-    "@metamask/network-controller": ^17.0.0
-    "@metamask/transaction-controller": ^18.1.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     async-mutex: ^0.2.6
@@ -2800,11 +2796,6 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
     uuid: ^8.3.2
-  peerDependencies:
-    "@metamask/approval-controller": ^5.0.0
-    "@metamask/gas-fee-controller": ^11.0.0
-    "@metamask/network-controller": ^17.0.0
-    "@metamask/transaction-controller": ^18.1.0
   languageName: unknown
   linkType: soft
 
