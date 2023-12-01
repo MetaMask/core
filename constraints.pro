@@ -336,8 +336,8 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'peerDep
   DependencyIdent \= '@metamask/polling-controller',
   is_controller(DependencyIdent).
 
-% All packages must specify a minimum Node version of 16.
-gen_enforced_field(WorkspaceCwd, 'engines.node', '>=16.0.0').
+% All packages must specify a minimum Node version of 18.
+gen_enforced_field(WorkspaceCwd, 'engines.node', '>=18.18 || >=20').
 
 % All published packages are public.
 gen_enforced_field(WorkspaceCwd, 'publishConfig.access', 'public') :-
