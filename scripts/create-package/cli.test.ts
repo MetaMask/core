@@ -49,8 +49,14 @@ function getParsedArgv(command: string, name: string, description: string) {
 
 describe('create-package/cli', () => {
   beforeEach(async () => {
-    // yargs sometimes calls process.exit() internally. We don't want that.
-    jest.spyOn(process, 'exit').mockImplementation();
+    // yargs calls process.exit(1) on failure. We have to intercept it.
+    jest.spyOn(process, 'exit').mockImplementationOnce((code?: number) => {
+      if (code === 1) {
+        throw new Error('exit: 1');
+      } else {
+        return undefined as never;
+      }
+    });
 
     // We actually check these.
     jest.spyOn(console, 'error');
@@ -70,7 +76,7 @@ describe('create-package/cli', () => {
   });
 
   it('should error if no command is specified', async () => {
-    expect(await cli(getMockArgv(), commands)).toBeUndefined();
+    await expect(cli(getMockArgv(), commands)).rejects.toThrow('exit: 1');
 
     expect(console.error).toHaveBeenCalledWith(
       'You must specify a command. See --help.',
@@ -78,7 +84,9 @@ describe('create-package/cli', () => {
   });
 
   it('should error if more than one command is specified', async () => {
-    expect(await cli(getMockArgv('foo', 'bar'), commands)).toBeUndefined();
+    await expect(cli(getMockArgv('foo', 'bar'), commands)).rejects.toThrow(
+      'exit: 1',
+    );
 
     expect(console.error).toHaveBeenCalledWith(
       'You may not specify more than one command. See --help.',
@@ -86,17 +94,12 @@ describe('create-package/cli', () => {
   });
 
   it('should error if a string option contains only whitespace', async () => {
-    // For whatever reason, yargs still continues to execute the command even
-    // though an error is thrown in the check function. This may be due to one
-    // of jest's cursed modifications of the runtime environment. But, we can
-    // see that the correct error is logged, and we can verify that yargs exits
-    // when using the command line.
     const newCommand = commandMap.new;
     jest.spyOn(newCommand, 'handler').mockImplementation();
 
-    expect(
-      await cli(getMockArgv('new', '--name', '  '), commands),
-    ).toBeUndefined();
+    await expect(
+      cli(getMockArgv('new', '--name', '  '), commands),
+    ).rejects.toThrow('exit: 1');
 
     expect(console.error).toHaveBeenCalledWith(
       'The argument "name" was processed to an empty string. Please provide a value with non-whitespace characters.',
