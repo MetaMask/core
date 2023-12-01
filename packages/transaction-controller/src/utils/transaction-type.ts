@@ -39,7 +39,7 @@ export async function determineTransactionType(
     return { type: TransactionType.simpleSend, getCodeResponse };
   }
 
-  const hasValue = txParams.value && Number(txParams.value) !== 0;
+  const hasValue = Number(txParams.value ?? '0') !== 0;
 
   const contractInteractionResult = {
     type: TransactionType.contractInteraction,
