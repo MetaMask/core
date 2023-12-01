@@ -5,7 +5,7 @@
   },
   "references": [
     { "path": "../base-controller" },
-    { "path": "../controller-utils" },
+    { "path": "../controller-utils" }
   ],
   "include": ["../../types", "./src"]
 }
