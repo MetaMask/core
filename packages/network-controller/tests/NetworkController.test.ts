@@ -4990,7 +4990,7 @@ describe('NetworkController', () => {
     describe('if a provider has been set', () => {
       for (const { networkType } of INFURA_NETWORKS) {
         describe(`if the previous provider configuration had a type of "${networkType}"`, () => {
-          it('emits networkWillChange', async () => {
+          it('emits networkWillChange with state payload', async () => {
             await withController(
               {
                 state: {
@@ -5020,6 +5020,7 @@ describe('NetworkController', () => {
                 const networkWillChange = waitForPublishedEvents({
                   messenger,
                   eventType: 'NetworkController:networkWillChange',
+                  filter: ([networkState]) => networkState === controller.state,
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
@@ -5032,7 +5033,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('emits networkDidChange', async () => {
+          it('emits networkDidChange with state payload', async () => {
             await withController(
               {
                 state: {
@@ -5062,6 +5063,7 @@ describe('NetworkController', () => {
                 const networkDidChange = waitForPublishedEvents({
                   messenger,
                   eventType: 'NetworkController:networkDidChange',
+                  filter: ([networkState]) => networkState === controller.state,
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
@@ -5592,7 +5594,7 @@ describe('NetworkController', () => {
       }
 
       describe(`if the previous provider configuration had a type of "rpc"`, () => {
-        it('emits networkWillChange', async () => {
+        it('emits networkWillChange with state payload', async () => {
           await withController(
             {
               state: {
@@ -5610,6 +5612,7 @@ describe('NetworkController', () => {
               const networkWillChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkWillChange',
+                filter: ([networkState]) => networkState === controller.state,
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
@@ -5622,7 +5625,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('emits networkDidChange', async () => {
+        it('emits networkDidChange with state payload', async () => {
           await withController(
             {
               state: {
@@ -5640,6 +5643,7 @@ describe('NetworkController', () => {
               const networkDidChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkDidChange',
+                filter: ([networkState]) => networkState === controller.state,
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
@@ -6237,7 +6241,7 @@ function refreshNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
 }) {
-  it('emits networkWillChange', async () => {
+  it('emits networkWillChange with state payload', async () => {
     await withController(
       {
         state: initialState,
@@ -6250,6 +6254,7 @@ function refreshNetworkTests({
         const networkWillChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkWillChange',
+          filter: ([networkState]) => networkState === controller.state,
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
@@ -6262,7 +6267,7 @@ function refreshNetworkTests({
     );
   });
 
-  it('emits networkDidChange', async () => {
+  it('emits networkDidChange with state payload', async () => {
     await withController(
       {
         state: initialState,
@@ -6275,6 +6280,7 @@ function refreshNetworkTests({
         const networkDidChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkDidChange',
+          filter: ([networkState]) => networkState === controller.state,
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
