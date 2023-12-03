@@ -25,8 +25,8 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/permission-log-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
+    "test:only-clean": "jest --clearCache && rm -rf coverage",
+    "test:verbose": "jest --verbose && jest-it-up",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -41,6 +41,7 @@
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "jest-it-up": "^3.0.0",
     "nanoid": "^3.1.31",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",

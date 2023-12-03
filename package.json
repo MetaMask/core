@@ -17,7 +17,7 @@
     "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run build:docs",
     "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
-    "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
+    "child-workspace-packages-as-json": "yarn workspaces list --json | jq --slurp 'map(select(.location != \".\"))'",
     "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
@@ -27,9 +27,10 @@
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "publish-previews": "yarn workspaces foreach --parallel --verbose run publish:preview",
     "setup": "yarn install",
-    "test": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
-    "test:clean": "yarn workspaces foreach --parallel --verbose run test:clean && yarn test",
-    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose"
+    "test": "yarn workspaces foreach --parallel --verbose run test --silent --collectCoverage=false",
+    "test:clean": "yarn workspaces foreach --parallel --verbose run test:only-clean && yarn test",
+    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
+    "test:verbose:clean": "yarn workspaces foreach --parallel --verbose run test:only-clean && yarn workspaces foreach --parallel --verbose run test:verbose"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
@@ -63,6 +64,7 @@
     "eth-block-tracker": "^8.0.0",
     "execa": "^5.0.0",
     "isomorphic-fetch": "^3.0.0",
+    "jest-it-up": "^3.0.0",
     "jest-silent-reporter": "^0.5.0",
     "nock": "^13.3.1",
     "prettier": "^2.7.1",

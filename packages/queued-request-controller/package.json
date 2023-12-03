@@ -25,8 +25,8 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/queued-request-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
+    "test:only-clean": "jest --clearCache && rm -rf coverage",
+    "test:verbose": "jest --verbose && jest-it-up",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -46,6 +46,7 @@
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^27.5.1",
+    "jest-it-up": "^3.0.0",
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "sinon": "^9.2.4",

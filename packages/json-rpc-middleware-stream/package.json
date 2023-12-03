@@ -25,8 +25,8 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
+    "test:only-clean": "jest --clearCache && rm -rf coverage",
+    "test:verbose": "jest --verbose && jest-it-up",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -42,7 +42,7 @@
     "deepmerge": "^4.2.2",
     "extension-port-stream": "^2.0.1",
     "jest": "^27.5.1",
-    "jest-it-up": "^2.0.2",
+    "jest-it-up": "^3.0.0",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
