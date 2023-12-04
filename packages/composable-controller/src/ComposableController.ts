@@ -85,9 +85,7 @@ export class ComposableController extends BaseController<
     messenger: ComposableControllerMessenger;
   }) {
     if (messenger === undefined) {
-      throw new Error(
-        `Messaging system required if any BaseController controllers are used`,
-      );
+      throw new Error(`Messaging system is required`);
     }
 
     super({

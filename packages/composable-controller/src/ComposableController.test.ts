@@ -394,9 +394,7 @@ describe('ComposableController', () => {
           new ComposableController({
             controllers: [barController, fooController],
           }),
-      ).toThrow(
-        'Messaging system required if any BaseController controllers are used',
-      );
+      ).toThrow('Messaging system is required');
     });
   });
 });
