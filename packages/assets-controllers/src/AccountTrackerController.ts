@@ -267,15 +267,21 @@ export class AccountTrackerController extends PollingControllerV1<
       ? Object.keys(accounts)
       : [this.getSelectedAddress()];
 
+    const accountsForChain = accountsByChainId[chainId];
     for (const address of accountsToUpdate) {
-      accountsByChainId[chainId][address] = {
+      accountsForChain[address] = {
         balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
       };
     }
 
-    this.update({ accountsByChainId });
+    this.update({
+      accountsByChainId: {
+        ...this.state.accountsByChainId,
+        [chainId]: accountsForChain,
+      },
+    });
     if (chainId === this.getCurrentChainId()) {
-      this.update({ accounts: accountsByChainId[chainId] });
+      this.update({ accounts: accountsForChain });
     }
   };
 
