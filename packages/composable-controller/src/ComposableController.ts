@@ -1,9 +1,7 @@
-import { BaseController } from '@metamask/base-controller';
+import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
-  ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
-  BaseControllerV1,
 } from '@metamask/base-controller';
 
 const controllerName = 'ComposableController';
@@ -32,7 +30,7 @@ export type ControllerList = ControllerInstance[];
 function isBaseControllerV1(
   controller: ControllerInstance,
 ): controller is BaseControllerV1<any, any> {
-  return 'subscribe' in controller && controller.subscribe !== undefined;
+  return controller instanceof BaseControllerV1;
 }
 
 export type ComposableControllerState = {
