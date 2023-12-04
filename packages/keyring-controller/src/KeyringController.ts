@@ -126,6 +126,21 @@ export type KeyringControllerPersistAllKeyringsAction = {
   handler: KeyringController['persistAllKeyrings'];
 };
 
+export type KeyringControllerPrepareUserOperationAction = {
+  type: `${typeof name}:prepareUserOperation`;
+  handler: KeyringController['prepareUserOperation'];
+};
+
+export type KeyringControllerPatchUserOperationAction = {
+  type: `${typeof name}:patchUserOperation`;
+  handler: KeyringController['patchUserOperation'];
+};
+
+export type KeyringControllerSignUserOperationAction = {
+  type: `${typeof name}:signUserOperation`;
+  handler: KeyringController['signUserOperation'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -161,7 +176,10 @@ export type KeyringControllerActions =
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetKeyringForAccountAction
-  | KeyringControllerPersistAllKeyringsAction;
+  | KeyringControllerPersistAllKeyringsAction
+  | KeyringControllerPrepareUserOperationAction
+  | KeyringControllerPatchUserOperationAction
+  | KeyringControllerSignUserOperationAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -1135,6 +1153,21 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:persistAllKeyrings`,
       this.persistAllKeyrings.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:prepareUserOperation`,
+      this.prepareUserOperation.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:patchUserOperation`,
+      this.patchUserOperation.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:signUserOperation`,
+      this.signUserOperation.bind(this),
     );
   }
 
