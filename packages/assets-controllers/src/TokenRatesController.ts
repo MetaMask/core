@@ -140,6 +140,7 @@ export interface TokenRatesState extends BaseState {
 
 const CoinGeckoApi = {
   BASE_URL: 'https://api.coingecko.com/api/v3',
+  headers: { 'X-Requested-With': 'metamask.dec.jan.2024' },
   getTokenPriceURL(chainSlug: string, query: string) {
     return `${this.BASE_URL}/simple/token_price/${chainSlug}?${query}`;
   },
@@ -380,7 +381,9 @@ export class TokenRatesController extends PollingControllerV1<
   ): Promise<CoinGeckoResponse> {
     const tokenPairs = tokenAddresses.join(',');
     const query = `contract_addresses=${tokenPairs}&vs_currencies=${vsCurrency.toLowerCase()}`;
-    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
+    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query), {
+      headers: CoinGeckoApi.headers,
+    });
   }
 
   /**
@@ -399,6 +402,7 @@ export class TokenRatesController extends PollingControllerV1<
     if (now - timestamp > threshold) {
       const currencies = await handleFetch(
         CoinGeckoApi.getSupportedVsCurrencies(),
+        { headers: CoinGeckoApi.headers },
       );
       this.supportedVsCurrencies = {
         data: currencies,
@@ -426,7 +430,9 @@ export class TokenRatesController extends PollingControllerV1<
     const now = Date.now();
 
     if (now - timestamp > threshold) {
-      const platforms = await handleFetch(CoinGeckoApi.getPlatformsURL());
+      const platforms = await handleFetch(CoinGeckoApi.getPlatformsURL(), {
+        headers: CoinGeckoApi.headers,
+      });
       this.supportedChains = {
         data: platforms,
         timestamp: Date.now(),
