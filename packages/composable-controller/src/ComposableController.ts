@@ -4,7 +4,7 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 
-const controllerName = 'ComposableController';
+export const controllerName = 'ComposableController';
 
 /*
  * This type encompasses controllers based on either BaseControllerV1 or
