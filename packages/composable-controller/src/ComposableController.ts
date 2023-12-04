@@ -37,23 +37,16 @@ export type ComposableControllerState = {
   [name: string]: ControllerInstance['state'];
 };
 
-export type ComposableControllerGetStateAction = ControllerGetStateAction<
-  `${typeof controllerName}`,
-  ComposableControllerState
->;
-
 export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   ComposableControllerState
 >;
 
-export type ComposableControllerActions = ComposableControllerGetStateAction;
-
 export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
 
 export type ComposableControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  ControllerGetStateAction<string, Record<string, unknown>>,
+  never,
   ControllerStateChangeEvent<string, Record<string, unknown>>,
   string,
   string
