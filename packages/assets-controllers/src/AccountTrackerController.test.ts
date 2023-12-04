@@ -185,7 +185,9 @@ describe('AccountTrackerController', () => {
       });
 
       it('should update only selected address balance when multi-account is disabled', async () => {
-        mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x10'))
+          .mockReturnValueOnce(Promise.resolve('0x11'));
 
         const controller = new AccountTrackerController(
           {
@@ -221,8 +223,9 @@ describe('AccountTrackerController', () => {
       });
 
       it('should update all address balances when multi-account is enabled', async () => {
-        mockedQuery.mockReturnValueOnce(Promise.resolve('0x11'));
-        mockedQuery.mockReturnValueOnce(Promise.resolve('0x12'));
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x11'))
+          .mockReturnValueOnce(Promise.resolve('0x12'));
 
         const controller = new AccountTrackerController(
           {
@@ -363,7 +366,9 @@ describe('AccountTrackerController', () => {
       });
 
       it('should update only selected address balance when multi-account is disabled', async () => {
-        mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x10'))
+          .mockReturnValueOnce(Promise.resolve('0x11'));
 
         const controller = new AccountTrackerController({
           onPreferencesStateChange: sinon.stub(),
@@ -405,8 +410,9 @@ describe('AccountTrackerController', () => {
       });
 
       it('should update all address balances when multi-account is enabled', async () => {
-        mockedQuery.mockReturnValueOnce(Promise.resolve('0x11'));
-        mockedQuery.mockReturnValueOnce(Promise.resolve('0x12'));
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x11'))
+          .mockReturnValueOnce(Promise.resolve('0x12'));
 
         const controller = new AccountTrackerController({
           onPreferencesStateChange: sinon.stub(),
