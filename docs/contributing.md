@@ -172,12 +172,15 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
    First, review all pre-updated changelogs to understand the recent changes. Then, for the packages you intend to release, update these sections in each changelog:
 
    - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines.
-   - Remove entries that don't affect end-users, unless they are significant.
-   - Reword entries for clarity and user comprehension.
+   - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+   - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
    - Consolidate related changes into single entries where appropriate.
-   - Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
 
-    After finalizing the changelogs and ensuring the release specification is valid, save and close the file. The tool will automatically commit all the changes to the release branch. Note that any changes made to the changelogs of packages not included in the release will be discarded.
+   Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
+
+   After finalizing the changelogs and ensuring the release specification is valid, save and close the file. The tool will automatically commit all the changes to the release branch. Note that any changes made to the changelogs of packages not included in the release will be discarded.
+
+   If everything looks in order, push the branch.
 
 3. **Submit a pull request for the release branch so that it can be reviewed and tested.**
 
