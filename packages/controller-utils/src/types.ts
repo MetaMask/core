@@ -33,6 +33,20 @@ export function isNetworkType(val: any): val is NetworkType {
 }
 
 /**
+ * A type guard to determine whether the input is an InfuraNetworkType.
+ *
+ * @param value - The value to check.
+ * @returns True if the given value is within the InfuraNetworkType enum,
+ * false otherwise.
+ */
+export function isInfuraNetworkType(
+  value: unknown,
+): value is InfuraNetworkType {
+  const infuraNetworkTypes: unknown[] = Object.keys(InfuraNetworkType);
+  return infuraNetworkTypes.includes(value);
+}
+
+/**
  * Names of networks built into the wallet.
  *
  * This includes both Infura and non-Infura networks.

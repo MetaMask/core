@@ -91,6 +91,7 @@ export const BUILT_IN_NETWORKS = {
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
+    ticker: undefined,
     rpcPrefs: undefined,
   },
 } as const;

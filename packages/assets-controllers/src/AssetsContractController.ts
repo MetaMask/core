@@ -1,7 +1,7 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -35,6 +35,14 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
   [SupportedTokenDetectionNetworks.aurora]:
     '0x1286415D333855237f89Df27D388127181448538',
+  [SupportedTokenDetectionNetworks.linea_goerli]:
+    '0x10dAd7Ca3921471f616db788D9300DC97Db01783',
+  [SupportedTokenDetectionNetworks.linea_mainnet]:
+    '0xF62e6a41561b3650a69Bb03199C735e3E3328c0D',
+  [SupportedTokenDetectionNetworks.arbitrum]:
+    '0x151E24A486D7258dd7C33Fb67E4bB01919B7B32c',
+  [SupportedTokenDetectionNetworks.optimism]:
+    '0xB1c568e9C3E6bdaf755A60c7418C269eb11524FC',
 };
 
 export const MISSING_PROVIDER_ERROR =
@@ -46,6 +54,9 @@ export const MISSING_PROVIDER_ERROR =
  * Assets Contract controller configuration
  * @property provider - Provider used to create a new web3 instance
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AssetsContractConfig extends BaseConfig {
   provider: any;
   ipfsGateway: string;
@@ -58,6 +69,9 @@ export interface AssetsContractConfig extends BaseConfig {
  * Key value object containing the balance for each tokenAddress
  * @property [tokenAddress] - Address of the token
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface BalanceMap {
   [tokenAddress: string]: BN;
 }
@@ -65,7 +79,7 @@ export interface BalanceMap {
 /**
  * Controller that interacts with contracts on mainnet through web3
  */
-export class AssetsContractController extends BaseController<
+export class AssetsContractController extends BaseControllerV1<
   AssetsContractConfig,
   BaseState
 > {

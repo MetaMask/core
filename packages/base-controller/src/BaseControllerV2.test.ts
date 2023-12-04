@@ -6,8 +6,8 @@ import {
   getAnonymizedState,
   getPersistentState,
 } from './BaseControllerV2';
-import type { RestrictedControllerMessenger } from './ControllerMessenger';
 import { ControllerMessenger } from './ControllerMessenger';
+import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
 const countControllerName = 'CountController';
 

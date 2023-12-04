@@ -4,8 +4,12 @@ import type {
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import type {
+  ExportableKeyEncryptor,
+  GenericEncryptor,
+} from '@metamask/eth-keyring-controller/dist/types';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
@@ -34,6 +38,11 @@ export enum KeyringTypes {
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
+  trezor = 'Trezor Hardware',
+  ledger = 'Ledger Hardware',
+  lattice = 'Lattice Hardware',
+  snap = 'Snap Keyring',
+  custody = 'Custody',
 }
 
 /**
@@ -105,6 +114,11 @@ export type KeyringControllerGetAccountsAction = {
   handler: KeyringController['getAccounts'];
 };
 
+export type KeyringControllerPersistAllKeyringsAction = {
+  type: `${typeof name}:persistAllKeyrings`;
+  handler: KeyringController['persistAllKeyrings'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -139,7 +153,8 @@ export type KeyringControllerActions =
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetKeyringForAccountAction;
+  | KeyringControllerGetKeyringForAccountAction
+  | KeyringControllerPersistAllKeyringsAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -157,17 +172,23 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type KeyringControllerOptions = {
-  removeIdentity: PreferencesController['removeIdentity'];
   syncIdentities: PreferencesController['syncIdentities'];
   updateIdentities: PreferencesController['updateIdentities'];
   setSelectedAddress: PreferencesController['setSelectedAddress'];
   setAccountLabel?: PreferencesController['setAccountLabel'];
-  encryptor?: any;
   keyringBuilders?: { (): Keyring<Json>; type: string }[];
-  cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
-};
+} & (
+  | {
+      cacheEncryptionKey: true;
+      encryptor?: ExportableKeyEncryptor;
+    }
+  | {
+      cacheEncryptionKey?: false;
+      encryptor?: GenericEncryptor | ExportableKeyEncryptor;
+    }
+);
 
 /**
  * @type KeyringObject
@@ -233,14 +254,12 @@ function assertHasUint8ArrayMnemonic(
  * with the internal keyring controller and handling certain complex operations that involve the
  * keyrings.
  */
-export class KeyringController extends BaseControllerV2<
+export class KeyringController extends BaseController<
   typeof name,
   KeyringControllerState,
   KeyringControllerMessenger
 > {
   private readonly mutex = new Mutex();
-
-  private readonly removeIdentity: PreferencesController['removeIdentity'];
 
   private readonly syncIdentities: PreferencesController['syncIdentities'];
 
@@ -259,30 +278,28 @@ export class KeyringController extends BaseControllerV2<
   /**
    * Creates a KeyringController instance.
    *
-   * @param opts - Initial options used to configure this controller
-   * @param opts.removeIdentity - Remove the identity with the given address.
-   * @param opts.syncIdentities - Sync identities with the given list of addresses.
-   * @param opts.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param opts.setSelectedAddress - Set the selected address.
-   * @param opts.setAccountLabel - Set a new name for account.
-   * @param opts.encryptor - An optional object for defining encryption schemes.
-   * @param opts.keyringBuilders - Set a new name for account.
-   * @param opts.cacheEncryptionKey - Whether to cache or not encryption key.
-   * @param opts.messenger - A restricted controller messenger.
-   * @param opts.state - Initial state to set on this controller.
+   * @param options - Initial options used to configure this controller
+   * @param options.syncIdentities - Sync identities with the given list of addresses.
+   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param options.setSelectedAddress - Set the selected address.
+   * @param options.setAccountLabel - Set a new name for account.
+   * @param options.encryptor - An optional object for defining encryption schemes.
+   * @param options.keyringBuilders - Set a new name for account.
+   * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
+   * @param options.messenger - A restricted controller messenger.
+   * @param options.state - Initial state to set on this controller.
    */
-  constructor({
-    removeIdentity,
-    syncIdentities,
-    updateIdentities,
-    setSelectedAddress,
-    setAccountLabel,
-    encryptor,
-    keyringBuilders,
-    cacheEncryptionKey = false,
-    messenger,
-    state,
-  }: KeyringControllerOptions) {
+  constructor(options: KeyringControllerOptions) {
+    const {
+      syncIdentities,
+      updateIdentities,
+      setSelectedAddress,
+      setAccountLabel,
+      keyringBuilders,
+      messenger,
+      state,
+    } = options;
+
     super({
       name,
       metadata: {
@@ -299,18 +316,26 @@ export class KeyringController extends BaseControllerV2<
       },
     });
 
-    this.#keyring = new EthKeyringController({
-      initState: state,
-      encryptor,
-      keyringBuilders,
-      cacheEncryptionKey,
-    });
+    if (options.cacheEncryptionKey) {
+      this.#keyring = new EthKeyringController({
+        initState: state,
+        encryptor: options.encryptor,
+        keyringBuilders,
+        cacheEncryptionKey: options.cacheEncryptionKey,
+      });
+    } else {
+      this.#keyring = new EthKeyringController({
+        initState: state,
+        encryptor: options.encryptor,
+        keyringBuilders,
+        cacheEncryptionKey: options.cacheEncryptionKey ?? false,
+      });
+    }
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));
     this.#keyring.on('unlock', this.#handleUnlock.bind(this));
 
-    this.removeIdentity = removeIdentity;
     this.syncIdentities = syncIdentities;
     this.updateIdentities = updateIdentities;
     this.setSelectedAddress = setSelectedAddress;
@@ -680,7 +705,6 @@ export class KeyringController extends BaseControllerV2<
    * @returns Promise resolving current state when this account removal completes.
    */
   async removeAccount(address: Hex): Promise<KeyringControllerMemState> {
-    this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
     this.messagingSystem.publish(`${name}:accountRemoved`, address);
     return this.#getMemState();
@@ -764,13 +788,15 @@ export class KeyringController extends BaseControllerV2<
    *
    * @param transaction - Transaction object to sign. Must be a `ethereumjs-tx` transaction instance.
    * @param from - Address to sign from, should be in keychain.
+   * @param opts - An optional options object.
    * @returns Promise resolving to a signed transaction string.
    */
   signTransaction(
     transaction: TypedTransaction,
     from: string,
+    opts?: Record<string, unknown>,
   ): Promise<TxData> {
-    return this.#keyring.signTransaction(transaction, from);
+    return this.#keyring.signTransaction(transaction, from, opts);
   }
 
   /**
@@ -1042,6 +1068,11 @@ export class KeyringController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${name}:getKeyringForAccount`,
       this.getKeyringForAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:persistAllKeyrings`,
+      this.persistAllKeyrings.bind(this),
     );
   }
 

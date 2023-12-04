@@ -23,6 +23,9 @@
       "path": "./packages/base-controller"
     },
     {
+      "path": "./packages/build-utils"
+    },
+    {
       "path": "./packages/composable-controller"
     },
     {
@@ -32,7 +35,16 @@
       "path": "./packages/ens-controller"
     },
     {
+      "path": "./packages/eth-json-rpc-provider"
+    },
+    {
       "path": "./packages/gas-fee-controller"
+    },
+    {
+      "path": "./packages/json-rpc-engine"
+    },
+    {
+      "path": "./packages/json-rpc-middleware-stream"
     },
     {
       "path": "./packages/keyring-controller"
@@ -69,6 +81,12 @@
     },
     {
       "path": "./packages/transaction-controller"
+    },
+    {
+      "path": "./packages/queued-request-controller"
+    },
+    {
+      "path": "./packages/permission-log-controller"
     }
   ],
   "files": [],

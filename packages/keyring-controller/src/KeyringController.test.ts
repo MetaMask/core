@@ -22,6 +22,8 @@ import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -34,8 +36,6 @@ import {
   KeyringController,
   KeyringTypes,
 } from './KeyringController';
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
-import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 
 jest.mock('uuid', () => {
   return {
@@ -2243,6 +2243,19 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    describe('persistAllKeyrings', () => {
+      it('should call persistAllKeyrings', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'persistAllKeyrings')
+          .mockResolvedValue(true);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:persistAllKeyrings');
+
+          expect(controller.persistAllKeyrings).toHaveBeenCalledWith();
+        });
+      });
+    });
   });
 });
 
@@ -2256,7 +2269,6 @@ type WithControllerCallback<ReturnValue> = ({
   controller: KeyringController;
   preferences: {
     setAccountLabel: sinon.SinonStub;
-    removeIdentity: sinon.SinonStub;
     syncIdentities: sinon.SinonStub;
     updateIdentities: sinon.SinonStub;
     setSelectedAddress: sinon.SinonStub;
@@ -2294,24 +2306,6 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
-    allowedActions: [
-      'KeyringController:getState',
-      'KeyringController:signMessage',
-      'KeyringController:signPersonalMessage',
-      'KeyringController:signTypedMessage',
-      'KeyringController:decryptMessage',
-      'KeyringController:getEncryptionPublicKey',
-      'KeyringController:getKeyringsByType',
-      'KeyringController:getKeyringForAccount',
-      'KeyringController:getAccounts',
-    ],
-    allowedEvents: [
-      'KeyringController:stateChange',
-      'KeyringController:lock',
-      'KeyringController:unlock',
-      'KeyringController:accountRemoved',
-      'KeyringController:qrKeyringStateChange',
-    ],
   });
 }
 
@@ -2332,7 +2326,6 @@ async function withController<ReturnValue>(
   const encryptor = new MockEncryptor();
   const preferences = {
     setAccountLabel: sinon.stub(),
-    removeIdentity: sinon.stub(),
     syncIdentities: sinon.stub(),
     updateIdentities: sinon.stub(),
     setSelectedAddress: sinon.stub(),

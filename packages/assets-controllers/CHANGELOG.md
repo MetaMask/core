@@ -5,6 +5,137 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Update TokenListController to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
+
+## [20.0.0]
+### Added
+- **BREAKING**: `TokenRatesControllerState` now has required `contractExchangeRatesByChainId` property which an object keyed by `chainId` and `nativeCurrency` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- **BREAKING**: `TokenRatesController` constructor params now requires `getNetworkClientById` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- Add types `CurrencyRateControllerEvents` and `CurrencyRateControllerActions` ([#2029](https://github.com/MetaMask/core/pull/2029))
+- Add polling-related methods to TokenRatesController ([#2015](https://github.com/MetaMask/core/pull/2015))
+  - `startPollingByNetworkClientId`
+  - `stopPollingByPollingToken`
+  - `stopAllPolling`
+  - `_executePoll`
+- Add `updateExchangeRatesByChainId` method to TokenRatesController ([#2015](https://github.com/MetaMask/core/pull/2015))
+  - This is a lower-level version of `updateExchangeRates` that takes chain ID, native currency, and token addresses.
+- `TokenRatesController` constructor params now accepts optional `interval` and `threshold` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.fetchExchangeRate()` now accepts an optional `tokenAddresses` as the last parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.getChainSlug()` now accepts an optional `chainId` parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.fetchAndMapExchangeRates()` now accepts an optional `tokenAddresses` as the last parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+
+### Changed
+- **BREAKING:** Bump dependency on `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/network-controller` to ^17.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/polling-controller` to ^2.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/preferences-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [19.0.0]
+### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- Add optional `networkClientId` and `userAddress` args to remaining `NftController` public methods ([#2006](https://github.com/MetaMask/core/pull/2006))
+  - `watchNft`, `removeNft`, `removeAndIgnoreNft`, `removeNftContract`, `updateNftFavoriteStatus`, and `checkAndUpdateAllNftsOwnershipStatus` methods on `NftController` all now accept an optional options object argument containing `networkClientId` and `userAddress` to identify where in state to mutate.
+  - **BREAKING**: `addNft` no longer accepts a `chainId` property in its options argument since this value can be retrieved by the `networkClientId` property and is therefore redundant.
+  - **BREAKING**: The third and fourth arguments on NftController's `addNftVerifyOwnership` method, have been replaced with an options object containing optional properties `networkClientId`, `userAddress` and `source`. This method signature is more aligned with the options pattern for passing `networkClientId` and `userAddress` on this controller and elsewhere.
+  - **BREAKING**: `checkAndUpdateSingleNftOwnershipStatus` on NftController no longer accepts a `chainId` in its options argument. This is replaced with an optional `networkClientId` property which can be used to fetch chainId.
+   ***BREAKING**: The fourth argument of the `isNftOwner` method on `NftController` is now an options object with an optional `networkClientId` property. This method signature is more aligned with the options pattern for passing `networkClientId` on this controller and elsewhere.
+  - **BREAKING**: `validateWatchNft` method on `NftController` is now private.
+  - **BREAKING**: `detectNfts` on `NftDetectionController` now accepts a single object argument with optional properties `networkClientId` and `userAddress`, rather than taking these as two sequential arguments.
+- Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+- Bump dependency on `@metamask/polling-controller` to ^1.0.2
+- Bump `@metamask/utils` from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
+### Fixed
+- Add name and symbol to the payload returned by the `ERC1155Standard` class `getDetails` method for `ERC1155` contracts ([#1727](https://github.com/MetaMask/core/pull/1727))
+
+## [18.0.0]
+### Changed
+- **BREAKING**: `CurrencyRateController` is now keyed by `nativeCurrency` (i.e. ticker) for `conversionDate`, `conversionRate`, and `usdConversionRate` in the `currencyRates` object. `nativeCurrency`, `pendingNativeCurrency`, and `pendingCurrentCurrency` have been removed.
+  - ```
+    export type CurrencyRateState = {
+      currentCurrency: string;
+      currencyRates: Record<
+        string, // nativeCurrency
+        {
+          conversionDate: number | null;
+          conversionRate: number | null;
+          usdConversionRate: number | null;
+        }
+      >;
+    };
+    ```
+- **BREAKING**: `CurrencyRateController` now extends `PollingController`  ([#1805](https://github.com/MetaMask/core/pull/1805))
+  - `start()` and `stop()` methods replaced with `startPollingByNetworkClientId()`, `stopPollingByPollingToken()`, and `stopAllPolling()`
+- **BREAKING**: `CurrencyRateController` now sends the `NetworkController:getNetworkClientById` action via messaging controller ([#1805](https://github.com/MetaMask/core/pull/1805))
+
+### Fixed
+- Parallelize network requests in assets controllers for performance enhancement ([#1801](https://github.com/MetaMask/core/pull/1801))
+- Fix token detection on accounts when user changes account after token detection request is inflight ([#1848](https://github.com/MetaMask/core/pull/1848))
+
+## [17.0.0]
+### Changed
+- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^1.0.0
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
+
+## [16.0.0]
+### Added
+- Add way to start and stop different polling sessions for the same network client ID by providing extra scoping data ([#1776](https://github.com/MetaMask/core/pull/1776))
+  - Add optional second argument to `stopPollingByPollingToken` (formerly `stopPollingByNetworkClientId`)
+  - Add optional second argument to `onPollingCompleteByNetworkClientId`
+- Add support for token detection for Linea mainnet and Linea Goerli ([#1799](https://github.com/MetaMask/core/pull/1799))
+
+### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
+- **BREAKING:** Make `executePoll` in TokenListController private ([#1810](https://github.com/MetaMask/core/pull/1810))
+- **BREAKING:** Update TokenListController to rename `stopPollingByNetworkClientId` to `stopPollingByPollingToken` ([#1810](https://github.com/MetaMask/core/pull/1810))
+- Add missing dependency on `@metamask/polling-controller` ([#1831](https://github.com/MetaMask/core/pull/1831))
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
+- Fix support for NFT metadata stored outside IPFS ([#1772](https://github.com/MetaMask/core/pull/1772))
+
+## [15.0.0]
+### Changed
+- **BREAKING**: `NftController` now expects `getNetworkClientById` in constructor options ([#1698](https://github.com/MetaMask/core/pull/1698))
+- **BREAKING**: `NftController.addNft` function signature has changed ([#1698](https://github.com/MetaMask/core/pull/1698))
+  - Previously
+    ```
+    address: string,
+    tokenId: string,
+    nftMetadata?: NftMetadata,
+    accountParams?: {
+      userAddress: string;
+      chainId: Hex;
+    },
+    source = Source.Custom,
+    ```
+    now:
+    ```
+    tokenAddress: string,
+    tokenId: string,
+    {
+      nftMetadata?: NftMetadata;
+      chainId?: Hex; // extracts from AccountParams
+      userAddress?: string // extracted from AccountParams
+      source?: Source;
+      networkClientId?: NetworkClientId; // new
+    },
+    ```
+- `NftController.addNftVerifyOwnership`: Now accepts optional 3rd argument `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state. Also accepts optional 4th argument `source` used for metrics to identify the flow in which the NFT was added to the wallet.  ([#1698](https://github.com/MetaMask/core/pull/1698))
+- `NftController.isNftOwner`: Now accepts optional `networkClientId` which is used to instantiate the provider for the correct chain and call the NFT contract to verify ownership ([#1698](https://github.com/MetaMask/core/pull/1698))
+- `NftController.addNft` will use the chainId value derived from `networkClientId` if provided ([#1698](https://github.com/MetaMask/core/pull/1698))
+- `NftController.watchNft` options now accepts optional `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state ([#1698](https://github.com/MetaMask/core/pull/1698))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+
+### Fixed
+- Fix bug in TokensController where batched `addToken` overwrote each other because mutex was acquired after reading state ([#1768](https://github.com/MetaMask/core/pull/1768))
 
 ## [14.0.0]
 ### Changed
@@ -136,8 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `NFTController` now requires an instance of a ControllerMessenger to be passed to its constructor. This is messenger is used to pass the `watchNFT` message to the `ApprovalController`.
 
 ### Changed
-- Add dependency on `@ethersproject/address` ([#1173](https://github.com/MetaMask/core.git/pull/1173))
-- Replace `eth-rpc-errors` with `@metamask/rpc-errors` ([#1173](https://github.com/MetaMask/core.git/pull/1173))
+- Add dependency on `@ethersproject/address` ([#1173](https://github.com/MetaMask/core/pull/1173))
+- Replace `eth-rpc-errors` with `@metamask/rpc-errors` ([#1173](https://github.com/MetaMask/core/pull/1173))
 
 ## [8.0.0]
 ### Added
@@ -280,7 +411,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...@metamask/assets-controllers@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@18.0.0...@metamask/assets-controllers@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@17.0.0...@metamask/assets-controllers@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@16.0.0...@metamask/assets-controllers@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@15.0.0...@metamask/assets-controllers@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@14.0.0...@metamask/assets-controllers@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@13.0.0...@metamask/assets-controllers@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@12.0.0...@metamask/assets-controllers@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0

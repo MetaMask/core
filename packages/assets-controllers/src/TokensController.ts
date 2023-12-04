@@ -6,7 +6,7 @@ import type {
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
 import {
   toChecksumHexAddress,
@@ -48,6 +48,9 @@ import type { Token } from './TokenRatesController';
  * Tokens controller configuration
  * @property selectedAddress - Vault selected address
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
@@ -83,6 +86,9 @@ type SuggestedAssetMeta = {
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokensState extends BaseState {
   tokens: Token[];
   ignoredTokens: string[];
@@ -116,7 +122,7 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class TokensController extends BaseController<
+export class TokensController extends BaseControllerV1<
   TokensConfig,
   TokensState
 > {
@@ -303,8 +309,9 @@ export class TokensController extends BaseController<
     interactingAddress?: string;
     networkClientId?: NetworkClientId;
   }): Promise<Token[]> {
-    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
+    const releaseLock = await this.mutex.acquire();
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     let currentChainId = chainId;
     if (networkClientId) {
       currentChainId =
@@ -313,7 +320,6 @@ export class TokensController extends BaseController<
 
     const accountAddress = interactingAddress || selectedAddress;
     const isInteractingWithWalletAccount = accountAddress === selectedAddress;
-    const releaseLock = await this.mutex.acquire();
 
     try {
       address = toChecksumHexAddress(address);
@@ -325,8 +331,10 @@ export class TokensController extends BaseController<
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this._detectIsERC721(address, networkClientId),
+        // TODO parameterize the token metadata fetch by networkClientId
         this.fetchTokenMetadata(address),
       ]);
+      // TODO remove this once this method is fully parameterized by networkClientId
       if (!networkClientId && currentChainId !== this.config.chainId) {
         throw new Error(
           'TokensController Error: Switched networks while adding token',
@@ -346,11 +354,10 @@ export class TokensController extends BaseController<
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
         name,
       };
-      const previousEntry = newTokens.find(
+      const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
-      if (previousEntry) {
-        const previousIndex = newTokens.indexOf(previousEntry);
+      if (previousIndex !== -1) {
         newTokens[previousIndex] = newEntry;
       } else {
         newTokens.push(newEntry);
@@ -516,9 +523,17 @@ export class TokensController extends BaseController<
     detectionDetails?: { selectedAddress: string; chainId: Hex },
   ) {
     const releaseLock = await this.mutex.acquire();
-    const { tokens, detectedTokens, ignoredTokens } = this.state;
-    const newTokens: Token[] = [...tokens];
-    let newDetectedTokens: Token[] = [...detectedTokens];
+
+    // Get existing tokens for the chain + account
+    const chainId = detectionDetails?.chainId ?? this.config.chainId;
+    const accountAddress =
+      detectionDetails?.selectedAddress ?? this.config.selectedAddress;
+
+    const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
+    let newTokens = [...(allTokens?.[chainId]?.[accountAddress] ?? [])];
+    let newDetectedTokens = [
+      ...(allDetectedTokens?.[chainId]?.[accountAddress] ?? []),
+    ];
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
@@ -541,28 +556,25 @@ export class TokensController extends BaseController<
           aggregators,
           name,
         };
-        const previousImportedEntry = newTokens.find(
+        const previousImportedIndex = newTokens.findIndex(
           (token) =>
             token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
-        if (previousImportedEntry) {
+        if (previousImportedIndex !== -1) {
           // Update existing data of imported token
-          const previousImportedIndex = newTokens.indexOf(
-            previousImportedEntry,
-          );
           newTokens[previousImportedIndex] = newEntry;
         } else {
-          const ignoredTokenIndex = ignoredTokens.indexOf(address);
+          const ignoredTokenIndex =
+            allIgnoredTokens?.[chainId]?.[accountAddress]?.indexOf(address) ??
+            -1;
+
           if (ignoredTokenIndex === -1) {
             // Add detected token
-            const previousDetectedEntry = newDetectedTokens.find(
+            const previousDetectedIndex = newDetectedTokens.findIndex(
               (token) =>
                 token.address.toLowerCase() === checksumAddress.toLowerCase(),
             );
-            if (previousDetectedEntry) {
-              const previousDetectedIndex = newDetectedTokens.indexOf(
-                previousDetectedEntry,
-              );
+            if (previousDetectedIndex !== -1) {
               newDetectedTokens[previousDetectedIndex] = newEntry;
             } else {
               newDetectedTokens.push(newEntry);
@@ -571,26 +583,23 @@ export class TokensController extends BaseController<
         }
       });
 
-      const {
-        selectedAddress: interactingAddress,
-        chainId: interactingChainId,
-      } = detectionDetails || {};
-
       const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
         {
           newTokens,
           newDetectedTokens,
-          interactingAddress,
-          interactingChainId,
+          interactingAddress: accountAddress,
+          interactingChainId: chainId,
         },
       );
 
-      const { chainId, selectedAddress } = this.config;
-      // if the newly added detectedTokens were detected on (and therefore added to) a different chainId/selectedAddress than the currently configured combo
-      // the newDetectedTokens (which should contain the detectedTokens on the current chainId/address combo) needs to be repointed to the current chainId/address pair
-      // if the detectedTokens were detected on the current chainId/address then this won't change anything.
+      // We may be detecting tokens on a different chain/account pair than are currently configured.
+      // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
+      const { chainId: currentChain, selectedAddress: currentAddress } =
+        this.config;
+
+      newTokens = newAllTokens?.[currentChain]?.[currentAddress] || [];
       newDetectedTokens =
-        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[currentChain]?.[currentAddress] || [];
 
       this.update({
         tokens: newTokens,

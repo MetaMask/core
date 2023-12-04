@@ -7,20 +7,23 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
+import { rpcErrors } from '@metamask/rpc-errors';
+import { getKnownPropertyNames } from '@metamask/utils';
 import assert from 'assert';
-import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 } from 'uuid';
 
-import type { FakeProviderStub } from './fake-provider';
-import { FakeProvider } from './fake-provider';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import type { FakeProviderStub } from '../../../tests/fake-provider';
+import { FakeProvider } from '../../../tests/fake-provider';
 import { NetworkStatus } from '../src/constants';
 import type { NetworkClient } from '../src/create-network-client';
 import { createNetworkClient } from '../src/create-network-client';
 import type {
+  NetworkClientId,
+  NetworkConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
   NetworkControllerOptions,
@@ -128,7 +131,7 @@ const SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE = {
 /**
  * A response object for a request that has been geoblocked by Infura.
  */
-const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
+const BLOCKED_INFURA_JSON_RPC_ERROR = rpcErrors.internal(
   JSON.stringify({ error: 'countryBlocked' }),
 );
 
@@ -136,7 +139,7 @@ const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
  * A response object for a unsuccessful request to any RPC method. It is assumed
  * that the error here is insignificant to the test.
  */
-const GENERIC_JSON_RPC_ERROR = ethErrors.rpc.internal(
+const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
   JSON.stringify({ error: 'oops' }),
 );
 
@@ -302,6 +305,7 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
                 type: NetworkClientType.Infura,
                 chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                ticker: BUILT_IN_NETWORKS[networkType].ticker,
               });
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
@@ -407,6 +411,7 @@ describe('NetworkController', () => {
                 chainId: toHex(1),
                 rpcUrl: 'https://test.network.1',
                 type: NetworkClientType.Custom,
+                ticker: 'TEST',
               });
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
@@ -510,6 +515,7 @@ describe('NetworkController', () => {
                 chainId: toHex(1),
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
+                ticker: 'TEST',
               });
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
@@ -612,6 +618,7 @@ describe('NetworkController', () => {
                 chainId: toHex(1),
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
+                ticker: 'TEST',
               });
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
@@ -707,6 +714,7 @@ describe('NetworkController', () => {
                   chainId: toHex(1337),
                   rpcUrl: 'http://example.com',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 });
                 expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
               },
@@ -961,6 +969,7 @@ describe('NetworkController', () => {
                   chainId: '0x1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
@@ -968,6 +977,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   type: NetworkClientType.Infura,
                   chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                  ticker: BUILT_IN_NETWORKS[networkType].ticker,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
@@ -1056,12 +1066,14 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
                 type: NetworkClientType.Infura,
                 chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
               })
               .mockReturnValue(fakeNetworkClients[0])
               .calledWith({
                 chainId: '0x1337',
                 rpcUrl: 'https://mock-rpc-url',
                 type: NetworkClientType.Custom,
+                ticker: 'ABC',
               })
               .mockReturnValue(fakeNetworkClients[1]);
             await controller.initializeProvider();
@@ -1118,6 +1130,22 @@ describe('NetworkController', () => {
           expect(() =>
             controller.findNetworkClientIdByChainId('0xdeadbeef'),
           ).toThrow("Couldn't find networkClientId for chainId");
+        },
+      );
+    });
+
+    it('is callable from the controller messenger', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ messenger }) => {
+          const fakeNetworkClient = buildFakeClient();
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          const networkClientId = messenger.call(
+            'NetworkController:findNetworkClientIdByChainId',
+            '0x1',
+          );
+          expect(networkClientId).toBe('mainnet');
         },
       );
     });
@@ -1263,6 +1291,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
                   network: InfuraNetworkType.goerli,
                 },
               ],
@@ -1273,6 +1302,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   chainId:
                     BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
+                  ticker: BUILT_IN_NETWORKS[NetworkType['linea-goerli']].ticker,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1283,6 +1313,8 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   chainId:
                     BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].chainId,
+                  ticker:
+                    BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].ticker,
                   network: InfuraNetworkType['linea-mainnet'],
                 },
               ],
@@ -1292,6 +1324,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
+                  ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
                   network: InfuraNetworkType.mainnet,
                 },
               ],
@@ -1301,6 +1334,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.sepolia].chainId,
+                  ticker: BUILT_IN_NETWORKS[NetworkType.sepolia].ticker,
                   network: InfuraNetworkType.sepolia,
                 },
               ],
@@ -1356,6 +1390,7 @@ describe('NetworkController', () => {
                 'AAAA-AAAA-AAAA-AAAA',
                 {
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST1',
                   chainId: toHex(1),
                   rpcUrl: 'https://test.network.1',
                 },
@@ -1364,6 +1399,7 @@ describe('NetworkController', () => {
                 'BBBB-BBBB-BBBB-BBBB',
                 {
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST2',
                   chainId: toHex(2),
                   rpcUrl: 'https://test.network.2',
                 },
@@ -1374,6 +1410,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   network: InfuraNetworkType.goerli,
                 },
               ],
@@ -1384,6 +1421,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   chainId:
                     BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
+                  ticker: BUILT_IN_NETWORKS[NetworkType['linea-goerli']].ticker,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1394,6 +1432,8 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   chainId:
                     BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].chainId,
+                  ticker:
+                    BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].ticker,
                   network: InfuraNetworkType['linea-mainnet'],
                 },
               ],
@@ -1403,6 +1443,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
+                  ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
                   network: InfuraNetworkType.mainnet,
                 },
               ],
@@ -1412,6 +1453,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.sepolia].chainId,
+                  ticker: BUILT_IN_NETWORKS[NetworkType.sepolia].ticker,
                   network: InfuraNetworkType.sepolia,
                 },
               ],
@@ -1466,6 +1508,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   network: InfuraNetworkType.goerli,
                 },
               ],
@@ -1477,6 +1520,8 @@ describe('NetworkController', () => {
                   chainId:
                     BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
                       .chainId,
+                  ticker:
+                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']].ticker,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1488,6 +1533,9 @@ describe('NetworkController', () => {
                   chainId:
                     BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                       .chainId,
+                  ticker:
+                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
+                      .ticker,
                   network: InfuraNetworkType['linea-mainnet'],
                 },
               ],
@@ -1497,6 +1545,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
                   network: InfuraNetworkType.mainnet,
                 },
               ],
@@ -1506,6 +1555,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
                   network: InfuraNetworkType.sepolia,
                 },
               ],
@@ -1563,6 +1613,7 @@ describe('NetworkController', () => {
                     'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
+                      ticker: 'TEST',
                       chainId: toHex(1),
                       rpcUrl: 'https://test.network.1',
                     },
@@ -1574,6 +1625,8 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                       network: InfuraNetworkType.goerli,
                     },
                   ],
@@ -1581,6 +1634,7 @@ describe('NetworkController', () => {
                     'https://test.network.2',
                     {
                       type: NetworkClientType.Custom,
+                      ticker: 'TEST',
                       chainId: toHex(2),
                       rpcUrl: 'HTTPS://TEST.NETWORK.2',
                     },
@@ -1593,6 +1647,9 @@ describe('NetworkController', () => {
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
                           .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
+                          .ticker,
                       network: InfuraNetworkType['linea-goerli'],
                     },
                   ],
@@ -1604,6 +1661,9 @@ describe('NetworkController', () => {
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                           .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
+                          .ticker,
                       network: InfuraNetworkType['linea-mainnet'],
                     },
                   ],
@@ -1614,6 +1674,8 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
                       network: InfuraNetworkType.mainnet,
                     },
                   ],
@@ -1624,6 +1686,8 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
                       network: InfuraNetworkType.sepolia,
                     },
                   ],
@@ -1679,6 +1743,7 @@ describe('NetworkController', () => {
                     'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
+                      ticker: 'TEST',
                       chainId: '0x1',
                       rpcUrl: 'https://test.network',
                     },
@@ -1690,6 +1755,8 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                       network: InfuraNetworkType.goerli,
                     },
                   ],
@@ -1701,6 +1768,9 @@ describe('NetworkController', () => {
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
                           .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
+                          .ticker,
                       network: InfuraNetworkType['linea-goerli'],
                     },
                   ],
@@ -1712,6 +1782,9 @@ describe('NetworkController', () => {
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                           .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
+                          .ticker,
                       network: InfuraNetworkType['linea-mainnet'],
                     },
                   ],
@@ -1721,6 +1794,8 @@ describe('NetworkController', () => {
                       type: NetworkClientType.Infura,
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
                       infuraProjectId: 'some-infura-project-id',
                       network: InfuraNetworkType.mainnet,
                     },
@@ -1732,6 +1807,8 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
                       network: InfuraNetworkType.sepolia,
                     },
                   ],
@@ -1787,6 +1864,7 @@ describe('NetworkController', () => {
                     'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
+                      ticker: 'TEST',
                       chainId: toHex(1),
                       rpcUrl: 'https://test.network',
                     },
@@ -1798,6 +1876,8 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                       network: InfuraNetworkType.goerli,
                     },
                   ],
@@ -1809,6 +1889,9 @@ describe('NetworkController', () => {
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
                           .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
+                          .ticker,
                       network: InfuraNetworkType['linea-goerli'],
                     },
                   ],
@@ -1820,6 +1903,9 @@ describe('NetworkController', () => {
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                           .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
+                          .ticker,
                       network: InfuraNetworkType['linea-mainnet'],
                     },
                   ],
@@ -1829,6 +1915,8 @@ describe('NetworkController', () => {
                       type: NetworkClientType.Infura,
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
                       infuraProjectId: 'some-infura-project-id',
                       network: InfuraNetworkType.mainnet,
                     },
@@ -1840,6 +1928,8 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       chainId:
                         BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
                       network: InfuraNetworkType.sepolia,
                     },
                   ],
@@ -1897,6 +1987,7 @@ describe('NetworkController', () => {
                   'AAAA-AAAA-AAAA-AAAA',
                   {
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                     chainId: toHex(1),
                     rpcUrl: 'https://test.network.1',
                   },
@@ -1908,6 +1999,7 @@ describe('NetworkController', () => {
                     infuraProjectId: 'some-infura-project-id',
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                     network: InfuraNetworkType.goerli,
                   },
                 ],
@@ -1919,6 +2011,9 @@ describe('NetworkController', () => {
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
                         .chainId,
+                    ticker:
+                      BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
+                        .ticker,
                     network: InfuraNetworkType['linea-goerli'],
                   },
                 ],
@@ -1930,6 +2025,9 @@ describe('NetworkController', () => {
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                         .chainId,
+                    ticker:
+                      BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
+                        .ticker,
                     network: InfuraNetworkType['linea-mainnet'],
                   },
                 ],
@@ -1939,6 +2037,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Infura,
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
                     infuraProjectId: 'some-infura-project-id',
                     network: InfuraNetworkType.mainnet,
                   },
@@ -1950,6 +2049,7 @@ describe('NetworkController', () => {
                     infuraProjectId: 'some-infura-project-id',
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
                     network: InfuraNetworkType.sepolia,
                   },
                 ],
@@ -2054,12 +2154,14 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       type: NetworkClientType.Infura,
                       chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
                       chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
+                      ticker: 'ABC',
                     })
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
@@ -2153,12 +2255,14 @@ describe('NetworkController', () => {
                       infuraProjectId: 'some-infura-project-id',
                       type: NetworkClientType.Infura,
                       chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
                       chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
+                      ticker: 'ABC',
                     })
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
@@ -2244,6 +2348,7 @@ describe('NetworkController', () => {
                       network: networkType,
                       infuraProjectId: 'some-infura-project-id',
                       chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
                       type: NetworkClientType.Infura,
                     })
                     .mockReturnValue(fakeNetworkClients[0])
@@ -2251,6 +2356,7 @@ describe('NetworkController', () => {
                       chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
+                      ticker: 'ABC',
                     })
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
@@ -2356,12 +2462,14 @@ describe('NetworkController', () => {
                   chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   network: NetworkType.goerli,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -2448,12 +2556,14 @@ describe('NetworkController', () => {
                   chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   network: NetworkType.goerli,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -2535,12 +2645,14 @@ describe('NetworkController', () => {
                   chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   network: NetworkType.goerli,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -2753,6 +2865,18 @@ describe('NetworkController', () => {
         });
       });
     });
+
+    it('is callable from the controller messenger', async () => {
+      await withController({}, async ({ controller, messenger }) => {
+        const fakeProvider = buildFakeProvider();
+        const fakeNetworkClient = buildFakeClient(fakeProvider);
+        mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+        await messenger.call('NetworkController:setProviderType', 'goerli');
+
+        expect(controller.state.selectedNetworkClientId).toBe('goerli');
+      });
+    });
   });
 
   describe('setActiveNetwork', () => {
@@ -2951,6 +3075,7 @@ describe('NetworkController', () => {
               rpcUrl: 'https://mock-rpc-url',
               chainId: toHex(111),
               type: NetworkClientType.Custom,
+              ticker: 'TEST',
             })
             .mockReturnValue(fakeNetworkClient);
 
@@ -2998,10 +3123,54 @@ describe('NetworkController', () => {
               rpcUrl: 'https://mock-rpc-url',
               chainId: toHex(111),
               type: NetworkClientType.Custom,
+              ticker: 'TEST',
             })
             .mockReturnValue(fakeNetworkClient);
 
           await controller.setActiveNetwork(testNetworkClientId);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            testNetworkClientId,
+          );
+        },
+      );
+    });
+
+    it('is able to be called via messenger action', async () => {
+      const testNetworkClientId = 'testNetworkConfigurationId';
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              [testNetworkClientId]: {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                ticker: 'TEST',
+                nickname: 'something existing',
+                id: testNetworkClientId,
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer-2.com',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, messenger }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient()
+            .calledWith({
+              rpcUrl: 'https://mock-rpc-url',
+              chainId: toHex(111),
+              type: NetworkClientType.Custom,
+              ticker: 'TEST',
+            })
+            .mockReturnValue(fakeNetworkClient);
+
+          await messenger.call(
+            'NetworkController:setActiveNetwork',
+            testNetworkClientId,
+          );
 
           expect(controller.state.selectedNetworkClientId).toStrictEqual(
             testNetworkClientId,
@@ -3461,6 +3630,158 @@ describe('NetworkController', () => {
     });
   });
 
+  for (const [name, getNetworkConfigurationByNetworkClientId] of [
+    [
+      'getNetworkConfigurationByNetworkClientId',
+      ({
+        controller,
+        networkClientId,
+      }: {
+        controller: NetworkController;
+        networkClientId: NetworkClientId;
+      }) =>
+        controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+    ],
+    [
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
+      ({
+        messenger,
+        networkClientId,
+      }: {
+        messenger: ControllerMessenger<
+          NetworkControllerActions,
+          NetworkControllerEvents
+        >;
+        networkClientId: NetworkClientId;
+      }) =>
+        messenger.call(
+          'NetworkController:getNetworkConfigurationByNetworkClientId',
+          networkClientId,
+        ),
+    ],
+  ] as const) {
+    // This is a string!
+    // eslint-disable-next-line jest/valid-title
+    describe(String(name), () => {
+      const infuraProjectId = 'some-infura-project-id';
+      const expectedInfuraNetworkConfigurationsByType: Record<
+        InfuraNetworkType,
+        NetworkConfiguration
+      > = {
+        [InfuraNetworkType.goerli]: {
+          rpcUrl: 'https://goerli.infura.io/v3/some-infura-project-id',
+          chainId: '0x5' as const,
+          ticker: 'GoerliETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://goerli.etherscan.io',
+          },
+        },
+        [InfuraNetworkType.sepolia]: {
+          rpcUrl: 'https://sepolia.infura.io/v3/some-infura-project-id',
+          chainId: '0xaa36a7' as const,
+          ticker: 'SepoliaETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://sepolia.etherscan.io',
+          },
+        },
+        [InfuraNetworkType.mainnet]: {
+          rpcUrl: 'https://mainnet.infura.io/v3/some-infura-project-id',
+          chainId: '0x1' as const,
+          ticker: 'ETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://etherscan.io',
+          },
+        },
+        [InfuraNetworkType['linea-goerli']]: {
+          rpcUrl: 'https://linea-goerli.infura.io/v3/some-infura-project-id',
+          chainId: '0xe704' as const,
+          ticker: 'LineaETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://goerli.lineascan.build',
+          },
+        },
+        [InfuraNetworkType['linea-mainnet']]: {
+          rpcUrl: 'https://linea-mainnet.infura.io/v3/some-infura-project-id',
+          chainId: '0xe708' as const,
+          ticker: 'ETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://lineascan.build',
+          },
+        },
+      };
+
+      it.each(getKnownPropertyNames(InfuraNetworkType))(
+        'constructs a network configuration for the %s network',
+        async (infuraNetworkType) => {
+          await withController(
+            { infuraProjectId },
+            ({ controller, messenger }) => {
+              const networkConfiguration =
+                getNetworkConfigurationByNetworkClientId({
+                  controller,
+                  messenger,
+                  networkClientId: infuraNetworkType,
+                });
+
+              expect(networkConfiguration).toStrictEqual(
+                expectedInfuraNetworkConfigurationsByType[infuraNetworkType],
+              );
+            },
+          );
+        },
+      );
+
+      it('returns the network configuration in state that matches the given ID, if there is one', async () => {
+        await withController(
+          {
+            infuraProjectId,
+            state: {
+              networkConfigurations: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  rpcUrl: 'https://test.network',
+                  chainId: toHex(111),
+                  ticker: 'TICKER',
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                },
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            const networkConfiguration =
+              getNetworkConfigurationByNetworkClientId({
+                controller,
+                messenger,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              });
+
+            expect(networkConfiguration).toStrictEqual({
+              rpcUrl: 'https://test.network',
+              chainId: toHex(111),
+              ticker: 'TICKER',
+              id: 'AAAA-AAAA-AAAA-AAAA',
+            });
+          },
+        );
+      });
+
+      it('returns undefined if the given ID does not match a network configuration in state', async () => {
+        await withController(
+          { infuraProjectId },
+          ({ controller, messenger }) => {
+            const networkConfiguration =
+              getNetworkConfigurationByNetworkClientId({
+                controller,
+                messenger,
+                networkClientId: 'nonexistent',
+              });
+
+            expect(networkConfiguration).toBeUndefined();
+          },
+        );
+      });
+    });
+  }
+
   describe('upsertNetworkConfiguration', () => {
     describe('when the rpcUrl of the given network configuration does not match an existing network configuration', () => {
       it('adds the network configuration to state without updating or removing any existing network configurations', async () => {
@@ -3568,6 +3889,7 @@ describe('NetworkController', () => {
                 chainId: toHex(111),
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
+                ticker: 'TICKER',
               })
               .mockReturnValue(newCustomNetworkClient);
 
@@ -3591,6 +3913,7 @@ describe('NetworkController', () => {
                   chainId: toHex(111),
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
+                  ticker: 'TICKER',
                 },
               }),
             });
@@ -3677,6 +4000,7 @@ describe('NetworkController', () => {
                   chainId: toHex(111),
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(newCustomNetworkClient);
               // Will use mainnet by default
@@ -3791,6 +4115,7 @@ describe('NetworkController', () => {
                   chainId: toHex(111),
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(newCustomNetworkClient);
               // Will use mainnet by default
@@ -3836,6 +4161,7 @@ describe('NetworkController', () => {
                 chainId: toHex(111),
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
+                ticker: 'TICKER',
               })
               .mockReturnValue(newCustomNetworkClient);
 
@@ -4087,6 +4413,7 @@ describe('NetworkController', () => {
                     chainId: toHex(111),
                     rpcUrl: 'https://test.network',
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(newCustomNetworkClient);
                 const networkClientToDestroy = Object.values(
@@ -4122,6 +4449,7 @@ describe('NetworkController', () => {
                       chainId: toHex(111),
                       rpcUrl: oldRpcUrl,
                       type: NetworkClientType.Custom,
+                      ticker: 'TEST',
                     },
                   }),
                 });
@@ -4153,6 +4481,7 @@ describe('NetworkController', () => {
                     chainId: toHex(999),
                     rpcUrl: newRpcUrl,
                     type: NetworkClientType.Custom,
+                    ticker: 'TICKER',
                   })
                   .mockReturnValue(newCustomNetworkClient);
 
@@ -4176,6 +4505,7 @@ describe('NetworkController', () => {
                       chainId: toHex(999),
                       rpcUrl: newRpcUrl,
                       type: NetworkClientType.Custom,
+                      ticker: 'TICKER',
                     },
                   }),
                 });
@@ -4209,6 +4539,7 @@ describe('NetworkController', () => {
                     chainId: toHex(111),
                     rpcUrl: 'https://test.network',
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(newCustomNetworkClient);
                 const networkClientsBefore =
@@ -4558,6 +4889,7 @@ describe('NetworkController', () => {
                 chainId: toHex(111),
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
+                ticker: 'TEST',
               })
               .mockReturnValue(buildFakeClient());
             const networkClientToDestroy = Object.values(
@@ -4581,6 +4913,7 @@ describe('NetworkController', () => {
                   chainId: toHex(111),
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 },
               }),
             });
@@ -4657,7 +4990,7 @@ describe('NetworkController', () => {
     describe('if a provider has been set', () => {
       for (const { networkType } of INFURA_NETWORKS) {
         describe(`if the previous provider configuration had a type of "${networkType}"`, () => {
-          it('emits networkWillChange', async () => {
+          it('emits networkWillChange with state payload', async () => {
             await withController(
               {
                 state: {
@@ -4687,6 +5020,7 @@ describe('NetworkController', () => {
                 const networkWillChange = waitForPublishedEvents({
                   messenger,
                   eventType: 'NetworkController:networkWillChange',
+                  filter: ([networkState]) => networkState === controller.state,
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
@@ -4699,7 +5033,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('emits networkDidChange', async () => {
+          it('emits networkDidChange with state payload', async () => {
             await withController(
               {
                 state: {
@@ -4729,6 +5063,7 @@ describe('NetworkController', () => {
                 const networkDidChange = waitForPublishedEvents({
                   messenger,
                   eventType: 'NetworkController:networkDidChange',
+                  filter: ([networkState]) => networkState === controller.state,
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
@@ -4777,12 +5112,14 @@ describe('NetworkController', () => {
                     rpcUrl: 'https://mock-rpc-url',
                     chainId: toHex(1337),
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(fakeNetworkClients[0])
                   .calledWith({
                     network: networkType,
                     infuraProjectId: 'some-infura-project-id',
                     chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     type: NetworkClientType.Infura,
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
@@ -4849,11 +5186,13 @@ describe('NetworkController', () => {
                     rpcUrl: 'https://mock-rpc-url',
                     chainId: toHex(1337),
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(fakeNetworkClients[0])
                   .calledWith({
                     network: networkType,
                     chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     infuraProjectId: 'some-infura-project-id',
                     type: NetworkClientType.Infura,
                   })
@@ -4929,12 +5268,14 @@ describe('NetworkController', () => {
                     rpcUrl: 'https://mock-rpc-url',
                     chainId: toHex(1337),
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(fakeNetworkClients[0])
                   .calledWith({
                     network: networkType,
                     infuraProjectId: 'some-infura-project-id',
                     chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     type: NetworkClientType.Infura,
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
@@ -4989,12 +5330,14 @@ describe('NetworkController', () => {
                     rpcUrl: 'https://mock-rpc-url',
                     chainId: toHex(1337),
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(fakeNetworkClients[0])
                   .calledWith({
                     network: networkType,
                     infuraProjectId: 'some-infura-project-id',
                     chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     type: NetworkClientType.Infura,
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
@@ -5050,12 +5393,14 @@ describe('NetworkController', () => {
                     rpcUrl: 'https://mock-rpc-url',
                     chainId: toHex(1337),
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(fakeNetworkClients[0])
                   .calledWith({
                     network: networkType,
                     infuraProjectId: 'some-infura-project-id',
                     chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     type: NetworkClientType.Infura,
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
@@ -5106,7 +5451,7 @@ describe('NetworkController', () => {
                       request: {
                         method: 'eth_getBlockByNumber',
                       },
-                      error: ethErrors.rpc.methodNotFound(),
+                      error: rpcErrors.methodNotFound(),
                     },
                   ]),
                   buildFakeProvider([
@@ -5127,12 +5472,14 @@ describe('NetworkController', () => {
                     rpcUrl: 'https://mock-rpc-url',
                     chainId: toHex(1337),
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(fakeNetworkClients[0])
                   .calledWith({
                     network: networkType,
                     infuraProjectId: 'some-infura-project-id',
                     chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     type: NetworkClientType.Infura,
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
@@ -5209,12 +5556,14 @@ describe('NetworkController', () => {
                     rpcUrl: 'https://mock-rpc-url',
                     chainId: toHex(1337),
                     type: NetworkClientType.Custom,
+                    ticker: 'TEST',
                   })
                   .mockReturnValue(fakeNetworkClients[0])
                   .calledWith({
                     network: networkType,
                     infuraProjectId: 'some-infura-project-id',
                     chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
                     type: NetworkClientType.Infura,
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
@@ -5245,7 +5594,7 @@ describe('NetworkController', () => {
       }
 
       describe(`if the previous provider configuration had a type of "rpc"`, () => {
-        it('emits networkWillChange', async () => {
+        it('emits networkWillChange with state payload', async () => {
           await withController(
             {
               state: {
@@ -5263,6 +5612,7 @@ describe('NetworkController', () => {
               const networkWillChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkWillChange',
+                filter: ([networkState]) => networkState === controller.state,
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
@@ -5275,7 +5625,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('emits networkDidChange', async () => {
+        it('emits networkDidChange with state payload', async () => {
           await withController(
             {
               state: {
@@ -5293,6 +5643,7 @@ describe('NetworkController', () => {
               const networkDidChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkDidChange',
+                filter: ([networkState]) => networkState === controller.state,
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
@@ -5334,12 +5685,14 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   type: NetworkClientType.Infura,
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
@@ -5406,12 +5759,14 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   type: NetworkClientType.Infura,
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
@@ -5484,12 +5839,14 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   type: NetworkClientType.Infura,
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
@@ -5535,12 +5892,14 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   type: NetworkClientType.Infura,
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
@@ -5579,6 +5938,7 @@ describe('NetworkController', () => {
                   network: InfuraNetworkType.goerli,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5586,6 +5946,7 @@ describe('NetworkController', () => {
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
@@ -5622,7 +5983,7 @@ describe('NetworkController', () => {
                     request: {
                       method: 'eth_getBlockByNumber',
                     },
-                    error: ethErrors.rpc.methodNotFound(),
+                    error: rpcErrors.methodNotFound(),
                   },
                 ]),
                 buildFakeProvider([
@@ -5643,6 +6004,7 @@ describe('NetworkController', () => {
                   network: InfuraNetworkType.goerli,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5650,6 +6012,7 @@ describe('NetworkController', () => {
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
@@ -5713,6 +6076,7 @@ describe('NetworkController', () => {
                   network: InfuraNetworkType.goerli,
                   infuraProjectId: 'some-infura-project-id',
                   chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5720,6 +6084,7 @@ describe('NetworkController', () => {
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                   type: NetworkClientType.Custom,
+                  ticker: 'TEST',
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
@@ -5835,12 +6200,14 @@ function mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
       infuraProjectId,
       type: NetworkClientType.Infura,
       chainId: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+      ticker: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
     })
     .mockReturnValue(builtInNetworkClient)
     .calledWith({
       network: NetworkType.goerli,
       infuraProjectId,
       chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+      ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
       type: NetworkClientType.Infura,
     })
     .mockReturnValue(builtInNetworkClient)
@@ -5848,6 +6215,7 @@ function mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
       network: NetworkType.sepolia,
       infuraProjectId,
       chainId: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+      ticker: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
       type: NetworkClientType.Infura,
     })
     .mockReturnValue(builtInNetworkClient);
@@ -5873,7 +6241,7 @@ function refreshNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
 }) {
-  it('emits networkWillChange', async () => {
+  it('emits networkWillChange with state payload', async () => {
     await withController(
       {
         state: initialState,
@@ -5886,6 +6254,7 @@ function refreshNetworkTests({
         const networkWillChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkWillChange',
+          filter: ([networkState]) => networkState === controller.state,
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
@@ -5898,7 +6267,7 @@ function refreshNetworkTests({
     );
   });
 
-  it('emits networkDidChange', async () => {
+  it('emits networkDidChange with state payload', async () => {
     await withController(
       {
         state: initialState,
@@ -5911,6 +6280,7 @@ function refreshNetworkTests({
         const networkDidChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkDidChange',
+          filter: ([networkState]) => networkState === controller.state,
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
@@ -5950,6 +6320,7 @@ function refreshNetworkTests({
             chainId: expectedProviderConfig.chainId,
             rpcUrl: expectedProviderConfig.rpcUrl,
             type: NetworkClientType.Custom,
+            ticker: expectedProviderConfig.ticker,
           });
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
@@ -5993,6 +6364,7 @@ function refreshNetworkTests({
             network: expectedProviderConfig.type,
             infuraProjectId: 'infura-project-id',
             chainId: BUILT_IN_NETWORKS[expectedProviderConfig.type].chainId,
+            ticker: BUILT_IN_NETWORKS[expectedProviderConfig.type].ticker,
             type: NetworkClientType.Infura,
           });
           const { provider } = controller.getProviderAndBlockTracker();
@@ -6033,6 +6405,7 @@ function refreshNetworkTests({
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 rpcUrl: controller.state.providerConfig.rpcUrl!,
                 type: NetworkClientType.Custom,
+                ticker: controller.state.providerConfig.ticker,
               }
             : {
                 network: controller.state.providerConfig.type,
@@ -6040,6 +6413,9 @@ function refreshNetworkTests({
                 chainId:
                   BUILT_IN_NETWORKS[controller.state.providerConfig.type]
                     .chainId,
+                ticker:
+                  BUILT_IN_NETWORKS[controller.state.providerConfig.type]
+                    .ticker,
                 type: NetworkClientType.Infura,
               };
         const operationNetworkClientOptions: Parameters<
@@ -6051,11 +6427,13 @@ function refreshNetworkTests({
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 rpcUrl: expectedProviderConfig.rpcUrl!,
                 type: NetworkClientType.Custom,
+                ticker: expectedProviderConfig.ticker,
               }
             : {
                 network: expectedProviderConfig.type,
                 infuraProjectId: 'infura-project-id',
                 chainId: BUILT_IN_NETWORKS[expectedProviderConfig.type].chainId,
+                ticker: BUILT_IN_NETWORKS[expectedProviderConfig.type].ticker,
                 type: NetworkClientType.Infura,
               };
         mockCreateNetworkClient()
@@ -6250,7 +6628,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.limitExceeded('some error'),
+                error: rpcErrors.limitExceeded('some error'),
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6291,7 +6669,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.limitExceeded('some error'),
+                error: rpcErrors.limitExceeded('some error'),
               },
             ],
           });
@@ -6326,7 +6704,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.limitExceeded('some error'),
+                  error: rpcErrors.limitExceeded('some error'),
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6358,7 +6736,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.limitExceeded('some error'),
+                  error: rpcErrors.limitExceeded('some error'),
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6392,7 +6770,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.limitExceeded('some error'),
+                error: rpcErrors.limitExceeded('some error'),
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6852,17 +7230,6 @@ function buildMessenger() {
 function buildNetworkControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'NetworkController',
-    allowedActions: [
-      'NetworkController:getProviderConfig',
-      'NetworkController:getEthQuery',
-    ],
-    allowedEvents: [
-      'NetworkController:stateChange',
-      'NetworkController:infuraIsBlocked',
-      'NetworkController:infuraIsUnblocked',
-      'NetworkController:networkDidChange',
-      'NetworkController:networkWillChange',
-    ],
   });
 }
 
@@ -6953,6 +7320,7 @@ function buildFakeClient(
   return {
     configuration: {
       type: NetworkClientType.Custom,
+      ticker: 'TEST',
       chainId: '0x1',
       rpcUrl: 'https://test.network',
     },

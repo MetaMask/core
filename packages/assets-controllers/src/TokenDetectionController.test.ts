@@ -13,10 +13,12 @@ import type {
   ProviderConfig,
 } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import type { AssetsContractController } from './AssetsContractController';
 import {
   formatAggregatorNames,
@@ -108,10 +110,7 @@ const setupTokenListController = (
   const tokenListMessenger = controllerMessenger.getRestricted({
     name: 'TokenListController',
     allowedActions: [],
-    allowedEvents: [
-      'TokenListController:stateChange',
-      'NetworkController:stateChange',
-    ],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   const tokenList = new TokenListController({
@@ -151,7 +150,7 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
@@ -206,6 +205,14 @@ describe('TokenDetectionController', () => {
       getTokenListState: () => tokenList.state,
       getNetworkState: () => defaultNetworkState,
       getPreferencesState: () => preferences.state,
+      getNetworkClientById: jest.fn().mockReturnValueOnce({
+        configuration: {
+          chainId: ChainId.mainnet,
+        },
+        provider: {},
+        blockTracker: {},
+        destroy: jest.fn(),
+      }),
     });
 
     sinon
@@ -431,7 +438,7 @@ describe('TokenDetectionController', () => {
   it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
     const polygonDecimalChainId = '137';
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${polygonDecimalChainId}`)
+      .get(getTokensPath(toHex(polygonDecimalChainId)))
       .reply(200, sampleTokenList);
 
     const stub = sinon.stub();
@@ -452,6 +459,7 @@ describe('TokenDetectionController', () => {
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,
         getPreferencesState: () => preferences.state,
+        getNetworkClientById: jest.fn(),
       },
       {
         disabled: false,
@@ -494,6 +502,7 @@ describe('TokenDetectionController', () => {
         getTokenListState: stub,
         getNetworkState: () => defaultNetworkState,
         getPreferencesState: () => preferences.state,
+        getNetworkClientById: jest.fn(),
       },
       {
         disabled: false,
@@ -526,6 +535,7 @@ describe('TokenDetectionController', () => {
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,
         getPreferencesState: () => preferences.state,
+        getNetworkClientById: jest.fn(),
       },
       {
         disabled: false,
@@ -562,6 +572,7 @@ describe('TokenDetectionController', () => {
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,
         getPreferencesState: () => preferences.state,
+        getNetworkClientById: jest.fn(),
       },
       {
         disabled: false,
@@ -579,4 +590,83 @@ describe('TokenDetectionController', () => {
 
     expect(getBalancesInSingleCallMock.called).toBe(true);
   });
+
+  describe('startPollingByNetworkClientId', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    it('should call detect tokens with networkClientId and address params', async () => {
+      const spy = jest
+        .spyOn(tokenDetection, 'detectTokens')
+        .mockImplementation(() => {
+          return Promise.resolve();
+        });
+      tokenDetection.startPollingByNetworkClientId('mainnet', {
+        address: '0x1',
+      });
+      tokenDetection.startPollingByNetworkClientId('sepolia', {
+        address: '0xdeadbeef',
+      });
+      tokenDetection.startPollingByNetworkClientId('goerli', {
+        address: '0x3',
+      });
+
+      await advanceTime({ clock, duration: 0 });
+      expect(spy.mock.calls).toMatchObject([
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+      ]);
+      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+      expect(spy.mock.calls).toMatchObject([
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+      ]);
+      tokenDetection.stopAllPolling();
+      spy.mockRestore();
+    });
+  });
+
+  describe('detectTokens', () => {
+    it('should detect and add tokens by networkClientId correctly', async () => {
+      const selectedAddress = '0x1';
+      tokenDetection.configure({
+        disabled: false,
+      });
+      getBalancesInSingleCall.resolves({
+        [sampleTokenA.address]: new BN(1),
+      });
+      await tokenDetection.detectTokens({
+        networkClientId: 'mainnet',
+        accountAddress: selectedAddress,
+      });
+      const tokens =
+        tokensController.state.allDetectedTokens[ChainId.mainnet][
+          selectedAddress
+        ];
+      expect(tokens).toStrictEqual([sampleTokenA]);
+    });
+  });
 });
+
+/**
+ * Construct the path used to fetch tokens that we can pass to `nock`.
+ *
+ * @param chainId - The chain ID.
+ * @returns The constructed path.
+ */
+function getTokensPath(chainId: Hex) {
+  return `/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+}

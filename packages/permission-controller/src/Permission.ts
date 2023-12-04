@@ -210,19 +210,20 @@ type RestrictedMethodContext = Readonly<{
   [key: string]: any;
 }>;
 
-export type RestrictedMethodParameters = Json[] | Record<string, Json> | void;
+export type RestrictedMethodParameters = Json[] | Record<string, Json>;
 
 /**
  * The arguments passed to a restricted method implementation.
  *
  * @template Params - The JSON-RPC parameters of the restricted method.
  */
-export type RestrictedMethodOptions<Params extends RestrictedMethodParameters> =
-  {
-    method: TargetName;
-    params?: Params;
-    context: RestrictedMethodContext;
-  };
+export type RestrictedMethodOptions<
+  Params extends RestrictedMethodParameters | null,
+> = {
+  method: TargetName;
+  params?: Params;
+  context: RestrictedMethodContext;
+};
 
 /**
  * A synchronous restricted method implementation.

@@ -15,18 +15,26 @@ This repository houses the following packages:
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/ens-controller`](packages/ens-controller)
+- [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
+- [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
+- [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/logging-controller`](packages/logging-controller);
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-controller`](packages/notification-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
+- [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
+- [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/selected-network-controller`](packages/selected-network-controller);
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
+- [`@metamask/permission-log-controller`](packages/permission-log-controller)
 
 Or, in graph form [^fn1]:
 
@@ -42,10 +50,14 @@ linkStyle default opacity:0.5
   approval_controller(["@metamask/approval-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
+  build_utils(["@metamask/build-utils"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   ens_controller(["@metamask/ens-controller"]);
+  eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
+  json_rpc_engine(["@metamask/json-rpc-engine"]);
+  json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
@@ -53,8 +65,11 @@ linkStyle default opacity:0.5
   network_controller(["@metamask/network-controller"]);
   notification_controller(["@metamask/notification-controller"]);
   permission_controller(["@metamask/permission-controller"]);
+  permission_log_controller(["@metamask/permission-log-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
+  polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
+  queued_request_controller(["@metamask/queued-request-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
@@ -69,14 +84,18 @@ linkStyle default opacity:0.5
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
   assets_controllers --> network_controller;
+  assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
   composable_controller --> base_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
   ens_controller --> network_controller;
+  eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
   gas_fee_controller --> network_controller;
+  gas_fee_controller --> polling_controller;
+  json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> message_manager;
   keyring_controller --> preferences_controller;
@@ -87,25 +106,42 @@ linkStyle default opacity:0.5
   name_controller --> base_controller;
   network_controller --> base_controller;
   network_controller --> controller_utils;
+  network_controller --> eth_json_rpc_provider;
+  network_controller --> json_rpc_engine;
   notification_controller --> base_controller;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
+  permission_controller --> json_rpc_engine;
+  permission_log_controller --> base_controller;
+  permission_log_controller --> json_rpc_engine;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
+  polling_controller --> base_controller;
+  polling_controller --> controller_utils;
+  polling_controller --> network_controller;
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
+  queued_request_controller --> base_controller;
+  queued_request_controller --> controller_utils;
+  queued_request_controller --> json_rpc_engine;
+  queued_request_controller --> network_controller;
+  queued_request_controller --> selected_network_controller;
+  queued_request_controller --> approval_controller;
   rate_limit_controller --> base_controller;
   selected_network_controller --> base_controller;
+  selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
-  signature_controller --> message_manager;
   signature_controller --> keyring_controller;
+  signature_controller --> logging_controller;
+  signature_controller --> message_manager;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
 ```
 

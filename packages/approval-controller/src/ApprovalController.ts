@@ -1,9 +1,12 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type { ControllerGetStateAction } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+  type RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
-import type { EthereumRpcError } from 'eth-rpc-errors';
-import { ethErrors } from 'eth-rpc-errors';
-import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 
 import {
@@ -180,7 +183,7 @@ export type AcceptOptions = {
 export type StartFlowOptions = OptionalField<
   ApprovalFlow,
   'id' | 'loadingText'
->;
+> & { show?: boolean };
 
 export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
 
@@ -240,23 +243,23 @@ export type ErrorResult = Record<string, never>;
 
 // Event Types
 
-export type ApprovalStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ApprovalControllerState, Patch[]];
-};
+export type ApprovalStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ApprovalControllerEvents = ApprovalStateChange;
 
 // Action Types
 
-export type GetApprovalsState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => ApprovalControllerState;
-};
+export type GetApprovalsState = ControllerGetStateAction<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;
-  handler: (error: EthereumRpcError<unknown>) => void;
+  handler: (error: JsonRpcError<DataWithOptionalCause>) => void;
 };
 
 export type AddApprovalRequest = {
@@ -335,7 +338,7 @@ export type ApprovalControllerActions =
  * Adding a request returns a promise that resolves or rejects when the request
  * is approved or denied, respectively.
  */
-export class ApprovalController extends BaseControllerV2<
+export class ApprovalController extends BaseController<
   typeof controllerName,
   ApprovalControllerState,
   ApprovalControllerMessenger
@@ -356,7 +359,7 @@ export class ApprovalController extends BaseControllerV2<
    * the request can be displayed to the user.
    * @param options.messenger - The restricted controller messenger for the Approval controller.
    * @param options.state - The initial controller state.
-   * @param options.typesExcludedFromRateLimiting - Array of aproval types which allow multiple pending approval requests from the same origin.
+   * @param options.typesExcludedFromRateLimiting - Array of approval types which allow multiple pending approval requests from the same origin.
    */
   constructor({
     messenger,
@@ -719,10 +722,10 @@ export class ApprovalController extends BaseControllerV2<
   /**
    * Rejects and deletes all approval requests.
    *
-   * @param rejectionError - The EthereumRpcError to reject the approval
+   * @param rejectionError - The JsonRpcError to reject the approval
    * requests with.
    */
-  clear(rejectionError: EthereumRpcError<unknown>): void {
+  clear(rejectionError: JsonRpcError<DataWithOptionalCause>): void {
     for (const id of this.#approvals.keys()) {
       this.reject(id, rejectionError);
     }
@@ -758,6 +761,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts - Options bag.
    * @param opts.id - The id of the approval flow.
    * @param opts.loadingText - The loading text that will be associated to the approval flow.
+   * @param opts.show - A flag to determine whether the approval should show to the user.
    * @returns The object containing the approval flow id.
    */
   startFlow(opts: StartFlowOptions = {}): ApprovalFlowStartResult {
@@ -768,7 +772,10 @@ export class ApprovalController extends BaseControllerV2<
       draftState.approvalFlows.push({ id, loadingText });
     });
 
-    this.#showApprovalRequest();
+    // By default, if nothing else is specified, we always show the approval.
+    if (opts.show !== false) {
+      this.#showApprovalRequest();
+    }
 
     return { id, loadingText };
   }
@@ -878,7 +885,7 @@ export class ApprovalController extends BaseControllerV2<
       !this.#typesExcludedFromRateLimiting.includes(type) &&
       this.has({ origin, type })
     ) {
-      throw ethErrors.rpc.resourceUnavailable(
+      throw rpcErrors.resourceUnavailable(
         getAlreadyPendingMessage(origin, type),
       );
     }
@@ -937,7 +944,7 @@ export class ApprovalController extends BaseControllerV2<
     }
 
     if (errorMessage) {
-      throw ethErrors.rpc.internal(errorMessage);
+      throw rpcErrors.internal(errorMessage);
     }
   }
 

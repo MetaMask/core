@@ -1,13 +1,15 @@
-import type { Json } from '@metamask/utils';
-import { createAsyncMiddleware } from 'json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   JsonRpcEngine,
   JsonRpcMiddleware,
   AsyncJsonRpcEngineNextCallback,
+} from '@metamask/json-rpc-engine';
+import type {
+  Json,
   PendingJsonRpcResponse,
   JsonRpcRequest,
-} from 'json-rpc-engine';
+} from '@metamask/utils';
 
 import type {
   GenericPermissionController,

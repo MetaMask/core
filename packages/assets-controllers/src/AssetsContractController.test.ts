@@ -5,6 +5,7 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
@@ -14,14 +15,13 @@ import {
   NetworkClientType,
 } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
-import HttpProvider from 'ethjs-provider-http';
 
+import { mockNetwork } from '../../../tests/mock-network';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
-import { mockNetwork } from '../../../tests/mock-network';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -46,16 +46,12 @@ async function setupAssetContractControllers() {
     network: 'mainnet',
     infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
     chainId: BUILT_IN_NETWORKS.mainnet.chainId,
+    ticker: BUILT_IN_NETWORKS.mainnet.ticker,
   } as const;
 
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: [
-        'NetworkController:stateChange',
-        'NetworkController:networkDidChange',
-      ],
-      allowedActions: [],
     });
   const network = new NetworkController({
     infuraProjectId: networkClientConfiguration.infuraProjectId,
@@ -392,6 +388,38 @@ describe('AssetsContractController', () => {
             params: [
               {
                 to: ERC1155_ADDRESS,
+                data: '0x06fdde03',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001c41706569726f6e20476f6469766572736520436f6c6c656374696f6e00000000',
+          },
+        },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: ERC1155_ADDRESS,
+                data: '0x95d89b41',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000054150454743000000000000000000000000000000000000000000000000000000',
+          },
+        },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: ERC1155_ADDRESS,
                 data: '0x01ffc9a7d9b67a2600000000000000000000000000000000000000000000000000000000',
               },
               'latest',
@@ -408,7 +436,11 @@ describe('AssetsContractController', () => {
       ERC1155_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
+
     expect(standardAndDetails.standard).toBe('ERC1155');
+    expect(standardAndDetails.name).toBe('Apeiron Godiverse Collection');
+    expect(standardAndDetails.symbol).toBe('APEGC');
+
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -835,6 +867,7 @@ describe('AssetsContractController', () => {
     mockNetworkWithDefaultChainId({
       networkClientConfiguration: {
         chainId: BUILT_IN_NETWORKS.sepolia.chainId,
+        ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
         infuraProjectId: networkClientConfiguration.infuraProjectId,
@@ -878,7 +911,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
+  it('should throw missing provider error when transferring single ERC-1155 when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     assetsContract.configure({ provider: undefined });
     await expect(

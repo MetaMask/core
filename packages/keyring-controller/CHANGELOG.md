@@ -6,6 +6,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/message-manager` to ^7.3.6 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/preferences-controller` to ^4.5.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [9.0.0]
+### Added
+- Add `KeyringController:persistAllKeyrings` messenger action ([#1965](https://github.com/MetaMask/core/pull/1965))
+
+### Changed
+- **BREAKING** Change `encryptor` constructor option property type to `GenericEncryptor | ExportableKeyEncryptor | undefined`  ([#2041](https://github.com/MetaMask/core/pull/2041))
+  - When the controller is instantiated with `cacheEncryptionKey: true`, `encryptor` may no longer be of type `GenericEncryptor`.
+- Bump dependency on `@metamask/scure-bip39` 2.1.1 ([#1868](https://github.com/MetaMask/core/pull/1868))
+- Bump dependency on `@metamask/utils` to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Bump @metamask/eth-keyring-controller to 14.0.0 ([#1771](https://github.com/MetaMask/core/pull/1771))
+
+## [8.1.0]
+### Changed
+- Adds additional options to KeyringTypes enum ([#1839](https://github.com/MetaMask/core/pull/1839))
+
+## [8.0.3]
+### Changed
+- `signTransaction` now accepts an optional `opts: Record<string, unknown>` argument to support `signTransaction` from `Keyring` type ([#1789](https://github.com/MetaMask/core/pull/1789))
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
+
+## [8.0.2]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/message-manager` to ^7.3.5
+
+### Fixed
+- Update `removeAccount` to remove call to `PreferencesController.removeIdentity` as `PreferencesController` already handles account removal side effects through messenger events ([#1759](https://github.com/MetaMask/core/pull/1759))
+
 ## [8.0.1]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -204,7 +240,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@9.0.0...@metamask/keyring-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.1.0...@metamask/keyring-controller@9.0.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.3...@metamask/keyring-controller@8.1.0
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.2...@metamask/keyring-controller@8.0.3
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...@metamask/keyring-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.0...@metamask/keyring-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.5.0...@metamask/keyring-controller@8.0.0
 [7.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.4.0...@metamask/keyring-controller@7.5.0

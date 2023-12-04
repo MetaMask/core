@@ -5,7 +5,7 @@ import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import type { Scope as NockScope } from 'nock';
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
 import { NetworkClientType } from '../../src/types';
@@ -285,6 +285,7 @@ export type MockOptions = {
   providerType: ProviderType;
   customRpcUrl?: string;
   customChainId?: Hex;
+  customTicker?: string;
 };
 
 export type MockCommunications = {
@@ -410,6 +411,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * that `providerType` is "custom".
  * @param options.customChainId - The chain id belonging to the custom RPC
  * endpoint, assuming that `providerType` is "custom" (default: "0x1").
+ * @param options.customTicker - The ticker of the custom RPC endpoint, assuming
+ * that `providerType` is "custom" (default: "ETH").
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -420,6 +423,7 @@ export async function withNetworkClient(
     infuraNetwork = 'mainnet',
     customRpcUrl = MOCK_RPC_URL,
     customChainId = '0x1',
+    customTicker = 'ETH',
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,
 ) {
@@ -445,11 +449,13 @@ export async function withNetworkClient(
           infuraProjectId: MOCK_INFURA_PROJECT_ID,
           type: NetworkClientType.Infura,
           chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
+          ticker: BUILT_IN_NETWORKS[infuraNetwork].ticker,
         })
       : createNetworkClient({
           chainId: customChainId,
           rpcUrl: customRpcUrl,
           type: NetworkClientType.Custom,
+          ticker: customTicker,
         });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;

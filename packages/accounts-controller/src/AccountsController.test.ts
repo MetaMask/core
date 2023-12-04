@@ -1,6 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
@@ -10,7 +11,8 @@ import type {
   AccountsControllerEvents,
   AccountsControllerState,
 } from './AccountsController';
-import { AccountsController, keyringTypeToName } from './AccountsController';
+import { AccountsController } from './AccountsController';
+import { keyringTypeToName } from './utils';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
@@ -34,7 +36,7 @@ const mockAccount: InternalAccount = {
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 1',
-    keyring: { type: 'HD Key Tree' },
+    keyring: { type: KeyringTypes.hd },
     lastSelected: 1691565967656,
   },
 };
@@ -47,7 +49,43 @@ const mockAccount2: InternalAccount = {
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 2',
-    keyring: { type: 'HD Key Tree' },
+    keyring: { type: KeyringTypes.hd },
+    lastSelected: 1955565967656,
+  },
+};
+
+const mockAccount3: InternalAccount = {
+  id: 'mock-id3',
+  address: '0x3333',
+  options: {},
+  methods: [...Object.values(EthMethod)],
+  type: EthAccountType.Eoa,
+  metadata: {
+    name: '',
+    keyring: { type: KeyringTypes.snap },
+    snap: {
+      enabled: true,
+      id: 'mock-snap-id',
+      name: 'snap-name',
+    },
+    lastSelected: 1955565967656,
+  },
+};
+
+const mockAccount4: InternalAccount = {
+  id: 'mock-id4',
+  address: '0x4444',
+  options: {},
+  methods: [...Object.values(EthMethod)],
+  type: EthAccountType.Eoa,
+  metadata: {
+    name: 'Custom Name',
+    keyring: { type: KeyringTypes.snap },
+    snap: {
+      enabled: true,
+      id: 'mock-snap-id',
+      name: 'snap-name',
+    },
     lastSelected: 1955565967656,
   },
 };
@@ -112,13 +150,18 @@ function createExpectedInternalAccount({
  * @returns The modified account.
  */
 function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
-  return {
-    ...account,
-    metadata: {
-      ...account.metadata,
-      lastSelected: expect.any(Number),
-    },
-  } as InternalAccount;
+  const deepClonedAccount = JSON.parse(
+    JSON.stringify({
+      ...account,
+      metadata: {
+        ...account.metadata,
+        lastSelected: expect.any(Number),
+      },
+    }),
+  ) as InternalAccount;
+
+  deepClonedAccount.metadata.lastSelected = expect.any(Number);
+  return deepClonedAccount;
 }
 
 /**
@@ -151,10 +194,6 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:getAccounts',
       'KeyringController:getKeyringForAccount',
       'KeyringController:getKeyringsByType',
-      'AccountsController:listAccounts',
-      'AccountsController:setAccountName',
-      'AccountsController:setSelectedAccount',
-      'AccountsController:updateAccounts',
     ],
   });
 }
@@ -164,17 +203,14 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
  *
  * @param options - The options object.
  * @param [options.initialState] - The initial state to use for the AccountsController.
- * @param [options.keyringApiEnabled] - Whether or not the keyring API is enabled.
  * @param [options.messenger] - Messenger to use for the AccountsController.
  * @returns An instance of the AccountsController class.
  */
 function setupAccountsController({
   initialState = {},
-  keyringApiEnabled = true,
   messenger = buildMessenger(),
 }: {
   initialState?: Partial<AccountsControllerState>;
-  keyringApiEnabled?: boolean;
   messenger?: ControllerMessenger<
     AccountsControllerActions,
     AccountsControllerEvents
@@ -186,47 +222,23 @@ function setupAccountsController({
   const accountsController = new AccountsController({
     messenger: accountsControllerMessenger,
     state: { ...defaultState, ...initialState },
-    keyringApiEnabled,
   });
   return accountsController;
 }
 
 describe('AccountsController', () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('onSnapStateChange', () => {
-    it('should not be used when keyringApiEnabled is false', async () => {
-      const messenger = buildMessenger();
-      const snapStateChangeSpy = jest.fn();
-      setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {},
-            selectedAccount: '',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'SnapController:stateChange',
-        {} as any as SnapControllerState,
-        [],
-      );
-
-      expect(snapStateChangeSpy).not.toHaveBeenCalled();
-    });
-
     it('should be used enable an account if the snap is enabled and not blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
         name: 'Snap Account 1',
         address: '0x0',
-        keyringType: 'Snap Keyring',
+        keyringType: KeyringTypes.snap,
         snapId: 'mock-snap',
         snapEnabled: false,
       });
@@ -249,7 +261,6 @@ describe('AccountsController', () => {
             selectedAccount: mockSnapAccount.id,
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -268,7 +279,7 @@ describe('AccountsController', () => {
         id: 'mock-id',
         name: 'Snap Account 1',
         address: '0x0',
-        keyringType: 'Snap Keyring',
+        keyringType: KeyringTypes.snap,
         snapId: 'mock-snap',
       });
       const mockSnapChangeState = {
@@ -290,7 +301,6 @@ describe('AccountsController', () => {
             selectedAccount: mockSnapAccount.id,
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -309,7 +319,7 @@ describe('AccountsController', () => {
         id: 'mock-id',
         name: 'Snap Account 1',
         address: '0x0',
-        keyringType: 'Snap Keyring',
+        keyringType: KeyringTypes.snap,
         snapId: 'mock-snap',
       });
       const mockSnapChangeState = {
@@ -331,7 +341,6 @@ describe('AccountsController', () => {
             selectedAccount: mockSnapAccount.id,
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -346,6 +355,9 @@ describe('AccountsController', () => {
   });
 
   describe('onKeyringStateChange', () => {
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
     it('should only update if the keyring is unlocked', async () => {
       const messenger = buildMessenger();
 
@@ -354,7 +366,7 @@ describe('AccountsController', () => {
         keyrings: [
           {
             accounts: [mockAccount.address, mockAccount2.address],
-            type: 'HD Key Tree',
+            type: KeyringTypes.hd,
           },
         ],
       };
@@ -365,7 +377,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -380,59 +391,574 @@ describe('AccountsController', () => {
       expect(accounts).toStrictEqual([]);
     });
 
-    it('should add new accounts', async () => {
-      const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+    describe('adding accounts', () => {
+      it('should add new accounts', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2'); // call to add account
 
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValueOnce([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address, mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
             },
-            selectedAccount: mockAccount.id,
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount3.id]: mockAccount3,
+              },
+              selectedAccount: mockAccount.id,
+            },
           },
-        },
-        keyringApiEnabled: false,
-        messenger,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount2),
+        ]);
       });
 
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
+      it('should add snap accounts', async () => {
+        mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            {
+              type: KeyringTypes.snap,
+              getAccountByAddress: jest
+                .fn()
+                .mockReturnValueOnce(mockAccount3)
+                .mockReturnValueOnce(mockAccount4),
+            },
+          ]),
+        );
 
-      const accounts = accountsController.listAccounts();
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address],
+            },
+            {
+              type: KeyringTypes.snap,
+              accounts: [mockAccount3.address, mockAccount4.address],
+            },
+          ],
+        };
 
-      expect(accounts).toStrictEqual([
-        mockAccount,
-        setLastSelectedAsAny(mockAccount2),
-      ]);
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount4.id]: mockAccount4,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount4),
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: 'mock-id3',
+              name: 'Snap Account 2',
+              address: mockAccount3.address,
+              keyringType: mockAccount3.metadata.keyring.type,
+              snapId: mockAccount3.metadata.snap?.id,
+            }),
+          ),
+        ]);
+      });
+
+      it('should handle the event when a snap deleted the account before the it was added', async () => {
+        mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            {
+              type: KeyringTypes.snap,
+              getAccountByAddress: jest
+                .fn()
+                .mockReturnValueOnce(null)
+                .mockReturnValueOnce(mockAccount4),
+            },
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address],
+            },
+            {
+              type: KeyringTypes.snap,
+              accounts: [mockAccount3.address, mockAccount4.address],
+            },
+          ],
+        };
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount4.id]: mockAccount4,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount4),
+        ]);
+      });
+
+      it('should increment the default account number when adding an account', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3'); // call to add account
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [
+                mockAccount.address,
+                mockAccount2.address,
+                mockAccount3.address,
+              ],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          mockAccount2,
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: 'mock-id3',
+              name: 'Account 3',
+              address: mockAccount3.address,
+              keyringType: KeyringTypes.hd,
+            }),
+          ),
+        ]);
+      });
+
+      it('should use the next number after the total number of accounts of a keyring when adding an account, if the index is lower', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3'); // call to add account
+
+        const mockAccount2WithCustomName = createExpectedInternalAccount({
+          id: 'mock-id2',
+          name: 'Custom Name',
+          address: mockAccount2.address,
+          keyringType: KeyringTypes.hd,
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [
+                mockAccount.address,
+                mockAccount2.address,
+                mockAccount3.address,
+              ],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2WithCustomName.id]: mockAccount2WithCustomName,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          mockAccount2WithCustomName,
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: 'mock-id3',
+              name: 'Account 3',
+              address: mockAccount3.address,
+              keyringType: KeyringTypes.hd,
+            }),
+          ),
+        ]);
+      });
+
+      it('should handle when the account to set as selectedAccount is undefined', async () => {
+        mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            {
+              type: KeyringTypes.snap,
+              getAccountByAddress: jest.fn().mockReturnValueOnce(null),
+            },
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [],
+            },
+            {
+              type: KeyringTypes.snap,
+              accounts: [mockAccount3.address],
+            },
+          ],
+        };
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: 'missing',
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const { selectedAccount } = accountsController.state.internalAccounts;
+
+        expect(selectedAccount).toBe('');
+      });
+    });
+
+    describe('deleting account', () => {
+      it('should delete accounts if its gone from the keyring state', async () => {
+        const messenger = buildMessenger();
+        mockUUID.mockReturnValueOnce('mock-id2');
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount2.address],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount2)]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccount2),
+        );
+      });
+
+      it('should delete accounts and set the most recent lastSelected account', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2')
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2');
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                'missing-account': {
+                  id: 'missing-account',
+                  address: '0x999',
+                  metadata: {
+                    keyring: {
+                      type: KeyringTypes.hd,
+                    },
+                  },
+                } as unknown as InternalAccount,
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: 'missing-account',
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          setLastSelectedAsAny(mockAccount),
+          setLastSelectedAsAny(mockAccount2),
+        ]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccount2),
+        );
+      });
+
+      it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2')
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2');
+
+        const mockAccount2WithoutLastSelected = {
+          ...mockAccount2,
+          metadata: {
+            ...mockAccount2.metadata,
+            lastSelected: undefined,
+          },
+        };
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                'missing-account': {
+                  id: 'missing-account',
+                  address: '0x999',
+                  metadata: {
+                    keyring: {
+                      type: KeyringTypes.hd,
+                    },
+                  },
+                } as unknown as InternalAccount,
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2WithoutLastSelected,
+              },
+              selectedAccount: 'missing-account',
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          setLastSelectedAsAny(mockAccount),
+          mockAccount2WithoutLastSelected,
+        ]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccount),
+        );
+      });
+
+      it('should delete the account and select the account with the most recent lastSelected', async () => {
+        const messenger = buildMessenger();
+        mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+
+        const mockAccountWithoutLastSelected = {
+          ...mockAccount,
+          metadata: {
+            ...mockAccount.metadata,
+            lastSelected: undefined,
+          },
+        };
+
+        const mockAccount2WithoutLastSelected = {
+          ...mockAccount2,
+          metadata: {
+            ...mockAccount2.metadata,
+            lastSelected: undefined,
+          },
+        };
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [
+                mockAccountWithoutLastSelected.address,
+                mockAccount2.address,
+              ],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                'missing-account': {
+                  id: 'missing-account',
+                  address: '0x999',
+                  metadata: {
+                    keyring: {
+                      type: KeyringTypes.hd,
+                    },
+                  },
+                  [mockAccount2.id]: mockAccount2WithoutLastSelected,
+                } as unknown as InternalAccount,
+                [mockAccount.id]: mockAccountWithoutLastSelected,
+                [mockAccount2.id]: mockAccount2WithoutLastSelected,
+              },
+              selectedAccount: 'missing-account',
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          setLastSelectedAsAny(mockAccountWithoutLastSelected),
+          mockAccount2WithoutLastSelected,
+        ]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccountWithoutLastSelected),
+        );
+      });
     });
 
     it('should handle keyring reinitialization', async () => {
@@ -441,31 +967,23 @@ describe('AccountsController', () => {
         id: 'mock-id',
         name: 'Account 1',
         address: '0x123',
-        keyringType: 'HD Key Tree',
+        keyringType: KeyringTypes.hd,
       });
       const mockReinitialisedAccount = createExpectedInternalAccount({
         id: 'mock-id2',
         name: 'Account 1',
         address: '0x456',
-        keyringType: 'HD Key Tree',
+        keyringType: KeyringTypes.hd,
       });
-      mockUUID.mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValueOnce([
-          mockReinitialisedAccount.address,
-        ]),
-      );
+      mockUUID
+        .mockReturnValueOnce('mock-id2') // call to check if its a new account
+        .mockReturnValueOnce('mock-id2'); // call to add account
 
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
       const mockNewKeyringState = {
         isUnlocked: true,
         keyrings: [
           {
-            type: 'HD Key Tree',
+            type: KeyringTypes.hd,
             accounts: [mockReinitialisedAccount.address],
           },
         ],
@@ -479,7 +997,6 @@ describe('AccountsController', () => {
             selectedAccount: mockInitialAccount.id,
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
 
@@ -488,8 +1005,6 @@ describe('AccountsController', () => {
         mockNewKeyringState,
         [],
       );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const selectedAccount = accountsController.getSelectedAccount();
       const accounts = accountsController.listAccounts();
@@ -498,324 +1013,55 @@ describe('AccountsController', () => {
       expect(selectedAccount).toStrictEqual(expectedAccount);
       expect(accounts).toStrictEqual([expectedAccount]);
     });
-
-    it('should delete accounts if its gone from the keyring state', async () => {
-      const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValueOnce([mockAccount2.address]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: mockAccount.id,
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount2)]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccount2),
-      );
-    });
-
-    it('should delete accounts and set the most recent lastSelected account', async () => {
-      const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValue([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address, mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              'missing-account': {
-                address: '0x999',
-              } as InternalAccount,
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: 'missing-account',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([
-        setLastSelectedAsAny(mockAccount),
-        setLastSelectedAsAny(mockAccount2),
-      ]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccount2),
-      );
-    });
-
-    it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
-      const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValue([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
-
-      const mockAccount2WithoutLastSelected = {
-        ...mockAccount2,
-        metadata: {
-          ...mockAccount2.metadata,
-          lastSelected: undefined,
-        },
-      };
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address, mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              'missing-account': {
-                address: '0x999',
-              } as InternalAccount,
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2WithoutLastSelected,
-            },
-            selectedAccount: 'missing-account',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([
-        setLastSelectedAsAny(mockAccount),
-        mockAccount2WithoutLastSelected,
-      ]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccount),
-      );
-    });
-
-    it('should delete the account and select the account with the most recent lastSelected', async () => {
-      const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValue([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
-
-      const mockAccountWithoutLastSelected = {
-        ...mockAccount,
-        metadata: {
-          ...mockAccount.metadata,
-          lastSelected: undefined,
-        },
-      };
-
-      const mockAccount2WithoutLastSelected = {
-        ...mockAccount2,
-        metadata: {
-          ...mockAccount2.metadata,
-          lastSelected: undefined,
-        },
-      };
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [
-              mockAccountWithoutLastSelected.address,
-              mockAccount2.address,
-            ],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              'missing-account': {
-                address: '0x999',
-              } as InternalAccount,
-              [mockAccount2.id]: mockAccount2WithoutLastSelected,
-              [mockAccount.id]: mockAccountWithoutLastSelected,
-            },
-            selectedAccount: 'missing-account',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([
-        setLastSelectedAsAny(mockAccountWithoutLastSelected),
-        mockAccount2WithoutLastSelected,
-      ]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccountWithoutLastSelected),
-      );
-    });
-  });
-
-  describe('constructor', () => {
-    it('should select next account if selectedAccount is not found', async () => {
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-            },
-            selectedAccount: 'missing account',
-          },
-        },
-        keyringApiEnabled: true,
-      });
-
-      const selectedAccount = accountsController.getSelectedAccount();
-
-      expect(setLastSelectedAsAny(selectedAccount)).toStrictEqual(
-        setLastSelectedAsAny(mockAccount),
-      );
-    });
   });
 
   describe('updateAccounts', () => {
     const mockAddress1 = '0x123';
     const mockAddress2 = '0x456';
-    const mockSnapAccount = {
-      ...mockAccount,
-      metadata: {
-        ...mockAccount.metadata,
-        keyring: {
-          type: 'Snap Keyring',
-        },
-        snap: {
-          enabled: true,
-          id: 'mock-snap-id',
-          name: '',
-        },
-        lastSelected: undefined,
-      },
-    };
-    const mockSnapAccount2 = {
-      ...mockAccount2,
-      metadata: {
-        ...mockAccount2.metadata,
-        keyring: {
-          type: 'Snap Keyring',
-        },
-        snap: {
-          enabled: true,
-          id: 'mock-snap-id2',
-          name: 'snap-name',
-        },
-        lastSelected: undefined,
-      },
-    };
+    let mockSnapAccount: InternalAccount;
+    let mockSnapAccount2: InternalAccount;
+
+    // Creating deep clones
+    beforeEach(() => {
+      mockSnapAccount = JSON.parse(
+        JSON.stringify({
+          ...mockAccount,
+          metadata: {
+            ...mockAccount.metadata,
+            keyring: {
+              type: KeyringTypes.snap,
+            },
+            snap: {
+              enabled: true,
+              id: 'mock-snap-id',
+              name: '',
+            },
+            lastSelected: undefined,
+          },
+        }),
+      );
+      mockSnapAccount2 = JSON.parse(
+        JSON.stringify({
+          ...mockAccount2,
+          metadata: {
+            ...mockAccount2.metadata,
+            keyring: {
+              type: KeyringTypes.snap,
+            },
+            snap: {
+              enabled: true,
+              id: 'mock-snap-id2',
+              name: 'snap-name',
+            },
+            lastSelected: undefined,
+          },
+        }),
+      );
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
 
     it('should update accounts with normal accounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
@@ -827,7 +1073,17 @@ describe('AccountsController', () => {
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+        mockGetKeyringForAccount.mockResolvedValue({ type: KeyringTypes.hd }),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: KeyringTypes.snap,
+            listAccounts: async () => [],
+          },
+        ]),
       );
 
       const accountsController = setupAccountsController({
@@ -837,7 +1093,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
       const expectedAccounts = [
@@ -845,13 +1100,13 @@ describe('AccountsController', () => {
           name: 'Account 1',
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: 'HD Key Tree',
+          keyringType: KeyringTypes.hd,
         }),
         createExpectedInternalAccount({
           name: 'Account 2',
           id: 'mock-id2',
           address: mockAddress2,
-          keyringType: 'HD Key Tree',
+          keyringType: KeyringTypes.hd,
         }),
       ];
 
@@ -869,9 +1124,9 @@ describe('AccountsController', () => {
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
-        mockGetKeyringByType.mockResolvedValue([
+        mockGetKeyringByType.mockReturnValue([
           {
-            type: 'Snap Keyring',
+            type: KeyringTypes.snap,
             listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
           },
         ]),
@@ -884,7 +1139,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -893,6 +1147,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount.metadata,
           name: 'Snap Account 1',
+          lastSelected: undefined,
         },
       };
 
@@ -901,6 +1156,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount2.metadata,
           name: 'Snap Account 2',
+          lastSelected: undefined,
         },
       };
 
@@ -930,11 +1186,59 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
       const expectedAccounts: InternalAccount[] = [];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
+    it('should set the account with the correct index', async () => {
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([mockAddress1, mockAddress2]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: KeyringTypes.hd }),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: KeyringTypes.snap,
+            listAccounts: async () => [],
+          },
+        ]),
+      );
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+        messenger,
+      });
+      const expectedAccounts = [
+        mockAccount,
+        createExpectedInternalAccount({
+          name: 'Account 2',
+          id: 'mock-id2',
+          address: mockAddress2,
+          keyringType: KeyringTypes.hd,
+        }),
+      ];
 
       await accountsController.updateAccounts();
 
@@ -948,7 +1252,7 @@ describe('AccountsController', () => {
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValueOnce([
           {
-            type: 'Snap Keyring',
+            type: KeyringTypes.snap,
             listAccounts: async () => [mockSnapAccount2],
           },
         ]),
@@ -962,8 +1266,8 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
         mockGetKeyringForAccount
-          .mockResolvedValueOnce({ type: 'HD Key Tree' })
-          .mockResolvedValueOnce({ type: 'Snap Keyring' }),
+          .mockResolvedValueOnce({ type: KeyringTypes.hd })
+          .mockResolvedValueOnce({ type: KeyringTypes.snap }),
       );
 
       const accountsController = setupAccountsController({
@@ -973,7 +1277,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
       const expectedAccounts = [
@@ -981,13 +1284,13 @@ describe('AccountsController', () => {
           name: 'Account 1',
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: 'HD Key Tree',
+          keyringType: KeyringTypes.hd,
         }),
         createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
-          keyringType: 'Snap Keyring',
+          keyringType: KeyringTypes.snap,
           snapId: 'mock-snap-id2',
         }),
       ];
@@ -1004,7 +1307,7 @@ describe('AccountsController', () => {
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValueOnce([
           {
-            type: 'Snap Keyring',
+            type: KeyringTypes.snap,
             listAccounts: async () => [mockSnapAccount2],
           },
         ]),
@@ -1018,8 +1321,8 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
         mockGetKeyringForAccount
-          .mockResolvedValueOnce({ type: 'Snap Keyring' })
-          .mockResolvedValueOnce({ type: 'HD Key Tree' }),
+          .mockResolvedValueOnce({ type: KeyringTypes.snap })
+          .mockResolvedValueOnce({ type: KeyringTypes.hd }),
       );
 
       const accountsController = setupAccountsController({
@@ -1029,7 +1332,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
       const expectedAccounts = [
@@ -1037,13 +1339,13 @@ describe('AccountsController', () => {
           name: 'Account 1',
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: 'HD Key Tree',
+          keyringType: KeyringTypes.hd,
         }),
         createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
-          keyringType: 'Snap Keyring',
+          keyringType: KeyringTypes.snap,
           snapId: 'mock-snap-id2',
           snapEnabled: true,
         }),
@@ -1055,13 +1357,13 @@ describe('AccountsController', () => {
     });
 
     it.each([
-      'Simple Key Pair',
-      'HD Key Tree',
-      'Trezor Hardware',
-      'Ledger Hardware',
-      'Lattice Hardware',
-      'QR Hardware Wallet Device',
-      'Custody',
+      KeyringTypes.simple,
+      KeyringTypes.hd,
+      KeyringTypes.trezor,
+      KeyringTypes.ledger,
+      KeyringTypes.lattice,
+      KeyringTypes.qr,
+      KeyringTypes.custody,
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
 
@@ -1075,6 +1377,16 @@ describe('AccountsController', () => {
         mockGetKeyringForAccount.mockResolvedValue({ type: keyringType }),
       );
 
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: KeyringTypes.snap,
+            listAccounts: async () => [],
+          },
+        ]),
+      );
+
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1082,7 +1394,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
 
@@ -1113,6 +1424,16 @@ describe('AccountsController', () => {
         mockGetKeyringForAccount.mockResolvedValue({ type: 'unknown' }),
       );
 
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: KeyringTypes.snap,
+            listAccounts: async () => [],
+          },
+        ]),
+      );
+
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1120,7 +1441,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
 
@@ -1338,7 +1658,7 @@ describe('AccountsController', () => {
       ).toStrictEqual(mockAccount2.id);
     });
 
-    it('should throw an error for an unknown account ID', () => {
+    it("should set the selected account to '' if the account is not found", () => {
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1351,8 +1671,10 @@ describe('AccountsController', () => {
         },
       });
 
-      expect(() => accountsController.setSelectedAccount('unknown id')).toThrow(
-        `Account Id unknown id not found`,
+      accountsController.setSelectedAccount('unknown');
+
+      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
+        '',
       );
     });
   });
@@ -1407,12 +1729,112 @@ describe('AccountsController', () => {
     });
   });
 
+  describe('#getNextAccountNumber', () => {
+    it('should return the next account number', async () => {
+      const messenger = buildMessenger();
+      mockUUID
+        .mockReturnValueOnce('mock-id') // call to check if its a new account
+        .mockReturnValueOnce('mock-id2') // call to check if its a new account
+        .mockReturnValueOnce('mock-id3') // call to check if its a new account
+        .mockReturnValueOnce('mock-id2') // call to add account
+        .mockReturnValueOnce('mock-id3'); // call to add account
+
+      const mockSimpleKeyring1 = createExpectedInternalAccount({
+        id: 'mock-id2',
+        name: 'Account 2',
+        address: '0x555',
+        keyringType: 'Simple Key Pair',
+      });
+      const mockSimpleKeyring2 = createExpectedInternalAccount({
+        id: 'mock-id3',
+        name: 'Account 3',
+        address: '0x666',
+        keyringType: 'Simple Key Pair',
+      });
+
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockAccount.address],
+          },
+          {
+            type: 'Simple Key Pair',
+            accounts: [mockSimpleKeyring1.address, mockSimpleKeyring2.address],
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([
+        mockAccount,
+        setLastSelectedAsAny(mockSimpleKeyring1),
+        setLastSelectedAsAny(mockSimpleKeyring2),
+      ]);
+    });
+  });
+
+  describe('getAccountByAddress', () => {
+    it('should return an account by address', async () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const account = accountsController.getAccountByAddress(
+        mockAccount.address,
+      );
+
+      expect(account).toStrictEqual(mockAccount);
+    });
+
+    it("should return undefined if there isn't an account with the address", () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const account = accountsController.getAccountByAddress('unknown address');
+
+      expect(account).toBeUndefined();
+    });
+  });
+
   describe('actions', () => {
     beforeEach(() => {
       jest.spyOn(AccountsController.prototype, 'setSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'listAccounts');
       jest.spyOn(AccountsController.prototype, 'setAccountName');
       jest.spyOn(AccountsController.prototype, 'updateAccounts');
+      jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
+      jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
     });
 
     describe('setSelectedAccount', () => {
@@ -1428,10 +1850,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        await messenger.call(
-          'AccountsController:setSelectedAccount',
-          'mock-id',
-        );
+        messenger.call('AccountsController:setSelectedAccount', 'mock-id');
         expect(accountsController.setSelectedAccount).toHaveBeenCalledWith(
           'mock-id',
         );
@@ -1451,7 +1870,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        await messenger.call('AccountsController:listAccounts');
+        messenger.call('AccountsController:listAccounts');
         expect(accountsController.listAccounts).toHaveBeenCalledWith();
       });
     });
@@ -1469,7 +1888,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        await messenger.call(
+        messenger.call(
           'AccountsController:setAccountName',
           'mock-id',
           'new name',
@@ -1490,7 +1909,7 @@ describe('AccountsController', () => {
         );
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
-          mockGetKeyringByType.mockResolvedValueOnce([]),
+          mockGetKeyringByType.mockReturnValueOnce([]),
         );
         messenger.registerActionHandler(
           'KeyringController:getKeyringForAccount',
@@ -1509,6 +1928,51 @@ describe('AccountsController', () => {
 
         await messenger.call('AccountsController:updateAccounts');
         expect(accountsController.updateAccounts).toHaveBeenCalledWith();
+      });
+    });
+
+    describe('getAccountByAddress', () => {
+      it('should get account by address', async () => {
+        const messenger = buildMessenger();
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const account = messenger.call(
+          'AccountsController:getAccountByAddress',
+          mockAccount.address,
+        );
+        expect(accountsController.getAccountByAddress).toHaveBeenCalledWith(
+          mockAccount.address,
+        );
+        expect(account).toStrictEqual(mockAccount);
+      });
+    });
+
+    describe('getSelectedAccount', () => {
+      it('should get account by address', async () => {
+        const messenger = buildMessenger();
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const account = messenger.call('AccountsController:getSelectedAccount');
+        expect(accountsController.getSelectedAccount).toHaveBeenCalledWith();
+        expect(account).toStrictEqual(mockAccount);
       });
     });
   });

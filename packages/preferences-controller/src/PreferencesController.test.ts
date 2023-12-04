@@ -1,3 +1,5 @@
+import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
+import type { EtherscanSupportedHexChainId } from './PreferencesController';
 import { PreferencesController } from './PreferencesController';
 
 describe('PreferencesController', () => {
@@ -19,6 +21,12 @@ describe('PreferencesController', () => {
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
+      showIncomingTransactions: Object.values(
+        ETHERSCAN_SUPPORTED_CHAIN_IDS,
+      ).reduce((acc, curr) => {
+        acc[curr] = true;
+        return acc;
+      }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
     });
   });
 
@@ -206,5 +214,12 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.setIsIpfsGatewayEnabled(true);
     expect(controller.state.isIpfsGatewayEnabled).toBe(true);
+  });
+
+  it('should set showIncomingTransactions to false on ethereum network', () => {
+    const controller = new PreferencesController();
+
+    controller.setEnableNetworkIncomingTransactions('0x1', false);
+    expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
   });
 });

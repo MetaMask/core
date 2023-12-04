@@ -702,6 +702,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     mockNetworkWithDefaultChainId({
       networkClientConfiguration: {
         chainId: BUILT_IN_NETWORKS.sepolia.chainId,
+        ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
         infuraProjectId: networkClientConfiguration.infuraProjectId,
@@ -745,7 +746,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw error when transfering single ERC-1155 when networkClientId is invalid', async () => {
+  it('should throw error when transferring single ERC-1155 when networkClientId is invalid', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.transferSingleERC1155(

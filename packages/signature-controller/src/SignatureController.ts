@@ -3,8 +3,12 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type {
   KeyringControllerSignMessageAction,
@@ -40,11 +44,10 @@ import {
   PersonalMessageManager,
   TypedMessageManager,
 } from '@metamask/message-manager';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
 import EventEmitter from 'events';
-import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 
 const controllerName = 'SignatureController';
@@ -95,15 +98,15 @@ type TypedMessageSigningOptions = {
   parseJsonData: boolean;
 };
 
-export type GetSignatureState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => SignatureControllerState;
-};
+export type GetSignatureState = ControllerGetStateAction<
+  typeof controllerName,
+  SignatureControllerState
+>;
 
-export type SignatureStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [SignatureControllerState, Patch[]];
-};
+export type SignatureStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  SignatureControllerState
+>;
 
 export type SignatureControllerActions = GetSignatureState;
 
@@ -131,7 +134,7 @@ export type SignatureControllerOptions = {
 /**
  * Controller for creating signing requests requiring user approval.
  */
-export class SignatureController extends BaseControllerV2<
+export class SignatureController extends BaseController<
   typeof controllerName,
   SignatureControllerState,
   SignatureControllerMessenger
@@ -435,7 +438,7 @@ export class SignatureController extends BaseControllerV2<
 
   #validateUnsignedMessage(messageParams: MessageParamsMetamask): void {
     if (!this.#isEthSignEnabled()) {
-      throw ethErrors.rpc.methodNotFound(
+      throw rpcErrors.methodNotFound(
         'eth_sign has been disabled. You must enable it in the advanced settings',
       );
     }
@@ -444,9 +447,7 @@ export class SignatureController extends BaseControllerV2<
     // This is needed because Ethereum's EcSign works only on 32 byte numbers
     // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
     if (data.length !== 66 && data.length !== 67) {
-      throw ethErrors.rpc.invalidParams(
-        'eth_sign requires 32 byte message hash',
-      );
+      throw rpcErrors.invalidParams('eth_sign requires 32 byte message hash');
     }
   }
 
@@ -513,9 +514,7 @@ export class SignatureController extends BaseControllerV2<
         );
 
         this.#cancelAbstractMessage(messageManager, messageId);
-        throw ethErrors.provider.userRejectedRequest(
-          'User rejected the request.',
-        );
+        throw providerErrors.userRejectedRequest('User rejected the request.');
       }
 
       await signMessage(messageParamsWithId, signingOpts);

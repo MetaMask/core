@@ -1,9 +1,11 @@
 import type { ControllerMessenger } from '@metamask/base-controller';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type {
   NetworkClientId,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import type { JsonRpcMiddleware } from 'json-rpc-engine';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type {
   SelectedNetworkControllerGetNetworkClientIdForDomainAction,
@@ -11,14 +13,24 @@ import type {
 } from './SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
 
+export type MiddlewareAllowedActions = NetworkControllerGetStateAction;
+export type MiddlewareAllowedEvents = NetworkControllerStateChangeEvent;
+
+export type SelectedNetworkMiddlewareMessenger = ControllerMessenger<
+  | SelectedNetworkControllerGetNetworkClientIdForDomainAction
+  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+  | MiddlewareAllowedActions,
+  MiddlewareAllowedEvents
+>;
+
+export type SelectedNetworkMiddlewareJsonRpcRequest = JsonRpcRequest & {
+  networkClientId?: NetworkClientId;
+  origin?: string;
+};
+
 export const createSelectedNetworkMiddleware = (
-  messenger: ControllerMessenger<
-    | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | NetworkControllerGetStateAction,
-    never
-  >,
-): JsonRpcMiddleware<any, any> => {
+  messenger: SelectedNetworkMiddlewareMessenger,
+): JsonRpcMiddleware<JsonRpcParams, Json> => {
   const getNetworkClientIdForDomain = (origin: string) =>
     messenger.call(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
@@ -38,7 +50,11 @@ export const createSelectedNetworkMiddleware = (
   const getDefaultNetworkClientId = () =>
     messenger.call('NetworkController:getState').selectedNetworkClientId;
 
-  return (req: any, _, next) => {
+  return (req: SelectedNetworkMiddlewareJsonRpcRequest, _, next) => {
+    if (!req.origin) {
+      throw new Error("Request object is lacking an 'origin'");
+    }
+
     if (getNetworkClientIdForDomain(req.origin) === undefined) {
       setNetworkClientIdForDomain(req.origin, getDefaultNetworkClientId());
     }

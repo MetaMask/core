@@ -6,6 +6,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+### Added
+- Add new handler to `permissionRpcMethods.handlers` for `wallet_revokePermissions` RPC method ([#1889](https://github.com/MetaMask/core/pull/1889))
+
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- **BREAKING:** Update `PermittedRpcMethodHooks` type so it must support signature for `wallet_revokePermission` hook ([#1889](https://github.com/MetaMask/core/pull/1889))
+- Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [5.0.1]
+### Changed
+- Bump `@metamask/json-rpc-engine` from `^7.1.0` to `^7.2.0` ([#1895](https://github.com/MetaMask/core/pull/1895))
+- Bump dependency on `@metamask/rpc-errors` to ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
+- Bump `@metamask/utils` from `8.1.0` to `8.2.0` ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Bump `@metamask/auto-changelog` from `^3.2.0` to `^3.4.3` ([#1870](https://github.com/MetaMask/core/pull/1870), [#1905](https://github.com/MetaMask/core/pull/1905), [#1997](https://github.com/MetaMask/core/pull/1997))
+
+## [5.0.0]
+### Changed
+- **BREAKING:** Remove `undefined` from RestrictedMethodParameters type union and from type parameter for RestrictedMethodOptions ([#1749])(https://github.com/MetaMask/core/pull/1749))
+- **BREAKING:** Update from `json-rpc-engine@^6.1.0` to `@metamask/json-rpc-engine@^7.1.1` ([#1749])(https://github.com/MetaMask/core/pull/1749))
+- Update from `eth-rpc-errors@^4.0.2` to `@metamask/rpc-errors@^6.0.0` ([#1749])(https://github.com/MetaMask/core/pull/1749))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+
 ## [4.1.2]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -84,7 +113,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@5.0.1...@metamask/permission-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@5.0.0...@metamask/permission-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.2...@metamask/permission-controller@5.0.0
 [4.1.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.1...@metamask/permission-controller@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.0...@metamask/permission-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.1...@metamask/permission-controller@4.1.0

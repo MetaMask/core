@@ -5,6 +5,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add `getNetworkConfigurationByNetworkClientId` method which can be used to retrieve details for both custom and built-in networks (using the network configuration object shape) ([#2055](https://github.com/MetaMask/core/pull/2055))
+- Add `NetworkController:getNetworkConfigurationByNetworkClientId` messenger action for the previous method ([#2055](https://github.com/MetaMask/core/pull/2055))
+
+## [17.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [16.0.0]
+### Changed
+- **BREAKING:** Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+  - This is breaking because it changes the type of the EthQuery instance this controller creates internally and exports under the `getEthQuery` action. Please consult the [changelog for `@metamask/eth-query` 4.0.0](https://github.com/MetaMask/eth-query/blob/main/CHANGELOG.md#400) for more.
+
+## [15.2.0]
+### Changed
+- Update @metamask/eth-json-rpc-middleware in network controller ([#1988](https://github.com/MetaMask/core/pull/1988))
+- Bump dependency on `@metamask/json-rpc-engine` to ^7.2.0 ([#1895](https://github.com/MetaMask/core/pull/1895))
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
+## [15.1.0]
+### Added
+- Add new action handlers and associated types ([#1806](https://github.com/MetaMask/core/pull/1806))
+  - `NetworkController:setActiveNetwork` / `NetworkControllerSetActiveNetworkAction`
+  - `NetworkController:setProviderType` / `NetworkControllerSetProviderTypeAction`
+  - `NetworkController:findNetworkClientByChainId` / `NetworkControllerFindNetworkClientIdByChainIdAction`
+- Add `ticker` to `NetworkClientConfiguration` ([#1794](https://github.com/MetaMask/core/pull/1794))
+
+### Changed
+- Bump dependency on `@metamask/eth-json-rpc-provider` to ^2.2.0 ([#1738](https://github.com/MetaMask/core/pull/1738))
+
+## [15.0.0]
+### Changed
+- **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-infura` to ^9.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-middleware` to ^12.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- **BREAKING:** Move from `json-rpc-engine` ^7.1.1 to `@metamask/json-rpc-engine` ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- **BREAKING:** Bump dependency on `eth-block-tracker` to ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- Bump dependency on `@metamask/eth-json-rpc-provider` to ^2.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- Move from `eth-rpc-errors` ^4.0.2 to `@metamask/rpc-errors` ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+
+## [14.0.0]
+### Added
+- Add `NetworkController:getEIP1559Compatibility` controller action ([#1673](https://github.com/MetaMask/core/pull/1673))
+
+### Changed
+- **BREAKING:** Rename `get1555CompatibilityWithNetworkClientId` to `get1559CompatibilityWithNetworkClientId` ([#1673](https://github.com/MetaMask/core/pull/1673))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+
+### Fixed
+- Update linea goerli explorer url ([#1666](https://github.com/MetaMask/core/pull/1666))
 
 ## [13.0.1]
 ### Changed
@@ -265,7 +318,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@16.0.0...@metamask/network-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.2.0...@metamask/network-controller@16.0.0
+[15.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.1.0...@metamask/network-controller@15.2.0
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.0.0...@metamask/network-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@14.0.0...@metamask/network-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.1...@metamask/network-controller@14.0.0
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.0...@metamask/network-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.2.0...@metamask/network-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.2...@metamask/network-controller@12.2.0

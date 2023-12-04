@@ -1,4 +1,8 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import {
+  ApprovalController,
+  type AddApprovalRequest,
+  type ApprovalControllerEvents,
+} from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import {
@@ -60,8 +64,24 @@ describe('TokensController', () => {
   let preferences: PreferencesController;
   const messenger = new ControllerMessenger<
     ApprovalActions,
+    ApprovalControllerEvents
+  >();
+
+  const approvalControllerMessenger = messenger.getRestricted({
+    name: 'ApprovalController',
+  });
+
+  const approvalController = new ApprovalController({
+    messenger: approvalControllerMessenger,
+    showApprovalRequest: jest.fn(),
+    typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
+  });
+
+  const tokensControllerMessenger = messenger.getRestricted<
+    typeof controllerName,
+    ApprovalActions['type'],
     never
-  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
+  >({
     name: controllerName,
     allowedActions: ['ApprovalController:addRequest'],
   }) as TokensControllerMessenger;
@@ -93,7 +113,7 @@ describe('TokensController', () => {
       },
       getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
-      messenger,
+      messenger: tokensControllerMessenger,
     });
   });
 
@@ -887,60 +907,72 @@ describe('TokensController', () => {
     it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
       const stub = stubCreateEthers(tokensController, false);
 
-      const DETECTED_ADDRESS = '0xDetectedAddress';
-      const DETECTED_CHAINID = '0xDetectedChainId';
-
-      const CONFIGURED_ADDRESS = '0xabc';
+      // The currently configured chain + address
+      const CONFIGURED_CHAIN = SEPOLIA;
+      const CONFIGURED_ADDRESS = '0xConfiguredAddress';
+      changeNetwork(CONFIGURED_CHAIN);
       preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
-      changeNetwork(SEPOLIA);
 
-      const detectedToken: Token = {
-        address: '0x01',
-        symbol: 'barA',
-        decimals: 2,
-        aggregators: [],
-        isERC721: false,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
-        name: undefined,
-      };
+      // A different chain + address
+      const OTHER_CHAIN = '0xOtherChainId';
+      const OTHER_ADDRESS = '0xOtherAddress';
 
-      const directlyAddedToken: Token = {
-        address: '0x02',
-        decimals: 5,
-        symbol: 'B',
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
-        isERC721: false,
-        aggregators: [],
-        name: undefined,
-      };
+      // Mock some tokens to add
+      const generateTokens = (len: number) =>
+        [...Array(len)].map((_, i) => ({
+          address: `0x${i}`,
+          symbol: String.fromCharCode(65 + i),
+          decimals: 2,
+          aggregators: [],
+          name: undefined,
+          isERC721: false,
+          image: `https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x${i}.png`,
+        }));
 
-      // detectionDetails object is passed as second arg with details about where token was detected
-      await tokensController.addDetectedTokens([detectedToken], {
-        selectedAddress: DETECTED_ADDRESS,
-        chainId: DETECTED_CHAINID,
-      });
+      const [
+        addedTokenConfiguredAccount,
+        detectedTokenConfiguredAccount,
+        detectedTokenOtherAccount,
+      ] = generateTokens(3);
 
-      // will add token to currently configured chainId/selectedAddress
-      await tokensController.addToken({
-        address: directlyAddedToken.address,
-        symbol: directlyAddedToken.symbol,
-        decimals: directlyAddedToken.decimals,
-        image: directlyAddedToken.image,
-      });
+      // Run twice to ensure idempotency
+      for (let i = 0; i < 2; i++) {
+        // Add and detect some tokens on the configured chain + account
+        await tokensController.addToken(addedTokenConfiguredAccount);
+        await tokensController.addDetectedTokens([
+          detectedTokenConfiguredAccount,
+        ]);
 
-      expect(tokensController.state.allDetectedTokens).toStrictEqual({
-        [DETECTED_CHAINID]: {
-          [DETECTED_ADDRESS]: [detectedToken],
-        },
-      });
+        // Detect a token on the other chain + account
+        await tokensController.addDetectedTokens([detectedTokenOtherAccount], {
+          selectedAddress: OTHER_ADDRESS,
+          chainId: OTHER_CHAIN,
+        });
 
-      expect(tokensController.state.allTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
-          [CONFIGURED_ADDRESS]: [directlyAddedToken],
-        },
-      });
+        // Expect tokens on the configured account
+        expect(tokensController.state.tokens).toStrictEqual([
+          addedTokenConfiguredAccount,
+        ]);
+        expect(tokensController.state.detectedTokens).toStrictEqual([
+          detectedTokenConfiguredAccount,
+        ]);
+
+        // Expect tokens under the correct chain + account
+        expect(tokensController.state.allTokens).toStrictEqual({
+          [CONFIGURED_CHAIN.chainId]: {
+            [CONFIGURED_ADDRESS]: [addedTokenConfiguredAccount],
+          },
+        });
+        expect(tokensController.state.allDetectedTokens).toStrictEqual({
+          [CONFIGURED_CHAIN.chainId]: {
+            [CONFIGURED_ADDRESS]: [detectedTokenConfiguredAccount],
+          },
+          [OTHER_CHAIN]: {
+            [OTHER_ADDRESS]: [detectedTokenOtherAccount],
+          },
+        });
+      }
+
       stub.restore();
     });
   });
@@ -1094,6 +1126,7 @@ describe('TokensController', () => {
         image: 'image',
         name: undefined,
       };
+
       createEthersStub = stubCreateEthers(tokensController, false);
     });
 
@@ -1363,6 +1396,62 @@ describe('TokensController', () => {
         true,
       );
 
+      generateRandomIdStub.mockRestore();
+    });
+
+    it('stores multiple tokens from a batched watchAsset confirmation screen correctly when user confirms', async function () {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockImplementationOnce(() => requestId)
+        .mockImplementationOnce(() => '67890');
+
+      const acceptedRequest = new Promise<void>((resolve) => {
+        tokensController.subscribe((state) => {
+          if (
+            state.allTokens?.[ChainId.mainnet]?.[interactingAddress].length ===
+            2
+          ) {
+            resolve();
+          }
+        });
+      });
+
+      const anotherAsset = {
+        address: '0x000000000000000000000000000000000000ABcD',
+        decimals: 18,
+        symbol: 'TEST',
+        image: 'image2',
+        name: undefined,
+      };
+
+      tokensController.watchAsset({ asset, type, interactingAddress });
+      tokensController.watchAsset({
+        asset: anotherAsset,
+        type,
+        interactingAddress,
+      });
+
+      await approvalController.accept(requestId);
+      await approvalController.accept('67890');
+      await acceptedRequest;
+
+      expect(
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+      ).toHaveLength(2);
+      expect(
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+      ).toStrictEqual([
+        {
+          isERC721: false,
+          aggregators: [],
+          ...asset,
+        },
+        {
+          isERC721: false,
+          aggregators: [],
+          ...anotherAsset,
+        },
+      ]);
       generateRandomIdStub.mockRestore();
     });
   });

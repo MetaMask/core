@@ -1,6 +1,6 @@
 import { GWEI } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { fromWei } from 'ethjs-unit';
+import { fromWei } from '@metamask/ethjs-unit';
 
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
