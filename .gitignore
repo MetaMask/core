@@ -31,3 +31,6 @@ packages/*/docs
 
 # typescript
 packages/*/*.tsbuildinfo
+
+# editor
+.idea
