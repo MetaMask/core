@@ -9,7 +9,7 @@ import type {
 const controllerName = 'ComposableController';
 
 /*
- * This type encompasses controllers based up either BaseControllerV1 or
+ * This type encompasses controllers based on either BaseControllerV1 or
  * BaseController. The BaseController type can't be included directly
  * because the generic parameters it expects require knowing the exact state
  * shape, so instead we look for an object with the BaseController properties
@@ -45,7 +45,7 @@ export type ComposableControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
-  `${typeof controllerName}`,
+  typeof controllerName,
   ComposableControllerState
 >;
 
@@ -96,8 +96,7 @@ export class ComposableController extends BaseController<
       name: controllerName,
       metadata: {},
       state: controllers.reduce((state, controller) => {
-        state[controller.name] = controller.state;
-        return state;
+        return { ...state, [controller.name]: controller.state };
       }, {} as ComposableControllerState),
       messenger,
     });
