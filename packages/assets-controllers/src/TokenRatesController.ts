@@ -106,358 +106,6 @@ export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
 }
 
-const CURRENCY_PRICE_API_CURRENCIES_SUPPORTED = {
-  btc: {
-    name: 'Bitcoin',
-    ticker: 'btc',
-    currencyType: 'crypto',
-  },
-  eth: {
-    name: 'Ether',
-    ticker: 'eth',
-    currencyType: 'crypto',
-  },
-  ltc: {
-    name: 'Litecoin',
-    ticker: 'ltc',
-    currencyType: 'crypto',
-  },
-  bch: {
-    name: 'Bitcoin Cash',
-    ticker: 'bch',
-    currencyType: 'crypto',
-  },
-  bnb: {
-    name: 'Binance Coin',
-    ticker: 'bnb',
-    currencyType: 'crypto',
-  },
-  eos: {
-    name: 'EOS',
-    ticker: 'eos',
-    currencyType: 'crypto',
-  },
-  xrp: {
-    name: 'XRP',
-    ticker: 'xrp',
-    currencyType: 'crypto',
-  },
-  xlm: {
-    name: 'Lumens',
-    ticker: 'xlm',
-    currencyType: 'crypto',
-  },
-  link: {
-    name: 'Chainlink',
-    ticker: 'link',
-    currencyType: 'crypto',
-  },
-  dot: {
-    name: 'Polkadot',
-    ticker: 'dot',
-    currencyType: 'crypto',
-  },
-  yfi: {
-    name: 'Yearn.finance',
-    ticker: 'yfi',
-    currencyType: 'crypto',
-  },
-  usd: {
-    name: 'US Dollar',
-    ticker: 'usd',
-    value: 1,
-    currencyType: 'fiat',
-  },
-  aed: {
-    name: 'United Arab Emirates Dirham',
-    ticker: 'aed',
-    currencyType: 'fiat',
-  },
-  ars: {
-    name: 'Argentine Peso',
-    ticker: 'ars',
-    currencyType: 'fiat',
-  },
-  aud: {
-    name: 'Australian Dollar',
-    ticker: 'aud',
-    currencyType: 'fiat',
-  },
-  bdt: {
-    name: 'Bangladeshi Taka',
-    ticker: 'bdt',
-    currencyType: 'fiat',
-  },
-  bhd: {
-    name: 'Bahraini Dinar',
-    ticker: 'bhd',
-    currencyType: 'fiat',
-  },
-  bmd: {
-    name: 'Bermudian Dollar',
-    ticker: 'bmd',
-    currencyType: 'fiat',
-  },
-  brl: {
-    name: 'Brazil Real',
-    ticker: 'brl',
-    currencyType: 'fiat',
-  },
-  cad: {
-    name: 'Canadian Dollar',
-    ticker: 'cad',
-    currencyType: 'fiat',
-  },
-  chf: {
-    name: 'Swiss Franc',
-    ticker: 'chf',
-    currencyType: 'fiat',
-  },
-  clp: {
-    name: 'Chilean Peso',
-    ticker: 'clp',
-    currencyType: 'fiat',
-  },
-  cny: {
-    name: 'Chinese Yuan',
-    ticker: 'cny',
-    currencyType: 'fiat',
-  },
-  czk: {
-    name: 'Czech Koruna',
-    ticker: 'czk',
-    currencyType: 'fiat',
-  },
-  dkk: {
-    name: 'Danish Krone',
-    ticker: 'dkk',
-    currencyType: 'fiat',
-  },
-  eur: {
-    name: 'Euro',
-    ticker: 'eur',
-    currencyType: 'fiat',
-  },
-  gbp: {
-    name: 'British Pound Sterling',
-    ticker: 'gbp',
-    currencyType: 'fiat',
-  },
-  hkd: {
-    name: 'Hong Kong Dollar',
-    ticker: 'hkd',
-    currencyType: 'fiat',
-  },
-  huf: {
-    name: 'Hungarian Forint',
-    ticker: 'huf',
-    currencyType: 'fiat',
-  },
-  idr: {
-    name: 'Indonesian Rupiah',
-    ticker: 'idr',
-    currencyType: 'fiat',
-  },
-  ils: {
-    name: 'Israeli New Shekel',
-    ticker: 'ils',
-    currencyType: 'fiat',
-  },
-  inr: {
-    name: 'Indian Rupee',
-    ticker: 'inr',
-    currencyType: 'fiat',
-  },
-  jpy: {
-    name: 'Japanese Yen',
-    ticker: 'jpy',
-    currencyType: 'fiat',
-  },
-  krw: {
-    name: 'South Korean Won',
-    ticker: 'krw',
-    currencyType: 'fiat',
-  },
-  kwd: {
-    name: 'Kuwaiti Dinar',
-    ticker: 'kwd',
-    currencyType: 'fiat',
-  },
-  lkr: {
-    name: 'Sri Lankan Rupee',
-    ticker: 'lkr',
-    currencyType: 'fiat',
-  },
-  mmk: {
-    name: 'Burmese Kyat',
-    ticker: 'mmk',
-    currencyType: 'fiat',
-  },
-  mxn: {
-    name: 'Mexican Peso',
-    ticker: 'mxn',
-    currencyType: 'fiat',
-  },
-  myr: {
-    name: 'Malaysian Ringgit',
-    ticker: 'myr',
-    currencyType: 'fiat',
-  },
-  ngn: {
-    name: 'Nigerian Naira',
-    ticker: 'ngn',
-    currencyType: 'fiat',
-  },
-  nok: {
-    name: 'Norwegian Krone',
-    ticker: 'nok',
-    currencyType: 'fiat',
-  },
-  nzd: {
-    name: 'New Zealand Dollar',
-    ticker: 'nzd',
-    currencyType: 'fiat',
-  },
-  php: {
-    name: 'Philippine Peso',
-    ticker: 'php',
-    currencyType: 'fiat',
-  },
-  pkr: {
-    name: 'Pakistani Rupee',
-    ticker: 'pkr',
-    currencyType: 'fiat',
-  },
-  pln: {
-    name: 'Polish Zloty',
-    ticker: 'pln',
-    currencyType: 'fiat',
-  },
-  rub: {
-    name: 'Russian Ruble',
-    ticker: 'rub',
-    currencyType: 'fiat',
-  },
-  sar: {
-    name: 'Saudi Riyal',
-    ticker: 'sar',
-    currencyType: 'fiat',
-  },
-  sek: {
-    name: 'Swedish Krona',
-    ticker: 'sek',
-    currencyType: 'fiat',
-  },
-  sgd: {
-    name: 'Singapore Dollar',
-    ticker: 'sgd',
-    currencyType: 'fiat',
-  },
-  thb: {
-    name: 'Thai Baht',
-    ticker: 'thb',
-    currencyType: 'fiat',
-  },
-  try: {
-    name: 'Turkish Lira',
-    ticker: 'try',
-    currencyType: 'fiat',
-  },
-  twd: {
-    name: 'New Taiwan Dollar',
-    ticker: 'twd',
-    currencyType: 'fiat',
-  },
-  uah: {
-    name: 'Ukrainian hryvnia',
-    ticker: 'uah',
-    currencyType: 'fiat',
-  },
-  vef: {
-    name: 'Venezuelan bolívar fuerte',
-    ticker: 'vef',
-    currencyType: 'fiat',
-  },
-  vnd: {
-    name: 'Vietnamese đồng',
-    ticker: 'vnd',
-    currencyType: 'fiat',
-  },
-  zar: {
-    name: 'South African Rand',
-    ticker: 'zar',
-    currencyType: 'fiat',
-  },
-  xdr: {
-    name: 'IMF Special Drawing Rights',
-    ticker: 'xdr',
-    currencyType: 'fiat',
-  },
-  xag: {
-    name: 'Silver - Troy Ounce',
-    ticker: 'xag',
-    currencyType: 'commodity',
-  },
-  xau: {
-    name: 'Gold - Troy Ounce',
-    ticker: 'xau',
-    currencyType: 'commodity',
-  },
-  bits: {
-    name: 'Bits',
-    ticker: 'bits',
-    currencyType: 'crypto',
-  },
-  sats: {
-    name: 'Satoshi',
-    ticker: 'sats',
-    currencyType: 'crypto',
-  },
-};
-
-const CHAIN_ID_PRICE_API_SUPPORTED = {
-  1: 'ethereum',
-  10: 'optimistic-ethereum',
-  25: 'cronos',
-  56: 'binance-smart-chain',
-  57: 'syscoin',
-  66: 'okex-chain',
-  70: 'hoo-smart-chain',
-  82: 'meter',
-  88: 'tomochain',
-  100: 'xdai',
-  106: 'velas',
-  122: 'fuse',
-  128: 'huobi-token',
-  137: 'polygon-pos',
-  250: 'fantom',
-  288: 'boba',
-  321: 'kucoin-community-chain',
-  324: 'zksync',
-  361: 'theta',
-  1088: 'metis-andromeda',
-  1284: 'moonbeam',
-  1285: 'moonriver',
-  8453: 'base',
-  8545: 'shiden network',
-  10000: 'smartbch',
-  42161: 'arbitrum-one',
-  42220: 'celo',
-  42262: 'oasis',
-  43114: 'avalanche',
-  59144: 'linea',
-  333999: 'polis-chain',
-  1313161554: 'aurora',
-  1666600000: 'harmony-shard-0',
-};
-
-const PriceApi = {
-  BASE_URL: 'https://price.api.cx.metamask.io',
-  getTokenPriceURL(chainId: string, query: string) {
-    return `${this.BASE_URL}/v2/chains/${chainId}/spot-prices?${query}`;
-  },
-};
-
 const CoinGeckoApi = {
   BASE_URL: 'https://api.coingecko.com/api/v3',
   getTokenPriceURL(chainSlug: string, query: string) {
@@ -470,6 +118,28 @@ const CoinGeckoApi = {
     return `${this.BASE_URL}/simple/supported_vs_currencies`;
   },
 };
+
+/**
+ * Finds the chain slug in the data array given a chainId.
+ *
+ * @param chainId - The current chain ID.
+ * @param data - A list platforms supported by the CoinGecko API.
+ * @returns The CoinGecko slug for the given chain ID, or `null` if the slug was not found.
+ */
+function findChainSlug(
+  chainId: string,
+  data: CoinGeckoPlatform[] | null,
+): string | null {
+  if (!data) {
+    return null;
+  }
+  const chain =
+    data.find(
+      ({ chain_identifier }) =>
+        chain_identifier !== null && String(chain_identifier) === chainId,
+    ) ?? null;
+  return chain?.id || null;
+}
 
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
@@ -488,6 +158,13 @@ export class TokenRatesController extends BaseController<
     data: [],
   };
 
+  private supportedChains: SupportedChainsCache = {
+    timestamp: 0,
+    data: null,
+  };
+
+  private readonly coinGeckoHeader: string;
+
   #pollState = PollState.Inactive;
 
   /**
@@ -502,6 +179,7 @@ export class TokenRatesController extends BaseController<
    * @param options.chainId - The chain ID of the current network.
    * @param options.ticker - The ticker for the current network.
    * @param options.selectedAddress - The current selected address.
+   * @param options.coinGeckoHeader - Ccoingecko identifier.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
@@ -513,6 +191,7 @@ export class TokenRatesController extends BaseController<
       chainId: initialChainId,
       ticker: initialTicker,
       selectedAddress: initialSelectedAddress,
+      coinGeckoHeader,
       onPreferencesStateChange,
       onTokensStateChange,
       onNetworkStateChange,
@@ -520,6 +199,7 @@ export class TokenRatesController extends BaseController<
       chainId: Hex;
       ticker: string;
       selectedAddress: string;
+      coinGeckoHeader: string;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -534,9 +214,10 @@ export class TokenRatesController extends BaseController<
     state?: Partial<TokenRatesState>,
   ) {
     super(config, state);
+    this.coinGeckoHeader = coinGeckoHeader;
     this.defaultConfig = {
       disabled: false,
-      interval: 3 * 60 * 1000,
+      interval: 30 * 60 * 1000,
       nativeCurrency: initialTicker,
       chainId: initialChainId,
       selectedAddress: initialSelectedAddress,
@@ -651,14 +332,92 @@ export class TokenRatesController extends BaseController<
   /**
    * Fetches a pairs of token address and native currency.
    *
+   * @param chainSlug - Chain string identifier.
    * @param vsCurrency - Query according to tokens in tokenList and native currency.
    * @returns The exchange rates for the given pairs.
    */
-  async fetchExchangeRate(vsCurrency: string): Promise<CoinGeckoResponse> {
-    const { chainId } = this.config;
-    const tokenPairs = this.tokenList.join(',');
-    const query = `tokenAddresses=${tokenPairs}&vsCurrency=${vsCurrency.toLowerCase()}`;
-    return handleFetch(PriceApi.getTokenPriceURL(chainId, query));
+  fetchExchangeRate(
+    chainSlug: string,
+    vsCurrency: string,
+  ): Promise<CoinGeckoResponse>[] {
+    const tokenPairs = this.tokenList;
+
+    const tokenPairsChunks = (chunkSize: number) =>
+      tokenPairs.reduce((resultArray: any[], item: string, index: number) => {
+        const chunkIndex = Math.floor(index / chunkSize);
+        if (!resultArray[chunkIndex]) {
+          resultArray[chunkIndex] = [];
+        }
+
+        resultArray[chunkIndex].push(item);
+
+        return resultArray;
+      }, []);
+
+    const tokensPairsChunks = tokenPairsChunks(20);
+
+    return tokensPairsChunks.map((tokenPairsChunk) => {
+      const query = `contract_addresses=${tokenPairsChunk.join(
+        ',',
+      )}&vs_currencies=${vsCurrency.toLowerCase()}`;
+      return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query), {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CoinGecko-Source': this.coinGeckoHeader,
+        },
+      });
+    });
+  }
+
+  /**
+   * Checks if the current native currency is a supported vs currency to use
+   * to query for token exchange rates.
+   *
+   * @param nativeCurrency - The native currency of the currently active network.
+   * @returns A boolean indicating whether it's a supported vsCurrency.
+   */
+  private async checkIsSupportedVsCurrency(nativeCurrency: string) {
+    const { threshold } = this.config;
+    const { timestamp, data } = this.supportedVsCurrencies;
+
+    const now = Date.now();
+
+    if (now - timestamp > threshold) {
+      const currencies = await handleFetch(
+        CoinGeckoApi.getSupportedVsCurrencies(),
+      );
+      this.supportedVsCurrencies = {
+        data: currencies,
+        timestamp: Date.now(),
+      };
+      return currencies.includes(nativeCurrency.toLowerCase());
+    }
+
+    return data.includes(nativeCurrency.toLowerCase());
+  }
+
+  /**
+   * Gets current chain ID slug from cached supported platforms CoinGecko API response.
+   * If cached supported platforms response is stale, fetches and updates it.
+   *
+   * @returns The CoinGecko slug for the current chain ID.
+   */
+  async getChainSlug(): Promise<string | null> {
+    const { threshold, chainId } = this.config;
+    const { data, timestamp } = this.supportedChains;
+
+    const now = Date.now();
+
+    if (now - timestamp > threshold) {
+      const platforms = await handleFetch(CoinGeckoApi.getPlatformsURL());
+      this.supportedChains = {
+        data: platforms,
+        timestamp: Date.now(),
+      };
+      return findChainSlug(chainId, platforms);
+    }
+
+    return findChainSlug(chainId, data);
   }
 
   /**
@@ -668,14 +427,11 @@ export class TokenRatesController extends BaseController<
     if (this.tokenList.length === 0 || this.disabled) {
       return;
     }
-    const { chainId } = this.config;
+
+    const slug = await this.getChainSlug();
+
     let newContractExchangeRates: ContractExchangeRates = {};
-    if (
-      !Object.prototype.hasOwnProperty.call(
-        CHAIN_ID_PRICE_API_SUPPORTED,
-        chainId,
-      )
-    ) {
+    if (!slug) {
       this.tokenList.forEach((tokenAddress) => {
         const address = toChecksumHexAddress(tokenAddress);
         newContractExchangeRates[address] = undefined;
@@ -684,6 +440,7 @@ export class TokenRatesController extends BaseController<
       const { nativeCurrency } = this.config;
       newContractExchangeRates = await this.fetchAndMapExchangeRates(
         nativeCurrency,
+        slug,
       );
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
@@ -696,26 +453,31 @@ export class TokenRatesController extends BaseController<
    * to token/nativeCurrency.
    *
    * @param nativeCurrency - The native currency of the currently active network.
+   * @param slug - The unique slug used to id the chain by the coingecko api
    * should be used to query token exchange rates.
    * @returns An object with conversion rates for each token
    * related to the network's native currency.
    */
   async fetchAndMapExchangeRates(
     nativeCurrency: string,
+    slug: string,
   ): Promise<ContractExchangeRates> {
     const contractExchangeRates: ContractExchangeRates = {};
     if (this.tokenList.length === 0) {
       return contractExchangeRates;
     }
 
-    if (
-      Object.prototype.hasOwnProperty.call(
-        CURRENCY_PRICE_API_CURRENCIES_SUPPORTED,
-        nativeCurrency.toLowerCase(),
-      )
-    ) {
+    // check if native currency is supported as a vs_currency by the API
+    const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(
+      nativeCurrency,
+    );
+
+    if (nativeCurrencySupported) {
       // If it is we can do a simple fetch against the CoinGecko API
-      const prices = await this.fetchExchangeRate(nativeCurrency);
+      const res = await Promise.all(
+        this.fetchExchangeRate(slug, nativeCurrency),
+      );
+      const prices = Object.assign({}, ...res);
       this.tokenList.forEach((tokenAddress) => {
         const price = prices[tokenAddress.toLowerCase()];
         contractExchangeRates[toChecksumHexAddress(tokenAddress)] = price
@@ -725,14 +487,14 @@ export class TokenRatesController extends BaseController<
     } else {
       // if native currency is not supported we need to use a fallback vsCurrency, get the exchange rates
       // in token/fallback-currency format and convert them to expected token/nativeCurrency format.
-      let tokenExchangeRates;
+      let tokenExchangeRatesResponse;
       let vsCurrencyToNativeCurrencyConversionRate = 0;
       try {
         [
-          tokenExchangeRates,
+          tokenExchangeRatesResponse,
           { conversionRate: vsCurrencyToNativeCurrencyConversionRate },
         ] = await Promise.all([
-          this.fetchExchangeRate(FALL_BACK_VS_CURRENCY),
+          Promise.all(this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY)),
           fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
       } catch (error) {
@@ -744,7 +506,10 @@ export class TokenRatesController extends BaseController<
         }
         throw error;
       }
-
+      const tokenExchangeRates = Object.assign(
+        {},
+        ...tokenExchangeRatesResponse,
+      );
       for (const [tokenAddress, conversion] of Object.entries(
         tokenExchangeRates,
       )) {
