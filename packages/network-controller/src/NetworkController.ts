@@ -363,7 +363,7 @@ export type NetworkControllerStateChangeEvent = ControllerStateChangeEvent<
  */
 export type NetworkControllerNetworkWillChangeEvent = {
   type: 'NetworkController:networkWillChange';
-  payload: [];
+  payload: [NetworkState];
 };
 
 /**
@@ -372,7 +372,7 @@ export type NetworkControllerNetworkWillChangeEvent = {
  */
 export type NetworkControllerNetworkDidChangeEvent = {
   type: 'NetworkController:networkDidChange';
-  payload: [];
+  payload: [NetworkState];
 };
 
 /**
@@ -732,9 +732,15 @@ export class NetworkController extends BaseController<
    * 3. Notifies subscribers that the network has changed.
    */
   async #refreshNetwork() {
-    this.messagingSystem.publish('NetworkController:networkWillChange');
+    this.messagingSystem.publish(
+      'NetworkController:networkWillChange',
+      this.state,
+    );
     this.#applyNetworkSelection();
-    this.messagingSystem.publish('NetworkController:networkDidChange');
+    this.messagingSystem.publish(
+      'NetworkController:networkDidChange',
+      this.state,
+    );
     await this.lookupNetwork();
   }
 
