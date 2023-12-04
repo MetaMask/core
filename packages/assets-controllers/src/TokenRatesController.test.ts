@@ -1050,6 +1050,32 @@ describe('TokenRatesController', () => {
       expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
     });
 
+    it('should not update state when disabled', async () => {
+      const tokenAddress = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
+      const controller = new TokenRatesController(
+        {
+          interval: 100,
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: '0xdeadbeef',
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn(),
+        },
+        { disabled: true },
+      );
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
+
+      await controller.updateExchangeRatesByChainId({
+        chainId: '0x1',
+        nativeCurrency: 'ETH',
+        tokenAddresses: [tokenAddress],
+      });
+
+      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({});
+    });
+
     it('should update all rates', async () => {
       const tokenAddress = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
       nock(COINGECKO_API)

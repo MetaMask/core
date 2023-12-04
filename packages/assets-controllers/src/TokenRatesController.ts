@@ -476,7 +476,7 @@ export class TokenRatesController extends PollingControllerV1<
     nativeCurrency: string;
     tokenAddresses: string[];
   }) {
-    if (!tokenAddresses.length) {
+    if (tokenAddresses.length === 0 || this.disabled) {
       return;
     }
     const chainSlug = await this.getChainSlug(chainId);

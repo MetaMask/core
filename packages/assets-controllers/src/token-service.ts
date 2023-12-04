@@ -14,7 +14,9 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: Hex) {
-  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(chainId)}`;
+  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
 }
 
 /**
