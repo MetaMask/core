@@ -148,7 +148,7 @@ describe('create-package/utils', () => {
       });
       expect(execa).toHaveBeenCalledWith(
         'yarn',
-        ['generate-dependency-graph'],
+        ['update-readme-content'],
         { cwd: expect.any(String) },
       );
     });

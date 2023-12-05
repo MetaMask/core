@@ -112,9 +112,9 @@ export async function finalizeAndWriteData(
   console.log('Running "yarn install"...');
   await execa('yarn', ['install'], { cwd: REPO_ROOT });
 
-  // Add the new package to the documentation dependency graph.
-  console.log('Running "yarn generate-dependency-graph"...');
-  await execa('yarn', ['generate-dependency-graph'], { cwd: REPO_ROOT });
+  // Add the new package to the root readme content
+  console.log('Running "yarn update-readme-content"...');
+  await execa('yarn', ['update-readme-content'], { cwd: REPO_ROOT });
 }
 
 /**
