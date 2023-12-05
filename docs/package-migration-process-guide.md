@@ -234,7 +234,7 @@ This library has now been migrated into the [core monorepo](https://github.com/m
 
 ### Core
 
-1. **[PR#15]** Add migration target to the list of packages in the README as well as the dependency graph in the README (the latter can be updated automatically by running `yarn generate-dependency-graph`).
+1. **[PR#15]** Add migration target to the list of packages in the README as well as the dependency graph in the README by running `yarn update-readme-content`.
 2. Fix downstream errors that were marked with `@ts-expect-error TODO:` during the migration process.
 
 - If possible, perform this step before the first post-migration release of the migrated package.
