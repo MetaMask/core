@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Add `codefiTokenPricesServiceV2`
-  - This object can be used for the new `tokenPricesService` argument for TokenRatesController in client code. It uses an internal API to fetch prices for tokens instead of CoinGecko.
+  - This object can be used for the new `tokenPricesService` argument for TokenRatesController. It uses an internal API to fetch prices for tokens instead of CoinGecko.
 
 ### Changed
 - **BREAKING:** TokenRatesController now takes a required argument `tokenPricesService` ([#3600](https://github.com/MetaMask/core/pull/3600))
@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Change the type of `tokenContractAddresses` from `string[]` to `Hex[]`
 - **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600))
   - This method now takes an object with shape `{ tokenContractAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
+- Update TokenListController to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
 
 ### Removed
 - **BREAKING:** Remove `fetchExchangeRate` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
