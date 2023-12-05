@@ -144,12 +144,11 @@ export class TokensController extends BaseControllerV1<
     tokenAddress: string,
   ): Promise<TokenListToken | undefined> {
     try {
-      const token = await fetchTokenMetadata<TokenListToken>(
+      return await fetchTokenMetadata<TokenListToken>(
         this.config.chainId,
         tokenAddress,
         this.abortController.signal,
       );
-      return token;
     } catch (error) {
       if (
         error instanceof Error &&
@@ -696,8 +695,7 @@ export class TokensController extends BaseControllerV1<
       : this.config?.provider;
 
     const web3provider = new Web3Provider(provider);
-    const tokenContract = new Contract(tokenAddress, abi, web3provider);
-    return tokenContract;
+    return new Contract(tokenAddress, abi, web3provider);
   }
 
   _generateRandomId(): string {

@@ -72,8 +72,7 @@ class CountController extends BaseController<
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
   ) {
-    const res = super.update(callback);
-    return res;
+    return super.update(callback);
   }
 
   applyPatches(patches: Patch[]) {

@@ -424,9 +424,7 @@ export class AccountsController extends BaseController<
       return [];
     }
 
-    const snapAccounts = (snapKeyring as SnapKeyring).listAccounts();
-
-    return snapAccounts;
+    return (snapKeyring as SnapKeyring).listAccounts();
   }
 
   /**

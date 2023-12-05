@@ -7,10 +7,9 @@ import { PollingController, PollingControllerOnly } from './PollingController';
 const TICK_TIME = 1000;
 
 const createExecutePollMock = () => {
-  const executePollMock = jest.fn().mockImplementation(async () => {
+  return jest.fn().mockImplementation(async () => {
     return true;
   });
-  return executePollMock;
 };
 
 describe('PollingController', () => {

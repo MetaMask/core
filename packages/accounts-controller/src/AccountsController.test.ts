@@ -219,11 +219,10 @@ function setupAccountsController({
   const accountsControllerMessenger =
     buildAccountsControllerMessenger(messenger);
 
-  const accountsController = new AccountsController({
+  return new AccountsController({
     messenger: accountsControllerMessenger,
     state: { ...defaultState, ...initialState },
   });
-  return accountsController;
 }
 
 describe('AccountsController', () => {

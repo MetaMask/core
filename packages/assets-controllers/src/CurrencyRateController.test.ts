@@ -52,7 +52,7 @@ function getRestrictedMessenger() {
       }
     }),
   );
-  const messenger = controllerMessenger.getRestricted<
+  return controllerMessenger.getRestricted<
     typeof name,
     NetworkControllerGetNetworkClientByIdAction['type'],
     never
@@ -60,7 +60,6 @@ function getRestrictedMessenger() {
     name,
     allowedActions: ['NetworkController:getNetworkClientById'],
   });
-  return messenger;
 }
 
 const getStubbedDate = () => {

@@ -1773,8 +1773,7 @@ export class TransactionController extends BaseControllerV1<
     );
     const signedTransaction = await this.sign(unsignedTransaction, from);
 
-    const rawTransaction = bufferToHex(signedTransaction.serialize());
-    return rawTransaction;
+    return bufferToHex(signedTransaction.serialize());
   }
 
   /**

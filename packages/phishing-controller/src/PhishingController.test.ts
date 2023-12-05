@@ -26,15 +26,11 @@ function getRestrictedMessenger() {
     never
   >();
 
-  const messenger = controllerMessenger.getRestricted<
-    typeof controllerName,
-    never,
-    never
-  >({
-    name: 'PhishingController',
-  });
-
-  return messenger;
+  return controllerMessenger.getRestricted<typeof controllerName, never, never>(
+    {
+      name: 'PhishingController',
+    },
+  );
 }
 
 /**

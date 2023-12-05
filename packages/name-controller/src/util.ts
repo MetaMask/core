@@ -37,8 +37,7 @@ export async function graphQL<T>(
  */
 export async function handleFetch(request: string, options?: RequestInit) {
   const response = await successfulFetch(request, options);
-  const object = await response.json();
-  return object;
+  return await response.json();
 }
 
 /**

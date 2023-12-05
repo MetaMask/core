@@ -271,14 +271,12 @@ export class SignatureController extends BaseController<
       ...this.#messageManager.getAllMessages(),
     ];
 
-    const messagesObject = messages.reduce<{
+    return messages.reduce<{
       [id: string]: Message | PersonalMessage | TypedMessage;
     }>((acc, message) => {
       acc[message.id] = message;
       return acc;
     }, {});
-
-    return messagesObject;
   }
 
   /**

@@ -217,14 +217,11 @@ function getRestrictedMessenger() {
     ApprovalControllerActions,
     ApprovalControllerEvents
   >();
-  const messenger = controllerMessenger.getRestricted<
-    typeof controllerName,
-    never,
-    never
-  >({
-    name: 'ApprovalController',
-  });
-  return messenger;
+  return controllerMessenger.getRestricted<typeof controllerName, never, never>(
+    {
+      name: 'ApprovalController',
+    },
+  );
 }
 
 describe('approval controller', () => {

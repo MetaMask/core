@@ -6,11 +6,10 @@ import { validateConfirmedExternalTransaction } from './external-transactions';
 
 describe('validateConfirmedExternalTransaction', () => {
   const mockTransactionMeta = (status: TransactionStatus, nonce: string) => {
-    const meta = {
+    return {
       status,
       txParams: { nonce },
     } as TransactionMeta;
-    return meta;
   };
 
   it('should throw if transactionMeta or txParams is missing', () => {

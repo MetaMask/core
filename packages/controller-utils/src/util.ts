@@ -301,8 +301,7 @@ export function isSmartContractCode(code: string) {
     return false;
   }
   // Geth will return '0x', and ganache-core v2.2.1 will return '0x0'
-  const smartContractCode = code !== '0x' && code !== '0x0';
-  return smartContractCode;
+  return code !== '0x' && code !== '0x0';
 }
 
 /**
@@ -331,8 +330,7 @@ export async function successfulFetch(request: string, options?: RequestInit) {
  */
 export async function handleFetch(request: string, options?: RequestInit) {
   const response = await successfulFetch(request, options);
-  const object = await response.json();
-  return object;
+  return await response.json();
 }
 
 /**

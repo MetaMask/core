@@ -153,14 +153,13 @@ export const getters = deepFreeze({
      * @returns An RPC request object
      */
     custom: (origin: string, method: string, params?: Json[], id?: string) => {
-      const req = {
+      return {
         ...JsonRpcRequestStruct.TYPE,
         origin,
         method,
         params: params ?? [],
         id: id ?? null,
       };
-      return req;
     },
 
     /**

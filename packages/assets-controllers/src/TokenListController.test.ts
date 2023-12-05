@@ -504,13 +504,11 @@ const getControllerMessenger = (): MainControllerMessenger => {
 const getRestrictedMessenger = (
   controllerMessenger: MainControllerMessenger,
 ) => {
-  const messenger = controllerMessenger.getRestricted({
+  return controllerMessenger.getRestricted({
     name,
     allowedActions: ['NetworkController:getNetworkClientById'],
     allowedEvents: ['NetworkController:stateChange'],
   });
-
-  return messenger;
 };
 
 /**

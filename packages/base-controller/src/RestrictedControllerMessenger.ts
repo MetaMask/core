@@ -160,12 +160,7 @@ export class RestrictedControllerMessenger<
     if (!this.#isAllowedAction(actionType)) {
       throw new Error(`Action missing from allow list: ${actionType}`);
     }
-    const response = this.#controllerMessenger.call<ActionType>(
-      actionType,
-      ...params,
-    );
-
-    return response;
+    return this.#controllerMessenger.call<ActionType>(actionType, ...params);
   }
 
   /**

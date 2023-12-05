@@ -159,11 +159,7 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
 
   log('Sending Etherscan request', etherscanTxUrl);
 
-  const response = (await handleFetch(
-    etherscanTxUrl,
-  )) as EtherscanTransactionResponse<T>;
-
-  return response;
+  return (await handleFetch(etherscanTxUrl)) as EtherscanTransactionResponse<T>;
 }
 
 /**
