@@ -363,7 +363,7 @@ export class TokenRatesController extends PollingControllerV1<
       return;
     }
 
-    const newContractExchangeRates = await this.fetchAndMapExchangeRates({
+    const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
       tokenContractAddresses,
       chainId,
       nativeCurrency,
@@ -406,7 +406,7 @@ export class TokenRatesController extends PollingControllerV1<
    * native currency, or an empty map if no exchange rates can be obtained for
    * the chain ID.
    */
-  async fetchAndMapExchangeRates({
+  async #fetchAndMapExchangeRates({
     tokenContractAddresses,
     chainId,
     nativeCurrency,
