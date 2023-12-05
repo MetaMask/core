@@ -1,6 +1,7 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -8,6 +9,7 @@ import { v1 as random } from 'uuid';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
 import { Bundler } from './helpers/Bundler';
+import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
 import { projectLogger as log } from './logger';
 import type {
   SmartContractAccount,
@@ -24,6 +26,7 @@ import {
 } from './utils/validation';
 
 const GAS_BUFFER = 1.5;
+const DEFAULT_INTERVAL = 10 * 1000; // 10 Seconds
 
 const controllerName = 'UserOperationController';
 
@@ -49,7 +52,9 @@ export type UserOperationStateChange = {
   payload: [UserOperationControllerState, Patch[]];
 };
 
-export type UserOperationControllerActions = GetUserOperationState;
+export type UserOperationControllerActions =
+  | GetUserOperationState
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type UserOperationControllerEvents = UserOperationStateChange;
 
@@ -62,6 +67,7 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type UserOperationControllerOptions = {
+  interval?: number;
   messenger: UserOperationControllerMessenger;
   state?: Partial<UserOperationControllerState>;
 };
@@ -76,14 +82,17 @@ export class UserOperationController extends BaseController<
 > {
   hub: EventEmitter;
 
+  #pendingUserOperationTracker: PendingUserOperationTracker;
+
   /**
    * Construct a UserOperationController instance.
    *
    * @param options - Controller options.
+   * @param options.interval - Polling interval used to check the status of pending user operations.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
    */
-  constructor({ messenger, state }: UserOperationControllerOptions) {
+  constructor({ interval, messenger, state }: UserOperationControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
@@ -92,6 +101,18 @@ export class UserOperationController extends BaseController<
     });
 
     this.hub = new EventEmitter();
+
+    this.#pendingUserOperationTracker = new PendingUserOperationTracker({
+      getUserOperations: () =>
+        cloneDeep(Object.values(this.state.userOperations)),
+      messenger,
+    });
+
+    this.#pendingUserOperationTracker.setIntervalLength(
+      interval ?? DEFAULT_INTERVAL,
+    );
+
+    this.#addPendingUserOperationTrackerListeners();
   }
 
   /**
@@ -170,8 +191,17 @@ export class UserOperationController extends BaseController<
     };
   }
 
+  startPollingByNetworkClientId(networkClientId: string): string {
+    return this.#pendingUserOperationTracker.startPollingByNetworkClientId(
+      networkClientId,
+    );
+  }
+
   #createMetadata(chainId: string): UserOperationMetadata {
-    const metadata = {
+    const metadata: UserOperationMetadata = {
+      actualGasCost: null,
+      actualGasUsed: null,
+      baseFeePerGas: null,
       bundlerUrl: null,
       chainId,
       error: null,
@@ -179,6 +209,7 @@ export class UserOperationController extends BaseController<
       id: random(),
       status: UserOperationStatus.Unapproved,
       time: Date.now(),
+      transactionHash: null,
       userOperation: this.#createEmptyUserOperation(),
     };
 
@@ -263,7 +294,7 @@ export class UserOperationController extends BaseController<
       verificationGasLimit: '0x1',
     };
 
-    const { preVerificationGas, verificationGasLimit, callGasLimit } =
+    const { preVerificationGas, verificationGas, callGasLimit } =
       await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
 
     const normalizeGas = (value: number) =>
@@ -271,7 +302,7 @@ export class UserOperationController extends BaseController<
 
     userOperation.callGasLimit = normalizeGas(callGasLimit);
     userOperation.preVerificationGas = normalizeGas(preVerificationGas);
-    userOperation.verificationGasLimit = normalizeGas(verificationGasLimit);
+    userOperation.verificationGasLimit = normalizeGas(verificationGas);
 
     this.#updateMetadata(metadata);
   }
@@ -378,5 +409,31 @@ export class UserOperationController extends BaseController<
     this.update((state) => {
       state.userOperations[id] = cloneDeep(metadata);
     });
+  }
+
+  #addPendingUserOperationTrackerListeners() {
+    this.#pendingUserOperationTracker.hub.on(
+      'user-operation-confirmed',
+      (metadata) => {
+        log('In listener...');
+        this.hub.emit('user-operation-confirmed', metadata);
+        this.hub.emit(`${metadata.id}:confirmed`, metadata);
+      },
+    );
+
+    this.#pendingUserOperationTracker.hub.on(
+      'user-operation-failed',
+      (metadata, error) => {
+        this.hub.emit('user-operation-failed', metadata, error);
+        this.hub.emit(`${metadata.id}:failed`, metadata, error);
+      },
+    );
+
+    this.#pendingUserOperationTracker.hub.on(
+      'user-operation-updated',
+      (metadata) => {
+        this.#updateMetadata(metadata);
+      },
+    );
   }
 }

@@ -1,5 +1,9 @@
+import { EventEmitter } from 'stream';
+
 import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
-import { Bundler } from './helpers/Bundler';
+import * as BundlerHelper from './helpers/Bundler';
+import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
+import type { UserOperationMetadata } from './types';
 import {
   UserOperationStatus,
   type PrepareUserOperationResponse,
@@ -19,11 +23,20 @@ import {
 
 jest.mock('./utils/validation');
 jest.mock('./helpers/Bundler');
+jest.mock('./helpers/PendingUserOperationTracker');
 
 const CHAIN_ID_MOCK = '0x5';
 const HASH_MOCK = '0x123';
 const ERROR_MESSAGE_MOCK = 'Test Error';
 const ERROR_CODE_MOCK = 1234;
+const INTERVAL_MOCK = 1234;
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
+
+const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
+  chainId: CHAIN_ID_MOCK,
+  id: 'testUserOperationId',
+  status: UserOperationStatus.Confirmed,
+} as any;
 
 const PREPARE_USER_OPERATION_RESPONSE_MOCK: PrepareUserOperationResponse = {
   bundler: 'http://test.com',
@@ -80,17 +93,29 @@ function createSmartContractAccountMock(): jest.Mocked<SmartContractAccount> {
     prepareUserOperation: jest.fn(),
     updateUserOperation: jest.fn(),
     signUserOperation: jest.fn(),
-  };
+  } as any;
 }
 
 /**
  * Creates a mock bundler.
  * @returns The mock bundler.
  */
-function createBundlerMock(): jest.Mocked<Bundler> {
+function createBundlerMock(): jest.Mocked<BundlerHelper.Bundler> {
   return {
     estimateUserOperationGas: jest.fn(),
     sendUserOperation: jest.fn(),
+  } as any;
+}
+
+/**
+ * Creates a mock PendingUserOperationTracker.
+ * @returns The mock PendingUserOperationTracker.
+ */
+function createPendingUserOperationTrackerMock(): jest.Mocked<PendingUserOperationTrackerHelper.PendingUserOperationTracker> {
+  return {
+    startPollingByNetworkClientId: jest.fn(),
+    setIntervalLength: jest.fn(),
+    hub: new EventEmitter(),
   } as any;
 }
 
@@ -98,6 +123,8 @@ describe('UserOperationController', () => {
   const messenger = createMessengerMock();
   const smartContractAccount = createSmartContractAccountMock();
   const bundlerMock = createBundlerMock();
+  const pendingUserOperationTrackerMock =
+    createPendingUserOperationTrackerMock();
 
   const validateAddUserOperationRequestMock = jest.mocked(
     validateAddUserOperationRequest,
@@ -119,13 +146,13 @@ describe('UserOperationController', () => {
     validateSignUserOperationResponse,
   );
 
-  Bundler.prototype.estimateUserOperationGas =
-    bundlerMock.estimateUserOperationGas;
-
-  Bundler.prototype.sendUserOperation = bundlerMock.sendUserOperation;
-
   beforeEach(() => {
     jest.resetAllMocks();
+
+    jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
+    jest
+      .spyOn(PendingUserOperationTrackerHelper, 'PendingUserOperationTracker')
+      .mockReturnValue(pendingUserOperationTrackerMock);
 
     smartContractAccount.prepareUserOperation.mockResolvedValue(
       PREPARE_USER_OPERATION_RESPONSE_MOCK,
@@ -140,11 +167,59 @@ describe('UserOperationController', () => {
     bundlerMock.sendUserOperation.mockResolvedValue(HASH_MOCK);
   });
 
+  describe('constructor', () => {
+    it('creates PendingUserOperationTracker using state user operations', () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const userOperationsMock = {
+        testId1: { ...USER_OPERATION_METADATA_MOCK, id: 'testId1' },
+        testId2: { ...USER_OPERATION_METADATA_MOCK, id: 'testId2' },
+      };
+
+      controller.state.userOperations = userOperationsMock;
+
+      const result = jest
+        .mocked(PendingUserOperationTrackerHelper.PendingUserOperationTracker)
+        .mock.calls[0][0].getUserOperations();
+
+      expect(result).toStrictEqual(Object.values(userOperationsMock));
+    });
+
+    it('sets polling interval', () => {
+      new UserOperationController({
+        interval: INTERVAL_MOCK,
+        messenger,
+      });
+
+      expect(
+        pendingUserOperationTrackerMock.setIntervalLength,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        pendingUserOperationTrackerMock.setIntervalLength,
+      ).toHaveBeenCalledWith(INTERVAL_MOCK);
+    });
+
+    it('sets polling interval to default if not specified', () => {
+      new UserOperationController({
+        messenger,
+      });
+
+      expect(
+        pendingUserOperationTrackerMock.setIntervalLength,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        pendingUserOperationTrackerMock.setIntervalLength,
+      ).toHaveBeenCalledWith(expect.any(Number));
+    });
+  });
+
   describe('addUserOperation', () => {
     it('submits user operation to bundler', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { hash } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,
@@ -180,7 +255,7 @@ describe('UserOperationController', () => {
     it('creates metadata entry in state', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { id } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,
@@ -189,6 +264,9 @@ describe('UserOperationController', () => {
 
       expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
       expect(controller.state.userOperations[id]).toStrictEqual({
+        actualGasCost: null,
+        actualGasUsed: null,
+        baseFeePerGas: null,
         bundlerUrl: null,
         chainId: CHAIN_ID_MOCK,
         error: null,
@@ -196,6 +274,7 @@ describe('UserOperationController', () => {
         id,
         status: UserOperationStatus.Unapproved,
         time: expect.any(Number),
+        transactionHash: null,
         userOperation: {
           callData: EMPTY_BYTES,
           callGasLimit: EMPTY_BYTES,
@@ -215,7 +294,7 @@ describe('UserOperationController', () => {
     it('updates metadata in state', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { id, hash } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,
@@ -226,6 +305,9 @@ describe('UserOperationController', () => {
 
       expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
       expect(controller.state.userOperations[id]).toStrictEqual({
+        actualGasCost: null,
+        actualGasUsed: null,
+        baseFeePerGas: null,
         bundlerUrl: PREPARE_USER_OPERATION_RESPONSE_MOCK.bundler,
         chainId: CHAIN_ID_MOCK,
         error: null,
@@ -233,6 +315,7 @@ describe('UserOperationController', () => {
         id,
         status: UserOperationStatus.Submitted,
         time: expect.any(Number),
+        transactionHash: null,
         userOperation: {
           callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
           callGasLimit: PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.callGasLimit,
@@ -256,7 +339,7 @@ describe('UserOperationController', () => {
     it('defaults optional properties if not specified by account', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       smartContractAccount.prepareUserOperation.mockResolvedValue({
         ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
@@ -291,7 +374,7 @@ describe('UserOperationController', () => {
     it('estimates gas using bundler if gas not specified by account', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       bundlerMock.estimateUserOperationGas.mockResolvedValue({
         callGasLimit: 123,
@@ -346,7 +429,7 @@ describe('UserOperationController', () => {
     it('marks user operation as failed if error', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const error = new Error(ERROR_MESSAGE_MOCK);
       (error as any).code = ERROR_CODE_MOCK;
@@ -380,7 +463,7 @@ describe('UserOperationController', () => {
     it('does not throw if hash function not invoked', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       bundlerMock.sendUserOperation.mockRejectedValue(
         new Error(ERROR_MESSAGE_MOCK),
@@ -397,7 +480,7 @@ describe('UserOperationController', () => {
     it('validates arguments', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       await controller.addUserOperation(ADD_USER_OPERATION_REQUEST_MOCK, {
         ...ADD_USER_OPERATION_OPTIONS_MOCK,
@@ -419,7 +502,7 @@ describe('UserOperationController', () => {
     it('validates responses from account', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { hash } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,
@@ -445,6 +528,151 @@ describe('UserOperationController', () => {
       expect(validateSignUserOperationResponseMock).toHaveBeenCalledWith(
         SIGN_USER_OPERATION_RESPONSE_MOCK,
       );
+    });
+  });
+
+  describe('startPollingByNetworkClientId', () => {
+    it('starts polling in PendingUserOperationTracker', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      controller.startPollingByNetworkClientId(NETWORK_CLIENT_ID_MOCK);
+
+      expect(
+        pendingUserOperationTrackerMock.startPollingByNetworkClientId,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        pendingUserOperationTrackerMock.startPollingByNetworkClientId,
+      ).toHaveBeenCalledWith(NETWORK_CLIENT_ID_MOCK);
+    });
+  });
+
+  describe('on PendingUserOperationTracker events', () => {
+    describe('on user operation confirmed', () => {
+      it('bubbles event', async () => {
+        const listener = jest.fn();
+
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        controller.hub.on('user-operation-confirmed', listener);
+
+        pendingUserOperationTrackerMock.hub.emit(
+          'user-operation-confirmed',
+          USER_OPERATION_METADATA_MOCK,
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(USER_OPERATION_METADATA_MOCK);
+      });
+
+      it('emits id confirmed event', async () => {
+        const listener = jest.fn();
+
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        controller.hub.on(
+          `${USER_OPERATION_METADATA_MOCK.id}:confirmed`,
+          listener,
+        );
+
+        pendingUserOperationTrackerMock.hub.emit(
+          'user-operation-confirmed',
+          USER_OPERATION_METADATA_MOCK,
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(USER_OPERATION_METADATA_MOCK);
+      });
+    });
+
+    describe('on user operation failed', () => {
+      it('bubbles event', async () => {
+        const listener = jest.fn();
+        const errorMock = new Error(ERROR_MESSAGE_MOCK);
+
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        controller.hub.on('user-operation-failed', listener);
+
+        pendingUserOperationTrackerMock.hub.emit(
+          'user-operation-failed',
+          USER_OPERATION_METADATA_MOCK,
+          errorMock,
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          USER_OPERATION_METADATA_MOCK,
+          errorMock,
+        );
+      });
+
+      it('emits id failed event', async () => {
+        const listener = jest.fn();
+        const errorMock = new Error(ERROR_MESSAGE_MOCK);
+
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        controller.hub.on(
+          `${USER_OPERATION_METADATA_MOCK.id}:failed`,
+          listener,
+        );
+
+        pendingUserOperationTrackerMock.hub.emit(
+          'user-operation-failed',
+          USER_OPERATION_METADATA_MOCK,
+          errorMock,
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          USER_OPERATION_METADATA_MOCK,
+          errorMock,
+        );
+      });
+    });
+
+    describe('on user operation updated', () => {
+      it('updates state', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        controller.state.userOperations = {
+          [USER_OPERATION_METADATA_MOCK.id]: {
+            ...USER_OPERATION_METADATA_MOCK,
+          },
+          testId2: {
+            ...USER_OPERATION_METADATA_MOCK,
+            id: 'testId2',
+          },
+        };
+
+        pendingUserOperationTrackerMock.hub.emit('user-operation-updated', {
+          ...USER_OPERATION_METADATA_MOCK,
+          status: UserOperationStatus.Failed,
+        });
+
+        expect(controller.state.userOperations).toStrictEqual({
+          [USER_OPERATION_METADATA_MOCK.id]: {
+            ...USER_OPERATION_METADATA_MOCK,
+            status: UserOperationStatus.Failed,
+          },
+          testId2: {
+            ...USER_OPERATION_METADATA_MOCK,
+            id: 'testId2',
+          },
+        });
+      });
     });
   });
 });

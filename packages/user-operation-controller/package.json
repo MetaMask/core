@@ -33,6 +33,9 @@
   "dependencies": {
     "@metamask/base-controller": "^4.0.0",
     "@metamask/controller-utils": "^6.1.0",
+    "@metamask/eth-query": "^4.0.0",
+    "@metamask/network-controller": "^17.0.0",
+    "@metamask/polling-controller": "^2.0.0",
     "@metamask/utils": "^8.2.0",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
@@ -48,6 +51,9 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.8.4"
+  },
+  "peerDependencies": {
+    "@metamask/network-controller": "^17.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
