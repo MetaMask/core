@@ -5,12 +5,15 @@ import fs from 'fs';
 import path from 'path';
 
 type Workspace = {
+  location: string;
   name: string;
   workspaceDependencies: string[];
 };
 
-const START_MARKER = '<!-- start dependency graph -->';
-const END_MARKER = '<!-- end dependency graph -->';
+const DEPENDENCY_GRAPH_START_MARKER = '<!-- start dependency graph -->';
+const DEPENDENCY_GRAPH_END_MARKER = '<!-- end dependency graph -->';
+const PACKAGE_LIST_START_MARKER = '<!-- start package list -->';
+const PACKAGE_LIST_END_MARKER = '<!-- end package list -->';
 const README_PATH = path.resolve(__dirname, '../README.md');
 
 main().catch((error) => {
@@ -21,21 +24,17 @@ main().catch((error) => {
 /**
  * The entrypoint to this script.
  *
- * Uses `yarn workspaces list` to retrieve all of the workspace packages in this
- * project and their relationships to each other, produces a Markdown
- * fragment that represents a Mermaid graph, then updates the README with the
- * graph.
+ * Uses `yarn workspaces list` to:
+ * 
+ * 1. Retrieve all of the workspace packages in this project and their relationships to each other.
+ * 2. Produce a Markdown fragment that represents a Mermaid graph.
+ * 3. Produce a Markdown fragment that represents a list of the workspace packages, and links to them.
+ * 4. Update the README with the new content.
  */
 async function main() {
   const workspaces = await retrieveWorkspaces();
-  const nodeLines = buildMermaidNodeLines(workspaces);
-  const connectionLines = buildMermaidConnectionLines(workspaces);
-  const markdownFragment = assembleMermaidMarkdownFragment(
-    nodeLines,
-    connectionLines,
-  );
-  await updateReadme(markdownFragment);
-  console.log('Dependency graph in the README has been updated.');
+  await updateReadme(getDependencyGraph(workspaces), getPackageList(workspaces));
+  console.log('README content updated.');
 }
 
 /**
@@ -57,6 +56,19 @@ async function retrieveWorkspaces(): Promise<Workspace[]> {
     .split('\n')
     .map((line) => JSON.parse(line))
     .slice(1);
+}
+
+/**
+ * Gets the Markdown fragment that represents a Mermaid graph of the
+ * dependencies between the workspace packages in this project.
+ *
+ * @param workspaces - The Yarn workspaces inside of this project.
+ * @returns The Markdown Mermaid graph in string format.
+ */
+function getDependencyGraph(workspaces: Workspace[]): string {
+  const nodeLines = buildMermaidNodeLines(workspaces);
+  const connectionLines = buildMermaidConnectionLines(workspaces);
+  return assembleMermaidMarkdownFragment(nodeLines, connectionLines);
 }
 
 /**
@@ -85,7 +97,7 @@ function buildMermaidNodeLines(workspaces: Workspace[]): string[] {
  * @returns A set of lines that will go into the final Mermaid graph.
  */
 function buildMermaidConnectionLines(workspaces: Workspace[]): string[] {
-  const connections = [];
+  const connections: string[] = [];
   workspaces.forEach((workspace) => {
     const fullPackageName = workspace.name;
     const shortPackageName = fullPackageName
@@ -126,17 +138,47 @@ function assembleMermaidMarkdownFragment(
 }
 
 /**
+ * Gets the Markdown fragment that represents a list of the workspace packages
+ * in this project.
+ *
+ * @param workspaces - The Yarn workspaces inside of this project.
+ */
+function getPackageList(workspaces: Workspace[]): string {
+  return workspaces
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((workspace) => (`- [\`${workspace.name}\`](${workspace.location})`))
+    .join('\n');
+}
+
+/**
  * Updates the dependency graph section in the README with the given Markdown
  * fragment.
  *
- * @param newGraph - The new Markdown fragment.
+ * @param newGraph - The new dependency graph Markdown fragment.
+ * @param newPackageList - The new package list Markdown fragment.
  */
-async function updateReadme(newGraph: string) {
+async function updateReadme(newGraph: string, newPackageList: string) {
   const readmeContent = await fs.promises.readFile(README_PATH, 'utf8');
-  const newReadmeContent = readmeContent.replace(
-    new RegExp(`(${START_MARKER}).+(${END_MARKER})`, 'su'),
+
+  // Dependency graph
+  let newReadmeContent = readmeContent.replace(
+    new RegExp(
+      `(${DEPENDENCY_GRAPH_START_MARKER}).+(${DEPENDENCY_GRAPH_END_MARKER})`,
+      'su',
+    ),
     (_match, startMarker, endMarker) =>
       [startMarker, '', newGraph, '', endMarker].join('\n'),
   );
+
+  // Package list
+  newReadmeContent = newReadmeContent.replace(
+    new RegExp(
+      `(${PACKAGE_LIST_START_MARKER}).+(${PACKAGE_LIST_END_MARKER})`,
+      'su',
+    ),
+    (_match, startMarker, endMarker) =>
+      [startMarker, '', newPackageList, '', endMarker].join('\n'),
+  );
+
   await fs.promises.writeFile(README_PATH, newReadmeContent);
 }
