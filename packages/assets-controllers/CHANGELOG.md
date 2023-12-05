@@ -23,9 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `fetchExchangeRate` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
   - This method (not to be confused with `updateExchangeRate`, which is still present) was only ever intended to be used internally and should not be accessed directly.
 - **BREAKING:** Remove `getChainSlug` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
-  - This method was previously used in conjunction with accessing the CoinGecko API. There is no equivalent.
+  - This method was previously used in TokenRatesController to access the CoinGecko API. There is no equivalent.
 - **BREAKING:** Remove `CoinGeckoResponse` and `CoinGeckoPlatform` types ([#3600](https://github.com/MetaMask/core/pull/3600))
-  - These types were previously used to represent data returned from the CoinGecko API. There is no equivalent.
+  - These types were previously used in TokenRatesController to represent data returned from the CoinGecko API. There is no equivalent.
 
 ## [20.0.0]
 ### Added
