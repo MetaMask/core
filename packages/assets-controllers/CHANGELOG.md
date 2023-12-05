@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Add `codefiTokenPricesServiceV2`
+- Add `codefiTokenPricesServiceV2` ([#3600](https://github.com/MetaMask/core/pull/3600))
   - This object can be used for the new `tokenPricesService` argument for TokenRatesController. It uses an internal API to fetch prices for tokens instead of CoinGecko.
 
 ### Changed
