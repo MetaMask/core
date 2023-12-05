@@ -187,9 +187,7 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 	
     2. Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
     
-    3. If everything looks in order, push the branch.
-
-3. **Submit a pull request for the release branch so that it can be reviewed and tested.**
+3. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
 
    Make sure the title of the pull request follows the pattern "Release \<new version\>".
 
