@@ -13,6 +13,7 @@ import type {
   ProviderConfig,
 } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as sinon from 'sinon';
@@ -149,7 +150,7 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
@@ -437,7 +438,7 @@ describe('TokenDetectionController', () => {
   it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
     const polygonDecimalChainId = '137';
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${polygonDecimalChainId}`)
+      .get(getTokensPath(toHex(polygonDecimalChainId)))
       .reply(200, sampleTokenList);
 
     const stub = sinon.stub();
@@ -657,3 +658,15 @@ describe('TokenDetectionController', () => {
     });
   });
 });
+
+/**
+ * Construct the path used to fetch tokens that we can pass to `nock`.
+ *
+ * @param chainId - The chain ID.
+ * @returns The constructed path.
+ */
+function getTokensPath(chainId: Hex) {
+  return `/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+}
