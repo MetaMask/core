@@ -911,8 +911,7 @@ describe('TokenRatesController', () => {
       controller.startPollingByNetworkClientId('mainnet', {
         tokenAddresses: ['0x02', '0x03'],
       });
-      await advanceTime({ clock, duration: 1 });
-      await advanceTime({ clock, duration: 1 });
+      await advanceTime({ clock, duration: 1, stepSize: 1 / 8 });
 
       expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
         '0x1': {
@@ -1121,6 +1120,11 @@ describe('TokenRatesController', () => {
     });
 
     it('should handle balance not found in API', async () => {
+      nock(COINGECKO_API)
+      .get(`${COINGECKO_ETH_PATH}`)
+      .query({ contract_addresses: '0x0', vs_currencies: 'eth' })
+      .reply(304, {}); // empty object is returned when there is no match
+
       const controller = new TokenRatesController({
         chainId: '0x2',
         ticker: 'ticker',

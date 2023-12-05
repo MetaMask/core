@@ -22,7 +22,7 @@ const flushPromises = () => {
 export async function advanceTime({
   clock,
   duration,
-  stepSize = duration / 4,
+  stepSize = duration / 10,
 }: {
   clock: sinon.SinonFakeTimers;
   duration: number;
@@ -30,7 +30,7 @@ export async function advanceTime({
 }): Promise<void> {
   do {
     await clock.tickAsync(stepSize);
-    await flushPromises();
+    // await flushPromises();
     duration -= stepSize;
   } while (duration > 0);
 }
