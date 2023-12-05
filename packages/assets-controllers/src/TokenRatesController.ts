@@ -380,7 +380,6 @@ export class TokenRatesController extends PollingControllerV1<
   ): Promise<CoinGeckoResponse> {
     const tokenPairs = tokenAddresses.join(',');
     const query = `contract_addresses=${tokenPairs}&vs_currencies=${vsCurrency.toLowerCase()}`;
-    console.log(query)
     return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
   }
 
@@ -480,9 +479,7 @@ export class TokenRatesController extends PollingControllerV1<
     if (tokenAddresses.length === 0 || this.disabled) {
       return;
     }
-    console.log("getting chainslug")
     const chainSlug = await this.#getChainSlug(chainId);
-    console.log("got chainslug", chainSlug)
 
     let newContractExchangeRates: ContractExchangeRates = {};
     if (!chainSlug) {
@@ -546,7 +543,6 @@ export class TokenRatesController extends PollingControllerV1<
         nativeCurrency,
         tokenAddresses,
       );
-      console.log("got prices", prices)
       tokenAddresses.forEach((tokenAddress) => {
         const price = prices[tokenAddress.toLowerCase()];
         contractExchangeRates[toChecksumHexAddress(tokenAddress)] = price
