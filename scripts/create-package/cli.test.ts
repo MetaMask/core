@@ -148,41 +148,4 @@ describe('create-package/cli', () => {
       );
     });
   });
-
-  describe('command: default', () => {
-    it('should call the command handler with the correct arguments', async () => {
-      const defaultCommand = commandMap.default;
-      jest.spyOn(defaultCommand, 'handler');
-
-      jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
-        tsConfig: {},
-        tsConfigBuild: {},
-        nodeVersion: '20.0.0',
-      } as any);
-      jest.spyOn(utils, 'finalizeAndWriteData').mockResolvedValue();
-
-      expect(await cli(getMockArgv('default'), commands)).toBeUndefined();
-
-      expect(defaultCommand.handler).toHaveBeenCalledTimes(1);
-      expect(defaultCommand.handler).toHaveBeenCalledWith(
-        expect.objectContaining(
-          getParsedArgv('default', 'new-package', 'A new MetaMask package.'),
-        ),
-      );
-    });
-
-    it('should create a new package with default values', async () => {
-      const defaultCommand = commandMap.default;
-      jest.spyOn(defaultCommand, 'handler').mockImplementation();
-
-      expect(await cli(getMockArgv('default'), commands)).toBeUndefined();
-
-      expect(defaultCommand.handler).toHaveBeenCalledTimes(1);
-      expect(defaultCommand.handler).toHaveBeenCalledWith(
-        expect.objectContaining(
-          getParsedArgv('default', 'new-package', 'A new MetaMask package.'),
-        ),
-      );
-    });
-  });
 });

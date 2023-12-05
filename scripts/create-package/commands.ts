@@ -51,29 +51,7 @@ const newPackage: CommandModule<object, CreatePackageOptions> = {
     createPackageHandler(args),
 };
 
-/**
- * The yargs command for creating a monorepo package with some default values.
- */
-const defaultPackage: CommandModule<object, CreatePackageOptions> = {
-  command: 'default',
-  describe: 'Create a new monorepo package, with default values.',
-  builder: (argv: Argv) => {
-    argv
-      .example('$0 default', 'Create a new package with default values.')
-      .check((args) => {
-        args.name = '@metamask/new-package';
-        args.description = 'A new MetaMask package.';
-
-        return true;
-      });
-    return argv as Argv<CreatePackageOptions>;
-  },
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  handler: async (args: Arguments<CreatePackageOptions>) =>
-    createPackageHandler(args),
-};
-
-const commands = [newPackage, defaultPackage];
+const commands = [newPackage];
 export default commands;
 
 /**
