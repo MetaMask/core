@@ -66,7 +66,8 @@ export class AccountTrackerController extends PollingControllerV1<
 > {
   private _provider?: Provider;
 
-  private readonly mutex = new Mutex();
+  private readonly pollMutex = new Mutex();
+  private readonly refreshMutex = new Mutex();
 
   private handle?: ReturnType<typeof setTimeout>;
 
@@ -230,7 +231,7 @@ export class AccountTrackerController extends PollingControllerV1<
    * @param interval - Polling interval trigger a 'refresh'.
    */
   async poll(interval?: number): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.pollMutex.acquire();
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
     await this.refresh();
@@ -257,31 +258,37 @@ export class AccountTrackerController extends PollingControllerV1<
    * @param networkClientId - Optional networkClientId to fetch a network client with
    */
   refresh = async (networkClientId?: NetworkClientId) => {
-    const { chainId, ethQuery } =
-      this.#getCorrectNetworkClient(networkClientId);
-    this.syncAccounts(chainId);
-    const { accounts, accountsByChainId } = this.state;
-    const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
+    const releaseLock = await this.refreshMutex.acquire();
+    try {
+      const { chainId, ethQuery } =
+        this.#getCorrectNetworkClient(networkClientId);
+      this.syncAccounts(chainId);
+      const { accounts, accountsByChainId } = this.state;
+      const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
 
-    const accountsToUpdate = isMultiAccountBalancesEnabled
-      ? Object.keys(accounts)
-      : [this.getSelectedAddress()];
+      const accountsToUpdate = isMultiAccountBalancesEnabled
+        ? Object.keys(accounts)
+        : [this.getSelectedAddress()];
 
-    const accountsForChain = accountsByChainId[chainId];
-    for (const address of accountsToUpdate) {
-      accountsForChain[address] = {
-        balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
-      };
-    }
+      const accountsForChain = accountsByChainId[chainId];
+      for (const address of accountsToUpdate) {
+        accountsForChain[address] = {
+          balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
+        };
+      }
 
-    this.update({
-      accountsByChainId: {
-        ...this.state.accountsByChainId,
-        [chainId]: accountsForChain,
-      },
-    });
-    if (chainId === this.getCurrentChainId()) {
-      this.update({ accounts: accountsForChain });
+      this.update({
+        accountsByChainId: {
+          ...this.state.accountsByChainId,
+          [chainId]: accountsForChain,
+        },
+      });
+      if (chainId === this.getCurrentChainId()) {
+        this.update({ accounts: accountsForChain });
+      }
+    } catch(err) {
+      releaseLock()
+      throw err
     }
   };
 

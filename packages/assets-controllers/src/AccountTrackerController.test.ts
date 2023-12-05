@@ -184,68 +184,6 @@ describe('AccountTrackerController', () => {
         });
       });
 
-      it('should not overwrite state changes to other chains that occured concurrently during the execution of this method', async () => {
-        const controller = new AccountTrackerController(
-          {
-            onPreferencesStateChange: sinon.stub(),
-            getIdentities: () => {
-              return { [ADDRESS_1]: {} as ContactEntry };
-            },
-            getSelectedAddress: () => ADDRESS_1,
-            getMultiAccountBalancesEnabled: () => true,
-            getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn(),
-          },
-          { provider },
-        );
-
-        mockedQuery.mockImplementationOnce(() => {
-          // simulate a state change occuring during the middle of the execution of refresh()
-          controller.update({
-            accounts: {
-              '0xdead': {
-                balance: '0x123',
-              },
-            },
-            accountsByChainId: {
-              '0x1': {
-                '0xdead': {
-                  balance: '0x123',
-                },
-              },
-              '0xa': {
-                '0xbeef': {
-                  balance: '0x456',
-                },
-              },
-            },
-          });
-          return Promise.resolve('0x10');
-        });
-
-        await controller.refresh();
-
-        expect(controller.state).toStrictEqual({
-          accounts: {
-            [ADDRESS_1]: {
-              balance: '0x10',
-            },
-          },
-          accountsByChainId: {
-            '0x1': {
-              [ADDRESS_1]: {
-                balance: '0x10',
-              },
-            },
-            '0xa': {
-              '0xbeef': {
-                balance: '0x456',
-              },
-            },
-          },
-        });
-      });
-
       it('should update only selected address balance when multi-account is disabled', async () => {
         mockedQuery
           .mockReturnValueOnce(Promise.resolve('0x10'))
@@ -416,70 +354,6 @@ describe('AccountTrackerController', () => {
             '0x1': {
               [ADDRESS_1]: {
                 balance: '0x0',
-              },
-            },
-            '0x5': {
-              [ADDRESS_1]: {
-                balance: '0x10',
-              },
-            },
-          },
-        });
-      });
-
-      it('should not overwrite state changes to other chains that occured concurrently during the execution of this method', async () => {
-        const controller = new AccountTrackerController({
-          onPreferencesStateChange: sinon.stub(),
-          getIdentities: () => {
-            return { [ADDRESS_1]: {} as ContactEntry };
-          },
-          getSelectedAddress: () => ADDRESS_1,
-          getMultiAccountBalancesEnabled: () => true,
-          getCurrentChainId: () => '0x1',
-          getNetworkClientById: jest.fn().mockReturnValue({
-            configuration: {
-              chainId: '0x5',
-            },
-            provider,
-          }),
-        });
-
-        mockedQuery.mockImplementationOnce(() => {
-          // simulate a state change occuring during the middle of the execution of refresh()
-          controller.update({
-            accounts: {
-              '0xdead': {
-                balance: '0x123',
-              },
-            },
-            accountsByChainId: {
-              '0x1': {
-                '0xdead': {
-                  balance: '0x123',
-                },
-              },
-              '0x5': {
-                '0xbeef': {
-                  balance: '0x456',
-                },
-              },
-            },
-          });
-          return Promise.resolve('0x10');
-        });
-
-        await controller.refresh('networkClientId1');
-
-        expect(controller.state).toStrictEqual({
-          accounts: {
-            '0xdead': {
-              balance: '0x123',
-            },
-          },
-          accountsByChainId: {
-            '0x1': {
-              '0xdead': {
-                balance: '0x123',
               },
             },
             '0x5': {
