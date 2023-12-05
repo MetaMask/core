@@ -363,7 +363,7 @@ export class TokenRatesController extends BaseController<
       return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query), {
         headers: {
           'Content-Type': 'application/json',
-          'X-CoinGecko-Source': this.coinGeckoHeader,
+          'X-Requested-With': this.coinGeckoHeader,
         },
       });
     });
