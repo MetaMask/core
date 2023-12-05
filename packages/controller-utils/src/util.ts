@@ -312,11 +312,16 @@ export function isSmartContractCode(code: string) {
  * @param options - Fetch options.
  * @returns The fetch response.
  */
-export async function successfulFetch(request: string, options?: RequestInit) {
+export async function successfulFetch(
+  request: URL | RequestInfo,
+  options?: RequestInit,
+) {
   const response = await fetch(request, options);
   if (!response.ok) {
     throw new Error(
-      `Fetch failed with status '${response.status}' for request '${request}'`,
+      `Fetch failed with status '${response.status}' for request '${String(
+        request,
+      )}'`,
     );
   }
   return response;
@@ -329,7 +334,10 @@ export async function successfulFetch(request: string, options?: RequestInit) {
  * @param options - The fetch options.
  * @returns The fetch response JSON data.
  */
-export async function handleFetch(request: string, options?: RequestInit) {
+export async function handleFetch(
+  request: URL | RequestInfo,
+  options?: RequestInit,
+) {
   const response = await successfulFetch(request, options);
   const object = await response.json();
   return object;
