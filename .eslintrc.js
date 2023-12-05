@@ -35,11 +35,15 @@ module.exports = {
     },
     {
       files: ['*.ts'],
-      extends: ['@metamask/eslint-config-typescript'],
+      extends: [
+        '@metamask/eslint-config-typescript',
+        'plugin:sonarjs/recommended',
+      ],
       parserOptions: {
         tsconfigRootDir: __dirname,
         project: ['./tsconfig.packages.json'],
       },
+      plugins: ['sonarjs'],
       rules: {
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
