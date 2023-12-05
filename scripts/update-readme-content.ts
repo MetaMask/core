@@ -25,7 +25,7 @@ main().catch((error) => {
  * The entrypoint to this script.
  *
  * Uses `yarn workspaces list` to:
- * 
+ *
  * 1. Retrieve all of the workspace packages in this project and their relationships to each other.
  * 2. Produce a Markdown fragment that represents a Mermaid graph.
  * 3. Produce a Markdown fragment that represents a list of the workspace packages, and links to them.
@@ -33,7 +33,10 @@ main().catch((error) => {
  */
 async function main() {
   const workspaces = await retrieveWorkspaces();
-  await updateReadme(getDependencyGraph(workspaces), getPackageList(workspaces));
+  await updateReadme(
+    getDependencyGraph(workspaces),
+    getPackageList(workspaces),
+  );
   console.log('README content updated.');
 }
 
@@ -63,7 +66,7 @@ async function retrieveWorkspaces(): Promise<Workspace[]> {
  * dependencies between the workspace packages in this project.
  *
  * @param workspaces - The Yarn workspaces inside of this project.
- * @returns The Markdown Mermaid graph in string format.
+ * @returns The new dependency graph Markdown fragment.
  */
 function getDependencyGraph(workspaces: Workspace[]): string {
   const nodeLines = buildMermaidNodeLines(workspaces);
@@ -142,11 +145,12 @@ function assembleMermaidMarkdownFragment(
  * in this project.
  *
  * @param workspaces - The Yarn workspaces inside of this project.
+ * @returns The new package list Markdown fragment.
  */
 function getPackageList(workspaces: Workspace[]): string {
   return workspaces
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((workspace) => (`- [\`${workspace.name}\`](${workspace.location})`))
+    .map((workspace) => `- [\`${workspace.name}\`](${workspace.location})`)
     .join('\n');
 }
 
