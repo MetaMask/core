@@ -11,7 +11,7 @@ import type { UserOperationControllerMessenger } from './UserOperationController
 import { UserOperationController } from './UserOperationController';
 import {
   validateAddUserOperationRequest,
-  validateAddUserOperatioOptions,
+  validateAddUserOperationOptions,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
@@ -104,7 +104,7 @@ describe('UserOperationController', () => {
   );
 
   const validateAddUserOperationOptionsMock = jest.mocked(
-    validateAddUserOperatioOptions,
+    validateAddUserOperationOptions,
   );
 
   const validatePrepareUserOperationResponseMock = jest.mocked(
@@ -144,7 +144,7 @@ describe('UserOperationController', () => {
     it('submits user operation to bundler', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { hash } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,
@@ -180,7 +180,7 @@ describe('UserOperationController', () => {
     it('creates metadata entry in state', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { id } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,
@@ -215,7 +215,7 @@ describe('UserOperationController', () => {
     it('updates metadata in state', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { id, hash } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,
@@ -256,7 +256,7 @@ describe('UserOperationController', () => {
     it('defaults optional properties if not specified by account', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       smartContractAccount.prepareUserOperation.mockResolvedValue({
         ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
@@ -291,7 +291,7 @@ describe('UserOperationController', () => {
     it('estimates gas using bundler if gas not specified by account', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       bundlerMock.estimateUserOperationGas.mockResolvedValue({
         callGasLimit: 123,
@@ -346,7 +346,7 @@ describe('UserOperationController', () => {
     it('marks user operation as failed if error', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const error = new Error(ERROR_MESSAGE_MOCK);
       (error as any).code = ERROR_CODE_MOCK;
@@ -380,7 +380,7 @@ describe('UserOperationController', () => {
     it('does not throw if hash function not invoked', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       bundlerMock.sendUserOperation.mockRejectedValue(
         new Error(ERROR_MESSAGE_MOCK),
@@ -397,7 +397,7 @@ describe('UserOperationController', () => {
     it('validates arguments', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       await controller.addUserOperation(ADD_USER_OPERATION_REQUEST_MOCK, {
         ...ADD_USER_OPERATION_OPTIONS_MOCK,
@@ -419,7 +419,7 @@ describe('UserOperationController', () => {
     it('validates responses from account', async () => {
       const controller = new UserOperationController({
         messenger,
-      } as any);
+      });
 
       const { hash } = await controller.addUserOperation(
         ADD_USER_OPERATION_REQUEST_MOCK,

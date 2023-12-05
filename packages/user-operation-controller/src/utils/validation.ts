@@ -40,7 +40,7 @@ export function validateAddUserOperationRequest(request: any) {
  * Validate the options when adding a user operation.
  * @param options - The options to validate.
  */
-export function validateAddUserOperatioOptions(options: any) {
+export function validateAddUserOperationOptions(options: any) {
   const Hex = defineHex();
 
   const ValidOptions = object({
