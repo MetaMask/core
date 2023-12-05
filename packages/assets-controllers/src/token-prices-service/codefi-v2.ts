@@ -154,9 +154,9 @@ type SupportedCurrency =
   | Uppercase<(typeof SUPPORTED_CURRENCIES)[number]>;
 
 /**
- * The list of chain IDs that can be supplied as the `vsCurrency` parameter to
- * the `/spot-prices` endpoint, but in hexadecimal form (for consistency with
- * how we represent chain IDs in other places).
+ * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
+ * endpoint, but in hexadecimal form (for consistency with how we represent
+ * chain IDs in other places).
  */
 export const SUPPORTED_CHAIN_IDS = [
   // Ethereum Mainnet
@@ -227,8 +227,9 @@ export const SUPPORTED_CHAIN_IDS = [
 ] as const;
 
 /**
- * A currency that can be supplied as the `vsCurrency` parameter to
- * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
+ * A chain ID that can be supplied in the URL for the `/spot-prices` endpoint,
+ * but in hexadecimal form (for consistency with how we represent chain IDs in
+ * other places).
  */
 type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 
