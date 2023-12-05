@@ -948,14 +948,14 @@ export class TokensController extends BaseControllerV1<
         allTemporaryTokens[chainIdToAddTokens] &&
         allTemporaryTokens[chainIdToAddTokens][userAddressToAddTokens])
     ) {
-      const networkDetectedTokens = allTemporaryTokens[chainIdToAddTokens];
-      const newDetectedNetworkTokens = {
-        ...networkDetectedTokens,
+      const networkTemporaryTokens = allTemporaryTokens[chainIdToAddTokens];
+      const newTemporaryNetworkTokens = {
+        ...networkTemporaryTokens,
         ...{ [userAddressToAddTokens]: newTemporaryTokens },
       };
       newAllTemporaryTokens = {
         ...allTemporaryTokens,
-        ...{ [chainIdToAddTokens]: newDetectedNetworkTokens },
+        ...{ [chainIdToAddTokens]: newTemporaryNetworkTokens },
       };
     }
 

@@ -296,7 +296,7 @@ export class TokenRatesController extends PollingControllerV1<
           this.config.allDetectedTokens !== allDetectedTokens ||
           this.config.allTemporaryTokens !== allTemporaryTokens
         ) {
-          this.configure({ allTokens, allDetectedTokens });
+          this.configure({ allTokens, allDetectedTokens, allTemporaryTokens });
           this.#updateTokenList();
           if (this.#pollState === PollState.Active) {
             await this.updateExchangeRates();
