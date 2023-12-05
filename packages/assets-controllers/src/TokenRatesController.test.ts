@@ -878,48 +878,158 @@ describe('TokenRatesController', () => {
       expect(updateExchangeRatesByChainIdSpy).toHaveBeenCalledTimes(3);
     });
 
-    it.only('should update state on poll', async () => {
-      nock(COINGECKO_API)
-        .get(`${COINGECKO_ETH_PATH}`)
-        .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
-        .reply(200, {
-          '0x02': {
-            eth: 0.001,
-          },
-          '0x03': {
-            eth: 0.002,
-          },
+    describe('updating state on poll', () => {
+      it('returns the exchange rates directly when native currency is supported', async () => {
+        nock(COINGECKO_API)
+          .get(`${COINGECKO_ETH_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+          .reply(200, {
+            '0x02': {
+              eth: 0.001,
+            },
+            '0x03': {
+              eth: 0.002,
+            },
+          });
+
+        const interval = 100;
+        const controller = new TokenRatesController({
+          interval,
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: '0xdeadbeef',
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn().mockReturnValue({
+            configuration: {
+              chainId: '0x1',
+              ticker: NetworksTicker.mainnet,
+            },
+          }),
         });
 
-      const interval = 100;
-      const controller = new TokenRatesController({
-        interval,
-        chainId: '0x2',
-        ticker: 'ticker',
-        selectedAddress: '0xdeadbeef',
-        onPreferencesStateChange: jest.fn(),
-        onTokensStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
-        getNetworkClientById: jest.fn().mockReturnValue({
-          configuration: {
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
+        controller.startPollingByNetworkClientId('mainnet', {
+          tokenAddresses: ['0x02', '0x03'],
+        });
+        // flush promises and advance setTimeouts they enqueue 7 times
+        // needed because fetch() doesn't resolve immediately, so any
+        // downstream promises aren't flushed until the next advanceTime loop
+        await advanceTime({ clock, duration: 1, stepSize: 1 / 7 });
+
+        expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
+          '0x1': {
+            ETH: {
+              '0x02': 0.001,
+              '0x03': 0.002,
+            },
           },
-        }),
+        });
+        controller.stopAllPolling();
       });
 
-      controller.startPollingByNetworkClientId('mainnet', {
-        tokenAddresses: ['0x02', '0x03'],
-      });
-      await advanceTime({ clock, duration: 1, stepSize: 1 / 8 });
+      it('returns the exchange rates using ETH as a fallback currency when native currency is not supported', async () => {
+        nock(COINGECKO_API)
+          .get(`${COINGECKO_MATIC_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+          .reply(200, {
+            '0x02': {
+              eth: 0.001,
+            },
+            '0x03': {
+              eth: 0.002,
+            },
+          });
 
-      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
-        '0x1': {
-          ETH: {
-            '0x02': 0.001,
-            '0x03': 0.002,
+        nock('https://min-api.cryptocompare.com')
+          .get('/data/price?fsym=ETH&tsyms=MATIC')
+          .reply(200, { MATIC: 0.5 });
+
+        const controller = new TokenRatesController({
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: '0xdeadbeef',
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn().mockReturnValue({
+            configuration: {
+              chainId: toHex(137),
+              ticker: 'MATIC',
+            },
+          }),
+        });
+
+        controller.startPollingByNetworkClientId('mainnet', {
+          tokenAddresses: ['0x02', '0x03'],
+        });
+        // flush promises and advance setTimeouts they enqueue 7 times
+        // needed because fetch() doesn't resolve immediately, so any
+        // downstream promises aren't flushed until the next advanceTime loop
+        await advanceTime({ clock, duration: 1, stepSize: 1 / 7 });
+
+        expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
+          [toHex(137)]: {
+            MATIC: {
+              '0x02': 0.0005,
+              '0x03': 0.001,
+            },
           },
-        },
+        });
+        controller.stopAllPolling();
+      });
+
+      it('returns the an empty object when market does not exist for pair', async () => {
+        nock(COINGECKO_API)
+          .get(`${COINGECKO_MATIC_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+          .reply(200, {
+            '0x02': {
+              eth: 0.001,
+            },
+            '0x03': {
+              eth: 0.002,
+            },
+          });
+
+        nock('https://min-api.cryptocompare.com')
+          .get('/data/price?fsym=ETH&tsyms=MATIC')
+          .reply(200, {
+            Response: 'Error',
+            Message:
+              'cccagg_or_exchange market does not exist for this coin pair (ETH-MATIC)',
+            HasWarning: false,
+          });
+
+        const controller = new TokenRatesController({
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: '0xdeadbeef',
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn().mockReturnValue({
+            configuration: {
+              chainId: toHex(137),
+              ticker: 'MATIC',
+            },
+          }),
+        });
+
+        controller.startPollingByNetworkClientId('mainnet', {
+          tokenAddresses: ['0x02', '0x03'],
+        });
+        // flush promises and advance setTimeouts they enqueue 7 times
+        // needed because fetch() doesn't resolve immediately, so any
+        // downstream promises aren't flushed until the next advanceTime loop
+        await advanceTime({ clock, duration: 1, stepSize: 1 / 7 });
+
+        expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
+          [toHex(137)]: {
+            MATIC: {},
+          },
+        });
+        controller.stopAllPolling();
       });
     });
 
@@ -1121,9 +1231,9 @@ describe('TokenRatesController', () => {
 
     it('should handle balance not found in API', async () => {
       nock(COINGECKO_API)
-      .get(`${COINGECKO_ETH_PATH}`)
-      .query({ contract_addresses: '0x0', vs_currencies: 'eth' })
-      .reply(304, {}); // empty object is returned when there is no match
+        .get(`${COINGECKO_ETH_PATH}`)
+        .query({ contract_addresses: '0x0', vs_currencies: 'eth' })
+        .reply(200, {});
 
       const controller = new TokenRatesController({
         chainId: '0x2',
@@ -1135,18 +1245,14 @@ describe('TokenRatesController', () => {
         getNetworkClientById: jest.fn(),
       });
       expect(controller.state.contractExchangeRates).toStrictEqual({});
-      // jest.spyOn(controller, 'fetchExchangeRate').mockRejectedValue({
-      //   error: 'Not Found',
-      //   message: 'Not Found',
-      // });
 
-      const result = controller.updateExchangeRatesByChainId({
+      const result = await controller.updateExchangeRatesByChainId({
         chainId: '0x1',
         nativeCurrency: 'ETH',
         tokenAddresses: ['0x0'],
       });
 
-      await expect(result).rejects.not.toThrow();
+      expect(result).toBeUndefined();
     });
 
     it('should update exchange rates when native currency is not supported by coingecko', async () => {
@@ -1202,17 +1308,16 @@ describe('TokenRatesController', () => {
         onNetworkStateChange: jest.fn(),
         getNetworkClientById: jest.fn(),
       });
-      // jest.spyOn(controller, 'getChainSlug').mockResolvedValue('');
 
       await controller.updateExchangeRatesByChainId({
-        chainId: toHex(137),
-        nativeCurrency: 'MATIC',
+        chainId: '0xdeadbeef',
+        nativeCurrency: 'BEEF',
         tokenAddresses: ['0x02', '0x03'],
       });
 
       expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
-        [toHex(137)]: {
-          MATIC: {
+        '0xdeadbeef': {
+          BEEF: {
             '0x02': undefined,
             '0x03': undefined,
           },
@@ -1220,120 +1325,4 @@ describe('TokenRatesController', () => {
       });
     });
   });
-
-  // describe('fetchAndMapExchangeRates', () => {
-  //   describe('native currency is supported', () => {
-  //     it('returns the exchange rates directly', async () => {
-  //       nock(COINGECKO_API)
-  //         .get(`${COINGECKO_ETH_PATH}`)
-  //         .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
-  //         .reply(200, {
-  //           '0x02': {
-  //             eth: 0.001,
-  //           },
-  //           '0x03': {
-  //             eth: 0.002,
-  //           },
-  //         });
-
-  //       const controller = new TokenRatesController({
-  //         chainId: '0x2',
-  //         ticker: 'ticker',
-  //         selectedAddress: '0xdeadbeef',
-  //         onPreferencesStateChange: jest.fn(),
-  //         onTokensStateChange: jest.fn(),
-  //         onNetworkStateChange: jest.fn(),
-  //         getNetworkClientById: jest.fn(),
-  //       });
-
-  //       const contractExchangeRates = await controller.#fetchAndMapExchangeRates(
-  //         'ETH',
-  //         'ethereum',
-  //         ['0x02', '0x03'],
-  //       );
-
-  //       expect(contractExchangeRates).toStrictEqual({
-  //         '0x02': 0.001,
-  //         '0x03': 0.002,
-  //       });
-  //     });
-  //   });
-
-  //   describe('native currency is not supported', () => {
-  //     it('returns the exchange rates using ETH as a fallback currency', async () => {
-  //       nock(COINGECKO_API)
-  //         .get(`${COINGECKO_ETH_PATH}`)
-  //         .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
-  //         .reply(200, {
-  //           '0x02': {
-  //             eth: 0.001,
-  //           },
-  //           '0x03': {
-  //             eth: 0.002,
-  //           },
-  //         });
-
-  //       nock('https://min-api.cryptocompare.com')
-  //         .get('/data/price?fsym=ETH&tsyms=LOL')
-  //         .reply(200, { LOL: 0.5 });
-
-  //       const controller = new TokenRatesController({
-  //         chainId: '0x2',
-  //         ticker: 'ticker',
-  //         selectedAddress: '0xdeadbeef',
-  //         onPreferencesStateChange: jest.fn(),
-  //         onTokensStateChange: jest.fn(),
-  //         onNetworkStateChange: jest.fn(),
-  //         getNetworkClientById: jest.fn(),
-  //       });
-
-  //       const contractExchangeRates = await controller.fetchAndMapExchangeRates(
-  //         'LOL',
-  //         'ethereum',
-  //         ['0x02', '0x03'],
-  //       );
-
-  //       expect(contractExchangeRates).toStrictEqual({
-  //         '0x02': 0.0005,
-  //         '0x03': 0.001,
-  //       });
-  //     });
-
-  //     it('returns the an empty object when market does not exist for pair', async () => {
-  //       nock(COINGECKO_API)
-  //         .get(`${COINGECKO_ETH_PATH}`)
-  //         .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
-  //         .reply(200, {
-  //           '0x02': {
-  //             eth: 0.001,
-  //           },
-  //           '0x03': {
-  //             eth: 0.002,
-  //           },
-  //         });
-
-  //       const controller = new TokenRatesController({
-  //         chainId: '0x2',
-  //         ticker: 'ticker',
-  //         selectedAddress: '0xdeadbeef',
-  //         onPreferencesStateChange: jest.fn(),
-  //         onTokensStateChange: jest.fn(),
-  //         onNetworkStateChange: jest.fn(),
-  //         getNetworkClientById: jest.fn(),
-  //       });
-  //       jest
-  //         .spyOn(controller, 'fetchExchangeRate')
-  //         .mockRejectedValue(
-  //           new Error('market does not exist for this coin pair'),
-  //         );
-  //       const contractExchangeRates = await controller.fetchAndMapExchangeRates(
-  //         'LOL',
-  //         'ethereum',
-  //         ['0x02', '0x03'],
-  //       );
-
-  //       expect(contractExchangeRates).toStrictEqual({});
-  //     });
-  //   });
-  // });
 });
