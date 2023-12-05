@@ -146,11 +146,9 @@ describe('create-package/utils', () => {
       expect(execa).toHaveBeenCalledWith('yarn', ['install'], {
         cwd: expect.any(String),
       });
-      expect(execa).toHaveBeenCalledWith(
-        'yarn',
-        ['update-readme-content'],
-        { cwd: expect.any(String) },
-      );
+      expect(execa).toHaveBeenCalledWith('yarn', ['update-readme-content'], {
+        cwd: expect.any(String),
+      });
     });
 
     it('throws if the package directory already exists', async () => {
