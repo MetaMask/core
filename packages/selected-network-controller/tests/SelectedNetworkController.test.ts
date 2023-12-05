@@ -184,4 +184,25 @@ describe('SelectedNetworkController', () => {
       expect(result).toBeDefined();
     });
   });
+
+  describe('setPerDomainNetwork', () => {
+    it('toggles the feature flag & updates the proxies for each domain', () => {
+      const options: SelectedNetworkControllerOptions = {
+        messenger: buildSelectedNetworkControllerMessenger(),
+        state: { domains: {}, perDomainNetwork: false },
+      };
+      const controller = new SelectedNetworkController(options);
+      const mockProviderProxy = {
+        setTarget: jest.fn(),
+        eventNames: jest.fn(),
+        rawListeners: jest.fn(),
+        removeAllListeners: jest.fn(),
+      };
+      createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
+      controller.setNetworkClientIdForDomain('example.com', 'network7');
+      expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(0);
+      controller.setPerDomainNetwork(true);
+      expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(2);
+    });
+  });
 });

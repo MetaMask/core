@@ -1888,18 +1888,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-sig-util@npm:^7.0.0":
-  version: 7.0.0
-  resolution: "@metamask/eth-sig-util@npm:7.0.0"
+"@metamask/eth-sig-util@npm:^7.0.0, @metamask/eth-sig-util@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "@metamask/eth-sig-util@npm:7.0.1"
   dependencies:
     "@ethereumjs/util": ^8.1.0
     "@metamask/abi-utils": ^2.0.2
     "@metamask/utils": ^8.1.0
     ethereum-cryptography: ^2.1.2
-    ethjs-util: ^0.1.6
     tweetnacl: ^1.0.3
     tweetnacl-util: ^0.15.1
-  checksum: bcb6bd23333e0b4dcb49f8772483dcb4c27e75405a2b111f1eafe0b341b221cf86ba4843e91c567d8836e80b6049d8e2f89c6766c62bbd256533e0f256f6d846
+  checksum: 98d056bd83aeb2d29ec3de09cd18e67d97ea295a59d405a9ce3fe274badd2d4f18da1fe530a266b4c777650855ed75ecd3577decd607a561e938dd7a808c5839
   languageName: node
   linkType: hard
 
@@ -2066,7 +2065,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/eth-keyring-controller": ^15.0.0
-    "@metamask/eth-sig-util": ^7.0.0
+    "@metamask/eth-sig-util": ^7.0.1
     "@metamask/message-manager": ^7.3.6
     "@metamask/preferences-controller": ^5.0.0
     "@metamask/scure-bip39": ^2.1.1
@@ -2115,7 +2114,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^6.1.0
-    "@metamask/eth-sig-util": ^7.0.0
+    "@metamask/eth-sig-util": ^7.0.1
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
@@ -2427,7 +2426,7 @@ __metadata:
     "@metamask/json-rpc-engine": ^7.3.0
     "@metamask/network-controller": ^17.0.0
     "@metamask/rpc-errors": ^6.1.0
-    "@metamask/selected-network-controller": ^4.0.0
+    "@metamask/selected-network-controller": ^5.0.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
@@ -2444,7 +2443,7 @@ __metadata:
   peerDependencies:
     "@metamask/approval-controller": ^5.0.0
     "@metamask/network-controller": ^17.0.0
-    "@metamask/selected-network-controller": ^4.0.0
+    "@metamask/selected-network-controller": ^5.0.0
   languageName: unknown
   linkType: soft
 
@@ -2499,7 +2498,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@^4.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@^5.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
@@ -3164,17 +3163,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/json-schema@npm:*":
+"@types/json-schema@npm:*, @types/json-schema@npm:^7.0.9":
   version: 7.0.15
   resolution: "@types/json-schema@npm:7.0.15"
   checksum: 97ed0cb44d4070aecea772b7b2e2ed971e10c81ec87dd4ecc160322ffa55ff330dace1793489540e3e318d90942064bb697cc0f8989391797792d919737b3b98
-  languageName: node
-  linkType: hard
-
-"@types/json-schema@npm:^7.0.9":
-  version: 7.0.12
-  resolution: "@types/json-schema@npm:7.0.12"
-  checksum: 00239e97234eeb5ceefb0c1875d98ade6e922bfec39dd365ec6bd360b5c2f825e612ac4f6e5f1d13601b8b30f378f15e6faa805a3a732f4a1bbe61915163d293
   languageName: node
   linkType: hard
 
@@ -5758,16 +5750,6 @@ __metadata:
     is-hex-prefixed: 1.0.0
     strip-hex-prefix: 1.0.0
   checksum: 1e2c0f94a806986f0db84604e5ecbad93937f34e6cf589de4db2f2870a8278b366482a2d116b392bfa87910f29300c114daace8fa876d3d6b8b886ca0c023b57
-  languageName: node
-  linkType: hard
-
-"ethjs-util@npm:^0.1.6":
-  version: 0.1.6
-  resolution: "ethjs-util@npm:0.1.6"
-  dependencies:
-    is-hex-prefixed: 1.0.0
-    strip-hex-prefix: 1.0.0
-  checksum: 1f42959e78ec6f49889c49c8a98639e06f52a15966387dd39faf2930db48663d026efb7db2702dcffe7f2a99c4a0144b7ce784efdbf733f4077aae95de76d65f
   languageName: node
   linkType: hard
 

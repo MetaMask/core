@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "98.0.0",
+  "version": "99.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -19,7 +19,6 @@
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
     "create-package": "ts-node scripts/create-package",
-    "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn constraints --fix && yarn lint:misc --write && yarn",
@@ -31,7 +30,8 @@
     "test": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:clean": "yarn workspaces foreach --parallel --verbose run test:clean && yarn test",
     "test:scripts": "yarn jest --config ./jest.config.scripts.js --silent",
-    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose"
+    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
+    "update-readme-content": "ts-node scripts/update-readme-content.ts"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
