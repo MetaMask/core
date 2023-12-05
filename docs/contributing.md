@@ -166,27 +166,28 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 1. **Initiate the release branch and specify packages to be released.**
 
    1. **Create the release branch.**
-	
+
       Start by running `yarn create-release-branch`. This command creates a branch named `release/<new release version>` which will represent the new release.
-    
+
    2. **Specify packages to release along with their versions.**
 
       At this point, you need to tell the tool which packages you want to include in the next release and which versions to assign to those packages. You do this by modifying a YAML file called a "release spec", which the tool has generated and opened it in your editor. Follow the instructions at the top of the file to proceed.
 
       To assist you, the tool has also updated all of the packages that have been changed since their previous releases so that their changelogs now reflect those new changes. This should help you to understand what will be released and how to bump the versions.
 
-      Once you save and close the release spec, the tool will proceed.  
+      Once you save and close the release spec, the tool will proceed.
 
 2. **Review and update changelogs for relevant packages.**
 
-    1. At this point, the versions of all packages you intend to release have been bumped and their changelogs list new changes. Now you need to go through each changelog and make sure that they follow existing standards:
-	      - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines.
-	      - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
-	      - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
-	      - Consolidate related changes into single entries where appropriate.
-	
-    2. Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
-    
+   1. At this point, the versions of all packages you intend to release have been bumped and their changelogs list new changes. Now you need to go through each changelog and make sure that they follow existing standards:
+
+      - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines.
+      - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+      - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
+      - Consolidate related changes into single entries where appropriate.
+
+   2. Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
+
 3. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
 
    Make sure the title of the pull request follows the pattern "Release \<new version\>".
