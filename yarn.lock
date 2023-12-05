@@ -1689,7 +1689,6 @@ __metadata:
     prettier: ^2.7.1
     prettier-plugin-packagejson: ^2.4.5
     rimraf: ^3.0.2
-    semver: ^7.5.4
     simple-git-hooks: ^2.8.0
     ts-jest: ^27.1.4
     ts-node: ^10.9.1

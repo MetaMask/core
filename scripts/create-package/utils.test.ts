@@ -40,6 +40,9 @@ describe('create-package/utils', () => {
     const tsConfigBuild = JSON.stringify({
       references: [{ path: '../packages/foo' }],
     });
+    const packageJson = JSON.stringify({
+      engines: { node: '>=18.0.0' },
+    });
 
     it('should read the expected monorepo files', async () => {
       (fs.promises.readFile as jest.Mock).mockImplementation(
@@ -49,8 +52,8 @@ describe('create-package/utils', () => {
               return tsConfig;
             case MonorepoFiles.TsConfigBuild:
               return tsConfigBuild;
-            case MonorepoFiles.Nvmrc:
-              return 'v20';
+            case MonorepoFiles.PackageJson:
+              return packageJson;
             default:
               throw new Error(`Unexpected file: ${path.basename(filePath)}`);
           }
@@ -62,29 +65,8 @@ describe('create-package/utils', () => {
       expect(monorepoFileData).toStrictEqual({
         tsConfig: JSON.parse(tsConfig),
         tsConfigBuild: JSON.parse(tsConfigBuild),
-        nodeVersion: '20.0.0',
+        nodeVersions: '>=18.0.0',
       });
-    });
-
-    it('should throw if the .nvmrc file is invalid', async () => {
-      (fs.promises.readFile as jest.Mock).mockImplementation(
-        async (filePath: string) => {
-          switch (path.basename(filePath)) {
-            case MonorepoFiles.TsConfig:
-              return tsConfig;
-            case MonorepoFiles.TsConfigBuild:
-              return tsConfigBuild;
-            case MonorepoFiles.Nvmrc:
-              return 'foobar';
-            default:
-              throw new Error(`Unexpected file: ${path.basename(filePath)}`);
-          }
-        },
-      );
-
-      await expect(readMonorepoFiles()).rejects.toThrow(
-        'Invalid .nvmrc: foobar',
-      );
     });
   });
 
@@ -94,7 +76,7 @@ describe('create-package/utils', () => {
         name: '@metamask/foo',
         description: 'A foo package.',
         directoryName: 'foo',
-        nodeVersion: '20.0.0',
+        nodeVersions: '20.0.0',
         currentYear: '2023',
       };
 
@@ -105,7 +87,7 @@ describe('create-package/utils', () => {
         tsConfigBuild: {
           references: [{ path: './packages/bar' }],
         },
-        nodeVersion: '20.0.0',
+        nodeVersions: '20.0.0',
       };
 
       (fs.existsSync as jest.Mock).mockReturnValueOnce(false);
@@ -115,8 +97,8 @@ describe('create-package/utils', () => {
         'src/index.ts': 'export default 42;',
         'src/index.test.ts': 'export default 42;',
         'mock1.file':
-          'CURRENT_YEAR NODE_VERSION PACKAGE_NAME PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
-        'mock2.file': 'CURRENT_YEAR NODE_VERSION PACKAGE_NAME',
+          'CURRENT_YEAR NODE_VERSIONS PACKAGE_NAME PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
+        'mock2.file': 'CURRENT_YEAR NODE_VERSIONS PACKAGE_NAME',
         'mock3.file': 'PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
       });
 
@@ -176,7 +158,7 @@ describe('create-package/utils', () => {
         name: '@metamask/foo',
         description: 'A foo package.',
         directoryName: 'foo',
-        nodeVersion: '20.0.0',
+        nodeVersions: '20.0.0',
         currentYear: '2023',
       };
 
@@ -187,7 +169,7 @@ describe('create-package/utils', () => {
         tsConfigBuild: {
           references: [{ path: './packages/bar' }],
         },
-        nodeVersion: '20.0.0',
+        nodeVersions: '20.0.0',
       };
 
       (fs.existsSync as jest.Mock).mockReturnValueOnce(true);

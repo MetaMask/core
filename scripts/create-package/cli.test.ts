@@ -114,7 +114,7 @@ describe('create-package/cli', () => {
       jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
         tsConfig: {},
         tsConfigBuild: {},
-        nodeVersion: '20.0.0',
+        nodeVersions: '>=18.0.0',
       } as any);
       jest.spyOn(utils, 'finalizeAndWriteData').mockResolvedValue();
 

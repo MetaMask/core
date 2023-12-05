@@ -69,7 +69,7 @@ export async function createPackageHandler(
     name: args.name,
     description: args.description,
     directoryName: args.name.slice('@metamask/'.length),
-    nodeVersion: monorepoFileData.nodeVersion,
+    nodeVersions: monorepoFileData.nodeVersions,
     currentYear: new Date().getFullYear().toString(),
   };
 

@@ -2,7 +2,6 @@ import execa from 'execa';
 import { existsSync, promises as fs } from 'fs';
 import path from 'path';
 import { format as prettierFormat } from 'prettier';
-import { coerce as semverCoerce } from 'semver';
 
 import prettierRc from '../../.prettierrc';
 import { MonorepoFiles, Placeholders } from './constants';
@@ -13,7 +12,7 @@ const PACKAGE_TEMPLATE_DIR = path.join(__dirname, 'package-template');
 const REPO_ROOT = path.join(__dirname, '..', '..');
 const REPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);
 const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MonorepoFiles.TsConfigBuild);
-const REPO_NVMRC = path.join(REPO_ROOT, MonorepoFiles.Nvmrc);
+const REPO_PACKAGE_JSON = path.join(REPO_ROOT, MonorepoFiles.PackageJson);
 const PACKAGES_PATH = path.join(REPO_ROOT, 'packages');
 
 const allPlaceholdersRegex = new RegExp(
@@ -28,7 +27,7 @@ export type PackageData = Readonly<{
   name: string;
   description: string;
   directoryName: string;
-  nodeVersion: string;
+  nodeVersions: string;
   currentYear: string;
 }>;
 
@@ -38,7 +37,7 @@ export type PackageData = Readonly<{
 type MonorepoFileData = {
   tsConfig: Tsconfig;
   tsConfigBuild: Tsconfig;
-  nodeVersion: string;
+  nodeVersions: string;
 };
 
 /**
@@ -50,39 +49,30 @@ type Tsconfig = {
 };
 
 /**
+ * A parsed package.json file.
+ */
+type PackageJson = {
+  engines: { node: string };
+  [key: string]: unknown;
+};
+
+/**
  * Reads the monorepo files that need to be parsed or modified.
  *
  * @returns A map of file paths to file contents.
  */
 export async function readMonorepoFiles(): Promise<MonorepoFileData> {
-  const [tsConfig, tsConfigBuild, nvmrc] = await Promise.all([
+  const [tsConfig, tsConfigBuild, packageJson] = await Promise.all([
     fs.readFile(REPO_TS_CONFIG, 'utf-8'),
     fs.readFile(REPO_TS_CONFIG_BUILD, 'utf-8'),
-    fs.readFile(REPO_NVMRC, 'utf-8'),
+    fs.readFile(REPO_PACKAGE_JSON, 'utf-8'),
   ]);
 
   return {
     tsConfig: JSON.parse(tsConfig) as Tsconfig,
     tsConfigBuild: JSON.parse(tsConfigBuild) as Tsconfig,
-    nodeVersion: getNodeVersion(nvmrc),
+    nodeVersions: (JSON.parse(packageJson) as PackageJson).engines.node,
   };
-}
-
-/**
- * Extracts the full semver version from an .nvmrc file.
- *
- * @param nvmrc - The contents of a .nvmrc file.
- * @returns The full semver version.
- */
-function getNodeVersion(nvmrc: string): string {
-  // .nvmrc files should only contain a single line with a semver version.
-  // The version may be prefixed with a "v", and may not be a full semver version.
-  // Therefore we need to coerce the value.
-  const semver = semverCoerce(nvmrc.trim().replace(/^v/u, ''));
-  if (!semver) {
-    throw new Error(`Invalid .nvmrc: ${nvmrc}`);
-  }
-  return semver.version;
 }
 
 /**
@@ -196,14 +186,14 @@ function processTemplateContent(
   packageData: PackageData,
   content: string,
 ): string {
-  const { name, description, nodeVersion, currentYear } = packageData;
+  const { name, description, nodeVersions, currentYear } = packageData;
 
   return content.replace(allPlaceholdersRegex, (match) => {
     switch (match) {
       case Placeholders.CurrentYear:
         return currentYear;
-      case Placeholders.NodeVersion:
-        return nodeVersion;
+      case Placeholders.NodeVersions:
+        return nodeVersions;
       case Placeholders.PackageName:
         return name;
       case Placeholders.PackageDescription:
