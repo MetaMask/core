@@ -14,7 +14,10 @@ import {
   ORIGIN_METAMASK,
   ApprovalType,
   ERC20,
+  ERC721,
+  ERC1155,
   isValidHexAddress,
+  safelyExecute,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
@@ -29,8 +32,9 @@ import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
 import { v1 as random } from 'uuid';
 
-import type { AssetsContractController } from './AssetsContractController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
+import { ERC20Standard } from './Standards/ERC20Standard';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -169,10 +173,6 @@ export class TokensController extends BaseControllerV1<
    */
   override name = 'TokensController';
 
-  private readonly getERC20TokenName: AssetsContractController['getERC20TokenName'];
-
-  private readonly getTokenStandardAndDetails: AssetsContractController['getTokenStandardAndDetails'];
-
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
   /**
@@ -183,8 +183,6 @@ export class TokensController extends BaseControllerV1<
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
-   * @param options.getERC20TokenName - Gets the ERC-20 token name.
-   * @param options.getTokenStandardAndDetails - Gets the interface standard and details for a token contract.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
@@ -195,8 +193,6 @@ export class TokensController extends BaseControllerV1<
     onPreferencesStateChange,
     onNetworkStateChange,
     onTokenListStateChange,
-    getERC20TokenName,
-    getTokenStandardAndDetails,
     getNetworkClientById,
     config,
     state,
@@ -212,8 +208,6 @@ export class TokensController extends BaseControllerV1<
     onTokenListStateChange: (
       listener: (tokenListState: TokenListState) => void,
     ) => void;
-    getERC20TokenName: AssetsContractController['getERC20TokenName'];
-    getTokenStandardAndDetails: AssetsContractController['getTokenStandardAndDetails'];
     getNetworkClientById: NetworkController['getNetworkClientById'];
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
@@ -240,8 +234,6 @@ export class TokensController extends BaseControllerV1<
 
     this.initialize();
     this.abortController = new AbortController();
-    this.getERC20TokenName = getERC20TokenName;
-    this.getTokenStandardAndDetails = getTokenStandardAndDetails;
     this.getNetworkClientById = getNetworkClientById;
 
     this.messagingSystem = messenger;
@@ -690,16 +682,20 @@ export class TokensController extends BaseControllerV1<
     }
   }
 
+  _getProvider(networkClientId?: NetworkClientId): Web3Provider {
+    return new Web3Provider(
+      networkClientId
+        ? this.getNetworkClientById(networkClientId).provider
+        : this.config?.provider,
+    );
+  }
+
   _createEthersContract(
     tokenAddress: string,
     abi: string,
     networkClientId?: NetworkClientId,
   ): Contract {
-    const provider = networkClientId
-      ? this.getNetworkClientById(networkClientId).provider
-      : this.config?.provider;
-
-    const web3provider = new Web3Provider(provider);
+    const web3provider = this._getProvider(networkClientId);
     const tokenContract = new Contract(tokenAddress, abi, web3provider);
     return tokenContract;
   }
@@ -713,23 +709,20 @@ export class TokensController extends BaseControllerV1<
    * Parameters will be validated according to the asset type being watched.
    *
    * @param options - The method options.
+   * @param options.asset - The asset to be watched. For now only ERC20 tokens are accepted.
    * @param options.type - The asset type.
-   * @param options.address - The contract address of the asset.
-   * @param options.image - An optional URL to the asset's icon.
    * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
    * @param options.networkClientId - Network Client ID.
    * @returns A promise that resolves if the asset was watched successfully, and rejects otherwise.
    */
   async watchAsset({
+    asset,
     type,
-    address,
-    image,
     interactingAddress,
     networkClientId,
   }: {
+    asset: Token;
     type: string;
-    address: string;
-    image: string;
     interactingAddress?: string;
     networkClientId?: NetworkClientId;
   }): Promise<void> {
@@ -737,60 +730,110 @@ export class TokensController extends BaseControllerV1<
       throw new Error(`Asset of type ${type} not supported`);
     }
 
-    if (!address) {
+    if (!asset.address) {
       throw rpcErrors.invalidParams('Address must be specified');
     }
 
-    if (!isValidHexAddress(address)) {
-      throw rpcErrors.invalidParams(`Invalid address "${address}".`);
+    if (!isValidHexAddress(asset.address)) {
+      throw rpcErrors.invalidParams(`Invalid address "${asset.address}"`);
     }
 
-    const details = await this.getTokenStandardAndDetails(
-      address,
-      undefined,
-      undefined,
-      networkClientId,
+    // Validate contract
+
+    if (await this._detectIsERC721(asset.address, networkClientId)) {
+      throw rpcErrors.invalidParams(
+        `Contract ${asset.address} must match type ${type}, but was detected as ${ERC721}`,
+      );
+    }
+
+    const provider = this._getProvider(networkClientId);
+    const isErc1155 = await safelyExecute(() =>
+      new ERC1155Standard(provider).contractSupportsBase1155Interface(
+        asset.address,
+      ),
     );
-
-    if (details.standard !== ERC20) {
+    if (isErc1155) {
       throw rpcErrors.invalidParams(
-        `Contract ${address} must match type ${type}, but was detected as ${details.standard}`,
+        `Contract ${asset.address} must match type ${type}, but was detected as ${ERC1155}`,
       );
     }
 
-    const symbol = details.symbol ?? '';
-    if (symbol.length > 11) {
+    const erc20 = new ERC20Standard(provider);
+    const [contractName, contractSymbol, contractDecimals] = await Promise.all([
+      safelyExecute(() => erc20.getTokenName(asset.address)),
+      safelyExecute(() => erc20.getTokenSymbol(asset.address)),
+      safelyExecute(async () => erc20.getTokenDecimals(asset.address)),
+    ]);
+
+    asset.name = contractName;
+
+    // Validate symbol
+
+    if (!asset.symbol && !contractSymbol) {
       throw rpcErrors.invalidParams(
-        `Invalid symbol "${symbol}": longer than 11 characters.`,
+        'A symbol is required, but was not found in the request or contract',
       );
     }
 
-    const decimals = Number(details.decimals);
-    if (!Number.isInteger(decimals) || decimals > 36 || decimals < 0) {
+    if (
+      contractSymbol !== undefined &&
+      asset.symbol !== undefined &&
+      asset.symbol !== contractSymbol
+    ) {
       throw rpcErrors.invalidParams(
-        `Invalid decimals "${decimals}": must be an integer 0 <= 36.`,
+        `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
       );
     }
 
-    const { selectedAddress } = this.config;
+    asset.symbol ??= contractSymbol;
+    if (typeof asset.symbol !== 'string') {
+      throw rpcErrors.invalidParams(`Invalid symbol: not a string`);
+    }
+
+    if (asset.symbol.length > 11) {
+      throw rpcErrors.invalidParams(
+        `Invalid symbol "${asset.symbol}": longer than 11 characters`,
+      );
+    }
+
+    // Validate decimals
+
+    if (asset.decimals === undefined && contractDecimals === undefined) {
+      throw rpcErrors.invalidParams(
+        'Decimals are required, but were not found in the request or contract',
+      );
+    }
+
+    if (
+      contractDecimals !== undefined &&
+      asset.decimals !== undefined &&
+      String(asset.decimals) !== contractDecimals
+    ) {
+      throw rpcErrors.invalidParams(
+        `The decimals in the request (${asset.decimals}) do not match the decimals in the contract (${contractDecimals})`,
+      );
+    }
+
+    const decimalsStr = asset.decimals ?? contractDecimals;
+    const decimalsNum = parseInt(decimalsStr as unknown as string, 10);
+    if (!Number.isInteger(decimalsNum) || decimalsNum > 36 || decimalsNum < 0) {
+      throw rpcErrors.invalidParams(
+        `Invalid decimals "${decimalsStr}": must be an integer 0 <= 36`,
+      );
+    }
+    asset.decimals = decimalsNum;
 
     const suggestedAssetMeta: SuggestedAssetMeta = {
-      asset: { address, symbol, decimals, image },
+      asset,
       id: this._generateRandomId(),
       time: Date.now(),
       type,
-      interactingAddress: interactingAddress || selectedAddress,
+      interactingAddress: interactingAddress || this.config.selectedAddress,
     };
 
     await this._requestApproval(suggestedAssetMeta);
 
-    let name;
-    try {
-      name = await this.getERC20TokenName(address, networkClientId);
-    } catch (error) {
-      name = undefined;
-    }
-
+    const { address, symbol, decimals, name, image } = asset;
     await this.addToken({
       address,
       symbol,
