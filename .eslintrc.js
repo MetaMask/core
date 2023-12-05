@@ -45,6 +45,11 @@ module.exports = {
       },
       plugins: ['sonarjs'],
       rules: {
+        'sonarjs/cognitive-complexity': 'off',
+        'sonarjs/no-duplicate-string': 'off',
+        'sonarjs/no-small-switch': 'off',
+        'sonarjs/prefer-immediate-return': 'off',
+
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
 
