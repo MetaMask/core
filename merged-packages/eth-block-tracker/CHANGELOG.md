@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Changed
+- Rename package from `eth-block-tracker` to `@metamask/eth-block-tracker` ([#183](https://github.com/MetaMask/eth-block-tracker/pull/183))
+
 ## [8.1.0]
 ### Changed
 - Typescript: Add `checkForLatestBlock` function to `BlockTracker` interface ([#184](https://github.com/MetaMask/eth-block-tracker/pull/184))
@@ -146,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v8.1.0...v9.0.0
 [8.1.0]: https://github.com/MetaMask/eth-block-tracker/compare/v8.0.0...v8.1.0
 [8.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v7.2.0...v8.0.0
 [7.2.0]: https://github.com/MetaMask/eth-block-tracker/compare/v7.1.0...v7.2.0
