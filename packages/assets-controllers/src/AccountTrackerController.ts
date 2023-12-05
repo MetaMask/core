@@ -67,6 +67,7 @@ export class AccountTrackerController extends PollingControllerV1<
   private _provider?: Provider;
 
   private readonly pollMutex = new Mutex();
+
   private readonly refreshMutex = new Mutex();
 
   private handle?: ReturnType<typeof setTimeout>;
@@ -264,7 +265,8 @@ export class AccountTrackerController extends PollingControllerV1<
         this.#getCorrectNetworkClient(networkClientId);
       this.syncAccounts(chainId);
       const { accounts, accountsByChainId } = this.state;
-      const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
+      const isMultiAccountBalancesEnabled =
+        this.getMultiAccountBalancesEnabled();
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
         ? Object.keys(accounts)
@@ -286,9 +288,9 @@ export class AccountTrackerController extends PollingControllerV1<
       if (chainId === this.getCurrentChainId()) {
         this.update({ accounts: accountsForChain });
       }
-    } catch(err) {
-      releaseLock()
-      throw err
+    } catch (err) {
+      releaseLock();
+      throw err;
     }
   };
 

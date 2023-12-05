@@ -97,7 +97,7 @@ describe('AccountTrackerController', () => {
     });
 
     describe('without networkClientId', () => {
-      it('should sync addresses', () => {
+      it('should sync addresses', async () => {
         const controller = new AccountTrackerController(
           {
             onPreferencesStateChange: sinon.stub(),
@@ -130,15 +130,15 @@ describe('AccountTrackerController', () => {
             },
           },
         );
-        controller.refresh();
+        await controller.refresh();
         expect(controller.state).toStrictEqual({
           accounts: {
-            bar: { balance: '0x1' },
+            bar: { balance: '0x0' },
             baz: { balance: '0x0' },
           },
           accountsByChainId: {
             '0x1': {
-              bar: { balance: '0x1' },
+              bar: { balance: '0x0' },
               baz: { balance: '0x0' },
             },
             '0x2': {
@@ -262,7 +262,7 @@ describe('AccountTrackerController', () => {
     });
 
     describe('with networkClientId', () => {
-      it('should sync addresses', () => {
+      it('should sync addresses', async () => {
         const controller = new AccountTrackerController(
           {
             onPreferencesStateChange: sinon.stub(),
@@ -300,7 +300,7 @@ describe('AccountTrackerController', () => {
             },
           },
         );
-        controller.refresh('networkClientId1');
+        await controller.refresh('networkClientId1');
         expect(controller.state).toStrictEqual({
           accounts: {
             bar: { balance: '0x1' },
