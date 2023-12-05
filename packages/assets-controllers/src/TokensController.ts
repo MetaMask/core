@@ -95,9 +95,11 @@ export interface TokensState extends BaseState {
   tokens: Token[];
   ignoredTokens: string[];
   detectedTokens: Token[];
+  temporaryTokens: Token[];
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allTemporaryTokens: { [chainId: Hex]: { [key: string]: Token[] } };
 }
 
 /**
@@ -229,9 +231,11 @@ export class TokensController extends BaseControllerV1<
       tokens: [],
       ignoredTokens: [],
       detectedTokens: [],
+      temporaryTokens: [],
       allTokens: {},
       allIgnoredTokens: {},
       allDetectedTokens: {},
+      allTemporaryTokens: {},
       ...state,
     };
 
@@ -393,6 +397,82 @@ export class TokensController extends BaseControllerV1<
 
       this.update(newState);
       return newTokens;
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
+   * Adds an array of tokens to state
+   *
+   * @param tokensTemporaryToImport - Array of tokens to Import
+   * @param networkClientId - Optional network client ID used to determine interacting chain ID.
+   */
+  async addTemporaryTokens(
+    tokensTemporaryToImport: Token[],
+    networkClientId?: NetworkClientId,
+  ) {
+    const releaseLock = await this.mutex.acquire();
+    const { tokens, detectedTokens, ignoredTokens, temporaryTokens } =
+      this.state;
+    const importedTemporaryTokensMap: { [key: string]: true } = {};
+    // Used later to dedupe imported tokens
+    const newTemporaryTokensMap = temporaryTokens.reduce((output, current) => {
+      output[current.address] = current;
+      return output;
+    }, {} as { [address: string]: Token });
+    try {
+      tokensTemporaryToImport.forEach((tokenToAdd) => {
+        const { address, symbol, decimals, image, aggregators, name } =
+          tokenToAdd;
+        const checksumAddress = toChecksumHexAddress(address);
+        const formattedToken: Token = {
+          address: checksumAddress,
+          symbol,
+          decimals,
+          image,
+          aggregators,
+          name,
+        };
+        newTemporaryTokensMap[address] = formattedToken;
+        importedTemporaryTokensMap[address.toLowerCase()] = true;
+        return formattedToken;
+      });
+      const newTemporaryTokens = Object.values(newTemporaryTokensMap);
+
+      const newDetectedTokens = detectedTokens;
+      const newIgnoredTokens = ignoredTokens;
+      const newTokens = tokens;
+
+      let interactingChainId;
+      if (networkClientId) {
+        interactingChainId =
+          this.getNetworkClientById(networkClientId).configuration.chainId;
+      }
+
+      const {
+        newAllTokens,
+        newAllDetectedTokens,
+        newAllIgnoredTokens,
+        newAllTemporaryTokens,
+      } = this._getNewAllTokensState({
+        newTokens,
+        newDetectedTokens,
+        newIgnoredTokens,
+        newTemporaryTokens,
+        interactingChainId,
+      });
+
+      this.update({
+        tokens: newTokens,
+        allTokens: newAllTokens,
+        detectedTokens: newDetectedTokens,
+        allDetectedTokens: newAllDetectedTokens,
+        ignoredTokens: newIgnoredTokens,
+        allIgnoredTokens: newAllIgnoredTokens,
+        temporaryTokens: newTemporaryTokens,
+        allTemporaryTokens: newAllTemporaryTokens,
+      });
     } finally {
       releaseLock();
     }
@@ -771,6 +851,7 @@ export class TokensController extends BaseControllerV1<
    * @param params.newTokens - The new tokens to set for the current network and selected account.
    * @param params.newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
    * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
+   * @param params.newTemporaryTokens - The new temporary tokens to set for the current network and selected account.
    * @param params.interactingAddress - The account address to use to store the tokens.
    * @param params.interactingChainId - The chainId to use to store the tokens.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
@@ -779,6 +860,7 @@ export class TokensController extends BaseControllerV1<
     newTokens?: Token[];
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
+    newTemporaryTokens?: Token[];
     interactingAddress?: string;
     interactingChainId?: Hex;
   }) {
@@ -786,10 +868,16 @@ export class TokensController extends BaseControllerV1<
       newTokens,
       newIgnoredTokens,
       newDetectedTokens,
+      newTemporaryTokens,
       interactingAddress,
       interactingChainId,
     } = params;
-    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    const {
+      allTokens,
+      allIgnoredTokens,
+      allDetectedTokens,
+      allTemporaryTokens,
+    } = this.state;
     const { chainId, selectedAddress } = this.config;
 
     const userAddressToAddTokens = interactingAddress ?? selectedAddress;
@@ -851,7 +939,32 @@ export class TokensController extends BaseControllerV1<
         ...{ [chainIdToAddTokens]: newDetectedNetworkTokens },
       };
     }
-    return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };
+
+    let newAllTemporaryTokens = allTemporaryTokens;
+    if (
+      newTemporaryTokens?.length ||
+      (newTemporaryTokens &&
+        allTemporaryTokens &&
+        allTemporaryTokens[chainIdToAddTokens] &&
+        allTemporaryTokens[chainIdToAddTokens][userAddressToAddTokens])
+    ) {
+      const networkDetectedTokens = allTemporaryTokens[chainIdToAddTokens];
+      const newDetectedNetworkTokens = {
+        ...networkDetectedTokens,
+        ...{ [userAddressToAddTokens]: newTemporaryTokens },
+      };
+      newAllTemporaryTokens = {
+        ...allTemporaryTokens,
+        ...{ [chainIdToAddTokens]: newDetectedNetworkTokens },
+      };
+    }
+
+    return {
+      newAllTokens,
+      newAllIgnoredTokens,
+      newAllDetectedTokens,
+      newAllTemporaryTokens,
+    };
   }
 
   /**

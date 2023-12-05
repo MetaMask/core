@@ -89,6 +89,7 @@ export interface TokenRatesConfig extends BaseConfig {
   selectedAddress: string;
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allTemporaryTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   threshold: number;
 }
 
@@ -261,6 +262,7 @@ export class TokenRatesController extends PollingControllerV1<
       selectedAddress: initialSelectedAddress,
       allTokens: {}, // TODO: initialize these correctly, maybe as part of BaseControllerV2 migration
       allDetectedTokens: {},
+      allTemporaryTokens: {},
     };
 
     this.defaultState = {
@@ -286,19 +288,22 @@ export class TokenRatesController extends PollingControllerV1<
       }
     });
 
-    onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
-      // These two state properties are assumed to be immutable
-      if (
-        this.config.allTokens !== allTokens ||
-        this.config.allDetectedTokens !== allDetectedTokens
-      ) {
-        this.configure({ allTokens, allDetectedTokens });
-        this.#updateTokenList();
-        if (this.#pollState === PollState.Active) {
-          await this.updateExchangeRates();
+    onTokensStateChange(
+      async ({ allTokens, allDetectedTokens, allTemporaryTokens }) => {
+        // These two state properties are assumed to be immutable
+        if (
+          this.config.allTokens !== allTokens ||
+          this.config.allDetectedTokens !== allDetectedTokens ||
+          this.config.allTemporaryTokens !== allTemporaryTokens
+        ) {
+          this.configure({ allTokens, allDetectedTokens });
+          this.#updateTokenList();
+          if (this.#pollState === PollState.Active) {
+            await this.updateExchangeRates();
+          }
         }
-      }
-    });
+      },
+    );
 
     onNetworkStateChange(async ({ providerConfig }) => {
       const { chainId, ticker } = providerConfig;
@@ -317,13 +322,16 @@ export class TokenRatesController extends PollingControllerV1<
   }
 
   #updateTokenList() {
-    const { allTokens, allDetectedTokens } = this.config;
+    const { allTokens, allDetectedTokens, allTemporaryTokens } = this.config;
     const tokens =
       allTokens[this.config.chainId]?.[this.config.selectedAddress] || [];
     const detectedTokens =
       allDetectedTokens[this.config.chainId]?.[this.config.selectedAddress] ||
       [];
-    this.tokenList = [...tokens, ...detectedTokens];
+    const temporaryTokens =
+      allTemporaryTokens[this.config.chainId]?.[this.config.selectedAddress] ||
+      [];
+    this.tokenList = [...tokens, ...detectedTokens, ...temporaryTokens];
   }
 
   /**
