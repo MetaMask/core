@@ -133,9 +133,9 @@ describe('TokenDetectionController', () => {
     ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
 
-  const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
+  const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkStateChangeListeners.forEach((listener) => {
+    onNetworkDidChangeListeners.forEach((listener) => {
       listener({
         ...defaultNetworkState,
         providerConfig,
@@ -175,8 +175,8 @@ describe('TokenDetectionController', () => {
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
+      onNetworkDidChange: (listener) =>
+        onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
@@ -191,7 +191,7 @@ describe('TokenDetectionController', () => {
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
+        onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: (listener) =>
         tokenListSetup.tokenListMessenger.subscribe(
           `TokenListController:stateChange`,
