@@ -215,14 +215,8 @@ If an error occurs, re-edit the release spec and rerun `yarn create-release-bran
   - Error: `* Line 14: "invalid_version" is not a valid version specifier...`
   - Resolution: Use "major", "minor", "patch", or a specific version number like "1.2.3".
 
-- **Version Equal to Current:**
-
+- **Version Less than or Equal to Current:**
   - Error: `* Line 14: "1.2.3" is not a valid version specifier...`
-  - Resolution: Specify a version greater than the current version of the package.
-
-- **Version Less Than Current:**
-
-  - Error: `* Line 14: "1.2.2" is not a valid version specifier...`
   - Resolution: Specify a version greater than the current version of the package.
 
 - **Releasing Packages with Breaking Changes:**
@@ -234,8 +228,3 @@ If an error occurs, re-edit the release spec and rerun `yarn create-release-bran
   - Error: `* The following packages, which are dependencies...`
   - Resolution: Include necessary dependencies or peer dependencies in the release or use "intentionally-skip" if certain they are unaffected.
 
-### Workflow Recommendations
-
-- **Minimize Packages in Releases:** Include only essential packages.
-- **Changelog Management:** Carefully review and update changelogs for all packages, particularly those intended for release.
-- **Handling Common Errors:** Be prepared to re-edit and rerun the process in case of errors.
