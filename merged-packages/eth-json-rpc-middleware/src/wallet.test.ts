@@ -265,6 +265,7 @@ describe('wallet', () => {
       expect(witnessedMsgParams[0]).toStrictEqual({
         from: testAddresses[0],
         data: message,
+        signatureMethod: 'eth_signTypedData',
       });
     });
 
@@ -352,6 +353,7 @@ describe('wallet', () => {
       expect(witnessedMsgParams[0]).toStrictEqual({
         data: message,
         from: testAddresses[0],
+        signatureMethod: 'personal_sign',
       });
     });
 
