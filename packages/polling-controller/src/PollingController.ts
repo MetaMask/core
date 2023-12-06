@@ -143,8 +143,10 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
           found = true;
           tokenSet.delete(pollingToken);
           if (tokenSet.size === 0) {
-            clearTimeout(this.#intervalIds[key]);
-            delete this.#intervalIds[key];
+            if (this.#intervalIds[key]) {
+              clearTimeout(this.#intervalIds[key]);
+              delete this.#intervalIds[key];
+            }
 
             // if applicable stop listening for new blocks
             if (this.#getNetworkClientById !== undefined) {
