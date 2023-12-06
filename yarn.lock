@@ -1561,12 +1561,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/browser-passworder@npm:^4.2.0":
-  version: 4.2.0
-  resolution: "@metamask/browser-passworder@npm:4.2.0"
+"@metamask/browser-passworder@npm:^4.3.0":
+  version: 4.3.0
+  resolution: "@metamask/browser-passworder@npm:4.3.0"
   dependencies:
     "@metamask/utils": ^8.2.0
-  checksum: 03b76357942d25a6316d6a03a8bc839cb18e53d9f95fc2787e0fbbcf13eeb2485ece47a2758e928d04635f8dbaa598794f2ecd0313e7c91f989bf11f2a0adec5
+  checksum: 7992553a0cd91902aa316a931d36c2628cb5a73fcbc28a31dce4177704036d739214c580ed833079003b2c7dfd60c5648a20734badf91e2c665cfe2f56012a8c
   languageName: node
   linkType: hard
 
@@ -1848,18 +1848,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-keyring-controller@npm:^15.0.0":
-  version: 15.0.0
-  resolution: "@metamask/eth-keyring-controller@npm:15.0.0"
+"@metamask/eth-keyring-controller@npm:^15.1.0":
+  version: 15.1.0
+  resolution: "@metamask/eth-keyring-controller@npm:15.1.0"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
-    "@metamask/browser-passworder": ^4.2.0
+    "@metamask/browser-passworder": ^4.3.0
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.0
     "@metamask/eth-simple-keyring": ^6.0.1
     "@metamask/obs-store": ^8.1.0
     "@metamask/utils": ^8.2.0
-  checksum: b878c47f58b06833584e933d4886be17c20766398e007d221bd252badf58ded8012ee41922116e9e8962ec3de00722d85a9e361f4d066c9c7d727a715c6831f7
+  checksum: edb0d4f393daac193d6d7a0a1ae5576990f0e262a64b88339b31fa5b5bc7f177a94c978a1f1c76d54880b497f869ba78db8fd09c52ea24d5cfbb296f16be64c0
   languageName: node
   linkType: hard
 
@@ -2059,7 +2059,7 @@ __metadata:
     "@keystonehq/metamask-airgapped-keyring": ^0.13.1
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
-    "@metamask/eth-keyring-controller": ^15.0.0
+    "@metamask/eth-keyring-controller": ^15.1.0
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/message-manager": ^7.3.6
     "@metamask/preferences-controller": ^5.0.0
