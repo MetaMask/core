@@ -1,25 +1,45 @@
 import type { ExportableKeyEncryptor } from '@metamask/eth-keyring-controller/dist/types';
+import type { Json } from '@metamask/utils';
 
-const mockHex = '0xabcdef0123456789';
-export const mockKey = Buffer.alloc(32);
-let cacheVal: any;
+export const PASSWORD = 'password123';
+export const MOCK_ENCRYPTION_KEY = JSON.stringify({
+  alg: 'A256GCM',
+  ext: true,
+  k: 'wYmxkxOOFBDP6F6VuuYFcRt_Po-tSLFHCWVolsHs4VI',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  key_ops: ['encrypt', 'decrypt'],
+  kty: 'oct',
+});
+export const MOCK_ENCRYPTION_SALT =
+  'HQ5sfhsb8XAQRJtD+UqcImT7Ve4n3YMagrh05YTOsjk=';
+export const MOCK_HARDCODED_KEY = 'key';
+export const MOCK_HEX = '0xabcdef0123456789';
+// eslint-disable-next-line no-restricted-globals
+const MOCK_KEY = Buffer.alloc(32);
+const INVALID_PASSWORD_ERROR = 'Incorrect password.';
+
+let cacheVal: Json;
 
 export default class MockEncryptor implements ExportableKeyEncryptor {
   async encrypt(password: string, dataObj: any) {
     return JSON.stringify({
-      ...this.encryptWithKey(password, dataObj),
+      ...(await this.encryptWithKey(password, dataObj)),
       salt: this.generateSalt(),
     });
   }
 
   async decrypt(_password: string, _text: string) {
-    return cacheVal || {};
+    if (_password && _password !== PASSWORD) {
+      throw new Error(INVALID_PASSWORD_ERROR);
+    }
+
+    return cacheVal ?? {};
   }
 
   async encryptWithKey(_key: unknown, dataObj: any) {
     cacheVal = dataObj;
     return {
-      data: mockHex,
+      data: MOCK_HEX,
       iv: 'anIv',
     };
   }
@@ -27,15 +47,15 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
   async encryptWithDetail(key: string, dataObj: any) {
     return {
       vault: await this.encrypt(key, dataObj),
-      exportedKeyString: mockKey.toString('hex'),
+      exportedKeyString: MOCK_ENCRYPTION_KEY,
     };
   }
 
   async decryptWithDetail(key: string, text: string) {
     return {
       vault: await this.decrypt(key, text),
-      salt: this.generateSalt(),
-      exportedKeyString: mockKey.toString('hex'),
+      salt: MOCK_ENCRYPTION_SALT,
+      exportedKeyString: MOCK_ENCRYPTION_KEY,
     };
   }
 
@@ -44,14 +64,27 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
   }
 
   async keyFromPassword(_password: string) {
-    return mockKey;
+    return MOCK_KEY;
   }
 
-  async importKey(_key: string) {
-    return {};
+  async importKey(key: string) {
+    if (key === '{}') {
+      throw new TypeError(
+        `Failed to execute 'importKey' on 'SubtleCrypto': The provided value is not of type '(ArrayBuffer or ArrayBufferView or JsonWebKey)'.`,
+      );
+    }
+    return null;
+  }
+
+  async updateVault(_vault: string, _password: string) {
+    return _vault;
+  }
+
+  isVaultUpdated(_vault: string) {
+    return true;
   }
 
   generateSalt() {
-    return 'WHADDASALT!';
+    return MOCK_ENCRYPTION_SALT;
   }
 }
