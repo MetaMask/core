@@ -1,5 +1,6 @@
 /**
  * A complete user operation to be submitted to a bundler.
+ * Defined in EIP-4337.
  */
 export type UserOperation = {
   /** The data to pass to the sender during the main execution call. */

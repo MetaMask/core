@@ -21,7 +21,7 @@ jest.mock('./utils/validation');
 jest.mock('./helpers/Bundler');
 
 const CHAIN_ID_MOCK = '0x5';
-const HASH_MOCK = '0x123';
+const USER_OPERATION_HASH_MOCK = '0x123';
 const ERROR_MESSAGE_MOCK = 'Test Error';
 const ERROR_CODE_MOCK = 1234;
 
@@ -94,6 +94,13 @@ function createBundlerMock(): jest.Mocked<Bundler> {
   } as any;
 }
 
+/**
+ * Awaits all pending promises.
+ */
+async function flushPromises() {
+  await new Promise((resolve) => setImmediate(resolve));
+}
+
 describe('UserOperationController', () => {
   const messenger = createMessengerMock();
   const smartContractAccount = createSmartContractAccountMock();
@@ -137,7 +144,7 @@ describe('UserOperationController', () => {
       SIGN_USER_OPERATION_RESPONSE_MOCK,
     );
 
-    bundlerMock.sendUserOperation.mockResolvedValue(HASH_MOCK);
+    bundlerMock.sendUserOperation.mockResolvedValue(USER_OPERATION_HASH_MOCK);
   });
 
   describe('addUserOperation', () => {
@@ -153,7 +160,7 @@ describe('UserOperationController', () => {
 
       const userOperationHash = await hash();
 
-      expect(userOperationHash).toBe(HASH_MOCK);
+      expect(userOperationHash).toBe(USER_OPERATION_HASH_MOCK);
       expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
       expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
         {
@@ -177,7 +184,7 @@ describe('UserOperationController', () => {
       );
     });
 
-    it('creates metadata entry in state', async () => {
+    it('creates initial empty metadata entry in state', async () => {
       const controller = new UserOperationController({
         messenger,
       });
@@ -212,7 +219,7 @@ describe('UserOperationController', () => {
       });
     });
 
-    it('updates metadata in state', async () => {
+    it('updates metadata in state after submission', async () => {
       const controller = new UserOperationController({
         messenger,
       });
@@ -229,7 +236,7 @@ describe('UserOperationController', () => {
         bundlerUrl: PREPARE_USER_OPERATION_RESPONSE_MOCK.bundler,
         chainId: CHAIN_ID_MOCK,
         error: null,
-        hash: HASH_MOCK,
+        hash: USER_OPERATION_HASH_MOCK,
         id,
         status: UserOperationStatus.Submitted,
         time: expect.any(Number),
@@ -277,7 +284,7 @@ describe('UserOperationController', () => {
 
       const userOperationHash = await hash();
 
-      expect(userOperationHash).toBe(HASH_MOCK);
+      expect(userOperationHash).toBe(USER_OPERATION_HASH_MOCK);
       expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
       expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -335,6 +342,7 @@ describe('UserOperationController', () => {
       expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
       expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
         expect.objectContaining({
+          // Estimated values multiplied by gas buffer and converted to hexadecimal.
           callGasLimit: '0xb9',
           preVerificationGas: '0x2ac',
           verificationGasLimit: '0x4a0',
@@ -391,7 +399,9 @@ describe('UserOperationController', () => {
         smartContractAccount,
       });
 
-      await new Promise((resolve) => setImmediate(resolve));
+      await flushPromises();
+
+      // Unhandled error would fail test.
     });
 
     it('validates arguments', async () => {

@@ -122,7 +122,7 @@ export class UserOperationController extends BaseController<
 
     const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
     const { chainId, smartContractAccount } = options;
-    const metadata = this.#createMetadata(chainId);
+    const metadata = this.#createEmptyMetadata(chainId);
     const { id } = metadata;
     let throwError = false;
 
@@ -170,7 +170,7 @@ export class UserOperationController extends BaseController<
     };
   }
 
-  #createMetadata(chainId: string): UserOperationMetadata {
+  #createEmptyMetadata(chainId: string): UserOperationMetadata {
     const metadata = {
       bundlerUrl: null,
       chainId,
@@ -376,6 +376,7 @@ export class UserOperationController extends BaseController<
     const { id } = metadata;
 
     this.update((state) => {
+      // Controller state is immutable but we need a copy we can update.
       state.userOperations[id] = cloneDeep(metadata);
     });
   }
