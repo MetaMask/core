@@ -30,6 +30,9 @@ const DEFAULT_INTERVAL = 180000;
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenDetectionConfig extends BaseConfig {
   interval: number;
   selectedAddress: string;
@@ -131,6 +134,7 @@ export class TokenDetectionController extends PollingControllerV1<
     };
 
     this.initialize();
+    this.setIntervalLength(this.config.interval);
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;

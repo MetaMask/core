@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
@@ -11,6 +11,9 @@ import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
  * @property name - Nickname associated with this address
  * @property importTime - Data time when an account as created/imported
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface ContactEntry {
   address: string;
   name: string;
@@ -32,6 +35,9 @@ export type EtherscanSupportedHexChainId =
  * @property lostIdentities - Map of lost addresses to ContactEntry objects
  * @property selectedAddress - Current coinbase account
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PreferencesState extends BaseState {
   featureFlags: { [feature: string]: boolean };
   ipfsGateway: string;
@@ -56,7 +62,7 @@ export interface PreferencesState extends BaseState {
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
-export class PreferencesController extends BaseController<
+export class PreferencesController extends BaseControllerV1<
   BaseConfig,
   PreferencesState
 > {

@@ -3,9 +3,10 @@
 import { NetworkType, query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 
+import { CHAIN_IDS } from '../constants';
 import type { TransactionMeta } from '../types';
 import type { UpdateGasRequest } from './gas';
-import { FIXED_GAS, estimateGas, updateGas } from './gas';
+import { addGasBuffer, estimateGas, updateGas, FIXED_GAS } from './gas';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -135,6 +136,29 @@ describe('gas', () => {
         const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
         const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
         const estimatedGas = Math.round(estimatedGasPadded / 1.5);
+
+        mockQuery({
+          getCodeResponse: CODE_MOCK,
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(estimatedGas),
+        });
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(
+          toHex(estimatedGasPadded),
+        );
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
+      it('to padded estimate using chain multiplier if padded estimate less than 90% of block gas limit', async () => {
+        const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
+        const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
+        const estimatedGas = estimatedGasPadded; // Optimism multiplier is 1
+
+        updateGasRequest.providerConfig.chainId = CHAIN_IDS.OPTIMISM;
 
         mockQuery({
           getCodeResponse: CODE_MOCK,
@@ -334,6 +358,48 @@ describe('gas', () => {
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
       });
+    });
+  });
+
+  describe('addGasBuffer', () => {
+    it('returns estimated gas if greater than 90% of block gas limit', () => {
+      const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
+
+      const result = addGasBuffer(
+        toHex(estimatedGas),
+        toHex(BLOCK_GAS_LIMIT_MOCK),
+        1.5,
+      );
+
+      expect(result).toBe(toHex(estimatedGas));
+    });
+
+    it('returns padded estimate if less than 90% of block gas limit', () => {
+      const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
+      const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
+      const estimatedGas = Math.round(estimatedGasPadded / 1.5);
+
+      const result = addGasBuffer(
+        toHex(estimatedGas),
+        toHex(BLOCK_GAS_LIMIT_MOCK),
+        1.5,
+      );
+
+      expect(result).toBe(toHex(estimatedGasPadded));
+    });
+
+    it('returns 90% of block gas limit if padded estimate only is greater than 90% of block gas limit', () => {
+      const blockGasLimit90Percent = Math.round(BLOCK_GAS_LIMIT_MOCK * 0.9);
+      const estimatedGasPadded = blockGasLimit90Percent + 10;
+      const estimatedGas = Math.ceil(estimatedGasPadded / 1.5);
+
+      const result = addGasBuffer(
+        toHex(estimatedGas),
+        toHex(BLOCK_GAS_LIMIT_MOCK),
+        1.5,
+      );
+
+      expect(result).toBe(toHex(blockGasLimit90Percent));
     });
   });
 });

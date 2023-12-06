@@ -13,10 +13,12 @@ import type {
   ProviderConfig,
 } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import type { AssetsContractController } from './AssetsContractController';
 import {
   formatAggregatorNames,
@@ -108,10 +110,7 @@ const setupTokenListController = (
   const tokenListMessenger = controllerMessenger.getRestricted({
     name: 'TokenListController',
     allowedActions: [],
-    allowedEvents: [
-      'TokenListController:stateChange',
-      'NetworkController:stateChange',
-    ],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   const tokenList = new TokenListController({
@@ -121,10 +120,6 @@ const setupTokenListController = (
   });
 
   return { tokenList, tokenListMessenger };
-};
-
-const flushPromises = () => {
-  return new Promise(jest.requireActual('timers').setImmediate);
 };
 
 describe('TokenDetectionController', () => {
@@ -138,9 +133,9 @@ describe('TokenDetectionController', () => {
     ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
 
-  const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
+  const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkStateChangeListeners.forEach((listener) => {
+    onNetworkDidChangeListeners.forEach((listener) => {
       listener({
         ...defaultNetworkState,
         providerConfig,
@@ -155,7 +150,7 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
@@ -180,8 +175,8 @@ describe('TokenDetectionController', () => {
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
+      onNetworkDidChange: (listener) =>
+        onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
@@ -196,7 +191,7 @@ describe('TokenDetectionController', () => {
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
+        onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: (listener) =>
         tokenListSetup.tokenListMessenger.subscribe(
           `TokenListController:stateChange`,
@@ -443,7 +438,7 @@ describe('TokenDetectionController', () => {
   it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
     const polygonDecimalChainId = '137';
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${polygonDecimalChainId}`)
+      .get(getTokensPath(toHex(polygonDecimalChainId)))
       .reply(200, sampleTokenList);
 
     const stub = sinon.stub();
@@ -597,8 +592,16 @@ describe('TokenDetectionController', () => {
   });
 
   describe('startPollingByNetworkClientId', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
     it('should call detect tokens with networkClientId and address params', async () => {
-      jest.useFakeTimers();
       const spy = jest
         .spyOn(tokenDetection, 'detectTokens')
         .mockImplementation(() => {
@@ -613,17 +616,23 @@ describe('TokenDetectionController', () => {
       tokenDetection.startPollingByNetworkClientId('goerli', {
         address: '0x3',
       });
-      await Promise.all([
-        jest.advanceTimersByTime(DEFAULT_INTERVAL),
-        flushPromises(),
-      ]);
+
+      await advanceTime({ clock, duration: 0 });
       expect(spy.mock.calls).toMatchObject([
         [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
         [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
         [{ networkClientId: 'goerli', accountAddress: '0x3' }],
       ]);
+      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+      expect(spy.mock.calls).toMatchObject([
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+      ]);
       tokenDetection.stopAllPolling();
-      jest.useRealTimers();
       spy.mockRestore();
     });
   });
@@ -649,3 +658,15 @@ describe('TokenDetectionController', () => {
     });
   });
 });
+
+/**
+ * Construct the path used to fetch tokens that we can pass to `nock`.
+ *
+ * @param chainId - The chain ID.
+ * @returns The constructed path.
+ */
+function getTokensPath(chainId: Hex) {
+  return `/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+}

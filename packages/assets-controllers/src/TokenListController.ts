@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -9,7 +13,6 @@ import type {
 import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import type { Patch } from 'immer';
 
 import {
   isTokenListSupportedForNetwork,
@@ -49,21 +52,28 @@ export type TokenListState = {
   preventPollingOnNetworkRestart: boolean;
 };
 
-export type TokenListStateChange = {
-  type: `${typeof name}:stateChange`;
-  payload: [TokenListState, Patch[]];
-};
+export type TokenListStateChange = ControllerStateChangeEvent<
+  typeof name,
+  TokenListState
+>;
 
-export type GetTokenListState = {
-  type: `${typeof name}:getState`;
-  handler: () => TokenListState;
-};
+export type TokenListControllerEvents = TokenListStateChange;
+
+export type GetTokenListState = ControllerGetStateAction<
+  typeof name,
+  TokenListState
+>;
+
+export type TokenListControllerActions = GetTokenListState;
+
+type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
-  TokenListStateChange | NetworkControllerStateChangeEvent,
-  NetworkControllerGetNetworkClientByIdAction['type'],
-  TokenListStateChange['type'] | NetworkControllerStateChangeEvent['type']
+  TokenListControllerActions | AllowedActions,
+  TokenListControllerEvents | NetworkControllerStateChangeEvent,
+  AllowedActions['type'],
+  (TokenListControllerEvents | NetworkControllerStateChangeEvent)['type']
 >;
 
 const metadata = {
@@ -288,26 +298,7 @@ export class TokenListController extends PollingController<
           });
           return;
         }
-        // Filtering out tokens with less than 3 occurrences and native tokens
-        const filteredTokenList = tokensFromAPI.filter(
-          (token) =>
-            token.occurrences &&
-            token.occurrences >= 3 &&
-            token.address !== '0x0000000000000000000000000000000000000000',
-        );
-        // Removing the tokens with symbol conflicts
-        const symbolsList = filteredTokenList.map((token) => token.symbol);
-        const duplicateSymbols = [
-          ...new Set(
-            symbolsList.filter(
-              (symbol, index) => symbolsList.indexOf(symbol) !== index,
-            ),
-          ),
-        ];
-        const uniqueTokenList = filteredTokenList.filter(
-          (token) => !duplicateSymbols.includes(token.symbol),
-        );
-        for (const token of uniqueTokenList) {
+        for (const token of tokensFromAPI) {
           const formattedToken: TokenListToken = {
             ...token,
             aggregators: formatAggregatorNames(token.aggregators),

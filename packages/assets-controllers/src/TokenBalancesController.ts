@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
@@ -18,6 +18,9 @@ export { BN };
  * @property interval - Polling interval used to fetch new token balances
  * @property tokens - List of tokens to track balances for
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenBalancesConfig extends BaseConfig {
   interval: number;
   tokens: Token[];
@@ -29,6 +32,9 @@ export interface TokenBalancesConfig extends BaseConfig {
  * Token balances controller state
  * @property contractBalances - Hash of token contract addresses to balances
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenBalancesState extends BaseState {
   contractBalances: { [address: string]: BN };
 }
@@ -37,7 +43,7 @@ export interface TokenBalancesState extends BaseState {
  * Controller that passively polls on a set interval token balances
  * for tokens stored in the TokensController
  */
-export class TokenBalancesController extends BaseController<
+export class TokenBalancesController extends BaseControllerV1<
   TokenBalancesConfig,
   TokenBalancesState
 > {

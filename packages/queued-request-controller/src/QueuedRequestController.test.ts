@@ -1,6 +1,32 @@
-import { buildQueuedRequestControllerMessenger } from '../tests/utils';
-import type { QueuedRequestControllerOptions } from './QueuedRequestController';
-import { QueuedRequestController } from './QueuedRequestController';
+import { ControllerMessenger } from '@metamask/base-controller';
+
+import type {
+  QueuedRequestControllerActions,
+  QueuedRequestControllerEvents,
+  QueuedRequestControllerMessenger,
+  QueuedRequestControllerOptions,
+} from './QueuedRequestController';
+import {
+  QueuedRequestController,
+  controllerName,
+} from './QueuedRequestController';
+
+/**
+ * Builds a restricted controller messenger for the queued request controller.
+ *
+ * @param messenger - A controller messenger.
+ * @returns The restricted controller messenger.
+ */
+function buildQueuedRequestControllerMessenger(
+  messenger = new ControllerMessenger<
+    QueuedRequestControllerActions,
+    QueuedRequestControllerEvents
+  >(),
+): QueuedRequestControllerMessenger {
+  return messenger.getRestricted({
+    name: controllerName,
+  });
+}
 
 describe('QueuedRequestController', () => {
   it('can be instantiated with default values', () => {

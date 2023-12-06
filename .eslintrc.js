@@ -14,11 +14,6 @@ module.exports = {
     {
       files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
       extends: ['@metamask/eslint-config-jest'],
-      rules: {
-        // TODO: Re-enable
-        'import/no-named-as-default-member': 'off',
-        'jest/no-conditional-expect': 'off',
-      },
     },
     {
       // These files are test helpers, not tests. We still use the Jest ESLint
@@ -29,9 +24,6 @@ module.exports = {
         'jest/no-export': 'off',
         'jest/require-top-level-describe': 'off',
         'jest/no-if': 'off',
-        'jest/no-test-return-statement': 'off',
-        // TODO: Re-enable this rule; we can accomodate this even in our test helpers
-        'jest/expect-expect': 'off',
       },
     },
     {
@@ -49,10 +41,6 @@ module.exports = {
         project: ['./tsconfig.packages.json'],
       },
       rules: {
-        // disabled due to incompatibility with Record<string, unknown>
-        // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
-        '@typescript-eslint/consistent-type-definitions': 'off',
-
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
 
@@ -60,7 +48,6 @@ module.exports = {
         '@typescript-eslint/await-thenable': 'warn',
         '@typescript-eslint/naming-convention': 'off',
         '@typescript-eslint/no-floating-promises': 'warn',
-        '@typescript-eslint/no-loss-of-precision': 'warn',
         '@typescript-eslint/no-misused-promises': 'warn',
         '@typescript-eslint/no-unnecessary-type-assertion': 'off',
         '@typescript-eslint/unbound-method': 'off',
@@ -92,6 +79,13 @@ module.exports = {
       rules: {
         // All scripts will have shebangs.
         'n/shebang': 'off',
+      },
+    },
+    {
+      files: ['**/jest.environment.js'],
+      rules: {
+        // These files run under Node, and thus `require(...)` is expected.
+        'n/global-require': 'off',
       },
     },
   ],

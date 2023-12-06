@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import {
   BNToHex,
   query,
@@ -17,6 +17,9 @@ import { Mutex } from 'async-mutex';
  * Account information object
  * @property balance - Hex string of an account balancec in wei
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AccountInformation {
   balance: string;
 }
@@ -27,6 +30,9 @@ export interface AccountInformation {
  * Account tracker controller configuration
  * @property provider - Provider used to create a new underlying EthQuery instance
  */
+// This interface was created before this ESLint rule was added.
+// Remove in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AccountTrackerConfig extends BaseConfig {
   interval: number;
   provider?: Provider;
@@ -38,6 +44,9 @@ export interface AccountTrackerConfig extends BaseConfig {
  * Account tracker controller state
  * @property accounts - Map of addresses to account information
  */
+// This interface was created before this ESLint rule was added.
+// Remove in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AccountTrackerState extends BaseState {
   accounts: { [address: string]: AccountInformation };
 }
@@ -45,7 +54,7 @@ export interface AccountTrackerState extends BaseState {
 /**
  * Controller that tracks the network balances for all user accounts.
  */
-export class AccountTrackerController extends BaseController<
+export class AccountTrackerController extends BaseControllerV1<
   AccountTrackerConfig,
   AccountTrackerState
 > {

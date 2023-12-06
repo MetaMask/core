@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import {
   convertHexToDecimal,
   safelyExecute,
@@ -10,13 +14,12 @@ import type {
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
-  NetworkControllerStateChangeEvent,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
 import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
-import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
@@ -216,27 +219,28 @@ export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
 
 const name = 'GasFeeController';
 
-export type GasFeeStateChange = {
-  type: `${typeof name}:stateChange`;
-  payload: [GasFeeState, Patch[]];
-};
+export type GasFeeStateChange = ControllerStateChangeEvent<
+  typeof name,
+  GasFeeState
+>;
 
-export type GetGasFeeState = {
-  type: `${typeof name}:getState`;
-  handler: () => GasFeeState;
-};
+export type GetGasFeeState = ControllerGetStateAction<typeof name, GasFeeState>;
+
+export type GasFeeControllerActions = GetGasFeeState;
+
+export type GasFeeControllerEvents = GasFeeStateChange;
+
+type AllowedActions =
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetEIP1559CompatibilityAction;
 
 type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
-  | GetGasFeeState
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction,
-  GasFeeStateChange | NetworkControllerStateChangeEvent,
-  | NetworkControllerGetStateAction['type']
-  | NetworkControllerGetNetworkClientByIdAction['type']
-  | NetworkControllerGetEIP1559CompatibilityAction['type'],
-  NetworkControllerStateChangeEvent['type']
+  GasFeeControllerActions | AllowedActions,
+  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
+  AllowedActions['type'],
+  NetworkControllerNetworkDidChangeEvent['type']
 >;
 
 const defaultState: GasFeeState = {
@@ -293,7 +297,7 @@ export class GasFeeController extends PollingController<
    * account is EIP-1559 compatible.
    * @param options.getChainId - Returns the current chain ID.
    * @param options.getProvider - Returns a network provider for the current network.
-   * @param options.onNetworkStateChange - A function for registering an event handler for the
+   * @param options.onNetworkDidChange - A function for registering an event handler for the
    * network state change event.
    * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
    * testing purposes.
@@ -310,7 +314,7 @@ export class GasFeeController extends PollingController<
     getChainId,
     getCurrentNetworkLegacyGasAPICompatibility,
     getProvider,
-    onNetworkStateChange,
+    onNetworkDidChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint,
     clientId,
@@ -323,7 +327,7 @@ export class GasFeeController extends PollingController<
     getCurrentAccountEIP1559Compatibility?: () => boolean;
     getChainId?: () => Hex;
     getProvider: () => ProviderProxy;
-    onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
+    onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint: string;
     clientId?: string;
@@ -348,22 +352,21 @@ export class GasFeeController extends PollingController<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
-    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(this.#getProvider());
 
-    if (onNetworkStateChange && getChainId) {
+    if (onNetworkDidChange && getChainId) {
       this.currentChainId = getChainId();
-      onNetworkStateChange(async (networkControllerState) => {
-        await this.#onNetworkControllerStateChange(networkControllerState);
+      onNetworkDidChange(async (networkControllerState) => {
+        await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
       this.currentChainId = this.messagingSystem.call(
         'NetworkController:getState',
       ).providerConfig.chainId;
       this.messagingSystem.subscribe(
-        'NetworkController:stateChange',
+        'NetworkController:networkDidChange',
         async (networkControllerState) => {
-          await this.#onNetworkControllerStateChange(networkControllerState);
+          await this.#onNetworkControllerDidChange(networkControllerState);
         },
       );
     }
@@ -435,7 +438,6 @@ export class GasFeeController extends PollingController<
       } catch {
         isEIP1559Compatible = false;
       }
-      // @ts-expect-error TODO: Provider type alignment
       ethQuery = new EthQuery(networkClient.provider);
     }
 
@@ -577,11 +579,10 @@ export class GasFeeController extends PollingController<
     );
   }
 
-  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
+  async #onNetworkControllerDidChange(networkControllerState: NetworkState) {
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {
-      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.#getProvider());
       await this.resetPolling();
 

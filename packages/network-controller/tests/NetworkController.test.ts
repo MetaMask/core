@@ -8,6 +8,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
+import { getKnownPropertyNames } from '@metamask/utils';
 import assert from 'assert';
 import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
@@ -15,10 +16,14 @@ import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 } from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import type { FakeProviderStub } from '../../../tests/fake-provider';
+import { FakeProvider } from '../../../tests/fake-provider';
 import { NetworkStatus } from '../src/constants';
 import type { NetworkClient } from '../src/create-network-client';
 import { createNetworkClient } from '../src/create-network-client';
 import type {
+  NetworkClientId,
+  NetworkConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
   NetworkControllerOptions,
@@ -29,8 +34,6 @@ import type {
 import { NetworkController } from '../src/NetworkController';
 import type { Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import type { FakeProviderStub } from './fake-provider';
-import { FakeProvider } from './fake-provider';
 
 jest.mock('../src/create-network-client');
 
@@ -3627,6 +3630,158 @@ describe('NetworkController', () => {
     });
   });
 
+  for (const [name, getNetworkConfigurationByNetworkClientId] of [
+    [
+      'getNetworkConfigurationByNetworkClientId',
+      ({
+        controller,
+        networkClientId,
+      }: {
+        controller: NetworkController;
+        networkClientId: NetworkClientId;
+      }) =>
+        controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+    ],
+    [
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
+      ({
+        messenger,
+        networkClientId,
+      }: {
+        messenger: ControllerMessenger<
+          NetworkControllerActions,
+          NetworkControllerEvents
+        >;
+        networkClientId: NetworkClientId;
+      }) =>
+        messenger.call(
+          'NetworkController:getNetworkConfigurationByNetworkClientId',
+          networkClientId,
+        ),
+    ],
+  ] as const) {
+    // This is a string!
+    // eslint-disable-next-line jest/valid-title
+    describe(String(name), () => {
+      const infuraProjectId = 'some-infura-project-id';
+      const expectedInfuraNetworkConfigurationsByType: Record<
+        InfuraNetworkType,
+        NetworkConfiguration
+      > = {
+        [InfuraNetworkType.goerli]: {
+          rpcUrl: 'https://goerli.infura.io/v3/some-infura-project-id',
+          chainId: '0x5' as const,
+          ticker: 'GoerliETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://goerli.etherscan.io',
+          },
+        },
+        [InfuraNetworkType.sepolia]: {
+          rpcUrl: 'https://sepolia.infura.io/v3/some-infura-project-id',
+          chainId: '0xaa36a7' as const,
+          ticker: 'SepoliaETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://sepolia.etherscan.io',
+          },
+        },
+        [InfuraNetworkType.mainnet]: {
+          rpcUrl: 'https://mainnet.infura.io/v3/some-infura-project-id',
+          chainId: '0x1' as const,
+          ticker: 'ETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://etherscan.io',
+          },
+        },
+        [InfuraNetworkType['linea-goerli']]: {
+          rpcUrl: 'https://linea-goerli.infura.io/v3/some-infura-project-id',
+          chainId: '0xe704' as const,
+          ticker: 'LineaETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://goerli.lineascan.build',
+          },
+        },
+        [InfuraNetworkType['linea-mainnet']]: {
+          rpcUrl: 'https://linea-mainnet.infura.io/v3/some-infura-project-id',
+          chainId: '0xe708' as const,
+          ticker: 'ETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://lineascan.build',
+          },
+        },
+      };
+
+      it.each(getKnownPropertyNames(InfuraNetworkType))(
+        'constructs a network configuration for the %s network',
+        async (infuraNetworkType) => {
+          await withController(
+            { infuraProjectId },
+            ({ controller, messenger }) => {
+              const networkConfiguration =
+                getNetworkConfigurationByNetworkClientId({
+                  controller,
+                  messenger,
+                  networkClientId: infuraNetworkType,
+                });
+
+              expect(networkConfiguration).toStrictEqual(
+                expectedInfuraNetworkConfigurationsByType[infuraNetworkType],
+              );
+            },
+          );
+        },
+      );
+
+      it('returns the network configuration in state that matches the given ID, if there is one', async () => {
+        await withController(
+          {
+            infuraProjectId,
+            state: {
+              networkConfigurations: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  rpcUrl: 'https://test.network',
+                  chainId: toHex(111),
+                  ticker: 'TICKER',
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                },
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            const networkConfiguration =
+              getNetworkConfigurationByNetworkClientId({
+                controller,
+                messenger,
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              });
+
+            expect(networkConfiguration).toStrictEqual({
+              rpcUrl: 'https://test.network',
+              chainId: toHex(111),
+              ticker: 'TICKER',
+              id: 'AAAA-AAAA-AAAA-AAAA',
+            });
+          },
+        );
+      });
+
+      it('returns undefined if the given ID does not match a network configuration in state', async () => {
+        await withController(
+          { infuraProjectId },
+          ({ controller, messenger }) => {
+            const networkConfiguration =
+              getNetworkConfigurationByNetworkClientId({
+                controller,
+                messenger,
+                networkClientId: 'nonexistent',
+              });
+
+            expect(networkConfiguration).toBeUndefined();
+          },
+        );
+      });
+    });
+  }
+
   describe('upsertNetworkConfiguration', () => {
     describe('when the rpcUrl of the given network configuration does not match an existing network configuration', () => {
       it('adds the network configuration to state without updating or removing any existing network configurations', async () => {
@@ -4835,7 +4990,7 @@ describe('NetworkController', () => {
     describe('if a provider has been set', () => {
       for (const { networkType } of INFURA_NETWORKS) {
         describe(`if the previous provider configuration had a type of "${networkType}"`, () => {
-          it('emits networkWillChange', async () => {
+          it('emits networkWillChange with state payload', async () => {
             await withController(
               {
                 state: {
@@ -4865,6 +5020,7 @@ describe('NetworkController', () => {
                 const networkWillChange = waitForPublishedEvents({
                   messenger,
                   eventType: 'NetworkController:networkWillChange',
+                  filter: ([networkState]) => networkState === controller.state,
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
@@ -4877,7 +5033,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('emits networkDidChange', async () => {
+          it('emits networkDidChange with state payload', async () => {
             await withController(
               {
                 state: {
@@ -4907,6 +5063,7 @@ describe('NetworkController', () => {
                 const networkDidChange = waitForPublishedEvents({
                   messenger,
                   eventType: 'NetworkController:networkDidChange',
+                  filter: ([networkState]) => networkState === controller.state,
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
@@ -5437,7 +5594,7 @@ describe('NetworkController', () => {
       }
 
       describe(`if the previous provider configuration had a type of "rpc"`, () => {
-        it('emits networkWillChange', async () => {
+        it('emits networkWillChange with state payload', async () => {
           await withController(
             {
               state: {
@@ -5455,6 +5612,7 @@ describe('NetworkController', () => {
               const networkWillChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkWillChange',
+                filter: ([networkState]) => networkState === controller.state,
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
@@ -5467,7 +5625,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('emits networkDidChange', async () => {
+        it('emits networkDidChange with state payload', async () => {
           await withController(
             {
               state: {
@@ -5485,6 +5643,7 @@ describe('NetworkController', () => {
               const networkDidChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkDidChange',
+                filter: ([networkState]) => networkState === controller.state,
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
@@ -6082,7 +6241,7 @@ function refreshNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
 }) {
-  it('emits networkWillChange', async () => {
+  it('emits networkWillChange with state payload', async () => {
     await withController(
       {
         state: initialState,
@@ -6095,6 +6254,7 @@ function refreshNetworkTests({
         const networkWillChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkWillChange',
+          filter: ([networkState]) => networkState === controller.state,
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
@@ -6107,7 +6267,7 @@ function refreshNetworkTests({
     );
   });
 
-  it('emits networkDidChange', async () => {
+  it('emits networkDidChange with state payload', async () => {
     await withController(
       {
         state: initialState,
@@ -6120,6 +6280,7 @@ function refreshNetworkTests({
         const networkDidChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkDidChange',
+          filter: ([networkState]) => networkState === controller.state,
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
@@ -7069,17 +7230,6 @@ function buildMessenger() {
 function buildNetworkControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'NetworkController',
-    allowedActions: [
-      'NetworkController:getProviderConfig',
-      'NetworkController:getEthQuery',
-    ],
-    allowedEvents: [
-      'NetworkController:stateChange',
-      'NetworkController:infuraIsBlocked',
-      'NetworkController:infuraIsUnblocked',
-      'NetworkController:networkDidChange',
-      'NetworkController:networkWillChange',
-    ],
   });
 }
 

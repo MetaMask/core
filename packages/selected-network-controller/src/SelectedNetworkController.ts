@@ -1,5 +1,5 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type {
   BlockTrackerProxy,
   NetworkClientId,
@@ -10,7 +10,7 @@ import type {
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
 
-const controllerName = 'SelectedNetworkController';
+export const controllerName = 'SelectedNetworkController';
 
 const stateMetadata = {
   domains: { persist: true, anonymous: false },
@@ -68,24 +68,28 @@ export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
   handler: (domain: string, NetworkClientId: NetworkClientId) => void;
 };
 
-export type SelectedNetworkControllerAction =
+export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetSelectedNetworkStateAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | SelectedNetworkControllerSetNetworkClientIdForDomainAction;
 
-export type SelectedNetworkControllerEvent =
+export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+
+export type SelectedNetworkControllerEvents =
   SelectedNetworkControllerStateChangeEvent;
+
+export type AllowedEvents = NetworkControllerStateChangeEvent;
 
 export type SelectedNetworkControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  SelectedNetworkControllerAction,
-  NetworkControllerStateChangeEvent | SelectedNetworkControllerEvent,
-  string,
-  string
+  SelectedNetworkControllerActions | AllowedActions,
+  SelectedNetworkControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 export type SelectedNetworkControllerOptions = {
+  state?: SelectedNetworkControllerState;
   messenger: SelectedNetworkControllerMessenger;
 };
 
@@ -97,7 +101,7 @@ export type NetworkProxy = {
 /**
  * Controller for getting and setting the network for a particular domain.
  */
-export class SelectedNetworkController extends BaseControllerV2<
+export class SelectedNetworkController extends BaseController<
   typeof controllerName,
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger
@@ -109,13 +113,17 @@ export class SelectedNetworkController extends BaseControllerV2<
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the EncryptionPublicKey controller.
+   * @param options.state - The controllers initial state.
    */
-  constructor({ messenger }: SelectedNetworkControllerOptions) {
+  constructor({
+    messenger,
+    state = getDefaultState(),
+  }: SelectedNetworkControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
-      state: getDefaultState(),
+      state,
     });
     this.#registerMessageHandlers();
   }
@@ -158,11 +166,10 @@ export class SelectedNetworkController extends BaseControllerV2<
     }
 
     this.update((state) => {
-      if (state.perDomainNetwork) {
-        state.domains[domain] = networkClientId;
-        return;
+      state.domains[domain] = networkClientId;
+      if (!state.perDomainNetwork) {
+        state.domains[METAMASK_DOMAIN] = networkClientId;
       }
-      state.domains[METAMASK_DOMAIN] = networkClientId;
     });
   }
 
@@ -196,5 +203,19 @@ export class SelectedNetworkController extends BaseControllerV2<
     }
 
     return networkProxy;
+  }
+
+  setPerDomainNetwork(enabled: boolean) {
+    this.update((state) => {
+      state.perDomainNetwork = enabled;
+      return state;
+    });
+    Object.keys(this.state.domains).forEach((domain) => {
+      // when perDomainNetwork is false, getNetworkClientIdForDomain always returns the networkClientId for the domain 'metamask'
+      this.setNetworkClientIdForDomain(
+        domain,
+        this.getNetworkClientIdForDomain(domain),
+      );
+    });
   }
 }

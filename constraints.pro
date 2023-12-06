@@ -211,14 +211,21 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   WorkspaceCwd \= 'packages/json-rpc-engine',
+  WorkspaceCwd \= 'packages/json-rpc-middleware-stream',
+  WorkspaceCwd \= 'packages/permission-log-controller',
   WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
 % The following published packages use an ISC license instead of MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   (
     WorkspaceCwd == 'packages/json-rpc-engine' ;
+    WorkspaceCwd == 'packages/json-rpc-middleware-stream' ;
     WorkspaceCwd == 'packages/eth-json-rpc-provider'
   ).
+% The following published packages use a custom license instead of MIT.
+gen_enforced_field(WorkspaceCwd, 'license', 'SEE LICENSE IN LICENSE') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd == 'packages/permission-log-controller'.
 % Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
@@ -260,18 +267,25 @@ gen_enforced_field(WorkspaceCwd, 'scripts.prepack', null) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % The "changelog:validate" script for each published package must run a common
-% script with the name of the package as an argument.
-gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
+% script with the name of the package as the first argument.
+gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', CorrectChangelogValidationCommand) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_field(WorkspaceCwd, 'scripts.changelog:validate', ChangelogValidationCommand),
   workspace_package_name(WorkspaceCwd, WorkspacePackageName),
-  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
+  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName, ' [...]'], CorrectChangelogValidationCommand),
+  atom_concat('../../scripts/validate-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
+  \+ atom_concat(ExpectedPrefix, _, ChangelogValidationCommand).
 
 % All non-root packages must have the same "test" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:clean" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+  WorkspaceCwd \= '.'.
+
+% All non-root packages must have the same "test:verbose" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:verbose', 'jest --verbose') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:watch" script.
@@ -335,13 +349,6 @@ gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npm
 % whatsoever.
 gen_enforced_field(WorkspaceCwd, 'publishConfig', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
-
-% nonce-tracker has an unlisted dependency on babel-runtime (via `ethjs-query`), so that package
-% needs to be present if nonce-tracker is present.
-gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'peerDependencies') :-
-  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
-gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'devDependencies') :-
-  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
 
 % eth-method-registry has an unlisted dependency on babel-runtime (via `ethjs->ethjs-query`), so
 % that package needs to be present if eth-method-registry is present.
