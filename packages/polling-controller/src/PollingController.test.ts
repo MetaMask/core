@@ -20,7 +20,16 @@ class MyGasFeeController extends PollingController<any, any, any> {
 
 describe('PollingController', () => {
   let clock: sinon.SinonFakeTimers;
+  let mockMessenger: any;
+  let controller: any;
   beforeEach(() => {
+    mockMessenger = new ControllerMessenger<any, any>();
+    controller = new MyGasFeeController({
+      messenger: mockMessenger,
+      metadata: {},
+      name: 'PollingController',
+      state: { foo: 'bar' },
+    });
     clock = useFakeTimers();
   });
   afterEach(() => {
@@ -28,14 +37,6 @@ describe('PollingController', () => {
   });
   describe('start', () => {
     it('should start polling if not polling', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
@@ -46,14 +47,6 @@ describe('PollingController', () => {
   });
   describe('stop', () => {
     it('should stop polling when called with a valid polling that was the only active pollingToken for a given networkClient', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
@@ -64,14 +57,6 @@ describe('PollingController', () => {
       controller.stopAllPolling();
     });
     it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
@@ -84,14 +69,6 @@ describe('PollingController', () => {
       controller.stopAllPolling();
     });
     it('should error if no pollingToken is passed', () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.startPollingByNetworkClientId('mainnet');
       expect(() => {
         controller.stopPollingByPollingToken(undefined as unknown as any);
@@ -99,14 +76,6 @@ describe('PollingController', () => {
       controller.stopAllPolling();
     });
     it('should error if no matching pollingToken is found', () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.startPollingByNetworkClientId('mainnet');
       expect(() => {
         controller.stopPollingByPollingToken('potato');
@@ -116,14 +85,6 @@ describe('PollingController', () => {
   });
   describe('startPollingByNetworkClientId', () => {
     it('should call _executePoll immediately and on interval if polling', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
@@ -131,14 +92,6 @@ describe('PollingController', () => {
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
     });
     it('should call _executePoll immediately once and continue calling _executePoll on interval when start is called again with the same networkClientId', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
@@ -153,31 +106,12 @@ describe('PollingController', () => {
     });
     it('should publish "pollingComplete" when stop is called', async () => {
       const pollingComplete: any = jest.fn();
-
-      const name = 'PollingController';
-
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name,
-        state: { foo: 'bar' },
-      });
       controller.onPollingCompleteByNetworkClientId('mainnet', pollingComplete);
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       controller.stopPollingByPollingToken(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);
     });
     it('should poll at the interval length when set via setIntervalLength', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.setIntervalLength(TICK_TIME);
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
@@ -190,14 +124,6 @@ describe('PollingController', () => {
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
     });
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       const pollToken1 = controller.startPollingByNetworkClientId('mainnet', {
         address: '0x1',
       });
@@ -239,14 +165,6 @@ describe('PollingController', () => {
   });
   describe('multiple networkClientIds', () => {
     it('should poll for each networkClientId', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
@@ -279,14 +197,6 @@ describe('PollingController', () => {
     });
 
     it('should poll multiple networkClientIds when setting interval length', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
       controller.setIntervalLength(TICK_TIME * 2);
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
@@ -404,19 +314,6 @@ describe('PollingController', () => {
     });
 
     it('should start polling for the specified networkClientId', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
-
-      // const getNetworkClientById = jest.fn().mockReturnValue({
-      //   blockTracker: new TestBlockTracker({ interval: 5 }),
-      // });
-
       controller.setPollOnNewBlocks(getNetworkClientById);
 
       controller.startPollingByNetworkClientId('mainnet');
@@ -438,20 +335,10 @@ describe('PollingController', () => {
         expect.arrayContaining(['mainnet', {}]),
       ]);
 
-      // Stop all polling
       controller.stopAllPolling();
     });
 
     it('should poll on new block intervals for each networkClientId', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
-
       controller.setPollOnNewBlocks(getNetworkClientById);
 
       controller.startPollingByNetworkClientId('mainnet');
@@ -500,20 +387,10 @@ describe('PollingController', () => {
         ['sepolia', {}, 2],
       ]);
 
-      // Stop all polling
       controller.stopAllPolling();
     });
 
     it('should should stop polling when all polling tokens for a networkClientId are deleted', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
-
       controller.setPollOnNewBlocks(getNetworkClientById);
 
       const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
@@ -551,18 +428,11 @@ describe('PollingController', () => {
         ['mainnet', {}, 2],
         ['mainnet', {}, 3],
       ]);
+
+      controller.stopAllPolling();
     });
 
     it('should should stop polling when all polling tokens for a networkClientId are deleted, even if other networkClientIds are still polling', async () => {
-      const mockMessenger = new ControllerMessenger<any, any>();
-
-      const controller = new MyGasFeeController({
-        messenger: mockMessenger,
-        metadata: {},
-        name: 'PollingController',
-        state: { foo: 'bar' },
-      });
-
       controller.setPollOnNewBlocks(getNetworkClientById);
 
       const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
@@ -618,6 +488,8 @@ describe('PollingController', () => {
         ['goerli', {}, 3],
         ['goerli', {}, 4],
       ]);
+
+      controller.stopAllPolling();
     });
   });
 });
