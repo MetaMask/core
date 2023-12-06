@@ -86,9 +86,9 @@ describe('TokensController', () => {
     allowedActions: ['ApprovalController:addRequest'],
   }) as TokensControllerMessenger;
 
-  let onNetworkStateChangeListener: (state: NetworkState) => void;
+  let onNetworkDidChangeListener: (state: NetworkState) => void;
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkStateChangeListener({
+    onNetworkDidChangeListener({
       ...defaultNetworkState,
       providerConfig,
     });
@@ -105,8 +105,7 @@ describe('TokensController', () => {
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        (onNetworkStateChangeListener = listener),
+      onNetworkDidChange: (listener) => (onNetworkDidChangeListener = listener),
       onTokenListStateChange,
       config: {
         selectedAddress: defaultSelectedAddress,
@@ -1518,7 +1517,7 @@ describe('TokensController', () => {
     });
   });
 
-  describe('onNetworkStateChange', function () {
+  describe('onNetworkDidChange', function () {
     it('should remove a token from its state on corresponding network', async function () {
       const stub = stubCreateEthers(tokensController, false);
 

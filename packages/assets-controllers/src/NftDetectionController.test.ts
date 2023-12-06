@@ -24,6 +24,7 @@ describe('NftDetectionController', () => {
   let assetsContract: AssetsContractController;
   let clock: sinon.SinonFakeTimers;
   const networkStateChangeNoop = jest.fn();
+  const networkDidChangeNoop = jest.fn();
   const getOpenSeaApiKeyStub = jest.fn();
 
   const messenger = new ControllerMessenger<
@@ -40,7 +41,7 @@ describe('NftDetectionController', () => {
     assetsContract = new AssetsContractController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: networkStateChangeNoop,
+      onNetworkDidChange: networkDidChangeNoop,
       getNetworkClientById: jest.fn(),
     });
     const getNetworkClientById = jest.fn().mockImplementation(() => {
