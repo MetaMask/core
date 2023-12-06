@@ -216,6 +216,7 @@ If an error occurs, re-edit the release spec and rerun `yarn create-release-bran
   - Resolution: Use "major", "minor", "patch", or a specific version number like "1.2.3".
 
 - **Version Less than or Equal to Current:**
+
   - Error: `* Line 14: "1.2.3" is not a valid version specifier...`
   - Resolution: Specify a version greater than the current version of the package.
 
@@ -227,4 +228,3 @@ If an error occurs, re-edit the release spec and rerun `yarn create-release-bran
 - **Dependencies/Peer Dependencies Missing:**
   - Error: `* The following packages, which are dependencies...`
   - Resolution: Include necessary dependencies or peer dependencies in the release or use "intentionally-skip" if certain they are unaffected.
-
