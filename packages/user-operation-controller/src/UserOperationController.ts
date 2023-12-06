@@ -38,6 +38,27 @@ const getDefaultState = () => ({
   userOperations: {},
 });
 
+type Events = {
+  'user-operation-confirmed': [metadata: UserOperationMetadata];
+  'user-operation-failed': [metadata: UserOperationMetadata, error: Error];
+  [key: `${string}:confirmed`]: [metadata: UserOperationMetadata];
+  [key: `${string}:failed`]: [metadata: UserOperationMetadata, error: Error];
+};
+
+export type UserOperationControllerEventEmitter = EventEmitter & {
+  on<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
+  ): UserOperationControllerEventEmitter;
+
+  once<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
+  ): UserOperationControllerEventEmitter;
+
+  emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
+};
+
 export type UserOperationControllerState = {
   userOperations: Record<string, UserOperationMetadata>;
 };
@@ -80,7 +101,7 @@ export class UserOperationController extends BaseController<
   UserOperationControllerState,
   UserOperationControllerMessenger
 > {
-  hub: EventEmitter;
+  hub: UserOperationControllerEventEmitter;
 
   #pendingUserOperationTracker: PendingUserOperationTracker;
 
@@ -100,7 +121,7 @@ export class UserOperationController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
-    this.hub = new EventEmitter();
+    this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
 
     this.#pendingUserOperationTracker = new PendingUserOperationTracker({
       getUserOperations: () =>
