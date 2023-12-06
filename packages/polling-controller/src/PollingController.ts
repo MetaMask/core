@@ -1,6 +1,8 @@
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
-import type { Json } from '@metamask/utils';
+import { BaseController, BaseControllerV2 } from '@metamask/base-controller';
+import type {
+  NetworkClientId,
+  NetworkClient,
+} from '@metamask/network-controller';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
@@ -38,12 +40,21 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 
     readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
+    readonly #activeListeners: Record<
+      PollingTokenSetId,
+      (options: Json) => Promise<void>
+    > = {};
+
     #callbacks: Map<
       NetworkClientId,
       Set<(networkClientId: NetworkClientId) => void>
     > = new Map();
 
     #intervalLength = 1000;
+
+    #getNetworkClientById:
+      | ((networkClientId: NetworkClientId) => NetworkClient)
+      | undefined;
 
     getIntervalLength() {
       return this.#intervalLength;
@@ -56,6 +67,17 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      */
     setIntervalLength(length: number) {
       this.#intervalLength = length;
+    }
+
+    setPollOnNewBlocks(
+      getNetworkClientById: (networkClientId: NetworkClientId) => NetworkClient,
+    ) {
+      if (!getNetworkClientById) {
+        throw new Error('getNetworkClientById callback required');
+      }
+
+      this.#intervalLength = 0;
+      this.#getNetworkClientById = getNetworkClientById;
     }
 
     /**
@@ -113,6 +135,21 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
           if (tokenSet.size === 0) {
             clearTimeout(this.#intervalIds[key]);
             delete this.#intervalIds[key];
+
+            // if applicable stop listening for new blocks
+            if (this.#getNetworkClientById !== undefined) {
+              const [networkClientId] = key.split(':');
+              const { blockTracker } =
+                this.#getNetworkClientById(networkClientId);
+              if (blockTracker) {
+                blockTracker.removeListener(
+                  'latest',
+                  this.#activeListeners[key],
+                );
+              }
+              delete this.#activeListeners[key];
+            }
+
             this.#pollingTokenSets.delete(key);
             this.#callbacks.get(key)?.forEach((callback) => {
               callback(key);
@@ -139,6 +176,31 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 
     #poll(networkClientId: NetworkClientId, options: Json) {
       const key = getKey(networkClientId, options);
+
+      // if #getNetworkClientById is defined, we want to poll on new blocks
+      if (this.#getNetworkClientById !== undefined) {
+        // if we're already listening for new blocks for this key, don't add another listener
+        if (this.#activeListeners[key]) {
+          return;
+        }
+        const blockTracker =
+          this.#getNetworkClientById(networkClientId)?.blockTracker;
+
+        if (blockTracker) {
+          const updateOnNewBlock = this._executePoll.bind(
+            networkClientId,
+            options,
+          );
+          blockTracker.addListener('latest', updateOnNewBlock);
+          this.#activeListeners[key] = updateOnNewBlock;
+          return;
+        }
+
+        throw new Error(`
+        Unable to retreive blockTracker for networkClientId ${networkClientId} `);
+      }
+
+      // if we're not polling on new blocks, use setTimeout
       const interval = this.#intervalIds[key];
       if (interval) {
         clearTimeout(interval);
@@ -190,5 +252,5 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 class Empty {}
 
 export const PollingControllerOnly = PollingControllerMixin(Empty);
-export const PollingController = PollingControllerMixin(BaseController);
-export const PollingControllerV1 = PollingControllerMixin(BaseControllerV1);
+export const PollingController = PollingControllerMixin(BaseControllerV2);
+export const PollingControllerV1 = PollingControllerMixin(BaseController);
