@@ -1,112 +1,131 @@
-import memfs, { vol } from 'memfs';
+import { createSandbox, writeFile, readFile } from '@metamask/utils/node';
 import path from 'path';
 
 import { readAllFiles, writeFiles } from './fs-utils';
 
-jest.mock('fs', () => memfs.fs);
+const { withinSandbox } = createSandbox('create-package/fs-utils');
 
 describe('create-package/fs-utils', () => {
   describe('readAllFiles', () => {
-    beforeEach(() => {
-      vol.reset();
-    });
-
     it('should read all files and sub-directories in the specified directory', async () => {
-      vol.fromJSON({
-        'dir/file1.txt': 'foo',
-        'dir/file2.txt': 'bar',
-        'dir/file3.txt': 'baz',
-        'dir/subdir1/file4.txt': 'qux',
-      });
+      expect.assertions(1);
 
-      const files = await readAllFiles('dir/');
+      await withinSandbox(async (sandbox) => {
+        const dirPath = path.join(sandbox.directoryPath, 'dir/');
+        await Promise.all(
+          (
+            [
+              ['file1.txt', 'foo'],
+              ['file2.txt', 'bar'],
+              ['file3.txt', 'baz'],
+              ['subdir1/file4.txt', 'qux'],
+            ] as const
+          ).map(async ([filePath, content]) => {
+            await writeFile(path.join(dirPath, filePath), content);
+          }),
+        );
 
-      expect(files).toStrictEqual({
-        'file1.txt': 'foo',
-        'file2.txt': 'bar',
-        'file3.txt': 'baz',
-        subdir1: null,
-        'subdir1/file4.txt': 'qux',
+        const files = await readAllFiles(dirPath);
+
+        expect(files).toStrictEqual({
+          'file1.txt': 'foo',
+          'file2.txt': 'bar',
+          'file3.txt': 'baz',
+          'subdir1/file4.txt': 'qux',
+        });
       });
     });
 
     it('should read all files and sub-directories in the specified directory (deeply nested)', async () => {
-      vol.fromJSON({
-        'dir/file1.txt': 'foo',
-        'dir/file2.txt': 'bar',
-        'dir/file3.txt': 'baz',
-        'dir/subdir1/file4.txt': 'qux',
-        'dir/subdir1/subdir2/subdir3/file5.txt': 'quux',
-      });
+      expect.assertions(1);
 
-      const files = await readAllFiles('dir/');
+      await withinSandbox(async (sandbox) => {
+        const dirPath = path.join(sandbox.directoryPath, 'dir/');
+        await Promise.all(
+          (
+            [
+              ['file1.txt', 'foo'],
+              ['file2.txt', 'bar'],
+              ['file3.txt', 'baz'],
+              ['subdir1/file4.txt', 'qux'],
+              ['subdir1/subdir2/subdir3/file5.txt', 'quux'],
+            ] as const
+          ).map(async ([filePath, content]) => {
+            await writeFile(path.join(dirPath, filePath), content);
+          }),
+        );
 
-      expect(files).toStrictEqual({
-        'file1.txt': 'foo',
-        'file2.txt': 'bar',
-        'file3.txt': 'baz',
-        subdir1: null,
-        'subdir1/file4.txt': 'qux',
-        'subdir1/subdir2': null,
-        'subdir1/subdir2/subdir3': null,
-        'subdir1/subdir2/subdir3/file5.txt': 'quux',
+        const files = await readAllFiles(dirPath);
+
+        expect(files).toStrictEqual({
+          'file1.txt': 'foo',
+          'file2.txt': 'bar',
+          'file3.txt': 'baz',
+          'subdir1/file4.txt': 'qux',
+          'subdir1/subdir2/subdir3/file5.txt': 'quux',
+        });
       });
     });
   });
 
   describe('writeFiles', () => {
-    beforeEach(() => {
-      vol.reset();
-    });
-
     it('should write all files to the specified directory', async () => {
-      vol.fromJSON({
-        'dir/': null,
-      });
+      expect.assertions(4);
 
-      await writeFiles('dir/', {
-        'file1.txt': 'foo',
-        'file2.txt': 'bar',
-        'file3.txt': 'baz',
-        subdir1: null,
-        'subdir1/file4.txt': 'qux',
-      });
+      await withinSandbox(async (sandbox) => {
+        const dirPath = path.join(sandbox.directoryPath, 'dir/');
+        await writeFiles(dirPath, {
+          'file1.txt': 'foo',
+          'file2.txt': 'bar',
+          'file3.txt': 'baz',
+          'subdir1/file4.txt': 'qux',
+        });
 
-      // memfs uses process.cwd() to resolve relative paths, so we need to take
-      // that into account here.
-      expect(vol.toJSON()).toStrictEqual({
-        [path.join(process.cwd(), 'dir/file1.txt')]: 'foo',
-        [path.join(process.cwd(), 'dir/file2.txt')]: 'bar',
-        [path.join(process.cwd(), 'dir/file3.txt')]: 'baz',
-        [path.join(process.cwd(), 'dir/subdir1/file4.txt')]: 'qux',
+        await Promise.all(
+          (
+            [
+              ['file1.txt', 'foo'],
+              ['file2.txt', 'bar'],
+              ['file3.txt', 'baz'],
+              ['subdir1/file4.txt', 'qux'],
+            ] as const
+          ).map(async ([filePath, content]) => {
+            expect(await readFile(path.join(dirPath, filePath))).toStrictEqual(
+              content,
+            );
+          }),
+        );
       });
     });
 
     it('should write all files to the specified directory (deeply nested)', async () => {
-      vol.fromJSON({
-        'dir/': null,
-      });
+      expect.assertions(5);
 
-      await writeFiles('dir/', {
-        'file1.txt': 'foo',
-        'file2.txt': 'bar',
-        'file3.txt': 'baz',
-        subdir1: null,
-        'subdir1/file4.txt': 'qux',
-        'subdir1/subdir2': null,
-        'subdir1/subdir2/subdir3': null,
-        'subdir1/subdir2/subdir3/file5.txt': 'quux',
-      });
+      await withinSandbox(async (sandbox) => {
+        const dirPath = path.join(sandbox.directoryPath, 'dir/');
+        await writeFiles(dirPath, {
+          'file1.txt': 'foo',
+          'file2.txt': 'bar',
+          'file3.txt': 'baz',
+          'subdir1/file4.txt': 'qux',
+          'subdir1/subdir2/subdir3/file5.txt': 'quux',
+        });
 
-      // memfs uses process.cwd() to resolve relative paths, so we need to take
-      // that into account here.
-      expect(vol.toJSON()).toStrictEqual({
-        [path.join(process.cwd(), 'dir/file1.txt')]: 'foo',
-        [path.join(process.cwd(), 'dir/file2.txt')]: 'bar',
-        [path.join(process.cwd(), 'dir/file3.txt')]: 'baz',
-        [path.join(process.cwd(), 'dir/subdir1/file4.txt')]: 'qux',
-        [path.join(process.cwd(), 'dir/subdir1/subdir2/subdir3/file5.txt')]:
-          'quux',
+        await Promise.all(
+          (
+            [
+              ['file1.txt', 'foo'],
+              ['file2.txt', 'bar'],
+              ['file3.txt', 'baz'],
+              ['subdir1/file4.txt', 'qux'],
+              ['subdir1/subdir2/subdir3/file5.txt', 'quux'],
+            ] as const
+          ).map(async ([filePath, content]) => {
+            expect(await readFile(path.join(dirPath, filePath))).toStrictEqual(
+              content,
+            );
+          }),
+        );
       });
     });
   });

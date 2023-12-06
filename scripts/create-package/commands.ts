@@ -46,9 +46,8 @@ const newPackage: CommandModule<object, CreatePackageOptions> = {
 
     return argv as Argv<CreatePackageOptions>;
   },
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   handler: async (args: Arguments<CreatePackageOptions>) =>
-    createPackageHandler(args),
+    await createPackageHandler(args),
 };
 
 const commands = [newPackage];

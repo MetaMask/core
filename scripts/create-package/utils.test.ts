@@ -76,7 +76,7 @@ describe('create-package/utils', () => {
         name: '@metamask/foo',
         description: 'A foo package.',
         directoryName: 'foo',
-        nodeVersions: '20.0.0',
+        nodeVersions: '>=18.0.0',
         currentYear: '2023',
       };
 
@@ -87,13 +87,12 @@ describe('create-package/utils', () => {
         tsConfigBuild: {
           references: [{ path: './packages/bar' }],
         },
-        nodeVersions: '20.0.0',
+        nodeVersions: '>=18.0.0',
       };
 
       (fs.existsSync as jest.Mock).mockReturnValueOnce(false);
 
       (fsUtils.readAllFiles as jest.Mock).mockResolvedValueOnce({
-        src: null,
         'src/index.ts': 'export default 42;',
         'src/index.test.ts': 'export default 42;',
         'mock1.file':
@@ -116,11 +115,10 @@ describe('create-package/utils', () => {
       expect(fsUtils.writeFiles).toHaveBeenCalledWith(
         expect.stringMatching(/packages\/foo$/u),
         {
-          src: null,
           'src/index.ts': 'export default 42;',
           'src/index.test.ts': 'export default 42;',
-          'mock1.file': '2023 20.0.0 @metamask/foo A foo package. foo',
-          'mock2.file': '2023 20.0.0 @metamask/foo',
+          'mock1.file': '2023 >=18.0.0 @metamask/foo A foo package. foo',
+          'mock2.file': '2023 >=18.0.0 @metamask/foo',
           'mock3.file': 'A foo package. foo',
         },
       );

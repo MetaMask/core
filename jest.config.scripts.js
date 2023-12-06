@@ -1,3 +1,9 @@
+// const { pathsToModuleNameMapper } = require('ts-jest')
+// const { compilerOptions } = require('./tsconfig.scripts.json')
+
+// console.log('compilerOptions.paths', compilerOptions.paths);
+// console.log('pathsToModuleNameMapper(compilerOptions.paths)', pathsToModuleNameMapper(compilerOptions.paths));
+
 /*
  * For a detailed explanation regarding each configuration property and type check, visit:
  * https://jestjs.io/docs/configuration
@@ -33,8 +39,21 @@ module.exports = {
     },
   },
 
-  // A preset that is used as a base for Jest's configuration
-  preset: 'ts-jest',
+  // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
+  // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
+  // NOTE: This must be synchronized with the `paths` option in `tsconfig.scripts.json`.
+  // moduleNameMapper: {
+  //   '^@metamask/utils/(.+)$': ['<rootDir>/node_modules/@metamask/utils/dist/types/$1'],
+  // },
+  // moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths),
+
+  // moduleDirectories: ['node_modules'],
+  // modulePaths: ['<rootDir>/node_modules/@metamask/utils/dist/types'],
+  // modulePaths: ['<rootDir>'],
+
+  // Disabled due to use of 'transform' below.
+  // // A preset that is used as a base for Jest's configuration
+  // preset: 'ts-jest',
 
   // "restoreMocks" restores all mocks created using jest.spyOn to their
   // original implementations, between each test. It does not affect mocked
@@ -60,4 +79,18 @@ module.exports = {
 
   // Default timeout of a test in milliseconds.
   testTimeout: 5000,
+
+  // A map from regular expressions to paths to transformers
+  transform: {
+    // '^.+\\.[tj]sx?$' to process js/ts with `ts-jest`
+    // '^.+\\.m?[tj]sx?$' to process js/ts/mjs/mts with `ts-jest`
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.scripts.json',
+        // tsconfig: '<rootDir>/scripts/create-package/tsconfig.json',
+        // tsconfig: require('./tsconfig.scripts.json').compilerOptions,
+      },
+    ],
+  },
 };

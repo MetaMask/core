@@ -1,6 +1,5 @@
 import type { CommandModule } from 'yargs';
 import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
 
 /**
  * The entry point of `create-package`, a yargs application for creating new
@@ -15,7 +14,7 @@ export default async function cli(
   // Parameterized for easier testing.
   commands: CommandModule<any, any>[],
 ) {
-  await yargs(hideBin(argv))
+  await yargs(argv.slice(2))
     .scriptName('create-package')
     // Disable --version. This is an internal tool and it doesn't have one.
     .version(false)
@@ -49,6 +48,5 @@ export default async function cli(
     .showHelpOnFail(false)
     .help()
     .alias('help', 'h')
-    // @ts-expect-error: This is missing from our yargs types.
     .parseAsync();
 }

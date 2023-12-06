@@ -2,8 +2,8 @@ import execa from 'execa';
 import { existsSync, promises as fs } from 'fs';
 import path from 'path';
 import { format as prettierFormat } from 'prettier';
+import type { Options as PrettierOptions } from 'prettier';
 
-import prettierRc from '../../.prettierrc';
 import { MonorepoFiles, Placeholders } from './constants';
 import type { FileMap } from './fs-utils';
 import { readAllFiles, writeFiles } from './fs-utils';
@@ -19,6 +19,13 @@ const allPlaceholdersRegex = new RegExp(
   Object.values(Placeholders).join('|'),
   'gu',
 );
+
+// Our lint config really hates this, but it works.
+// eslint-disable-next-line
+const prettierRc = require(path.join(
+  REPO_ROOT,
+  '.prettierrc.js',
+)) as PrettierOptions;
 
 /**
  * The data necessary to create a new package.
@@ -167,8 +174,7 @@ async function processTemplateFiles(
   const templateFiles = await readAllFiles(PACKAGE_TEMPLATE_DIR);
 
   for (const [relativePath, content] of Object.entries(templateFiles)) {
-    result[relativePath] =
-      content === null ? null : processTemplateContent(packageData, content);
+    result[relativePath] = processTemplateContent(packageData, content);
   }
 
   return result;
