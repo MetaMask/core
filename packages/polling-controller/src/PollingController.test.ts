@@ -83,6 +83,18 @@ describe('PollingController', () => {
       controller.stopAllPolling();
     });
   });
+
+  describe('setIntervalLength', () => {
+    it('should set getNetworkClientById if previously set to undefined when setting interval length', async () => {
+      controller.setPollWithBlockTracker(() => {
+        throw new Error('should not be called');
+      });
+      expect(controller.getPollingWithBlockTracker()).toBe(true);
+      controller.setIntervalLength(1000);
+      expect(controller.getPollingWithBlockTracker()).toBe(false);
+    });
+  });
+
   describe('startPollingByNetworkClientId', () => {
     it('should call _executePoll immediately and on interval if polling', async () => {
       controller.startPollingByNetworkClientId('mainnet');
@@ -248,248 +260,261 @@ describe('PollingController', () => {
         ['sepolia', {}],
       ]);
     });
-  });
-  describe('PollingControllerOnly', () => {
-    it('can be extended from and constructed', async () => {
-      class MyClass extends PollingControllerOnly {
-        _executePoll = createExecutePollMock();
-      }
-      const c = new MyClass();
-      expect(c._executePoll).toBeDefined();
-      expect(c.getIntervalLength).toBeDefined();
-      expect(c.setIntervalLength).toBeDefined();
-      expect(c.stopAllPolling).toBeDefined();
-      expect(c.startPollingByNetworkClientId).toBeDefined();
-      expect(c.stopPollingByPollingToken).toBeDefined();
-    });
-  });
-  describe('startPollingByNetworkClientId after setPollOnNewBlocks', () => {
-    class TestBlockTracker extends EventEmitter {
-      private latestBlockNumber: number;
 
-      public interval: number;
-
-      constructor({ interval } = { interval: 1000 }) {
-        super();
-        this.latestBlockNumber = 0;
-        this.interval = interval;
-        this.start(interval);
-      }
-
-      private start(interval: number) {
-        setInterval(() => {
-          this.latestBlockNumber += 1;
-          this.emit('latest', this.latestBlockNumber);
-        }, interval);
-      }
-    }
-
-    let getNetworkClientById: jest.Mock;
-    let mainnetBlockTracker: TestBlockTracker;
-    let goerliBlockTracker: TestBlockTracker;
-    let sepoliaBlockTracker: TestBlockTracker;
-    beforeEach(() => {
-      mainnetBlockTracker = new TestBlockTracker({ interval: 5 });
-      goerliBlockTracker = new TestBlockTracker({ interval: 10 });
-      sepoliaBlockTracker = new TestBlockTracker({ interval: 15 });
-
-      getNetworkClientById = jest.fn().mockImplementation((networkClientId) => {
-        switch (networkClientId) {
-          case 'mainnet':
-            return {
-              blockTracker: mainnetBlockTracker,
-            };
-          case 'goerli':
-            return {
-              blockTracker: goerliBlockTracker,
-            };
-          case 'sepolia':
-            return {
-              blockTracker: sepoliaBlockTracker,
-            };
-          default:
-            throw new Error(`Unknown networkClientId: ${networkClientId}`);
+    describe('PollingControllerOnly', () => {
+      it('can be extended from and constructed', async () => {
+        class MyClass extends PollingControllerOnly {
+          _executePoll = createExecutePollMock();
         }
+        const c = new MyClass();
+        expect(c._executePoll).toBeDefined();
+        expect(c.getIntervalLength).toBeDefined();
+        expect(c.setIntervalLength).toBeDefined();
+        expect(c.stopAllPolling).toBeDefined();
+        expect(c.startPollingByNetworkClientId).toBeDefined();
+        expect(c.stopPollingByPollingToken).toBeDefined();
       });
     });
+    describe('startPollingByNetworkClientId after setPollWithBlockTracker', () => {
+      class TestBlockTracker extends EventEmitter {
+        private latestBlockNumber: number;
 
-    it('should start polling for the specified networkClientId', async () => {
-      controller.setPollOnNewBlocks(getNetworkClientById);
+        public interval: number;
 
-      controller.startPollingByNetworkClientId('mainnet');
+        constructor({ interval } = { interval: 1000 }) {
+          super();
+          this.latestBlockNumber = 0;
+          this.interval = interval;
+          this.start(interval);
+        }
 
-      expect(getNetworkClientById).toHaveBeenCalledWith('mainnet');
+        private start(interval: number) {
+          setInterval(() => {
+            this.latestBlockNumber += 1;
+            this.emit('latest', this.latestBlockNumber);
+          }, interval);
+        }
+      }
 
-      await advanceTime({ clock, duration: 5 });
+      let getNetworkClientById: jest.Mock;
+      let mainnetBlockTracker: TestBlockTracker;
+      let goerliBlockTracker: TestBlockTracker;
+      let sepoliaBlockTracker: TestBlockTracker;
+      beforeEach(() => {
+        mainnetBlockTracker = new TestBlockTracker({ interval: 5 });
+        goerliBlockTracker = new TestBlockTracker({ interval: 10 });
+        sepoliaBlockTracker = new TestBlockTracker({ interval: 15 });
 
-      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+        getNetworkClientById = jest
+          .fn()
+          .mockImplementation((networkClientId) => {
+            switch (networkClientId) {
+              case 'mainnet':
+                return {
+                  blockTracker: mainnetBlockTracker,
+                };
+              case 'goerli':
+                return {
+                  blockTracker: goerliBlockTracker,
+                };
+              case 'sepolia':
+                return {
+                  blockTracker: sepoliaBlockTracker,
+                };
+              default:
+                throw new Error(`Unknown networkClientId: ${networkClientId}`);
+            }
+          });
+      });
 
-      await advanceTime({ clock, duration: 1 });
+      it('should set the interval length to 0', () => {
+        controller.setPollWithBlockTracker(getNetworkClientById);
 
-      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+        expect(controller.getIntervalLength()).toBe(0);
+      });
 
-      await advanceTime({ clock, duration: 4 });
+      it('should start polling for the specified networkClientId', async () => {
+        controller.setPollWithBlockTracker(getNetworkClientById);
 
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        expect.arrayContaining(['mainnet', {}]),
-        expect.arrayContaining(['mainnet', {}]),
-      ]);
+        controller.startPollingByNetworkClientId('mainnet');
 
-      controller.stopAllPolling();
-    });
+        expect(getNetworkClientById).toHaveBeenCalledWith('mainnet');
 
-    it('should poll on new block intervals for each networkClientId', async () => {
-      controller.setPollOnNewBlocks(getNetworkClientById);
+        await advanceTime({ clock, duration: 5 });
 
-      controller.startPollingByNetworkClientId('mainnet');
-      controller.startPollingByNetworkClientId('goerli');
-      await advanceTime({ clock, duration: 5 });
+        expect(controller._executePoll).toHaveBeenCalledTimes(1);
 
-      expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      expect(controller._executePoll).toHaveBeenCalledWith('mainnet', {}, 1);
+        await advanceTime({ clock, duration: 1 });
 
-      // Start polling for goerli, 10ms interval
-      await advanceTime({ clock, duration: 5 });
+        expect(controller._executePoll).toHaveBeenCalledTimes(1);
 
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['goerli', {}, 1],
-      ]);
+        await advanceTime({ clock, duration: 4 });
 
-      await advanceTime({ clock, duration: 5 });
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          expect.arrayContaining(['mainnet', {}]),
+          expect.arrayContaining(['mainnet', {}]),
+        ]);
 
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['goerli', {}, 1],
-        ['mainnet', {}, 3],
-      ]);
+        controller.stopAllPolling();
+      });
 
-      // 15ms have passed
-      // Start polling for sepolia, 15ms interval
-      controller.startPollingByNetworkClientId('sepolia');
+      it('should poll on new block intervals for each networkClientId', async () => {
+        controller.setPollWithBlockTracker(getNetworkClientById);
 
-      await advanceTime({ clock, duration: 15 });
+        controller.startPollingByNetworkClientId('mainnet');
+        controller.startPollingByNetworkClientId('goerli');
+        await advanceTime({ clock, duration: 5 });
 
-      // at 30ms, 6 blocks have passed for mainnet (every 5ms), 3 for goerli (every 10ms), and 2 for sepolia (every 15ms)
-      // Didn't start listening to sepolia until 15ms had passed, so we only call executePoll on the 2nd block
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['goerli', {}, 1],
-        ['mainnet', {}, 3],
-        ['mainnet', {}, 4],
-        ['goerli', {}, 2],
-        ['mainnet', {}, 5],
-        ['mainnet', {}, 6],
-        ['goerli', {}, 3],
-        ['sepolia', {}, 2],
-      ]);
+        expect(controller._executePoll).toHaveBeenCalledTimes(1);
+        expect(controller._executePoll).toHaveBeenCalledWith('mainnet', {}, 1);
 
-      controller.stopAllPolling();
-    });
+        // Start polling for goerli, 10ms interval
+        await advanceTime({ clock, duration: 5 });
 
-    it('should should stop polling when all polling tokens for a networkClientId are deleted', async () => {
-      controller.setPollOnNewBlocks(getNetworkClientById);
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['goerli', {}, 1],
+        ]);
 
-      const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
+        await advanceTime({ clock, duration: 5 });
 
-      await advanceTime({ clock, duration: 5 });
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['goerli', {}, 1],
+          ['mainnet', {}, 3],
+        ]);
 
-      expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      expect(controller._executePoll).toHaveBeenCalledWith('mainnet', {}, 1);
+        // 15ms have passed
+        // Start polling for sepolia, 15ms interval
+        controller.startPollingByNetworkClientId('sepolia');
 
-      const pollingToken2 = controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 5 });
+        await advanceTime({ clock, duration: 15 });
 
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-      ]);
+        // at 30ms, 6 blocks have passed for mainnet (every 5ms), 3 for goerli (every 10ms), and 2 for sepolia (every 15ms)
+        // Didn't start listening to sepolia until 15ms had passed, so we only call executePoll on the 2nd block
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['goerli', {}, 1],
+          ['mainnet', {}, 3],
+          ['mainnet', {}, 4],
+          ['goerli', {}, 2],
+          ['mainnet', {}, 5],
+          ['mainnet', {}, 6],
+          ['goerli', {}, 3],
+          ['sepolia', {}, 2],
+        ]);
 
-      controller.stopPollingByPollingToken(pollingToken1);
+        controller.stopAllPolling();
+      });
 
-      await advanceTime({ clock, duration: 5 });
+      it('should should stop polling when all polling tokens for a networkClientId are deleted', async () => {
+        controller.setPollWithBlockTracker(getNetworkClientById);
 
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['mainnet', {}, 3],
-      ]);
+        const pollingToken1 =
+          controller.startPollingByNetworkClientId('mainnet');
 
-      controller.stopPollingByPollingToken(pollingToken2);
+        await advanceTime({ clock, duration: 5 });
 
-      await advanceTime({ clock, duration: 15 });
+        expect(controller._executePoll).toHaveBeenCalledTimes(1);
+        expect(controller._executePoll).toHaveBeenCalledWith('mainnet', {}, 1);
 
-      // no further polling should occur
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['mainnet', {}, 3],
-      ]);
+        const pollingToken2 =
+          controller.startPollingByNetworkClientId('mainnet');
+        await advanceTime({ clock, duration: 5 });
 
-      controller.stopAllPolling();
-    });
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+        ]);
 
-    it('should should stop polling when all polling tokens for a networkClientId are deleted, even if other networkClientIds are still polling', async () => {
-      controller.setPollOnNewBlocks(getNetworkClientById);
+        controller.stopPollingByPollingToken(pollingToken1);
 
-      const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
+        await advanceTime({ clock, duration: 5 });
 
-      await advanceTime({ clock, duration: 5 });
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['mainnet', {}, 3],
+        ]);
 
-      expect(controller._executePoll).toHaveBeenCalledWith('mainnet', {}, 1);
+        controller.stopPollingByPollingToken(pollingToken2);
 
-      const pollingToken2 = controller.startPollingByNetworkClientId('mainnet');
+        await advanceTime({ clock, duration: 15 });
 
-      await advanceTime({ clock, duration: 5 });
+        // no further polling should occur
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['mainnet', {}, 3],
+        ]);
 
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-      ]);
+        controller.stopAllPolling();
+      });
 
-      controller.startPollingByNetworkClientId('goerli');
-      await advanceTime({ clock, duration: 5 });
+      it('should should stop polling when all polling tokens for a networkClientId are deleted, even if other networkClientIds are still polling', async () => {
+        controller.setPollWithBlockTracker(getNetworkClientById);
 
-      // 3 blocks have passed for mainnet, 1 for goerli but we only started listening to goerli after 5ms
-      // so the next block will come at 20ms and be the 2nd block for goerli
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['mainnet', {}, 3],
-      ]);
+        const pollingToken1 =
+          controller.startPollingByNetworkClientId('mainnet');
 
-      controller.stopPollingByPollingToken(pollingToken1);
+        await advanceTime({ clock, duration: 5 });
 
-      await advanceTime({ clock, duration: 5 });
+        expect(controller._executePoll).toHaveBeenCalledWith('mainnet', {}, 1);
 
-      // 20ms have passed, 4 blocks for mainnet, 2 for goerli
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['mainnet', {}, 3],
-        ['mainnet', {}, 4],
-        ['goerli', {}, 2],
-      ]);
+        const pollingToken2 =
+          controller.startPollingByNetworkClientId('mainnet');
 
-      controller.stopPollingByPollingToken(pollingToken2);
+        await advanceTime({ clock, duration: 5 });
 
-      await advanceTime({ clock, duration: 20 });
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+        ]);
 
-      // no further polling for mainnet should occur
-      expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', {}, 1],
-        ['mainnet', {}, 2],
-        ['mainnet', {}, 3],
-        ['mainnet', {}, 4],
-        ['goerli', {}, 2],
-        ['goerli', {}, 3],
-        ['goerli', {}, 4],
-      ]);
+        controller.startPollingByNetworkClientId('goerli');
+        await advanceTime({ clock, duration: 5 });
 
-      controller.stopAllPolling();
+        // 3 blocks have passed for mainnet, 1 for goerli but we only started listening to goerli after 5ms
+        // so the next block will come at 20ms and be the 2nd block for goerli
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['mainnet', {}, 3],
+        ]);
+
+        controller.stopPollingByPollingToken(pollingToken1);
+
+        await advanceTime({ clock, duration: 5 });
+
+        // 20ms have passed, 4 blocks for mainnet, 2 for goerli
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['mainnet', {}, 3],
+          ['mainnet', {}, 4],
+          ['goerli', {}, 2],
+        ]);
+
+        controller.stopPollingByPollingToken(pollingToken2);
+
+        await advanceTime({ clock, duration: 20 });
+
+        // no further polling for mainnet should occur
+        expect(controller._executePoll.mock.calls).toMatchObject([
+          ['mainnet', {}, 1],
+          ['mainnet', {}, 2],
+          ['mainnet', {}, 3],
+          ['mainnet', {}, 4],
+          ['goerli', {}, 2],
+          ['goerli', {}, 3],
+          ['goerli', {}, 4],
+        ]);
+
+        controller.stopAllPolling();
+      });
     });
   });
 });

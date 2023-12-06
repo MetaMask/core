@@ -61,6 +61,10 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       return this.#intervalLength;
     }
 
+    getPollingWithBlockTracker() {
+      return this.#getNetworkClientById !== undefined;
+    }
+
     /**
      * Sets the length of the polling interval
      *
@@ -68,17 +72,22 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      */
     setIntervalLength(length: number) {
       this.#intervalLength = length;
+
+      // setting and using an interval is mutually exclusive with polling on new blocks
+      this.#getNetworkClientById = undefined;
     }
 
-    setPollOnNewBlocks(
+    setPollWithBlockTracker(
       getNetworkClientById: (networkClientId: NetworkClientId) => NetworkClient,
     ) {
       if (!getNetworkClientById) {
         throw new Error('getNetworkClientById callback required');
       }
 
-      this.#intervalLength = 0;
       this.#getNetworkClientById = getNetworkClientById;
+
+      // using block times is mutually exclusive with polling on a static interval
+      this.#intervalLength = 0;
     }
 
     /**
