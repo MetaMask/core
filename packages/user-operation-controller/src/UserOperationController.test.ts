@@ -31,6 +31,7 @@ const ERROR_MESSAGE_MOCK = 'Test Error';
 const ERROR_CODE_MOCK = 1234;
 const INTERVAL_MOCK = 1234;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
+const TRANSACTION_HASH_MOCK = '0x456';
 
 const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   chainId: CHAIN_ID_MOCK,
@@ -117,6 +118,13 @@ function createPendingUserOperationTrackerMock(): jest.Mocked<PendingUserOperati
     setIntervalLength: jest.fn(),
     hub: new EventEmitter(),
   } as any;
+}
+
+/**
+ * Waits for all promises to resolve.
+ */
+async function flushPromises() {
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 describe('UserOperationController', () => {
@@ -474,7 +482,7 @@ describe('UserOperationController', () => {
         smartContractAccount,
       });
 
-      await new Promise((resolve) => setImmediate(resolve));
+      await flushPromises();
     });
 
     it('validates arguments', async () => {
@@ -528,6 +536,74 @@ describe('UserOperationController', () => {
       expect(validateSignUserOperationResponseMock).toHaveBeenCalledWith(
         SIGN_USER_OPERATION_RESPONSE_MOCK,
       );
+    });
+
+    it('optionally waits for confirmation', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const { transactionHash } = await controller.addUserOperation(
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      const getTransactionHash = transactionHash();
+
+      await flushPromises();
+
+      const metadata = Object.values(controller.state.userOperations)[0];
+
+      pendingUserOperationTrackerMock.hub.emit('user-operation-confirmed', {
+        ...metadata,
+        transactionHash: TRANSACTION_HASH_MOCK,
+      });
+
+      const transctionHash = await getTransactionHash;
+
+      expect(transctionHash).toBe(TRANSACTION_HASH_MOCK);
+    });
+
+    it('throws if submission failure while waiting for confirmation', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const { transactionHash } = await controller.addUserOperation(
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      bundlerMock.sendUserOperation.mockRejectedValue(
+        new Error(ERROR_MESSAGE_MOCK),
+      );
+
+      await expect(transactionHash()).rejects.toThrow(ERROR_MESSAGE_MOCK);
+    });
+
+    it('throws if confirmation failure while waiting for confirmation', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const { transactionHash } = await controller.addUserOperation(
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      const getTransactionHash = transactionHash();
+
+      await flushPromises();
+
+      const metadata = Object.values(controller.state.userOperations)[0];
+
+      pendingUserOperationTrackerMock.hub.emit(
+        'user-operation-failed',
+        metadata,
+        new Error(ERROR_MESSAGE_MOCK),
+      );
+
+      await expect(getTransactionHash).rejects.toThrow(ERROR_MESSAGE_MOCK);
     });
   });
 

@@ -141,34 +141,18 @@ export class UserOperationController extends BaseController<
     validateAddUserOperationRequest(request);
     validateAddUserOperatioOptions(options);
 
-    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
-    const { chainId, smartContractAccount } = options;
+    const { chainId } = options;
     const metadata = this.#createMetadata(chainId);
     const { id } = metadata;
     let throwError = false;
 
     const hashValue = (async () => {
       try {
-        await this.#prepareUserOperation(
-          to,
-          value,
-          data,
+        return await this.#prepareAndSubmitUserOperation(
           metadata,
-          smartContractAccount,
-          chainId,
+          request,
+          options,
         );
-
-        const bundler = new Bundler(metadata.bundlerUrl as string);
-
-        metadata.userOperation.maxFeePerGas = maxFeePerGas;
-        metadata.userOperation.maxPriorityFeePerGas = maxPriorityFeePerGas;
-
-        await this.#updateGas(metadata, bundler);
-        await this.#addPaymasterData(metadata, smartContractAccount);
-        await this.#signUserOperation(metadata, smartContractAccount);
-        await this.#submitUserOperation(metadata, bundler);
-
-        return metadata.hash as string;
       } catch (error) {
         this.#failUserOperation(metadata, error);
 
@@ -185,9 +169,19 @@ export class UserOperationController extends BaseController<
       return await hashValue;
     };
 
+    const transactionHash = async () => {
+      await hash();
+
+      const { transactionHash: finalTransactionHash } =
+        await this.#waitForConfirmation(metadata);
+
+      return finalTransactionHash;
+    };
+
     return {
       id,
       hash,
+      transactionHash,
     };
   }
 
@@ -195,6 +189,60 @@ export class UserOperationController extends BaseController<
     return this.#pendingUserOperationTracker.startPollingByNetworkClientId(
       networkClientId,
     );
+  }
+
+  async #prepareAndSubmitUserOperation(
+    metadata: UserOperationMetadata,
+    request: {
+      data?: string;
+      maxFeePerGas: string;
+      maxPriorityFeePerGas: string;
+      to?: string;
+      value?: string;
+    },
+    options: { chainId: string; smartContractAccount: SmartContractAccount },
+  ) {
+    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
+    const { chainId, smartContractAccount } = options;
+
+    await this.#prepareUserOperation(
+      to,
+      value,
+      data,
+      metadata,
+      smartContractAccount,
+      chainId,
+    );
+
+    const bundler = new Bundler(metadata.bundlerUrl as string);
+
+    metadata.userOperation.maxFeePerGas = maxFeePerGas;
+    metadata.userOperation.maxPriorityFeePerGas = maxPriorityFeePerGas;
+
+    await this.#updateGas(metadata, bundler);
+    await this.#addPaymasterData(metadata, smartContractAccount);
+    await this.#signUserOperation(metadata, smartContractAccount);
+    await this.#submitUserOperation(metadata, bundler);
+
+    return metadata.hash as string;
+  }
+
+  async #waitForConfirmation(
+    metadata: UserOperationMetadata,
+  ): Promise<UserOperationMetadata> {
+    const { id, hash } = metadata;
+
+    log('Waiting for confirmation', id, hash);
+
+    return new Promise((resolve, reject) => {
+      this.hub.once(`${id}:confirmed`, (finalMetadata) => {
+        resolve(finalMetadata);
+      });
+
+      this.hub.once(`${id}:failed`, (_finalMetadata, error) => {
+        reject(error);
+      });
+    });
   }
 
   #createMetadata(chainId: string): UserOperationMetadata {
