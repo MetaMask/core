@@ -336,10 +336,10 @@ export class TokenRatesController extends BaseController<
    * @param vsCurrency - Query according to tokens in tokenList and native currency.
    * @returns The exchange rates for the given pairs.
    */
-  fetchExchangeRate(
+  async fetchExchangeRate(
     chainSlug: string,
     vsCurrency: string,
-  ): Promise<CoinGeckoResponse>[] {
+  ): Promise<CoinGeckoResponse[]> {
     const tokenPairs = this.tokenList;
 
     const tokenPairsChunks = (chunkSize: number) =>
@@ -356,17 +356,23 @@ export class TokenRatesController extends BaseController<
 
     const tokensPairsChunks = tokenPairsChunks(20);
 
-    return tokensPairsChunks.map((tokenPairsChunk) => {
+    const results: CoinGeckoResponse[] = [];
+    for (const tokenPairsChunk of tokensPairsChunks) {
       const query = `contract_addresses=${tokenPairsChunk.join(
         ',',
       )}&vs_currencies=${vsCurrency.toLowerCase()}`;
-      return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query), {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': this.coinGeckoHeader,
+      const result = await handleFetch(
+        CoinGeckoApi.getTokenPriceURL(chainSlug, query),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': this.coinGeckoHeader,
+          },
         },
-      });
-    });
+      );
+      results.push(result);
+    }
+    return results;
   }
 
   /**
@@ -474,9 +480,7 @@ export class TokenRatesController extends BaseController<
 
     if (nativeCurrencySupported) {
       // If it is we can do a simple fetch against the CoinGecko API
-      const res = await Promise.all(
-        this.fetchExchangeRate(slug, nativeCurrency),
-      );
+      const res = await this.fetchExchangeRate(slug, nativeCurrency);
       const prices = Object.assign({}, ...res);
       this.tokenList.forEach((tokenAddress) => {
         const price = prices[tokenAddress.toLowerCase()];
@@ -494,7 +498,7 @@ export class TokenRatesController extends BaseController<
           tokenExchangeRatesResponse,
           { conversionRate: vsCurrencyToNativeCurrencyConversionRate },
         ] = await Promise.all([
-          Promise.all(this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY)),
+          this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY),
           fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
       } catch (error) {
@@ -513,8 +517,10 @@ export class TokenRatesController extends BaseController<
       for (const [tokenAddress, conversion] of Object.entries(
         tokenExchangeRates,
       )) {
+        const conversionTyped = conversion as { [key: string]: number };
+
         const tokenToVsCurrencyConversionRate =
-          conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
+          conversionTyped[FALL_BACK_VS_CURRENCY.toLowerCase()];
         contractExchangeRates[toChecksumHexAddress(tokenAddress)] =
           tokenToVsCurrencyConversionRate *
           vsCurrencyToNativeCurrencyConversionRate;
