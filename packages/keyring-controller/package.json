@@ -32,7 +32,7 @@
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
     "@metamask/base-controller": "^4.0.0",
-    "@metamask/eth-keyring-controller": "^15.0.0",
+    "@metamask/eth-keyring-controller": "^15.1.0",
     "@metamask/message-manager": "^7.3.6",
     "@metamask/preferences-controller": "^5.0.0",
     "@metamask/utils": "^8.2.0",
@@ -46,7 +46,7 @@
     "@ethereumjs/tx": "^4.2.0",
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
     "@metamask/auto-changelog": "^3.4.3",
-    "@metamask/eth-sig-util": "^7.0.0",
+    "@metamask/eth-sig-util": "^7.0.1",
     "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

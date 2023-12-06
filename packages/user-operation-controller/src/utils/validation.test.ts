@@ -3,7 +3,7 @@
 import { cloneDeep } from 'lodash';
 
 import {
-  validateAddUserOperatioOptions,
+  validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
@@ -245,7 +245,7 @@ describe('validation', () => {
       'throws if %s is %s',
       (propertyName, _valueDecription, value, expectedError) => {
         expectValidationError(
-          validateAddUserOperatioOptions,
+          validateAddUserOperationOptions,
           ADD_USER_OPERATION_OPTIONS_MOCK,
           propertyName,
           value,

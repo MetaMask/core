@@ -15,7 +15,7 @@ import type { UserOperationControllerMessenger } from './UserOperationController
 import { UserOperationController } from './UserOperationController';
 import {
   validateAddUserOperationRequest,
-  validateAddUserOperatioOptions,
+  validateAddUserOperationOptions,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
@@ -139,7 +139,7 @@ describe('UserOperationController', () => {
   );
 
   const validateAddUserOperationOptionsMock = jest.mocked(
-    validateAddUserOperatioOptions,
+    validateAddUserOperationOptions,
   );
 
   const validatePrepareUserOperationResponseMock = jest.mocked(

@@ -20,7 +20,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import { NonceTracker } from 'nonce-tracker';
+import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -213,7 +213,7 @@ function buildMockMessenger({
 
   if (delay) {
     promise = new Promise((res, rej) => {
-      approve = () => res({ resultCallbacks });
+      approve = (value?: any) => res({ resultCallbacks, value });
       reject = rej;
     });
   }
@@ -237,7 +237,7 @@ function buildMockMessenger({
 
   return {
     messenger,
-    approve: approve as unknown as () => void,
+    approve: approve as unknown as (value?: any) => void,
     reject: reject as unknown as (reason: unknown) => void,
   };
 }
@@ -454,7 +454,7 @@ describe('TransactionController', () => {
   let messengerMock: TransactionControllerMessenger;
   let rejectMessengerMock: TransactionControllerMessenger;
   let delayMessengerMock: TransactionControllerMessenger;
-  let approveTransaction: () => void;
+  let approveTransaction: (value?: any) => void;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
@@ -573,7 +573,7 @@ describe('TransactionController', () => {
       releaseLock: () => Promise.resolve(),
     });
 
-    NonceTracker.prototype.getNonceLock = getNonceLockSpy;
+    NonceTrackerPackage.NonceTracker.prototype.getNonceLock = getNonceLockSpy;
 
     incomingTransactionHelperMock = {
       hub: {
@@ -616,6 +616,52 @@ describe('TransactionController', () => {
       expect(controller.config).toStrictEqual({
         txHistoryLimit: 40,
         sign: expect.any(Function),
+      });
+    });
+
+    describe('nonce tracker', () => {
+      it('uses external pending transactions', async () => {
+        const nonceTrackerMock = jest
+          .spyOn(NonceTrackerPackage, 'NonceTracker')
+          .mockImplementation();
+
+        const externalPendingTransactions = [
+          {
+            from: '0x1',
+          },
+          { from: '0x2' },
+        ];
+
+        const getExternalPendingTransactions = jest
+          .fn()
+          .mockReturnValueOnce(externalPendingTransactions);
+
+        const controller = newController({
+          options: { getExternalPendingTransactions },
+        });
+
+        controller.state.transactions = [
+          {
+            ...TRANSACTION_META_MOCK,
+            chainId: MOCK_NETWORK.state.providerConfig.chainId,
+            status: TransactionStatus.submitted,
+          },
+        ];
+
+        const pendingTransactions =
+          nonceTrackerMock.mock.calls[0][0].getPendingTransactions(
+            ACCOUNT_MOCK,
+          );
+
+        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
+        expect(pendingTransactions).toStrictEqual([
+          expect.any(Object),
+          ...externalPendingTransactions,
+        ]);
+        expect(getExternalPendingTransactions).toHaveBeenCalledTimes(1);
+        expect(getExternalPendingTransactions).toHaveBeenCalledWith(
+          ACCOUNT_MOCK,
+        );
       });
     });
 
@@ -1143,10 +1189,12 @@ describe('TransactionController', () => {
       const firstTransaction = controller.state.transactions[0];
 
       // eslint-disable-next-line jest/prefer-spy-on
-      NonceTracker.prototype.getNonceLock = jest.fn().mockResolvedValue({
-        nextNonce: NONCE_MOCK + 1,
-        releaseLock: () => Promise.resolve(),
-      });
+      NonceTrackerPackage.NonceTracker.prototype.getNonceLock = jest
+        .fn()
+        .mockResolvedValue({
+          nextNonce: NONCE_MOCK + 1,
+          releaseLock: () => Promise.resolve(),
+        });
 
       const { result: secondResult } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1340,6 +1388,29 @@ describe('TransactionController', () => {
         }
 
         expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
+      });
+
+      it('updates transaction if approval result includes updated metadata', async () => {
+        const controller = newController();
+
+        const { result } = await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
+
+        const transaction = controller.state.transactions[0];
+
+        approveTransaction({
+          txMeta: { ...transaction, customNonceValue: '123' },
+        });
+
+        await result;
+
+        expect(controller.state.transactions).toStrictEqual([
+          expect.objectContaining({
+            customNonceValue: '123',
+          }),
+        ]);
       });
 
       describe('fails', () => {

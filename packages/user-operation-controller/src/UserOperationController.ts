@@ -18,7 +18,7 @@ import type {
 } from './types';
 import { UserOperationStatus } from './types';
 import {
-  validateAddUserOperatioOptions,
+  validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
@@ -139,7 +139,7 @@ export class UserOperationController extends BaseController<
     options: { chainId: string; smartContractAccount: SmartContractAccount },
   ) {
     validateAddUserOperationRequest(request);
-    validateAddUserOperatioOptions(options);
+    validateAddUserOperationOptions(options);
 
     const { chainId } = options;
     const metadata = this.#createMetadata(chainId);

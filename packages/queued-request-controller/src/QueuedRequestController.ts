@@ -1,7 +1,7 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
-const controllerName = 'QueuedRequestController';
+export const controllerName = 'QueuedRequestController';
 
 export const QueuedRequestControllerActionTypes = {
   enqueueRequest: `${controllerName}:enqueueRequest` as const,
@@ -33,8 +33,8 @@ export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   QueuedRequestControllerActions,
   QueuedRequestControllerEvents,
-  string,
-  string
+  never,
+  never
 >;
 
 export type QueuedRequestControllerOptions = {

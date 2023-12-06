@@ -151,9 +151,9 @@ function setupController({
   ) => Promise<BN>;
 } = {}) {
   const preferences = new PreferencesController();
-  const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
+  const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkStateChangeListeners.forEach((listener) => {
+    onNetworkDidChangeListeners.forEach((listener) => {
       listener({
         ...defaultNetworkState,
         providerConfig,
@@ -202,8 +202,8 @@ function setupController({
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      onNetworkStateChangeListeners.push(listener),
+    onNetworkDidChange: (listener) =>
+      onNetworkDidChangeListeners.push(listener),
     getNetworkClientById: getNetworkClientByIdSpy,
   });
 
@@ -222,7 +222,7 @@ function setupController({
     chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
-      onNetworkStateChangeListeners.push(listener),
+      onNetworkDidChangeListeners.push(listener),
     getERC721AssetName:
       getERC721AssetNameStub ??
       assetsContract.getERC721AssetName.bind(assetsContract),
