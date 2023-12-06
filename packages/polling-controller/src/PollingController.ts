@@ -1,8 +1,9 @@
-import { BaseController, BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
   NetworkClientId,
   NetworkClient,
 } from '@metamask/network-controller';
+import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
@@ -188,6 +189,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 
         if (blockTracker) {
           const updateOnNewBlock = this._executePoll.bind(
+            this,
             networkClientId,
             options,
           );
@@ -252,5 +254,5 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 class Empty {}
 
 export const PollingControllerOnly = PollingControllerMixin(Empty);
-export const PollingController = PollingControllerMixin(BaseControllerV2);
-export const PollingControllerV1 = PollingControllerMixin(BaseController);
+export const PollingController = PollingControllerMixin(BaseController);
+export const PollingControllerV1 = PollingControllerMixin(BaseControllerV1);
