@@ -203,7 +203,7 @@ export function toHex(value: number | string | BN): Hex {
 export async function safelyExecute<T>(
   operation: () => Promise<T>,
   logError = false,
-) {
+): Promise<T | undefined> {
   try {
     return await operation();
   } catch (error: any) {
@@ -227,11 +227,11 @@ export async function safelyExecuteWithTimeout<T>(
   operation: () => Promise<T>,
   logError = false,
   timeout = 500,
-) {
+): Promise<T | undefined> {
   try {
     return await Promise.race([
       operation(),
-      new Promise<Error>((_, reject) =>
+      new Promise<undefined>((_, reject) =>
         setTimeout(() => {
           reject(TIMEOUT_ERROR);
         }, timeout),

@@ -217,7 +217,7 @@ export class AccountTrackerController extends BaseControllerV1<
     addresses: string[],
   ): Promise<Record<string, { balance: string }>> {
     return await Promise.all(
-      addresses.map((address): Promise<[string, string] | Error | undefined> => {
+      addresses.map((address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
           assert(this.ethQuery, 'Provider not set.');
           const balance = await query(this.ethQuery, 'getBalance', [address]);
@@ -226,8 +226,6 @@ export class AccountTrackerController extends BaseControllerV1<
       }),
     ).then((value) => {
       return value.reduce((obj, item) => {
-
-        // TODO: does safelyExecuteWithTimeout return an Error object, which is incorrectly truthy here?
         if (!item) {
           return obj;
         }

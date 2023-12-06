@@ -237,7 +237,7 @@ export class ERC1155Standard {
         : undefined,
     ]);
 
-    if (tokenId) {
+    if (tokenURI) {
       try {
         const response = await timeoutFetch(tokenURI);
         const object = await response.json();
