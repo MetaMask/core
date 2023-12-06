@@ -14,7 +14,7 @@ import type {
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
-  NetworkControllerStateChangeEvent,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
@@ -238,9 +238,9 @@ type AllowedActions =
 type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
   GasFeeControllerActions | AllowedActions,
-  GasFeeControllerEvents | NetworkControllerStateChangeEvent,
+  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
   AllowedActions['type'],
-  NetworkControllerStateChangeEvent['type']
+  NetworkControllerNetworkDidChangeEvent['type']
 >;
 
 const defaultState: GasFeeState = {
@@ -297,7 +297,7 @@ export class GasFeeController extends PollingController<
    * account is EIP-1559 compatible.
    * @param options.getChainId - Returns the current chain ID.
    * @param options.getProvider - Returns a network provider for the current network.
-   * @param options.onNetworkStateChange - A function for registering an event handler for the
+   * @param options.onNetworkDidChange - A function for registering an event handler for the
    * network state change event.
    * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
    * testing purposes.
@@ -314,7 +314,7 @@ export class GasFeeController extends PollingController<
     getChainId,
     getCurrentNetworkLegacyGasAPICompatibility,
     getProvider,
-    onNetworkStateChange,
+    onNetworkDidChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint,
     clientId,
@@ -327,7 +327,7 @@ export class GasFeeController extends PollingController<
     getCurrentAccountEIP1559Compatibility?: () => boolean;
     getChainId?: () => Hex;
     getProvider: () => ProviderProxy;
-    onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
+    onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint: string;
     clientId?: string;
@@ -354,19 +354,19 @@ export class GasFeeController extends PollingController<
 
     this.ethQuery = new EthQuery(this.#getProvider());
 
-    if (onNetworkStateChange && getChainId) {
+    if (onNetworkDidChange && getChainId) {
       this.currentChainId = getChainId();
-      onNetworkStateChange(async (networkControllerState) => {
-        await this.#onNetworkControllerStateChange(networkControllerState);
+      onNetworkDidChange(async (networkControllerState) => {
+        await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
       this.currentChainId = this.messagingSystem.call(
         'NetworkController:getState',
       ).providerConfig.chainId;
       this.messagingSystem.subscribe(
-        'NetworkController:stateChange',
+        'NetworkController:networkDidChange',
         async (networkControllerState) => {
-          await this.#onNetworkControllerStateChange(networkControllerState);
+          await this.#onNetworkControllerDidChange(networkControllerState);
         },
       );
     }
@@ -579,7 +579,7 @@ export class GasFeeController extends PollingController<
     );
   }
 
-  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
+  async #onNetworkControllerDidChange(networkControllerState: NetworkState) {
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {

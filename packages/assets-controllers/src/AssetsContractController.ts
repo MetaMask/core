@@ -102,7 +102,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -111,14 +111,14 @@ export class AssetsContractController extends BaseControllerV1<
     {
       chainId: initialChainId,
       onPreferencesStateChange,
-      onNetworkStateChange,
+      onNetworkDidChange,
       getNetworkClientById,
     }: {
       chainId: Hex;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
-      onNetworkStateChange: (
+      onNetworkDidChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
       getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -139,7 +139,7 @@ export class AssetsContractController extends BaseControllerV1<
       this.configure({ ipfsGateway });
     });
 
-    onNetworkStateChange((networkState) => {
+    onNetworkDidChange((networkState) => {
       if (this.config.chainId !== networkState.providerConfig.chainId) {
         this.configure({
           chainId: networkState.providerConfig.chainId,
