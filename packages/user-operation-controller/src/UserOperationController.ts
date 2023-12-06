@@ -23,7 +23,7 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation';
 
-const GAS_BUFFER = 1.5;
+const GAS_ESTIMATE_MULTIPLIER = 1.5;
 
 const controllerName = 'UserOperationController';
 
@@ -267,7 +267,7 @@ export class UserOperationController extends BaseController<
       await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
 
     const normalizeGas = (value: number) =>
-      toHex(Math.round(value * GAS_BUFFER));
+      toHex(Math.round(value * GAS_ESTIMATE_MULTIPLIER));
 
     userOperation.callGasLimit = normalizeGas(callGasLimit);
     userOperation.preVerificationGas = normalizeGas(preVerificationGas);
