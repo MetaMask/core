@@ -91,19 +91,18 @@ export class EnsController extends BaseController<
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.provider - Provider instance.
-   * @param options.onNetworkStateChange - Allows registering an event handler for
-   * when the network controller state updated.
+   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    */
   constructor({
     messenger,
     state = {},
     provider,
-    onNetworkStateChange,
+    onNetworkDidChange,
   }: {
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
-    onNetworkStateChange?: (
+    onNetworkDidChange?: (
       listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
     ) => void;
   }) {
@@ -117,8 +116,8 @@ export class EnsController extends BaseController<
       },
     });
 
-    if (provider && onNetworkStateChange) {
-      onNetworkStateChange((networkState) => {
+    if (provider && onNetworkDidChange) {
+      onNetworkDidChange((networkState) => {
         this.resetState();
         const currentChainId = networkState.providerConfig.chainId;
         if (this.#getChainEnsSupport(currentChainId)) {

@@ -27,20 +27,34 @@ export async function determineTransactionType(
   ethQuery: EthQuery,
 ): Promise<InferTransactionTypeResult> {
   const { data, to } = txParams;
-  const name = parseStandardTokenTransactionData(data)?.name;
 
   if (data && !to) {
     return { type: TransactionType.deployContract, getCodeResponse: undefined };
   }
 
-  const { contractCode: resultCode, isContractAddress } =
+  const { contractCode: getCodeResponse, isContractAddress } =
     await readAddressAsContract(ethQuery, to);
 
   if (!isContractAddress) {
-    return { type: TransactionType.simpleSend, getCodeResponse: resultCode };
+    return { type: TransactionType.simpleSend, getCodeResponse };
   }
 
-  const hasValue = txParams.value && Number(txParams.value) !== 0;
+  const hasValue = Number(txParams.value ?? '0') !== 0;
+
+  const contractInteractionResult = {
+    type: TransactionType.contractInteraction,
+    getCodeResponse,
+  };
+
+  if (!data || hasValue) {
+    return contractInteractionResult;
+  }
+
+  const name = parseStandardTokenTransactionData(data)?.name;
+
+  if (!name) {
+    return contractInteractionResult;
+  }
 
   const tokenMethodName = [
     TransactionType.tokenMethodApprove,
@@ -48,16 +62,13 @@ export async function determineTransactionType(
     TransactionType.tokenMethodTransfer,
     TransactionType.tokenMethodTransferFrom,
     TransactionType.tokenMethodSafeTransferFrom,
-  ].find((methodName) => methodName.toLowerCase() === name?.toLowerCase());
+  ].find((methodName) => methodName.toLowerCase() === name.toLowerCase());
 
-  if (data && tokenMethodName && !hasValue) {
-    return { type: tokenMethodName, getCodeResponse: resultCode };
+  if (tokenMethodName) {
+    return { type: tokenMethodName, getCodeResponse };
   }
 
-  return {
-    type: TransactionType.contractInteraction,
-    getCodeResponse: resultCode,
-  };
+  return contractInteractionResult;
 }
 
 /**
