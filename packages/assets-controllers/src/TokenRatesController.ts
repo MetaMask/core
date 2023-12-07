@@ -146,7 +146,7 @@ export class TokenRatesController extends PollingControllerV1<
 
   #tokenPricesService: AbstractTokenPricesService;
 
-  #inProcessExchangeRateUpdate: Record<Hex, Promise<void>> = {};
+  #inProcessExchangeRateUpdate: Record<`${Hex}:${string}`, Promise<void>> = {};
 
   /**
    * Name of this controller used during composition
@@ -362,11 +362,12 @@ export class TokenRatesController extends PollingControllerV1<
       return;
     }
 
-    if (chainId in this.#inProcessExchangeRateUpdate) {
+    const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}`;
+    if (updateKey in this.#inProcessExchangeRateUpdate) {
       // This prevents redundant updates
       // This promise is resolved after the in-progress update has finished,
       // and state has been updated.
-      await this.#inProcessExchangeRateUpdate[chainId];
+      await this.#inProcessExchangeRateUpdate[updateKey];
       return;
     }
 
@@ -375,7 +376,7 @@ export class TokenRatesController extends PollingControllerV1<
       resolve: updateSucceeded,
       reject: updateFailed,
     } = deferredPromise({ suppressUnhandledRejection: true });
-    this.#inProcessExchangeRateUpdate[chainId] = inProgressUpdate;
+    this.#inProcessExchangeRateUpdate[updateKey] = inProgressUpdate;
 
     try {
       const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
@@ -413,7 +414,7 @@ export class TokenRatesController extends PollingControllerV1<
       updateFailed(error);
       throw error;
     } finally {
-      delete this.#inProcessExchangeRateUpdate[chainId];
+      delete this.#inProcessExchangeRateUpdate[updateKey];
     }
   }
 
