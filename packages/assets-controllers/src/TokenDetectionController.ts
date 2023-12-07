@@ -154,6 +154,10 @@ export class TokenDetectionController extends PollingController<
     this.addDetectedTokens = addDetectedTokens;
     this.getBalancesInSingleCall = getBalancesInSingleCall;
 
+    this.messagingSystem.unregisterActionHandler(
+      'TokenDetectionController:getState',
+    );
+
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
       ({ tokenList }) => {
