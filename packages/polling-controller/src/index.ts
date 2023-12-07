@@ -1,5 +1,11 @@
 export {
-  PollingController,
-  PollingControllerV1,
-  PollingControllerOnly,
-} from './PollingController';
+  BlockTrackerPollingControllerOnly,
+  BlockTrackerPollingController,
+  BlockTrackerPollingControllerV1,
+} from './BlockTrackerPollingController';
+
+export {
+  StaticIntervalPollingControllerOnly,
+  StaticIntervalPollingController,
+  StaticIntervalPollingControllerV1,
+} from './StaticIntervalPollingController';
