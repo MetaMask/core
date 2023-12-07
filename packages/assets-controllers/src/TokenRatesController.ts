@@ -335,11 +335,6 @@ export class TokenRatesController extends PollingControllerV1<
       nativeCurrency,
       tokenContractAddresses,
     });
-
-    this.update({
-      contractExchangeRates:
-        this.state.contractExchangeRatesByChainId[chainId][nativeCurrency],
-    });
   }
 
   /**
@@ -369,20 +364,29 @@ export class TokenRatesController extends PollingControllerV1<
       nativeCurrency,
     });
 
+    const existingContractExchangeRates = this.state.contractExchangeRates;
+    const updatedContractExchangeRates =
+      chainId === this.config.chainId &&
+      nativeCurrency === this.config.nativeCurrency
+        ? newContractExchangeRates
+        : existingContractExchangeRates;
+
     const existingContractExchangeRatesForChainId =
       this.state.contractExchangeRatesByChainId[chainId] ?? {};
-
-    this.update({
-      contractExchangeRatesByChainId: {
-        ...this.state.contractExchangeRatesByChainId,
-        [chainId]: {
-          ...existingContractExchangeRatesForChainId,
-          [nativeCurrency]: {
-            ...existingContractExchangeRatesForChainId[nativeCurrency],
-            ...newContractExchangeRates,
-          },
+    const updatedContractExchangeRatesForChainId = {
+      ...this.state.contractExchangeRatesByChainId,
+      [chainId]: {
+        ...existingContractExchangeRatesForChainId,
+        [nativeCurrency]: {
+          ...existingContractExchangeRatesForChainId[nativeCurrency],
+          ...newContractExchangeRates,
         },
       },
+    };
+
+    this.update({
+      contractExchangeRates: updatedContractExchangeRates,
+      contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
     });
   }
 
