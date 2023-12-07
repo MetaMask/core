@@ -1305,7 +1305,7 @@ describe('TokenRatesController', () => {
       });
     }
 
-    it('updates exchange rates when native currency is not supported by coingecko', async () => {
+    it('updates exchange rates when native currency is not supported by the Price API', async () => {
       const tokenAddresses = [
         '0x0000000000000000000000000000000000000001',
         '0x0000000000000000000000000000000000000002',
@@ -1387,7 +1387,7 @@ describe('TokenRatesController', () => {
       );
     });
 
-    it('sets rates to undefined when chain is not supported by coingecko', async () => {
+    it('sets rates to undefined when chain is not supported by the Price API', async () => {
       const tokenAddresses = [
         '0x0000000000000000000000000000000000000001',
         '0x0000000000000000000000000000000000000002',
