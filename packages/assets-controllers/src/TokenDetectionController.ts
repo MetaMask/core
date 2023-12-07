@@ -12,7 +12,6 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
-  NetworkState,
 } from '@metamask/network-controller';
 import { PollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -29,28 +28,9 @@ import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
+export const controllerName = 'TokenDetectionController';
 
-/**
- * @type TokenDetectionState
- *
- * TokenDetection state
- * @property interval - Polling interval used to fetch new token rates
- * @property selectedAddress - Vault selected address
- * @property chainId - The chain ID of the current network
- * @property disabled - Determines if this controller is enabled
- * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
- * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
- */
-export type TokenDetectionState = {
-  interval: number;
-  selectedAddress: string;
-  chainId: Hex;
-  disabled: boolean;
-  isDetectionEnabledFromPreferences: boolean;
-  isDetectionEnabledForNetwork: boolean;
-};
-
-const controllerName = 'TokenDetectionController';
+export type TokenDetectionState = Record<never, never>;
 
 export type TokenDetectionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -60,7 +40,7 @@ export type TokenDetectionControllerGetStateAction = ControllerGetStateAction<
 export type TokenDetectionControllerActions =
   TokenDetectionControllerGetStateAction;
 
-type AllowedActions =
+export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | GetTokenListState;
@@ -71,7 +51,9 @@ export type TokenDetectionControllerStateChangeEvent =
 export type TokenDetectionControllerEvents =
   TokenDetectionControllerStateChangeEvent;
 
-type AllowedEvents = NetworkControllerStateChangeEvent | TokenListStateChange;
+export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | TokenListStateChange;
 
 export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -151,14 +133,9 @@ export class TokenDetectionController extends PollingController<
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
     addDetectedTokens: TokensController['addDetectedTokens'];
     getTokensState: () => TokensState;
-    getNetworkState: () => NetworkState;
     getPreferencesState: () => PreferencesState;
     messenger: TokenDetectionControllerMessenger;
-    state?: TokenDetectionState;
   }) {
-    const {
-      providerConfig: { chainId: defaultChainId },
-    } = getNetworkState();
     const { useTokenDetection: defaultUseTokenDetection } =
       getPreferencesState();
 
@@ -300,7 +277,7 @@ export class TokenDetectionController extends PollingController<
   async detectTokens(options?: {
     networkClientId?: NetworkClientId;
     accountAddress?: string;
-  }) {
+  }): Promise<void> {
     const { networkClientId, accountAddress } = options ?? {};
     if (
       this.#disabled ||
