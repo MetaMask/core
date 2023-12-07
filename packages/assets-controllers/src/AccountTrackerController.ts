@@ -74,8 +74,8 @@ export class AccountTrackerController extends PollingControllerV1<
   private handle?: ReturnType<typeof setTimeout>;
 
   private syncAccounts(newChainId: string) {
-    const accounts = cloneDeep(this.state.accounts)
-    const accountsByChainId = cloneDeep(this.state.accountsByChainId)
+    const accounts = cloneDeep(this.state.accounts);
+    const accountsByChainId = cloneDeep(this.state.accountsByChainId);
 
     const existing = Object.keys(accounts);
     if (!accountsByChainId[newChainId]) {
