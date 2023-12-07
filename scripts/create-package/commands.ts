@@ -1,4 +1,8 @@
-import type { Argv, CommandModule, Arguments } from 'yargs';
+import type {
+  Argv,
+  CommandModule as YargsCommandModule,
+  Arguments,
+} from 'yargs';
 
 import type { PackageData } from './utils';
 import { finalizeAndWriteData, readMonorepoFiles } from './utils';
@@ -8,11 +12,16 @@ export type CreatePackageOptions = {
   description: string;
 };
 
+export type CommandModule = YargsCommandModule<object, CreatePackageOptions> & {
+  command: string;
+  handler: (args: Arguments<CreatePackageOptions>) => Promise<void>;
+};
+
 /**
  * The yargs command for creating a new monorepo package.
  */
-const newPackage: CommandModule<object, CreatePackageOptions> = {
-  command: 'new',
+const defaultCommand: CommandModule = {
+  command: '$0',
   describe: 'Create a new monorepo package.',
   builder: (argv: Argv<object>) => {
     argv
@@ -33,12 +42,19 @@ const newPackage: CommandModule<object, CreatePackageOptions> = {
         },
       })
       .example(
-        '$0 new --name fabulous-package --description "A fabulous package."',
+        '$0 --name fabulous-package --description "A fabulous package."',
         'Create a new package with the given name and description.',
       )
       .check((args) => {
-        if (!(args.name as string).startsWith('@metamask/')) {
-          args.name = `@metamask/${args.name as string}`;
+        if (!args.name || typeof args.name !== 'string') {
+          throw new Error('Missing required argument: "name"');
+        }
+        if (!args.description || typeof args.description !== 'string') {
+          throw new Error('Missing required argument: "description"');
+        }
+
+        if (!args.name.startsWith('@metamask/')) {
+          args.name = `@metamask/${args.name}`;
         }
 
         return true;
@@ -50,8 +66,12 @@ const newPackage: CommandModule<object, CreatePackageOptions> = {
     await createPackageHandler(args),
 };
 
-const commands = [newPackage];
-export default commands;
+// export type CommandKeys = 'default';
+
+export const commands = [defaultCommand];
+export const commandMap = {
+  $0: defaultCommand,
+};
 
 /**
  * Creates a new monorepo package.

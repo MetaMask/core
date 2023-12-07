@@ -1,22 +1,8 @@
-import type { CommandModule } from 'yargs';
-
 import cli from './cli';
-import commands from './commands';
+import { commands, commandMap } from './commands';
 import * as utils from './utils';
 
 jest.mock('./utils');
-
-/**
- * A map of command names to command modules, as opposed to the array expected
- * by yargs.
- */
-const commandMap = (commands as CommandModule[]).reduce<
-  Record<string, CommandModule>
->((map, commandModule) => {
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  map[commandModule.command! as string] = commandModule;
-  return map;
-}, {});
 
 /**
  * Returns a mock `process.argv` array with the provided arguments. Includes
@@ -30,17 +16,16 @@ function getMockArgv(...args: string[]) {
 }
 
 /**
- * Returns the parsed `yargs.Arguments` object for a given command, name, and
+ * Returns the parsed `yargs.Arguments` object for a given package name and
  * description.
  *
- * @param command - The command.
- * @param name - The name.
- * @param description - The description.
+ * @param name - The package name.
+ * @param description - The package description.
  * @returns The parsed argv object.
  */
-function getParsedArgv(command: string, name: string, description: string) {
+function getParsedArgv(name: string, description: string) {
   return {
-    _: [command],
+    _: [],
     $0: 'create-package',
     name: `@metamask/${name}`,
     description,
@@ -48,9 +33,10 @@ function getParsedArgv(command: string, name: string, description: string) {
 }
 
 describe('create-package/cli', () => {
-  beforeEach(async () => {
-    // yargs calls process.exit(1) on failure. We have to intercept it.
-    jest.spyOn(process, 'exit').mockImplementationOnce((code?: number) => {
+  beforeEach(() => {
+    // yargs calls process.exit() with 1 on failure and sometimes 0 on success.
+    // We have to intercept it.
+    jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
       if (code === 1) {
         throw new Error('exit: 1');
       } else {
@@ -67,49 +53,23 @@ describe('create-package/cli', () => {
     delete process.exitCode;
   });
 
-  it('should display help if requested', async () => {
-    expect(await cli(getMockArgv('help'), commands)).toBeUndefined();
+  it('should error if a string option contains only whitespace', async () => {
+    const defaultCommand = commandMap.$0;
+    jest.spyOn(defaultCommand, 'handler').mockImplementation();
 
-    expect(console.log).toHaveBeenCalledWith(
-      expect.stringMatching(/^create-package <cmd> \[args\]/u),
-    );
-  });
-
-  it('should error if no command is specified', async () => {
-    await expect(cli(getMockArgv(), commands)).rejects.toThrow('exit: 1');
-
-    expect(console.error).toHaveBeenCalledWith(
-      'You must specify a command. See --help.',
-    );
-  });
-
-  it('should error if more than one command is specified', async () => {
-    await expect(cli(getMockArgv('foo', 'bar'), commands)).rejects.toThrow(
+    await expect(cli(getMockArgv('--name', '  '), commands)).rejects.toThrow(
       'exit: 1',
     );
-
-    expect(console.error).toHaveBeenCalledWith(
-      'You may not specify more than one command. See --help.',
-    );
-  });
-
-  it('should error if a string option contains only whitespace', async () => {
-    const newCommand = commandMap.new;
-    jest.spyOn(newCommand, 'handler').mockImplementation();
-
-    await expect(
-      cli(getMockArgv('new', '--name', '  '), commands),
-    ).rejects.toThrow('exit: 1');
 
     expect(console.error).toHaveBeenCalledWith(
       'The argument "name" was processed to an empty string. Please provide a value with non-whitespace characters.',
     );
   });
 
-  describe('command: new', () => {
+  describe('command: $0', () => {
     it('should call the command handler with the correct arguments', async () => {
-      const newCommand = commandMap.new;
-      jest.spyOn(newCommand, 'handler');
+      const defaultCommand = commandMap.$0;
+      jest.spyOn(defaultCommand, 'handler');
 
       jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
         tsConfig: {},
@@ -120,31 +80,57 @@ describe('create-package/cli', () => {
 
       expect(
         await cli(
-          getMockArgv('new', '--name', 'foo', '--description', 'bar'),
+          getMockArgv('--name', 'foo', '--description', 'bar'),
           commands,
         ),
       ).toBeUndefined();
 
-      expect(newCommand.handler).toHaveBeenCalledTimes(1);
-      expect(newCommand.handler).toHaveBeenCalledWith(
-        expect.objectContaining(getParsedArgv('new', 'foo', 'bar')),
+      expect(defaultCommand.handler).toHaveBeenCalledTimes(1);
+      expect(defaultCommand.handler).toHaveBeenCalledWith(
+        expect.objectContaining(getParsedArgv('foo', 'bar')),
       );
     });
 
     it('should create a new package', async () => {
-      const newCommand = commandMap.new;
-      jest.spyOn(newCommand, 'handler').mockImplementation();
+      const defaultCommand = commandMap.$0;
+      jest.spyOn(defaultCommand, 'handler').mockImplementation();
 
       expect(
         await cli(
-          getMockArgv('new', '--name', 'foo', '--description', 'bar'),
+          getMockArgv('--name', 'foo', '--description', 'bar'),
           commands,
         ),
       ).toBeUndefined();
 
-      expect(newCommand.handler).toHaveBeenCalledTimes(1);
-      expect(newCommand.handler).toHaveBeenCalledWith(
-        expect.objectContaining(getParsedArgv('new', 'foo', 'bar')),
+      expect(defaultCommand.handler).toHaveBeenCalledTimes(1);
+      expect(defaultCommand.handler).toHaveBeenCalledWith(
+        expect.objectContaining(getParsedArgv('foo', 'bar')),
+      );
+    });
+
+    it('should error if the package name is missing', async () => {
+      const defaultCommand = commandMap.$0;
+      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+
+      await expect(
+        cli(getMockArgv('--description', 'bar'), commands),
+      ).rejects.toThrow('exit: 1');
+
+      expect(console.error).toHaveBeenCalledWith(
+        'Missing required argument: "name"',
+      );
+    });
+
+    it('should error if the package description is missing', async () => {
+      const defaultCommand = commandMap.$0;
+      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+
+      await expect(cli(getMockArgv('--name', 'foo'), commands)).rejects.toThrow(
+        'exit: 1',
+      );
+
+      expect(console.error).toHaveBeenCalledWith(
+        'Missing required argument: "description"',
       );
     });
   });
