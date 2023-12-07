@@ -74,7 +74,7 @@ export class AccountTrackerController extends PollingControllerV1<
   private handle?: ReturnType<typeof setTimeout>;
 
   private syncAccounts(newChainId: string) {
-    const accounts = cloneDeep(this.state.accounts);
+    const accounts = { ...this.state.accounts };
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
 
     const existing = Object.keys(accounts);
@@ -274,7 +274,7 @@ export class AccountTrackerController extends PollingControllerV1<
         ? Object.keys(accounts)
         : [this.getSelectedAddress()];
 
-      const accountsForChain = cloneDeep(accountsByChainId[chainId]);
+      const accountsForChain = { ...accountsByChainId[chainId] };
       for (const address of accountsToUpdate) {
         accountsForChain[address] = {
           balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
