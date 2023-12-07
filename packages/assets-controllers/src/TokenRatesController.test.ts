@@ -17,6 +17,7 @@ import type { TokenRatesConfig } from './TokenRatesController';
 import type { TokensState } from './TokensController';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
+const mockTokenAddress = '0x0000000000000000000000000000000000000010';
 
 describe('TokenRatesController', () => {
   afterEach(() => {
@@ -127,7 +128,12 @@ describe('TokenRatesController', () => {
             allTokens: {
               '0x1': {
                 [defaultSelectedAddress]: [
-                  { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+                  {
+                    address: mockTokenAddress,
+                    decimals: 0,
+                    symbol: '',
+                    aggregators: [],
+                  },
                 ],
               },
             },
@@ -144,7 +150,12 @@ describe('TokenRatesController', () => {
           allTokens: {
             '0x1': {
               [defaultSelectedAddress]: [
-                { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+                {
+                  address: mockTokenAddress,
+                  decimals: 0,
+                  symbol: '',
+                  aggregators: [],
+                },
               ],
             },
           },
@@ -162,7 +173,12 @@ describe('TokenRatesController', () => {
         const allTokens = {
           '0x1': {
             [defaultSelectedAddress]: [
-              { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+              {
+                address: mockTokenAddress,
+                decimals: 0,
+                symbol: '',
+                aggregators: [],
+              },
             ],
           },
         };
@@ -196,7 +212,12 @@ describe('TokenRatesController', () => {
           allDetectedTokens,
           allTokens,
           tokens: [
-            { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+            {
+              address: mockTokenAddress,
+              decimals: 0,
+              symbol: '',
+              aggregators: [],
+            },
           ],
         });
 
@@ -226,7 +247,12 @@ describe('TokenRatesController', () => {
             allTokens: {
               '0x1': {
                 [defaultSelectedAddress]: [
-                  { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+                  {
+                    address: mockTokenAddress,
+                    decimals: 0,
+                    symbol: '',
+                    aggregators: [],
+                  },
                 ],
               },
             },
@@ -242,7 +268,12 @@ describe('TokenRatesController', () => {
           allTokens: {
             '0x1': {
               [defaultSelectedAddress]: [
-                { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+                {
+                  address: mockTokenAddress,
+                  decimals: 0,
+                  symbol: '',
+                  aggregators: [],
+                },
               ],
             },
           },
@@ -256,6 +287,10 @@ describe('TokenRatesController', () => {
         const onTokensStateChange = jest.fn().mockImplementation((listener) => {
           tokenStateChangeListener = listener;
         });
+        const tokenAddresses = [
+          '0x0000000000000000000000000000000000000010',
+          '0x0000000000000000000000000000000000000020',
+        ];
         const controller = new TokenRatesController(
           {
             interval: 100,
@@ -272,7 +307,12 @@ describe('TokenRatesController', () => {
             allDetectedTokens: {
               [toHex(1)]: {
                 [defaultSelectedAddress]: [
-                  { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+                  {
+                    address: tokenAddresses[0],
+                    decimals: 0,
+                    symbol: '',
+                    aggregators: [],
+                  },
                 ],
               },
             },
@@ -288,7 +328,12 @@ describe('TokenRatesController', () => {
           allDetectedTokens: {
             [toHex(1)]: {
               [defaultSelectedAddress]: [
-                { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+                {
+                  address: tokenAddresses[1],
+                  decimals: 0,
+                  symbol: '',
+                  aggregators: [],
+                },
               ],
             },
           },
@@ -764,7 +809,12 @@ describe('TokenRatesController', () => {
             allTokens: {
               '0x1': {
                 [defaultSelectedAddress]: [
-                  { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+                  {
+                    address: mockTokenAddress,
+                    decimals: 0,
+                    symbol: '',
+                    aggregators: [],
+                  },
                 ],
               },
             },
@@ -803,7 +853,12 @@ describe('TokenRatesController', () => {
             allTokens: {
               '0x1': {
                 [defaultSelectedAddress]: [
-                  { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+                  {
+                    address: mockTokenAddress,
+                    decimals: 0,
+                    symbol: '',
+                    aggregators: [],
+                  },
                 ],
               },
             },
@@ -836,26 +891,40 @@ describe('TokenRatesController', () => {
       const interval = 100;
       const tokenPricesService = buildMockTokenPricesService();
       jest.spyOn(tokenPricesService, 'fetchTokenPrices');
-      const controller = new TokenRatesController({
-        interval,
-        chainId: '0x2',
-        ticker: 'ticker',
-        selectedAddress: '0xdeadbeef',
-        onPreferencesStateChange: jest.fn(),
-        onTokensStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
-        getNetworkClientById: jest.fn().mockReturnValue({
-          configuration: {
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
+      const controller = new TokenRatesController(
+        {
+          interval,
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: defaultSelectedAddress,
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn().mockReturnValue({
+            configuration: {
+              chainId: '0x1',
+              ticker: NetworksTicker.mainnet,
+            },
+          }),
+          tokenPricesService,
+        },
+        {
+          allTokens: {
+            '0x1': {
+              [defaultSelectedAddress]: [
+                {
+                  address: mockTokenAddress,
+                  decimals: 0,
+                  symbol: '',
+                  aggregators: [],
+                },
+              ],
+            },
           },
-        }),
-        tokenPricesService,
-      });
+        },
+      );
 
-      controller.startPollingByNetworkClientId('mainnet', {
-        tokenAddresses: ['0x0'],
-      });
+      controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
 
@@ -875,25 +944,45 @@ describe('TokenRatesController', () => {
               return currency === 'ETH';
             },
           });
-          const controller = new TokenRatesController({
-            chainId: '0x2',
-            ticker: 'ticker',
-            selectedAddress: '0xdeadbeef',
-            onPreferencesStateChange: jest.fn(),
-            onTokensStateChange: jest.fn(),
-            onNetworkStateChange: jest.fn(),
-            getNetworkClientById: jest.fn().mockReturnValue({
-              configuration: {
-                chainId: '0x1',
-                ticker: NetworksTicker.mainnet,
+          const controller = new TokenRatesController(
+            {
+              chainId: '0x2',
+              ticker: 'ticker',
+              selectedAddress: defaultSelectedAddress,
+              onPreferencesStateChange: jest.fn(),
+              onTokensStateChange: jest.fn(),
+              onNetworkStateChange: jest.fn(),
+              getNetworkClientById: jest.fn().mockReturnValue({
+                configuration: {
+                  chainId: '0x1',
+                  ticker: NetworksTicker.mainnet,
+                },
+              }),
+              tokenPricesService,
+            },
+            {
+              allTokens: {
+                '0x1': {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: '0x02',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                    {
+                      address: '0x03',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
               },
-            }),
-            tokenPricesService,
-          });
+            },
+          );
 
-          controller.startPollingByNetworkClientId('mainnet', {
-            tokenAddresses: ['0x02', '0x03'],
-          });
+          controller.startPollingByNetworkClientId('mainnet');
           await advanceTime({ clock, duration: 0 });
 
           expect(controller.state.contractExchangeRatesByChainId).toStrictEqual(
@@ -921,25 +1010,45 @@ describe('TokenRatesController', () => {
               return currency !== 'LOL';
             },
           });
-          const controller = new TokenRatesController({
-            chainId: '0x2',
-            ticker: 'ticker',
-            selectedAddress: '0xdeadbeef',
-            onPreferencesStateChange: jest.fn(),
-            onTokensStateChange: jest.fn(),
-            onNetworkStateChange: jest.fn(),
-            getNetworkClientById: jest.fn().mockReturnValue({
-              configuration: {
-                chainId: '0x1',
-                ticker: 'LOL',
+          const controller = new TokenRatesController(
+            {
+              chainId: '0x2',
+              ticker: 'ticker',
+              selectedAddress: defaultSelectedAddress,
+              onPreferencesStateChange: jest.fn(),
+              onTokensStateChange: jest.fn(),
+              onNetworkStateChange: jest.fn(),
+              getNetworkClientById: jest.fn().mockReturnValue({
+                configuration: {
+                  chainId: '0x1',
+                  ticker: 'LOL',
+                },
+              }),
+              tokenPricesService,
+            },
+            {
+              allTokens: {
+                '0x1': {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: '0x02',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                    {
+                      address: '0x03',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
               },
-            }),
-            tokenPricesService,
-          });
+            },
+          );
 
-          controller.startPollingByNetworkClientId('mainnet', {
-            tokenAddresses: ['0x02', '0x03'],
-          });
+          controller.startPollingByNetworkClientId('mainnet');
           // flush promises and advance setTimeouts they enqueue 3 times
           // needed because fetch() doesn't resolve immediately, so any
           // downstream promises aren't flushed until the next advanceTime loop
@@ -967,25 +1076,45 @@ describe('TokenRatesController', () => {
             );
 
           const tokenPricesService = buildMockTokenPricesService();
-          const controller = new TokenRatesController({
-            chainId: '0x2',
-            ticker: 'ETH',
-            selectedAddress: '0xdeadbeef',
-            onPreferencesStateChange: jest.fn(),
-            onTokensStateChange: jest.fn(),
-            onNetworkStateChange: jest.fn(),
-            getNetworkClientById: jest.fn().mockReturnValue({
-              configuration: {
-                chainId: '0x1',
-                ticker: 'LOL',
+          const controller = new TokenRatesController(
+            {
+              chainId: '0x2',
+              ticker: 'ETH',
+              selectedAddress: defaultSelectedAddress,
+              onPreferencesStateChange: jest.fn(),
+              onTokensStateChange: jest.fn(),
+              onNetworkStateChange: jest.fn(),
+              getNetworkClientById: jest.fn().mockReturnValue({
+                configuration: {
+                  chainId: '0x1',
+                  ticker: 'LOL',
+                },
+              }),
+              tokenPricesService,
+            },
+            {
+              allTokens: {
+                '0x1': {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: '0x02',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                    {
+                      address: '0x03',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
               },
-            }),
-            tokenPricesService,
-          });
+            },
+          );
 
-          controller.startPollingByNetworkClientId('mainnet', {
-            tokenAddresses: ['0x02', '0x03'],
-          });
+          controller.startPollingByNetworkClientId('mainnet');
           // flush promises and advance setTimeouts they enqueue 3 times
           // needed because fetch() doesn't resolve immediately, so any
           // downstream promises aren't flushed until the next advanceTime loop
@@ -1007,26 +1136,40 @@ describe('TokenRatesController', () => {
       const interval = 100;
       const tokenPricesService = buildMockTokenPricesService();
       jest.spyOn(tokenPricesService, 'fetchTokenPrices');
-      const controller = new TokenRatesController({
-        interval,
-        chainId: '0x2',
-        ticker: 'ticker',
-        selectedAddress: '0xdeadbeef',
-        onPreferencesStateChange: jest.fn(),
-        onTokensStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
-        getNetworkClientById: jest.fn().mockReturnValue({
-          configuration: {
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
+      const controller = new TokenRatesController(
+        {
+          interval,
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: defaultSelectedAddress,
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn().mockReturnValue({
+            configuration: {
+              chainId: '0x1',
+              ticker: NetworksTicker.mainnet,
+            },
+          }),
+          tokenPricesService,
+        },
+        {
+          allTokens: {
+            '0x1': {
+              [defaultSelectedAddress]: [
+                {
+                  address: mockTokenAddress,
+                  decimals: 0,
+                  symbol: '',
+                  aggregators: [],
+                },
+              ],
+            },
           },
-        }),
-        tokenPricesService,
-      });
+        },
+      );
 
-      const pollingToken = controller.startPollingByNetworkClientId('mainnet', {
-        tokenAddresses: ['0x0'],
-      });
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
 
@@ -1596,6 +1739,12 @@ async function callUpdateExchangeRatesMethod({
       'The "setChainAsCurrent" flag cannot be enabled when calling the "updateExchangeRates" method',
     );
   }
+  // Note that the state given here is intentionally incomplete because the
+  // controller only uses these two properties, and the tests are written to
+  // only consider these two. We want this to break if we start relying on
+  // more, as we'd need to update the tests accordingly.
+  // @ts-expect-error Intentionally incomplete state
+  controllerEvents.tokensStateChange({ allDetectedTokens: {}, allTokens });
 
   if (setChainAsCurrent) {
     // We're using controller events here instead of calling `configure`
@@ -1610,24 +1759,14 @@ async function callUpdateExchangeRatesMethod({
       // @ts-expect-error Intentionally incomplete state
       providerConfig: { chainId, ticker: nativeCurrency },
     });
-    // Note that the state given here is intentionally incomplete because the
-    // controller only uses these two properties, and the tests are written to
-    // only consider these two. We want this to break if we start relying on
-    // more, as we'd need to update the tests accordingly.
-    // @ts-expect-error Intentionally incomplete state
-    controllerEvents.tokensStateChange({ allDetectedTokens: {}, allTokens });
   }
 
   if (method === 'updateExchangeRates') {
     await controller.updateExchangeRates();
   } else {
-    const { selectedAddress } = controller.config;
-    const tokens = allTokens[chainId]?.[selectedAddress] || [];
-    const tokenContractAddresses = tokens.map((token) => toHex(token.address));
     await controller.updateExchangeRatesByChainId({
       chainId,
       nativeCurrency,
-      tokenContractAddresses,
     });
   }
 }
