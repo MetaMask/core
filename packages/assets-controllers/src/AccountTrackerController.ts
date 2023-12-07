@@ -15,6 +15,7 @@ import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import { cloneDeep } from 'lodash';
 
 /**
  * @type AccountInformation
@@ -73,7 +74,8 @@ export class AccountTrackerController extends PollingControllerV1<
   private handle?: ReturnType<typeof setTimeout>;
 
   private syncAccounts(newChainId: string) {
-    const { accounts, accountsByChainId } = this.state;
+    const accounts = cloneDeep(this.state.accounts)
+    const accountsByChainId = cloneDeep(this.state.accountsByChainId)
 
     const existing = Object.keys(accounts);
     if (!accountsByChainId[newChainId]) {
@@ -272,7 +274,7 @@ export class AccountTrackerController extends PollingControllerV1<
         ? Object.keys(accounts)
         : [this.getSelectedAddress()];
 
-      const accountsForChain = accountsByChainId[chainId];
+      const accountsForChain = cloneDeep(accountsByChainId[chainId]);
       for (const address of accountsToUpdate) {
         accountsForChain[address] = {
           balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
@@ -280,14 +282,14 @@ export class AccountTrackerController extends PollingControllerV1<
       }
 
       this.update({
+        ...(chainId === this.getCurrentChainId() && {
+          accounts: accountsForChain,
+        }),
         accountsByChainId: {
           ...this.state.accountsByChainId,
           [chainId]: accountsForChain,
         },
       });
-      if (chainId === this.getCurrentChainId()) {
-        this.update({ accounts: accountsForChain });
-      }
     } catch (err) {
       releaseLock();
       throw err;
