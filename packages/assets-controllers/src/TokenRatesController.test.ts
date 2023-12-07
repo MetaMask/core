@@ -862,40 +862,140 @@ describe('TokenRatesController', () => {
       expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(3);
     });
 
-    it('should update state on poll', async () => {
-      const interval = 100;
-      const tokenPricesService = buildMockTokenPricesService({
-        fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
-      });
-      const controller = new TokenRatesController({
-        interval,
-        chainId: '0x2',
-        ticker: 'ticker',
-        selectedAddress: '0xdeadbeef',
-        onPreferencesStateChange: jest.fn(),
-        onTokensStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
-        getNetworkClientById: jest.fn().mockReturnValue({
-          configuration: {
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
-          },
-        }),
-        tokenPricesService,
+    describe('updating state on poll', () => {
+      describe('when the native currency is supported', () => {
+        it('returns the exchange rates directly', async () => {
+          const tokenPricesService = buildMockTokenPricesService({
+            fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+            validateCurrencySupported(currency: unknown): currency is string {
+              return currency === 'ETH';
+            },
+          });
+          const controller = new TokenRatesController({
+            chainId: '0x2',
+            ticker: 'ticker',
+            selectedAddress: '0xdeadbeef',
+            onPreferencesStateChange: jest.fn(),
+            onTokensStateChange: jest.fn(),
+            onNetworkStateChange: jest.fn(),
+            getNetworkClientById: jest.fn().mockReturnValue({
+              configuration: {
+                chainId: '0x1',
+                ticker: NetworksTicker.mainnet,
+              },
+            }),
+            tokenPricesService,
+          });
+
+          controller.startPollingByNetworkClientId('mainnet', {
+            tokenAddresses: ['0x02', '0x03'],
+          });
+          await advanceTime({ clock, duration: 0 });
+
+          expect(controller.state.contractExchangeRatesByChainId).toStrictEqual(
+            {
+              '0x1': {
+                ETH: {
+                  '0x02': 0.001,
+                  '0x03': 0.002,
+                },
+              },
+            },
+          );
+          controller.stopAllPolling();
+        });
       });
 
-      controller.startPollingByNetworkClientId('mainnet', {
-        tokenAddresses: ['0x02', '0x03'],
-      });
-      await advanceTime({ clock, duration: 0 });
+      describe('when the native currency is not supported', () => {
+        it('returns the exchange rates using ETH as a fallback currency', async () => {
+          nock('https://min-api.cryptocompare.com')
+            .get('/data/price?fsym=ETH&tsyms=LOL')
+            .reply(200, { LOL: 0.5 });
+          const tokenPricesService = buildMockTokenPricesService({
+            fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+            validateCurrencySupported(currency: unknown): currency is string {
+              return currency !== 'LOL';
+            },
+          });
+          const controller = new TokenRatesController({
+            chainId: '0x2',
+            ticker: 'ticker',
+            selectedAddress: '0xdeadbeef',
+            onPreferencesStateChange: jest.fn(),
+            onTokensStateChange: jest.fn(),
+            onNetworkStateChange: jest.fn(),
+            getNetworkClientById: jest.fn().mockReturnValue({
+              configuration: {
+                chainId: '0x1',
+                ticker: 'LOL',
+              },
+            }),
+            tokenPricesService,
+          });
 
-      expect(controller.state.contractExchangeRatesByChainId).toStrictEqual({
-        '0x1': {
-          ETH: {
-            '0x02': 0.001,
-            '0x03': 0.002,
-          },
-        },
+          controller.startPollingByNetworkClientId('mainnet', {
+            tokenAddresses: ['0x02', '0x03'],
+          });
+          // flush promises and advance setTimeouts they enqueue 3 times
+          // needed because fetch() doesn't resolve immediately, so any
+          // downstream promises aren't flushed until the next advanceTime loop
+          await advanceTime({ clock, duration: 1, stepSize: 1 / 3 });
+
+          expect(controller.state.contractExchangeRatesByChainId).toStrictEqual(
+            {
+              '0x1': {
+                LOL: {
+                  // token price in LOL = (token price in ETH) * (ETH value in LOL)
+                  '0x02': 0.0005,
+                  '0x03': 0.001,
+                },
+              },
+            },
+          );
+          controller.stopAllPolling();
+        });
+
+        it('returns the an empty object when market does not exist for pair', async () => {
+          nock('https://min-api.cryptocompare.com')
+            .get('/data/price?fsym=ETH&tsyms=LOL')
+            .replyWithError(
+              new Error('market does not exist for this coin pair'),
+            );
+
+          const tokenPricesService = buildMockTokenPricesService();
+          const controller = new TokenRatesController({
+            chainId: '0x2',
+            ticker: 'ETH',
+            selectedAddress: '0xdeadbeef',
+            onPreferencesStateChange: jest.fn(),
+            onTokensStateChange: jest.fn(),
+            onNetworkStateChange: jest.fn(),
+            getNetworkClientById: jest.fn().mockReturnValue({
+              configuration: {
+                chainId: '0x1',
+                ticker: 'LOL',
+              },
+            }),
+            tokenPricesService,
+          });
+
+          controller.startPollingByNetworkClientId('mainnet', {
+            tokenAddresses: ['0x02', '0x03'],
+          });
+          // flush promises and advance setTimeouts they enqueue 3 times
+          // needed because fetch() doesn't resolve immediately, so any
+          // downstream promises aren't flushed until the next advanceTime loop
+          await advanceTime({ clock, duration: 1, stepSize: 1 / 3 });
+
+          expect(controller.state.contractExchangeRatesByChainId).toStrictEqual(
+            {
+              '0x1': {
+                LOL: {},
+              },
+            },
+          );
+          controller.stopAllPolling();
+        });
       });
     });
 
@@ -1179,110 +1279,6 @@ describe('TokenRatesController', () => {
             '0x03': 0.001,
           },
         },
-      });
-    });
-  });
-
-  describe('fetchAndMapExchangeRates', () => {
-    describe('when the native currency is supported', () => {
-      it('returns the exchange rates directly', async () => {
-        const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
-          validateCurrencySupported(currency: unknown): currency is string {
-            return currency === 'ETH';
-          },
-        });
-        const controller = new TokenRatesController({
-          chainId: '0x2',
-          ticker: 'ticker',
-          selectedAddress: '0xdeadbeef',
-          onPreferencesStateChange: jest.fn(),
-          onTokensStateChange: jest.fn(),
-          onNetworkStateChange: jest.fn(),
-          getNetworkClientById: jest.fn(),
-          tokenPricesService,
-        });
-
-        const contractExchangeRates = await controller.fetchAndMapExchangeRates(
-          {
-            nativeCurrency: 'ETH',
-            chainId: '0x1',
-            tokenContractAddresses: ['0x02', '0x03'],
-          },
-        );
-
-        expect(contractExchangeRates).toStrictEqual({
-          '0x02': 0.001,
-          '0x03': 0.002,
-        });
-      });
-    });
-
-    describe('when the native currency is not supported', () => {
-      it('returns the exchange rates using ETH as a fallback currency', async () => {
-        nock('https://min-api.cryptocompare.com')
-          .get('/data/price?fsym=ETH&tsyms=LOL')
-          .reply(200, { LOL: 0.5 });
-        const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
-          validateCurrencySupported(currency: unknown): currency is string {
-            return currency !== 'LOL';
-          },
-        });
-        const controller = new TokenRatesController({
-          chainId: '0x2',
-          ticker: 'ticker',
-          selectedAddress: '0xdeadbeef',
-          onPreferencesStateChange: jest.fn(),
-          onTokensStateChange: jest.fn(),
-          onNetworkStateChange: jest.fn(),
-          getNetworkClientById: jest.fn(),
-          tokenPricesService,
-        });
-
-        const contractExchangeRates = await controller.fetchAndMapExchangeRates(
-          {
-            chainId: '0x1',
-            nativeCurrency: 'LOL',
-            tokenContractAddresses: ['0x02', '0x03'],
-          },
-        );
-
-        expect(contractExchangeRates).toStrictEqual({
-          // token price in LOL = (token price in ETH) * (ETH value in LOL)
-          '0x02': 0.0005,
-          '0x03': 0.001,
-        });
-      });
-
-      it('returns the an empty object when market does not exist for pair', async () => {
-        nock('https://min-api.cryptocompare.com')
-          .get('/data/price?fsym=ETH&tsyms=LOL')
-          .replyWithError(
-            new Error('market does not exist for this coin pair'),
-          );
-
-        const tokenPricesService = buildMockTokenPricesService();
-        const controller = new TokenRatesController({
-          chainId: '0x2',
-          ticker: 'ETH',
-          selectedAddress: '0xdeadbeef',
-          onPreferencesStateChange: jest.fn(),
-          onTokensStateChange: jest.fn(),
-          onNetworkStateChange: jest.fn(),
-          getNetworkClientById: jest.fn(),
-          tokenPricesService,
-        });
-
-        const contractExchangeRates = await controller.fetchAndMapExchangeRates(
-          {
-            chainId: '0x1',
-            nativeCurrency: 'LOL',
-            tokenContractAddresses: ['0x02', '0x03'],
-          },
-        );
-
-        expect(contractExchangeRates).toStrictEqual({});
       });
     });
   });

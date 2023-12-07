@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/keyring-controller",
-  "version": "10.0.0",
-  "description": "Stores identities seen in the wallet and manages interactions such as signing",
+  "name": "@metamask/user-operation-controller",
+  "version": "0.0.0",
+  "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/keyring-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/user-operation-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -22,7 +22,8 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/user-operation-controller",
+    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
@@ -30,37 +31,23 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
     "@metamask/base-controller": "^4.0.0",
-    "@metamask/eth-keyring-controller": "^15.1.0",
-    "@metamask/message-manager": "^7.3.6",
-    "@metamask/preferences-controller": "^5.0.0",
+    "@metamask/controller-utils": "^6.1.0",
     "@metamask/utils": "^8.2.0",
-    "async-mutex": "^0.2.6",
-    "ethereumjs-util": "^7.0.10",
-    "ethereumjs-wallet": "^1.0.1",
-    "immer": "^9.0.6"
+    "immer": "^9.0.6",
+    "lodash": "^4.17.21",
+    "superstruct": "^1.0.3",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@ethereumjs/common": "^3.2.0",
-    "@ethereumjs/tx": "^4.2.0",
-    "@keystonehq/bc-ur-registry-eth": "^0.9.0",
     "@metamask/auto-changelog": "^3.4.3",
-    "@metamask/eth-sig-util": "^7.0.1",
-    "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "jest-environment-node": "^27.5.1",
-    "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.8.4",
-    "uuid": "^8.3.2"
-  },
-  "peerDependencies": {
-    "@metamask/preferences-controller": "^5.0.0"
+    "typescript": "~4.8.4"
   },
   "engines": {
     "node": ">=16.0.0"

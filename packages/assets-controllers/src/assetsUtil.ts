@@ -150,6 +150,8 @@ export enum SupportedTokenDetectionNetworks {
   linea_mainnet = '0xe708', // decimal: 59144
   arbitrum = '0xa4b1', // decimal: 42161
   optimism = '0xa', // decimal: 10
+  base = '0x2105', // decimal: 8453
+  zksync = '0x144', // decimal: 324
 }
 
 /**
