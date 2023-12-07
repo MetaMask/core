@@ -25,7 +25,7 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation';
 
-const GAS_BUFFER = 1.5;
+const GAS_ESTIMATE_MULTIPLIER = 1.5;
 const DEFAULT_INTERVAL = 10 * 1000; // 10 Seconds
 
 const controllerName = 'UserOperationController';
@@ -163,7 +163,7 @@ export class UserOperationController extends BaseController<
     validateAddUserOperationOptions(options);
 
     const { chainId } = options;
-    const metadata = this.#createMetadata(chainId);
+    const metadata = this.#createEmptyMetadata(chainId);
     const { id } = metadata;
     let throwError = false;
 
@@ -266,7 +266,7 @@ export class UserOperationController extends BaseController<
     });
   }
 
-  #createMetadata(chainId: string): UserOperationMetadata {
+  #createEmptyMetadata(chainId: string): UserOperationMetadata {
     const metadata: UserOperationMetadata = {
       actualGasCost: null,
       actualGasUsed: null,
@@ -367,7 +367,7 @@ export class UserOperationController extends BaseController<
       await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
 
     const normalizeGas = (value: number) =>
-      toHex(Math.round(value * GAS_BUFFER));
+      toHex(Math.round(value * GAS_ESTIMATE_MULTIPLIER));
 
     userOperation.callGasLimit = normalizeGas(callGasLimit);
     userOperation.preVerificationGas = normalizeGas(preVerificationGas);
@@ -476,6 +476,7 @@ export class UserOperationController extends BaseController<
     const { id } = metadata;
 
     this.update((state) => {
+      // Controller state is immutable but we need a copy we can update.
       state.userOperations[id] = cloneDeep(metadata);
     });
   }
