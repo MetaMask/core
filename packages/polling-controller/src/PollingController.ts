@@ -51,7 +51,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       Set<(networkClientId: NetworkClientId) => void>
     > = new Map();
 
-    #intervalLength = 1000;
+    #intervalLength: number | undefined = 1000;
 
     #getNetworkClientById:
       | ((networkClientId: NetworkClientId) => NetworkClient)
@@ -87,7 +87,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       this.#getNetworkClientById = getNetworkClientById;
 
       // using block times is mutually exclusive with polling on a static interval
-      this.#intervalLength = 0;
+      this.#intervalLength = undefined;
     }
 
     /**
@@ -143,13 +143,15 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
           found = true;
           tokenSet.delete(pollingToken);
           if (tokenSet.size === 0) {
+            // if applicable stop polling on a static interval
             if (this.#intervalIds[key]) {
               clearTimeout(this.#intervalIds[key]);
               delete this.#intervalIds[key];
-            }
-
-            // if applicable stop listening for new blocks
-            if (this.#getNetworkClientById !== undefined) {
+            } else if (
+              // if applicable stop listening for new blocks
+              this.#getNetworkClientById !== undefined &&
+              this.#activeListeners[key]
+            ) {
               const [networkClientId] = key.split(':');
               const { blockTracker } =
                 this.#getNetworkClientById(networkClientId);
@@ -210,7 +212,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
         }
 
         throw new Error(`
-        Unable to retreive blockTracker for networkClientId ${networkClientId} `);
+        Unable to retrieve blockTracker for networkClientId ${networkClientId} `);
       }
 
       // if we're not polling on new blocks, use setTimeout

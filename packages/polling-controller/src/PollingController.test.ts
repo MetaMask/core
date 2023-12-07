@@ -85,7 +85,7 @@ describe('PollingController', () => {
   });
 
   describe('setIntervalLength', () => {
-    it('should set getNetworkClientById if previously set to undefined when setting interval length', async () => {
+    it('should set getNetworkClientById (if previously set by setPollWithBlockTracker) to undefined when setting interval length', async () => {
       controller.setPollWithBlockTracker(() => {
         throw new Error('should not be called');
       });
@@ -136,6 +136,7 @@ describe('PollingController', () => {
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
     });
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
+      controller.setIntervalLength(TICK_TIME);
       const pollToken1 = controller.startPollingByNetworkClientId('mainnet', {
         address: '0x1',
       });
@@ -180,30 +181,30 @@ describe('PollingController', () => {
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
-      controller.startPollingByNetworkClientId('goerli');
+      controller.startPollingByNetworkClientId('rinkeby');
       await advanceTime({ clock, duration: 0 });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
         ['mainnet', {}],
-        ['goerli', {}],
+        ['rinkeby', {}],
       ]);
       await advanceTime({ clock, duration: TICK_TIME });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
         ['mainnet', {}],
-        ['goerli', {}],
+        ['rinkeby', {}],
         ['mainnet', {}],
-        ['goerli', {}],
+        ['rinkeby', {}],
       ]);
       await advanceTime({ clock, duration: TICK_TIME });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
         ['mainnet', {}],
-        ['goerli', {}],
+        ['rinkeby', {}],
         ['mainnet', {}],
-        ['goerli', {}],
+        ['rinkeby', {}],
         ['mainnet', {}],
-        ['goerli', {}],
+        ['rinkeby', {}],
       ]);
       controller.stopAllPolling();
     });
@@ -327,10 +328,10 @@ describe('PollingController', () => {
           });
       });
 
-      it('should set the interval length to 0', () => {
+      it('should set the interval length to undefined', () => {
         controller.setPollWithBlockTracker(getNetworkClientById);
 
-        expect(controller.getIntervalLength()).toBe(0);
+        expect(controller.getIntervalLength()).toBeUndefined();
       });
 
       it('should start polling for the specified networkClientId', async () => {
@@ -368,7 +369,6 @@ describe('PollingController', () => {
         expect(controller._executePoll).toHaveBeenCalledTimes(1);
         expect(controller._executePoll).toHaveBeenCalledWith('mainnet', {}, 1);
 
-        // Start polling for goerli, 10ms interval
         await advanceTime({ clock, duration: 5 });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -450,11 +450,9 @@ describe('PollingController', () => {
           ['mainnet', {}, 2],
           ['mainnet', {}, 3],
         ]);
-
-        controller.stopAllPolling();
       });
 
-      it('should should stop polling when all polling tokens for a networkClientId are deleted, even if other networkClientIds are still polling', async () => {
+      it('should should stop polling for one networkClientId when all polling tokens for that networkClientId are deleted, without stopping polling for networkClientIds with active pollingTokens', async () => {
         controller.setPollWithBlockTracker(getNetworkClientById);
 
         const pollingToken1 =
