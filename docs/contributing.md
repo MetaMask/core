@@ -163,28 +163,32 @@ To use a preview build for a package within a project, you need to override the 
 
 The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process.
 
-1. **Create a release branch.**
+1. **Initiate the release branch and specify packages to be released.**
 
-   Run `yarn create-release-branch`. This tool generates a file and opens it in your editor, where you can specify which packages you want to include in the next release and which versions they should receive. Instructions are provided for you at the top; read them and update the file accordingly.
+   1. **Create the release branch.**
 
-   When you're ready to continue, save and close the file.
+      Start by running `yarn create-release-branch`. This command creates a branch named `release/<new release version>` which will represent the new release.
 
-2. **Update changelogs for relevant packages.**
+   2. **Specify packages to release along with their versions.**
 
-   At this point you will be on a new release branch, and a new section will have been added to the changelog of each package you specified in the previous step.
+      At this point, you need to tell the tool which packages you want to include in the next release and which versions to assign to those packages. You do this by modifying a YAML file called a "release spec", which the tool has generated and opened it in your editor. Follow the instructions at the top of the file to proceed.
 
-   For each changelog, review the new section and make the appropriate changes:
+      To assist you, the tool has also updated all of the packages that have been changed since their previous releases so that their changelogs now reflect those new changes. This should help you to understand what will be released and how to bump the versions.
 
-   - Move each entry into the appropriate category (review the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/#types) spec for the full list of categories and the correct ordering of all categories).
-   - Remove any changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
-   - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
-   - Consolidate related changes into one change entry if it makes it easier to comprehend.
+      Once you save and close the release spec, the tool will proceed.
 
-   Run `yarn changelog:validate` to check that all changelogs are correctly formatted.
+2. **Review and update changelogs for relevant packages.**
 
-   Commit and push the branch.
+   1. At this point, the versions of all packages you intend to release have been bumped and their changelogs list new changes. Now you need to go through each changelog and make sure that they follow existing standards:
 
-3. **Submit a pull request for the release branch so that it can be reviewed and tested.**
+      - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines.
+      - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+      - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
+      - Consolidate related changes into single entries where appropriate.
+
+   2. Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
+
+3. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
 
    Make sure the title of the pull request follows the pattern "Release \<new version\>".
 
@@ -201,3 +205,26 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
    The `publish-release` GitHub Action workflow runs the `publish-npm` job, which publishes relevant packages to NPM. It requires approval from the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team to complete. If you're not on the team, ask a member to approve it for you; otherwise, approve the job.
 
    Once the `publish-npm` job has finished, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
+
+### Handling common errors
+
+If an error occurs, re-edit the release spec and rerun `yarn create-release-branch`. Common errors include:
+
+- **Invalid Version Specifier:**
+
+  - Error: `* Line 14: "invalid_version" is not a valid version specifier...`
+  - Resolution: Use "major", "minor", "patch", or a specific version number like "1.2.3".
+
+- **Version Less than or Equal to Current:**
+
+  - Error: `* Line 14: "1.2.3" is not a valid version specifier...`
+  - Resolution: Specify a version greater than the current version of the package.
+
+- **Releasing Packages with Breaking Changes:**
+
+  - Error: `* The following dependents of package '@metamask/a'...`
+  - Resolution: Include dependent packages in the release or use "intentionally-skip" if certain they are unaffected.
+
+- **Dependencies/Peer Dependencies Missing:**
+  - Error: `* The following packages, which are dependencies...`
+  - Resolution: Include necessary dependencies or peer dependencies in the release or use "intentionally-skip" if certain they are unaffected.
