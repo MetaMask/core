@@ -11,7 +11,6 @@ import type {
 } from './token-prices-service/abstract-token-prices-service';
 import { TokenRatesController } from './TokenRatesController';
 
-const ADDRESS = '0x01';
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
 
 describe('TokenRatesController', () => {
@@ -1057,63 +1056,6 @@ describe('TokenRatesController', () => {
 
       expect(tokenPricesService.fetchTokenPrices).not.toHaveBeenCalled();
     });
-
-    it('should update legacy state after updateExchangeRatesByChainId', async () => {
-      const controller = new TokenRatesController(
-        {
-          chainId: '0x1',
-          ticker: NetworksTicker.mainnet,
-          selectedAddress: defaultSelectedAddress,
-          onPreferencesStateChange: jest.fn(),
-          onTokensStateChange: jest.fn(),
-          onNetworkStateChange: jest.fn(),
-          getNetworkClientById: jest.fn(),
-          tokenPricesService: buildMockTokenPricesService(),
-        },
-        {
-          allTokens: {
-            '0x1': {
-              [defaultSelectedAddress]: [
-                {
-                  address: '0x123',
-                  decimals: 18,
-                  symbol: 'DAI',
-                  aggregators: [],
-                },
-                { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
-              ],
-            },
-          },
-        },
-      );
-
-      const updateExchangeRatesByChainIdSpy = jest
-        .spyOn(controller, 'updateExchangeRatesByChainId')
-        .mockResolvedValue();
-
-      // Setting mock state as if updateExchangeRatesByChainId updated it
-      controller.state.contractExchangeRatesByChainId = {
-        '0x1': {
-          [NetworksTicker.mainnet]: {
-            '0x123': 123,
-            '0x01': 100,
-          },
-        },
-      };
-
-      await controller.updateExchangeRates();
-
-      expect(updateExchangeRatesByChainIdSpy).toHaveBeenCalledWith({
-        chainId: '0x1',
-        nativeCurrency: NetworksTicker.mainnet,
-        tokenContractAddresses: ['0x123', ADDRESS],
-      });
-
-      expect(controller.state.contractExchangeRates).toStrictEqual({
-        '0x123': 123,
-        '0x01': 100,
-      });
-    });
   });
 
   describe('updateExchangeRatesByChainId', () => {
@@ -1279,6 +1221,48 @@ describe('TokenRatesController', () => {
             '0x03': 0.001,
           },
         },
+      });
+    });
+
+    it('should update legacy state to match keyed state if chainId matches globally selected chainId', async () => {
+      const controller = new TokenRatesController(
+        {
+          chainId: '0x2',
+          ticker: 'ticker',
+          selectedAddress: '0xdeadbeef',
+          onPreferencesStateChange: jest.fn(),
+          onTokensStateChange: jest.fn(),
+          onNetworkStateChange: jest.fn(),
+          getNetworkClientById: jest.fn(),
+          tokenPricesService: buildMockTokenPricesService({
+            validateChainIdSupported(chainId: unknown): chainId is Hex {
+              return chainId !== '0x2';
+            },
+          }),
+        },
+        {},
+        {
+          contractExchangeRates: {},
+          contractExchangeRatesByChainId: {
+            '0x2': {
+              MATIC: {
+                '0x03': 0.01,
+                '0x04': 0.02,
+              },
+            },
+          },
+        },
+      );
+
+      await controller.updateExchangeRatesByChainId({
+        chainId: '0x2',
+        nativeCurrency: 'MATIC',
+        tokenContractAddresses: ['0x03'],
+      });
+
+      expect(controller.state.contractExchangeRates).toStrictEqual({
+        '0x03': undefined,
+        '0x04': 0.02,
       });
     });
   });

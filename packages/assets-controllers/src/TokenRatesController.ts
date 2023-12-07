@@ -366,19 +366,20 @@ export class TokenRatesController extends PollingControllerV1<
 
     const existingContractExchangeRatesForChainId =
       this.state.contractExchangeRatesByChainId[chainId] ?? {};
+    const contractExchangeRatesForNativeCurrency = {
+      ...existingContractExchangeRatesForChainId[nativeCurrency],
+      ...newContractExchangeRates,
+    };
 
     this.update({
       ...(chainId === this.config.chainId && {
-        contractExchangeRates: newContractExchangeRates
+        contractExchangeRates: contractExchangeRatesForNativeCurrency,
       }),
       contractExchangeRatesByChainId: {
         ...this.state.contractExchangeRatesByChainId,
         [chainId]: {
           ...existingContractExchangeRatesForChainId,
-          [nativeCurrency]: {
-            ...existingContractExchangeRatesForChainId[nativeCurrency],
-            ...newContractExchangeRates,
-          },
+          [nativeCurrency]: contractExchangeRatesForNativeCurrency,
         },
       },
     });
