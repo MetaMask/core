@@ -335,11 +335,6 @@ export class TokenRatesController extends PollingControllerV1<
       nativeCurrency,
       tokenContractAddresses,
     });
-
-    this.update({
-      contractExchangeRates:
-        this.state.contractExchangeRatesByChainId[chainId][nativeCurrency],
-    });
   }
 
   /**
@@ -373,6 +368,9 @@ export class TokenRatesController extends PollingControllerV1<
       this.state.contractExchangeRatesByChainId[chainId] ?? {};
 
     this.update({
+      ...(chainId === this.config.chainId && {
+        contractExchangeRates: newContractExchangeRates
+      }),
       contractExchangeRatesByChainId: {
         ...this.state.contractExchangeRatesByChainId,
         [chainId]: {
