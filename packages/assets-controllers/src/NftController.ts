@@ -616,15 +616,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       networkClientId,
     });
 
-    const [blockchainContractData, openSeaContractData]: [
-      (
-        | (Partial<ApiNftContract> &
-            Pick<ApiNftContract, 'address'> &
-            Pick<ApiNftContract, 'collection'>)
-        | undefined
-      ),
-      Partial<ApiNftContract> | undefined,
-    ] = await Promise.all([
+    const [blockchainContractData, openSeaContractData] = await Promise.all([
       safelyExecute(() =>
         this.getNftContractInformationFromContract(
           contractAddress,

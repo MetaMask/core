@@ -231,7 +231,7 @@ export async function safelyExecuteWithTimeout<T>(
   try {
     return await Promise.race([
       operation(),
-      new Promise<undefined>((_, reject) =>
+      new Promise<never>((_, reject) =>
         setTimeout(() => {
           reject(TIMEOUT_ERROR);
         }, timeout),
