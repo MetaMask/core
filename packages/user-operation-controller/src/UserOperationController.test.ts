@@ -379,60 +379,123 @@ describe('UserOperationController', () => {
       );
     });
 
-    it('estimates gas using bundler if gas not specified by account', async () => {
-      const controller = new UserOperationController({
-        messenger,
+    describe('estimates gas if gas not specified by account', () => {
+      it('using bundler', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        bundlerMock.estimateUserOperationGas.mockResolvedValue({
+          callGasLimit: 123,
+          preVerificationGas: 456,
+          verificationGasLimit: 789,
+          verificationGas: 789,
+        });
+
+        smartContractAccount.prepareUserOperation.mockResolvedValue({
+          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
+          gas: undefined,
+        });
+
+        const { hash } = await controller.addUserOperation(
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+        );
+
+        await hash();
+
+        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledTimes(1);
+        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
+          {
+            callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
+            callGasLimit: '0x1',
+            initCode: PREPARE_USER_OPERATION_RESPONSE_MOCK.initCode,
+            maxFeePerGas: ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas,
+            maxPriorityFeePerGas:
+              ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas,
+            nonce: PREPARE_USER_OPERATION_RESPONSE_MOCK.nonce,
+            paymasterAndData:
+              PREPARE_USER_OPERATION_RESPONSE_MOCK.dummyPaymasterAndData,
+            preVerificationGas: '0x1',
+            sender: PREPARE_USER_OPERATION_RESPONSE_MOCK.sender,
+            signature: PREPARE_USER_OPERATION_RESPONSE_MOCK.dummySignature,
+            verificationGasLimit: '0x1',
+          },
+          ENTRYPOINT,
+        );
       });
 
-      bundlerMock.estimateUserOperationGas.mockResolvedValue({
-        callGasLimit: 123,
-        preVerificationGas: 456,
-        verificationGasLimit: 789,
-        verificationGas: 789,
+      it('if estimates are numbers', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        bundlerMock.estimateUserOperationGas.mockResolvedValue({
+          callGasLimit: 123,
+          preVerificationGas: 456,
+          verificationGasLimit: 789,
+          verificationGas: 789,
+        });
+
+        smartContractAccount.prepareUserOperation.mockResolvedValue({
+          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
+          gas: undefined,
+        });
+
+        const { hash } = await controller.addUserOperation(
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+        );
+
+        await hash();
+
+        expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
+        expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            // Estimated values multiplied by gas buffer and converted to hexadecimal.
+            callGasLimit: '0xb8',
+            preVerificationGas: '0x2ac',
+            verificationGasLimit: '0x49f',
+          }),
+          ENTRYPOINT,
+        );
       });
 
-      smartContractAccount.prepareUserOperation.mockResolvedValue({
-        ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
-        gas: undefined,
+      it('if estimates are hexadecimal strings', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        bundlerMock.estimateUserOperationGas.mockResolvedValue({
+          callGasLimit: '0x7B',
+          preVerificationGas: '0x1C8',
+          verificationGasLimit: '0x315',
+          verificationGas: '0x315',
+        });
+
+        smartContractAccount.prepareUserOperation.mockResolvedValue({
+          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
+          gas: undefined,
+        });
+
+        const { hash } = await controller.addUserOperation(
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+        );
+
+        await hash();
+
+        expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
+        expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            // Estimated values multiplied by gas buffer and converted to hexadecimal.
+            callGasLimit: '0xb8',
+            preVerificationGas: '0x2ac',
+            verificationGasLimit: '0x49f',
+          }),
+          ENTRYPOINT,
+        );
       });
-
-      const { hash } = await controller.addUserOperation(
-        ADD_USER_OPERATION_REQUEST_MOCK,
-        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
-      );
-
-      await hash();
-
-      expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledTimes(1);
-      expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
-        {
-          callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
-          callGasLimit: '0x1',
-          initCode: PREPARE_USER_OPERATION_RESPONSE_MOCK.initCode,
-          maxFeePerGas: ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas,
-          maxPriorityFeePerGas:
-            ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas,
-          nonce: PREPARE_USER_OPERATION_RESPONSE_MOCK.nonce,
-          paymasterAndData:
-            PREPARE_USER_OPERATION_RESPONSE_MOCK.dummyPaymasterAndData,
-          preVerificationGas: '0x1',
-          sender: PREPARE_USER_OPERATION_RESPONSE_MOCK.sender,
-          signature: PREPARE_USER_OPERATION_RESPONSE_MOCK.dummySignature,
-          verificationGasLimit: '0x1',
-        },
-        ENTRYPOINT,
-      );
-
-      expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
-      expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
-        expect.objectContaining({
-          // Estimated values multiplied by gas buffer and converted to hexadecimal.
-          callGasLimit: '0xb9',
-          preVerificationGas: '0x2ac',
-          verificationGasLimit: '0x4a0',
-        }),
-        ENTRYPOINT,
-      );
     });
 
     it('marks user operation as failed if error', async () => {

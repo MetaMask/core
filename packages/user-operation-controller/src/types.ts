@@ -273,12 +273,26 @@ export type SmartContractAccount = {
   ) => Promise<SignUserOperationResponse>;
 };
 
+/**
+ * Response from the `eth_getUserOperationReceipt` bundler method.
+ * Includes the status of a completed user operation and the receipt of the transaction that submitted it.
+ */
 export type UserOperationReceipt = {
+  /** Confirmed total cost of the gas for the user operation. */
   actualGasCost: string;
+
+  /** Confirmed total amount of gas used by the user operation. */
   actualGasUsed: string;
+
+  /** True if the user operation was successfully confirmed on chain. */
   success: boolean;
+
+  /** Receipt for the associated transaction. */
   receipt: {
+    /** Hash of the block the transaction was added to. */
     blockHash: string;
+
+    /** Hash of the confirmed transaction. */
     transactionHash: string;
   };
 };

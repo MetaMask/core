@@ -1,7 +1,8 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
+import { hexToBN } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import { BN, addHexPrefix } from 'ethereumjs-util';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -366,14 +367,22 @@ export class UserOperationController extends BaseController<
     const { preVerificationGas, verificationGas, callGasLimit } =
       await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
 
-    const normalizeGas = (value: number) =>
-      toHex(Math.round(value * GAS_ESTIMATE_MULTIPLIER));
-
-    userOperation.callGasLimit = normalizeGas(callGasLimit);
-    userOperation.preVerificationGas = normalizeGas(preVerificationGas);
-    userOperation.verificationGasLimit = normalizeGas(verificationGas);
+    userOperation.callGasLimit = this.#normalizeGasEstimate(callGasLimit);
+    userOperation.preVerificationGas =
+      this.#normalizeGasEstimate(preVerificationGas);
+    userOperation.verificationGasLimit =
+      this.#normalizeGasEstimate(verificationGas);
 
     this.#updateMetadata(metadata);
+  }
+
+  #normalizeGasEstimate(rawValue: string | number) {
+    const value =
+      typeof rawValue === 'string' ? hexToBN(rawValue) : new BN(rawValue);
+
+    const bufferedValue = value.muln(GAS_ESTIMATE_MULTIPLIER);
+
+    return addHexPrefix(bufferedValue.toString(16));
   }
 
   async #addPaymasterData(
