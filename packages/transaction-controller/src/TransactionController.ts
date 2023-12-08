@@ -24,6 +24,8 @@ import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   BlockTracker,
+  NetworkClientId,
+  NetworkController,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
@@ -288,6 +290,8 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta: TransactionMeta,
   ) => (TransactionMeta | undefined)[];
 
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
   private failTransaction(
     transactionMeta: TransactionMeta,
     error: Error,
@@ -327,6 +331,15 @@ export class TransactionController extends BaseControllerV1<
    */
   override name = 'TransactionController';
 
+  private readonly trackingMap: Map<
+    NetworkClientId,
+    Set<{
+      nonceTracker: NonceTracker;
+      pendingTransactionTracker: PendingTransactionTracker;
+      incomingTransactionHelper: IncomingTransactionHelper;
+    }>
+  > = new Map();
+
   /**
    * Method used to sign transactions
    */
@@ -365,6 +378,7 @@ export class TransactionController extends BaseControllerV1<
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
+   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.hooks - The controller hooks.
    * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
    * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
@@ -396,6 +410,7 @@ export class TransactionController extends BaseControllerV1<
       provider,
       securityProviderRequest,
       speedUpMultiplier,
+      getNetworkClientById,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -427,6 +442,7 @@ export class TransactionController extends BaseControllerV1<
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
       speedUpMultiplier?: number;
+      getNetworkClientById: NetworkController['getNetworkClientById'];
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -458,7 +474,7 @@ export class TransactionController extends BaseControllerV1<
     };
 
     this.initialize();
-
+    this.getNetworkClientById = getNetworkClientById;
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
@@ -1051,6 +1067,69 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
+  }
+
+  startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+    const networkClient = this.getNetworkClientById(networkClientId);
+    // track using tracking map
+    this.trackingMap.set(networkClientId, new Set());
+    const nonceTracker = new NonceTracker({
+      provider: networkClient.provider as any,
+      blockTracker: networkClient.blockTracker,
+      getPendingTransactions:
+        this.getNonceTrackerPendingTransactions.bind(this),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
+    });
+    const incomingTransactionHelper = new IncomingTransactionHelper({
+      blockTracker: networkClient.blockTracker,
+      getCurrentAccount: this.getSelectedAddress,
+      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getNetworkState: this.getNetworkState, // TODO: fake this via networkClient
+      isEnabled: () => true,
+      queryEntireHistory: true,
+      remoteTransactionSource: new EtherscanRemoteTransactionSource({
+        includeTokenTransfers: true,
+      }),
+      transactionLimit: this.config.txHistoryLimit,
+      updateTransactions: true,
+    });
+    const pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
+      blockTracker: networkClient.provider as any,
+      getChainId: () => networkClient.configuration.chainId,
+      getEthQuery: () => this.ethQuery, // TODO: use networkClient to construct ethQuery
+      getTransactions: () => this.state.transactions,
+      isResubmitEnabled: true, // TODO: make this configurable
+      nonceTracker,
+      onStateChange: this.subscribe.bind(this),
+      publishTransaction: this.publishTransaction.bind(this),
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.beforeCheckPendingTransaction.bind(this),
+        beforePublish: this.beforePublish.bind(this),
+      },
+    });
+    // subscribe to trackers
+    incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+
+    incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
+    this.addPendingTransactionTrackerListeners(pendingTransactionTracker);
+
+    // add to tracking map
+    this.trackingMap.get(networkClientId)?.add({
+      nonceTracker,
+      incomingTransactionHelper,
+      pendingTransactionTracker,
+    });
   }
 
   /**
@@ -2528,23 +2607,25 @@ export class TransactionController extends BaseControllerV1<
     );
   }
 
-  private addPendingTransactionTrackerListeners() {
-    this.pendingTransactionTracker.hub.on(
+  private addPendingTransactionTrackerListeners(
+    pendingTransactionTracker = this.pendingTransactionTracker,
+  ) {
+    pendingTransactionTracker.hub.on(
       'transaction-confirmed',
       this.onConfirmedTransaction.bind(this),
     );
 
-    this.pendingTransactionTracker.hub.on(
+    pendingTransactionTracker.hub.on(
       'transaction-dropped',
       this.setTransactionStatusDropped.bind(this),
     );
 
-    this.pendingTransactionTracker.hub.on(
+    pendingTransactionTracker.hub.on(
       'transaction-failed',
       this.failTransaction.bind(this),
     );
 
-    this.pendingTransactionTracker.hub.on(
+    pendingTransactionTracker.hub.on(
       'transaction-updated',
       this.updateTransaction.bind(this),
     );
@@ -2609,10 +2690,14 @@ export class TransactionController extends BaseControllerV1<
     this.hub.emit('transaction-status-update', { transactionMeta });
   }
 
-  private getNonceTrackerPendingTransactions(address: string) {
+  private getNonceTrackerPendingTransactions(
+    address: string,
+    chainId?: string,
+  ) {
     const standardPendingTransactions = this.getNonceTrackerTransactions(
       TransactionStatus.submitted,
       address,
+      chainId,
     );
 
     const externalPendingTransactions =
@@ -2624,11 +2709,10 @@ export class TransactionController extends BaseControllerV1<
   private getNonceTrackerTransactions(
     status: TransactionStatus,
     address: string,
+    chainId: string = this.getChainId(),
   ) {
-    const currentChainId = this.getChainId();
-
     return getAndFormatTransactionsForNonceTracker(
-      currentChainId,
+      chainId,
       address,
       status,
       this.state.transactions,
