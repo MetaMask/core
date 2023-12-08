@@ -13,6 +13,7 @@ import type {
 import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
+import { isDeepStrictEqual } from 'util';
 
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
@@ -237,15 +238,16 @@ export class TokenRatesController extends PollingControllerV1<
     });
 
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
-      // These two state properties are assumed to be immutable
+      const previousTokenAddresses = this.#getTokenAddresses(
+        this.config.chainId,
+      );
+      this.configure({ allTokens, allDetectedTokens });
+      const newTokenAddresses = this.#getTokenAddresses(this.config.chainId);
       if (
-        this.config.allTokens !== allTokens ||
-        this.config.allDetectedTokens !== allDetectedTokens
+        !isDeepStrictEqual(previousTokenAddresses, newTokenAddresses) &&
+        this.#pollState === PollState.Active
       ) {
-        this.configure({ allTokens, allDetectedTokens });
-        if (this.#pollState === PollState.Active) {
-          await this.updateExchangeRates();
-        }
+        await this.updateExchangeRates();
       }
     });
 
@@ -276,7 +278,13 @@ export class TokenRatesController extends PollingControllerV1<
     const detectedTokens =
       allDetectedTokens[chainId]?.[this.config.selectedAddress] || [];
 
-    return [...tokens, ...detectedTokens].map((token) => toHex(token.address));
+    return [
+      ...new Set(
+        [...tokens, ...detectedTokens].map((token) =>
+          toHex(toChecksumHexAddress(token.address)),
+        ),
+      ),
+    ].sort();
   }
 
   /**
@@ -482,7 +490,7 @@ export class TokenRatesController extends PollingControllerV1<
       (obj, [tokenContractAddress, tokenPrice]) => {
         return {
           ...obj,
-          [toChecksumHexAddress(tokenContractAddress)]: tokenPrice.value,
+          [tokenContractAddress]: tokenPrice.value,
         };
       },
       {},
@@ -531,7 +539,7 @@ export class TokenRatesController extends PollingControllerV1<
       (obj, [tokenContractAddress, tokenPrice]) => {
         return {
           ...obj,
-          [toChecksumHexAddress(tokenContractAddress)]:
+          [tokenContractAddress]:
             tokenPrice.value * fallbackCurrencyToNativeCurrencyConversionRate,
         };
       },
