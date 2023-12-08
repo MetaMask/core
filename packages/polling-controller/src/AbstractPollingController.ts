@@ -6,9 +6,12 @@ import { v4 as random } from 'uuid';
 export const getKey = (
   networkClientId: NetworkClientId,
   options: Json,
-): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
+): PollingTokenSetId =>
+  `${networkClientId}${options ? `:${stringify(options)}` : ''}`;
 
-export type PollingTokenSetId = `${NetworkClientId}:${string}`;
+export type PollingTokenSetId =
+  | `${NetworkClientId}:${string}`
+  | NetworkClientId;
 
 type Constructor = new (...args: any[]) => object;
 
@@ -26,7 +29,7 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
 
     #callbacks: Map<
       PollingTokenSetId,
-      Set<(networkClientId: NetworkClientId) => void>
+      Set<(PollingTokenSetId: PollingTokenSetId) => void>
     > = new Map();
 
     abstract _executePoll(
@@ -43,7 +46,7 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
 
     startPollingByNetworkClientId(
       networkClientId: NetworkClientId,
-      options: Json = {},
+      options: Json,
     ): string {
       const pollToken = random();
       const key = getKey(networkClientId, options);
@@ -84,8 +87,14 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
       }
 
       if (keyToDelete) {
-        this._stopPollingByPollingTokenSetId(keyToDelete);
-        this.#pollingTokenSets.delete(keyToDelete);
+        // TODO figure out why this is necessary
+        const nonNullKey = keyToDelete;
+        this._stopPollingByPollingTokenSetId(nonNullKey);
+        this.#pollingTokenSets.delete(nonNullKey);
+        this.#callbacks.get(nonNullKey)?.forEach((callback) => {
+          callback(nonNullKey);
+        });
+        this.#callbacks.get(nonNullKey)?.clear();
       }
     }
 

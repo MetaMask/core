@@ -25,16 +25,24 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
   ) {
     readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
-    abstract _intervalLength: number;
+    intervalLength: number | undefined = 1000;
+
+    setIntervalLength(intervalLength: number) {
+      this.intervalLength = intervalLength;
+    }
 
     getIntervalLength() {
-      return this._intervalLength;
+      return this.intervalLength;
     }
 
     _startPollingByNetworkClientId(
       networkClientId: NetworkClientId,
       options: Json,
     ) {
+      if (!this.intervalLength) {
+        throw new Error('intervalLength must be defined and greater than 0');
+      }
+
       const key = getKey(networkClientId, options);
       const existingInterval = this.#intervalIds[key];
       this._stopPollingByPollingTokenSetId(key);
@@ -48,7 +56,7 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
           }
           this._startPollingByNetworkClientId(networkClientId, options);
         },
-        existingInterval ? this._intervalLength : 0,
+        existingInterval ? this.intervalLength : 0,
       );
     }
 

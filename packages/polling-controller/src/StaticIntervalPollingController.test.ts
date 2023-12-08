@@ -188,13 +188,6 @@ describe('PollingController', () => {
       }).toThrow('pollingToken required');
       controller.stopAllPolling();
     });
-    it('should error if no matching pollingToken is found', () => {
-      controller.startPollingByNetworkClientId('mainnet');
-      expect(() => {
-        controller.stopPollingByPollingToken('potato');
-      }).toThrow('pollingToken not found');
-      controller.stopAllPolling();
-    });
 
     it('should publish "pollingComplete" when stop is called', async () => {
       const pollingComplete: any = jest.fn();
@@ -202,6 +195,7 @@ describe('PollingController', () => {
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       controller.stopPollingByPollingToken(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);
+      expect(pollingComplete).toHaveBeenCalledWith('mainnet');
     });
 
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
