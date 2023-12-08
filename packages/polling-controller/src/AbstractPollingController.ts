@@ -78,8 +78,8 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
         if (tokenSet.delete(pollingToken)) {
           if (tokenSet.size === 0) {
             keyToDelete = key;
-            break;
           }
+          break;
         }
       }
 
