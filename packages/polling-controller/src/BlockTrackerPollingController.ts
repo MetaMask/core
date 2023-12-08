@@ -6,10 +6,10 @@ import type {
 import type { Json } from '@metamask/utils';
 
 import {
-  PollingControllerBaseMixin,
+  AbstractPollingControllerBaseMixin,
   getKey,
-} from './PollingController-abstract';
-import type { PollingTokenSetId } from './PollingController-abstract';
+} from './AbstractPollingController';
+import type { PollingTokenSetId } from './AbstractPollingController';
 
 type Constructor = new (...args: any[]) => object;
 
@@ -22,33 +22,28 @@ type Constructor = new (...args: any[]) => object;
 function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
   Base: TBase,
 ) {
-  abstract class BlockTrackerPollingController extends PollingControllerBaseMixin(
+  abstract class BlockTrackerPollingController extends AbstractPollingControllerBaseMixin(
     Base,
   ) {
     #activeListeners: Record<string, (options: Json) => Promise<void>> = {};
 
-    _start(networkClientId: NetworkClientId, options: Json) {
-      this.startBlockTrackingPolling(networkClientId, options);
-    }
-
-    abstract getNetworkClientById(
+    abstract _getNetworkClientById(
       networkClientId: NetworkClientId,
     ): NetworkClient | undefined;
 
-    abstract _executePoll(
+    _startPollingByNetworkClientId(
       networkClientId: NetworkClientId,
       options: Json,
-    ): Promise<void>;
-
-    startBlockTrackingPolling(networkClientId: NetworkClientId, options: Json) {
+    ) {
       const key = getKey(networkClientId, options);
 
       if (this.#activeListeners[key]) {
         return;
       }
 
-      const networkClient = this.getNetworkClientById(networkClientId);
+      const networkClient = this._getNetworkClientById(networkClientId);
       if (networkClient && networkClient.blockTracker) {
+        console.log('networkClient', networkClient);
         const updateOnNewBlock = this._executePoll.bind(
           this,
           networkClientId,
@@ -63,9 +58,9 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
       }
     }
 
-    stopBlockTrackingPolling(key: string) {
+    _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
       const [networkClientId] = key.split(':');
-      const networkClient = this.getNetworkClientById(
+      const networkClient = this._getNetworkClientById(
         networkClientId as NetworkClientId,
       );
 

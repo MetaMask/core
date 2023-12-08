@@ -5,8 +5,8 @@ import type { Json } from '@metamask/utils';
 import {
   PollingControllerBaseMixin,
   getKey,
-} from './PollingController-abstract';
-import type { PollingTokenSetId } from './PollingController-abstract';
+} from './AbstractPollingController';
+import type { PollingTokenSetId } from './AbstractPollingController';
 
 type Constructor = new (...args: any[]) => object;
 
