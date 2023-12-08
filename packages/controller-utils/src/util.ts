@@ -198,15 +198,16 @@ export function toHex(value: number | string | BN): Hex {
  *
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
+ * @template Result - Type of the result of the async operation
  * @returns Promise resolving to the result of the async operation.
  */
-export async function safelyExecute<T>(
-  operation: () => Promise<T>,
+export async function safelyExecute<Result>(
+  operation: () => Promise<Result>,
   logError = false,
-): Promise<T | undefined> {
+): Promise<Result | undefined> {
   try {
     return await operation();
-  } catch (error: any) {
+  } catch (error) {
     /* istanbul ignore next */
     if (logError) {
       console.error(error);
@@ -221,13 +222,14 @@ export async function safelyExecute<T>(
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
  * @param timeout - Timeout to fail the operation.
+ * @template Result - Type of the result of the async operation
  * @returns Promise resolving to the result of the async operation.
  */
-export async function safelyExecuteWithTimeout<T>(
-  operation: () => Promise<T>,
+export async function safelyExecuteWithTimeout<Result>(
+  operation: () => Promise<Result>,
   logError = false,
   timeout = 500,
-): Promise<T | undefined> {
+): Promise<Result | undefined> {
   try {
     return await Promise.race([
       operation(),
