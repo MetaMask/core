@@ -6,7 +6,7 @@ import type {
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
 import {
   toChecksumHexAddress,
@@ -124,7 +124,7 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class TokensController extends BaseController<
+export class TokensController extends BaseControllerV1<
   TokensConfig,
   TokensState
 > {
@@ -181,7 +181,7 @@ export class TokensController extends BaseController<
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getERC20TokenName - Gets the ERC-20 token name.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
@@ -192,7 +192,7 @@ export class TokensController extends BaseController<
   constructor({
     chainId: initialChainId,
     onPreferencesStateChange,
-    onNetworkStateChange,
+    onNetworkDidChange,
     onTokenListStateChange,
     getERC20TokenName,
     getNetworkClientById,
@@ -204,7 +204,7 @@ export class TokensController extends BaseController<
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
-    onNetworkStateChange: (
+    onNetworkDidChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
     onTokenListStateChange: (
@@ -253,7 +253,7 @@ export class TokensController extends BaseController<
       });
     });
 
-    onNetworkStateChange(({ providerConfig }) => {
+    onNetworkDidChange(({ providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = providerConfig;

@@ -5,6 +5,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add `codefiTokenPricesServiceV2` ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This object can be used for the new `tokenPricesService` argument for TokenRatesController. It uses an internal API to fetch prices for tokens instead of CoinGecko.
+
+### Changed
+- **BREAKING:** TokenRatesController now takes a required argument `tokenPricesService` ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This object is responsible for fetching the prices for tokens held by this controller.
+- **BREAKING:** Update signature of `TokenRatesController.updateExchangeRatesByChainId` ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - Rename `tokenAddresses` argument to `tokenContractAddresses`
+  - Change the type of `tokenContractAddresses` from `string[]` to `Hex[]`
+- **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This method now takes an object with shape `{ tokenContractAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
+- Update TokenListController to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
+
+### Removed
+- **BREAKING:** Remove `fetchExchangeRate` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This method (not to be confused with `updateExchangeRate`, which is still present) was only ever intended to be used internally and should not be accessed directly.
+- **BREAKING:** Remove `getChainSlug` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - This method was previously used in TokenRatesController to access the CoinGecko API. There is no equivalent.
+- **BREAKING:** Remove `CoinGeckoResponse` and `CoinGeckoPlatform` types ([#3600](https://github.com/MetaMask/core/pull/3600))
+  - These types were previously used in TokenRatesController to represent data returned from the CoinGecko API. There is no equivalent.
+
+## [20.0.0]
+### Added
+- **BREAKING**: `TokenRatesControllerState` now has required `contractExchangeRatesByChainId` property which an object keyed by `chainId` and `nativeCurrency` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- **BREAKING**: `TokenRatesController` constructor params now requires `getNetworkClientById` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- Add types `CurrencyRateControllerEvents` and `CurrencyRateControllerActions` ([#2029](https://github.com/MetaMask/core/pull/2029))
+- Add polling-related methods to TokenRatesController ([#2015](https://github.com/MetaMask/core/pull/2015))
+  - `startPollingByNetworkClientId`
+  - `stopPollingByPollingToken`
+  - `stopAllPolling`
+  - `_executePoll`
+- Add `updateExchangeRatesByChainId` method to TokenRatesController ([#2015](https://github.com/MetaMask/core/pull/2015))
+  - This is a lower-level version of `updateExchangeRates` that takes chain ID, native currency, and token addresses.
+- `TokenRatesController` constructor params now accepts optional `interval` and `threshold` ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.fetchExchangeRate()` now accepts an optional `tokenAddresses` as the last parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.getChainSlug()` now accepts an optional `chainId` parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+- `TokenRatesController.fetchAndMapExchangeRates()` now accepts an optional `tokenAddresses` as the last parameter ([#2015](https://github.com/MetaMask/core/pull/2015))
+
+### Changed
+- **BREAKING:** Bump dependency on `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/network-controller` to ^17.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/polling-controller` to ^2.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/preferences-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
 
 ## [19.0.0]
 ### Changed
@@ -383,7 +430,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...@metamask/assets-controllers@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@18.0.0...@metamask/assets-controllers@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@17.0.0...@metamask/assets-controllers@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@16.0.0...@metamask/assets-controllers@17.0.0

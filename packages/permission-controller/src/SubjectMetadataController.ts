@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
 import type {
@@ -97,7 +97,7 @@ type SubjectMetadataControllerOptions = {
  * A controller for storing metadata associated with permission subjects. More
  * or less, a cache.
  */
-export class SubjectMetadataController extends BaseControllerV2<
+export class SubjectMetadataController extends BaseController<
   typeof controllerName,
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger

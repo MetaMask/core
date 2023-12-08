@@ -1,5 +1,5 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { toASCII } from 'punycode/';

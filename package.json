@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "92.0.0",
+  "version": "99.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -18,7 +18,6 @@
     "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
-    "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn constraints --fix && yarn lint:misc --write && yarn",
@@ -29,7 +28,8 @@
     "setup": "yarn install",
     "test": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:clean": "yarn workspaces foreach --parallel --verbose run test:clean && yarn test",
-    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose"
+    "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
+    "update-readme-content": "ts-node scripts/update-readme-content.ts"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
-    "@metamask/create-release-branch": "^1.1.0",
+    "@metamask/create-release-branch": "^2.0.1",
     "@metamask/eslint-config": "^12.2.0",
     "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
@@ -50,6 +50,7 @@
     "@types/node": "^16.18.54",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "bn.js": "^5.2.1",
     "eslint": "^8.44.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-import-resolver-typescript": "^2.5.0",

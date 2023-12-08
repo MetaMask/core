@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/approval-controller` to ^5.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/keyring-controller` to ^10.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/logging-controller` to ^2.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/message-manager` to ^7.3.6 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
 ## [7.0.0]
 ### Changed
 - **BREAKING**: Add `@metamask/keyring-controller` as a dependency and peer dependency
@@ -102,7 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@7.0.0...@metamask/signature-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.3...@metamask/signature-controller@7.0.0
 [6.1.3]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.2...@metamask/signature-controller@6.1.3
 [6.1.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.1...@metamask/signature-controller@6.1.2

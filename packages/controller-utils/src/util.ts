@@ -1,4 +1,5 @@
 import type EthQuery from '@metamask/eth-query';
+import { fromWei, toWei } from '@metamask/ethjs-unit';
 import type { Hex, Json } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import ensNamehash from 'eth-ens-namehash';
@@ -10,7 +11,6 @@ import {
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';
-import { fromWei, toWei } from 'ethjs-unit';
 import deepEqual from 'fast-deep-equal';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
@@ -108,7 +108,7 @@ export function gweiDecToWEIBN(n: number | string) {
  */
 export function weiHexToGweiDec(hex: string) {
   const hexWei = new BN(stripHexPrefix(hex), 16);
-  return fromWei(hexWei, 'gwei').toString(10);
+  return fromWei(hexWei, 'gwei');
 }
 
 /**
@@ -312,11 +312,16 @@ export function isSmartContractCode(code: string) {
  * @param options - Fetch options.
  * @returns The fetch response.
  */
-export async function successfulFetch(request: string, options?: RequestInit) {
+export async function successfulFetch(
+  request: URL | RequestInfo,
+  options?: RequestInit,
+) {
   const response = await fetch(request, options);
   if (!response.ok) {
     throw new Error(
-      `Fetch failed with status '${response.status}' for request '${request}'`,
+      `Fetch failed with status '${response.status}' for request '${String(
+        request,
+      )}'`,
     );
   }
   return response;
@@ -329,7 +334,10 @@ export async function successfulFetch(request: string, options?: RequestInit) {
  * @param options - The fetch options.
  * @returns The fetch response JSON data.
  */
-export async function handleFetch(request: string, options?: RequestInit) {
+export async function handleFetch(
+  request: URL | RequestInfo,
+  options?: RequestInit,
+) {
   const response = await successfulFetch(request, options);
   const object = await response.json();
   return object;

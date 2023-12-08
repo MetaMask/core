@@ -23,6 +23,9 @@
       "path": "./packages/base-controller"
     },
     {
+      "path": "./packages/build-utils"
+    },
+    {
       "path": "./packages/composable-controller"
     },
     {
@@ -65,10 +68,16 @@
       "path": "./packages/permission-controller"
     },
     {
+      "path": "./packages/permission-log-controller"
+    },
+    {
       "path": "./packages/phishing-controller"
     },
     {
       "path": "./packages/preferences-controller"
+    },
+    {
+      "path": "./packages/queued-request-controller"
     },
     {
       "path": "./packages/rate-limit-controller"
@@ -80,10 +89,7 @@
       "path": "./packages/transaction-controller"
     },
     {
-      "path": "./packages/queued-request-controller"
-    },
-    {
-      "path": "./packages/permission-log-controller"
+      "path": "./packages/user-operation-controller"
     }
   ],
   "files": [],

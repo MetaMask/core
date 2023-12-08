@@ -22,7 +22,9 @@ import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import MockEncryptor, {
+  MOCK_ENCRYPTION_KEY,
+} from '../tests/mocks/mockEncryptor';
 import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
@@ -1411,7 +1413,7 @@ describe('KeyringController', () => {
         { cacheEncryptionKey: true },
         async ({ controller, initialState }) => {
           await controller.submitEncryptionKey(
-            mockKey.toString('hex'),
+            MOCK_ENCRYPTION_KEY,
             initialState.encryptionSalt as string,
           );
           expect(controller.state).toStrictEqual(initialState);
@@ -2030,7 +2032,7 @@ describe('KeyringController', () => {
           await signProcessKeyringController.setLocked();
           // ..and unlocking it should add a new instance of QRKeyring
           await signProcessKeyringController.submitEncryptionKey(
-            mockKey.toString('hex'),
+            MOCK_ENCRYPTION_KEY,
             salt,
           );
           // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
@@ -2313,25 +2315,6 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
-    allowedActions: [
-      'KeyringController:getState',
-      'KeyringController:signMessage',
-      'KeyringController:signPersonalMessage',
-      'KeyringController:signTypedMessage',
-      'KeyringController:decryptMessage',
-      'KeyringController:getEncryptionPublicKey',
-      'KeyringController:getKeyringsByType',
-      'KeyringController:getKeyringForAccount',
-      'KeyringController:getAccounts',
-      'KeyringController:persistAllKeyrings',
-    ],
-    allowedEvents: [
-      'KeyringController:stateChange',
-      'KeyringController:lock',
-      'KeyringController:unlock',
-      'KeyringController:accountRemoved',
-      'KeyringController:qrKeyringStateChange',
-    ],
   });
 }
 
