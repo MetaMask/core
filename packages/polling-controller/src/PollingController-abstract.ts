@@ -18,15 +18,15 @@ type PollingStrategy = {
 type Constructor = new (...args: any[]) => object;
 
 /**
- * PollingControllerBaseMixin
+ * AbstractPollingControllerBaseMixin
  *
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-export function PollingControllerBaseMixin<TBase extends Constructor>(
+export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
   Base: TBase,
 ) {
-  class PollingControllerBase extends Base {
+  abstract class AbstractPollingControllerBase extends Base {
     readonly #pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
 
     #strategy: PollingStrategy | undefined;
@@ -36,9 +36,13 @@ export function PollingControllerBaseMixin<TBase extends Constructor>(
       Set<(networkClientId: NetworkClientId) => void>
     > = new Map();
 
-    setPollingStrategy(strategy: PollingStrategy) {
-      this.#strategy = strategy;
-    }
+    // setPollingStrategy(strategy: PollingStrategy) {
+    //   this.#strategy = strategy;
+    // }
+
+    abstract _start(networkClientId: NetworkClientId, options: Json): void;
+
+    abstract _stop(key: PollingTokenSetId): void;
 
     startPollingByNetworkClientId(
       networkClientId: NetworkClientId,
@@ -63,10 +67,6 @@ export function PollingControllerBaseMixin<TBase extends Constructor>(
     }
 
     stopAllPolling() {
-      if (!this.#strategy) {
-        throw new Error('Polling strategy not set');
-      }
-
       this.#pollingTokenSets.forEach((tokenSet, _key) => {
         tokenSet.forEach((token) => {
           this.stopPollingByPollingToken(token);
@@ -110,5 +110,5 @@ export function PollingControllerBaseMixin<TBase extends Constructor>(
       this.#callbacks.set(key, callbacks);
     }
   }
-  return PollingControllerBase;
+  return AbstractPollingControllerBase;
 }

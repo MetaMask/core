@@ -27,13 +27,8 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
   ) {
     #activeListeners: Record<string, (options: Json) => Promise<void>> = {};
 
-    constructor() {
-      super();
-      this.setPollingStrategy({
-        start: (networkClientId: NetworkClientId, options: Json) =>
-          this.startBlockTrackingPolling(networkClientId, options),
-        stop: (key: PollingTokenSetId) => this.stopBlockTrackingPolling(key),
-      });
+    _start(networkClientId: NetworkClientId, options: Json) {
+      this.startBlockTrackingPolling(networkClientId, options);
     }
 
     abstract getNetworkClientById(
