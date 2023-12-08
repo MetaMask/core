@@ -93,11 +93,11 @@ export class TokenDetectionController extends PollingController<
    * Name of this controller used during composition
    */
 
-  private readonly getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private readonly addDetectedTokens: TokensController['addDetectedTokens'];
+  readonly #addDetectedTokens: TokensController['addDetectedTokens'];
 
-  private readonly getTokensState: () => TokensState;
+  readonly #getTokensState: () => TokensState;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -115,7 +115,7 @@ export class TokenDetectionController extends PollingController<
    */
   constructor({
     chainId,
-    selectedAddress,
+    selectedAddress = '',
     interval = DEFAULT_INTERVAL,
     onPreferencesStateChange,
     getBalancesInSingleCall,
@@ -148,11 +148,11 @@ export class TokenDetectionController extends PollingController<
 
     this.setIntervalLength(interval);
     this.#chainId = chainId;
-    this.#selectedAddress = selectedAddress ?? '';
+    this.#selectedAddress = selectedAddress;
 
-    this.getTokensState = getTokensState;
-    this.addDetectedTokens = addDetectedTokens;
-    this.getBalancesInSingleCall = getBalancesInSingleCall;
+    this.#getTokensState = getTokensState;
+    this.#addDetectedTokens = addDetectedTokens;
+    this.#getBalancesInSingleCall = getBalancesInSingleCall;
 
     this.messagingSystem.unregisterActionHandler(
       'TokenDetectionController:getState',
@@ -170,7 +170,7 @@ export class TokenDetectionController extends PollingController<
     );
 
     onPreferencesStateChange(
-      async ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
+      ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
         const isSelectedAddressChanged =
           this.#selectedAddress !== newSelectedAddress;
         const isDetectionChangedFromPreferences =
@@ -183,20 +183,14 @@ export class TokenDetectionController extends PollingController<
           useTokenDetection &&
           (isSelectedAddressChanged || isDetectionChangedFromPreferences)
         ) {
-      if (
-        useTokenDetection &&
-        (isSelectedAddressChanged || isDetectionChangedFromPreferences)
-      ) {
-        this.detectTokens();
-      }
-    });
+          this.detectTokens();
         }
       },
     );
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      async ({ providerConfig: { chainId: newChainId } }) => {
+      ({ providerConfig: { chainId: newChainId } }) => {
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
         const isChainIdChanged = this.#chainId !== newChainId;
@@ -204,7 +198,7 @@ export class TokenDetectionController extends PollingController<
         this.#chainId = newChainId;
 
         if (this.#isDetectionEnabledForNetwork && isChainIdChanged) {
-          await this.detectTokens();
+          this.detectTokens();
         }
       },
     );
@@ -220,7 +214,7 @@ export class TokenDetectionController extends PollingController<
    */
   async start() {
     this.#disabled = false;
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
@@ -228,10 +222,10 @@ export class TokenDetectionController extends PollingController<
    */
   stop() {
     this.#disabled = true;
-    this.stopPolling();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
+  #stopPolling() {
     if (this.#intervalId) {
       clearInterval(this.#intervalId);
     }
@@ -240,15 +234,15 @@ export class TokenDetectionController extends PollingController<
   /**
    * Starts a new polling interval.
    */
-  private async startPolling(): Promise<void> {
-    this.stopPolling();
+  async #startPolling(): Promise<void> {
+    this.#stopPolling();
     await this.detectTokens();
-    this.#intervalId = setInterval(async () => {
-      await this.detectTokens();
+    this.#intervalId = setInterval(() => {
+      this.detectTokens();
     }, this.getIntervalLength());
   }
 
-  private getCorrectChainId(networkClientId?: NetworkClientId) {
+  #getCorrectChainId(networkClientId?: NetworkClientId) {
     if (networkClientId) {
       const {
         configuration: { chainId },
@@ -261,11 +255,11 @@ export class TokenDetectionController extends PollingController<
     return this.#chainId;
   }
 
-  _executePoll(
+  async _executePoll(
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    return this.detectTokens({
+    return await this.detectTokens({
       networkClientId,
       accountAddress: options.address,
     });
@@ -290,14 +284,13 @@ export class TokenDetectionController extends PollingController<
     ) {
       return;
     }
-    const { tokens } = this.getTokensState();
+    const { tokens } = this.#getTokensState() ?? {};
     const selectedAddress = accountAddress ?? this.#selectedAddress;
-    const chainId = this.getCorrectChainId(networkClientId);
-
-    const tokensAddresses = tokens.map(
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const tokensAddresses = tokens?.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
-    const { tokenList } = this.messagingSystem.call(
+    const { tokenList } = await this.messagingSystem.call(
       'TokenListController:getState',
     );
     const tokensToDetect: string[] = [];
@@ -324,7 +317,7 @@ export class TokenDetectionController extends PollingController<
       }
 
       await safelyExecute(async () => {
-        const balances = await this.getBalancesInSingleCall(
+        const balances = await this.#getBalancesInSingleCall(
           selectedAddress,
           tokensSlice,
         );
@@ -332,7 +325,7 @@ export class TokenDetectionController extends PollingController<
         for (const tokenAddress of Object.keys(balances)) {
           let ignored;
           /* istanbul ignore else */
-          const { ignoredTokens } = this.getTokensState();
+          const { ignoredTokens } = this.#getTokensState();
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -342,7 +335,7 @@ export class TokenDetectionController extends PollingController<
           const caseInsensitiveTokenKey =
             Object.keys(tokenList).find(
               (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
-            ) || '';
+            ) ?? '';
 
           if (ignored === undefined) {
             const { decimals, symbol, aggregators, iconUrl, name } =
@@ -360,7 +353,7 @@ export class TokenDetectionController extends PollingController<
         }
 
         if (tokensToAdd.length) {
-          await this.addDetectedTokens(tokensToAdd, {
+          await this.#addDetectedTokens(tokensToAdd, {
             selectedAddress,
             chainId,
           });
