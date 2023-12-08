@@ -3,7 +3,7 @@
     "composite": true,
     "esModuleInterop": true,
     "lib": ["ES2020", "DOM"],
-    "module": "CommonJS",
+    "module": "Node16",
     "moduleResolution": "node",
     /**
      * Here we ensure that TypeScript resolves `@metamask/*` imports to the
