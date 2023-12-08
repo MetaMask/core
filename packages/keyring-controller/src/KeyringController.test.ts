@@ -26,6 +26,7 @@ import * as uuid from 'uuid';
 import MockEncryptor, {
   MOCK_ENCRYPTION_KEY,
 } from '../tests/mocks/mockEncryptor';
+import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
