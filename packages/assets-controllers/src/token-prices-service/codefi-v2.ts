@@ -220,8 +220,6 @@ export const SUPPORTED_CHAIN_IDS = [
   '0xa86a',
   // Polis Mainnet
   '0x518af',
-  // Aurora Mainnet
-  '0x4e454152',
   // Harmony Mainnet Shard 0
   '0x63564c40',
 ] as const;

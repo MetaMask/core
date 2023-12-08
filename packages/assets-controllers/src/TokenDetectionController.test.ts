@@ -299,22 +299,6 @@ describe('TokenDetectionController', () => {
     expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
   });
 
-  it('should detect tokens correctly on the Aurora network', async () => {
-    const auroraMainnet = {
-      chainId: ChainId.aurora,
-      type: NetworkType.mainnet,
-      ticker: 'Aurora ETH',
-    };
-    preferences.update({ selectedAddress: '0x1' });
-    changeNetwork(auroraMainnet);
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.start();
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-  });
-
   it('should update detectedTokens when new tokens are detected', async () => {
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork(mainnet);
