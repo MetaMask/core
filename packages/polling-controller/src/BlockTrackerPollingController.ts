@@ -43,8 +43,7 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
       }
 
       const networkClient = this._getNetworkClientById(networkClientId);
-      if (networkClient && networkClient.blockTracker) {
-        console.log('networkClient', networkClient);
+      if (networkClient) {
         const updateOnNewBlock = this._executePoll.bind(
           this,
           networkClientId,
