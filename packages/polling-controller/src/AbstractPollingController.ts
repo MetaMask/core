@@ -89,6 +89,7 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
         this._stopPollingByPollingTokenSetId(nonNullKey);
         this.#pollingTokenSets.delete(nonNullKey);
         this.#callbacks.get(nonNullKey)?.forEach((callback) => {
+          // for some reason this typescript can't tell that keyToDelete is not null here
           callback(nonNullKey);
         });
         this.#callbacks.get(nonNullKey)?.clear();
