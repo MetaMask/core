@@ -15,6 +15,7 @@ type Constructor = new (...args: any[]) => object;
 
 /**
  * BlockTrackerPollingControllerMixin
+ * A polling controller that polls using a block tracker.
  *
  * @param Base - The base class to mix onto.
  * @returns The composed class.

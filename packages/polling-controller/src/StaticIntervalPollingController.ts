@@ -3,7 +3,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 
 import {
-  PollingControllerBaseMixin,
+  AbstractPollingControllerBaseMixin,
   getKey,
 } from './AbstractPollingController';
 import type { PollingTokenSetId } from './AbstractPollingController';
@@ -11,7 +11,8 @@ import type { PollingTokenSetId } from './AbstractPollingController';
 type Constructor = new (...args: any[]) => object;
 
 /**
- * BlockTrackerPollingControllerMixin
+ * StaticIntervalPollingControllerMixin
+ * A polling controller that polls on a static interval.
  *
  * @param Base - The base class to mix onto.
  * @returns The composed class.
@@ -19,44 +20,42 @@ type Constructor = new (...args: any[]) => object;
 function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
   Base: TBase,
 ) {
-  abstract class StaticIntervalPollingController extends PollingControllerBaseMixin(
+  abstract class StaticIntervalPollingController extends AbstractPollingControllerBaseMixin(
     Base,
   ) {
     readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
-    constructor() {
-      super();
-      this.setPollingStrategy({
-        start: (networkClientId: NetworkClientId, options: Json) =>
-          this.startStaticIntervalPolling(networkClientId, options),
-        stop: (key: PollingTokenSetId) => this.stopStaticIntervalPolling(key),
-      });
+    abstract _intervalLength: number;
+
+    getIntervalLength() {
+      return this._intervalLength;
     }
 
-    abstract _executePoll(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ): Promise<void>;
-
-    abstract getIntervalLength(): number;
-
-    startStaticIntervalPolling(
+    _startPollingByNetworkClientId(
       networkClientId: NetworkClientId,
       options: Json,
     ) {
       const key = getKey(networkClientId, options);
+      const existingInterval = this.#intervalIds[key];
+      this._stopPollingByPollingTokenSetId(key);
 
-      if (!this.#intervalIds[key]) {
-        this.#intervalIds[key] = setInterval(() => {
-          this._executePoll(networkClientId, options).catch(console.error);
-        }, this.getIntervalLength());
-      }
+      this.#intervalIds[key] = setTimeout(
+        async () => {
+          try {
+            await this._executePoll(networkClientId, options);
+          } catch (error) {
+            console.error(error);
+          }
+          this._startPollingByNetworkClientId(networkClientId, options);
+        },
+        existingInterval ? this._intervalLength : 0,
+      );
     }
 
-    stopStaticIntervalPolling(key: PollingTokenSetId) {
+    _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
       const intervalId = this.#intervalIds[key];
       if (intervalId) {
-        clearInterval(intervalId);
+        clearTimeout(intervalId);
         delete this.#intervalIds[key];
       }
     }
