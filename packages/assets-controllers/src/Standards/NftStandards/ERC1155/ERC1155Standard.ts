@@ -246,7 +246,8 @@ export class ERC1155Standard {
           image = getFormattedIpfsUrl(ipfsGateway, image, true);
         }
       } catch {
-        // ignore
+        // Catch block should be kept empty to ignore exceptions, and
+        // pass as much information as possible to the return statement
       }
     }
 
