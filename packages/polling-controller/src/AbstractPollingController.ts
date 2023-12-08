@@ -6,12 +6,9 @@ import { v4 as random } from 'uuid';
 export const getKey = (
   networkClientId: NetworkClientId,
   options: Json,
-): PollingTokenSetId =>
-  `${networkClientId}${options ? `:${stringify(options)}` : ''}`;
+): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
 
-export type PollingTokenSetId =
-  | `${NetworkClientId}:${string}`
-  | NetworkClientId;
+export type PollingTokenSetId = `${NetworkClientId}:${string}`;
 
 type Constructor = new (...args: any[]) => object;
 
@@ -46,7 +43,7 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
 
     startPollingByNetworkClientId(
       networkClientId: NetworkClientId,
-      options: Json,
+      options: Json = {},
     ): string {
       const pollToken = random();
       const key = getKey(networkClientId, options);

@@ -23,7 +23,7 @@ class MyGasFeeController extends StaticIntervalPollingController<
   _intervalLength = TICK_TIME;
 }
 
-describe('PollingController', () => {
+describe('StaticIntervalPollingController', () => {
   let clock: sinon.SinonFakeTimers;
   let mockMessenger: any;
   let controller: any;
@@ -195,7 +195,7 @@ describe('PollingController', () => {
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       controller.stopPollingByPollingToken(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);
-      expect(pollingComplete).toHaveBeenCalledWith('mainnet');
+      expect(pollingComplete).toHaveBeenCalledWith('mainnet:{}');
     });
 
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {

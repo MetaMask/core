@@ -3,7 +3,7 @@ import EventEmitter from 'events';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
-import { PollingController, PollingControllerOnly } from './PollingController';
+import { AbstractPollingController } from './AbstractPollingController';
 
 const TICK_TIME = 1000;
 
@@ -14,7 +14,7 @@ const createExecutePollMock = () => {
   return executePollMock;
 };
 
-class MyGasFeeController extends PollingController<any, any, any> {
+class MyGasFeeController extends AbstractPollingController<any, any, any> {
   _executePoll = createExecutePollMock();
 }
 

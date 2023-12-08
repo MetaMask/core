@@ -22,7 +22,7 @@ class MyGasFeeController extends BlockTrackerPollingController<any, any, any> {
   }
 }
 
-describe('PollingController', () => {
+describe('BlockTrackerPollingController', () => {
   let clock: sinon.SinonFakeTimers;
   let mockMessenger: any;
   let controller: any;
