@@ -3,6 +3,7 @@ import {
   safelyExecute,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
+  toHex,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -140,8 +141,6 @@ export class TokenRatesController extends PollingControllerV1<
 > {
   private handle?: ReturnType<typeof setTimeout>;
 
-  private tokenList: Token[] = [];
-
   #pollState = PollState.Inactive;
 
   #tokenPricesService: AbstractTokenPricesService;
@@ -227,12 +226,10 @@ export class TokenRatesController extends PollingControllerV1<
     if (config?.disabled) {
       this.configure({ disabled: true }, false, false);
     }
-    this.#updateTokenList();
 
     onPreferencesStateChange(async ({ selectedAddress }) => {
       if (this.config.selectedAddress !== selectedAddress) {
         this.configure({ selectedAddress });
-        this.#updateTokenList();
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
         }
@@ -246,7 +243,6 @@ export class TokenRatesController extends PollingControllerV1<
         this.config.allDetectedTokens !== allDetectedTokens
       ) {
         this.configure({ allTokens, allDetectedTokens });
-        this.#updateTokenList();
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
         }
@@ -261,7 +257,6 @@ export class TokenRatesController extends PollingControllerV1<
       ) {
         this.update({ contractExchangeRates: {} });
         this.configure({ chainId, nativeCurrency: ticker });
-        this.#updateTokenList();
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
         }
@@ -269,14 +264,19 @@ export class TokenRatesController extends PollingControllerV1<
     });
   }
 
-  #updateTokenList() {
+  /**
+   * Get the user's tokens for the given chain.
+   *
+   * @param chainId - The chain ID.
+   * @returns The list of tokens addresses for the current chain
+   */
+  #getTokenAddresses(chainId: Hex): Hex[] {
     const { allTokens, allDetectedTokens } = this.config;
-    const tokens =
-      allTokens[this.config.chainId]?.[this.config.selectedAddress] || [];
+    const tokens = allTokens[chainId]?.[this.config.selectedAddress] || [];
     const detectedTokens =
-      allDetectedTokens[this.config.chainId]?.[this.config.selectedAddress] ||
-      [];
-    this.tokenList = [...tokens, ...detectedTokens];
+      allDetectedTokens[chainId]?.[this.config.selectedAddress] || [];
+
+    return [...tokens, ...detectedTokens].map((token) => toHex(token.address));
   }
 
   /**
@@ -322,23 +322,10 @@ export class TokenRatesController extends PollingControllerV1<
    * Updates exchange rates for all tokens.
    */
   async updateExchangeRates() {
-    if (this.tokenList.length === 0 || this.disabled) {
-      return;
-    }
-
     const { chainId, nativeCurrency } = this.config;
-    const tokenContractAddresses = this.tokenList.map(
-      (token) => token.address,
-    ) as Hex[];
     await this.updateExchangeRatesByChainId({
       chainId,
       nativeCurrency,
-      tokenContractAddresses,
-    });
-
-    this.update({
-      contractExchangeRates:
-        this.state.contractExchangeRatesByChainId[chainId][nativeCurrency],
     });
   }
 
@@ -348,41 +335,52 @@ export class TokenRatesController extends PollingControllerV1<
    * @param options - The options to fetch exchange rates.
    * @param options.chainId - The chain ID.
    * @param options.nativeCurrency - The ticker for the chain.
-   * @param options.tokenContractAddresses - The addresses for the token contracts.
    */
   async updateExchangeRatesByChainId({
     chainId,
     nativeCurrency,
-    tokenContractAddresses,
   }: {
     chainId: Hex;
     nativeCurrency: string;
-    tokenContractAddresses: Hex[];
   }) {
-    if (tokenContractAddresses.length === 0 || this.disabled) {
+    if (this.disabled) {
       return;
     }
 
-    const newContractExchangeRates = await this.fetchAndMapExchangeRates({
+    const tokenContractAddresses = this.#getTokenAddresses(chainId);
+    if (tokenContractAddresses.length === 0) {
+      return;
+    }
+
+    const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
       tokenContractAddresses,
       chainId,
       nativeCurrency,
     });
 
+    const existingContractExchangeRates = this.state.contractExchangeRates;
+    const updatedContractExchangeRates =
+      chainId === this.config.chainId &&
+      nativeCurrency === this.config.nativeCurrency
+        ? newContractExchangeRates
+        : existingContractExchangeRates;
+
     const existingContractExchangeRatesForChainId =
       this.state.contractExchangeRatesByChainId[chainId] ?? {};
-
-    this.update({
-      contractExchangeRatesByChainId: {
-        ...this.state.contractExchangeRatesByChainId,
-        [chainId]: {
-          ...existingContractExchangeRatesForChainId,
-          [nativeCurrency]: {
-            ...existingContractExchangeRatesForChainId[nativeCurrency],
-            ...newContractExchangeRates,
-          },
+    const updatedContractExchangeRatesForChainId = {
+      ...this.state.contractExchangeRatesByChainId,
+      [chainId]: {
+        ...existingContractExchangeRatesForChainId,
+        [nativeCurrency]: {
+          ...existingContractExchangeRatesForChainId[nativeCurrency],
+          ...newContractExchangeRates,
         },
       },
+    };
+
+    this.update({
+      contractExchangeRates: updatedContractExchangeRates,
+      contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
     });
   }
 
@@ -406,7 +404,7 @@ export class TokenRatesController extends PollingControllerV1<
    * native currency, or an empty map if no exchange rates can be obtained for
    * the chain ID.
    */
-  async fetchAndMapExchangeRates({
+  async #fetchAndMapExchangeRates({
     tokenContractAddresses,
     chainId,
     nativeCurrency,
@@ -439,22 +437,16 @@ export class TokenRatesController extends PollingControllerV1<
   }
 
   /**
-   * Updates token rates for the given networkClientId and contract addresses
+   * Updates token rates for the given networkClientId
    *
    * @param networkClientId - The network client ID used to get a ticker value.
-   * @param options - The polling options.
-   * @param options.tokenAddresses - The addresses for the token contracts.
    * @returns The controller state.
    */
-  async _executePoll(
-    networkClientId: NetworkClientId,
-    options: { tokenAddresses: Hex[] },
-  ): Promise<void> {
+  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
     const networkClient = this.getNetworkClientById(networkClientId);
     await this.updateExchangeRatesByChainId({
       chainId: networkClient.configuration.chainId,
       nativeCurrency: networkClient.configuration.ticker,
-      tokenContractAddresses: options.tokenAddresses,
     });
   }
 
