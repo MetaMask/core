@@ -771,21 +771,23 @@ export class TokensController extends BaseControllerV1<
 
     if (!asset.symbol && !contractSymbol) {
       throw rpcErrors.invalidParams(
-        'A symbol is required, but was not found in the request or contract',
+        'A symbol is required, but was not found in either the request or contract',
       );
     }
 
     if (
       contractSymbol !== undefined &&
       asset.symbol !== undefined &&
-      asset.symbol !== contractSymbol
+      asset.symbol.localeCompare(contractSymbol, undefined, {
+        sensitivity: 'accent',
+      }) !== 0
     ) {
       throw rpcErrors.invalidParams(
         `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
       );
     }
 
-    asset.symbol ??= contractSymbol;
+    asset.symbol = contractSymbol ?? asset.symbol;
     if (typeof asset.symbol !== 'string') {
       throw rpcErrors.invalidParams(`Invalid symbol: not a string`);
     }
@@ -800,7 +802,7 @@ export class TokensController extends BaseControllerV1<
 
     if (asset.decimals === undefined && contractDecimals === undefined) {
       throw rpcErrors.invalidParams(
-        'Decimals are required, but were not found in the request or contract',
+        'Decimals are required, but were not found in either the request or contract',
       );
     }
 
@@ -814,7 +816,7 @@ export class TokensController extends BaseControllerV1<
       );
     }
 
-    const decimalsStr = asset.decimals ?? contractDecimals;
+    const decimalsStr = contractDecimals ?? asset.decimals;
     const decimalsNum = parseInt(decimalsStr as unknown as string, 10);
     if (!Number.isInteger(decimalsNum) || decimalsNum > 36 || decimalsNum < 0) {
       throw rpcErrors.invalidParams(

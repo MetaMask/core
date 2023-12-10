@@ -1200,7 +1200,7 @@ describe('TokensController', () => {
       asset.decimals = undefined;
       const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
-        'Decimals are required, but were not found in the request or contract',
+        'Decimals are required, but were not found in either the request or contract',
       );
     });
 
@@ -1214,7 +1214,7 @@ describe('TokensController', () => {
       asset.symbol = undefined;
       const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
-        'A symbol is required, but was not found in the request or contract',
+        'A symbol is required, but was not found in either the request or contract',
       );
     });
 
@@ -1222,7 +1222,7 @@ describe('TokensController', () => {
       asset.symbol = '';
       const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
-        'A symbol is required, but was not found in the request or contract',
+        'A symbol is required, but was not found in either the request or contract',
       );
     });
 
@@ -1341,7 +1341,25 @@ describe('TokensController', () => {
       );
     });
 
-    it('is lenient when accepting string vs integer for decimals', async () => {
+    it('should perform case insensitive validation of symbols', async function () {
+      asset.symbol = 'ABC';
+      mockContract([asset, asset]);
+      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+
+      await tokensController.watchAsset({
+        asset: { ...asset, symbol: 'abc' },
+        type,
+      });
+      expect(tokensController.state.tokens).toStrictEqual([
+        {
+          isERC721: false,
+          aggregators: [],
+          ...asset, // but use the casing from the contract
+        },
+      ]);
+    });
+
+    it('should be lenient when accepting string vs integer for decimals', async () => {
       jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
       for (const decimals of [6, '6']) {
         asset.decimals = decimals;
