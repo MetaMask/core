@@ -22,7 +22,9 @@ import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import MockEncryptor, {
+  MOCK_ENCRYPTION_KEY,
+} from '../tests/mocks/mockEncryptor';
 import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
@@ -1411,7 +1413,7 @@ describe('KeyringController', () => {
         { cacheEncryptionKey: true },
         async ({ controller, initialState }) => {
           await controller.submitEncryptionKey(
-            mockKey.toString('hex'),
+            MOCK_ENCRYPTION_KEY,
             initialState.encryptionSalt as string,
           );
           expect(controller.state).toStrictEqual(initialState);
@@ -1823,10 +1825,17 @@ describe('KeyringController', () => {
         expect(
           signProcessKeyringController.state.keyrings[1].accounts,
         ).toHaveLength(3);
-        await signProcessKeyringController.forgetQRDevice();
+        const accountsToBeRemoved =
+          signProcessKeyringController.state.keyrings[1].accounts;
+        const { removedAccounts, remainingAccounts } =
+          await signProcessKeyringController.forgetQRDevice();
         expect(
           signProcessKeyringController.state.keyrings[1].accounts,
         ).toHaveLength(0);
+        expect(accountsToBeRemoved).toStrictEqual(removedAccounts);
+        expect(await signProcessKeyringController.getAccounts()).toStrictEqual(
+          remainingAccounts,
+        );
       });
     });
 
@@ -2023,7 +2032,7 @@ describe('KeyringController', () => {
           await signProcessKeyringController.setLocked();
           // ..and unlocking it should add a new instance of QRKeyring
           await signProcessKeyringController.submitEncryptionKey(
-            mockKey.toString('hex'),
+            MOCK_ENCRYPTION_KEY,
             salt,
           );
           // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
