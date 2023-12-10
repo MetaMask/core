@@ -1,6 +1,11 @@
 /*
  * For a detailed explanation regarding each configuration property and type check, visit:
  * https://jestjs.io/docs/configuration
+ *
+ * NOTE:
+ * This config uses `babel-jest` due to ESM- / TypeScript-related incompatibilities with our
+ * current version (`^27`) of `jest` and `ts-jest`. We can switch to `ts-jest` once we have
+ * migrated our Jest dependencies to version `>=29`.
  */
 
 module.exports = {
