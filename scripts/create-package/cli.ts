@@ -1,5 +1,4 @@
 import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
 
 import type { CommandModule } from './commands';
 
@@ -16,7 +15,7 @@ export default async function cli(
   // Parameterized for easier testing.
   commands: CommandModule[],
 ) {
-  await yargs(hideBin(argv))
+  await yargs(argv.slice(2))
     .scriptName('create-package')
     // Disable --version. This is an internal tool and it doesn't have a version.
     .version(false)
