@@ -1,4 +1,5 @@
 import { createSandbox, writeFile, readFile } from '@metamask/utils/node';
+import { promises as fs } from 'fs';
 import path from 'path';
 
 import { readAllFiles, writeFiles } from './fs-utils';
@@ -63,6 +64,25 @@ describe('create-package/fs-utils', () => {
           'file3.txt': 'baz',
           'subdir1/file4.txt': 'qux',
           'subdir1/subdir2/subdir3/file5.txt': 'quux',
+        });
+      });
+    });
+
+    it('should ignore file system entities that are neither files nor directories', async () => {
+      expect.assertions(1);
+
+      await withinSandbox(async (sandbox) => {
+        const dirPath = path.join(sandbox.directoryPath, 'dir/');
+        await writeFile(path.join(dirPath, 'file1.txt'), 'foo');
+        await fs.symlink(
+          path.join(dirPath, 'file1.txt'),
+          path.join(dirPath, 'file2.txt'),
+        );
+
+        const files = await readAllFiles(dirPath);
+
+        expect(files).toStrictEqual({
+          'file1.txt': 'foo',
         });
       });
     });

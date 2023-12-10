@@ -91,6 +91,30 @@ describe('create-package/cli', () => {
       );
     });
 
+    it('should handle names already prefixed with "@metamask/"', async () => {
+      const defaultCommand = commandMap.$0;
+      jest.spyOn(defaultCommand, 'handler');
+
+      jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
+        tsConfig: {},
+        tsConfigBuild: {},
+        nodeVersions: '>=18.0.0',
+      } as any);
+      jest.spyOn(utils, 'finalizeAndWriteData').mockResolvedValue();
+
+      expect(
+        await cli(
+          getMockArgv('--name', '@metamask/foo', '--description', 'bar'),
+          commands,
+        ),
+      ).toBeUndefined();
+
+      expect(defaultCommand.handler).toHaveBeenCalledTimes(1);
+      expect(defaultCommand.handler).toHaveBeenCalledWith(
+        expect.objectContaining(getParsedArgv('foo', 'bar')),
+      );
+    });
+
     it('should create a new package', async () => {
       const defaultCommand = commandMap.$0;
       jest.spyOn(defaultCommand, 'handler').mockImplementation();
