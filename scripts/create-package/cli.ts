@@ -43,5 +43,6 @@ export default async function cli(
     .showHelpOnFail(false)
     .help()
     .alias('help', 'h')
+    // @ts-expect-error: This does in fact exist, but it is missing from our yargs types.
     .parseAsync();
 }
