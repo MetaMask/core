@@ -80,6 +80,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK = {
  */
 function createMessengerMock(): jest.Mocked<UserOperationControllerMessenger> {
   return {
+    call: jest.fn(),
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
   } as any;
@@ -173,6 +174,13 @@ describe('UserOperationController', () => {
     );
 
     bundlerMock.sendUserOperation.mockResolvedValue(HASH_MOCK);
+
+    messenger.call.mockResolvedValue({
+      resultCallbacks: {
+        success: jest.fn(),
+        error: jest.fn(),
+      },
+    });
   });
 
   describe('constructor', () => {
@@ -283,6 +291,7 @@ describe('UserOperationController', () => {
         status: UserOperationStatus.Unapproved,
         time: expect.any(Number),
         transactionHash: null,
+        transactionParams: null,
         userOperation: {
           callData: EMPTY_BYTES,
           callGasLimit: EMPTY_BYTES,
@@ -324,6 +333,7 @@ describe('UserOperationController', () => {
         status: UserOperationStatus.Submitted,
         time: expect.any(Number),
         transactionHash: null,
+        transactionParams: null,
         userOperation: {
           callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
           callGasLimit: PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.callGasLimit,

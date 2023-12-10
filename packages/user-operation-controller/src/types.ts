@@ -1,3 +1,5 @@
+import type { TransactionParams } from '@metamask/transaction-controller';
+
 /**
  * A complete user operation to be submitted to a bundler.
  */
@@ -124,6 +126,9 @@ export type UserOperationMetadata = {
 
   /** Hash of the transaction that submitted the user operation to the entrypoint. */
   transactionHash: string | null;
+
+  /** The initial transaction parameters that the user operation was created from. */
+  transactionParams: Required<TransactionParams> | null;
 
   /** Resulting user operation object to be submitted to the bundler. */
   userOperation: UserOperation;
