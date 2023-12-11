@@ -9,8 +9,8 @@ import {
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
+  NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { PollingController } from '@metamask/polling-controller';
@@ -41,8 +41,7 @@ export type TokenDetectionControllerActions =
   TokenDetectionControllerGetStateAction;
 
 export type AllowedActions =
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | GetTokenListState;
 
 export type TokenDetectionControllerStateChangeEvent =
@@ -53,6 +52,7 @@ export type TokenDetectionControllerEvents =
 
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange;
 
 export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
@@ -189,7 +189,7 @@ export class TokenDetectionController extends PollingController<
     );
 
     this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
       ({ providerConfig: { chainId: newChainId } }) => {
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
@@ -244,13 +244,14 @@ export class TokenDetectionController extends PollingController<
 
   #getCorrectChainId(networkClientId?: NetworkClientId) {
     if (networkClientId) {
-      const {
-        configuration: { chainId },
-      } = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
-      this.#chainId = chainId;
+      const { chainId } =
+        this.messagingSystem.call(
+          'NetworkController:getNetworkConfigurationByNetworkClientId',
+          networkClientId,
+        ) ?? {};
+      if (chainId) {
+        this.#chainId = chainId;
+      }
     }
     return this.#chainId;
   }

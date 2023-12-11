@@ -145,12 +145,12 @@ function buildTokenDetectionControllerMessenger(
   return (controllerMessenger ?? getControllerMessenger()).getRestricted({
     name: controllerName,
     allowedActions: [
-      'NetworkController:getState',
-      'NetworkController:getNetworkClientById',
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
       'TokenListController:getState',
     ],
     allowedEvents: [
       'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
       'TokenListController:stateChange',
     ],
   });
@@ -177,13 +177,8 @@ describe('TokenDetectionController', () => {
     });
 
     controllerMessenger.registerActionHandler(
-      `NetworkController:getNetworkClientById`,
-      jest.fn().mockReturnValueOnce({
-        configuration: providerConfig,
-        provider: {},
-        blockTracker: {},
-        destroy: jest.fn(),
-      }),
+      `NetworkController:getNetworkConfigurationByNetworkClientId`,
+      jest.fn().mockReturnValueOnce(providerConfig),
     );
   };
   const mainnet = {
