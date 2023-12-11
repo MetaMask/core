@@ -1,15 +1,26 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import { createModuleLogger, projectLogger } from '../logger';
-import type { UserOperation } from '../types';
+import type { UserOperation, UserOperationReceipt } from '../types';
 
 const log = createModuleLogger(projectLogger, 'bundler');
 
+/**
+ * Response from the `eth_estimateUserOperationGas` bundler method.
+ * Includes the estimated gas limits required by a user operation.
+ */
 export type BundlerEstimateUserOperationGasResponse = {
-  preVerificationGas: number;
-  verificationGas: number;
-  verificationGasLimit: number;
-  callGasLimit: number;
+  /** Estimated gas required to compensate the bundler for any pre-verification. */
+  preVerificationGas: number | string;
+
+  /** Estimated gas required to verify the user operation. */
+  verificationGas: number | string;
+
+  /** Estimated gas required to verify the user operation. */
+  verificationGasLimit: number | string;
+
+  /** Estimated gas required for the execution of the user operation. */
+  callGasLimit: number | string;
 };
 
 /**
@@ -33,14 +44,28 @@ export class Bundler {
     userOperation: UserOperation,
     entrypoint: string,
   ): Promise<BundlerEstimateUserOperationGasResponse> {
+    log('Estimating gas', { url: this.#url, userOperation, entrypoint });
+
     const response = await this.#query('eth_estimateUserOperationGas', [
       userOperation,
       entrypoint,
     ]);
 
-    log('Estimated gas', { url: this.#url, response });
+    log('Estimated gas', { response });
 
     return response as BundlerEstimateUserOperationGasResponse;
+  }
+
+  /**
+   * Retrieve the receipt for a user operation.
+   * @param hash - The hash of the user operation.
+   * @returns The receipt for the user operation.
+   */
+  async getUserOperationReceipt(
+    hash?: string,
+  ): Promise<UserOperationReceipt | undefined> {
+    log('Getting user operation receipt', { url: this.#url, hash });
+    return await this.#query('eth_getUserOperationReceipt', [hash]);
   }
 
   /**
