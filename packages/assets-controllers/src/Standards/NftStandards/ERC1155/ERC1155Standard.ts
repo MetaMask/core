@@ -237,7 +237,7 @@ export class ERC1155Standard {
         : undefined,
     ]);
 
-    if (tokenId) {
+    if (tokenURI) {
       try {
         const response = await timeoutFetch(tokenURI);
         const object = await response.json();
@@ -246,7 +246,8 @@ export class ERC1155Standard {
           image = getFormattedIpfsUrl(ipfsGateway, image, true);
         }
       } catch {
-        // ignore
+        // Catch block should be kept empty to ignore exceptions, and
+        // pass as much information as possible to the return statement
       }
     }
 
