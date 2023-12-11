@@ -284,15 +284,15 @@ describe('TokenDetectionController', () => {
     expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
   });
 
-  it('should detect tokens correctly on the Aurora network', async () => {
-    const auroraMainnet = {
-      chainId: ChainId.aurora,
-      type: NetworkType.mainnet,
-      ticker: 'Aurora ETH',
+  it('should detect tokens correctly on the Polygon network', async () => {
+    const polygonRpc = {
+      chainId: SupportedTokenDetectionNetworks.polygon,
+      type: NetworkType.rpc,
+      ticker: 'Polygon ETH',
     };
     const selectedAddress = '0x1';
     preferences.update({ selectedAddress });
-    changeNetwork(auroraMainnet);
+    changeNetwork(polygonRpc);
 
     await tokenDetection.start();
 
@@ -302,7 +302,7 @@ describe('TokenDetectionController', () => {
 
     await tokenDetection.detectTokens({
       accountAddress: selectedAddress,
-      networkClientId: ChainId.aurora,
+      networkClientId: SupportedTokenDetectionNetworks.polygon,
     });
     expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
   });
