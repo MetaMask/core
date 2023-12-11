@@ -469,7 +469,7 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: stub,
       getBalancesInSingleCall: getBalancesInSingleCallMock,
       addDetectedTokens: stub,
-      getTokensState: stub,
+      getTokensState: () => tokensController.state,
       getPreferencesState: () => preferences.state,
       messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     });

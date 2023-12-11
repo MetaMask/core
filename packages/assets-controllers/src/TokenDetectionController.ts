@@ -284,10 +284,10 @@ export class TokenDetectionController extends PollingController<
     ) {
       return;
     }
-    const { tokens } = this.#getTokensState() ?? {};
+    const { tokens } = this.#getTokensState();
     const selectedAddress = accountAddress ?? this.#selectedAddress;
     const chainId = this.#getCorrectChainId(networkClientId);
-    const tokensAddresses = tokens?.map(
+    const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
     const { tokenList } = await this.messagingSystem.call(
