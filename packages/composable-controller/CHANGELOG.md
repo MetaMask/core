@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add types `ComposableControllerState`, `ComposableControllerStateChangeEvent`, `ComposableControllerEvents`, `ComposableControllerMessenger` ([#3590](https://github.com/MetaMask/core/pull/3590))
+
+### Changed
+- **BREAKING:** `ComposableController` is upgraded to extend `BaseControllerV2` ([#3590](https://github.com/MetaMask/core/pull/3590))
+  - The constructor now expects an options object with required properties `controllers` and `messenger` as its only argument.
+  - `ComposableController` no longer has a `subscribe` method. Instead, listeners for `ComposableController` events must be registered to the controller messenger that generated the restricted messenger assigned to the instance's `messagingSystem` class field.
+  - Any getters for `ComposableController` state that access the internal class field directly should be refactored to instead use listeners that are subscribed to `ComposableControllerStateChangeEvent`.
 
 ## [4.0.0]
 ### Changed
