@@ -103,13 +103,22 @@ type MainControllerMessenger = ControllerMessenger<
   AllowedEvents
 >;
 
-const getControllerMessenger = (): MainControllerMessenger => {
+/**
+ * Returns a new `MainControllerMessenger` instance that can be used to create restricted messengers.
+ * @returns The new `MainControllerMessenger` instance.
+ */
+function getControllerMessenger(): MainControllerMessenger {
   return new ControllerMessenger();
-};
+}
 
-const setupTokenListController = (
+/**
+ * Sets up a `TokenListController` and its restricted messenger.
+ * @param controllerMessenger - The main controller messenger.
+ * @returns An object containing the TokenListController and its restricted messenger.
+ */
+function setupTokenListController(
   controllerMessenger: MainControllerMessenger,
-) => {
+) {
   const tokenListMessenger = controllerMessenger.getRestricted({
     name: 'TokenListController',
     allowedActions: [],
@@ -123,12 +132,17 @@ const setupTokenListController = (
   });
 
   return { tokenList, tokenListMessenger };
-};
+}
 
-const buildTokenDetectionControllerMessenger: (
-  controllerMessenger: MainControllerMessenger,
-) => TokenDetectionControllerMessenger = (controllerMessenger) =>
-  controllerMessenger.getRestricted({
+/**
+ * Builds a messenger that `TokenDetectionController` can use to communicate with other controllers.
+ * @param controllerMessenger - The main controller messenger.
+ * @returns The restricted messenger.
+ */
+function buildTokenDetectionControllerMessenger(
+  controllerMessenger?: MainControllerMessenger,
+): TokenDetectionControllerMessenger {
+  return (controllerMessenger ?? getControllerMessenger()).getRestricted({
     name: controllerName,
     allowedActions: [
       'NetworkController:getState',
@@ -140,6 +154,7 @@ const buildTokenDetectionControllerMessenger: (
       'TokenListController:stateChange',
     ],
   });
+}
 
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
