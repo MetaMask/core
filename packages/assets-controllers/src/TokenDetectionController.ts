@@ -65,7 +65,6 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
 
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
- * @property disabled - Determines if this controller is enabled
  * @property interval - Polling interval used to fetch new token rates
  * @property selectedAddress - Vault selected address
  * @property chainId - The chain ID of the current network
@@ -77,8 +76,6 @@ export class TokenDetectionController extends PollingController<
   TokenDetectionState,
   TokenDetectionControllerMessenger
 > {
-  #disabled = true;
-
   #intervalId?: ReturnType<typeof setTimeout>;
 
   #chainId: Hex;
@@ -211,7 +208,6 @@ export class TokenDetectionController extends PollingController<
    * Start polling for detected tokens.
    */
   async start() {
-    this.#disabled = false;
     await this.#startPolling();
   }
 
@@ -219,7 +215,6 @@ export class TokenDetectionController extends PollingController<
    * Stop polling for detected tokens.
    */
   stop() {
-    this.#disabled = true;
     this.#stopPolling();
   }
 
@@ -277,7 +272,6 @@ export class TokenDetectionController extends PollingController<
   }): Promise<void> {
     const { networkClientId, accountAddress } = options ?? {};
     if (
-      this.#disabled ||
       !this.#isDetectionEnabledForNetwork ||
       !this.#isDetectionEnabledFromPreferences
     ) {
