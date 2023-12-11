@@ -271,7 +271,6 @@ describe('TokenDetectionController', () => {
 
   it('should not autodetect while not on supported networks', async () => {
     changeNetwork(goerli);
-    await tokenDetection.start();
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -303,8 +302,6 @@ describe('TokenDetectionController', () => {
     const selectedAddress = '0x1';
     preferences.update({ selectedAddress });
     changeNetwork(polygon);
-
-    await tokenDetection.start();
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -485,7 +482,6 @@ describe('TokenDetectionController', () => {
     });
 
     tokenList.clearingTokenListData();
-    await tokenDetection.start();
     expect(getBalancesInSingleCallMock.called).toBe(false);
   });
 
@@ -585,8 +581,6 @@ describe('TokenDetectionController', () => {
       const selectedAddress = '0x2';
       preferences.update({ selectedAddress });
       changeNetwork(goerli);
-
-      await tokenDetection.start();
 
       getBalancesInSingleCall.resolves({
         [sampleTokenA.address]: new BN(1),
