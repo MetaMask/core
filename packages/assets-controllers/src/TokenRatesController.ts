@@ -375,7 +375,7 @@ export class TokenRatesController extends PollingControllerV1<
       promise: inProgressUpdate,
       resolve: updateSucceeded,
       reject: updateFailed,
-    } = deferredPromise({ suppressUnhandledRejection: true });
+    } = createDeferredPromise({ suppressUnhandledRejection: true });
     this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
 
     try {
@@ -606,7 +606,7 @@ type DeferredPromise = {
  * useful if the deferred Promise is sometimes intentionally not used.
  * @returns A deferred Promise.
  */
-function deferredPromise({
+function createDeferredPromise({
   suppressUnhandledRejection = false,
 }: {
   suppressUnhandledRejection: boolean;
