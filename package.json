@@ -42,7 +42,6 @@
   "devDependencies": {
     "@babel/core": "^7.23.5",
     "@babel/plugin-transform-modules-commonjs": "^7.23.3",
-    "@babel/preset-env": "^7.23.5",
     "@babel/preset-typescript": "^7.23.3",
     "@lavamoat/allow-scripts": "^2.3.1",
     "@metamask/create-release-branch": "^2.0.1",
