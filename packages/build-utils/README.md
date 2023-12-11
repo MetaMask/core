@@ -14,7 +14,7 @@ or
 
 ### `/transforms`
 
-See [the transforms readme](https://github.com/MetaMask/core/packages/build-utils/src/transforms/README.md).
+See [the transforms readme](https://github.com/MetaMask/core/blob/main/packages/build-utils/src/transforms/README.md).
 
 ## Contributing
 
