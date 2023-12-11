@@ -67,8 +67,6 @@ export class AccountTrackerController extends PollingControllerV1<
 > {
   private _provider?: Provider;
 
-  private readonly pollMutex = new Mutex();
-
   private readonly refreshMutex = new Mutex();
 
   private handle?: ReturnType<typeof setTimeout>;
@@ -234,12 +232,10 @@ export class AccountTrackerController extends PollingControllerV1<
    * @param interval - Polling interval trigger a 'refresh'.
    */
   async poll(interval?: number): Promise<void> {
-    const releaseLock = await this.pollMutex.acquire();
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
     await this.refresh();
     this.handle = setTimeout(() => {
-      releaseLock();
       this.poll(this.config.interval);
     }, this.config.interval);
   }
