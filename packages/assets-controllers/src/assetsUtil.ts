@@ -1,16 +1,13 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
-  isValidHexAddress,
   GANACHE_CHAIN_ID,
 } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
-import type { Token } from './TokenRatesController';
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -104,40 +101,6 @@ export const formatIconUrlWithProxy = ({
 };
 
 /**
- * Validates a ERC20 token to be added with EIP747.
- *
- * @param token - Token object to validate.
- */
-export function validateTokenToWatch(token: Token) {
-  const { address, symbol, decimals } = token;
-  if (!address || !symbol || typeof decimals === 'undefined') {
-    throw rpcErrors.invalidParams(
-      `Must specify address, symbol, and decimals.`,
-    );
-  }
-
-  if (typeof symbol !== 'string') {
-    throw rpcErrors.invalidParams(`Invalid symbol: not a string.`);
-  }
-
-  if (symbol.length > 11) {
-    throw rpcErrors.invalidParams(
-      `Invalid symbol "${symbol}": longer than 11 characters.`,
-    );
-  }
-  const numDecimals = parseInt(decimals as unknown as string, 10);
-  if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
-    throw rpcErrors.invalidParams(
-      `Invalid decimals "${decimals}": must be 0 <= 36.`,
-    );
-  }
-
-  if (!isValidHexAddress(address)) {
-    throw rpcErrors.invalidParams(`Invalid address "${address}".`);
-  }
-}
-
-/**
  * Networks where token detection is supported - Values are in decimal format
  */
 export enum SupportedTokenDetectionNetworks {
@@ -148,6 +111,10 @@ export enum SupportedTokenDetectionNetworks {
   aurora = '0x4e454152', // decimal: 1313161554
   linea_goerli = '0xe704', // decimal: 59140
   linea_mainnet = '0xe708', // decimal: 59144
+  arbitrum = '0xa4b1', // decimal: 42161
+  optimism = '0xa', // decimal: 10
+  base = '0x2105', // decimal: 8453
+  zksync = '0x144', // decimal: 324
 }
 
 /**

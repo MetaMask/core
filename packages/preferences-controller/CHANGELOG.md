@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+### Added
+- **BREAKING** Add required property `showIncomingTransactions` to `PreferencesState` ([#1659](https://github.com/MetaMask/core/pull/1659))
+- Add types `EtherscanSupportedChains`, `EtherscanSupportedHexChainId` ([#1659](https://github.com/MetaMask/core/pull/1659))
+- Add constant `ETHERSCAN_SUPPORTED_CHAIN_IDS` ([#1659](https://github.com/MetaMask/core/pull/1659))
+- Add `setEnabledNetworkIncomingTransactions` method ([#1659](https://github.com/MetaMask/core/pull/1659))
+  - This can be used to set the `showIncomingTransactions` preference for the given chain ID.
+
+### Changed
+- Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is not breaking because this controller still inherits from BaseController v1.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
 ## [4.4.3]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
@@ -76,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.3...@metamask/preferences-controller@5.0.0
 [4.4.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.2...@metamask/preferences-controller@4.4.3
 [4.4.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.1...@metamask/preferences-controller@4.4.2
 [4.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.0...@metamask/preferences-controller@4.4.1

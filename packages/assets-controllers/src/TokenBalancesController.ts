@@ -1,5 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
@@ -43,7 +43,7 @@ export interface TokenBalancesState extends BaseState {
  * Controller that passively polls on a set interval token balances
  * for tokens stored in the TokensController
  */
-export class TokenBalancesController extends BaseController<
+export class TokenBalancesController extends BaseControllerV1<
   TokenBalancesConfig,
   TokenBalancesState
 > {

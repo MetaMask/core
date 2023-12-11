@@ -1,7 +1,6 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { getKnownPropertyNames } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
-import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
   GasPriceValue,
@@ -41,11 +40,17 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  */
 export function normalizeTxParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
+
   for (const key of getKnownPropertyNames(NORMALIZERS)) {
     if (txParams[key]) {
       normalizedTxParams[key] = NORMALIZERS[key](txParams[key]);
     }
   }
+
+  if (!normalizedTxParams.value) {
+    normalizedTxParams.value = '0x0';
+  }
+
   return normalizedTxParams;
 }
 
@@ -118,42 +123,6 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 }
 
 /**
- * Helper function to filter and format transactions for the nonce tracker.
- *
- * @param fromAddress - Address of the account from which the transactions to filter from are sent.
- * @param transactionStatus - Status of the transactions for which to filter.
- * @param transactions - Array of transactionMeta objects that have been prefiltered.
- * @returns Array of transactions formatted for the nonce tracker.
- */
-export function getAndFormatTransactionsForNonceTracker(
-  fromAddress: string,
-  transactionStatus: TransactionStatus,
-  transactions: TransactionMeta[],
-): NonceTrackerTransaction[] {
-  return transactions
-    .filter(
-      ({ status, txParams: { from } }) =>
-        status === transactionStatus &&
-        from.toLowerCase() === fromAddress.toLowerCase(),
-    )
-    .map(({ status, txParams: { from, gas, value, nonce } }) => {
-      // the only value we care about is the nonce
-      // but we need to return the other values to satisfy the type
-      // TODO: refactor nonceTracker to not require this
-      return {
-        status,
-        history: [{}],
-        txParams: {
-          from: from ?? '',
-          gas: gas ?? '',
-          value: value ?? '',
-          nonce: nonce ?? '',
-        },
-      };
-    });
-}
-
-/**
  * Validates that a transaction is unapproved.
  * Throws if the transaction is not unapproved.
  *
@@ -187,5 +156,29 @@ export function normalizeTxError(
     stack: error.stack,
     code: error?.code,
     rpc: error?.value,
+  };
+}
+
+/**
+ * Normalize an object containing gas fee values.
+ *
+ * @param gasFeeValues - An object containing gas fee values.
+ * @returns An object containing normalized gas fee values.
+ */
+export function normalizeGasFeeValues(
+  gasFeeValues: GasPriceValue | FeeMarketEIP1559Values,
+): GasPriceValue | FeeMarketEIP1559Values {
+  const normalize = (value: any) =>
+    typeof value === 'string' ? addHexPrefix(value) : value;
+
+  if ('gasPrice' in gasFeeValues) {
+    return {
+      gasPrice: normalize(gasFeeValues.gasPrice),
+    };
+  }
+
+  return {
+    maxFeePerGas: normalize(gasFeeValues.maxFeePerGas),
+    maxPriorityFeePerGas: normalize(gasFeeValues.maxPriorityFeePerGas),
   };
 }

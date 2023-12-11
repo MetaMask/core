@@ -12,7 +12,6 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
-  NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -51,9 +50,7 @@ type MainControllerMessenger = ControllerMessenger<
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetEIP1559CompatibilityAction,
-  | GasFeeStateChange
-  | NetworkControllerStateChangeEvent
-  | NetworkControllerNetworkDidChangeEvent
+  GasFeeStateChange | NetworkControllerNetworkDidChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -71,15 +68,8 @@ const setupNetworkController = async ({
 }) => {
   const restrictedMessenger = unrestrictedMessenger.getRestricted({
     name: 'NetworkController',
-    allowedActions: [
-      'NetworkController:getState',
-      'NetworkController:getNetworkClientById',
-      'NetworkController:getEIP1559Compatibility',
-    ],
-    allowedEvents: [
-      'NetworkController:stateChange',
-      'NetworkController:networkDidChange',
-    ],
+    allowedActions: [],
+    allowedEvents: [],
   });
 
   const networkController = new NetworkController({
@@ -108,7 +98,7 @@ const getRestrictedMessenger = (
       'NetworkController:getNetworkClientById',
       'NetworkController:getEIP1559Compatibility',
     ],
-    allowedEvents: ['NetworkController:stateChange'],
+    allowedEvents: ['NetworkController:networkDidChange'],
   });
 
   return messenger;

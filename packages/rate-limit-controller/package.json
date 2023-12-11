@@ -1,6 +1,6 @@
 {
   "name": "@metamask/rate-limit-controller",
-  "version": "3.0.3",
+  "version": "4.0.0",
   "description": "Contains logic for rate-limiting API endpoints by requesting origin",
   "keywords": [
     "MetaMask",
@@ -30,9 +30,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.3",
-    "@metamask/rpc-errors": "^6.1.0",
-    "immer": "^9.0.6"
+    "@metamask/base-controller": "^4.0.0",
+    "@metamask/rpc-errors": "^6.1.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.3",

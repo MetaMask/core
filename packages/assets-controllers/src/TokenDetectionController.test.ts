@@ -13,6 +13,7 @@ import type {
   ProviderConfig,
 } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as sinon from 'sinon';
@@ -109,10 +110,7 @@ const setupTokenListController = (
   const tokenListMessenger = controllerMessenger.getRestricted({
     name: 'TokenListController',
     allowedActions: [],
-    allowedEvents: [
-      'TokenListController:stateChange',
-      'NetworkController:stateChange',
-    ],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   const tokenList = new TokenListController({
@@ -135,9 +133,9 @@ describe('TokenDetectionController', () => {
     ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
 
-  const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
+  const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkStateChangeListeners.forEach((listener) => {
+    onNetworkDidChangeListeners.forEach((listener) => {
       listener({
         ...defaultNetworkState,
         providerConfig,
@@ -152,7 +150,7 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
@@ -177,10 +175,9 @@ describe('TokenDetectionController', () => {
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
+      onNetworkDidChange: (listener) =>
+        onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -193,7 +190,7 @@ describe('TokenDetectionController', () => {
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
+        onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: (listener) =>
         tokenListSetup.tokenListMessenger.subscribe(
           `TokenListController:stateChange`,
@@ -440,7 +437,7 @@ describe('TokenDetectionController', () => {
   it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
     const polygonDecimalChainId = '137';
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${polygonDecimalChainId}`)
+      .get(getTokensPath(toHex(polygonDecimalChainId)))
       .reply(200, sampleTokenList);
 
     const stub = sinon.stub();
@@ -660,3 +657,15 @@ describe('TokenDetectionController', () => {
     });
   });
 });
+
+/**
+ * Construct the path used to fetch tokens that we can pass to `nock`.
+ *
+ * @param chainId - The chain ID.
+ * @returns The constructed path.
+ */
+function getTokensPath(chainId: Hex) {
+  return `/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+}

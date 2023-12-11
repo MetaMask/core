@@ -2,11 +2,8 @@ import type { Json } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-import type {
-  ActionConstraint,
-  EventConstraint,
-  RestrictedControllerMessenger,
-} from './ControllerMessenger';
+import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
+import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
 enablePatches();
 
@@ -103,7 +100,7 @@ export class BaseController<
     string
   >,
 > {
-  private internalState: ControllerState;
+  #internalState: ControllerState;
 
   protected messagingSystem: messenger;
 
@@ -146,7 +143,7 @@ export class BaseController<
   }) {
     this.messagingSystem = messenger;
     this.name = name;
-    this.internalState = state;
+    this.#internalState = state;
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(
@@ -161,7 +158,7 @@ export class BaseController<
    * @returns The current state.
    */
   get state() {
-    return this.internalState;
+    return this.#internalState;
   }
 
   set state(_) {
@@ -195,9 +192,9 @@ export class BaseController<
         state: ControllerState,
         cb: typeof callback,
       ) => [ControllerState, Patch[], Patch[]]
-    )(this.internalState, callback);
+    )(this.#internalState, callback);
 
-    this.internalState = nextState;
+    this.#internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange`,
       nextState,
@@ -215,8 +212,8 @@ export class BaseController<
    * or undo changes.
    */
   protected applyPatches(patches: Patch[]) {
-    const nextState = applyPatches(this.internalState, patches);
-    this.internalState = nextState;
+    const nextState = applyPatches(this.#internalState, patches);
+    this.#internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange`,
       nextState,

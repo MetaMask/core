@@ -1,11 +1,8 @@
-import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from '../TransactionController';
-import type { TransactionParams, TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
+import type { TransactionParams } from '../types';
 import * as util from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
@@ -50,6 +47,7 @@ describe('utils', () => {
         estimatedBaseFee: '0xestimatedBaseFee',
       });
     });
+
     it('normalizeTransaction if type is zero', () => {
       const normalized = util.normalizeTxParams({
         ...commonInput,
@@ -67,6 +65,13 @@ describe('utils', () => {
         maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
         estimatedBaseFee: '0xestimatedBaseFee',
         type: '0x0',
+      });
+    });
+
+    it('sets value if not specified', () => {
+      expect(util.normalizeTxParams({ from: '0xfrom' })).toStrictEqual({
+        from: '0xfrom',
+        value: '0x0',
       });
     });
   });
@@ -176,70 +181,6 @@ describe('utils', () => {
     });
   });
 
-  describe('getAndFormatTransactionsForNonceTracker', () => {
-    it('should return an array of formatted NonceTrackerTransaction objects filtered by fromAddress and transactionStatus', () => {
-      const fromAddress = '0x123';
-      const inputTransactions: TransactionMeta[] = [
-        {
-          id: '1',
-          chainId: '0x1',
-          time: 123456,
-          txParams: {
-            from: fromAddress,
-            gas: '0x100',
-            value: '0x200',
-            nonce: '0x1',
-          },
-          status: TransactionStatus.confirmed,
-        },
-        {
-          id: '2',
-          chainId: '0x1',
-          time: 123457,
-          txParams: {
-            from: '0x124',
-            gas: '0x101',
-            value: '0x201',
-            nonce: '0x2',
-          },
-          status: TransactionStatus.submitted,
-        },
-        {
-          id: '3',
-          chainId: '0x1',
-          time: 123458,
-          txParams: {
-            from: fromAddress,
-            gas: '0x102',
-            value: '0x202',
-            nonce: '0x3',
-          },
-          status: TransactionStatus.approved,
-        },
-      ];
-
-      const expectedResult: NonceTrackerTransaction[] = [
-        {
-          status: TransactionStatus.confirmed,
-          history: [{}],
-          txParams: {
-            from: fromAddress,
-            gas: '0x100',
-            value: '0x200',
-            nonce: '0x1',
-          },
-        },
-      ];
-
-      const result = util.getAndFormatTransactionsForNonceTracker(
-        fromAddress,
-        TransactionStatus.confirmed,
-        inputTransactions,
-      );
-      expect(result).toStrictEqual(expectedResult);
-    });
-  });
-
   describe('normalizeTxError', () => {
     const errorBase = {
       name: 'TxError',
@@ -269,6 +210,35 @@ describe('utils', () => {
         ...errorBase,
         code: 'ERROR_CODE',
         rpc: { code: 'rpc data' },
+      });
+    });
+  });
+
+  describe('normalizeGasFeeValues', () => {
+    it('returns normalized object if legacy gas fees', () => {
+      expect(
+        util.normalizeGasFeeValues({ gasPrice: '1A', test: 'value' } as any),
+      ).toStrictEqual({ gasPrice: '0x1A' });
+    });
+
+    it('returns normalized object if 1559 gas fees', () => {
+      expect(
+        util.normalizeGasFeeValues({
+          maxFeePerGas: '1A',
+          maxPriorityFeePerGas: '2B3C',
+          test: 'value',
+        } as any),
+      ).toStrictEqual({ maxFeePerGas: '0x1A', maxPriorityFeePerGas: '0x2B3C' });
+    });
+
+    it('returns empty 1559 object if missing gas fees', () => {
+      expect(
+        util.normalizeGasFeeValues({
+          test: 'value',
+        } as any),
+      ).toStrictEqual({
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
       });
     });
   });

@@ -18,6 +18,7 @@ import {
   ERC20,
   NetworksTicker,
 } from '@metamask/controller-utils';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   NetworkState,
   ProviderConfig,
@@ -25,7 +26,6 @@ import type {
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
-import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
 import * as sinon from 'sinon';
 import { v4 } from 'uuid';
@@ -151,9 +151,9 @@ function setupController({
   ) => Promise<BN>;
 } = {}) {
   const preferences = new PreferencesController();
-  const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
+  const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkStateChangeListeners.forEach((listener) => {
+    onNetworkDidChangeListeners.forEach((listener) => {
       listener({
         ...defaultNetworkState,
         providerConfig,
@@ -165,7 +165,6 @@ function setupController({
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
-    allowedActions: ['ApprovalController:addRequest'],
   });
 
   const approvalController = new ApprovalController({
@@ -203,8 +202,8 @@ function setupController({
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      onNetworkStateChangeListeners.push(listener),
+    onNetworkDidChange: (listener) =>
+      onNetworkDidChangeListeners.push(listener),
     getNetworkClientById: getNetworkClientByIdSpy,
   });
 
@@ -223,7 +222,7 @@ function setupController({
     chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
-      onNetworkStateChangeListeners.push(listener),
+      onNetworkDidChangeListeners.push(listener),
     getERC721AssetName:
       getERC721AssetNameStub ??
       assetsContract.getERC721AssetName.bind(assetsContract),
