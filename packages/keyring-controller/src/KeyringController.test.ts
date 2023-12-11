@@ -1825,10 +1825,17 @@ describe('KeyringController', () => {
         expect(
           signProcessKeyringController.state.keyrings[1].accounts,
         ).toHaveLength(3);
-        await signProcessKeyringController.forgetQRDevice();
+        const accountsToBeRemoved =
+          signProcessKeyringController.state.keyrings[1].accounts;
+        const { removedAccounts, remainingAccounts } =
+          await signProcessKeyringController.forgetQRDevice();
         expect(
           signProcessKeyringController.state.keyrings[1].accounts,
         ).toHaveLength(0);
+        expect(accountsToBeRemoved).toStrictEqual(removedAccounts);
+        expect(await signProcessKeyringController.getAccounts()).toStrictEqual(
+          remainingAccounts,
+        );
       });
     });
 
