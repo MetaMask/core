@@ -19,7 +19,8 @@ const ADD_USER_OPERATION_REQUEST_MOCK = {
 };
 
 const ADD_USER_OPERATION_OPTIONS_MOCK = {
-  chainId: '0x1',
+  networkClientId: 'testNetworkClientId',
+  origin: 'test.com',
   smartContractAccount: {
     prepareUserOperation: jest.fn(),
     updateUserOperation: jest.fn(),
@@ -182,12 +183,6 @@ describe('validation', () => {
       ],
       ['options', 'wrong type', 123, 'Expected an object, but received: 123'],
       [
-        'chainId',
-        'missing',
-        undefined,
-        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
-      ],
-      [
         'smartContractAccount',
         'missing',
         undefined,
@@ -210,12 +205,6 @@ describe('validation', () => {
         'missing',
         undefined,
         'Expected a function, but received: undefined',
-      ],
-      [
-        'chainId',
-        'wrong type',
-        123,
-        'Expected a value of type `Hexadecimal String`, but received: `123`',
       ],
       [
         'smartContractAccount',

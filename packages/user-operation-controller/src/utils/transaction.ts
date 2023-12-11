@@ -2,7 +2,6 @@ import type {
   TransactionError,
   TransactionMeta,
   TransactionParams,
-  TransactionType,
 } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
@@ -11,6 +10,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
 
+import { EMPTY_BYTES } from '../constants';
 import { UserOperationStatus } from '../types';
 import type { UserOperationMetadata } from '../types';
 
@@ -28,18 +28,18 @@ export function getTransactionMetadata(
     baseFeePerGas,
     chainId,
     error: rawError,
+    origin,
     transactionHash,
     id,
     time,
     transactionParams,
+    transactionType,
     userOperation,
   } = metadata;
 
   if (!transactionParams) {
     return undefined;
   }
-
-  const { nonce } = userOperation ?? {};
 
   const effectiveGasPrice =
     actualGasCost && actualGasUsed
@@ -77,7 +77,7 @@ export function getTransactionMetadata(
     userOperation?.callGasLimit,
   );
 
-  const hasPaymaster = userOperation.paymasterAndData !== '0x';
+  const hasPaymaster = userOperation.paymasterAndData !== EMPTY_BYTES;
 
   const maxFeePerGas = hasPaymaster ? '0x0' : userOperation.maxFeePerGas;
 
@@ -85,6 +85,8 @@ export function getTransactionMetadata(
     ? '0x0'
     : userOperation.maxPriorityFeePerGas;
 
+  const nonce =
+    userOperation.nonce === EMPTY_BYTES ? undefined : userOperation.nonce;
   const userFeeLevel = UserFeeLevel.CUSTOM;
 
   const txParams = {
@@ -99,22 +101,21 @@ export function getTransactionMetadata(
   // Since the user operations only support EIP-1559, we won't need this.
   delete txParams.gasPrice;
 
-  const type = 'userOperation' as TransactionType;
-
   return {
     baseFeePerGas: (baseFeePerGas as Hex) ?? undefined,
     chainId: chainId as Hex,
     error,
     hash: transactionHash ?? undefined,
     id,
+    origin,
+    status,
+    time,
+    txParams,
     txReceipt: {
       effectiveGasPrice: effectiveGasPrice ?? undefined,
       gasUsed: actualGasUsed ?? undefined,
     },
-    status,
-    time,
-    txParams,
-    type,
+    type: transactionType ?? undefined,
     userFeeLevel: userFeeLevel || undefined,
   };
 }

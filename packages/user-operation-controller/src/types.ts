@@ -1,4 +1,7 @@
-import type { TransactionParams } from '@metamask/transaction-controller';
+import type {
+  TransactionParams,
+  TransactionType,
+} from '@metamask/transaction-controller';
 
 /**
  * A complete user operation to be submitted to a bundler.
@@ -118,6 +121,9 @@ export type UserOperationMetadata = {
   /** A unique ID used to identify a user operation in the client. */
   id: string;
 
+  /** The origin of the user operation, such as the hostname of a dApp. */
+  origin: string;
+
   /** Current status of the user operation. */
   status: UserOperationStatus;
 
@@ -129,6 +135,9 @@ export type UserOperationMetadata = {
 
   /** The initial transaction parameters that the user operation was created from. */
   transactionParams: Required<TransactionParams> | null;
+
+  /** The type of transaction that the user operation will create. */
+  transactionType: TransactionType | null;
 
   /** Resulting user operation object to be submitted to the bundler. */
   userOperation: UserOperation;

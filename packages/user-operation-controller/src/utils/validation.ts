@@ -2,6 +2,7 @@ import { isStrictHexString } from '@metamask/utils';
 import type { Struct, StructError } from 'superstruct';
 import {
   assert,
+  boolean,
   define,
   func,
   object,
@@ -41,10 +42,10 @@ export function validateAddUserOperationRequest(request: any) {
  * @param options - The options to validate.
  */
 export function validateAddUserOperationOptions(options: any) {
-  const Hex = defineHex();
-
   const ValidOptions = object({
-    chainId: Hex,
+    networkClientId: string(),
+    origin: string(),
+    requireApproval: optional(boolean()),
     smartContractAccount: object({
       prepareUserOperation: func(),
       updateUserOperation: func(),

@@ -10,10 +10,16 @@ import {
   ORIGIN_METAMASK,
   toHex,
 } from '@metamask/controller-utils';
-import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import EthQuery from '@metamask/eth-query';
 import type {
-  TransactionMeta,
-  TransactionParams,
+  NetworkControllerGetNetworkClientByIdAction,
+  Provider,
+} from '@metamask/network-controller';
+import {
+  determineTransactionType,
+  type TransactionMeta,
+  type TransactionParams,
+  type TransactionType,
 } from '@metamask/transaction-controller';
 import { addHexPrefix } from 'ethereumjs-util';
 import EventEmitter from 'events';
@@ -111,7 +117,8 @@ export type UserOperationControllerOptions = {
 };
 
 export type AddUserOperationOptions = {
-  chainId: string;
+  networkClientId: string;
+  origin: string;
   requireApproval?: boolean;
   smartContractAccount: SmartContractAccount;
   transaction?: TransactionParams;
@@ -205,7 +212,7 @@ export class UserOperationController extends BaseController<
 
     return await this.#addUserOperation(
       {
-        data,
+        data: data === '' ? undefined : data,
         maxFeePerGas,
         maxPriorityFeePerGas,
         to,
@@ -231,8 +238,18 @@ export class UserOperationController extends BaseController<
     },
     options: AddUserOperationOptions & { transaction?: TransactionParams },
   ): Promise<AddUserOperationResponse> {
-    const { chainId, transaction } = options;
-    const metadata = this.#createMetadata(chainId, transaction);
+    log('Adding user operation', { request, options });
+
+    const { networkClientId, origin, transaction } = options;
+    const { chainId, provider } = await this.#getProvider(networkClientId);
+
+    const metadata = await this.#createMetadata(
+      chainId,
+      origin,
+      provider,
+      transaction,
+    );
+
     const { id } = metadata;
     let throwError = false;
 
@@ -242,6 +259,7 @@ export class UserOperationController extends BaseController<
           metadata,
           request,
           options,
+          { chainId },
         );
       } catch (error) {
         this.#failUserOperation(metadata, error);
@@ -285,9 +303,10 @@ export class UserOperationController extends BaseController<
       value?: string;
     },
     options: AddUserOperationOptions,
+    { chainId }: { chainId: string },
   ) {
     const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
-    const { chainId, requireApproval, smartContractAccount } = options;
+    const { requireApproval, smartContractAccount } = options;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
@@ -342,10 +361,19 @@ export class UserOperationController extends BaseController<
     });
   }
 
-  #createMetadata(
+  async #createMetadata(
     chainId: string,
+    origin: string,
+    provider: Provider,
     transaction?: TransactionParams,
-  ): UserOperationMetadata {
+  ): Promise<UserOperationMetadata> {
+    const transactionType = await this.#getTransactionType(
+      transaction,
+      provider,
+    );
+
+    log('Determined transaction type', transactionType);
+
     const metadata: UserOperationMetadata = {
       actualGasCost: null,
       actualGasUsed: null,
@@ -355,11 +383,13 @@ export class UserOperationController extends BaseController<
       error: null,
       hash: null,
       id: random(),
+      origin,
       status: UserOperationStatus.Unapproved,
       time: Date.now(),
       transactionHash: null,
       transactionParams: (transaction as Required<TransactionParams>) ?? null,
-      userOperation: this.#createEmptyUserOperation(),
+      transactionType: transactionType ?? null,
+      userOperation: this.#createEmptyUserOperation(transaction),
     };
 
     this.#updateMetadata(metadata);
@@ -571,13 +601,13 @@ export class UserOperationController extends BaseController<
     this.#updateMetadata(metadata);
   }
 
-  #createEmptyUserOperation(): UserOperation {
+  #createEmptyUserOperation(transaction?: TransactionParams): UserOperation {
     return {
       callData: EMPTY_BYTES,
       callGasLimit: EMPTY_BYTES,
       initCode: EMPTY_BYTES,
-      maxFeePerGas: EMPTY_BYTES,
-      maxPriorityFeePerGas: EMPTY_BYTES,
+      maxFeePerGas: transaction?.maxFeePerGas ?? EMPTY_BYTES,
+      maxPriorityFeePerGas: transaction?.maxPriorityFeePerGas ?? EMPTY_BYTES,
       nonce: EMPTY_BYTES,
       paymasterAndData: EMPTY_BYTES,
       preVerificationGas: EMPTY_BYTES,
@@ -649,5 +679,32 @@ export class UserOperationController extends BaseController<
       },
       true, // Should display approval request to user
     )) as Promise<AddResult>;
+  }
+
+  async #getTransactionType(
+    transaction: TransactionParams | undefined,
+    provider: Provider,
+  ): Promise<TransactionType | undefined> {
+    if (!transaction) {
+      return undefined;
+    }
+
+    const ethQuery = new EthQuery(provider);
+    const result = determineTransactionType(transaction, ethQuery);
+
+    return (await result).type;
+  }
+
+  async #getProvider(
+    networkClientId: string,
+  ): Promise<{ provider: Provider; chainId: string }> {
+    const { provider, configuration } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+
+    const { chainId } = configuration;
+
+    return { provider, chainId };
   }
 }

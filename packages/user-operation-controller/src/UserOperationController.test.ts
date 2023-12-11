@@ -32,6 +32,7 @@ const ERROR_CODE_MOCK = 1234;
 const INTERVAL_MOCK = 1234;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const TRANSACTION_HASH_MOCK = '0x456';
+const ORIGIN_MOCK = 'test.com';
 
 const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   chainId: CHAIN_ID_MOCK,
@@ -71,7 +72,8 @@ const ADD_USER_OPERATION_REQUEST_MOCK = {
 };
 
 const ADD_USER_OPERATION_OPTIONS_MOCK = {
-  chainId: CHAIN_ID_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  origin: ORIGIN_MOCK,
 };
 
 /**
@@ -175,12 +177,28 @@ describe('UserOperationController', () => {
 
     bundlerMock.sendUserOperation.mockResolvedValue(HASH_MOCK);
 
-    messenger.call.mockResolvedValue({
-      resultCallbacks: {
-        success: jest.fn(),
-        error: jest.fn(),
+    messenger.call.mockImplementation(
+      (action: string, ..._args: any[]): any => {
+        if (action === 'NetworkController:getNetworkClientById') {
+          return {
+            configuration: {
+              chainId: CHAIN_ID_MOCK,
+            },
+          };
+        }
+
+        if (action === 'ApprovalController:addRequest') {
+          return Promise.resolve({
+            resultCallbacks: {
+              success: jest.fn(),
+              error: jest.fn(),
+            },
+          });
+        }
+
+        return undefined;
       },
-    });
+    );
   });
 
   describe('constructor', () => {
@@ -288,10 +306,12 @@ describe('UserOperationController', () => {
         error: null,
         hash: null,
         id,
+        origin: ORIGIN_MOCK,
         status: UserOperationStatus.Unapproved,
         time: expect.any(Number),
         transactionHash: null,
         transactionParams: null,
+        transactionType: null,
         userOperation: {
           callData: EMPTY_BYTES,
           callGasLimit: EMPTY_BYTES,
@@ -330,10 +350,12 @@ describe('UserOperationController', () => {
         error: null,
         hash: HASH_MOCK,
         id,
+        origin: ORIGIN_MOCK,
         status: UserOperationStatus.Submitted,
         time: expect.any(Number),
         transactionHash: null,
         transactionParams: null,
+        transactionType: null,
         userOperation: {
           callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
           callGasLimit: PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.callGasLimit,
