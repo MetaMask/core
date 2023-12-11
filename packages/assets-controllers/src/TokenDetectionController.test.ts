@@ -238,12 +238,6 @@ describe('TokenDetectionController', () => {
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();
-    controllerMessenger.clearEventSubscriptions(
-      'NetworkController:stateChange',
-    );
-    controllerMessenger.unregisterActionHandler(
-      'NetworkController:getNetworkClientById',
-    );
   });
 
   it('should poll and detect tokens on interval while on supported networks', async () => {
