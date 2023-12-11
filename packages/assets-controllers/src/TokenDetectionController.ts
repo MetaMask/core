@@ -290,7 +290,7 @@ export class TokenDetectionController extends PollingController<
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
-    const { tokenList } = await this.messagingSystem.call(
+    const { tokenList } = this.messagingSystem.call(
       'TokenListController:getState',
     );
     const tokensToDetect: string[] = [];
