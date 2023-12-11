@@ -520,13 +520,13 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
 
     return {
       ...openSeaMetadata,
-      name: blockchainMetadata.name ?? openSeaMetadata?.name ?? null,
+      name: blockchainMetadata?.name ?? openSeaMetadata?.name ?? null,
       description:
-        blockchainMetadata.description ?? openSeaMetadata?.description ?? null,
-      image: blockchainMetadata.image ?? openSeaMetadata?.image ?? null,
+        blockchainMetadata?.description ?? openSeaMetadata?.description ?? null,
+      image: blockchainMetadata?.image ?? openSeaMetadata?.image ?? null,
       standard:
-        blockchainMetadata.standard ?? openSeaMetadata?.standard ?? null,
-      tokenURI: blockchainMetadata.tokenURI ?? null,
+        blockchainMetadata?.standard ?? openSeaMetadata?.standard ?? null,
+      tokenURI: blockchainMetadata?.tokenURI ?? null,
     };
   }
 
@@ -616,12 +616,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       networkClientId,
     });
 
-    const [blockchainContractData, openSeaContractData]: [
-      Partial<ApiNftContract> &
-        Pick<ApiNftContract, 'address'> &
-        Pick<ApiNftContract, 'collection'>,
-      Partial<ApiNftContract> | undefined,
-    ] = await Promise.all([
+    const [blockchainContractData, openSeaContractData] = await Promise.all([
       safelyExecute(() =>
         this.getNftContractInformationFromContract(
           contractAddress,
@@ -637,9 +632,11 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
 
     if (blockchainContractData || openSeaContractData) {
       return {
+        address: contractAddress,
         ...openSeaContractData,
         ...blockchainContractData,
         collection: {
+          name: null,
           image_url: null,
           ...openSeaContractData?.collection,
           ...blockchainContractData?.collection,

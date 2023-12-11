@@ -1015,14 +1015,20 @@ export class KeyringController extends BaseController<
     return (await this.#keyring.getKeyringForAccount(account)).type;
   }
 
-  async forgetQRDevice(): Promise<void> {
+  async forgetQRDevice(): Promise<{
+    removedAccounts: string[];
+    remainingAccounts: string[];
+  }> {
     const keyring = await this.getOrAddQRKeyring();
+    const allAccounts = (await this.#keyring.getAccounts()) as string[];
     keyring.forgetDevice();
-    const accounts = (await this.#keyring.getAccounts()) as string[];
-    accounts.forEach((account) => {
-      this.setSelectedAddress(account);
-    });
+    const remainingAccounts = (await this.#keyring.getAccounts()) as string[];
+    const removedAccounts = allAccounts.filter(
+      (address: string) => !remainingAccounts.includes(address),
+    );
+    this.updateIdentities(remainingAccounts);
     await this.#keyring.persistAllKeyrings();
+    return { removedAccounts, remainingAccounts };
   }
 
   /**
