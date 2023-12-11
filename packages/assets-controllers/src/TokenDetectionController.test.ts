@@ -186,6 +186,11 @@ describe('TokenDetectionController', () => {
     type: NetworkType.mainnet,
     ticker: NetworksTicker.mainnet,
   };
+  const goerli = {
+    chainId: ChainId.goerli,
+    type: NetworkType.goerli,
+    ticker: NetworksTicker.goerli,
+  };
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
@@ -265,15 +270,16 @@ describe('TokenDetectionController', () => {
   });
 
   it('should not autodetect while not on supported networks', async () => {
-    await tokenDetection.detectTokens({
-      accountAddress: '0x1',
-      networkClientId: ChainId.goerli,
-    });
+    changeNetwork(goerli);
+    await tokenDetection.start();
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
     });
-    await tokenDetection.start();
+    await tokenDetection.detectTokens({
+      accountAddress: '0x1',
+      networkClientId: ChainId.goerli,
+    });
     expect(tokensController.state.detectedTokens).toStrictEqual([]);
   });
 
@@ -289,14 +295,14 @@ describe('TokenDetectionController', () => {
   });
 
   it('should detect tokens correctly on the Polygon network', async () => {
-    const polygonRpc = {
+    const polygon = {
       chainId: SupportedTokenDetectionNetworks.polygon,
       type: NetworkType.rpc,
       ticker: 'Polygon ETH',
     };
     const selectedAddress = '0x1';
     preferences.update({ selectedAddress });
-    changeNetwork(polygonRpc);
+    changeNetwork(polygon);
 
     await tokenDetection.start();
 
@@ -576,16 +582,21 @@ describe('TokenDetectionController', () => {
 
   describe('detectTokens', () => {
     it('should detect and add tokens by networkClientId correctly', async () => {
-      const selectedAddress = '0x1';
+      const selectedAddress = '0x2';
       preferences.update({ selectedAddress });
-      changeNetwork(mainnet);
+      changeNetwork(goerli);
+
+      await tokenDetection.start();
 
       getBalancesInSingleCall.resolves({
         [sampleTokenA.address]: new BN(1),
       });
-      await tokenDetection.start();
+      await tokenDetection.detectTokens({
+        networkClientId: ChainId.goerli,
+        accountAddress: selectedAddress,
+      });
       const tokens =
-        tokensController.state.allDetectedTokens[ChainId.mainnet][
+        tokensController.state.allDetectedTokens[ChainId.goerli][
           selectedAddress
         ];
       expect(tokens).toStrictEqual([sampleTokenA]);
