@@ -10,6 +10,7 @@ import type {
   NetworkState,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { IPollingController } from '@metamask/polling-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -91,11 +92,14 @@ const defaultState: TokenListState = {
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends StaticIntervalPollingController<
-  typeof name,
-  TokenListState,
-  TokenListMessenger
-> {
+export class TokenListController
+  extends StaticIntervalPollingController<
+    typeof name,
+    TokenListState,
+    TokenListMessenger
+  >
+  implements IPollingController
+{
   private readonly mutex = new Mutex();
 
   private intervalId?: ReturnType<typeof setTimeout>;

@@ -3,6 +3,30 @@ import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
+export type IPollingController = {
+  startPollingByNetworkClientId(
+    networkClientId: NetworkClientId,
+    options: Json,
+  ): string;
+
+  stopAllPolling(): void;
+
+  stopPollingByPollingToken(pollingToken: string): void;
+
+  onPollingCompleteByNetworkClientId(
+    networkClientId: NetworkClientId,
+    callback: (networkClientId: NetworkClientId) => void,
+    options: Json,
+  ): void;
+
+  _executePoll(networkClientId: NetworkClientId, options: Json): Promise<void>;
+  _startPollingByNetworkClientId(
+    networkClientId: NetworkClientId,
+    options: Json,
+  ): void;
+  _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void;
+};
+
 export const getKey = (
   networkClientId: NetworkClientId,
   options: Json,
@@ -21,7 +45,10 @@ type Constructor = new (...args: any[]) => object;
 export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
   Base: TBase,
 ) {
-  abstract class AbstractPollingControllerBase extends Base {
+  abstract class AbstractPollingControllerBase
+    extends Base
+    implements IPollingController
+  {
     readonly #pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
 
     #callbacks: Map<

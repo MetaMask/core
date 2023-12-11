@@ -6,7 +6,10 @@ import {
   AbstractPollingControllerBaseMixin,
   getKey,
 } from './AbstractPollingController';
-import type { PollingTokenSetId } from './AbstractPollingController';
+import type {
+  IPollingController,
+  PollingTokenSetId,
+} from './AbstractPollingController';
 
 type Constructor = new (...args: any[]) => object;
 
@@ -20,9 +23,10 @@ type Constructor = new (...args: any[]) => object;
 function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
   Base: TBase,
 ) {
-  abstract class StaticIntervalPollingController extends AbstractPollingControllerBaseMixin(
-    Base,
-  ) {
+  abstract class StaticIntervalPollingController
+    extends AbstractPollingControllerBaseMixin(Base)
+    implements IPollingController
+  {
     readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
     intervalLength: number | undefined = 1000;

@@ -10,6 +10,7 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
+import type { IPollingController } from '@metamask/polling-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
@@ -135,10 +136,10 @@ async function getCurrencyConversionRate({
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
-export class TokenRatesController extends StaticIntervalPollingControllerV1<
-  TokenRatesConfig,
-  TokenRatesState
-> {
+export class TokenRatesController
+  extends StaticIntervalPollingControllerV1<TokenRatesConfig, TokenRatesState>
+  implements IPollingController
+{
   private handle?: ReturnType<typeof setTimeout>;
 
   #pollState = PollState.Inactive;

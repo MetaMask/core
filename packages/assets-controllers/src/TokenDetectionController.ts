@@ -8,6 +8,7 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
+import type { IPollingController } from '@metamask/polling-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
@@ -44,10 +45,10 @@ export interface TokenDetectionConfig extends BaseConfig {
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
  */
-export class TokenDetectionController extends StaticIntervalPollingControllerV1<
-  TokenDetectionConfig,
-  BaseState
-> {
+export class TokenDetectionController
+  extends StaticIntervalPollingControllerV1<TokenDetectionConfig, BaseState>
+  implements IPollingController
+{
   private intervalId?: ReturnType<typeof setTimeout>;
 
   /**

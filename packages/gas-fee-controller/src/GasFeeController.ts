@@ -18,6 +18,7 @@ import type {
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
+import type { IPollingController } from '@metamask/polling-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
@@ -253,11 +254,14 @@ const defaultState: GasFeeState = {
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends StaticIntervalPollingController<
-  typeof name,
-  GasFeeState,
-  GasFeeMessenger
-> {
+export class GasFeeController
+  extends StaticIntervalPollingController<
+    typeof name,
+    GasFeeState,
+    GasFeeMessenger
+  >
+  implements IPollingController
+{
   private intervalId?: ReturnType<typeof setTimeout>;
 
   private readonly intervalDelay;

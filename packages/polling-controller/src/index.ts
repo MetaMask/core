@@ -9,3 +9,5 @@ export {
   StaticIntervalPollingController,
   StaticIntervalPollingControllerV1,
 } from './StaticIntervalPollingController';
+
+export type { IPollingController } from './AbstractPollingController';
