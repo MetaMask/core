@@ -292,6 +292,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
+  private readonly etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
+
   private failTransaction(
     transactionMeta: TransactionMeta,
     error: Error,
@@ -520,6 +522,11 @@ export class TransactionController extends BaseControllerV1<
       ),
     });
 
+    this.etherscanRemoteTransactionSource =
+      new EtherscanRemoteTransactionSource({
+        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
+      });
+
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
       getCurrentAccount: getSelectedAddress,
@@ -527,9 +534,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
-      remoteTransactionSource: new EtherscanRemoteTransactionSource({
-        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
-      }),
+      remoteTransactionSource: this.etherscanRemoteTransactionSource,
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: incomingTransactions.updateTransactions,
     });
@@ -1090,9 +1095,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkState: this.getNetworkState, // TODO: fake this via networkClient
       isEnabled: () => true,
       queryEntireHistory: true,
-      remoteTransactionSource: new EtherscanRemoteTransactionSource({
-        includeTokenTransfers: true,
-      }),
+      remoteTransactionSource: this.etherscanRemoteTransactionSource,
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: true,
     });
@@ -2672,7 +2675,7 @@ export class TransactionController extends BaseControllerV1<
       'TransactionController#approveTransaction - Transaction signed',
     );
 
-    this.onTransactionStatusChange(transactionMeta);
+    this.onTransactionStatusChange(transactionMeta); // TODO: fake this via networkClient
 
     const rawTx = bufferToHex(signedTx.serialize());
 
