@@ -75,12 +75,11 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
       const pollToken = random();
       const key = getKey(networkClientId, options);
       const pollingTokenSet =
-        this.#pollingTokenSets.get(key) || new Set<string>();
+        this.#pollingTokenSets.get(key) ?? new Set<string>();
       pollingTokenSet.add(pollToken);
       this.#pollingTokenSets.set(key, pollingTokenSet);
 
       if (pollingTokenSet.size === 1) {
-        // Start new polling only if it's the first token for this key
         this._startPollingByNetworkClientId(networkClientId, options);
       }
 
@@ -111,15 +110,16 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
       }
 
       if (keyToDelete) {
-        // TODO figure out why this is necessary
-        const nonNullKey = keyToDelete;
-        this._stopPollingByPollingTokenSetId(nonNullKey);
-        this.#pollingTokenSets.delete(nonNullKey);
-        this.#callbacks.get(nonNullKey)?.forEach((callback) => {
-          // for some reason this typescript can't tell that keyToDelete is not null here
-          callback(nonNullKey);
-        });
-        this.#callbacks.get(nonNullKey)?.clear();
+        this._stopPollingByPollingTokenSetId(keyToDelete);
+        this.#pollingTokenSets.delete(keyToDelete);
+        const callbacks = this.#callbacks.get(keyToDelete);
+        if (callbacks) {
+          for (const callback of callbacks) {
+            // eslint-disable-next-line n/callback-return
+            callback(keyToDelete);
+          }
+          callbacks.clear();
+        }
       }
     }
 
@@ -129,7 +129,7 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
       options: Json = {},
     ) {
       const key = getKey(networkClientId, options);
-      const callbacks = this.#callbacks.get(key) || new Set<typeof callback>();
+      const callbacks = this.#callbacks.get(key) ?? new Set<typeof callback>();
       callbacks.add(callback);
       this.#callbacks.set(key, callbacks);
     }

@@ -11,7 +11,6 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type { IPollingController } from '@metamask/polling-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
@@ -83,14 +82,11 @@ const defaultState = {
  * Controller that passively polls on a set interval for an exchange rate from the current network
  * asset to the user's preferred currency.
  */
-export class CurrencyRateController
-  extends StaticIntervalPollingController<
-    typeof name,
-    CurrencyRateState,
-    CurrencyRateMessenger
-  >
-  implements IPollingController
-{
+export class CurrencyRateController extends StaticIntervalPollingController<
+  typeof name,
+  CurrencyRateState,
+  CurrencyRateMessenger
+> {
   private readonly mutex = new Mutex();
 
   private readonly fetchExchangeRate;

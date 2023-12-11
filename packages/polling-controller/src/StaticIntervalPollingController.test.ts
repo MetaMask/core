@@ -4,7 +4,7 @@ import { useFakeTimers } from 'sinon';
 import { advanceTime } from '../../../tests/helpers';
 import { StaticIntervalPollingController } from './StaticIntervalPollingController';
 
-const TICK_TIME = 1000;
+const TICK_TIME = 5;
 
 const createExecutePollMock = () => {
   const executePollMock = jest.fn().mockImplementation(async () => {
@@ -13,14 +13,12 @@ const createExecutePollMock = () => {
   return executePollMock;
 };
 
-class MyGasFeeController extends StaticIntervalPollingController<
+class ChildBlockTrackerPollingController extends StaticIntervalPollingController<
   any,
   any,
   any
 > {
   _executePoll = createExecutePollMock();
-
-  _intervalLength = TICK_TIME;
 }
 
 describe('StaticIntervalPollingController', () => {
@@ -29,12 +27,13 @@ describe('StaticIntervalPollingController', () => {
   let controller: any;
   beforeEach(() => {
     mockMessenger = new ControllerMessenger<any, any>();
-    controller = new MyGasFeeController({
+    controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
       metadata: {},
       name: 'PollingController',
       state: { foo: 'bar' },
     });
+    controller.setIntervalLength(TICK_TIME);
     clock = useFakeTimers();
   });
   afterEach(() => {
@@ -42,7 +41,7 @@ describe('StaticIntervalPollingController', () => {
   });
 
   describe('startPollingByNetworkClientId', () => {
-    it('should start polling if not polling', async () => {
+    it('should start polling if not already polling', async () => {
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
@@ -50,14 +49,8 @@ describe('StaticIntervalPollingController', () => {
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
       controller.stopAllPolling();
     });
-    it('should call _executePoll immediately and on interval if polling', async () => {
-      controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
-      expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: TICK_TIME * 2 });
-      expect(controller._executePoll).toHaveBeenCalledTimes(3);
-    });
-    it('should call _executePoll immediately once and continue calling _executePoll on interval when start is called again with the same networkClientId', async () => {
+
+    it('should call _executePoll immediately once and continue calling _executePoll on interval when called again with the same networkClientId', async () => {
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
@@ -184,18 +177,9 @@ describe('StaticIntervalPollingController', () => {
     it('should error if no pollingToken is passed', () => {
       controller.startPollingByNetworkClientId('mainnet');
       expect(() => {
-        controller.stopPollingByPollingToken(undefined as unknown as any);
+        controller.stopPollingByPollingToken();
       }).toThrow('pollingToken required');
       controller.stopAllPolling();
-    });
-
-    it('should publish "pollingComplete" when stop is called', async () => {
-      const pollingComplete: any = jest.fn();
-      controller.onPollingCompleteByNetworkClientId('mainnet', pollingComplete);
-      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
-      controller.stopPollingByPollingToken(pollingToken);
-      expect(pollingComplete).toHaveBeenCalledTimes(1);
-      expect(pollingComplete).toHaveBeenCalledWith('mainnet:{}');
     });
 
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
@@ -237,6 +221,17 @@ describe('StaticIntervalPollingController', () => {
         ['mainnet', { address: '0x2' }],
         ['sepolia', { address: '0x2' }],
       ]);
+    });
+  });
+
+  describe('onPollingCompleteByNetworkClientId', () => {
+    it('should publish "pollingComplete" callback function set by "onPollingCompleteByNetworkClientId" when polling stops', async () => {
+      const pollingComplete: any = jest.fn();
+      controller.onPollingCompleteByNetworkClientId('mainnet', pollingComplete);
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      controller.stopPollingByPollingToken(pollingToken);
+      expect(pollingComplete).toHaveBeenCalledTimes(1);
+      expect(pollingComplete).toHaveBeenCalledWith('mainnet:{}');
     });
   });
 });
