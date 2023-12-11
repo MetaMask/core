@@ -1,16 +1,13 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
-  isValidHexAddress,
   GANACHE_CHAIN_ID,
 } from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
-import type { Token } from './TokenRatesController';
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -102,40 +99,6 @@ export const formatIconUrlWithProxy = ({
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
   return `https://static.metafi.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
-
-/**
- * Validates a ERC20 token to be added with EIP747.
- *
- * @param token - Token object to validate.
- */
-export function validateTokenToWatch(token: Token) {
-  const { address, symbol, decimals } = token;
-  if (!address || !symbol || typeof decimals === 'undefined') {
-    throw rpcErrors.invalidParams(
-      `Must specify address, symbol, and decimals.`,
-    );
-  }
-
-  if (typeof symbol !== 'string') {
-    throw rpcErrors.invalidParams(`Invalid symbol: not a string.`);
-  }
-
-  if (symbol.length > 11) {
-    throw rpcErrors.invalidParams(
-      `Invalid symbol "${symbol}": longer than 11 characters.`,
-    );
-  }
-  const numDecimals = parseInt(decimals as unknown as string, 10);
-  if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
-    throw rpcErrors.invalidParams(
-      `Invalid decimals "${decimals}": must be 0 <= 36.`,
-    );
-  }
-
-  if (!isValidHexAddress(address)) {
-    throw rpcErrors.invalidParams(`Invalid address "${address}".`);
-  }
-}
 
 /**
  * Networks where token detection is supported - Values are in decimal format
