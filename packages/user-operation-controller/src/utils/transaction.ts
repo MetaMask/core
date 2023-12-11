@@ -72,9 +72,9 @@ export function getTransactionMetadata(
   }[metadata.status];
 
   const gas = addHex(
-    userOperation?.preVerificationGas,
-    userOperation?.verificationGasLimit,
-    userOperation?.callGasLimit,
+    userOperation.preVerificationGas,
+    userOperation.verificationGasLimit,
+    userOperation.callGasLimit,
   );
 
   const hasPaymaster = userOperation.paymasterAndData !== EMPTY_BYTES;
@@ -87,6 +87,7 @@ export function getTransactionMetadata(
 
   const nonce =
     userOperation.nonce === EMPTY_BYTES ? undefined : userOperation.nonce;
+
   const userFeeLevel = UserFeeLevel.CUSTOM;
 
   const txParams = {
@@ -116,7 +117,7 @@ export function getTransactionMetadata(
       gasUsed: actualGasUsed ?? undefined,
     },
     type: transactionType ?? undefined,
-    userFeeLevel: userFeeLevel || undefined,
+    userFeeLevel,
   };
 }
 
