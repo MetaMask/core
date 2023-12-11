@@ -139,6 +139,8 @@ export class TokenDetectionController extends PollingController<
     const { useTokenDetection: defaultUseTokenDetection } =
       getPreferencesState();
 
+    messenger.unregisterActionHandler('TokenDetectionController:getState');
+
     super({
       name: controllerName,
       messenger,
@@ -153,10 +155,6 @@ export class TokenDetectionController extends PollingController<
     this.#getTokensState = getTokensState;
     this.#addDetectedTokens = addDetectedTokens;
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
-
-    this.messagingSystem.unregisterActionHandler(
-      'TokenDetectionController:getState',
-    );
 
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
