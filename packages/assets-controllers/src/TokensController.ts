@@ -778,9 +778,7 @@ export class TokensController extends BaseControllerV1<
     if (
       contractSymbol !== undefined &&
       asset.symbol !== undefined &&
-      asset.symbol.localeCompare(contractSymbol, undefined, {
-        sensitivity: 'accent',
-      }) !== 0
+      asset.symbol.toUpperCase() !== contractSymbol.toUpperCase()
     ) {
       throw rpcErrors.invalidParams(
         `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
