@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add `codefiTokenPricesServiceV2` ([#3600](https://github.com/MetaMask/core/pull/3600))
   - This object can be used for the new `tokenPricesService` argument for TokenRatesController. It uses an internal API to fetch prices for tokens instead of CoinGecko.
+- `TokenListController` now exports a `TokenListControllerMessenger` type ([#3609](https://github.com/MetaMask/core/pull/3609)).
 
 ### Changed
 - **BREAKING:** TokenRatesController now takes a required argument `tokenPricesService` ([#3600](https://github.com/MetaMask/core/pull/3600))
@@ -18,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600))
   - This method now takes an object with shape `{ tokenContractAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
 - Update TokenListController to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
+- **BREAKING:** `TokenDetectionController` is upgraded to extend `PollingController` ([#3609](https://github.com/MetaMask/core/pull/3609)).
+  - The constructor now expects an options object as its only argument, with required properties `messenger`, `chainId`, `onPreferencesStateChange`, `getBalancesInSingleCall`, `addDetectedTokens`, `getTokensState`, `getPreferencesState`, and optional properties `interval`, `selectedAddress`.
+  - The state property is an empty object.
+- The `detectTokens` method of `TokenDetectionController` can now handle any number of tokens. Previously the limit was 2000 ([#3609](https://github.com/MetaMask/core/pull/3609)).
 
 ### Removed
 - **BREAKING:** Remove `fetchExchangeRate` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
