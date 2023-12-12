@@ -1,6 +1,8 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
+import { hexToBN } from '@metamask/controller-utils';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import { BN, addHexPrefix } from 'ethereumjs-util';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -8,6 +10,7 @@ import { v1 as random } from 'uuid';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
 import { Bundler } from './helpers/Bundler';
+import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
 import { projectLogger as log } from './logger';
 import type {
   SmartContractAccount,
@@ -24,6 +27,7 @@ import {
 } from './utils/validation';
 
 const GAS_ESTIMATE_MULTIPLIER = 1.5;
+const DEFAULT_INTERVAL = 10 * 1000; // 10 Seconds
 
 const controllerName = 'UserOperationController';
 
@@ -34,6 +38,27 @@ const stateMetadata = {
 const getDefaultState = () => ({
   userOperations: {},
 });
+
+type Events = {
+  'user-operation-confirmed': [metadata: UserOperationMetadata];
+  'user-operation-failed': [metadata: UserOperationMetadata, error: Error];
+  [key: `${string}:confirmed`]: [metadata: UserOperationMetadata];
+  [key: `${string}:failed`]: [metadata: UserOperationMetadata, error: Error];
+};
+
+export type UserOperationControllerEventEmitter = EventEmitter & {
+  on<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
+  ): UserOperationControllerEventEmitter;
+
+  once<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
+  ): UserOperationControllerEventEmitter;
+
+  emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
+};
 
 export type UserOperationControllerState = {
   userOperations: Record<string, UserOperationMetadata>;
@@ -49,7 +74,9 @@ export type UserOperationStateChange = {
   payload: [UserOperationControllerState, Patch[]];
 };
 
-export type UserOperationControllerActions = GetUserOperationState;
+export type UserOperationControllerActions =
+  | GetUserOperationState
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type UserOperationControllerEvents = UserOperationStateChange;
 
@@ -62,6 +89,7 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type UserOperationControllerOptions = {
+  interval?: number;
   messenger: UserOperationControllerMessenger;
   state?: Partial<UserOperationControllerState>;
 };
@@ -74,16 +102,19 @@ export class UserOperationController extends BaseController<
   UserOperationControllerState,
   UserOperationControllerMessenger
 > {
-  hub: EventEmitter;
+  hub: UserOperationControllerEventEmitter;
+
+  #pendingUserOperationTracker: PendingUserOperationTracker;
 
   /**
    * Construct a UserOperationController instance.
    *
    * @param options - Controller options.
+   * @param options.interval - Polling interval used to check the status of pending user operations.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
    */
-  constructor({ messenger, state }: UserOperationControllerOptions) {
+  constructor({ interval, messenger, state }: UserOperationControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
@@ -91,7 +122,19 @@ export class UserOperationController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
-    this.hub = new EventEmitter();
+    this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
+
+    this.#pendingUserOperationTracker = new PendingUserOperationTracker({
+      getUserOperations: () =>
+        cloneDeep(Object.values(this.state.userOperations)),
+      messenger,
+    });
+
+    this.#pendingUserOperationTracker.setIntervalLength(
+      interval ?? DEFAULT_INTERVAL,
+    );
+
+    this.#addPendingUserOperationTrackerListeners();
   }
 
   /**
@@ -120,34 +163,18 @@ export class UserOperationController extends BaseController<
     validateAddUserOperationRequest(request);
     validateAddUserOperationOptions(options);
 
-    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
-    const { chainId, smartContractAccount } = options;
+    const { chainId } = options;
     const metadata = this.#createEmptyMetadata(chainId);
     const { id } = metadata;
     let throwError = false;
 
     const hashValue = (async () => {
       try {
-        await this.#prepareUserOperation(
-          to,
-          value,
-          data,
+        return await this.#prepareAndSubmitUserOperation(
           metadata,
-          smartContractAccount,
-          chainId,
+          request,
+          options,
         );
-
-        const bundler = new Bundler(metadata.bundlerUrl as string);
-
-        metadata.userOperation.maxFeePerGas = maxFeePerGas;
-        metadata.userOperation.maxPriorityFeePerGas = maxPriorityFeePerGas;
-
-        await this.#updateGas(metadata, bundler);
-        await this.#addPaymasterData(metadata, smartContractAccount);
-        await this.#signUserOperation(metadata, smartContractAccount);
-        await this.#submitUserOperation(metadata, bundler);
-
-        return metadata.hash as string;
       } catch (error) {
         this.#failUserOperation(metadata, error);
 
@@ -164,14 +191,87 @@ export class UserOperationController extends BaseController<
       return await hashValue;
     };
 
+    const transactionHash = async () => {
+      await hash();
+
+      const { transactionHash: finalTransactionHash } =
+        await this.#waitForConfirmation(metadata);
+
+      return finalTransactionHash;
+    };
+
     return {
       id,
       hash,
+      transactionHash,
     };
   }
 
+  startPollingByNetworkClientId(networkClientId: string): string {
+    return this.#pendingUserOperationTracker.startPollingByNetworkClientId(
+      networkClientId,
+    );
+  }
+
+  async #prepareAndSubmitUserOperation(
+    metadata: UserOperationMetadata,
+    request: {
+      data?: string;
+      maxFeePerGas: string;
+      maxPriorityFeePerGas: string;
+      to?: string;
+      value?: string;
+    },
+    options: { chainId: string; smartContractAccount: SmartContractAccount },
+  ) {
+    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
+    const { chainId, smartContractAccount } = options;
+
+    await this.#prepareUserOperation(
+      to,
+      value,
+      data,
+      metadata,
+      smartContractAccount,
+      chainId,
+    );
+
+    const bundler = new Bundler(metadata.bundlerUrl as string);
+
+    metadata.userOperation.maxFeePerGas = maxFeePerGas;
+    metadata.userOperation.maxPriorityFeePerGas = maxPriorityFeePerGas;
+
+    await this.#updateGas(metadata, bundler);
+    await this.#addPaymasterData(metadata, smartContractAccount);
+    await this.#signUserOperation(metadata, smartContractAccount);
+    await this.#submitUserOperation(metadata, bundler);
+
+    return metadata.hash as string;
+  }
+
+  async #waitForConfirmation(
+    metadata: UserOperationMetadata,
+  ): Promise<UserOperationMetadata> {
+    const { id, hash } = metadata;
+
+    log('Waiting for confirmation', id, hash);
+
+    return new Promise((resolve, reject) => {
+      this.hub.once(`${id}:confirmed`, (finalMetadata) => {
+        resolve(finalMetadata);
+      });
+
+      this.hub.once(`${id}:failed`, (_finalMetadata, error) => {
+        reject(error);
+      });
+    });
+  }
+
   #createEmptyMetadata(chainId: string): UserOperationMetadata {
-    const metadata = {
+    const metadata: UserOperationMetadata = {
+      actualGasCost: null,
+      actualGasUsed: null,
+      baseFeePerGas: null,
       bundlerUrl: null,
       chainId,
       error: null,
@@ -179,6 +279,7 @@ export class UserOperationController extends BaseController<
       id: random(),
       status: UserOperationStatus.Unapproved,
       time: Date.now(),
+      transactionHash: null,
       userOperation: this.#createEmptyUserOperation(),
     };
 
@@ -263,17 +364,25 @@ export class UserOperationController extends BaseController<
       verificationGasLimit: '0x1',
     };
 
-    const { preVerificationGas, verificationGasLimit, callGasLimit } =
+    const { preVerificationGas, verificationGas, callGasLimit } =
       await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
 
-    const normalizeGas = (value: number) =>
-      toHex(Math.round(value * GAS_ESTIMATE_MULTIPLIER));
-
-    userOperation.callGasLimit = normalizeGas(callGasLimit);
-    userOperation.preVerificationGas = normalizeGas(preVerificationGas);
-    userOperation.verificationGasLimit = normalizeGas(verificationGasLimit);
+    userOperation.callGasLimit = this.#normalizeGasEstimate(callGasLimit);
+    userOperation.preVerificationGas =
+      this.#normalizeGasEstimate(preVerificationGas);
+    userOperation.verificationGasLimit =
+      this.#normalizeGasEstimate(verificationGas);
 
     this.#updateMetadata(metadata);
+  }
+
+  #normalizeGasEstimate(rawValue: string | number) {
+    const value =
+      typeof rawValue === 'string' ? hexToBN(rawValue) : new BN(rawValue);
+
+    const bufferedValue = value.muln(GAS_ESTIMATE_MULTIPLIER);
+
+    return addHexPrefix(bufferedValue.toString(16));
   }
 
   async #addPaymasterData(
@@ -379,5 +488,31 @@ export class UserOperationController extends BaseController<
       // Controller state is immutable but we need a copy we can update.
       state.userOperations[id] = cloneDeep(metadata);
     });
+  }
+
+  #addPendingUserOperationTrackerListeners() {
+    this.#pendingUserOperationTracker.hub.on(
+      'user-operation-confirmed',
+      (metadata) => {
+        log('In listener...');
+        this.hub.emit('user-operation-confirmed', metadata);
+        this.hub.emit(`${metadata.id}:confirmed`, metadata);
+      },
+    );
+
+    this.#pendingUserOperationTracker.hub.on(
+      'user-operation-failed',
+      (metadata, error) => {
+        this.hub.emit('user-operation-failed', metadata, error);
+        this.hub.emit(`${metadata.id}:failed`, metadata, error);
+      },
+    );
+
+    this.#pendingUserOperationTracker.hub.on(
+      'user-operation-updated',
+      (metadata) => {
+        this.#updateMetadata(metadata);
+      },
+    );
   }
 }
