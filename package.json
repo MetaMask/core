@@ -27,8 +27,9 @@
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "publish-previews": "yarn workspaces foreach --parallel --verbose run publish:preview",
     "setup": "yarn install",
-    "test": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
+    "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --parallel --verbose run test:clean && yarn test",
+    "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
     "update-readme-content": "ts-node scripts/update-readme-content.ts"
