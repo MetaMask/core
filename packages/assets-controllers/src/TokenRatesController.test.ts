@@ -1972,6 +1972,79 @@ describe('TokenRatesController', () => {
         },
       );
     });
+
+    it('only updates rates once when called twice', async () => {
+      const tokenAddresses = [
+        '0x0000000000000000000000000000000000000001',
+        '0x0000000000000000000000000000000000000002',
+      ];
+      const fetchTokenPricesMock = jest.fn().mockResolvedValue({
+        [tokenAddresses[0]]: {
+          currency: 'ETH',
+          tokenContractAddress: tokenAddresses[0],
+          value: 0.001,
+        },
+        [tokenAddresses[1]]: {
+          currency: 'ETH',
+          tokenContractAddress: tokenAddresses[1],
+          value: 0.002,
+        },
+      });
+      const tokenPricesService = buildMockTokenPricesService({
+        fetchTokenPrices: fetchTokenPricesMock,
+      });
+      await withController(
+        { options: { tokenPricesService } },
+        async ({ controller, controllerEvents }) => {
+          const updateExchangeRates = async () =>
+            await callUpdateExchangeRatesMethod({
+              allTokens: {
+                [toHex(1)]: {
+                  [controller.config.selectedAddress]: [
+                    {
+                      address: tokenAddresses[0],
+                      decimals: 18,
+                      symbol: 'TST1',
+                      aggregators: [],
+                    },
+                    {
+                      address: tokenAddresses[1],
+                      decimals: 18,
+                      symbol: 'TST2',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              chainId: toHex(1),
+              controller,
+              controllerEvents,
+              method,
+              nativeCurrency: 'ETH',
+            });
+
+          await Promise.all([updateExchangeRates(), updateExchangeRates()]);
+
+          expect(fetchTokenPricesMock).toHaveBeenCalledTimes(1);
+          expect(controller.state).toMatchInlineSnapshot(`
+            Object {
+              "contractExchangeRates": Object {
+                "0x0000000000000000000000000000000000000001": 0.001,
+                "0x0000000000000000000000000000000000000002": 0.002,
+              },
+              "contractExchangeRatesByChainId": Object {
+                "0x1": Object {
+                  "ETH": Object {
+                    "0x0000000000000000000000000000000000000001": 0.001,
+                    "0x0000000000000000000000000000000000000002": 0.002,
+                  },
+                },
+              },
+            }
+        `);
+        },
+      );
+    });
   });
 });
 
@@ -2059,7 +2132,20 @@ async function withController<ReturnValue>(
     });
   } finally {
     controller.stop();
+    await flushPromises();
   }
+}
+
+/**
+ * Resolve all pending promises.
+ *
+ * This method is used for async tests that use fake timers.
+ * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ *
+ * TODO: migrate this to @metamask/utils
+ */
+async function flushPromises(): Promise<void> {
+  await new Promise(jest.requireActual('timers').setImmediate);
 }
 
 /**
