@@ -297,7 +297,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   ): Promise<NftMetadata> {
     // TODO Parameterize this by chainId for non-mainnet token detection
     // Attempt to fetch the data with the proxy
-    const nftInformation: any = await fetchWithErrorHandling({
+    const nftInformation = await fetchWithErrorHandling({
       url: this.getNftApi({
         contractAddress,
         tokenId,
