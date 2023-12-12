@@ -29,7 +29,6 @@ import {
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
 } from './utils/validation';
-import exp from 'constants';
 
 jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/validation');
