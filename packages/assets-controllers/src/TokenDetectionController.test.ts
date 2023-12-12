@@ -222,7 +222,6 @@ describe('TokenDetectionController', () => {
       onNetworkDidChange: (listener) =>
         onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -294,14 +293,13 @@ describe('TokenDetectionController', () => {
   });
 
   it('should detect tokens correctly on the Polygon network', async () => {
-    const polygon = {
-      chainId: SupportedTokenDetectionNetworks.polygon,
-      type: NetworkType.rpc,
-      ticker: 'Polygon ETH',
-    };
     const selectedAddress = '0x1';
     preferences.update({ selectedAddress });
-    changeNetwork(polygon);
+    changeNetwork({
+      chainId: SupportedTokenDetectionNetworks.polygon,
+      type: NetworkType.goerli,
+      ticker: NetworksTicker.goerli,
+    });
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -504,7 +502,7 @@ describe('TokenDetectionController', () => {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await preferencesStateChangeListener!({
+    preferencesStateChangeListener!({
       selectedAddress: '0x1',
       useTokenDetection: true,
     });
