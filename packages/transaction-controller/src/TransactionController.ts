@@ -2526,7 +2526,7 @@ export class TransactionController extends BaseControllerV1<
     const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
         transaction.txParams.from === fromAddress &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId, // shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
     );
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.confirmed,
@@ -2569,7 +2569,7 @@ export class TransactionController extends BaseControllerV1<
       (transaction) =>
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId, // shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
     );
 
     if (!sameNonceTxs.length) {
