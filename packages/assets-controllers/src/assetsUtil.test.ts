@@ -362,9 +362,9 @@ describe('assetsUtil', () => {
       >({
         values: ['a', 'b', 'c', 'd', 'e', 'f'],
         batchSize: 2,
-        eachBatch: async (workingResult, batch) => {
-          const newBatch = await Promise.resolve(
-            batch.reduce<Partial<Record<string, number>>>((obj, value) => {
+        eachBatch: (workingResult, batch) => {
+          const newBatch = batch.reduce<Partial<Record<string, number>>>(
+            (obj, value) => {
               // We can assume that the first character is present.
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               const codePoint = value.codePointAt(0)!;
@@ -372,7 +372,8 @@ describe('assetsUtil', () => {
                 ...obj,
                 [value]: codePoint,
               };
-            }, {}),
+            },
+            {},
           );
           return { ...workingResult, ...newBatch };
         },

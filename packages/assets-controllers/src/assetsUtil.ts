@@ -279,7 +279,7 @@ export async function reduceInBatchesSerially<
     workingResult: Partial<Result>,
     batch: Value[],
     index: number,
-  ) => Promise<Partial<Result>>;
+  ) => Partial<Result> | Promise<Partial<Result>>;
   initialResult: Partial<Result>;
 }): Promise<Result> {
   const batches = divideIntoBatches(values, { batchSize });
