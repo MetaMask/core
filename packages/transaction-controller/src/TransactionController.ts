@@ -2200,10 +2200,12 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
+      const ethQuery = this.getEthQuery(transactionMeta.networkClientId)
+
       if (transactionMeta.type === TransactionType.swap) {
         log('Determining pre-transaction balance');
 
-        const preTxBalance = await query(this.ethQuery, 'getBalance', [from]);
+        const preTxBalance = await query(ethQuery, 'getBalance', [from]);
 
         transactionMeta.preTxBalance = preTxBalance;
 
@@ -2212,7 +2214,7 @@ export class TransactionController extends BaseControllerV1<
 
       log('Publishing transaction', txParams);
 
-      const hash = await this.publishTransaction(rawTx);
+      const hash = await this.publishTransaction(ethQuery, rawTx);
 
       log('Publish successful', hash);
 
