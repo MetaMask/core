@@ -10,14 +10,6 @@ import { CID } from 'multiformats/cid';
 import type { Nft, NftMetadata } from './NftController';
 
 /**
- * If given an object type, represents that object whose keys are all optional;
- * otherwise represents the same type.
- */
-type PartialObject<Value> = Value extends Record<PropertyKey, unknown>
-  ? Partial<Value>
-  : Value;
-
-/**
  * Compares nft metadata entries to any nft entry.
  * We need this method when comparing a new fetched nft metadata, in case a entry changed to a defined value,
  * there's a need to update the nft in state.
@@ -258,22 +250,24 @@ export function divideIntoBatches<Value>(
 }
 
 /**
- * Constructs a data structure from processing batches of the given values
+ * Constructs an object from processing batches of the given values
  * sequentially.
  *
  * @param args - The arguments to this function.
  * @param args.values - A list of values to iterate over.
  * @param args.batchSize - The maximum number of values in each batch.
  * @param args.eachBatch - A function to call for each batch. This function is
- * similar to the function that `Array.prototype.reduce` takes, in that
- * it receives the data structure that is being built along with the batch per
- * iteration through the list of batches, and should return an updated version
- * of the data structure.
+ * similar to the function that `Array.prototype.reduce` takes, in that it
+ * receives the object that is being built, each batch in the list of batches
+ * and the index, and should return an updated version of the object.
  * @param args.initialResult - The initial value of the final data structure,
  * i.e., the value that will be fed into the first call of `eachBatch`.
- * @returns The final data structure.
+ * @returns The built object.
  */
-export async function reduceInBatchesSerially<Value, Result>({
+export async function reduceInBatchesSerially<
+  Value,
+  Result extends Record<PropertyKey, unknown>,
+>({
   values,
   batchSize,
   eachBatch,
@@ -282,11 +276,11 @@ export async function reduceInBatchesSerially<Value, Result>({
   values: Value[];
   batchSize: number;
   eachBatch: (
-    workingResult: PartialObject<Result>,
+    workingResult: Partial<Result>,
     batch: Value[],
     index: number,
-  ) => Promise<PartialObject<Result>>;
-  initialResult: PartialObject<Result>;
+  ) => Promise<Partial<Result>>;
+  initialResult: Partial<Result>;
 }): Promise<Result> {
   const batches = divideIntoBatches(values, { batchSize });
   let workingResult = initialResult;

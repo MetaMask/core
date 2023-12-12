@@ -355,39 +355,19 @@ describe('assetsUtil', () => {
   });
 
   describe('reduceInBatchesSerially', () => {
-    it('can build an array from running the given async function for each batch of the given values', async () => {
-      const results = await assetsUtil.reduceInBatchesSerially<
-        number,
-        number[]
-      >({
-        values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        batchSize: 2,
-        eachBatch: async (workingResult, batch) => {
-          const newBatch = await Promise.resolve(
-            batch.map((value) => value * 2),
-          );
-          return [...workingResult, ...newBatch];
-        },
-        initialResult: [],
-      });
-
-      expect(results).toStrictEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
-    });
-
     it('can build an object from running the given async function for each batch of the given values', async () => {
       const results = await assetsUtil.reduceInBatchesSerially<
         string,
         Record<string, number>
       >({
-        values: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
         batchSize: 2,
         eachBatch: async (workingResult, batch) => {
           const newBatch = await Promise.resolve(
             batch.reduce<Partial<Record<string, number>>>((obj, value) => {
-              const codePoint = value.codePointAt(0);
-              if (codePoint === undefined) {
-                throw new Error(`Could not find code point for '${value[0]}'`);
-              }
+              // We can assume that the first character is present.
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const codePoint = value.codePointAt(0)!;
               return {
                 ...obj,
                 [value]: codePoint,
@@ -406,19 +386,18 @@ describe('assetsUtil', () => {
         d: 100,
         e: 101,
         f: 102,
-        g: 103,
       });
     });
 
     it('processes each batch one after another, not in parallel, even if the given callback is async', async () => {
-      const timestamps = await assetsUtil.reduceInBatchesSerially<
-        number,
-        number[]
+      const timestampsByIndex = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
       >({
-        values: [1, 2, 3, 4, 5, 6],
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
         batchSize: 2,
         eachBatch: async (workingResult, _batch, index) => {
-          const date = new Date().getTime();
+          const timestamp = new Date().getTime();
           await new Promise<number[]>((resolve) => {
             let duration: number;
             switch (index) {
@@ -436,14 +415,15 @@ describe('assetsUtil', () => {
             }
             setTimeout(resolve, duration);
           });
-          return [...workingResult, date];
+          const newBatch = { [index]: timestamp };
+          return { ...workingResult, ...newBatch };
         },
-        initialResult: [],
+        initialResult: {},
       });
 
       let previousTimestamp = 0;
       let timestampsIncreasing = true;
-      for (const timestamp of timestamps) {
+      for (const timestamp of Object.values(timestampsByIndex)) {
         if (timestamp <= previousTimestamp) {
           timestampsIncreasing = false;
           break;
@@ -451,7 +431,7 @@ describe('assetsUtil', () => {
         previousTimestamp = timestamp;
       }
 
-      expect(timestamps).toHaveLength(3);
+      expect(Object.keys(timestampsByIndex)).toHaveLength(3);
       expect(timestampsIncreasing).toBe(true);
     });
   });
