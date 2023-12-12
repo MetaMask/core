@@ -1727,12 +1727,12 @@ describe('TokenRatesController', () => {
           expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(0, 100),
+            tokenAddresses: tokenAddresses.slice(0, 100),
             currency: ticker,
           });
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(100),
+            tokenAddresses: tokenAddresses.slice(100),
             currency: ticker,
           });
         },
@@ -2007,12 +2007,12 @@ describe('TokenRatesController', () => {
           expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(0, 100),
+            tokenAddresses: tokenAddresses.slice(0, 100),
             currency: 'ETH',
           });
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(100),
+            tokenAddresses: tokenAddresses.slice(100),
             currency: 'ETH',
           });
         },
@@ -2100,12 +2100,12 @@ describe('TokenRatesController', () => {
       const fetchTokenPricesMock = jest.fn().mockResolvedValue({
         [tokenAddresses[0]]: {
           currency: 'ETH',
-          tokenContractAddress: tokenAddresses[0],
+          tokenAddress: tokenAddresses[0],
           value: 0.001,
         },
         [tokenAddresses[1]]: {
           currency: 'ETH',
-          tokenContractAddress: tokenAddresses[1],
+          tokenAddress: tokenAddresses[1],
           value: 0.002,
         },
       });
