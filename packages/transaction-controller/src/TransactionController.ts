@@ -1277,7 +1277,7 @@ export class TransactionController extends BaseControllerV1<
    * @param address - If specified, only transactions originating from this address will be
    * wiped on current network.
    */
-  wipeTransactions(ignoreNetwork?: boolean, address?: string) {
+  wipeTransactions(ignoreNetwork?: boolean, address?: string) { // should this be updated to filter by optional chainId?
     /* istanbul ignore next */
     if (ignoreNetwork && !address) {
       this.update({ transactions: [] });
@@ -1561,7 +1561,7 @@ export class TransactionController extends BaseControllerV1<
    * @param address - The hex string address for the transaction.
    * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
    */
-  async getNonceLock(address: string): Promise<NonceLock> {
+  async getNonceLock(address: string): Promise<NonceLock> { // this really should be keyed by chainId even though nonceTracker is per networkClientId
     return this.nonceTracker.getNonceLock(address);
   }
 
@@ -2519,7 +2519,7 @@ export class TransactionController extends BaseControllerV1<
    *
    * @param transactionMeta - Nominated external transaction to be added to state.
    */
-  private addExternalTransaction(transactionMeta: TransactionMeta) {
+  private addExternalTransaction(transactionMeta: TransactionMeta) { // check this
     const chainId = this.getChainId();
     const { transactions } = this.state;
     const fromAddress = transactionMeta?.txParams?.from;
