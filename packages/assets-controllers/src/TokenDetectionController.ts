@@ -242,15 +242,13 @@ export class TokenDetectionController extends PollingController<
   }
 
   #getCorrectChainId(networkClientId?: NetworkClientId) {
-    if (networkClientId) {
-      const { chainId } =
-        this.messagingSystem.call(
-          'NetworkController:getNetworkConfigurationByNetworkClientId',
-          networkClientId,
-        ) ?? {};
-      if (chainId) {
-        this.#chainId = chainId;
-      }
+    const { chainId } =
+      this.messagingSystem.call(
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        networkClientId ?? this.#chainId,
+      ) ?? {};
+    if (chainId) {
+      this.#chainId = chainId;
     }
     return this.#chainId;
   }

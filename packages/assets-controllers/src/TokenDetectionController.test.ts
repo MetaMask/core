@@ -297,22 +297,17 @@ describe('TokenDetectionController', () => {
   });
 
   it('should detect tokens correctly on the Polygon network', async () => {
-    const selectedAddress = '0x1';
-    preferences.update({ selectedAddress });
+    preferences.update({ selectedAddress: '0x2' });
     changeNetwork({
       chainId: SupportedTokenDetectionNetworks.polygon,
-      type: NetworkType.goerli,
-      ticker: NetworksTicker.goerli,
+      type: NetworkType.rpc,
+      ticker: NetworksTicker.rpc,
     });
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
     });
-
-    await tokenDetection.detectTokens({
-      accountAddress: selectedAddress,
-      networkClientId: SupportedTokenDetectionNetworks.polygon,
-    });
+    await tokenDetection.start();
     expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
   });
 
