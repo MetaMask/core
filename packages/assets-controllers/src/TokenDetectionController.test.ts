@@ -176,6 +176,9 @@ describe('TokenDetectionController', () => {
       });
     });
 
+    controllerMessenger.unregisterActionHandler(
+      `NetworkController:getNetworkConfigurationByNetworkClientId`,
+    );
     controllerMessenger.registerActionHandler(
       `NetworkController:getNetworkConfigurationByNetworkClientId`,
       jest.fn().mockReturnValueOnce(providerConfig),
@@ -242,6 +245,11 @@ describe('TokenDetectionController', () => {
       getPreferencesState: () => preferences.state,
       messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     });
+
+    controllerMessenger.registerActionHandler(
+      `NetworkController:getNetworkConfigurationByNetworkClientId`,
+      jest.fn().mockReturnValueOnce(mainnet),
+    );
 
     sinon
       .stub(tokensController, '_detectIsERC721')
@@ -573,18 +581,15 @@ describe('TokenDetectionController', () => {
   describe('detectTokens', () => {
     it('should detect and add tokens by networkClientId correctly', async () => {
       const selectedAddress = '0x2';
-      preferences.update({ selectedAddress });
-      changeNetwork(goerli);
-
       getBalancesInSingleCall.resolves({
         [sampleTokenA.address]: new BN(1),
       });
       await tokenDetection.detectTokens({
-        networkClientId: ChainId.goerli,
+        networkClientId: ChainId.mainnet,
         accountAddress: selectedAddress,
       });
       const tokens =
-        tokensController.state.allDetectedTokens[ChainId.goerli][
+        tokensController.state.allDetectedTokens[ChainId.mainnet][
           selectedAddress
         ];
       expect(tokens).toStrictEqual([sampleTokenA]);
