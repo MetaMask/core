@@ -148,6 +148,10 @@ export class TokenDetectionController extends PollingController<
     this.setIntervalLength(interval);
     this.#chainId = chainId;
     this.#selectedAddress = selectedAddress;
+    this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
+    this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
+      this.#chainId,
+    );
 
     this.#getTokensState = getTokensState;
     this.#addDetectedTokens = addDetectedTokens;
@@ -196,11 +200,6 @@ export class TokenDetectionController extends PollingController<
           this.detectTokens();
         }
       },
-    );
-
-    this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
-    this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
-      this.#chainId,
     );
   }
 
