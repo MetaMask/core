@@ -178,7 +178,6 @@ describe('TokenDetectionController', () => {
       onNetworkDidChange: (listener) =>
         onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });

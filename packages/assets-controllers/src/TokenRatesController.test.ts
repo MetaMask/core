@@ -106,50 +106,124 @@ describe('TokenRatesController', () => {
       clock.restore();
     });
 
-    describe('when polling is active', () => {
-      it('should update exchange rates when tokens change', async () => {
-        let tokenStateChangeListener: (state: any) => Promise<void>;
-        const onTokensStateChange = jest.fn().mockImplementation((listener) => {
-          tokenStateChangeListener = listener;
-        });
-        const controller = new TokenRatesController(
+    describe('when legacy polling is active', () => {
+      it('should update exchange rates when any of the addresses in the "all tokens" collection change', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        const tokenAddresses = ['0xE1', '0xE2'];
+        await withController(
           {
-            interval: 100,
-            getNetworkClientById: jest.fn(),
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
-            selectedAddress: defaultSelectedAddress,
-            onPreferencesStateChange: jest.fn(),
-            onTokensStateChange,
-            onNetworkStateChange: jest.fn(),
-            tokenPricesService: buildMockTokenPricesService(),
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[0],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              allDetectedTokens: {},
+            },
           },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[1],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              allDetectedTokens: {},
+            });
+
+            // Once when starting, and another when tokens state changes
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
+      it('should update exchange rates when any of the addresses in the "all detected tokens" collection change', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        const tokenAddresses = ['0xE1', '0xE2'];
+        await withController(
           {
-            allTokens: {
-              '0x1': {
-                [defaultSelectedAddress]: [
-                  {
-                    address: mockTokenAddress,
-                    decimals: 0,
-                    symbol: '',
-                    aggregators: [],
-                  },
-                ],
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[0],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
               },
             },
           },
-        );
-        await controller.start();
-        const updateExchangeRatesSpy = jest
-          .spyOn(controller, 'updateExchangeRates')
-          .mockResolvedValue();
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
 
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await tokenStateChangeListener!({
-          allDetectedTokens: {},
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[1],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and another when tokens state changes
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
+      it('should not update exchange rates if both the "all tokens" or "all detected tokens" are exactly the same', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        const tokensState = {
           allTokens: {
-            '0x1': {
-              [defaultSelectedAddress]: [
+            [chainId]: {
+              [selectedAddress]: [
                 {
                   address: mockTokenAddress,
                   decimals: 0,
@@ -159,20 +233,37 @@ describe('TokenRatesController', () => {
               ],
             },
           },
-        });
+          allDetectedTokens: {},
+        };
+        await withController(
+          {
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: tokensState,
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
 
-        expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange(tokensState);
+
+            // Once when starting, and that's it
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+          },
+        );
       });
 
-      it('should not update exchange rates when token state changes without "all tokens" or "all detected tokens" changing', async () => {
-        let tokenStateChangeListener: (state: any) => Promise<void>;
-        const onTokensStateChange = jest.fn().mockImplementation((listener) => {
-          tokenStateChangeListener = listener;
-        });
-
-        const allTokens = {
-          '0x1': {
-            [defaultSelectedAddress]: [
+      it('should not update exchange rates if all of the tokens in "all tokens" just move to "all detected tokens"', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        const tokens = {
+          [chainId]: {
+            [selectedAddress]: [
               {
                 address: mockTokenAddress,
                 decimals: 0,
@@ -182,165 +273,445 @@ describe('TokenRatesController', () => {
             ],
           },
         };
-        const allDetectedTokens = {};
-
-        const controller = new TokenRatesController(
+        await withController(
           {
-            interval: 100,
-            getNetworkClientById: jest.fn(),
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
-            selectedAddress: defaultSelectedAddress,
-            onPreferencesStateChange: jest.fn(),
-            onTokensStateChange,
-            onNetworkStateChange: jest.fn(),
-            tokenPricesService: buildMockTokenPricesService(),
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: tokens,
+              allDetectedTokens: {},
+            },
           },
-          {
-            allDetectedTokens,
-            allTokens,
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {},
+              allDetectedTokens: tokens,
+            });
+
+            // Once when starting, and that's it
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
           },
         );
+      });
 
-        await controller.start();
-        const updateExchangeRatesSpy = jest
-          .spyOn(controller, 'updateExchangeRates')
-          .mockResolvedValue();
-
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await tokenStateChangeListener!({
-          allDetectedTokens,
-          allTokens,
-          tokens: [
-            {
-              address: mockTokenAddress,
-              decimals: 0,
-              symbol: '',
-              aggregators: [],
+      it('should not update exchange rates if a new token is added to "all detected tokens" but is already present in "all tokens"', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        await withController(
+          {
+            options: {
+              chainId,
+              selectedAddress,
             },
-          ],
-        });
+            config: {
+              allTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              allDetectedTokens: {},
+            },
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
 
-        expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and that's it
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('should not update exchange rates if a new token is added to "all tokens" but is already present in "all detected tokens"', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        await withController(
+          {
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and that's it
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('should not update exchange rates if none of the addresses in "all tokens" or "all detected tokens" change, even if other parts of the token change', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        await withController(
+          {
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 3,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: mockTokenAddress,
+                      decimals: 7,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and that's it
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('should not update exchange rates if none of the addresses in "all tokens" or "all detected tokens" change, when normalized to checksum addresses', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        await withController(
+          {
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: '0xE2',
+                      decimals: 3,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: '0xe2',
+                      decimals: 7,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and that's it
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('should not update exchange rates if any of the addresses in "all tokens" or "all detected tokens" merely change order', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        await withController(
+          {
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: '0xE1',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                    {
+                      address: '0xE2',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+            await controller.start();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: '0xE2',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                    {
+                      address: '0xE1',
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and that's it
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+          },
+        );
       });
     });
 
-    describe('when polling is inactive', () => {
-      it('should not update exchange rates when tokens change', async () => {
-        let tokenStateChangeListener: (state: any) => Promise<void>;
-        const onTokensStateChange = jest.fn().mockImplementation((listener) => {
-          tokenStateChangeListener = listener;
-        });
-        const controller = new TokenRatesController(
+    describe('when legacy polling is inactive', () => {
+      it('should not update exchange rates when any of the addresses in the "all tokens" collection change', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        const tokenAddresses = ['0xE1', '0xE2'];
+        await withController(
           {
-            interval: 100,
-            getNetworkClientById: jest.fn(),
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
-            selectedAddress: defaultSelectedAddress,
-            onPreferencesStateChange: jest.fn(),
-            onTokensStateChange,
-            onNetworkStateChange: jest.fn(),
-            tokenPricesService: buildMockTokenPricesService(),
-          },
-          {
-            allTokens: {
-              '0x1': {
-                [defaultSelectedAddress]: [
-                  {
-                    address: mockTokenAddress,
-                    decimals: 0,
-                    symbol: '',
-                    aggregators: [],
-                  },
-                ],
-              },
+            options: {
+              chainId,
+              selectedAddress,
             },
+            config: {
+              allTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[0],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              allDetectedTokens: {},
+            },
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[1],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+              allDetectedTokens: {},
+            });
+
+            expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
           },
         );
-        const updateExchangeRatesSpy = jest
-          .spyOn(controller, 'updateExchangeRates')
-          .mockResolvedValue();
-
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await tokenStateChangeListener!({
-          allDetectedTokens: {},
-          allTokens: {
-            '0x1': {
-              [defaultSelectedAddress]: [
-                {
-                  address: mockTokenAddress,
-                  decimals: 0,
-                  symbol: '',
-                  aggregators: [],
-                },
-              ],
-            },
-          },
-        });
-
-        expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
       });
 
-      it('should not update exchange rates when detectedtokens change', async () => {
-        let tokenStateChangeListener: (state: any) => Promise<void>;
-        const onTokensStateChange = jest.fn().mockImplementation((listener) => {
-          tokenStateChangeListener = listener;
-        });
-        const tokenAddresses = [
-          '0x0000000000000000000000000000000000000010',
-          '0x0000000000000000000000000000000000000020',
-        ];
-        const controller = new TokenRatesController(
+      it('should not update exchange rates when any of the addresses in the "all detected tokens" collection change', async () => {
+        const chainId = '0xC';
+        const selectedAddress = '0xA';
+        const tokenAddresses = ['0xE1', '0xE2'];
+        await withController(
           {
-            interval: 100,
-            getNetworkClientById: jest.fn(),
-            chainId: '0x1',
-            ticker: NetworksTicker.mainnet,
-            selectedAddress: defaultSelectedAddress,
-            onPreferencesStateChange: jest.fn(),
-            onTokensStateChange,
-            onNetworkStateChange: jest.fn(),
-            tokenPricesService: buildMockTokenPricesService(),
-          },
-          {
-            allDetectedTokens: {
-              [toHex(1)]: {
-                [defaultSelectedAddress]: [
-                  {
-                    address: tokenAddresses[0],
-                    decimals: 0,
-                    symbol: '',
-                    aggregators: [],
-                  },
-                ],
+            options: {
+              chainId,
+              selectedAddress,
+            },
+            config: {
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[0],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
               },
             },
-            allTokens: {},
+          },
+          async ({ controller, controllerEvents }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRates')
+              .mockResolvedValue();
+
+            // @ts-expect-error Intentionally incomplete state
+            controllerEvents.tokensStateChange({
+              allTokens: {},
+              allDetectedTokens: {
+                [chainId]: {
+                  [selectedAddress]: [
+                    {
+                      address: tokenAddresses[1],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
           },
         );
-        const updateExchangeRatesSpy = jest
-          .spyOn(controller, 'updateExchangeRates')
-          .mockResolvedValue();
-
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await tokenStateChangeListener!({
-          allDetectedTokens: {
-            [toHex(1)]: {
-              [defaultSelectedAddress]: [
-                {
-                  address: tokenAddresses[1],
-                  decimals: 0,
-                  symbol: '',
-                  aggregators: [],
-                },
-              ],
-            },
-          },
-          allTokens: {},
-        });
-
-        expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
       });
     });
   });
@@ -995,7 +1366,6 @@ describe('TokenRatesController', () => {
               },
             },
           );
-          controller.stopAllPolling();
         });
       });
 
