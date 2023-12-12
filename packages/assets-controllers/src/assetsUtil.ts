@@ -8,6 +8,7 @@ import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
+import type { ApiNft, ApiNftContract } from './NftDetectionController';
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -227,4 +228,69 @@ export function addUrlProtocolPrefix(urlString: string): string {
  */
 export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
   return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
+}
+
+/**
+ * Maps an OpenSea V2 NFT to the V1 schema.
+ * Should work for both 'get_nft' and 'list_nfts_by_account' responses.
+ * @param nft - The V2 NFT to map.
+ * @returns The NFT in the V1 schema.
+ */
+export function mapOpenSeaNftV2ToV1(nft: any): ApiNft {
+  return {
+    token_id: nft.identifier,
+    num_sales: null,
+    background_color: null,
+    image_url: nft.image_url,
+    image_preview_url: nft.image_url,
+    image_thumbnail_url: nft.image_url,
+    image_original_url: null,
+    animation_url: nft.animation_url,
+    animation_original_url: null,
+    name: nft.name,
+    description: nft.description,
+    external_link: null,
+    asset_contract: {
+      address: nft.contract,
+      asset_contract_type: null,
+      created_date: null,
+      schema_name: nft.token_standard?.toUpperCase(),
+      symbol: null,
+      total_supply: null,
+      description: nft.description,
+      external_link: null,
+      collection: {
+        name: nft.collection,
+        image_url: null,
+      },
+    },
+    creator: {
+      user: { username: '' },
+      profile_img_url: '',
+      address: '',
+    },
+    last_sale: null,
+  };
+}
+
+/**
+ * Maps an OpenSea V2 contract to the V1 schema.
+ * @param contract - The v2 contract to map.
+ * @returns The contract in the v1 schema.
+ */
+export function mapOpenSeaContractV2ToV1(contract: any): ApiNftContract {
+  return {
+    address: contract.address,
+    asset_contract_type: null,
+    created_date: null,
+    schema_name: contract.contract_standard?.toUpperCase(),
+    symbol: null,
+    total_supply: contract.supply,
+    description: null,
+    external_link: null,
+    collection: {
+      name: contract.name,
+      image_url: null,
+    },
+  };
 }

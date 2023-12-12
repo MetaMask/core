@@ -32,10 +32,14 @@ import { EventEmitter } from 'events';
 import { v4 as random } from 'uuid';
 
 import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import {
+  compareNftMetadata,
+  getFormattedIpfsUrl,
+  mapOpenSeaContractV2ToV1,
+  mapOpenSeaNftV2ToV1,
+} from './assetsUtil';
 import { Source } from './constants';
 import type {
-  ApiNft,
   ApiNftCreator,
   ApiNftContract,
   ApiNftLastSale,
@@ -238,7 +242,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     contractAddress: string;
     tokenId: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
+    return `${OPENSEA_PROXY_URL}/chain/ethereum/contract/${contractAddress}/nfts/${tokenId}`;
   }
 
   private getNftContractInformationApi({
@@ -246,7 +250,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   }: {
     contractAddress: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`;
+    return `${OPENSEA_PROXY_URL}/chain/ethereum/contract/${contractAddress}`;
   }
 
   /**
@@ -293,7 +297,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   ): Promise<NftMetadata> {
     // TODO Parameterize this by chainId for non-mainnet token detection
     // Attempt to fetch the data with the proxy
-    const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
+    const nftInformation: any = await fetchWithErrorHandling({
       url: this.getNftApi({
         contractAddress,
         tokenId,
@@ -301,7 +305,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     });
 
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
-    if (!nftInformation) {
+    if (!nftInformation.nft) {
       return {
         name: null,
         description: null,
@@ -327,7 +331,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       creator,
       last_sale,
       asset_contract: { schema_name },
-    } = nftInformation;
+    } = mapOpenSeaNftV2ToV1(nftInformation.nft);
 
     /* istanbul ignore next */
     const nftMetadata: NftMetadata = Object.assign(
@@ -549,7 +553,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
 
     // if we successfully fetched return the fetched data immediately
     if (apiNftContractObject) {
-      return apiNftContractObject;
+      return mapOpenSeaContractV2ToV1(apiNftContractObject);
     }
 
     // If we've reached this point we were unable to fetch data from either the proxy or opensea so we return

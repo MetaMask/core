@@ -15,6 +15,7 @@ import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
+import { mapOpenSeaNftV2ToV1 } from './assetsUtil';
 import { Source } from './constants';
 import type { NftController, NftState, NftMetadata } from './NftController';
 
@@ -155,23 +156,24 @@ export class NftDetectionController extends PollingControllerV1<
 
   private getOwnerNftApi({
     address,
-    offset,
+    next,
   }: {
     address: string;
-    offset: number;
+    next?: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
+    return `${OPENSEA_PROXY_URL}/chain/ethereum/account/${address}/nfts?limit=50&next=${
+      next ?? ''
+    }`;
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: { assets: ApiNft[] };
+    let nftApiResponse: { nfts: ApiNft[]; next?: string };
     let nfts: ApiNft[] = [];
-    let offset = 0;
-    let pagingFinish = false;
-    /* istanbul ignore if */
+    let next;
+
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset }),
+        url: this.getOwnerNftApi({ address, next }),
         timeout: 15000,
       });
 
@@ -179,11 +181,10 @@ export class NftDetectionController extends PollingControllerV1<
         return nfts;
       }
 
-      nftApiResponse?.assets?.length !== 0
-        ? (nfts = [...nfts, ...nftApiResponse.assets])
-        : (pagingFinish = true);
-      offset += 50;
-    } while (!pagingFinish);
+      if (nftApiResponse?.nfts?.length > 0) {
+        nfts = [...nfts, ...nftApiResponse.nfts.map(mapOpenSeaNftV2ToV1)];
+      }
+    } while ((next = nftApiResponse.next));
 
     return nfts;
   }
