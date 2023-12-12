@@ -11,7 +11,7 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import { PollingController } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
 import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
@@ -82,7 +82,7 @@ const defaultState = {
  * Controller that passively polls on a set interval for an exchange rate from the current network
  * asset to the user's preferred currency.
  */
-export class CurrencyRateController extends PollingController<
+export class CurrencyRateController extends StaticIntervalPollingController<
   typeof name,
   CurrencyRateState,
   CurrencyRateMessenger

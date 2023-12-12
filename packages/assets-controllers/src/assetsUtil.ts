@@ -231,6 +231,76 @@ export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
 }
 
 /**
+ * Partitions a list of values into groups that are at most `batchSize` in
+ * length.
+ *
+ * @param values - The list of values.
+ * @param args - The remaining arguments.
+ * @param args.batchSize - The desired maximum number of values per batch.
+ * @returns The list of batches.
+ */
+/**
+ *
+ * @param values
+ * @param options0
+ * @param options0.batchSize
+ */
+export function divideIntoBatches<Value>(
+  values: Value[],
+  { batchSize }: { batchSize: number },
+): Value[][] {
+  const batches = [];
+  for (let i = 0; i < values.length; i += batchSize) {
+    batches.push(values.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+/**
+ * Constructs an object from processing batches of the given values
+ * sequentially.
+ *
+ * @param args - The arguments to this function.
+ * @param args.values - A list of values to iterate over.
+ * @param args.batchSize - The maximum number of values in each batch.
+ * @param args.eachBatch - A function to call for each batch. This function is
+ * similar to the function that `Array.prototype.reduce` takes, in that it
+ * receives the object that is being built, each batch in the list of batches
+ * and the index, and should return an updated version of the object.
+ * @param args.initialResult - The initial value of the final data structure,
+ * i.e., the value that will be fed into the first call of `eachBatch`.
+ * @returns The built object.
+ */
+export async function reduceInBatchesSerially<
+  Value,
+  Result extends Record<PropertyKey, unknown>,
+>({
+  values,
+  batchSize,
+  eachBatch,
+  initialResult,
+}: {
+  values: Value[];
+  batchSize: number;
+  eachBatch: (
+    workingResult: Partial<Result>,
+    batch: Value[],
+    index: number,
+  ) => Partial<Result> | Promise<Partial<Result>>;
+  initialResult: Partial<Result>;
+}): Promise<Result> {
+  const batches = divideIntoBatches(values, { batchSize });
+  let workingResult = initialResult;
+  for (const [index, batch] of batches.entries()) {
+    workingResult = await eachBatch(workingResult, batch, index);
+  }
+  // There's no way around this — we have to assume that in the end, the result
+  // matches the intended type.
+  const finalResult = workingResult as Result;
+  return finalResult;
+}
+
+/**
  * Maps an OpenSea V2 NFT to the V1 schema.
  * Should work for both 'get_nft' and 'list_nfts_by_account' responses.
  * @param nft - The V2 NFT to map.
