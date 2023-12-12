@@ -917,11 +917,13 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransaction(rawTx);
+    const ethQuery = this.getEthQuery(transactionMeta.networkClientId)
+    const hash = await this.publishTransaction(ethQuery, rawTx);
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
       chainId: transactionMeta.chainId,
+      networkClientId: transactionMeta.networkClientId,
       estimatedBaseFee,
       hash,
       id: random(),
@@ -2236,8 +2238,8 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
-  private async publishTransaction(rawTransaction: string): Promise<string> {
-    return await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+  private async publishTransaction(ethQuery: EthQuery, rawTransaction: string): Promise<string> {
+    return await query(ethQuery, 'sendRawTransaction', [rawTransaction]);
   }
 
   /**
