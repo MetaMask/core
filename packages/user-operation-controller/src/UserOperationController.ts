@@ -112,6 +112,14 @@ export type UserOperationControllerOptions = {
   state?: Partial<UserOperationControllerState>;
 };
 
+export type AddUserOperationRequest = {
+  data?: string;
+  maxFeePerGas: string;
+  maxPriorityFeePerGas: string;
+  to?: string;
+  value?: string;
+};
+
 export type AddUserOperationOptions = {
   networkClientId: string;
   origin: string;
@@ -183,13 +191,7 @@ export class UserOperationController extends BaseController<
    * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce.
    */
   async addUserOperation(
-    request: {
-      data?: string;
-      maxFeePerGas: string;
-      maxPriorityFeePerGas: string;
-      to?: string;
-      value?: string;
-    },
+    request: AddUserOperationRequest,
     options: AddUserOperationOptions,
   ): Promise<AddUserOperationResponse> {
     validateAddUserOperationRequest(request);
@@ -225,13 +227,7 @@ export class UserOperationController extends BaseController<
   }
 
   async #addUserOperation(
-    request: {
-      data?: string;
-      maxFeePerGas: string;
-      maxPriorityFeePerGas: string;
-      to?: string;
-      value?: string;
-    },
+    request: AddUserOperationRequest,
     options: AddUserOperationOptions & { transaction?: TransactionParams },
   ): Promise<AddUserOperationResponse> {
     log('Adding user operation', { request, options });
@@ -291,44 +287,38 @@ export class UserOperationController extends BaseController<
 
   async #prepareAndSubmitUserOperation(
     metadata: UserOperationMetadata,
-    request: {
-      data?: string;
-      maxFeePerGas: string;
-      maxPriorityFeePerGas: string;
-      to?: string;
-      value?: string;
-    },
+    request: AddUserOperationRequest,
     options: AddUserOperationOptions,
     { chainId }: { chainId: string },
   ) {
-    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = request;
+    const { maxFeePerGas, maxPriorityFeePerGas } = request;
     const { requireApproval, smartContractAccount } = options;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
       await this.#prepareUserOperation(
-        to,
-        value,
-        data,
+        request,
         metadata,
         smartContractAccount,
         chainId,
       );
 
-      const bundler = new Bundler(metadata.bundlerUrl as string);
-
       metadata.userOperation.maxFeePerGas = maxFeePerGas;
       metadata.userOperation.maxPriorityFeePerGas = maxPriorityFeePerGas;
 
-      await this.#updateGas(metadata, bundler);
+      await this.#updateGas(metadata);
       await this.#addPaymasterData(metadata, smartContractAccount);
 
       if (requireApproval !== false) {
-        resultCallbacks = await this.#approveUserOperation(metadata);
+        resultCallbacks = await this.#approveUserOperation(
+          metadata,
+          request,
+          options,
+        );
       }
 
       await this.#signUserOperation(metadata, smartContractAccount);
-      await this.#submitUserOperation(metadata, bundler);
+      await this.#submitUserOperation(metadata);
 
       resultCallbacks?.success();
 
@@ -397,13 +387,12 @@ export class UserOperationController extends BaseController<
   }
 
   async #prepareUserOperation(
-    to: string | undefined,
-    value: string | undefined,
-    data: string | undefined,
+    request: AddUserOperationRequest,
     metadata: UserOperationMetadata,
     smartContractAccount: SmartContractAccount,
     chainId: string,
   ) {
+    const { data, to, value } = request;
     const { id, userOperation } = metadata;
 
     log('Preparing user operation', { id });
@@ -444,10 +433,7 @@ export class UserOperationController extends BaseController<
     this.#updateMetadata(metadata);
   }
 
-  async #updateGas(
-    metadata: UserOperationMetadata,
-    bundler: Bundler,
-  ): Promise<void> {
+  async #updateGas(metadata: UserOperationMetadata): Promise<void> {
     const { id, userOperation } = metadata;
 
     log('Updating gas', id);
@@ -469,6 +455,8 @@ export class UserOperationController extends BaseController<
       preVerificationGas: '0x1',
       verificationGasLimit: '0x1',
     };
+
+    const bundler = new Bundler(metadata.bundlerUrl as string);
 
     const { preVerificationGas, verificationGas, callGasLimit } =
       await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
@@ -510,7 +498,11 @@ export class UserOperationController extends BaseController<
     this.#updateMetadata(metadata);
   }
 
-  async #approveUserOperation(metadata: UserOperationMetadata) {
+  async #approveUserOperation(
+    metadata: UserOperationMetadata,
+    request: AddUserOperationRequest,
+    options: AddUserOperationOptions,
+  ) {
     log('Requesting approval');
 
     const { resultCallbacks, value } = await this.#requestApproval(metadata);
@@ -519,25 +511,13 @@ export class UserOperationController extends BaseController<
       | TransactionMeta
       | undefined;
 
-    const { userOperation } = metadata;
-
     if (updatedTransaction) {
-      log('Found updated transaction in approval', { updatedTransaction });
-
-      if (userOperation.paymasterAndData === EMPTY_BYTES) {
-        userOperation.maxFeePerGas = addHexPrefix(
-          updatedTransaction.txParams.maxFeePerGas as string,
-        );
-
-        userOperation.maxPriorityFeePerGas = addHexPrefix(
-          updatedTransaction.txParams.maxPriorityFeePerGas as string,
-        );
-
-        log('Updated gas fees after approval', {
-          maxFeePerGas: userOperation.maxFeePerGas,
-          maxPriorityFeePerGas: userOperation.maxPriorityFeePerGas,
-        });
-      }
+      await this.#updateUserOperationAfterApproval(
+        metadata,
+        request,
+        options,
+        updatedTransaction,
+      );
     }
 
     metadata.status = UserOperationStatus.Approved;
@@ -573,14 +553,12 @@ export class UserOperationController extends BaseController<
     this.#updateMetadata(metadata);
   }
 
-  async #submitUserOperation(
-    metadata: UserOperationMetadata,
-    bundler: Bundler,
-  ) {
+  async #submitUserOperation(metadata: UserOperationMetadata) {
     const { userOperation } = metadata;
 
     log('Submitting user operation', userOperation);
 
+    const bundler = new Bundler(metadata.bundlerUrl as string);
     const hash = await bundler.sendUserOperation(userOperation, ENTRYPOINT);
 
     metadata.hash = hash;
@@ -713,5 +691,99 @@ export class UserOperationController extends BaseController<
     const { chainId } = configuration;
 
     return { provider, chainId };
+  }
+
+  async #updateUserOperationAfterApproval(
+    metadata: UserOperationMetadata,
+    request: AddUserOperationRequest,
+    options: AddUserOperationOptions,
+    updatedTransaction: TransactionMeta,
+  ) {
+    log('Found updated transaction in approval', { updatedTransaction });
+
+    const { userOperation } = metadata;
+    const usingPaymaster = userOperation.paymasterAndData !== EMPTY_BYTES;
+
+    const updatedMaxFeePerGas = addHexPrefix(
+      updatedTransaction.txParams.maxFeePerGas as string,
+    );
+
+    const updatedMaxPriorityFeePerGas = addHexPrefix(
+      updatedTransaction.txParams.maxPriorityFeePerGas as string,
+    );
+
+    let refreshUserOperation = false;
+    const previousMaxFeePerGas = userOperation.maxFeePerGas;
+    const previousMaxPriorityFeePerGas = userOperation.maxPriorityFeePerGas;
+
+    if (
+      previousMaxFeePerGas !== updatedMaxFeePerGas ||
+      previousMaxPriorityFeePerGas !== updatedMaxPriorityFeePerGas
+    ) {
+      log('Gas fees updated during approval', {
+        previousMaxFeePerGas,
+        previousMaxPriorityFeePerGas,
+        updatedMaxFeePerGas,
+        updatedMaxPriorityFeePerGas,
+      });
+
+      userOperation.maxFeePerGas = updatedMaxFeePerGas;
+      userOperation.maxPriorityFeePerGas = updatedMaxPriorityFeePerGas;
+
+      refreshUserOperation = usingPaymaster;
+    }
+
+    const previousData = request.data ?? EMPTY_BYTES;
+    const updatedData = updatedTransaction.txParams.data ?? EMPTY_BYTES;
+
+    if (previousData !== updatedData) {
+      log('Data updated during approval', { previousData, updatedData });
+      refreshUserOperation = true;
+    }
+
+    const previousValue = request.value ?? '0x0';
+    const updatedValue = updatedTransaction.txParams.value ?? '0x0';
+
+    if (previousValue !== updatedValue) {
+      log('Value updated during approval', { previousValue, updatedValue });
+      refreshUserOperation = true;
+    }
+
+    if (refreshUserOperation) {
+      const updatedRequest = {
+        ...request,
+        data: updatedData,
+        maxFeePerGas: updatedMaxFeePerGas,
+        maxPriorityFeePerGas: updatedMaxPriorityFeePerGas,
+        value: updatedValue,
+      };
+
+      await this.#regenerateUserOperation(metadata, updatedRequest, options);
+    }
+  }
+
+  async #regenerateUserOperation(
+    metadata: UserOperationMetadata,
+    updatedRequest: AddUserOperationRequest,
+    options: AddUserOperationOptions,
+  ) {
+    log(
+      'Regenerating user operation as parameters were updated during approval',
+    );
+
+    const { chainId } = metadata;
+    const { smartContractAccount } = options;
+
+    await this.#prepareUserOperation(
+      updatedRequest,
+      metadata,
+      smartContractAccount,
+      chainId,
+    );
+
+    await this.#updateGas(metadata);
+    await this.#addPaymasterData(metadata, smartContractAccount);
+
+    log('Regenerated user operation', metadata.userOperation);
   }
 }

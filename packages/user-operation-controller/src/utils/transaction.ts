@@ -108,6 +108,7 @@ export function getTransactionMetadata(
     error,
     hash: transactionHash ?? undefined,
     id,
+    isUserOperation: true,
     origin,
     status,
     time,

@@ -169,7 +169,24 @@ describe('PendingTransactionTracker', () => {
 
           const tracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => [],
+            getTransactions: () => [
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                status: TransactionStatus.dropped,
+              },
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                chainId: '0x2',
+              },
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                verifiedOnBlockchain: true,
+              },
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                isUserOperation: true,
+              },
+            ],
           } as any);
 
           tracker.hub.addListener('transaction-dropped', listener);

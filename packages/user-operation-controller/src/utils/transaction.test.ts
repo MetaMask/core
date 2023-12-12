@@ -222,5 +222,11 @@ describe('transation', () => {
 
       expect(transactionMetadata?.type).toBe(TransactionType.simpleSend);
     });
+
+    it('returns isUserOperation as true', () => {
+      expect(
+        getTransactionMetadata(USER_OPERATION_METADATA_MOCK)?.isUserOperation,
+      ).toBe(true);
+    });
   });
 });
