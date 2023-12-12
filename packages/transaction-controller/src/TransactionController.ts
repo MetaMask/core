@@ -1924,7 +1924,7 @@ export class TransactionController extends BaseControllerV1<
     await updateGasFees({
       eip1559: isEIP1559Compatible,
       ethQuery: this.ethQuery,
-      getSavedGasFees: this.getSavedGasFees.bind(this, chainId),
+      getSavedGasFees: this.getSavedGasFees.bind(this),
       getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
     });

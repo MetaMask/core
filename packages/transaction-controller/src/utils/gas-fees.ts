@@ -7,9 +7,9 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type { FetchGasFeeEstimateOptions, GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
-import { createModuleLogger } from '@metamask/utils';
+import { Hex, createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
 import { projectLogger } from '../logger';
@@ -25,8 +25,8 @@ import { SWAP_TRANSACTION_TYPES } from './swaps';
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
-  getSavedGasFees: () => SavedGasFees | undefined;
-  getGasFeeEstimates: () => Promise<GasFeeState>;
+  getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  getGasFeeEstimates: (options: FetchGasFeeEstimateOptions) => Promise<GasFeeState>;
   txMeta: TransactionMeta;
 };
 
@@ -45,7 +45,7 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   const isSwap = SWAP_TRANSACTION_TYPES.includes(
     txMeta.type as TransactionType,
   );
-  const savedGasFees = isSwap ? undefined : request.getSavedGasFees();
+  const savedGasFees = isSwap ? undefined : request.getSavedGasFees(txMeta.chainId);
 
   const suggestedGasFees = await getSuggestedGasFees(request);
 
@@ -268,7 +268,9 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
   }
 
   try {
-    const { gasFeeEstimates, gasEstimateType } = await getGasFeeEstimates();
+    const { gasFeeEstimates, gasEstimateType } = await getGasFeeEstimates({
+      networkClientId: txMeta.networkClientId
+    });
 
     if (eip1559 && gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
       const {
