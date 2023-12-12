@@ -1690,7 +1690,7 @@ describe('TokenRatesController', () => {
     it('fetches rates for all tokens in batches of 100', async () => {
       const chainId = toHex(1);
       const ticker = 'ETH';
-      const tokenAddresses = buildSeries({ from: 0, to: 200 })
+      const tokenAddresses = [...new Array(200).keys()]
         .map(buildAddress)
         .sort();
       const tokenPricesService = buildMockTokenPricesService({
@@ -1960,7 +1960,7 @@ describe('TokenRatesController', () => {
     it('fetches rates for all tokens in batches of 100 when native currency is not supported by the Price API', async () => {
       const chainId = toHex(1);
       const ticker = 'UNSUPPORTED';
-      const tokenAddresses = buildSeries({ from: 0, to: 200 })
+      const tokenAddresses = [...new Array(200).keys()]
         .map(buildAddress)
         .sort();
       const tokenPricesService = buildMockTokenPricesService({
@@ -2327,23 +2327,6 @@ async function fetchTokenPricesWithIncreasingPriceForEachToken<
  */
 function buildAddress(number: number) {
   return toChecksumHexAddress(add0x(number.toString(16).padStart(40, '0')));
-}
-
-/**
- * Constructs an array of numbers, starting from one number and ending with
- * another.
- *
- * @param args - The arguments to this function.
- * @param args.from - The number to start from.
- * @param args.to - The number to end up at.
- * @returns The constructed array of numbers.
- */
-function buildSeries({ from, to }: { from: number; to: number }) {
-  const series = [];
-  for (let n = from; n < to; n++) {
-    series.push(n);
-  }
-  return series;
 }
 
 /**
