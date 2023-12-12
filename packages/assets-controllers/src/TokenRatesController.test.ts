@@ -1,7 +1,12 @@
-import { NetworksTicker, toHex } from '@metamask/controller-utils';
+import {
+  NetworksTicker,
+  toChecksumHexAddress,
+  toHex,
+} from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
@@ -13,7 +18,7 @@ import type {
 } from './token-prices-service/abstract-token-prices-service';
 import type { TokenBalancesState } from './TokenBalancesController';
 import { TokenRatesController } from './TokenRatesController';
-import type { TokenRatesConfig } from './TokenRatesController';
+import type { TokenRatesConfig, Token } from './TokenRatesController';
 import type { TokensState } from './TokensController';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
@@ -1682,6 +1687,58 @@ describe('TokenRatesController', () => {
       );
     });
 
+    it('fetches rates for all tokens in batches of 100', async () => {
+      const chainId = toHex(1);
+      const ticker = 'ETH';
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort();
+      const tokenPricesService = buildMockTokenPricesService({
+        fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+      });
+      const fetchTokenPricesSpy = jest.spyOn(
+        tokenPricesService,
+        'fetchTokenPrices',
+      );
+      const tokens = tokenAddresses.map((tokenAddress) => {
+        return buildToken({ address: tokenAddress });
+      });
+      await withController(
+        {
+          options: {
+            ticker,
+            tokenPricesService,
+          },
+        },
+        async ({ controller, controllerEvents }) => {
+          await callUpdateExchangeRatesMethod({
+            allTokens: {
+              [chainId]: {
+                [controller.config.selectedAddress]: tokens,
+              },
+            },
+            chainId,
+            controller,
+            controllerEvents,
+            method,
+            nativeCurrency: ticker,
+          });
+
+          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
+          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
+            chainId,
+            tokenContractAddresses: tokenAddresses.slice(0, 100),
+            currency: ticker,
+          });
+          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
+            chainId,
+            tokenContractAddresses: tokenAddresses.slice(100),
+            currency: ticker,
+          });
+        },
+      );
+    });
+
     it('updates all rates', async () => {
       const tokenAddresses = [
         '0x0000000000000000000000000000000000000001',
@@ -1896,6 +1953,68 @@ describe('TokenRatesController', () => {
               },
             }
         `);
+        },
+      );
+    });
+
+    it('fetches rates for all tokens in batches of 100 when native currency is not supported by the Price API', async () => {
+      const chainId = toHex(1);
+      const ticker = 'UNSUPPORTED';
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort();
+      const tokenPricesService = buildMockTokenPricesService({
+        fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
+        validateCurrencySupported: (currency: unknown): currency is string => {
+          return currency !== ticker;
+        },
+      });
+      const fetchTokenPricesSpy = jest.spyOn(
+        tokenPricesService,
+        'fetchTokenPrices',
+      );
+      const tokens = tokenAddresses.map((tokenAddress) => {
+        return buildToken({ address: tokenAddress });
+      });
+      nock('https://min-api.cryptocompare.com')
+        .get('/data/price')
+        .query({
+          fsym: 'ETH',
+          tsyms: ticker,
+        })
+        .reply(200, { [ticker]: 0.5 });
+      await withController(
+        {
+          options: {
+            ticker,
+            tokenPricesService,
+          },
+        },
+        async ({ controller, controllerEvents }) => {
+          await callUpdateExchangeRatesMethod({
+            allTokens: {
+              [chainId]: {
+                [controller.config.selectedAddress]: tokens,
+              },
+            },
+            chainId,
+            controller,
+            controllerEvents,
+            method,
+            nativeCurrency: ticker,
+          });
+
+          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
+          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
+            chainId,
+            tokenContractAddresses: tokenAddresses.slice(0, 100),
+            currency: 'ETH',
+          });
+          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
+            chainId,
+            tokenContractAddresses: tokenAddresses.slice(100),
+            currency: 'ETH',
+          });
         },
       );
     });
@@ -2283,4 +2402,33 @@ async function fetchTokenPricesWithIncreasingPriceForEachToken<
       [tokenAddress]: tokenPrice,
     };
   }, {}) as TokenPricesByTokenAddress<TokenAddress, Currency>;
+}
+
+/**
+ * Constructs a checksum Ethereum address.
+ *
+ * @param number - The address as a decimal number.
+ * @returns The address as an 0x-prefixed ERC-55 mixed-case checksum address in
+ * hexadecimal format.
+ */
+function buildAddress(number: number) {
+  return toChecksumHexAddress(add0x(number.toString(16).padStart(40, '0')));
+}
+
+/**
+ * Constructs an object that satisfies the Token interface, filling in missing
+ * properties with defaults. This makes it possible to only specify properties
+ * that the test cares about.
+ *
+ * @param overrides - The properties that should be assigned to the new token.
+ * @returns The constructed token.
+ */
+function buildToken(overrides: Partial<Token> = {}) {
+  return {
+    address: buildAddress(1),
+    decimals: 0,
+    symbol: '',
+    aggregators: [],
+    ...overrides,
+  };
 }

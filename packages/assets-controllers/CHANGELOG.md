@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3653](https://github.com/MetaMask/core/pull/3653))
   - This method now takes an object with shape `{ tokenAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
 - Update TokenListController to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
+- Update TokenRatesController to request token rates from the Price API in batches of 100 ([#3650](https://github.com/MetaMask/core/pull/3650))
 
 ### Removed
 - **BREAKING:** Remove `fetchExchangeRate` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))

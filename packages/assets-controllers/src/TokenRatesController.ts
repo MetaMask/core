@@ -15,6 +15,7 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { isDeepStrictEqual } from 'util';
 
+import { reduceInBatchesSerially } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import type { TokensState } from './TokensController';
@@ -94,6 +95,12 @@ export interface TokenRatesState extends BaseState {
     Record<string, ContractExchangeRates>
   >;
 }
+
+/**
+ * The maximum number of token addresses that should be sent to the Price API in
+ * a single request.
+ */
+const TOKEN_PRICES_BATCH_SIZE = 100;
 
 /**
  * Uses the CryptoCompare API to fetch the exchange rate between one currency
@@ -505,12 +512,27 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
-    const tokenPricesByTokenAddress =
-      await this.#tokenPricesService.fetchTokenPrices({
-        tokenAddresses,
-        chainId,
-        currency: nativeCurrency,
-      });
+    const tokenPricesByTokenAddress = await reduceInBatchesSerially<
+      Hex,
+      Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+    >({
+      values: tokenAddresses,
+      batchSize: TOKEN_PRICES_BATCH_SIZE,
+      eachBatch: async (allTokenPricesByTokenAddress, batch) => {
+        const tokenPricesByTokenAddressForBatch =
+          await this.#tokenPricesService.fetchTokenPrices({
+            tokenAddresses: batch,
+            chainId,
+            currency: nativeCurrency,
+          });
+
+        return {
+          ...allTokenPricesByTokenAddress,
+          ...tokenPricesByTokenAddressForBatch,
+        };
+      },
+      initialResult: {},
+    });
 
     return Object.entries(tokenPricesByTokenAddress).reduce(
       (obj, [tokenAddress, tokenPrice]) => {
@@ -543,13 +565,13 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     const [
-      tokenPricesByTokenAddress,
+      contractExchangeRates,
       fallbackCurrencyToNativeCurrencyConversionRate,
     ] = await Promise.all([
-      this.#tokenPricesService.fetchTokenPrices({
+      this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
         tokenAddresses,
-        currency: FALL_BACK_VS_CURRENCY,
         chainId: this.config.chainId,
+        nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
       getCurrencyConversionRate({
         from: FALL_BACK_VS_CURRENCY,
@@ -561,12 +583,13 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       return {};
     }
 
-    return Object.entries(tokenPricesByTokenAddress).reduce(
-      (obj, [tokenAddress, tokenPrice]) => {
+    return Object.entries(contractExchangeRates).reduce(
+      (obj, [tokenAddress, tokenValue]) => {
         return {
           ...obj,
-          [tokenAddress]:
-            tokenPrice.value * fallbackCurrencyToNativeCurrencyConversionRate,
+          [tokenAddress]: tokenValue
+            ? tokenValue * fallbackCurrencyToNativeCurrencyConversionRate
+            : undefined,
         };
       },
       {},
