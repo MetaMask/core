@@ -11,7 +11,7 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
-import { PollingControllerV1 } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -61,7 +61,7 @@ export interface AccountTrackerState extends BaseState {
 /**
  * Controller that tracks the network balances for all user accounts.
  */
-export class AccountTrackerController extends PollingControllerV1<
+export class AccountTrackerController extends StaticIntervalPollingControllerV1<
   AccountTrackerConfig,
   AccountTrackerState
 > {

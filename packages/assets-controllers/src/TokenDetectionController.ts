@@ -13,7 +13,7 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import { PollingController } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -71,7 +71,7 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
-export class TokenDetectionController extends PollingController<
+export class TokenDetectionController extends StaticIntervalPollingController<
   typeof controllerName,
   TokenDetectionState,
   TokenDetectionControllerMessenger
