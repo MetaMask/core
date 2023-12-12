@@ -2801,9 +2801,10 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
+      const ethQuery = this.getEthQuery(transactionMeta.networkClientId)
       const { updatedTransactionMeta, approvalTransactionMeta } =
         await updatePostTransactionBalance(transactionMeta, {
-          ethQuery: this.ethQuery,
+          ethQuery,
           getTransaction: this.getTransaction.bind(this),
           updateTransaction: this.updateTransaction.bind(this),
         });
