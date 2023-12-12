@@ -79,16 +79,4 @@ module.exports = {
   transform: {
     '\\.[jt]sx?$': 'babel-jest',
   },
-  // transform: {
-  //   // '^.+\\.[tj]sx?$' to process js/ts with `ts-jest`
-  //   // '^.+\\.m?[tj]sx?$' to process js/ts/mjs/mts with `ts-jest`
-  //   '^.+\\.tsx?$': [
-  //     'ts-jest',
-  //     {
-  //       tsconfig: 'tsconfig.scripts.json',
-  //       // tsconfig: '<rootDir>/scripts/create-package/tsconfig.json',
-  //       // tsconfig: require('./tsconfig.scripts.json').compilerOptions,
-  //     },
-  //   ],
-  // },
 };
