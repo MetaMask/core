@@ -591,12 +591,6 @@ export class TransactionController extends BaseControllerV1<
     this.onBootCleanup();
   }
 
-  // initializeTrackingMap() {
-  //   this.getAllNetworkClients().forEach((networkClient) => {
-  //     this.startTrackingByNetworkClientId(networkClient.id);
-  //   }
-  // }
-
   /**
    * Handle new method data request.
    *
@@ -777,12 +771,6 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta,
     };
   }
-
-  // startIncomingTransactionPolling(networkClientId) {
-  //   this.trackingMap.get(networkClientId)?.forEach((tracker) => {
-  //     tracker.incomingTransactionHelper.start();
-  //   }
-  // }
 
   stopIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
@@ -1124,7 +1112,6 @@ export class TransactionController extends BaseControllerV1<
     const networkClient = this.getNetworkClientById(networkClientId);
     // track using tracking map
     this.trackingMap.set(networkClientId, new Set());
-
     const nonceTracker = new NonceTracker({
       provider: networkClient.provider as any,
       blockTracker: networkClient.blockTracker,
@@ -1204,7 +1191,7 @@ export class TransactionController extends BaseControllerV1<
    * @param transaction - The transaction params to estimate gas for.
    * @param multiplier - The multiplier to use for the gas buffer.
    */
-  async estimateGasBuffered( // TODO: Update SwapsController usage of this
+  async estimateGasBuffered( // NOTE(JL): Need to update SwapsController's usage of this method
     transaction: TransactionParams,
     multiplier: number,
     networkClientId?: NetworkClientId
@@ -1277,7 +1264,7 @@ export class TransactionController extends BaseControllerV1<
    * @param address - If specified, only transactions originating from this address will be
    * wiped on current network.
    */
-  wipeTransactions(ignoreNetwork?: boolean, address?: string) { // should this be updated to filter by optional chainId?
+  wipeTransactions(ignoreNetwork?: boolean, address?: string) { // NOTE(JL): should this be updated to filter by optional chainId?
     /* istanbul ignore next */
     if (ignoreNetwork && !address) {
       this.update({ transactions: [] });
@@ -1561,7 +1548,7 @@ export class TransactionController extends BaseControllerV1<
    * @param address - The hex string address for the transaction.
    * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
    */
-  async getNonceLock(address: string): Promise<NonceLock> { // this really should be keyed by chainId even though nonceTracker is per networkClientId
+  async getNonceLock(address: string): Promise<NonceLock> { // NOTE(JL): i think this should take in chainId, but not sure how to deal with networkClientId mapping
     return this.nonceTracker.getNonceLock(address);
   }
 
@@ -1801,10 +1788,10 @@ export class TransactionController extends BaseControllerV1<
   }: {
     searchCriteria?: any;
     initialList?: TransactionMeta[];
-    filterToCurrentNetwork?: boolean; // should this take in chainId or networkClientId instead?
+    filterToCurrentNetwork?: boolean;
     limit?: number;
   } = {}): TransactionMeta[] {
-    const chainId = this.getChainId();
+    const chainId = this.getChainId(); // NOTE(JL): should this take in chainId or networkClientId instead?
     // searchCriteria is an object that might have values that aren't predicate
     // methods. When providing any other value type (string, number, etc), we
     // consider this shorthand for "check the value at key for strict equality
@@ -1967,7 +1954,7 @@ export class TransactionController extends BaseControllerV1<
   /**
    * Create approvals for all unapproved transactions on current chain.
    */
-  private createApprovalsForUnapprovedTransactions() { // this doesn't seem to be used anywhere?
+  private createApprovalsForUnapprovedTransactions() { // NOTE(JL): this doesn't seem to be used anywhere. Can we remove it?
     const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
       TransactionStatus.unapproved,
     );
@@ -2164,7 +2151,7 @@ export class TransactionController extends BaseControllerV1<
 
       transactionMeta.status = TransactionStatus.approved;
       transactionMeta.txParams.nonce = nonce;
-      transactionMeta.txParams.chainId = chainId; // should this be coming from txMeta instead of the currentChainId?
+      transactionMeta.txParams.chainId = chainId; // NOTE(JL): should this be coming from txMeta instead of the currentChainId?
 
       const baseTxParams = {
         ...transactionMeta.txParams,
@@ -2528,7 +2515,7 @@ export class TransactionController extends BaseControllerV1<
     const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
         transaction.txParams.from === fromAddress &&
-        transaction.chainId === chainId, // shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
+        transaction.chainId === chainId, // NOTE(JL): shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
     );
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.confirmed,
@@ -2571,7 +2558,7 @@ export class TransactionController extends BaseControllerV1<
       (transaction) =>
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId, // shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
+        transaction.chainId === chainId, // NOTE(JL): shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
     );
 
     if (!sameNonceTxs.length) {
@@ -2760,7 +2747,7 @@ export class TransactionController extends BaseControllerV1<
       chainId,
     );
 
-    // TODO modify getExternalPendingTransactions in extension to accept a chainId to filter for smartTransactions by chainId
+    // TODO(JL): modify getExternalPendingTransactions in extension to accept a chainId to filter for smartTransactions by chainId
     const externalPendingTransactions = this.getExternalPendingTransactions(
       address,
       chainId,
