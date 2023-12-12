@@ -270,14 +270,10 @@ describe('TokenDetectionController', () => {
 
   it('should not autodetect while not on supported networks', async () => {
     changeNetwork(goerli);
-
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
     });
-    await tokenDetection.detectTokens({
-      accountAddress: '0x1',
-      networkClientId: ChainId.goerli,
-    });
+    await tokenDetection.start();
     expect(tokensController.state.detectedTokens).toStrictEqual([]);
   });
 
