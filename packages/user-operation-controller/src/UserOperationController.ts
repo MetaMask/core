@@ -5,7 +5,7 @@ import type {
 } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { ApprovalType, toHex } from '@metamask/controller-utils';
+import { ApprovalType, hexToBN } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -17,7 +17,7 @@ import {
   type TransactionParams,
   type TransactionType,
 } from '@metamask/transaction-controller';
-import { addHexPrefix } from 'ethereumjs-util';
+import { BN, addHexPrefix } from 'ethereumjs-util';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -42,7 +42,7 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation';
 
-const GAS_BUFFER = 1.5;
+const GAS_ESTIMATE_MULTIPLIER = 1.5;
 const DEFAULT_INTERVAL = 10 * 1000; // 10 Seconds
 
 const controllerName = 'UserOperationController';
@@ -473,14 +473,22 @@ export class UserOperationController extends BaseController<
     const { preVerificationGas, verificationGas, callGasLimit } =
       await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
 
-    const normalizeGas = (value: number) =>
-      toHex(Math.round(value * GAS_BUFFER));
-
-    userOperation.callGasLimit = normalizeGas(callGasLimit);
-    userOperation.preVerificationGas = normalizeGas(preVerificationGas);
-    userOperation.verificationGasLimit = normalizeGas(verificationGas);
+    userOperation.callGasLimit = this.#normalizeGasEstimate(callGasLimit);
+    userOperation.preVerificationGas =
+      this.#normalizeGasEstimate(preVerificationGas);
+    userOperation.verificationGasLimit =
+      this.#normalizeGasEstimate(verificationGas);
 
     this.#updateMetadata(metadata);
+  }
+
+  #normalizeGasEstimate(rawValue: string | number) {
+    const value =
+      typeof rawValue === 'string' ? hexToBN(rawValue) : new BN(rawValue);
+
+    const bufferedValue = value.muln(GAS_ESTIMATE_MULTIPLIER);
+
+    return addHexPrefix(bufferedValue.toString(16));
   }
 
   async #addPaymasterData(

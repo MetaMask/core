@@ -5,11 +5,22 @@ import type { UserOperation, UserOperationReceipt } from '../types';
 
 const log = createModuleLogger(projectLogger, 'bundler');
 
+/**
+ * Response from the `eth_estimateUserOperationGas` bundler method.
+ * Includes the estimated gas limits required by a user operation.
+ */
 export type BundlerEstimateUserOperationGasResponse = {
-  preVerificationGas: number;
-  verificationGas: number;
-  verificationGasLimit: number;
-  callGasLimit: number;
+  /** Estimated gas required to compensate the bundler for any pre-verification. */
+  preVerificationGas: number | string;
+
+  /** Estimated gas required to verify the user operation. */
+  verificationGas: number | string;
+
+  /** Estimated gas required to verify the user operation. */
+  verificationGasLimit: number | string;
+
+  /** Estimated gas required for the execution of the user operation. */
+  callGasLimit: number | string;
 };
 
 /**
