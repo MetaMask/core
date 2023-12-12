@@ -1801,7 +1801,7 @@ export class TransactionController extends BaseControllerV1<
   }: {
     searchCriteria?: any;
     initialList?: TransactionMeta[];
-    filterToCurrentNetwork?: boolean;
+    filterToCurrentNetwork?: boolean; // should this take in chainId or networkClientId instead?
     limit?: number;
   } = {}): TransactionMeta[] {
     const chainId = this.getChainId();
@@ -1967,7 +1967,7 @@ export class TransactionController extends BaseControllerV1<
   /**
    * Create approvals for all unapproved transactions on current chain.
    */
-  private createApprovalsForUnapprovedTransactions() {
+  private createApprovalsForUnapprovedTransactions() { // this doesn't seem to be used anywhere?
     const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
       TransactionStatus.unapproved,
     );
@@ -2164,7 +2164,7 @@ export class TransactionController extends BaseControllerV1<
 
       transactionMeta.status = TransactionStatus.approved;
       transactionMeta.txParams.nonce = nonce;
-      transactionMeta.txParams.chainId = chainId;
+      transactionMeta.txParams.chainId = chainId; // should this be coming from txMeta instead of the currentChainId?
 
       const baseTxParams = {
         ...transactionMeta.txParams,
@@ -2519,7 +2519,7 @@ export class TransactionController extends BaseControllerV1<
    *
    * @param transactionMeta - Nominated external transaction to be added to state.
    */
-  private addExternalTransaction(transactionMeta: TransactionMeta) { // check this
+  private addExternalTransaction(transactionMeta: TransactionMeta) {
     const chainId = this.getChainId();
     const { transactions } = this.state;
     const fromAddress = transactionMeta?.txParams?.from;
