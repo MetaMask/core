@@ -491,6 +491,7 @@ describe('TokenDetectionController', () => {
       preferencesStateChangeListener = listener;
     });
     tokenDetection = new TokenDetectionController({
+      deferPollingStart: false,
       chainId: ChainId.mainnet,
       selectedAddress: '0x1',
       onPreferencesStateChange,
@@ -506,7 +507,6 @@ describe('TokenDetectionController', () => {
       selectedAddress: '0x1',
       useTokenDetection: true,
     });
-    await tokenDetection.start();
     expect(getBalancesInSingleCallMock.called).toBe(true);
   });
 
@@ -514,6 +514,7 @@ describe('TokenDetectionController', () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
     tokenDetection = new TokenDetectionController({
+      deferPollingStart: false,
       chainId: SupportedTokenDetectionNetworks.polygon,
       selectedAddress: '0x1',
       onPreferencesStateChange: stub,
@@ -525,7 +526,6 @@ describe('TokenDetectionController', () => {
     });
 
     changeNetwork(mainnet);
-    await tokenDetection.start();
     expect(getBalancesInSingleCallMock.called).toBe(true);
   });
   describe('startPollingByNetworkClientId', () => {
