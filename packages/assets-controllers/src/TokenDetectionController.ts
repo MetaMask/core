@@ -159,17 +159,17 @@ export class TokenDetectionController extends PollingController<
 
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
-      ({ tokenList }) => {
+      async ({ tokenList }) => {
         const hasTokens = Object.keys(tokenList).length;
 
         if (hasTokens) {
-          this.detectTokens();
+          await this.detectTokens();
         }
       },
     );
 
     onPreferencesStateChange(
-      ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
+      async ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
         const isSelectedAddressChanged =
           this.#selectedAddress !== newSelectedAddress;
         const isDetectionChangedFromPreferences =
@@ -182,14 +182,14 @@ export class TokenDetectionController extends PollingController<
           useTokenDetection &&
           (isSelectedAddressChanged || isDetectionChangedFromPreferences)
         ) {
-          this.detectTokens();
+          await this.detectTokens();
         }
       },
     );
 
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
-      ({ providerConfig: { chainId: newChainId } }) => {
+      async ({ providerConfig: { chainId: newChainId } }) => {
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
         const isChainIdChanged = this.#chainId !== newChainId;
@@ -197,7 +197,7 @@ export class TokenDetectionController extends PollingController<
         this.#chainId = newChainId;
 
         if (this.#isDetectionEnabledForNetwork && isChainIdChanged) {
-          this.detectTokens();
+          await this.detectTokens();
         }
       },
     );
@@ -229,8 +229,8 @@ export class TokenDetectionController extends PollingController<
   async #startPolling(): Promise<void> {
     this.#stopPolling();
     await this.detectTokens();
-    this.#intervalId = setInterval(() => {
-      this.detectTokens();
+    this.#intervalId = setInterval(async () => {
+      await this.detectTokens();
     }, this.getIntervalLength());
   }
 
