@@ -5,11 +5,7 @@ import type {
 } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import {
-  ApprovalType,
-  ORIGIN_METAMASK,
-  toHex,
-} from '@metamask/controller-utils';
+import { ApprovalType, toHex } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
@@ -283,7 +279,7 @@ export class UserOperationController extends BaseController<
       const { transactionHash: finalTransactionHash } =
         await this.#waitForConfirmation(metadata);
 
-      return finalTransactionHash ?? undefined;
+      return finalTransactionHash as string;
     };
 
     return {
@@ -338,6 +334,7 @@ export class UserOperationController extends BaseController<
 
       return metadata.hash as string;
     } catch (error: any) {
+      /* istanbul ignore next */
       resultCallbacks?.error(error);
       throw error;
     }
@@ -506,15 +503,17 @@ export class UserOperationController extends BaseController<
   }
 
   async #approveUserOperation(metadata: UserOperationMetadata) {
+    log('Requesting approval');
+
     const { resultCallbacks, value } = await this.#requestApproval(metadata);
 
     const updatedTransaction = (value as any)?.txMeta as
       | TransactionMeta
       | undefined;
 
-    const { userOperation, transactionParams } = metadata;
+    const { userOperation } = metadata;
 
-    if (transactionParams && updatedTransaction) {
+    if (updatedTransaction) {
       log('Found updated transaction in approval', { updatedTransaction });
 
       if (userOperation.paymasterAndData === EMPTY_BYTES) {
@@ -664,7 +663,7 @@ export class UserOperationController extends BaseController<
   }
 
   async #requestApproval(metadata: UserOperationMetadata): Promise<AddResult> {
-    const { id } = metadata;
+    const { id, origin } = metadata;
     const type = ApprovalType.Transaction;
     const requestData = { txId: id };
 
@@ -672,7 +671,7 @@ export class UserOperationController extends BaseController<
       'ApprovalController:addRequest',
       {
         id,
-        origin: ORIGIN_METAMASK,
+        origin,
         type,
         requestData,
         expectsResult: true,
