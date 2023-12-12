@@ -5,7 +5,7 @@ const URL_MOCK = 'http://test.com';
 const ENTRYPOINT_MOCK = '0x123';
 const ERROR_MESSAGE_MOCK = 'Test Error';
 const ERROR_CODE_MOCK = 123;
-const HASH_MOCK = '0xabc';
+const USER_OPERATION_HASH_MOCK = '0xabc';
 
 const USER_OPERATION_MOCK: UserOperation = {
   callData: '0x1',
@@ -24,7 +24,7 @@ const USER_OPERATION_MOCK: UserOperation = {
 describe('Bundler', () => {
   describe.each([
     ['estimateUserOperationGas', [USER_OPERATION_MOCK, ENTRYPOINT_MOCK]],
-    ['getUserOperationReceipt', [HASH_MOCK]],
+    ['getUserOperationReceipt', [USER_OPERATION_HASH_MOCK]],
     ['sendUserOperation', [USER_OPERATION_MOCK, ENTRYPOINT_MOCK]],
   ])('%s', (methodName, args) => {
     it('sends JSON-RPC request to URL', async () => {

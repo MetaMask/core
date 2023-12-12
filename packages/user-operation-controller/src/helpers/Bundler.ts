@@ -58,6 +58,7 @@ export class Bundler {
 
   /**
    * Retrieve the receipt for a user operation.
+   * Returns `null` or `undefined` if the user operation is still pending.
    * @param hash - The hash of the user operation.
    * @returns The receipt for the user operation.
    */

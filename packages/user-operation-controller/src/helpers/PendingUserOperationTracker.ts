@@ -34,6 +34,10 @@ export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
+/**
+ * A helper class to periodically query the bundlers
+ * and update the status of any submitted user operations.
+ */
 export class PendingUserOperationTracker extends PollingControllerOnly {
   hub: PendingUserOperationTrackerEventEmitter;
 

@@ -218,6 +218,27 @@ describe('PendingUserOperationTracker', () => {
       );
     });
 
+    it('queries bundler using eth_getUserOperationReceipt RPC method', async () => {
+      const pendingUserOperationTracker = new PendingUserOperationTracker({
+        getUserOperations: () => [
+          {
+            ...USER_OPERATION_METADATA_MOCK,
+          },
+        ],
+        messenger: messengerMock,
+      });
+
+      await pendingUserOperationTracker._executePoll(
+        NETWORK_CLIENT_ID_MOCK,
+        {},
+      );
+
+      expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledTimes(1);
+      expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledWith(
+        USER_OPERATION_METADATA_MOCK.hash,
+      );
+    });
+
     describe('on confirmed user operation', () => {
       it('emits confirmed event', async () => {
         const listener = jest.fn();
