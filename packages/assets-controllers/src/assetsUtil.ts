@@ -239,12 +239,6 @@ export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
  * @param args.batchSize - The desired maximum number of values per batch.
  * @returns The list of batches.
  */
-/**
- *
- * @param values
- * @param options0
- * @param options0.batchSize
- */
 export function divideIntoBatches<Value>(
   values: Value[],
   { batchSize }: { batchSize: number },
