@@ -490,7 +490,6 @@ describe('TokenDetectionController', () => {
       preferencesStateChangeListener = listener;
     });
     tokenDetection = new TokenDetectionController({
-      deferPollingStart: false,
       chainId: ChainId.mainnet,
       selectedAddress: '0x1',
       onPreferencesStateChange,
@@ -500,6 +499,7 @@ describe('TokenDetectionController', () => {
       getPreferencesState: () => preferences.state,
       messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     });
+    await tokenDetection.start();
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     preferencesStateChangeListener!({
@@ -513,7 +513,6 @@ describe('TokenDetectionController', () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
     tokenDetection = new TokenDetectionController({
-      deferPollingStart: false,
       chainId: SupportedTokenDetectionNetworks.polygon,
       selectedAddress: '0x1',
       onPreferencesStateChange: stub,
@@ -523,6 +522,7 @@ describe('TokenDetectionController', () => {
       getPreferencesState: () => preferences.state,
       messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     });
+    await tokenDetection.start();
 
     changeNetwork(mainnet);
     expect(getBalancesInSingleCallMock.called).toBe(true);

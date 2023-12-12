@@ -101,7 +101,6 @@ export class TokenDetectionController extends PollingController<
    *
    * @param options - The controller options.
    * @param options.messenger - The controller messaging system.
-   * @param options.deferPollingStart - Defers polling for detected tokens until `start` is called.
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.chainId - The chain ID of the current network
    * @param options.selectedAddress - Vault selected address
@@ -112,7 +111,6 @@ export class TokenDetectionController extends PollingController<
    * @param options.getPreferencesState - Gets the state of the preferences controller.
    */
   constructor({
-    deferPollingStart = true,
     chainId,
     selectedAddress = '',
     interval = DEFAULT_INTERVAL,
@@ -123,7 +121,6 @@ export class TokenDetectionController extends PollingController<
     getPreferencesState,
     messenger,
   }: {
-    deferPollingStart?: boolean;
     chainId: Hex;
     selectedAddress?: string;
     interval?: number;
@@ -204,10 +201,6 @@ export class TokenDetectionController extends PollingController<
         }
       },
     );
-
-    if (!deferPollingStart) {
-      this.start();
-    }
   }
 
   /**
