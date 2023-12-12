@@ -322,4 +322,137 @@ describe('assetsUtil', () => {
       expect(assetsUtil.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
     });
   });
+
+  describe('divideIntoBatches', () => {
+    describe('given a non-empty list of values', () => {
+      it('partitions the values into max-N-sized groups', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5, 6], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]);
+      });
+
+      it('does not fill every group completely if the number of values does not divide evenly', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5], {
+          batchSize: 4,
+        });
+        expect(batches).toStrictEqual([[1, 2, 3, 4], [5]]);
+      });
+    });
+
+    describe('given a empty list of values', () => {
+      it('returns an empty array', () => {
+        const batches = assetsUtil.divideIntoBatches([], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([]);
+      });
+    });
+  });
+
+  describe('reduceInBatchesSerially', () => {
+    it('can build an array from running the given async function for each batch of the given values', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        number,
+        number[]
+      >({
+        values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          const newBatch = await Promise.resolve(
+            batch.map((value) => value * 2),
+          );
+          return [...workingResult, ...newBatch];
+        },
+        initialResult: [],
+      });
+
+      expect(results).toStrictEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
+    });
+
+    it('can build an object from running the given async function for each batch of the given values', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          const newBatch = await Promise.resolve(
+            batch.reduce<Partial<Record<string, number>>>((obj, value) => {
+              const codePoint = value.codePointAt(0);
+              if (codePoint === undefined) {
+                throw new Error(`Could not find code point for '${value[0]}'`);
+              }
+              return {
+                ...obj,
+                [value]: codePoint,
+              };
+            }, {}),
+          );
+          return { ...workingResult, ...newBatch };
+        },
+        initialResult: {},
+      });
+
+      expect(results).toStrictEqual({
+        a: 97,
+        b: 98,
+        c: 99,
+        d: 100,
+        e: 101,
+        f: 102,
+        g: 103,
+      });
+    });
+
+    it('processes each batch one after another, not in parallel, even if the given callback is async', async () => {
+      const timestamps = await assetsUtil.reduceInBatchesSerially<
+        number,
+        number[]
+      >({
+        values: [1, 2, 3, 4, 5, 6],
+        batchSize: 2,
+        eachBatch: async (workingResult, _batch, index) => {
+          const date = new Date().getTime();
+          await new Promise<number[]>((resolve) => {
+            let duration: number;
+            switch (index) {
+              case 0:
+                duration = 2;
+                break;
+              case 1:
+                duration = 10;
+                break;
+              case 2:
+                duration = 4;
+                break;
+              default:
+                throw new Error(`invalid index ${index}`);
+            }
+            setTimeout(resolve, duration);
+          });
+          return [...workingResult, date];
+        },
+        initialResult: [],
+      });
+
+      let previousTimestamp = 0;
+      let timestampsIncreasing = true;
+      for (const timestamp of timestamps) {
+        if (timestamp <= previousTimestamp) {
+          timestampsIncreasing = false;
+          break;
+        }
+        previousTimestamp = timestamp;
+      }
+
+      expect(timestamps).toHaveLength(3);
+      expect(timestampsIncreasing).toBe(true);
+    });
+  });
 });

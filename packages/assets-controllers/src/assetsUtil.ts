@@ -10,6 +10,14 @@ import { CID } from 'multiformats/cid';
 import type { Nft, NftMetadata } from './NftController';
 
 /**
+ * If given an object type, represents that object whose keys are all optional;
+ * otherwise represents the same type.
+ */
+type PartialObject<Value> = Value extends Record<PropertyKey, unknown>
+  ? Partial<Value>
+  : Value;
+
+/**
  * Compares nft metadata entries to any nft entry.
  * We need this method when comparing a new fetched nft metadata, in case a entry changed to a defined value,
  * there's a need to update the nft in state.
@@ -227,4 +235,66 @@ export function addUrlProtocolPrefix(urlString: string): string {
  */
 export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
   return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
+}
+
+/**
+ * Partitions a list of values into groups that are at most `batchSize` in
+ * length.
+ *
+ * @param values - The list of values.
+ * @param args - The remaining arguments.
+ * @param args.batchSize - The desired maximum number of values per batch.
+ * @returns The list of batches.
+ */
+export function divideIntoBatches<Value>(
+  values: Value[],
+  { batchSize }: { batchSize: number },
+): Value[][] {
+  const batches = [];
+  for (let i = 0; i < values.length; i += batchSize) {
+    batches.push(values.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+/**
+ * Constructs a data structure from processing batches of the given values
+ * sequentially.
+ *
+ * @param args - The arguments to this function.
+ * @param args.values - A list of values to iterate over.
+ * @param args.batchSize - The maximum number of values in each batch.
+ * @param args.eachBatch - A function to call for each batch. This function is
+ * similar to the function that `Array.prototype.reduce` takes, in that
+ * it receives the data structure that is being built along with the batch per
+ * iteration through the list of batches, and should return an updated version
+ * of the data structure.
+ * @param args.initialResult - The initial value of the final data structure,
+ * i.e., the value that will be fed into the first call of `eachBatch`.
+ * @returns The final data structure.
+ */
+export async function reduceInBatchesSerially<Value, Result>({
+  values,
+  batchSize,
+  eachBatch,
+  initialResult,
+}: {
+  values: Value[];
+  batchSize: number;
+  eachBatch: (
+    workingResult: PartialObject<Result>,
+    batch: Value[],
+    index: number,
+  ) => Promise<PartialObject<Result>>;
+  initialResult: PartialObject<Result>;
+}): Promise<Result> {
+  const batches = divideIntoBatches(values, { batchSize });
+  let workingResult = initialResult;
+  for (const [index, batch] of batches.entries()) {
+    workingResult = await eachBatch(workingResult, batch, index);
+  }
+  // There's no way around this — we have to assume that in the end, the result
+  // matches the intended type.
+  const finalResult = workingResult as Result;
+  return finalResult;
 }
