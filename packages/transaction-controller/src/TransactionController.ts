@@ -772,6 +772,10 @@ export class TransactionController extends BaseControllerV1<
     };
   }
 
+  startIncomingTransactionPolling() {
+    this.incomingTransactionHelper.start();
+  }
+
   stopIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
   }
