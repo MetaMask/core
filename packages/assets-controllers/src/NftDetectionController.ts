@@ -11,7 +11,7 @@ import type {
   NetworkState,
   NetworkClient,
 } from '@metamask/network-controller';
-import { PollingControllerV1 } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -147,7 +147,7 @@ export interface NftDetectionConfig extends BaseConfig {
 /**
  * Controller that passively polls on a set interval for NFT auto detection
  */
-export class NftDetectionController extends PollingControllerV1<
+export class NftDetectionController extends StaticIntervalPollingControllerV1<
   NftDetectionConfig,
   BaseState
 > {
