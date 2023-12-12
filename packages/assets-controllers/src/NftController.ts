@@ -305,7 +305,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     });
 
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
-    if (!nftInformation.nft) {
+    if (!nftInformation?.nft) {
       return {
         name: null,
         description: null,
