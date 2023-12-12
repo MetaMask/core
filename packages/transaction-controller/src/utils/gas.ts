@@ -15,10 +15,11 @@ import { addHexPrefix } from 'ethereumjs-util';
 import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionParams } from '../types';
+import { NetworkClientConfiguration } from '@metamask/network-controller';
 
 export type UpdateGasRequest = {
   ethQuery: EthQuery;
-  providerConfig: ProviderConfig;
+  providerConfig: ProviderConfig | NetworkClientConfiguration;
   txMeta: TransactionMeta;
 };
 
