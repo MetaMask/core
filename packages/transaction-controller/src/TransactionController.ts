@@ -1188,10 +1188,11 @@ export class TransactionController extends BaseControllerV1<
    * @param transaction - The transaction to estimate gas for.
    * @returns The gas and gas price.
    */
-  async estimateGas(transaction: TransactionParams) {
+  async estimateGas(transaction: TransactionParams, networkClientId?: NetworkClientId) {
+    const ethQuery = this.getEthQuery(networkClientId)
     const { estimatedGas, simulationFails } = await estimateGas(
       transaction,
-      this.ethQuery,
+      ethQuery,
     );
 
     return { gas: estimatedGas, simulationFails };
@@ -1203,13 +1204,15 @@ export class TransactionController extends BaseControllerV1<
    * @param transaction - The transaction params to estimate gas for.
    * @param multiplier - The multiplier to use for the gas buffer.
    */
-  async estimateGasBuffered(
+  async estimateGasBuffered( // TODO: Update SwapsController usage of this
     transaction: TransactionParams,
     multiplier: number,
+    networkClientId?: NetworkClientId
   ) {
+    const ethQuery = this.getEthQuery(networkClientId)
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
       transaction,
-      this.ethQuery,
+      ethQuery,
     );
 
     const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
