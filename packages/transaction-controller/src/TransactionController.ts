@@ -1071,7 +1071,8 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+    const ethQuery = this.getEthQuery(transactionMeta.networkClientId)
+    const hash = await this.publishTransaction(ethQuery, rawTx)
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
