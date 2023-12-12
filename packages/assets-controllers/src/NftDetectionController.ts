@@ -167,7 +167,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: { nfts: ApiNft[]; next?: string };
+    let nftApiResponse: { nfts: any[]; next?: string };
     let nfts: ApiNft[] = [];
     let next;
 
