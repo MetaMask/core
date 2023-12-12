@@ -153,6 +153,8 @@ export class TokenRatesController extends PollingControllerV1<
 
   #tokenPricesService: AbstractTokenPricesService;
 
+  #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
+
   /**
    * Name of this controller used during composition
    */
@@ -367,36 +369,60 @@ export class TokenRatesController extends PollingControllerV1<
       return;
     }
 
-    const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
-      tokenContractAddresses,
-      chainId,
-      nativeCurrency,
-    });
+    const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}`;
+    if (updateKey in this.#inProcessExchangeRateUpdates) {
+      // This prevents redundant updates
+      // This promise is resolved after the in-progress update has finished,
+      // and state has been updated.
+      await this.#inProcessExchangeRateUpdates[updateKey];
+      return;
+    }
 
-    const existingContractExchangeRates = this.state.contractExchangeRates;
-    const updatedContractExchangeRates =
-      chainId === this.config.chainId &&
-      nativeCurrency === this.config.nativeCurrency
-        ? newContractExchangeRates
-        : existingContractExchangeRates;
+    const {
+      promise: inProgressUpdate,
+      resolve: updateSucceeded,
+      reject: updateFailed,
+    } = createDeferredPromise({ suppressUnhandledRejection: true });
+    this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
 
-    const existingContractExchangeRatesForChainId =
-      this.state.contractExchangeRatesByChainId[chainId] ?? {};
-    const updatedContractExchangeRatesForChainId = {
-      ...this.state.contractExchangeRatesByChainId,
-      [chainId]: {
-        ...existingContractExchangeRatesForChainId,
-        [nativeCurrency]: {
-          ...existingContractExchangeRatesForChainId[nativeCurrency],
-          ...newContractExchangeRates,
+    try {
+      const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
+        tokenContractAddresses,
+        chainId,
+        nativeCurrency,
+      });
+
+      const existingContractExchangeRates = this.state.contractExchangeRates;
+      const updatedContractExchangeRates =
+        chainId === this.config.chainId &&
+        nativeCurrency === this.config.nativeCurrency
+          ? newContractExchangeRates
+          : existingContractExchangeRates;
+
+      const existingContractExchangeRatesForChainId =
+        this.state.contractExchangeRatesByChainId[chainId] ?? {};
+      const updatedContractExchangeRatesForChainId = {
+        ...this.state.contractExchangeRatesByChainId,
+        [chainId]: {
+          ...existingContractExchangeRatesForChainId,
+          [nativeCurrency]: {
+            ...existingContractExchangeRatesForChainId[nativeCurrency],
+            ...newContractExchangeRates,
+          },
         },
-      },
-    };
+      };
 
-    this.update({
-      contractExchangeRates: updatedContractExchangeRates,
-      contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
-    });
+      this.update({
+        contractExchangeRates: updatedContractExchangeRates,
+        contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
+      });
+      updateSucceeded();
+    } catch (error: unknown) {
+      updateFailed(error);
+      throw error;
+    } finally {
+      delete this.#inProcessExchangeRateUpdates[updateKey];
+    }
   }
 
   /**
@@ -569,6 +595,62 @@ export class TokenRatesController extends PollingControllerV1<
       {},
     );
   }
+}
+
+/**
+ * A deferred Promise.
+ *
+ * A deferred Promise is one that can be resolved or rejected independently of
+ * the Promise construction.
+ */
+type DeferredPromise = {
+  /**
+   * The Promise that has been deferred.
+   */
+  promise: Promise<void>;
+  /**
+   * A function that resolves the Promise.
+   */
+  resolve: () => void;
+  /**
+   * A function that rejects the Promise.
+   */
+  reject: (error: unknown) => void;
+};
+
+/**
+ * Create a defered Promise.
+ *
+ * TODO: Migrate this to utils
+ *
+ * @param args - The arguments.
+ * @param args.suppressUnhandledRejection - This option adds an empty error handler
+ * to the Promise to suppress the UnhandledPromiseRejection error. This can be
+ * useful if the deferred Promise is sometimes intentionally not used.
+ * @returns A deferred Promise.
+ */
+function createDeferredPromise({
+  suppressUnhandledRejection = false,
+}: {
+  suppressUnhandledRejection: boolean;
+}): DeferredPromise {
+  let resolve: DeferredPromise['resolve'];
+  let reject: DeferredPromise['reject'];
+  const promise = new Promise<void>(
+    (innerResolve: () => void, innerReject: () => void) => {
+      resolve = innerResolve;
+      reject = innerReject;
+    },
+  );
+
+  if (suppressUnhandledRejection) {
+    promise.catch((_error) => {
+      // This handler is used to suppress the UnhandledPromiseRejection error
+    });
+  }
+
+  // @ts-expect-error We know that these are assigned, but TypeScript doesn't
+  return { promise, resolve, reject };
 }
 
 export default TokenRatesController;
