@@ -36,7 +36,7 @@ import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   mapOpenSeaContractV2ToV1,
-  mapOpenSeaNftV2ToV1,
+  mapOpenSeaDetailedNftV2ToV1,
 } from './assetsUtil';
 import { Source } from './constants';
 import type {
@@ -54,6 +54,58 @@ type SuggestedNftMeta = {
   type: NFTStandardType;
   interactingAddress: string;
   origin: string;
+};
+
+enum OpenSeaV2ChainIds {
+  ethereum,
+}
+
+type OpenSeaV2GetNftResponse = { nft: OpenSeaV2DetailedNft };
+
+export type OpenSeaV2Nft = {
+  identifier: string;
+  collection: string;
+  contract: string;
+  token_standard: string;
+  name: string;
+  description: string;
+  image_url: string;
+  metadata_url: string;
+  updated_at: string;
+  is_disabled: boolean;
+  is_nsfw: boolean;
+};
+
+export type OpenSeaV2DetailedNft = OpenSeaV2Nft & {
+  animation_url: string;
+  is_suspicious: boolean;
+  creator: string;
+  traits: {
+    trait_type: string;
+    display_type: string;
+    max_value: string;
+    trait_count: number;
+    value: number | string;
+  }[];
+  owners: {
+    address: string;
+    quantity: number;
+  }[];
+  rarity: { rank: number };
+};
+
+export type OpenSeaV2ListNftsResponse = {
+  nfts: OpenSeaV2Nft[];
+  next?: string;
+};
+
+export type OpenSeaV2Contract = {
+  address: string;
+  chain: string;
+  collection: string;
+  contract_standard: string;
+  name: string;
+  supply: number;
 };
 
 /**
@@ -242,7 +294,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     contractAddress: string;
     tokenId: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/chain/ethereum/contract/${contractAddress}/nfts/${tokenId}`;
+    return `${OPENSEA_PROXY_URL}/chain/${OpenSeaV2ChainIds.ethereum}/contract/${contractAddress}/nfts/${tokenId}`;
   }
 
   private getNftContractInformationApi({
@@ -250,7 +302,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   }: {
     contractAddress: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/chain/ethereum/contract/${contractAddress}`;
+    return `${OPENSEA_PROXY_URL}/chain/${OpenSeaV2ChainIds.ethereum}/contract/${contractAddress}`;
   }
 
   /**
@@ -297,12 +349,13 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   ): Promise<NftMetadata> {
     // TODO Parameterize this by chainId for non-mainnet token detection
     // Attempt to fetch the data with the proxy
-    const nftInformation = await fetchWithErrorHandling({
-      url: this.getNftApi({
-        contractAddress,
-        tokenId,
-      }),
-    });
+    const nftInformation: OpenSeaV2GetNftResponse =
+      await fetchWithErrorHandling({
+        url: this.getNftApi({
+          contractAddress,
+          tokenId,
+        }),
+      });
 
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
     if (!nftInformation?.nft) {
@@ -331,7 +384,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       creator,
       last_sale,
       asset_contract: { schema_name },
-    } = mapOpenSeaNftV2ToV1(nftInformation.nft);
+    } = mapOpenSeaDetailedNftV2ToV1(nftInformation.nft);
 
     /* istanbul ignore next */
     const nftMetadata: NftMetadata = Object.assign(
@@ -544,7 +597,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     contractAddress: string,
   ): Promise<ApiNftContract> {
     /* istanbul ignore if */
-    const apiNftContractObject: ApiNftContract | undefined =
+    const apiNftContractObject: OpenSeaV2Contract | undefined =
       await fetchWithErrorHandling({
         url: this.getNftContractInformationApi({
           contractAddress,

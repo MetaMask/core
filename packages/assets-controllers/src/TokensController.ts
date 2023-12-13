@@ -249,7 +249,7 @@ export class TokensController extends BaseControllerV1<
       });
     });
 
-    onNetworkDidChange(({ providerConfig }) => {
+    onNetworkDidChange?.(({ providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = providerConfig;

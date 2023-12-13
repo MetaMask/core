@@ -17,7 +17,12 @@ import type { Hex } from '@metamask/utils';
 
 import { mapOpenSeaNftV2ToV1 } from './assetsUtil';
 import { Source } from './constants';
-import type { NftController, NftState, NftMetadata } from './NftController';
+import type {
+  NftController,
+  NftState,
+  NftMetadata,
+  OpenSeaV2ListNftsResponse,
+} from './NftController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -161,13 +166,13 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     address: string;
     next?: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/chain/ethereum/account/${address}/nfts?limit=50&next=${
+    return `${OPENSEA_PROXY_URL}/chain/ethereum/account/${address}/nfts?limit=200&next=${
       next ?? ''
     }`;
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: { nfts: any[]; next?: string };
+    let nftApiResponse: OpenSeaV2ListNftsResponse;
     let nfts: ApiNft[] = [];
     let next;
 

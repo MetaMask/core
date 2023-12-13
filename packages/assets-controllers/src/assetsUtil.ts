@@ -7,7 +7,13 @@ import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { CID } from 'multiformats/cid';
 
-import type { Nft, NftMetadata } from './NftController';
+import type {
+  Nft,
+  NftMetadata,
+  OpenSeaV2Contract,
+  OpenSeaV2DetailedNft,
+  OpenSeaV2Nft,
+} from './NftController';
 import type { ApiNft, ApiNftContract } from './NftDetectionController';
 
 /**
@@ -296,11 +302,10 @@ export async function reduceInBatchesSerially<
 
 /**
  * Maps an OpenSea V2 NFT to the V1 schema.
- * Should work for both 'get_nft' and 'list_nfts_by_account' responses.
  * @param nft - The V2 NFT to map.
  * @returns The NFT in the V1 schema.
  */
-export function mapOpenSeaNftV2ToV1(nft: any): ApiNft {
+export function mapOpenSeaNftV2ToV1(nft: OpenSeaV2Nft): ApiNft {
   return {
     token_id: nft.identifier,
     num_sales: null,
@@ -309,7 +314,7 @@ export function mapOpenSeaNftV2ToV1(nft: any): ApiNft {
     image_preview_url: nft.image_url,
     image_thumbnail_url: nft.image_url,
     image_original_url: null,
-    animation_url: nft.animation_url,
+    animation_url: null,
     animation_original_url: null,
     name: nft.name,
     description: nft.description,
@@ -338,18 +343,32 @@ export function mapOpenSeaNftV2ToV1(nft: any): ApiNft {
 }
 
 /**
+ * Maps an OpenSea V2 detailed NFT to the V1 schema.
+ * @param nft - The V2 detailed NFT to map.
+ * @returns The NFT in the V1 schema.
+ */
+export function mapOpenSeaDetailedNftV2ToV1(nft: OpenSeaV2DetailedNft): ApiNft {
+  return {
+    ...mapOpenSeaNftV2ToV1(nft),
+    animation_url: nft.animation_url,
+  };
+}
+
+/**
  * Maps an OpenSea V2 contract to the V1 schema.
  * @param contract - The v2 contract to map.
  * @returns The contract in the v1 schema.
  */
-export function mapOpenSeaContractV2ToV1(contract: any): ApiNftContract {
+export function mapOpenSeaContractV2ToV1(
+  contract: OpenSeaV2Contract,
+): ApiNftContract {
   return {
     address: contract.address,
     asset_contract_type: null,
     created_date: null,
     schema_name: contract.contract_standard?.toUpperCase(),
     symbol: null,
-    total_supply: contract.supply,
+    total_supply: contract.supply.toString(),
     description: null,
     external_link: null,
     collection: {
