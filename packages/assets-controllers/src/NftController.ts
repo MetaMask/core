@@ -57,7 +57,7 @@ type SuggestedNftMeta = {
 };
 
 enum OpenSeaV2ChainIds {
-  ethereum,
+  ethereum = "ethereum",
 }
 
 type OpenSeaV2GetNftResponse = { nft: OpenSeaV2DetailedNft };
