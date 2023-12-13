@@ -136,8 +136,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const { useTokenDetection: defaultUseTokenDetection } =
       getPreferencesState();
 
-    messenger.unregisterActionHandler('TokenDetectionController:getState');
-
     super({
       name: controllerName,
       messenger,
