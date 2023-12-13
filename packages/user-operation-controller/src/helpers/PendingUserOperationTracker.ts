@@ -1,7 +1,7 @@
 import { query } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/network-controller';
-import { PollingControllerOnly } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -38,7 +38,7 @@ export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
  * A helper class to periodically query the bundlers
  * and update the status of any submitted user operations.
  */
-export class PendingUserOperationTracker extends PollingControllerOnly {
+export class PendingUserOperationTracker extends StaticIntervalPollingControllerOnly {
   hub: PendingUserOperationTrackerEventEmitter;
 
   #getUserOperations: () => UserOperationMetadata[];

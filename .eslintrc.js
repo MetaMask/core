@@ -9,6 +9,7 @@ module.exports = {
     'docs',
     'coverage',
     'merged-packages',
+    'package-template',
   ],
   overrides: [
     {

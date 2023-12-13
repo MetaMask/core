@@ -49,6 +49,7 @@
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
+    "lodash": "^4.17.21",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2"
@@ -57,6 +58,7 @@
     "@metamask/auto-changelog": "^3.4.3",
     "@metamask/ethjs-provider-http": "^0.2.0",
     "@types/jest": "^27.4.1",
+    "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
