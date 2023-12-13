@@ -14,7 +14,7 @@ import { advanceTime } from '../../../tests/helpers';
 import type {
   AbstractTokenPricesService,
   TokenPrice,
-  TokenPricesByTokenContractAddress,
+  TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
 import type { TokenBalancesState } from './TokenBalancesController';
 import { TokenRatesController } from './TokenRatesController';
@@ -1727,12 +1727,12 @@ describe('TokenRatesController', () => {
           expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(0, 100),
+            tokenAddresses: tokenAddresses.slice(0, 100),
             currency: ticker,
           });
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(100),
+            tokenAddresses: tokenAddresses.slice(100),
             currency: ticker,
           });
         },
@@ -1748,12 +1748,12 @@ describe('TokenRatesController', () => {
         fetchTokenPrices: jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[0],
+            tokenAddress: tokenAddresses[0],
             value: 0.001,
           },
           [tokenAddresses[1]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[1],
+            tokenAddress: tokenAddresses[1],
             value: 0.002,
           },
         }),
@@ -1817,12 +1817,12 @@ describe('TokenRatesController', () => {
           fetchTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
-              tokenContractAddress: tokenAddresses[0],
+              tokenAddress: tokenAddresses[0],
               value: 0.001,
             },
             [tokenAddresses[1]]: {
               currency: 'ETH',
-              tokenContractAddress: tokenAddresses[1],
+              tokenAddress: tokenAddresses[1],
               value: 0.002,
             },
           }),
@@ -1884,12 +1884,12 @@ describe('TokenRatesController', () => {
         fetchTokenPrices: jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[0],
+            tokenAddress: tokenAddresses[0],
             value: 0.001,
           },
           [tokenAddresses[1]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[1],
+            tokenAddress: tokenAddresses[1],
             value: 0.002,
           },
         }),
@@ -2007,12 +2007,12 @@ describe('TokenRatesController', () => {
           expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(0, 100),
+            tokenAddresses: tokenAddresses.slice(0, 100),
             currency: 'ETH',
           });
           expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
             chainId,
-            tokenContractAddresses: tokenAddresses.slice(100),
+            tokenAddresses: tokenAddresses.slice(100),
             currency: 'ETH',
           });
         },
@@ -2028,12 +2028,12 @@ describe('TokenRatesController', () => {
         fetchTokenPrices: jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[0],
+            tokenAddress: tokenAddresses[0],
             value: 0.001,
           },
           [tokenAddresses[1]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[1],
+            tokenAddress: tokenAddresses[1],
             value: 0.002,
           },
         }),
@@ -2100,12 +2100,12 @@ describe('TokenRatesController', () => {
       const fetchTokenPricesMock = jest.fn().mockResolvedValue({
         [tokenAddresses[0]]: {
           currency: 'ETH',
-          tokenContractAddress: tokenAddresses[0],
+          tokenAddress: tokenAddresses[0],
           value: 0.001,
         },
         [tokenAddresses[1]]: {
           currency: 'ETH',
-          tokenContractAddress: tokenAddresses[1],
+          tokenAddress: tokenAddresses[1],
           value: 0.002,
         },
       });
@@ -2375,7 +2375,7 @@ function buildMockTokenPricesService(
  * price of each given token is incremented by one.
  *
  * @param args - The arguments to this function.
- * @param args.tokenContractAddresses - The token contract addresses.
+ * @param args.tokenAddresses - The token addresses.
  * @param args.currency - The currency.
  * @returns The token prices.
  */
@@ -2383,25 +2383,25 @@ async function fetchTokenPricesWithIncreasingPriceForEachToken<
   TokenAddress extends Hex,
   Currency extends string,
 >({
-  tokenContractAddresses,
+  tokenAddresses,
   currency,
 }: {
-  tokenContractAddresses: TokenAddress[];
+  tokenAddresses: TokenAddress[];
   currency: Currency;
 }) {
-  return tokenContractAddresses.reduce<
-    Partial<TokenPricesByTokenContractAddress<TokenAddress, Currency>>
-  >((obj, tokenContractAddress, i) => {
+  return tokenAddresses.reduce<
+    Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>
+  >((obj, tokenAddress, i) => {
     const tokenPrice: TokenPrice<TokenAddress, Currency> = {
-      tokenContractAddress,
+      tokenAddress,
       value: (i + 1) / 1000,
       currency,
     };
     return {
       ...obj,
-      [tokenContractAddress]: tokenPrice,
+      [tokenAddress]: tokenPrice,
     };
-  }, {}) as TokenPricesByTokenContractAddress<TokenAddress, Currency>;
+  }, {}) as TokenPricesByTokenAddress<TokenAddress, Currency>;
 }
 
 /**
