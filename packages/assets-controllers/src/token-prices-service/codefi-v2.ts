@@ -5,16 +5,16 @@ import { hexToNumber } from '@metamask/utils';
 import type {
   AbstractTokenPricesService,
   TokenPrice,
-  TokenPricesByTokenContractAddress,
+  TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
 
 /**
  * The shape of the data that the /spot-prices endpoint returns.
  */
 type SpotPricesEndpointData<
-  TokenContractAddress extends Hex,
+  TokenAddress extends Hex,
   Currency extends string,
-> = Record<TokenContractAddress, Record<Currency, number>>;
+> = Record<TokenAddress, Record<Currency, number>>;
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -249,70 +249,69 @@ export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
 > = {
   /**
    * Retrieves prices in the given currency for the tokens identified by the
-   * given contract addresses which are expected to live on the given chain.
+   * given addresses which are expected to live on the given chain.
    *
    * @param args - The arguments to function.
    * @param args.chainId - An EIP-155 chain ID.
-   * @param args.tokenContractAddresses - Contract addresses for tokens that
-   * live on the chain.
+   * @param args.tokenAddresses - Addresses for tokens that live on the chain.
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
   async fetchTokenPrices({
     chainId,
-    tokenContractAddresses,
+    tokenAddresses,
     currency,
   }: {
     chainId: SupportedChainId;
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     currency: SupportedCurrency;
-  }): Promise<TokenPricesByTokenContractAddress<Hex, SupportedCurrency>> {
+  }): Promise<TokenPricesByTokenAddress<Hex, SupportedCurrency>> {
     const chainIdAsNumber = hexToNumber(chainId);
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
-    url.searchParams.append('tokenAddresses', tokenContractAddresses.join(','));
+    url.searchParams.append('tokenAddresses', tokenAddresses.join(','));
     url.searchParams.append('vsCurrency', currency);
 
-    const pricesByCurrencyByTokenContractAddress: SpotPricesEndpointData<
+    const pricesByCurrencyByTokenAddress: SpotPricesEndpointData<
       Lowercase<Hex>,
       Lowercase<SupportedCurrency>
     > = await handleFetch(url);
 
-    return tokenContractAddresses.reduce(
+    return tokenAddresses.reduce(
       (
-        obj: Partial<TokenPricesByTokenContractAddress<Hex, SupportedCurrency>>,
-        tokenContractAddress,
+        obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
+        tokenAddress,
       ) => {
         // The Price API lowercases both currency and token addresses, so we have
         // to keep track of them and make sure we return the original versions.
-        const lowercasedTokenContractAddress =
-          tokenContractAddress.toLowerCase() as Lowercase<Hex>;
+        const lowercasedTokenAddress =
+          tokenAddress.toLowerCase() as Lowercase<Hex>;
         const lowercasedCurrency =
           currency.toLowerCase() as Lowercase<SupportedCurrency>;
 
         const price =
-          pricesByCurrencyByTokenContractAddress[
-            lowercasedTokenContractAddress
-          ]?.[lowercasedCurrency];
+          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.[
+            lowercasedCurrency
+          ];
 
         if (!price) {
           throw new Error(
-            `Could not find price for "${tokenContractAddress}" in "${currency}"`,
+            `Could not find price for "${tokenAddress}" in "${currency}"`,
           );
         }
 
         const tokenPrice: TokenPrice<Hex, SupportedCurrency> = {
-          tokenContractAddress,
+          tokenAddress,
           value: price,
           currency,
         };
         return {
           ...obj,
-          [tokenContractAddress]: tokenPrice,
+          [tokenAddress]: tokenPrice,
         };
       },
       {},
-    ) as TokenPricesByTokenContractAddress<Hex, SupportedCurrency>;
+    ) as TokenPricesByTokenAddress<Hex, SupportedCurrency>;
   },
 
   /**

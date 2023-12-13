@@ -1128,6 +1128,8 @@ describe('NftController', () => {
       const secondAddress = '0x321';
 
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       preferences.update({ selectedAddress: firstAddress });
@@ -1360,6 +1362,8 @@ describe('NftController', () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = nftController.config;
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftContractInformationFromApi' as any)
         .returns(undefined);
 
@@ -1595,10 +1599,14 @@ describe('NftController', () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = nftController.config;
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftContractInformationFromApi' as any)
         .returns(undefined);
 
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformationFromApi' as any)
         .returns(undefined);
 
@@ -1632,6 +1640,8 @@ describe('NftController', () => {
       const { nftController, changeNetwork } = setupController();
       const { selectedAddress } = nftController.config;
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
 
@@ -1662,6 +1672,8 @@ describe('NftController', () => {
         includeOnNftAdded: true,
       });
       const { selectedAddress, chainId } = nftController.config;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'getNftContractInformation' as any).returns({
         asset_contract_type: null,
         created_date: null,
@@ -1673,6 +1685,8 @@ describe('NftController', () => {
         collection: { name: null, image_url: null },
       });
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'getNftInformation' as any).returns({
         name: 'name',
         image: 'url',
@@ -1722,6 +1736,8 @@ describe('NftController', () => {
       });
       changeNetwork(GOERLI);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'getNftContractInformation' as any).returns({
         asset_contract_type: null,
         created_date: null,
@@ -1733,6 +1749,8 @@ describe('NftController', () => {
         collection: { name: null, image_url: null },
       });
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'getNftInformation' as any).returns({
         name: 'name',
         image: 'url',
@@ -2451,9 +2469,13 @@ describe('NftController', () => {
       const secondAddress = '0x321';
       const { chainId } = nftController.config;
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       preferences.update({ selectedAddress: firstAddress });
@@ -2476,6 +2498,8 @@ describe('NftController', () => {
 
     it('should throw an error if selected address is not owner of input NFT', async () => {
       const { nftController, preferences } = setupController();
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'isNftOwner' as any).returns(false);
       const firstAddress = '0x123';
       preferences.update({ selectedAddress: firstAddress });
@@ -2491,9 +2515,13 @@ describe('NftController', () => {
       const firstAddress = '0x123';
       const secondAddress = '0x321';
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       preferences.update({ selectedAddress: firstAddress });
@@ -2535,9 +2563,13 @@ describe('NftController', () => {
       const firstAddress = '0x123';
       const secondAddress = '0x321';
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       changeNetwork(SEPOLIA);
@@ -2635,6 +2667,8 @@ describe('NftController', () => {
       const { nftController, preferences } = setupController();
       const { chainId } = nftController.config;
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       const firstAddress = '0x123';
@@ -2666,6 +2700,8 @@ describe('NftController', () => {
       const { selectedAddress } = nftController.config;
 
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       changeNetwork(SEPOLIA);
@@ -2993,6 +3029,8 @@ describe('NftController', () => {
       });
 
       sinon
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftURIAndStandard' as any)
         .returns(['ipfs://*', ERC1155]);
 
@@ -3253,6 +3291,8 @@ describe('NftController', () => {
     describe('checkAndUpdateAllNftsOwnershipStatus', () => {
       it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when NFT is not still owned', async () => {
         const { nftController } = setupController();
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         const { selectedAddress, chainId } = nftController.config;
@@ -3280,6 +3320,8 @@ describe('NftController', () => {
 
       it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when NFT is still owned', async () => {
         const { nftController } = setupController();
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
         const { selectedAddress, chainId } = nftController.config;
@@ -3308,6 +3350,8 @@ describe('NftController', () => {
       it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when NFT ownership check fails', async () => {
         const { nftController } = setupController();
         sinon
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .stub(nftController, 'isNftOwner' as any)
           .throws(new Error('Unable to verify ownership'));
 
@@ -3356,6 +3400,8 @@ describe('NftController', () => {
             .isCurrentlyOwned,
         ).toBe(true);
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         preferences.update({ selectedAddress: SECOND_OWNER_ADDRESS });
@@ -3396,6 +3442,8 @@ describe('NftController', () => {
             .isCurrentlyOwned,
         ).toBe(true);
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, false);
@@ -3428,6 +3476,8 @@ describe('NftController', () => {
             .isCurrentlyOwned,
         ).toBe(true);
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         const updatedNft =
@@ -3467,6 +3517,8 @@ describe('NftController', () => {
             .isCurrentlyOwned,
         ).toBe(true);
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         preferences.update({ selectedAddress: SECOND_OWNER_ADDRESS });
@@ -3509,6 +3561,8 @@ describe('NftController', () => {
             .isCurrentlyOwned,
         ).toBe(true);
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         preferences.update({ selectedAddress: SECOND_OWNER_ADDRESS });

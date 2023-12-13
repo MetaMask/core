@@ -449,6 +449,8 @@ export class PermissionLogController extends BaseController<
    * @param request - The request object.
    * @returns The names of the requested permissions.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getRequestedMethods(request: JsonRpcRequestWithOrigin<any>): string[] | null {
     if (
       !request.params ||

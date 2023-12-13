@@ -35,8 +35,12 @@ describe('Bundler', () => {
           Promise.resolve({
             result: {},
           }),
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (bundler as any)[methodName](...args);
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -65,8 +69,12 @@ describe('Bundler', () => {
           Promise.resolve({
             result: responseMock,
           }),
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await (bundler as any)[methodName](...args);
 
       expect(response).toStrictEqual(responseMock);
@@ -80,8 +88,12 @@ describe('Bundler', () => {
           Promise.resolve({
             error: ERROR_MESSAGE_MOCK,
           }),
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await expect((bundler as any)[methodName](...args)).rejects.toThrow(
         expect.objectContaining({
           message: ERROR_MESSAGE_MOCK,
@@ -101,8 +113,12 @@ describe('Bundler', () => {
               code: ERROR_CODE_MOCK,
             },
           }),
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await expect((bundler as any)[methodName](...args)).rejects.toThrow(
         expect.objectContaining({
           message: ERROR_MESSAGE_MOCK,

@@ -1,7 +1,7 @@
 import { query } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/network-controller';
-import { PollingControllerOnly } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -34,7 +34,7 @@ export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
-export class PendingUserOperationTracker extends PollingControllerOnly {
+export class PendingUserOperationTracker extends StaticIntervalPollingControllerOnly {
   hub: PendingUserOperationTrackerEventEmitter;
 
   #getUserOperations: () => UserOperationMetadata[];
@@ -124,6 +124,8 @@ export class PendingUserOperationTracker extends PollingControllerOnly {
       }
 
       log('No receipt found for user operation', { id, hash });
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       log('Failed to check user operation', id, error);
     }
@@ -145,6 +147,8 @@ export class PendingUserOperationTracker extends PollingControllerOnly {
     log('User operation confirmed', id, transactionHash);
 
     const { baseFeePerGas } = await query(
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       new EthQuery(provider as any),
       'getBlockByHash',
       [blockHash, false],

@@ -16,6 +16,8 @@ export default class MockShallowGetAccountsKeyring implements Keyring<Json> {
 
   public accounts: Hex[];
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(_: any) {
     this.accounts = [];
   }

@@ -18,6 +18,8 @@ const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   hash: '0x123',
   id: USER_OPERATION_ID_MOCK,
   status: UserOperationStatus.Submitted,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 const USER_OPERATION_RECEIPT_MOCK: UserOperationReceipt = {
@@ -28,6 +30,8 @@ const USER_OPERATION_RECEIPT_MOCK: UserOperationReceipt = {
     blockHash: '0x2C',
     transactionHash: '0x2D',
   },
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 const BLOCK_MOCK = {
@@ -48,6 +52,8 @@ jest.mock('@metamask/controller-utils', () => ({
 function createMessengerMock(): jest.Mocked<UserOperationControllerMessenger> {
   return {
     call: jest.fn(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -58,6 +64,8 @@ function createMessengerMock(): jest.Mocked<UserOperationControllerMessenger> {
 function createBundlerMock(): jest.Mocked<BundlerHelper.Bundler> {
   return {
     getUserOperationReceipt: jest.fn(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -123,6 +131,8 @@ describe('PendingUserOperationTracker', () => {
       blockTracker: { getCurrentBlock: () => BLOCK_NUMBER_MOCK },
       configuration: { chainId: CHAIN_ID_MOCK },
       provider: {},
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
   });
 

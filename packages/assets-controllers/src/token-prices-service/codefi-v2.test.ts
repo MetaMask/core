@@ -30,23 +30,23 @@ describe('codefiTokenPricesServiceV2', () => {
       const pricedTokensByAddress =
         await codefiTokenPricesServiceV2.fetchTokenPrices({
           chainId: '0x1',
-          tokenContractAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
           currency: 'ETH',
         });
 
       expect(pricedTokensByAddress).toStrictEqual({
         '0xAAA': {
-          tokenContractAddress: '0xAAA',
+          tokenAddress: '0xAAA',
           value: 148.17205755299946,
           currency: 'ETH',
         },
         '0xBBB': {
-          tokenContractAddress: '0xBBB',
+          tokenAddress: '0xBBB',
           value: 33689.98134554716,
           currency: 'ETH',
         },
         '0xCCC': {
-          tokenContractAddress: '0xCCC',
+          tokenAddress: '0xCCC',
           value: 148.1344197578456,
           currency: 'ETH',
         },
@@ -72,7 +72,7 @@ describe('codefiTokenPricesServiceV2', () => {
       await expect(
         codefiTokenPricesServiceV2.fetchTokenPrices({
           chainId: '0x1',
-          tokenContractAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
           currency: 'ETH',
         }),
       ).rejects.toThrow('Could not find price for "0xAAA" in "ETH"');
@@ -98,7 +98,7 @@ describe('codefiTokenPricesServiceV2', () => {
       await expect(
         codefiTokenPricesServiceV2.fetchTokenPrices({
           chainId: '0x1',
-          tokenContractAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
           currency: 'ETH',
         }),
       ).rejects.toThrow('Could not find price for "0xAAA" in "ETH"');

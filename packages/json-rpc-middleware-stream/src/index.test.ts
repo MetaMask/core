@@ -7,7 +7,8 @@ import { createStreamMiddleware, createEngineStream } from '.';
 
 const artificialDelay = async (time = 0) =>
   new Promise((resolve) => setTimeout(resolve, time));
-// eslint-disable-next-line @typescript-eslint/no-empty-function
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-explicit-any
 const noop = function (_a: any) {};
 
 const jsonrpc = '2.0' as const;
@@ -84,6 +85,8 @@ describe('createEngineStream', () => {
 
   it('throw error when engine stream options not available', async () => {
     expect(() => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       createEngineStream({} as any);
     }).toThrow('Missing engine parameter!');
   });
@@ -120,7 +123,11 @@ describe('middleware and engine to stream', () => {
 const RECONNECTED = 'CONNECTED';
 describe('retry logic in middleware connected to a port', () => {
   let engineA: JsonRpcEngine | undefined;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let messages: any[] = [];
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let messageConsumer: any;
   beforeEach(() => {
     // create guest
@@ -135,6 +142,8 @@ describe('retry logic in middleware connected to a port', () => {
     messages = [];
     const extensionPort = {
       onMessage: {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         addListener: (messageCallback: any) => {
           messageConsumer = messageCallback;
         },
@@ -142,6 +151,8 @@ describe('retry logic in middleware connected to a port', () => {
       onDisconnect: {
         addListener: noop,
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       postMessage(message: any) {
         messages.push(message);
       },
