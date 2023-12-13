@@ -186,7 +186,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
         return nfts;
       }
 
-      if (nftApiResponse?.nfts?.length > 0) {
+      if (nftApiResponse.nfts.length > 0) {
         nfts = [...nfts, ...nftApiResponse.nfts.map(mapOpenSeaNftV2ToV1)];
       }
     } while ((next = nftApiResponse.next));
