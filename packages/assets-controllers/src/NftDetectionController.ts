@@ -7,12 +7,18 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   OPENSEA_PROXY_URL,
-  OPENSEA_API_URL,
   NetworkType,
   fetchWithErrorHandling,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import type { NftController, NftState, NftMetadata } from './NftController';
+import {
+  type NftController,
+  type NftState,
+  type NftMetadata,
+  OpenSeaV2ChainIds,
+  OpenSeaV2ListNftsResponse,
+} from './NftController';
+import { mapOpenSeaNftV2ToV1 } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -138,54 +144,35 @@ export class NftDetectionController extends BaseController<
 
   private getOwnerNftApi({
     address,
-    offset,
-    useProxy,
+    next,
   }: {
     address: string;
-    offset: number;
-    useProxy: boolean;
+    next?: string;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
-      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
+    return `${OPENSEA_PROXY_URL}/chain/${
+      OpenSeaV2ChainIds.ethereum
+    }/account/${address}/nfts?limit=200&next=${next ?? ''}`;
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: { assets: ApiNft[] };
+    let nftApiResponse: OpenSeaV2ListNftsResponse;
     let nfts: ApiNft[] = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
-    let offset = 0;
-    let pagingFinish = false;
-    /* istanbul ignore if */
+    let next;
+
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset, useProxy: true }),
+        url: this.getOwnerNftApi({ address, next }),
         timeout: 15000,
       });
-
-      if (openSeaApiKey && !nftApiResponse) {
-        nftApiResponse = await fetchWithErrorHandling({
-          url: this.getOwnerNftApi({
-            address,
-            offset,
-            useProxy: false,
-          }),
-          options: { headers: { 'X-API-KEY': openSeaApiKey } },
-          timeout: 15000,
-          // catch 403 errors (in case API key is down we don't want to blow up)
-          errorCodesToCatch: [403],
-        });
-      }
 
       if (!nftApiResponse) {
         return nfts;
       }
 
-      nftApiResponse?.assets?.length !== 0
-        ? (nfts = [...nfts, ...nftApiResponse.assets])
-        : (pagingFinish = true);
-      offset += 50;
-    } while (!pagingFinish);
+      if (nftApiResponse.nfts.length > 0) {
+        nfts = [...nfts, ...nftApiResponse.nfts.map(mapOpenSeaNftV2ToV1)];
+      }
+    } while ((next = nftApiResponse.next));
 
     return nfts;
   }
