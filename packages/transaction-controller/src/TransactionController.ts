@@ -1567,13 +1567,18 @@ export class TransactionController extends BaseControllerV1<
    */
   async getNonceLock(address: string): Promise<NonceLock> {
     const releaseLock = await this.mutex.acquire()
-    const nonceLock = await this.nonceTracker.getNonceLock(address);
-    return {
-      ...nonceLock,
-      releaseLock: () => {
-        nonceLock.releaseLock()
-        releaseLock()
+    try {
+      const nonceLock = await this.nonceTracker.getNonceLock(address);
+      return {
+        ...nonceLock,
+        releaseLock: () => {
+          nonceLock.releaseLock()
+          releaseLock()
+        }
       }
+    } catch (err) {
+      releaseLock()
+      throw err
     }
   }
 
