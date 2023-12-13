@@ -168,6 +168,7 @@ describe('TokenDetectionController', () => {
   >;
 
   const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
+  const getNetworkConfigurationByNetworkClientIdHandler = jest.fn();
   const changeNetwork = (providerConfig: ProviderConfig) => {
     onNetworkDidChangeListeners.forEach((listener) => {
       listener({
@@ -176,12 +177,8 @@ describe('TokenDetectionController', () => {
       });
     });
 
-    controllerMessenger.unregisterActionHandler(
-      `NetworkController:getNetworkConfigurationByNetworkClientId`,
-    );
-    controllerMessenger.registerActionHandler(
-      `NetworkController:getNetworkConfigurationByNetworkClientId`,
-      jest.fn().mockReturnValueOnce(providerConfig),
+    getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue(
+      providerConfig,
     );
   };
   const mainnet = {
@@ -248,7 +245,9 @@ describe('TokenDetectionController', () => {
 
     controllerMessenger.registerActionHandler(
       `NetworkController:getNetworkConfigurationByNetworkClientId`,
-      jest.fn().mockReturnValueOnce(mainnet),
+      getNetworkConfigurationByNetworkClientIdHandler.mockReturnValueOnce(
+        mainnet,
+      ),
     );
 
     sinon
