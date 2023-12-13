@@ -13,7 +13,7 @@ import type {
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import { strictDeepEqual } from 'fast-equals';
+import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
@@ -253,7 +253,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       this.configure({ allTokens, allDetectedTokens });
       const newTokenAddresses = this.#getTokenAddresses(this.config.chainId);
       if (
-        !strictDeepEqual(previousTokenAddresses, newTokenAddresses) &&
+        !isEqual(previousTokenAddresses, newTokenAddresses) &&
         this.#pollState === PollState.Active
       ) {
         await this.updateExchangeRates();

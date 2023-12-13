@@ -49,7 +49,6 @@
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
-    "fast-equals": "^5.0.1",
     "lodash": "^4.17.21",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",
