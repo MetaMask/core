@@ -46,7 +46,7 @@ export interface PreferencesState extends BaseState {
   selectedAddress: string;
   useTokenDetection: boolean;
   useNftDetection: boolean;
-  openSeaEnabled: boolean;
+  displayNftMedia: boolean;
   securityAlertsEnabled: boolean;
   isMultiAccountBalancesEnabled: boolean;
   disabledRpcMethodPreferences: {
@@ -87,7 +87,7 @@ export class PreferencesController extends BaseControllerV1<
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      openSeaEnabled: false,
+      displayNftMedia: true,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       disabledRpcMethodPreferences: {
@@ -287,9 +287,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
   setUseNftDetection(useNftDetection: boolean) {
-    if (useNftDetection && !this.state.openSeaEnabled) {
+    if (useNftDetection && !this.state.displayNftMedia) {
       throw new Error(
-        'useNftDetection cannot be enabled if openSeaEnabled is false',
+        'useNftDetection cannot be enabled if displayNftMedia is false',
       );
     }
     this.update({ useNftDetection });
@@ -298,11 +298,11 @@ export class PreferencesController extends BaseControllerV1<
   /**
    * Toggle the opensea enabled setting.
    *
-   * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
+   * @param displayNftMedia - Boolean indicating user preference on using OpenSea's API.
    */
-  setOpenSeaEnabled(openSeaEnabled: boolean) {
-    this.update({ openSeaEnabled });
-    if (!openSeaEnabled) {
+  setDisplayNftMedia(displayNftMedia: boolean) {
+    this.update({ displayNftMedia });
+    if (!displayNftMedia) {
       this.update({ useNftDetection: false });
     }
   }

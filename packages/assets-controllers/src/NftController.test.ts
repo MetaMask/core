@@ -33,7 +33,7 @@ import { v4 } from 'uuid';
 import { AssetsContractController } from './AssetsContractController';
 import { getFormattedIpfsUrl } from './assetsUtil';
 import { Source } from './constants';
-import { NftController } from './NftController';
+import { NftController, NFTFetchMetadataError } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -248,7 +248,7 @@ function setupController({
 
   preferences.update({
     selectedAddress: OWNER_ADDRESS,
-    openSeaEnabled: true,
+    displayNftMedia: true,
   });
 
   return {
@@ -490,7 +490,7 @@ describe('NftController', () => {
       expect(callActionSpy).toHaveBeenCalledTimes(0);
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway enabled', async function () {
+    it('should handle ERC721 type and add pending request to ApprovalController with the display nft media disabled and IPFS gateway enabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -508,7 +508,7 @@ describe('NftController', () => {
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
       preferences.setIsIpfsGatewayEnabled(true);
-      preferences.setOpenSeaEnabled(false);
+      preferences.setDisplayNftMedia(false);
 
       const requestId = 'approval-request-id-1';
 
@@ -544,7 +544,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway enabled', async function () {
+    it('should handle ERC721 type and add pending request to ApprovalController with the display nft media enabled and IPFS gateway enabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -562,7 +562,7 @@ describe('NftController', () => {
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
       preferences.setIsIpfsGatewayEnabled(true);
-      preferences.setOpenSeaEnabled(true);
+      preferences.setDisplayNftMedia(true);
 
       const requestId = 'approval-request-id-1';
 
@@ -598,7 +598,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway disabled', async function () {
+    it('should handle ERC721 type and add pending request to ApprovalController with the display nft media disabled disabled and IPFS gateway disabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -616,7 +616,7 @@ describe('NftController', () => {
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
       preferences.setIsIpfsGatewayEnabled(false);
-      preferences.setOpenSeaEnabled(false);
+      preferences.setDisplayNftMedia(false);
 
       const requestId = 'approval-request-id-1';
 
@@ -652,7 +652,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway disabled', async function () {
+    it('should handle ERC721 type and add pending request to ApprovalController with the display nft media enabled and IPFS gateway disabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -670,7 +670,7 @@ describe('NftController', () => {
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
       preferences.setIsIpfsGatewayEnabled(false);
-      preferences.setOpenSeaEnabled(true);
+      preferences.setDisplayNftMedia(true);
 
       const requestId = 'approval-request-id-1';
 
@@ -706,7 +706,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API disabled', async function () {
+    it('should handle ERC1155 type and add to suggestedNfts with the display nft media disabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -724,7 +724,7 @@ describe('NftController', () => {
           .mockImplementation(() => 'https://testtokenuri.com'),
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
-      preferences.setOpenSeaEnabled(false);
+      preferences.setDisplayNftMedia(false);
       preferences.setIsIpfsGatewayEnabled(true);
       const requestId = 'approval-request-id-1';
 
@@ -763,8 +763,60 @@ describe('NftController', () => {
 
       clock.restore();
     });
+    it('should handle ERC721 type and add pending request to ApprovalController with the display nft media enabled', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+      const { nftController, messenger, preferences } = setupController({
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+      preferences.setDisplayNftMedia(true);
 
-    it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API enabled', async function () {
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              image: 'testERC721Image',
+              name: 'testERC721Name',
+              description: 'testERC721Description',
+              standard: ERC721,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should  handle ERC1155 type and add to suggestedNfts with the display nft media enabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -782,7 +834,7 @@ describe('NftController', () => {
           .mockImplementation(() => 'https://testtokenuri.com'),
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
-      preferences.setOpenSeaEnabled(true);
+      preferences.setDisplayNftMedia(true);
       preferences.setIsIpfsGatewayEnabled(true);
       const requestId = 'approval-request-id-1';
 
@@ -809,9 +861,9 @@ describe('NftController', () => {
             interactingAddress: OWNER_ADDRESS,
             asset: {
               ...ERC1155_NFT,
-              description: 'testERC1155Description',
               image: 'testERC1155Image',
               name: 'testERC1155Name',
+              description: 'testERC1155Description',
               standard: ERC1155,
             },
           },
@@ -1005,6 +1057,74 @@ describe('NftController', () => {
           ],
         },
       });
+
+      clock.restore();
+    });
+
+    it('should handle ERC1155 type and add to suggestedNfts with the display nft media enabled', async function () {
+      const ALT_ERC1155_NFT = {
+        address: '0x0000000000000000000000000000000000000000',
+        tokenId: '99999',
+      };
+
+      nock(OPENSEA_PROXY_URL)
+        .get(`/asset_contract/${ALT_ERC1155_NFT.address}`)
+        .reply(200, {
+          description: 'description (from opensea)',
+          symbol: 'KDO',
+          total_supply: 10,
+          collection: {
+            name: 'name (from opensea)',
+            image_url: 'logo (from opensea)',
+          },
+        })
+        .get(`/asset/${ALT_ERC1155_NFT.address}/${ALT_ERC1155_NFT.tokenId}`)
+        .reply(200, {
+          image_url: 'image (directly from opensea)',
+          name: 'name (directly from opensea)',
+          description: 'description (directly from opensea)',
+          asset_contract: {
+            schema_name: 'ERC1155',
+          },
+        });
+      const { nftController, messenger, preferences } = setupController({
+        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
+      });
+      preferences.setDisplayNftMedia(true);
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(
+        ALT_ERC1155_NFT,
+        ERC1155,
+        'https://test-dapp.com',
+      );
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ALT_ERC1155_NFT,
+              description: 'description (directly from opensea)',
+              image: 'image (directly from opensea)',
+              name: 'name (directly from opensea)',
+              standard: ERC1155,
+            },
+          },
+        },
+        true,
+      );
 
       clock.restore();
     });
@@ -1959,7 +2079,7 @@ describe('NftController', () => {
       expect(nftController.state.ignoredNfts).toHaveLength(1);
     });
 
-    it('should add NFT with metadata hosted in IPFS', async () => {
+    it('should add NFT with metadata hosted in IPFS and not on opensea', async () => {
       const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
@@ -2068,6 +2188,7 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         tokenURI:
           'https://bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm.ipfs.cloudflare-ipfs.com',
+        error: NFTFetchMetadataError.OPEN_SEA,
       });
     });
 
@@ -2321,7 +2442,7 @@ describe('NftController', () => {
       ]);
     });
 
-    it('should add an NFT with the correct chainId/userAddress and metadata when passed a userAddress', async () => {
+    it('should add an NFT with the correct chainId/userAddress and metadata when passed a userAddress from on chain but not opensea', async () => {
       const userAddress = '0x123ABC';
       nock('https://testtokenuri-1.com')
         .get('/')
@@ -2407,6 +2528,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-1.com',
           isCurrentlyOwned: true,
+          error: NFTFetchMetadataError.OPEN_SEA,
         },
       ]);
 
@@ -2984,12 +3106,12 @@ describe('NftController', () => {
       await expect(result).rejects.toThrow(error);
     });
 
-    it('should add NFT with null metadata if the ipfs gateway is disabled and opensea is disabled', async () => {
+    it('should add NFT with null metadata if the ipfs gateway is disabled and display NFT is disabled', async () => {
       const { assetsContract, nftController, preferences } = setupController();
 
       preferences.update({
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: false,
+        displayNftMedia: false,
       });
 
       sinon
@@ -3013,6 +3135,81 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
         tokenURI: 'ipfs://*',
+      });
+    });
+    it('should add NFT with  metadata if the ipfs gateway is enabled and display NFT is disabled', async () => {
+      const { assetsContract, nftController, preferences } = setupController();
+
+      preferences.update({
+        isIpfsGatewayEnabled: true,
+        displayNftMedia: false,
+      });
+
+      sinon
+        .stub(nftController, 'getNftURIAndStandard' as any)
+        .returns(['ipfs://*', ERC1155]);
+      sinon
+        .stub(nftController, 'getNftInformationFromTokenURI' as any)
+        .returns({
+          name: 'name',
+          description: 'description',
+          image: 'image.uri',
+          standard: ERC1155,
+          favorite: false,
+          isCurrentlyOwned: true,
+          tokenURI: 'ipfs://*',
+        });
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = nftController.config;
+
+      await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC1155_NFT_ADDRESS,
+        name: 'name',
+        description: 'description',
+        image: 'image.uri',
+        tokenId: ERC1155_NFT_ID,
+        standard: ERC1155,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: 'ipfs://*',
+      });
+    });
+    it('should add NFT with metadata if the ipfs gateway is disabled and display NFT is enabled', async () => {
+      const { assetsContract, nftController, preferences } = setupController();
+
+      preferences.update({
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: true,
+      });
+
+      sinon
+        .stub(nftController, 'getNftURIAndStandard' as any)
+        .returns(['ipfs://*', ERC1155]);
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = nftController.config;
+
+      await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC1155_NFT_ADDRESS,
+        name: 'name',
+        description: 'description',
+        image: null,
+        tokenId: ERC1155_NFT_ID,
+        standard: ERC1155,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: 'ipfs://*',
+        numberOfSales: 1,
+        imageOriginal: 'image.uri',
       });
     });
   });

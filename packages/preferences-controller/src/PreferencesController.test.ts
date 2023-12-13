@@ -13,7 +13,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      openSeaEnabled: false,
+      displayNftMedia: true,
       securityAlertsEnabled: false,
       disabledRpcMethodPreferences: {
         eth_sign: false,
@@ -181,7 +181,7 @@ describe('PreferencesController', () => {
 
   it('should set useNftDetection', () => {
     const controller = new PreferencesController();
-    controller.setOpenSeaEnabled(true);
+    controller.setDisplayNftMedia(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toBe(true);
   });
