@@ -1,4 +1,5 @@
 import type { AccessList } from '@ethereumjs/tx';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -194,6 +195,11 @@ type TransactionMetaBase = {
    * Whether the transaction is a transfer.
    */
   isTransfer?: boolean;
+
+  /**
+   * The id for the NetworkClient for the transaction.
+   */
+  networkClientId?: NetworkClientId;
 
   /**
    * Network code as per EIP-155 for this transaction
