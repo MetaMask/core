@@ -1759,6 +1759,7 @@ __metadata:
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
+    fast-equals: ^5.0.1
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
     lodash: ^4.17.21
@@ -6208,6 +6209,13 @@ __metadata:
   version: 1.3.0
   resolution: "fast-diff@npm:1.3.0"
   checksum: d22d371b994fdc8cce9ff510d7b8dc4da70ac327bcba20df607dd5b9cae9f908f4d1028f5fe467650f058d1e7270235ae0b8230809a262b4df587a3b3aa216c3
+  languageName: node
+  linkType: hard
+
+"fast-equals@npm:^5.0.1":
+  version: 5.0.1
+  resolution: "fast-equals@npm:5.0.1"
+  checksum: fbb3b6a74f3a0fa930afac151ff7d01639159b4fddd2678b5d50708e0ba38e9ec14602222d10dadb8398187342692c04fbef5a62b1cfcc7942fe03e754e064bc
   languageName: node
   linkType: hard
 
