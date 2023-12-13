@@ -1989,7 +1989,6 @@ export class TransactionController extends BaseControllerV1<
   private async approveTransaction(transactionId: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const chainId = this.getChainId();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
 
@@ -2007,7 +2006,7 @@ export class TransactionController extends BaseControllerV1<
           new Error('No sign method defined.'),
         );
         return;
-      } else if (!chainId) {
+      } else if (!transactionMeta.chainId) {
         releaseLock();
         this.failTransaction(transactionMeta, new Error('No chainId defined.'));
         return;
@@ -2027,7 +2026,7 @@ export class TransactionController extends BaseControllerV1<
 
       transactionMeta.status = TransactionStatus.approved;
       transactionMeta.txParams.nonce = nonce;
-      transactionMeta.txParams.chainId = chainId;
+      transactionMeta.txParams.chainId = transactionMeta.chainId;
 
       const baseTxParams = {
         ...transactionMeta.txParams,
@@ -2383,7 +2382,7 @@ export class TransactionController extends BaseControllerV1<
    * @param transactionMeta - Nominated external transaction to be added to state.
    */
   private addExternalTransaction(transactionMeta: TransactionMeta) {
-    const chainId = this.getChainId();
+    const { chainId } = transactionMeta;
     const { transactions } = this.state;
     const fromAddress = transactionMeta?.txParams?.from;
     const sameFromAndNetworkTransactions = transactions.filter(
@@ -2424,10 +2423,10 @@ export class TransactionController extends BaseControllerV1<
    * @param transactionId - Used to identify original transaction.
    */
   private markNonceDuplicatesDropped(transactionId: string) {
-    const chainId = this.getChainId();
     const transactionMeta = this.getTransaction(transactionId);
     const nonce = transactionMeta?.txParams?.nonce;
     const from = transactionMeta?.txParams?.from;
+    const chainId = transactionMeta?.chainId;
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.txParams.from === from &&
