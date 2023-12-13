@@ -22,11 +22,15 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       implementation(req as any, res as any, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       }),
     );
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
@@ -51,6 +55,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       implementation(req as any, res as any, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       }),
@@ -70,6 +76,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle(req as any);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
@@ -82,6 +90,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       implementation(req as any, res as any, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       }),
@@ -101,6 +111,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle(req as any);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
@@ -113,6 +125,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       implementation(req as any, res as any, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       }),
@@ -131,6 +145,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle(req as any);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
@@ -143,6 +159,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       implementation(req as any, res as any, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       }),
@@ -162,6 +180,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle(req as any);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);

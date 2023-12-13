@@ -70,6 +70,8 @@ export class PendingTransactionTracker {
 
   #isResubmitEnabled: boolean;
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #listener: any;
 
   #nonceTracker: NonceTracker;
@@ -227,6 +229,8 @@ export class PendingTransactionTracker {
     for (const txMeta of pendingTransactions) {
       try {
         await this.#resubmitTransaction(txMeta, latestBlockNumber);
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         /* istanbul ignore next */
         const errorMessage =
@@ -360,6 +364,8 @@ export class PendingTransactionTracker {
 
         return;
       }
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       log('Failed to check transaction', id, error);
 
@@ -501,6 +507,8 @@ export class PendingTransactionTracker {
   async #getBlockByHash(
     blockHash: string,
     includeTransactionDetails: boolean,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return await query(this.#getEthQuery(), 'getBlockByHash', [
       blockHash,

@@ -43,6 +43,8 @@ const stubCreateEthers = (ctrl: TokensController, res: () => boolean) => {
   return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
     return {
       supportsInterface: sinon.stub().returns(res()),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
   });
 };
@@ -97,6 +99,8 @@ describe('TokensController', () => {
     });
   };
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tokenListStateChangeListener: (state: any) => void;
   const onTokenListStateChange = sinon.stub().callsFake((listener) => {
     tokenListStateChangeListener = listener;
@@ -114,6 +118,8 @@ describe('TokensController', () => {
         selectedAddress: defaultSelectedAddress,
         provider: sinon.stub(),
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientById: sinon.stub() as any,
       messenger: tokensControllerMessenger,
     });
@@ -372,6 +378,8 @@ describe('TokensController', () => {
   it('should add token to the correct chainId when passed a networkClientId', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
     const getNetworkClientByIdStub = jest
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .spyOn(tokensController as any, 'getNetworkClientById')
       .mockReturnValue({ configuration: { chainId: '0x5' } });
     await tokensController.addToken({
@@ -1024,6 +1032,8 @@ describe('TokensController', () => {
 
     it('should add tokens to the correct chainId when passed a networkClientId', async () => {
       const getNetworkClientByIdStub = jest
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .spyOn(tokensController as any, 'getNetworkClientById')
         .mockReturnValue({ configuration: { chainId: '0x5' } });
 
@@ -1114,20 +1124,30 @@ describe('TokensController', () => {
   });
 
   describe('watchAsset', function () {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let asset: any, type: any;
     const interactingAddress = '0x2';
     const requestId = '12345';
     let isERC721: boolean, isERC1155: boolean;
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockContract = (mockAssets: any[]) =>
       mockAssets.forEach((a) => {
         jest
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .spyOn(ERC20Standard.prototype as any, 'getTokenName')
           .mockImplementationOnce(() => a.name);
         jest
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .spyOn(ERC20Standard.prototype as any, 'getTokenSymbol')
           .mockImplementationOnce(() => a.symbol);
         jest
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .spyOn(ERC20Standard.prototype as any, 'getTokenDecimals')
           .mockImplementationOnce(() => a.decimals?.toString());
       });
@@ -1148,6 +1168,8 @@ describe('TokensController', () => {
       createEthersStub = stubCreateEthers(tokensController, () => isERC721);
       jest
         .spyOn(
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ERC1155Standard.prototype as any,
           'contractSupportsBase1155Interface',
         )
@@ -1293,6 +1315,8 @@ describe('TokensController', () => {
       mockContract([asset]);
 
       jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reqAsset: any = {
         ...asset,
         symbol: undefined,
@@ -1310,6 +1334,8 @@ describe('TokensController', () => {
 
     it('should use symbols/decimals from request, and allow them to be optional in the contract', async function () {
       jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reqAsset: any = { ...asset, symbol: 'MYSYMBOL', decimals: 13 };
       await tokensController.watchAsset({ asset: reqAsset, type });
       expect(tokensController.state.tokens).toStrictEqual([
@@ -1462,6 +1488,8 @@ describe('TokensController', () => {
 
     it('stores token correctly when passed a networkClientId', async function () {
       const getNetworkClientByIdStub = jest
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .spyOn(tokensController as any, 'getNetworkClientById')
         .mockReturnValue({
           configuration: { chainId: '0x5' },

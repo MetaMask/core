@@ -640,6 +640,8 @@ export class KeyringController extends BaseController<
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
   ): Promise<{
     keyringState: KeyringControllerMemState;
@@ -918,6 +920,8 @@ export class KeyringController extends BaseController<
     return this.getQRKeyring() || (await this.#addQRKeyring());
   }
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
     (await this.getOrAddQRKeyring()).deserialize(serialized);
     await this.#keyring.persistAllKeyrings();
@@ -975,6 +979,8 @@ export class KeyringController extends BaseController<
         default:
           accounts = await keyring.getFirstPage();
       }
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return accounts.map((account: any) => {
         return {
           ...account,

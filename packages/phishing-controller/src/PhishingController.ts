@@ -247,6 +247,8 @@ export class PhishingController extends BaseController<
   PhishingControllerState,
   PhishingControllerMessenger
 > {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #detector: any;
 
   #stalelistRefreshInterval: number;

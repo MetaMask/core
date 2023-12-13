@@ -9,6 +9,8 @@ const originalSetTimeout = global.setTimeout;
 /**
  * Represents the type of the `response` property in a fake provider stub.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FakeProviderResponse = { result: any } | { error: string };
 
 /**
@@ -44,6 +46,8 @@ export type FakeProviderResponse = { result: any } | { error: string };
 export type FakeProviderStub = {
   request: {
     method: string;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params?: any[];
   };
   delay?: number;
@@ -105,6 +109,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   sendAsync = (
     payload: JsonRpcRequest,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
     return this.#handleSend(payload, callback);
@@ -112,6 +118,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   send = (
     req: JsonRpcRequest,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
     return this.#handleSend(req, callback);
@@ -119,6 +127,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   #handleSend(
     req: JsonRpcRequest,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ) {
     if (Array.isArray(req)) {
@@ -175,6 +185,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   async #handleRequest(
     stub: FakeProviderStub,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
   ) {
     if (stub.beforeCompleting) {

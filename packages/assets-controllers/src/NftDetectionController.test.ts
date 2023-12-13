@@ -410,10 +410,14 @@ describe('NftDetectionController', () => {
     });
 
     sinon
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .stub(nftController, 'getNftContractInformationFromApi' as any)
       .returns(undefined);
 
     sinon
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .stub(nftController, 'getNftInformationFromApi' as any)
       .returns(undefined);
 

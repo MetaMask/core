@@ -308,6 +308,8 @@ function updateSwapTransaction(
     estimatedBaseFee,
     approvalTxId,
   };
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   swapTransaction = pickBy(swapTransaction) as any;
   merge(transactionMeta, swapTransaction);
 }
@@ -329,6 +331,8 @@ function updateSwapApprovalTransaction(
     'updateSwapApprovalTransaction',
   );
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let swapApprovalTransaction = { type, sourceTokenSymbol } as any;
   swapApprovalTransaction = pickBy({
     type,

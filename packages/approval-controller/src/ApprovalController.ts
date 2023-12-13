@@ -751,6 +751,8 @@ export class ApprovalController extends BaseController<
     this.update((draftState) => {
       // Typecast: ts(2589)
       draftState.pendingApprovals[opts.id].requestState =
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         opts.requestState as any;
     });
   }
@@ -839,6 +841,8 @@ export class ApprovalController extends BaseController<
     await this.#result(APPROVAL_TYPE_RESULT_SUCCESS, opts, {
       message: opts.message,
       header: opts.header,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     return {};
   }
@@ -856,6 +860,8 @@ export class ApprovalController extends BaseController<
     await this.#result(APPROVAL_TYPE_RESULT_ERROR, opts, {
       error: opts.error,
       header: opts.header,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     return {};
   }
@@ -998,6 +1004,8 @@ export class ApprovalController extends BaseController<
 
     this.update((draftState) => {
       // Typecast: ts(2589)
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       draftState.pendingApprovals[id] = approval as any;
       draftState.pendingApprovalCount = Object.keys(
         draftState.pendingApprovals,

@@ -37,6 +37,8 @@ const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   chainId: CHAIN_ID_MOCK,
   id: 'testUserOperationId',
   status: UserOperationStatus.Confirmed,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 const PREPARE_USER_OPERATION_RESPONSE_MOCK: PrepareUserOperationResponse = {
@@ -82,6 +84,8 @@ function createMessengerMock(): jest.Mocked<UserOperationControllerMessenger> {
   return {
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -94,6 +98,8 @@ function createSmartContractAccountMock(): jest.Mocked<SmartContractAccount> {
     prepareUserOperation: jest.fn(),
     updateUserOperation: jest.fn(),
     signUserOperation: jest.fn(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -105,6 +111,8 @@ function createBundlerMock(): jest.Mocked<BundlerHelper.Bundler> {
   return {
     estimateUserOperationGas: jest.fn(),
     sendUserOperation: jest.fn(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -117,6 +125,8 @@ function createPendingUserOperationTrackerMock(): jest.Mocked<PendingUserOperati
     startPollingByNetworkClientId: jest.fn(),
     setIntervalLength: jest.fn(),
     hub: new EventEmitter(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -504,6 +514,8 @@ describe('UserOperationController', () => {
       });
 
       const error = new Error(ERROR_MESSAGE_MOCK);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error as any).code = ERROR_CODE_MOCK;
 
       bundlerMock.sendUserOperation.mockRejectedValue(error);
