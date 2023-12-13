@@ -48,7 +48,7 @@ export type PermissionActivityLog = {
 
 export type PermissionLog = {
   accounts?: Record<string, number>;
-  lastApproved: number;
+  lastApproved?: number;
 };
 export type PermissionEntry = Record<string, PermissionLog>;
 
@@ -339,22 +339,19 @@ export class PermissionLogController extends BaseController<
    * @param origin - The requesting origin.
    * @param newEntries - The new entries to commit.
    */
-  #commitNewHistory(
-    origin: string,
-    newEntries: Record<string, Partial<PermissionLog>>,
-  ) {
+  #commitNewHistory(origin: string, newEntries: PermissionEntry) {
     const { permissionHistory } = this.state;
 
     // a simple merge updates most permissions
+    const oldOriginHistory = permissionHistory[origin] || {};
     const newOriginHistory = {
-      ...permissionHistory[origin],
+      ...oldOriginHistory,
       ...newEntries,
     };
 
     // eth_accounts requires special handling, because of information
     // we store about the accounts
-    const existingEthAccountsEntry =
-      permissionHistory[origin] && permissionHistory[origin].eth_accounts;
+    const existingEthAccountsEntry = oldOriginHistory.eth_accounts;
     const newEthAccountsEntry = newEntries.eth_accounts;
 
     if (existingEthAccountsEntry && newEthAccountsEntry) {
@@ -377,7 +374,7 @@ export class PermissionLogController extends BaseController<
     this.update((state) => {
       state.permissionHistory = {
         ...permissionHistory,
-        [origin]: newOriginHistory as PermissionEntry,
+        [origin]: newOriginHistory,
       };
     });
   }

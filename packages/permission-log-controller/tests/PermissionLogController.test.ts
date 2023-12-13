@@ -145,12 +145,9 @@ describe('PermissionLogController', () => {
       });
 
       it('records activity for restricted methods', () => {
-        let log: PermissionActivityLog[],
-          req: JsonRpcRequestWithOrigin,
-          res: PendingJsonRpcResponse<Json>;
+        let req: JsonRpcRequestWithOrigin, res: PendingJsonRpcResponse<Json>;
 
         // test_method, success
-
         req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         req.id = REQUEST_IDS.a;
         res = {
@@ -160,10 +157,8 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        log = controller.state.permissionActivityLog;
-        const entry1 = log[0];
-
-        expect(log).toHaveLength(1);
+        expect(controller.state.permissionActivityLog).toHaveLength(1);
+        const entry1 = controller.state.permissionActivityLog[0];
         validateActivityEntry(
           entry1,
           req,
@@ -183,10 +178,8 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        log = controller.state.permissionActivityLog;
-        const entry2 = log[1];
-
-        expect(log).toHaveLength(2);
+        expect(controller.state.permissionActivityLog).toHaveLength(2);
+        const entry2 = controller.state.permissionActivityLog[1];
         validateActivityEntry(
           entry2,
           req,
@@ -196,7 +189,6 @@ describe('PermissionLogController', () => {
         );
 
         // eth_requestAccounts, success
-
         req = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.c.origin);
         req.id = REQUEST_IDS.c;
         res = {
@@ -206,10 +198,8 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        log = controller.state.permissionActivityLog;
-        const entry3 = log[2];
-
-        expect(log).toHaveLength(3);
+        expect(controller.state.permissionActivityLog).toHaveLength(3);
+        const entry3 = controller.state.permissionActivityLog[2];
         validateActivityEntry(
           entry3,
           req,
@@ -219,7 +209,6 @@ describe('PermissionLogController', () => {
         );
 
         // test_method, no response
-
         req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         req.id = REQUEST_IDS.a;
         // @ts-expect-error We are intentionally passing bad input.
@@ -227,10 +216,8 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        log = controller.state.permissionActivityLog;
-        const entry4 = log[3];
-
-        expect(log).toHaveLength(4);
+        expect(controller.state.permissionActivityLog).toHaveLength(4);
+        const entry4 = controller.state.permissionActivityLog[3];
         validateActivityEntry(
           entry4,
           { ...req },
@@ -240,35 +227,30 @@ describe('PermissionLogController', () => {
         );
 
         // Validate final state
-        expect(entry1).toStrictEqual(log[0]);
-        expect(entry2).toStrictEqual(log[1]);
-        expect(entry3).toStrictEqual(log[2]);
-        expect(entry4).toStrictEqual(log[3]);
+        expect(entry1).toStrictEqual(controller.state.permissionActivityLog[0]);
+        expect(entry2).toStrictEqual(controller.state.permissionActivityLog[1]);
+        expect(entry3).toStrictEqual(controller.state.permissionActivityLog[2]);
+        expect(entry4).toStrictEqual(controller.state.permissionActivityLog[3]);
 
         // Regression test: ensure "response" and "request" properties
         // are not present
-        log.forEach((entry) =>
+        controller.state.permissionActivityLog.forEach((entry) =>
           expect('request' in entry && 'response' in entry).toBe(false),
         );
       });
 
       it('handles responses added out of order', () => {
-        let log;
-
         const handlerArray: JsonRpcEngineReturnHandler[] = [];
-
-        const id1 = nanoid();
-        const id2 = nanoid();
-        const id3 = nanoid();
-
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
 
         // get make requests
+        const id1 = nanoid();
         req.id = id1;
         const res1 = {
           ...PendingJsonRpcResponseStruct.TYPE,
           result: [id1],
         };
+
         logMiddleware(
           {
             ...req,
@@ -281,6 +263,7 @@ describe('PermissionLogController', () => {
           noop,
         );
 
+        const id2 = nanoid();
         req.id = id2;
         const res2 = {
           ...PendingJsonRpcResponseStruct.TYPE,
@@ -288,6 +271,7 @@ describe('PermissionLogController', () => {
         };
         logMiddleware(req, res2, getSavedMockNext(handlerArray), noop);
 
+        const id3 = nanoid();
         req.id = id3;
         const res3 = {
           ...PendingJsonRpcResponseStruct.TYPE,
@@ -296,11 +280,10 @@ describe('PermissionLogController', () => {
         logMiddleware(req, res3, getSavedMockNext(handlerArray), noop);
 
         // verify log state
-        log = controller.state.permissionActivityLog;
-        expect(log).toHaveLength(3);
-        const entry1 = log[0];
-        const entry2 = log[1];
-        const entry3 = log[2];
+        expect(controller.state.permissionActivityLog).toHaveLength(3);
+        const entry1 = controller.state.permissionActivityLog[0];
+        const entry2 = controller.state.permissionActivityLog[1];
+        const entry3 = controller.state.permissionActivityLog[2];
 
         // all entries should be in correct order
         expect(entry1).toMatchObject({ id: id1, responseTime: null });
@@ -313,29 +296,24 @@ describe('PermissionLogController', () => {
         }
 
         // verify log state again
-        log = controller.state.permissionActivityLog;
-        expect(log).toHaveLength(3);
-
+        expect(controller.state.permissionActivityLog).toHaveLength(3);
         // verify all entries
-        log = controller.state.permissionActivityLog;
         validateActivityEntry(
-          log[0],
+          controller.state.permissionActivityLog[0],
           { ...req, id: id1 },
           { ...res1 },
           LOG_METHOD_TYPES.restricted,
           true,
         );
-
         validateActivityEntry(
-          log[1],
+          controller.state.permissionActivityLog[1],
           { ...req, id: id2 },
           { ...res2 },
           LOG_METHOD_TYPES.restricted,
           true,
         );
-
         validateActivityEntry(
-          log[2],
+          controller.state.permissionActivityLog[2],
           { ...req, id: id3 },
           { ...res3 },
           LOG_METHOD_TYPES.restricted,
@@ -354,10 +332,8 @@ describe('PermissionLogController', () => {
         // noop for next handler prevents recording of response
         logMiddleware(req, res, noop, noop);
 
-        let log = controller.state.permissionActivityLog;
-        const entry1 = log[0];
-
-        expect(log).toHaveLength(1);
+        expect(controller.state.permissionActivityLog).toHaveLength(1);
+        const entry1 = controller.state.permissionActivityLog[0];
         validateActivityEntry(
           entry1,
           req,
@@ -376,9 +352,8 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        log = controller.state.permissionActivityLog;
-        const entry2 = log[1];
-        expect(log).toHaveLength(2);
+        expect(controller.state.permissionActivityLog).toHaveLength(2);
+        const entry2 = controller.state.permissionActivityLog[1];
         validateActivityEntry(
           entry2,
           req,
@@ -386,36 +361,39 @@ describe('PermissionLogController', () => {
           LOG_METHOD_TYPES.restricted,
           true,
         );
-
         // validate final state
-        expect(entry1).toStrictEqual(log[0]);
-        expect(entry2).toStrictEqual(log[1]);
+        expect(entry1).toStrictEqual(controller.state.permissionActivityLog[0]);
+        expect(entry2).toStrictEqual(controller.state.permissionActivityLog[1]);
       });
 
       it('ignores expected methods', () => {
-        let log = controller.state.permissionActivityLog;
-        expect(log).toHaveLength(0);
+        expect(controller.state.permissionActivityLog).toHaveLength(0);
 
         const res = {
           ...PendingJsonRpcResponseStruct.TYPE,
           result: ['bar'],
         };
-        const req1 = RPC_REQUESTS.metamask_sendDomainMetadata(
-          SUBJECTS.c.origin,
-          'foobar',
-        );
-        const req2 = RPC_REQUESTS.custom(
-          SUBJECTS.b.origin,
-          'eth_getBlockNumber',
-        );
-        const req3 = RPC_REQUESTS.custom(SUBJECTS.b.origin, 'net_version');
 
-        logMiddleware(req1, res, mockNext, noop);
-        logMiddleware(req2, res, mockNext, noop);
-        logMiddleware(req3, res, mockNext, noop);
+        logMiddleware(
+          RPC_REQUESTS.metamask_sendDomainMetadata(SUBJECTS.c.origin, 'foobar'),
+          res,
+          mockNext,
+          noop,
+        );
+        logMiddleware(
+          RPC_REQUESTS.custom(SUBJECTS.b.origin, 'eth_getBlockNumber'),
+          res,
+          mockNext,
+          noop,
+        );
+        logMiddleware(
+          RPC_REQUESTS.custom(SUBJECTS.b.origin, 'net_version'),
+          res,
+          mockNext,
+          noop,
+        );
 
-        log = controller.state.permissionActivityLog;
-        expect(log).toHaveLength(0);
+        expect(controller.state.permissionActivityLog).toHaveLength(0);
       });
 
       it('enforces log limit', () => {
@@ -433,11 +411,10 @@ describe('PermissionLogController', () => {
         }
 
         // check last entry valid
-        let log = controller.state.permissionActivityLog;
-        expect(log).toHaveLength(LOG_LIMIT);
+        expect(controller.state.permissionActivityLog).toHaveLength(LOG_LIMIT);
 
         validateActivityEntry(
-          log[LOG_LIMIT - 1],
+          controller.state.permissionActivityLog[LOG_LIMIT - 1],
           { ...req, id: lastId ?? null },
           res,
           LOG_METHOD_TYPES.restricted,
@@ -445,19 +422,18 @@ describe('PermissionLogController', () => {
         );
 
         // store the id of the current second entry
-        const nextFirstId = log[1].id;
-
+        const nextFirstId = controller.state.permissionActivityLog[1].id;
         // add one more entry to log, putting it over the limit
         lastId = nanoid();
+
         logMiddleware({ ...req, id: lastId }, res, mockNext, noop);
 
         // check log length
-        log = controller.state.permissionActivityLog;
-        expect(log).toHaveLength(LOG_LIMIT);
+        expect(controller.state.permissionActivityLog).toHaveLength(LOG_LIMIT);
 
         // check first and last entries
         validateActivityEntry(
-          log[0],
+          controller.state.permissionActivityLog[0],
           { ...req, id: nextFirstId },
           res,
           LOG_METHOD_TYPES.restricted,
@@ -465,7 +441,7 @@ describe('PermissionLogController', () => {
         );
 
         validateActivityEntry(
-          log[LOG_LIMIT - 1],
+          controller.state.permissionActivityLog[LOG_LIMIT - 1],
           { ...req, id: lastId },
           res,
           LOG_METHOD_TYPES.restricted,
@@ -556,9 +532,7 @@ describe('PermissionLogController', () => {
         );
 
         // mock permission requested again, with another approved account
-
         jest.advanceTimersByTime(1);
-
         res.result = [PERMS.granted.eth_accounts([ACCOUNTS.a.permitted[0]])];
 
         logMiddleware(req, res, mockNext, noop);
@@ -783,6 +757,7 @@ describe('PermissionLogController', () => {
 
     it('does nothing if the list of accounts is empty', () => {
       const controller = initPermissionLogController();
+
       controller.updateAccountsHistory('foo.com', []);
 
       expect(controller.state.permissionHistory).toStrictEqual({});
