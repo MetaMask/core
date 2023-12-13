@@ -125,7 +125,6 @@ export type AddUserOperationOptions = {
   origin: string;
   requireApproval?: boolean;
   smartContractAccount: SmartContractAccount;
-  transaction?: TransactionParams;
 };
 
 export type AddUserOperationResponse = {
@@ -187,7 +186,9 @@ export class UserOperationController extends BaseController<
    * @param request.to - Destination address of the resulting transaction.
    * @param request.value - Value to include in the resulting transaction.
    * @param options - Configuration options when creating a user operation.
-   * @param options.chainId - Chain ID of the resulting transaction.
+   * @param options.networkClientId - ID of the network client used to query the chain.
+   * @param options.origin - Origin of the user operation, such as the hostname of a dApp.
+   * @param options.requireApproval - Whether to require user approval before submitting the user operation. Defaults to true.
    * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce.
    */
   async addUserOperation(
@@ -200,6 +201,16 @@ export class UserOperationController extends BaseController<
     return await this.#addUserOperation(request, options);
   }
 
+  /**
+   * Create and submit a user operation equivalent to the provided transaction.
+   *
+   * @param transaction - Transaction to use as the basis for the user operation.
+   * @param options - Configuration options when creating a user operation.
+   * @param options.networkClientId - ID of the network client used to query the chain.
+   * @param options.origin - Origin of the user operation, such as the hostname of a dApp.
+   * @param options.requireApproval - Whether to require user approval before submitting the user operation. Defaults to true.
+   * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce.
+   */
   async addUserOperationFromTransaction(
     transaction: TransactionParams,
     options: AddUserOperationOptions,

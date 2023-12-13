@@ -183,6 +183,18 @@ describe('validation', () => {
       ],
       ['options', 'wrong type', 123, 'Expected an object, but received: 123'],
       [
+        'networkClientId',
+        'missing',
+        undefined,
+        'Expected a string, but received: undefined',
+      ],
+      [
+        'origin',
+        'missing',
+        undefined,
+        'Expected a string, but received: undefined',
+      ],
+      [
         'smartContractAccount',
         'missing',
         undefined,
@@ -206,6 +218,13 @@ describe('validation', () => {
         undefined,
         'Expected a function, but received: undefined',
       ],
+      [
+        'networkClientId',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      ['origin', 'wrong type', 123, 'Expected a string, but received: 123'],
       [
         'smartContractAccount',
         'wrong type',

@@ -17,12 +17,18 @@ import type {
   SignUserOperationResponse,
   UpdateUserOperationResponse,
 } from '../types';
+import type {
+  AddUserOperationOptions,
+  AddUserOperationRequest,
+} from '../UserOperationController';
 
 /**
  * Validate a request to add a user operation.
  * @param request - The request to validate.
  */
-export function validateAddUserOperationRequest(request: any) {
+export function validateAddUserOperationRequest(
+  request: AddUserOperationRequest,
+) {
   const Hex = defineHex();
   const HexOrEmptyBytes = defineHexOrEmptyBytes();
 
@@ -41,7 +47,9 @@ export function validateAddUserOperationRequest(request: any) {
  * Validate the options when adding a user operation.
  * @param options - The options to validate.
  */
-export function validateAddUserOperationOptions(options: any) {
+export function validateAddUserOperationOptions(
+  options: AddUserOperationOptions,
+) {
   const ValidOptions = object({
     networkClientId: string(),
     origin: string(),
