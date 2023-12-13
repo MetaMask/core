@@ -1565,8 +1565,16 @@ export class TransactionController extends BaseControllerV1<
    * @param address - The hex string address for the transaction.
    * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
    */
-  async getNonceLock(address: string): Promise<NonceLock> { // NOTE(JL): i think this should take in chainId, but not sure how to deal with networkClientId mapping
-    return this.nonceTracker.getNonceLock(address);
+  async getNonceLock(address: string): Promise<NonceLock> {
+    const releaseLock = await this.mutex.acquire()
+    const nonceLock = await this.nonceTracker.getNonceLock(address);
+    return {
+      ...nonceLock,
+      releaseLock: () => {
+        nonceLock.releaseLock()
+        releaseLock()
+      }
+    }
   }
 
   /**
@@ -1674,7 +1682,7 @@ export class TransactionController extends BaseControllerV1<
     try {
       // TODO: we should add a check to verify that all transactions have the same from address
       const fromAddress = initialTx.from;
-      nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
+      nonceLock = await this.getNonceLock(fromAddress);
       const nonce = nonceLock.nextNonce;
 
       log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
