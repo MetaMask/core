@@ -21,6 +21,8 @@ describe('SafeEventEmitterProvider', () => {
     });
 
     it('does not throw if engine does not support events', () => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const engine = new JsonRpcEngine() as any;
       delete engine.on;
 
@@ -77,6 +79,8 @@ describe('SafeEventEmitterProvider', () => {
         method: 'test',
       };
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(() => (provider.send as any)(exampleRequest)).toThrow('');
     });
 

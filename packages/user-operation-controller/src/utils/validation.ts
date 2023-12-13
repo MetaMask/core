@@ -21,6 +21,8 @@ import type {
  * Validate a request to add a user operation.
  * @param request - The request to validate.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateAddUserOperationRequest(request: any) {
   const Hex = defineHex();
   const HexOrEmptyBytes = defineHexOrEmptyBytes();
@@ -40,6 +42,8 @@ export function validateAddUserOperationRequest(request: any) {
  * Validate the options when adding a user operation.
  * @param options - The options to validate.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateAddUserOperationOptions(options: any) {
   const Hex = defineHex();
 
@@ -148,9 +152,13 @@ export function validateSignUserOperationResponse(
  * @param struct - The struct to validate against.
  * @param message - The message to throw if validation fails.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validate(data: any, struct: Struct<any>, message: string) {
   try {
     assert(data, struct, message);
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     const causes = error
       .failures()

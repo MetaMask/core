@@ -44,6 +44,8 @@ describe('Etherscan', () => {
     it('returns fetched response', async () => {
       handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (Etherscan as any)[method](REQUEST_MOCK);
 
       expect(result).toStrictEqual(RESPONSE_MOCK);
@@ -52,6 +54,8 @@ describe('Etherscan', () => {
     it('fetches from Etherscan URL', async () => {
       handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (Etherscan as any)[method](REQUEST_MOCK);
 
       expect(handleFetchMock).toHaveBeenCalledTimes(1);
@@ -73,6 +77,8 @@ describe('Etherscan', () => {
     it('supports alternate networks', async () => {
       handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (Etherscan as any)[method]({
         ...REQUEST_MOCK,
         chainId: CHAIN_IDS.MAINNET,
@@ -98,6 +104,8 @@ describe('Etherscan', () => {
       const unsupportedChainId = '0x11111111111111111111';
 
       await expect(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (Etherscan as any)[method]({
           ...REQUEST_MOCK,
           chainId: unsupportedChainId,
@@ -110,6 +118,8 @@ describe('Etherscan', () => {
     it('does not include empty values in fetched URL', async () => {
       handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (Etherscan as any)[method]({
         ...REQUEST_MOCK,
         fromBlock: undefined,

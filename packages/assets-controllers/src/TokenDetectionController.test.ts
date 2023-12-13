@@ -214,6 +214,8 @@ describe('TokenDetectionController', () => {
     controllerMessenger = getControllerMessenger();
     sinon
       .stub(TokensController.prototype, '_createEthersContract')
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .callsFake(() => null as any);
 
     tokensController = new TokensController({
@@ -222,6 +224,8 @@ describe('TokenDetectionController', () => {
       onNetworkDidChange: (listener) =>
         onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -499,6 +503,8 @@ describe('TokenDetectionController', () => {
     });
 
     it('should call getBalancesInSingleCall if onPreferencesStateChange is called with useTokenDetection being true and is changed', async () => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let preferencesStateChangeListener: (state: any) => void;
       const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
         preferencesStateChangeListener = listener;

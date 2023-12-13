@@ -22,6 +22,8 @@ export default async function cli(
     .usage('$0 [args]')
     // Typecast: the CommandModule<T, U>[] signature does in fact exist, but it is
     // missing from our yargs types.
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .command(commands as any)
     .strict()
     .check((args) => {

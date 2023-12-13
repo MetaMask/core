@@ -40,6 +40,8 @@ export class ERC20Standard {
     try {
       const decimals = await contract.decimals();
       return decimals.toString();
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       // Mirror previous implementation
       if (err.message.includes('call revert exception')) {
@@ -60,6 +62,8 @@ export class ERC20Standard {
     try {
       const name = await contract.name();
       return name.toString();
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       // Mirror previous implementation
       if (err.message.includes('call revert exception')) {
