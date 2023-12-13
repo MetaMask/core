@@ -288,11 +288,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       }
     }
     const sliceOfTokensToDetect = [];
-    for (let i = 0; i < tokensToDetect.length; i += 1000) {
-      sliceOfTokensToDetect.push(
-        tokensToDetect.slice(i, Math.min(i + 1000, tokensToDetect.length)),
-      );
-    }
+    sliceOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
+    sliceOfTokensToDetect[1] = tokensToDetect.slice(
+      1000,
+      tokensToDetect.length - 1,
+    );
 
     /* istanbul ignore else */
     if (!selectedAddress) {
