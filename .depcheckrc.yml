@@ -11,11 +11,14 @@ ignores:
   - '@metamask/auto-changelog'
   - '@metamask/create-release-branch'
   - 'depcheck'
+  - 'eslint-interactive'
   - 'simple-git-hooks'
   - 'ts-node'
   - 'typedoc'
-  # Ignore dependencies which plug into the NPM lifecycle
-  - '@lavamoat/preinstall-always-fail'
   # Ignore plugins implicitly imported by tools
   - 'jest-silent-reporter'
   - 'prettier-plugin-packagejson'
+  # Ignore plugins we explicitly use with tools
+  - 'babel-jest'
+  # Ignore dependencies which plug into the NPM lifecycle
+  - '@lavamoat/preinstall-always-fail'
