@@ -130,6 +130,8 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
 
       for (const [key, value] of Object.entries(this.internalConfig)) {
         if (value !== undefined) {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this as any)[key] = value;
         }
       }
@@ -138,6 +140,8 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
         /* istanbul ignore else */
         if (typeof this.internalConfig[key] !== 'undefined') {
           this.internalConfig[key] = (config as C)[key];
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this as any)[key] = config[key];
         }
       }

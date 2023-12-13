@@ -62,6 +62,8 @@ export const MISSING_PROVIDER_ERROR =
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AssetsContractConfig extends BaseConfig {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any;
   ipfsGateway: string;
   chainId: Hex;
@@ -87,6 +89,8 @@ export class AssetsContractController extends BaseControllerV1<
   AssetsContractConfig,
   BaseState
 > {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _provider?: any;
 
   /**
@@ -155,6 +159,8 @@ export class AssetsContractController extends BaseControllerV1<
    *
    * @property provider - Provider used to create a new underlying Web3 instance
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   set provider(provider: any) {
     this._provider = provider;
   }

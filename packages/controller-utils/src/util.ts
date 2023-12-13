@@ -42,6 +42,8 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @param inputBn - BN instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function BNToHex(inputBn: any) {
   return addHexPrefix(inputBn.toString(16));
 }
@@ -55,6 +57,8 @@ export function BNToHex(inputBn: any) {
  * @returns Product of the multiplication.
  */
 export function fractionBN(
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   targetBN: any,
   numerator: number | string,
   denominator: number | string,
@@ -442,7 +446,11 @@ export function normalizeEnsName(ensName: string): string | null {
 export function query(
   ethQuery: EthQuery,
   method: string,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any[] = [],
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const cb = (error: unknown, result: unknown) => {
@@ -529,6 +537,8 @@ export function isValidJson(value: unknown): value is Json {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function logOrRethrowError(error: any, codesToCatch: number[] = []) {
   if (!error) {
     return;

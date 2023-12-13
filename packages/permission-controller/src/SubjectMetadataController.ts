@@ -200,6 +200,8 @@ export class SubjectMetadataController extends BaseController<
 
     this.update((draftState) => {
       // Typecast: ts(2589)
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       draftState.subjectMetadata[origin] = newMetadata as any;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
@@ -224,6 +226,8 @@ export class SubjectMetadataController extends BaseController<
     this.update((draftState) => {
       return SubjectMetadataController.getTrimmedState(
         // Typecast: ts(2589)
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         draftState as any,
         this.subjectHasPermissions,
       );

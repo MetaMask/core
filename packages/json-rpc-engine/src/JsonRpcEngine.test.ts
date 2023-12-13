@@ -15,6 +15,8 @@ const jsonrpc = '2.0' as const;
 describe('JsonRpcEngine', () => {
   it('handle: throws on truthy, non-function callback', () => {
     const engine = new JsonRpcEngine();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => engine.handle({} as any, 'foo' as any)).toThrow(
       '"callback" must be a function if provided.',
     );
@@ -22,10 +24,14 @@ describe('JsonRpcEngine', () => {
 
   it('handle: returns error for invalid request value', async () => {
     const engine = new JsonRpcEngine();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let response: any = await engine.handle(null as any);
     expect(response.error.code).toBe(-32600);
     expect(response.result).toBeUndefined();
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     response = await engine.handle(true as any);
     expect(response.error.code).toBe(-32600);
     expect(response.result).toBeUndefined();
@@ -33,6 +39,8 @@ describe('JsonRpcEngine', () => {
 
   it('handle: returns error for invalid request method', async () => {
     const engine = new JsonRpcEngine();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle({ id: 1, method: null } as any);
 
     expect(response.error.code).toBe(-32600);
@@ -41,9 +49,13 @@ describe('JsonRpcEngine', () => {
 
   it('handle: returns error for invalid request method with nullish id', async () => {
     const engine = new JsonRpcEngine();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle({
       id: undefined,
       method: null,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
     expect(response.error.code).toBe(-32600);
@@ -57,6 +69,8 @@ describe('JsonRpcEngine', () => {
     engine.push(middleware);
 
     expect(
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await engine.handle({ jsonrpc, method: true } as any),
     ).toBeUndefined();
     expect(notificationHandler).not.toHaveBeenCalled();
@@ -214,11 +228,15 @@ describe('JsonRpcEngine', () => {
   it('interacting middleware test', async () => {
     const engine = new JsonRpcEngine();
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     engine.push(function (request: any, _response, next, _end) {
       request.resultShouldBe = 42;
       next();
     });
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     engine.push(function (request: any, response, _next, end) {
       response.result = request.resultShouldBe;
       end();
@@ -326,6 +344,8 @@ describe('JsonRpcEngine', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(function (_request, _response, next, _end) {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       next(true as any);
     });
 
@@ -363,9 +383,13 @@ describe('JsonRpcEngine', () => {
 
   it('handle: empty batch', async () => {
     const engine = new JsonRpcEngine();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emptyBatch = [] as any;
 
     await new Promise<void>((resolve) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       engine.handle(emptyBatch, function (error, response: any) {
         expect(error).toBeNull();
         expect(response).toBeInstanceOf(Array);
@@ -383,8 +407,12 @@ describe('JsonRpcEngine', () => {
 
   it('handle: empty batch (async signature)', async () => {
     const engine = new JsonRpcEngine();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emptyBatch = [] as any;
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle(emptyBatch);
     expect(response).toBeInstanceOf(Array);
     expect(response).toHaveLength(1);
@@ -417,6 +445,8 @@ describe('JsonRpcEngine', () => {
     const payload = [payloadA, payloadB, payloadC, payloadD, payloadE];
 
     await new Promise<void>((resolve) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       engine.handle(payload, function (error, response: any) {
         expect(error).toBeNull();
         expect(response).toBeInstanceOf(Array);
@@ -451,6 +481,8 @@ describe('JsonRpcEngine', () => {
     const payloadE = { id: 5, jsonrpc, method: 'hello' };
     const payload = [payloadA, payloadB, payloadC, payloadD, payloadE];
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle(payload);
     expect(response).toBeInstanceOf(Array);
     expect(response[0].result).toBe(1);
@@ -474,6 +506,8 @@ describe('JsonRpcEngine', () => {
     const payloadC = { id: 3, jsonrpc, method: 'hello' };
     const payload = [payloadA, payloadB, payloadC];
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle(payload as any);
     expect(response).toBeInstanceOf(Array);
     expect(response[0].result).toBe(1);
@@ -497,6 +531,8 @@ describe('JsonRpcEngine', () => {
   it('return handlers test', async () => {
     const engine = new JsonRpcEngine();
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     engine.push(function (_request, response: any, next, _end) {
       next(function (callback) {
         response.sawReturnHandler = true;
@@ -512,6 +548,8 @@ describe('JsonRpcEngine', () => {
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       engine.handle(payload, function (error, response: any) {
         expect(error).toBeNull();
         expect(response).toBeDefined();
@@ -607,6 +645,8 @@ describe('JsonRpcEngine', () => {
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       engine.handle(payload, (error: any, _response) => {
         expect(error).toBeDefined();
         expect(error.message).toBe('foo');
@@ -626,6 +666,8 @@ describe('JsonRpcEngine', () => {
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       engine.handle(payload, (error: any, response) => {
         expect(
           error.message.startsWith('JsonRpcEngine: Nothing ended request:'),
@@ -639,10 +681,14 @@ describe('JsonRpcEngine', () => {
   it('handles batch request processing error', async () => {
     const engine = new JsonRpcEngine();
     jest
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .spyOn(engine as any, '_promiseHandle')
       .mockRejectedValue(new Error('foo'));
 
     await new Promise<void>((resolve) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       engine.handle([{}] as any, (error: any) => {
         expect(error.message).toBe('foo');
         resolve();
@@ -653,9 +699,13 @@ describe('JsonRpcEngine', () => {
   it('handles batch request processing error (async)', async () => {
     const engine = new JsonRpcEngine();
     jest
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .spyOn(engine as any, '_promiseHandle')
       .mockRejectedValue(new Error('foo'));
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(engine.handle([{}] as any)).rejects.toThrow('foo');
   });
 
