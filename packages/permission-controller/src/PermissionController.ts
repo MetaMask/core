@@ -119,7 +119,11 @@ export type PermissionsRequest = {
 };
 
 export type SideEffects = {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   permittedHandlers: Record<string, SideEffectHandler<any, any>>;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   failureHandlers: Record<string, SideEffectHandler<any, any>>;
 };
 
@@ -1292,6 +1296,8 @@ export class PermissionController<
         // is allowed to have caveats, but it should be impossible to call
         // this method for a permission that may not have any caveats.
         // If all else fails, the permission validator is also called.
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         permission.caveats = [caveat] as any;
       }
 
@@ -1385,6 +1391,8 @@ export class PermissionController<
               const _exhaustiveCheck: never = mutatorResult;
               throw new Error(
                 `Unrecognized mutation result: "${
+                  // TODO: Replace `any` with type
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   (_exhaustiveCheck as any).operation
                 }"`,
               );
@@ -2230,6 +2238,8 @@ export class PermissionController<
       // Typecast: For some reason, the type here expects all of the possible
       // HasApprovalRequest options to be specified, when they're actually all
       // optional. Passing just the id is definitely valid, so we just cast it.
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       options as any,
     );
   }

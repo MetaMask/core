@@ -144,6 +144,8 @@ export class ERC721Standard {
     const contract = new Contract(address, abiERC721, this.provider);
     try {
       return await contract.supportsInterface(interfaceId);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       // Mirror previous implementation
       if (err.message.includes('call revert exception')) {

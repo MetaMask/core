@@ -15,6 +15,8 @@ import type {
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
   data: (data: string) => addHexPrefix(data),
   from: (from: string) => addHexPrefix(from).toLowerCase(),
@@ -74,6 +76,8 @@ export const validateGasValues = (
   gasValues: GasPriceValue | FeeMarketEIP1559Values,
 ) => {
   Object.keys(gasValues).forEach((key) => {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = (gasValues as any)[key];
     if (typeof value !== 'string' || !isHexString(value)) {
       throw new TypeError(
@@ -168,6 +172,8 @@ export function normalizeTxError(
 export function normalizeGasFeeValues(
   gasFeeValues: GasPriceValue | FeeMarketEIP1559Values,
 ): GasPriceValue | FeeMarketEIP1559Values {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalize = (value: any) =>
     typeof value === 'string' ? addHexPrefix(value) : value;
 

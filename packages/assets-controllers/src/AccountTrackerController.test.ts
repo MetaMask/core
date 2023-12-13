@@ -86,6 +86,8 @@ describe('AccountTrackerController', () => {
     controller.refresh = sinon.stub();
 
     preferences.setFeatureFlag('foo', true);
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((controller.refresh as any).called).toBe(true);
   });
 

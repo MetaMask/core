@@ -14,8 +14,14 @@ const createExecutePollMock = () => {
 };
 
 class ChildBlockTrackerPollingController extends StaticIntervalPollingController<
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any
 > {
   _executePoll = createExecutePollMock();
@@ -23,9 +29,15 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
 
 describe('StaticIntervalPollingController', () => {
   let clock: sinon.SinonFakeTimers;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockMessenger: any;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let controller: any;
   beforeEach(() => {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockMessenger = new ControllerMessenger<any, any>();
     controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
@@ -226,6 +238,8 @@ describe('StaticIntervalPollingController', () => {
 
   describe('onPollingCompleteByNetworkClientId', () => {
     it('should publish "pollingComplete" callback function set by "onPollingCompleteByNetworkClientId" when polling stops', async () => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pollingComplete: any = jest.fn();
       controller.onPollingCompleteByNetworkClientId('mainnet', pollingComplete);
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');

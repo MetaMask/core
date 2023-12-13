@@ -5,6 +5,8 @@ import { providerFromMiddleware } from './provider-from-middleware';
 
 describe('providerFromMiddleware', () => {
   it('handle a successful request', async () => {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const middleware: JsonRpcMiddleware<any, any> = (_req, res, _next, end) => {
       res.result = 42;
       end();

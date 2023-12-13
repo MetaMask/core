@@ -9,6 +9,8 @@ describe('decorateWithCaveats', () => {
     const caveatSpecifications = {
       reverse: {
         type: 'reverse',
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         decorator: (method: any, _caveat: any) => async () => {
           return (await method()).reverse();
         },
@@ -44,12 +46,16 @@ describe('decorateWithCaveats', () => {
     const caveatSpecifications = {
       reverse: {
         type: 'reverse',
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         decorator: (method: any, _caveat: any) => async () => {
           return (await method()).reverse();
         },
       },
       slice: {
         type: 'slice',
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         decorator: (method: any, caveat: any) => async () => {
           return (await method()).slice(0, caveat.value);
         },
@@ -108,6 +114,8 @@ describe('decorateWithCaveats', () => {
     const caveatSpecifications = {
       reverse: {
         type: 'reverse',
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         decorator: (method: any, _caveat: any) => async () => {
           return (await method()).reverse();
         },
