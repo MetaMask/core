@@ -56,7 +56,7 @@ type SuggestedNftMeta = {
   origin: string;
 };
 
-enum OpenSeaV2ChainIds {
+export enum OpenSeaV2ChainIds {
   ethereum = 'ethereum',
 }
 
