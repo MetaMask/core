@@ -7,6 +7,8 @@ import {
   SUPPORTED_CURRENCIES,
 } from './codefi-v2';
 
+// We're not customizing the default max delay
+// The default can be found here: https://github.com/connor4312/cockatiel?tab=readme-ov-file#exponentialbackoff
 const defaultMaxRetryDelay = 30_000;
 
 describe('CodefiTokenPricesServiceV2', () => {
