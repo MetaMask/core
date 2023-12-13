@@ -676,9 +676,10 @@ export class TransactionController extends BaseControllerV1<
   ): Promise<Result> {
     log('Adding transaction', txParams);
 
-    networkClientId ??= this.getNetworkClientIdForDomain(
-      origin ?? ORIGIN_METAMASK,
-    );
+    // TODO(JL): Revisit this fallback during implementation
+    // networkClientId ??= this.getNetworkClientIdForDomain(
+    //   origin ?? ORIGIN_METAMASK,
+    // );
 
     txParams = normalizeTxParams(txParams);
 
@@ -708,9 +709,7 @@ export class TransactionController extends BaseControllerV1<
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
-    const chainId =
-      this.getNetworkClientById(networkClientId).configuration.chainId ??
-      this.getChainId();
+    const chainId = this.getChainId(networkClientId);
 
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     const transactionMeta: TransactionMeta = existingTransactionMeta || {
@@ -1063,6 +1062,10 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
+    // TODO(JL): Usually we only want submit transactions on the specific network
+    // that the user approved them on, but it makes sense to allow cancelling
+    // from any network that's also on the same chain. We will need to add a fallback
+    // here to allow using networkClientIds other than the original
     const ethQuery = this.getEthQuery(transactionMeta.networkClientId)
     const hash = await this.publishTransaction(ethQuery, rawTx)
 
@@ -1268,7 +1271,7 @@ export class TransactionController extends BaseControllerV1<
    * @param address - If specified, only transactions originating from this address will be
    * wiped on current network.
    */
-  wipeTransactions(ignoreNetwork?: boolean, address?: string) { // NOTE(JL): should this be updated to filter by optional chainId?
+  wipeTransactions(ignoreNetwork?: boolean, address?: string) {
     /* istanbul ignore next */
     if (ignoreNetwork && !address) {
       this.update({ transactions: [] });
@@ -1795,7 +1798,7 @@ export class TransactionController extends BaseControllerV1<
     filterToCurrentNetwork?: boolean;
     limit?: number;
   } = {}): TransactionMeta[] {
-    const chainId = this.getChainId(); // NOTE(JL): should this take in chainId or networkClientId instead?
+    const chainId = this.getChainId(); // TODO(JL): This should be made into an optional param
     // searchCriteria is an object that might have values that aren't predicate
     // methods. When providing any other value type (string, number, etc), we
     // consider this shorthand for "check the value at key for strict equality
@@ -2155,7 +2158,7 @@ export class TransactionController extends BaseControllerV1<
 
       transactionMeta.status = TransactionStatus.approved;
       transactionMeta.txParams.nonce = nonce;
-      transactionMeta.txParams.chainId = chainId; // NOTE(JL): should this be coming from txMeta instead of the currentChainId?
+      transactionMeta.txParams.chainId = transactionMeta.chainId;
 
       const baseTxParams = {
         ...transactionMeta.txParams,
@@ -2388,7 +2391,10 @@ export class TransactionController extends BaseControllerV1<
     return { meta: transaction, isCompleted };
   }
 
-  private getChainId(): Hex {
+  private getChainId(networkClientId?: NetworkClientId): Hex {
+    if (networkClientId) {
+      return this.getNetworkClientById(networkClientId).configuration.chainId;
+    }
     const { providerConfig } = this.getNetworkState();
     return providerConfig.chainId;
   }
@@ -2513,13 +2519,13 @@ export class TransactionController extends BaseControllerV1<
    * @param transactionMeta - Nominated external transaction to be added to state.
    */
   private addExternalTransaction(transactionMeta: TransactionMeta) {
-    const chainId = this.getChainId();
+    const { chainId } = transactionMeta
     const { transactions } = this.state;
     const fromAddress = transactionMeta?.txParams?.from;
     const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
         transaction.txParams.from === fromAddress &&
-        transaction.chainId === chainId, // NOTE(JL): shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
+        transaction.chainId === chainId,
     );
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.confirmed,
@@ -2554,15 +2560,16 @@ export class TransactionController extends BaseControllerV1<
    * @param transactionId - Used to identify original transaction.
    */
   private markNonceDuplicatesDropped(transactionId: string) {
-    const chainId = this.getChainId();
     const transactionMeta = this.getTransaction(transactionId);
+    // NOTE(JL): Should this method be exiting early if getTransaction returns no transaction object?
     const nonce = transactionMeta?.txParams?.nonce;
     const from = transactionMeta?.txParams?.from;
+    const chainId = transactionMeta?.chainId
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId, // NOTE(JL): shouldn't this be filtering against transactionMeta.chainId not the currentChainId?
+        transaction.chainId === chainId,
     );
 
     if (!sameNonceTxs.length) {

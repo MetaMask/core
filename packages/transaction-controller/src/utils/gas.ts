@@ -8,18 +8,16 @@ import {
   query,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { ProviderConfig } from '@metamask/network-controller';
-import { createModuleLogger } from '@metamask/utils';
+import { Hex, createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
 import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionParams } from '../types';
-import { NetworkClientConfiguration } from '@metamask/network-controller';
 
 export type UpdateGasRequest = {
   ethQuery: EthQuery;
-  providerConfig: ProviderConfig | NetworkClientConfiguration;
+  providerConfig: {type: NetworkType, chainId: Hex}
   txMeta: TransactionMeta;
 };
 
