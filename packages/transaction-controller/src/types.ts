@@ -1,4 +1,5 @@
 import type { AccessList } from '@ethereumjs/tx';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 

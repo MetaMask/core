@@ -1,6 +1,6 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { BlockTracker } from '@metamask/network-controller';
+import type { BlockTracker, NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 import type { NonceTracker } from 'nonce-tracker';
@@ -65,7 +65,7 @@ export class PendingTransactionTracker {
 
   #getChainId: () => string;
 
-  #getEthQuery: () => EthQuery;
+  #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -79,7 +79,7 @@ export class PendingTransactionTracker {
 
   #onStateChange: (listener: () => void) => void;
 
-  #publishTransaction: (rawTx: string) => Promise<string>;
+  #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
 
   #running: boolean;
 
@@ -102,7 +102,7 @@ export class PendingTransactionTracker {
     approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
     getChainId: () => string;
-    getEthQuery: () => EthQuery;
+    getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
     nonceTracker: NonceTracker;
@@ -277,7 +277,8 @@ export class PendingTransactionTracker {
       return;
     }
 
-    await this.#publishTransaction(rawTx);
+    const ethQuery = this.#getEthQuery(txMeta.networkClientId)
+    await this.#publishTransaction(ethQuery, rawTx);
 
     txMeta.retryCount = (txMeta.retryCount ?? 0) + 1;
 
