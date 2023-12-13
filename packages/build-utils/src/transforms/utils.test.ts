@@ -2,6 +2,8 @@ import { lintTransformedFile } from '..';
 
 describe('transform utils', () => {
   describe('lintTransformedFile', () => {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockESLint: any = {
       lintText: jest.fn(),
     };

@@ -19,6 +19,8 @@ describe('utils', () => {
       expect(() =>
         util.validateSignMessageData({
           data: '0x879a05',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
@@ -29,6 +31,8 @@ describe('utils', () => {
         util.validateSignMessageData({
           data: '0x879a05',
           from,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -39,6 +43,8 @@ describe('utils', () => {
         util.validateSignMessageData({
           data: '0x879a05',
           from,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -47,6 +53,8 @@ describe('utils', () => {
       expect(() =>
         util.validateSignMessageData({
           data: '0x879a05',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
@@ -56,6 +64,8 @@ describe('utils', () => {
         util.validateSignMessageData({
           data: 123,
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow('Invalid message "data": 123 must be a valid string.');
     });
@@ -66,6 +76,8 @@ describe('utils', () => {
       expect(() =>
         util.validateTypedSignMessageDataV1({
           data: [],
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
@@ -76,6 +88,8 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV1({
           data: [],
           from,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -86,6 +100,8 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV1({
           data: [],
           from,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -95,6 +111,8 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV1({
           data: '0x879a05',
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow('Invalid message "data":');
     });
@@ -104,6 +122,8 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV1({
           data: '0x879a05',
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow('Invalid message "data":');
     });
@@ -113,6 +133,8 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV1({
           data: [],
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow('Expected EIP712 typed data.');
     });
@@ -127,6 +149,8 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV3V4(
           {
             data: '0x879a05',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -140,6 +164,8 @@ describe('utils', () => {
           {
             data: '0x879a05',
             from,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -153,6 +179,8 @@ describe('utils', () => {
           {
             data: '0x879a05',
             from: 123,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -165,6 +193,8 @@ describe('utils', () => {
           {
             data: [],
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -176,6 +206,8 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV3V4(
           {
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -188,6 +220,8 @@ describe('utils', () => {
           {
             data: 'uh oh',
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -200,6 +234,8 @@ describe('utils', () => {
           {
             data: dataTyped,
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           undefined,
         ),
@@ -213,6 +249,8 @@ describe('utils', () => {
           {
             data: dataTyped.replace(`"chainId":1`, `"chainId":"0x1"`),
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           // @ts-expect-error Intentionally invalid
           unexpectedChainId,
@@ -231,6 +269,8 @@ describe('utils', () => {
           {
             data: dataTyped,
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           chainId,
         ),
@@ -247,6 +287,8 @@ describe('utils', () => {
           {
             data: '{"greetings":"I am Alice"}',
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -259,6 +301,8 @@ describe('utils', () => {
           {
             data: dataTyped.replace(`"chainId":1`, `"chainId":"1"`),
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -271,6 +315,8 @@ describe('utils', () => {
           {
             data: JSON.parse(dataTyped),
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
           mockedCurrentChainId,
         ),
@@ -281,6 +327,8 @@ describe('utils', () => {
   describe('validateEncryptionPublicKeyMessageData', () => {
     it('should throw if no from address', () => {
       expect(() =>
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         util.validateEncryptionPublicKeyMessageData({} as any),
       ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
@@ -290,6 +338,8 @@ describe('utils', () => {
       expect(() =>
         util.validateEncryptionPublicKeyMessageData({
           from,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -299,6 +349,8 @@ describe('utils', () => {
       expect(() =>
         util.validateEncryptionPublicKeyMessageData({
           from: 123,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -307,6 +359,8 @@ describe('utils', () => {
       expect(() =>
         util.validateEncryptionPublicKeyMessageData({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).not.toThrow();
     });
@@ -314,6 +368,8 @@ describe('utils', () => {
 
   describe('validateDecryptedMessageData', () => {
     it('should throw if no from address', () => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(() => util.validateDecryptedMessageData({} as any)).toThrow(
         'Invalid "from" address: undefined must be a valid string.',
       );
@@ -324,6 +380,8 @@ describe('utils', () => {
       expect(() =>
         util.validateDecryptedMessageData({
           from,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -333,6 +391,8 @@ describe('utils', () => {
       expect(() =>
         util.validateDecryptedMessageData({
           from,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
@@ -341,6 +401,8 @@ describe('utils', () => {
       expect(() =>
         util.validateDecryptedMessageData({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).not.toThrow();
     });

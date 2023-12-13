@@ -692,8 +692,12 @@ describe('build transforms', () => {
         expect(() =>
           validateCommand(
             DirectiveCommand.ONLY_INCLUDE_IF,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             invalidInput as any,
             'file.js',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {} as any,
           ),
         ).toThrow('No parameters specified.');
@@ -701,6 +705,8 @@ describe('build transforms', () => {
     });
 
     it('throws if the command is unrecognized', () => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(() => validateCommand('foobar', [], 'file.js', {} as any)).toThrow(
         'Unrecognized command "foobar".',
       );

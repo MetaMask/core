@@ -298,6 +298,8 @@ type TransactionMetaBase = {
   /**
    * Response from security provider.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   securityProviderResponse?: Record<string, any>;
 
   /**
@@ -331,6 +333,8 @@ type TransactionMetaBase = {
   /**
    * The metadata of the swap transaction.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   swapMetaData?: Record<string, any>;
 
   /**
@@ -847,6 +851,8 @@ export type InferTransactionTypeResult = {
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
 /**

@@ -14,8 +14,9 @@ export const controllerName = 'ComposableController';
  * that we use in the ComposableController (name and state).
  */
 type ControllerInstance =
-  | BaseControllerV1<any, any>
-  | { name: string; state: Record<string, unknown> };
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  BaseControllerV1<any, any> | { name: string; state: Record<string, unknown> };
 
 /**
  * List of child controller instances
@@ -29,6 +30,8 @@ export type ControllerList = ControllerInstance[];
  */
 function isBaseControllerV1(
   controller: ControllerInstance,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): controller is BaseControllerV1<any, any> {
   return controller instanceof BaseControllerV1;
 }

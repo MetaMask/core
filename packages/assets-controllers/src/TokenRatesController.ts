@@ -364,8 +364,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       return;
     }
 
-    const tokenContractAddresses = this.#getTokenAddresses(chainId);
-    if (tokenContractAddresses.length === 0) {
+    const tokenAddresses = this.#getTokenAddresses(chainId);
+    if (tokenAddresses.length === 0) {
       return;
     }
 
@@ -387,7 +387,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
 
     try {
       const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
-        tokenContractAddresses,
+        tokenAddresses,
         chainId,
         nativeCurrency,
       });
@@ -437,42 +437,42 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * exchange rate between the known currency and desired currency.
    *
    * @param args - The arguments to this function.
-   * @param args.tokenContractAddresses - Contract addresses for tokens.
+   * @param args.tokenAddresses - Addresses for tokens.
    * @param args.chainId - The EIP-155 ID of the chain where the tokens live.
    * @param args.nativeCurrency - The native currency in which to request
    * exchange rates.
-   * @returns A map from token contract address to its exchange rate in the
-   * native currency, or an empty map if no exchange rates can be obtained for
-   * the chain ID.
+   * @returns A map from token address to its exchange rate in the native
+   * currency, or an empty map if no exchange rates can be obtained for the
+   * chain ID.
    */
   async #fetchAndMapExchangeRates({
-    tokenContractAddresses,
+    tokenAddresses,
     chainId,
     nativeCurrency,
   }: {
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
-      return tokenContractAddresses.reduce((obj, tokenContractAddress) => {
+      return tokenAddresses.reduce((obj, tokenAddress) => {
         return {
           ...obj,
-          [tokenContractAddress]: undefined,
+          [tokenAddress]: undefined,
         };
       }, {});
     }
 
     if (this.#tokenPricesService.validateCurrencySupported(nativeCurrency)) {
       return await this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
-        tokenContractAddresses,
+        tokenAddresses,
         chainId,
         nativeCurrency,
       });
     }
 
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
-      tokenContractAddresses,
+      tokenAddresses,
       nativeCurrency,
     });
   }
@@ -496,7 +496,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * chain. Ensures that token addresses are checksum addresses.
    *
    * @param args - The arguments to this function.
-   * @param args.tokenContractAddresses - Contract addresses for tokens.
+   * @param args.tokenAddresses - Addresses for tokens.
    * @param args.chainId - The EIP-155 ID of the chain where the tokens live.
    * @param args.nativeCurrency - The native currency in which to request
    * prices.
@@ -504,41 +504,41 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * native currency.
    */
   async #fetchAndMapExchangeRatesForSupportedNativeCurrency({
-    tokenContractAddresses,
+    tokenAddresses,
     chainId,
     nativeCurrency,
   }: {
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
-    const tokenPricesByTokenContractAddress = await reduceInBatchesSerially<
+    const tokenPricesByTokenAddress = await reduceInBatchesSerially<
       Hex,
       Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
     >({
-      values: tokenContractAddresses,
+      values: tokenAddresses,
       batchSize: TOKEN_PRICES_BATCH_SIZE,
-      eachBatch: async (allTokenPricesByTokenContractAddress, batch) => {
-        const tokenPricesByTokenContractAddressForBatch =
+      eachBatch: async (allTokenPricesByTokenAddress, batch) => {
+        const tokenPricesByTokenAddressForBatch =
           await this.#tokenPricesService.fetchTokenPrices({
-            tokenContractAddresses: batch,
+            tokenAddresses: batch,
             chainId,
             currency: nativeCurrency,
           });
 
         return {
-          ...allTokenPricesByTokenContractAddress,
-          ...tokenPricesByTokenContractAddressForBatch,
+          ...allTokenPricesByTokenAddress,
+          ...tokenPricesByTokenAddressForBatch,
         };
       },
       initialResult: {},
     });
 
-    return Object.entries(tokenPricesByTokenContractAddress).reduce(
-      (obj, [tokenContractAddress, tokenPrice]) => {
+    return Object.entries(tokenPricesByTokenAddress).reduce(
+      (obj, [tokenAddress, tokenPrice]) => {
         return {
           ...obj,
-          [tokenContractAddress]: tokenPrice.value,
+          [tokenAddress]: tokenPrice.value,
         };
       },
       {},
@@ -551,17 +551,17 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * API, then convert the prices to our desired native currency.
    *
    * @param args - The arguments to this function.
-   * @param args.tokenContractAddresses - The contract addresses for the tokens you
-   * want to retrieve prices for.
-   * @param args.nativeCurrency - The currency you want the prices to be in.
+   * @param args.tokenAddresses - Addresses for tokens.
+   * @param args.nativeCurrency - The native currency in which to request
+   * prices.
    * @returns A map of the token addresses (as checksums) to their prices in the
    * native currency.
    */
   async #fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
-    tokenContractAddresses,
+    tokenAddresses,
     nativeCurrency,
   }: {
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     const [
@@ -569,7 +569,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       fallbackCurrencyToNativeCurrencyConversionRate,
     ] = await Promise.all([
       this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
-        tokenContractAddresses,
+        tokenAddresses,
         chainId: this.config.chainId,
         nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
@@ -584,10 +584,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     }
 
     return Object.entries(contractExchangeRates).reduce(
-      (obj, [tokenContractAddress, tokenValue]) => {
+      (obj, [tokenAddress, tokenValue]) => {
         return {
           ...obj,
-          [tokenContractAddress]: tokenValue
+          [tokenAddress]: tokenValue
             ? tokenValue * fallbackCurrencyToNativeCurrencyConversionRate
             : undefined,
         };

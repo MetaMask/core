@@ -12,11 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **BREAKING:** TokenRatesController now takes a required argument `tokenPricesService` ([#3600](https://github.com/MetaMask/core/pull/3600))
   - This object is responsible for fetching the prices for tokens held by this controller.
-- **BREAKING:** Update signature of `TokenRatesController.updateExchangeRatesByChainId` ([#3600](https://github.com/MetaMask/core/pull/3600))
-  - Rename `tokenAddresses` argument to `tokenContractAddresses`
-  - Change the type of `tokenContractAddresses` from `string[]` to `Hex[]`
-- **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600))
-  - This method now takes an object with shape `{ tokenContractAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
+- **BREAKING:** Update signature of `TokenRatesController.updateExchangeRatesByChainId` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3653](https://github.com/MetaMask/core/pull/3653))
+  - Change the type of `tokenAddresses` from `string[]` to `Hex[]`
+- **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3653](https://github.com/MetaMask/core/pull/3653))
+  - This method now takes an object with shape `{ tokenAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
 - Update TokenListController to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
 - Update TokenRatesController to request token rates from the Price API in batches of 100 ([#3650](https://github.com/MetaMask/core/pull/3650))
 

@@ -21,6 +21,8 @@ const INVALID_PASSWORD_ERROR = 'Incorrect password.';
 let cacheVal: Json;
 
 export default class MockEncryptor implements ExportableKeyEncryptor {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encrypt(password: string, dataObj: any) {
     return JSON.stringify({
       ...(await this.encryptWithKey(password, dataObj)),
@@ -36,6 +38,8 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     return cacheVal ?? {};
   }
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encryptWithKey(_key: unknown, dataObj: any) {
     cacheVal = dataObj;
     return {
@@ -44,6 +48,8 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     };
   }
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encryptWithDetail(key: string, dataObj: any) {
     return {
       vault: await this.encrypt(key, dataObj),

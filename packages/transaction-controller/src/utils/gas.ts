@@ -68,6 +68,8 @@ export async function estimateGas(
 
   try {
     estimatedGas = await query(ethQuery, 'estimateGas', [request]);
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     simulationFails = {
       reason: error.message,
