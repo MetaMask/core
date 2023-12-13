@@ -348,9 +348,14 @@ export function mapOpenSeaNftV2ToV1(nft: OpenSeaV2Nft): ApiNft {
  * @returns The NFT in the V1 schema.
  */
 export function mapOpenSeaDetailedNftV2ToV1(nft: OpenSeaV2DetailedNft): ApiNft {
+  const mapped = mapOpenSeaNftV2ToV1(nft);
   return {
-    ...mapOpenSeaNftV2ToV1(nft),
+    ...mapped,
     animation_url: nft.animation_url,
+    creator: {
+      ...mapped.creator,
+      address: nft.creator,
+    },
   };
 }
 
