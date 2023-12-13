@@ -168,9 +168,7 @@ describe('NftDetectionController', () => {
 
     nock(OPENSEA_PROXY_URL)
       .persist()
-      .get(
-        `/chain/ethereum/contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
-      )
+      .get(`/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
       .reply(200, {
         description: 'Description',
         image_url: 'url',
@@ -182,9 +180,7 @@ describe('NftDetectionController', () => {
           name: 'Name',
         },
       })
-      .get(
-        `/chain/ethereum/contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
-      )
+      .get(`/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`)
       .reply(200, {
         description: 'Description HH',
         symbol: 'HH',
@@ -194,13 +190,9 @@ describe('NftDetectionController', () => {
           name: 'Name HH',
         },
       })
-      .get(
-        `/chain/ethereum/contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
-      )
+      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
       .replyWithError(new Error('Failed to fetch'))
-      .get(
-        `/chain/ethereum/contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
-      )
+      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
       .replyWithError(new Error('Failed to fetch'));
   });
 
@@ -648,9 +640,7 @@ describe('NftDetectionController', () => {
     // During next call of assets detection, API succeeds returning contract ending in gg information
     nock.cleanAll();
     nock(OPENSEA_PROXY_URL)
-      .get(
-        `/chain/ethereum/contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
-      )
+      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
       .reply(200, {
         description: 'Description GG',
         symbol: 'GG',
@@ -660,9 +650,7 @@ describe('NftDetectionController', () => {
           name: 'Name GG',
         },
       })
-      .get(
-        `/chain/ethereum/contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
-      )
+      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
       .reply(200, {
         description: 'Description II',
         symbol: 'II',
@@ -672,9 +660,7 @@ describe('NftDetectionController', () => {
           name: 'Name II',
         },
       })
-
-      // todo paging
-      .get(`  /assets?owner=0x1&offset=0&limit=50`)
+      .get(`/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -746,15 +732,15 @@ describe('NftDetectionController', () => {
     nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
-      .get(`/opensea/v1/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
-      .query({ next: '', limit: '50' })
+      .get('/opensea/v1/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
       .replyWithError(new Error('Failed to fetch'));
 
     nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
-      .get(`/opensea/v1/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
-      .query({ next: '', limit: '50' })
+      .get('/opensea/v1/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '50', limit: '50' })
       .replyWithError(new Error('Failed to fetch'));
 
     nock('https://api.opensea.io:443', { encodedQueryParams: true })
@@ -787,9 +773,7 @@ describe('NftDetectionController', () => {
       });
 
     nock('https://api.opensea.io:443')
-      .get(
-        `/api/v1/chain/ethereum/contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
-      )
+      .get(`/api/v1/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
       .reply(200, {
         description: 'Description',
         image_url: 'url',
@@ -821,8 +805,8 @@ describe('NftDetectionController', () => {
     nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
-      .get(`/opensea/v1/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
-      .query({ next: '', limit: '50' })
+      .get('/opensea/v1/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
       .replyWithError(new Error('UNEXPECTED ERROR'));
 
     nftDetection.configure({
