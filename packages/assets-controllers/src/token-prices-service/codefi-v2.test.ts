@@ -9,7 +9,7 @@ import {
 
 const defaultMaxRetryDelay = 30_000;
 
-describe('new CodefiTokenPricesServiceV2()', () => {
+describe('CodefiTokenPricesServiceV2', () => {
   describe('fetchTokenPrices', () => {
     it('uses the /spot-prices endpoint of the Codefi Price API to gather prices for the given tokens', async () => {
       nock('https://price-api.metafi.codefi.network')
