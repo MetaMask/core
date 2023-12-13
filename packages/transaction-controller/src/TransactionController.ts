@@ -99,6 +99,7 @@ import {
   validateTxParams,
 } from './utils/validation';
 import { NetworkClientConfiguration } from '@metamask/network-controller';
+import { NetworkClientType } from '@metamask/network-controller';
 
 export const HARDFORK = Hardfork.London;
 
