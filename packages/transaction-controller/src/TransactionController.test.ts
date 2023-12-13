@@ -2469,7 +2469,7 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         hash: externalTransactionHash,
         id: externalTransactionId,
-        chainId: toHex(5),
+        chainId: toHex(1), // note that this doesn't match the globally selected chain Id
         status: TransactionStatus.confirmed as const,
         time: 123456789,
         txParams: {
@@ -2487,7 +2487,7 @@ describe('TransactionController', () => {
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
         id: localTransactionIdWithSameNonce,
-        chainId: toHex(5),
+        chainId: toHex(1),
         status: TransactionStatus.unapproved as const,
         time: 123456789,
         txParams: {
@@ -2539,7 +2539,7 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         hash: externalTransactionHash,
         id: externalTransactionId,
-        chainId: toHex(5),
+        chainId: toHex(1),  // note that this doesn't match the globally selected chain Id
         status: TransactionStatus.confirmed as const,
         time: 123456789,
         txParams: {
@@ -2557,7 +2557,7 @@ describe('TransactionController', () => {
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
         id: localTransactionIdWithSameNonce,
-        chainId: toHex(5),
+        chainId: toHex(1),
         status: TransactionStatus.failed as const,
         error: new Error('mock error'),
         time: 123456789,
