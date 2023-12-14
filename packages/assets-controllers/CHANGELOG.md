@@ -66,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent redundant overlapping token rate updates in `TokenRatesController` ([#3635](https://github.com/MetaMask/core/pull/3635))
 - Fix `TokenRatesController` bug where the `contractExchangeRates` state would sometimes be stale after calling `updateExchangeRatesByChainId` ([#3624](https://github.com/MetaMask/core/pull/3624))
 - Make `TokenRatesController.updateExchangeRatesByChainId` respect `disabled` state ([#3596](https://github.com/MetaMask/core/pull/3596))
+- Fix error in `NftController` when attempt to get NFT information from on-chain fails, and ensure metadata always contains contract address and blank `name` field ([#3629](https://github.com/MetaMask/core/pull/3629))
+  - When fetching on-chain NFT information fails, we now proceed with whatever we have (either the OpenSea metadata, or a blank metadata object)
+  - Previously, if we were unable to retrieve NFT metadata from on-chain or OpenSea, the returned NFT metadata would be missing a `name` field and the contract address. Now the returned metadata always has those entries, though the `name` is set to `null`.
+  - This affects `watchNft` and `addNft` methods
 
 ## [20.0.0]
 ### Added
