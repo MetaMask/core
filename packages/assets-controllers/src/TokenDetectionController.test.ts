@@ -179,6 +179,11 @@ describe('TokenDetectionController', () => {
       });
     });
 
+    controllerMessenger.publish('NetworkController:networkDidChange', {
+      ...defaultNetworkState,
+      providerConfig,
+    });
+
     getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue(
       providerConfig,
     );
@@ -552,7 +557,6 @@ describe('TokenDetectionController', () => {
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
-      await tokenDetection.start();
 
       changeNetwork(mainnet);
       expect(getBalancesInSingleCallMock.called).toBe(true);
