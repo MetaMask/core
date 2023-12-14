@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `TokenDetectionController`
     - `TokenListController`
     - `TokenRatesController`
+- Update `@metamask/controller-utils` to v7 ([#3636](https://github.com/MetaMask/core/pull/3636))
 - Update `TokenListController` to fetch prefiltered set of tokens from the API, reducing response data and removing the need for filtering logic ([#2054](https://github.com/MetaMask/core/pull/2054))
 - Update `TokenRatesController` to request token rates from the Price API in batches of 100 ([#3650](https://github.com/MetaMask/core/pull/3650))
 - Add dependencies `cockatiel` and `lodash` ([#3586](https://github.com/MetaMask/core/pull/3586), [#3655](https://github.com/MetaMask/core/pull/3655))
