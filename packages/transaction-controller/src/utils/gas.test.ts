@@ -17,6 +17,8 @@ const GAS_MOCK = 100;
 const BLOCK_GAS_LIMIT_MOCK = 1234567;
 const BLOCK_NUMBER_MOCK = '0x5678';
 const CODE_MOCK = '0x987';
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ETH_QUERY_MOCK = {} as any as EthQuery;
 
 const TRANSACTION_META_MOCK = {
@@ -24,6 +26,8 @@ const TRANSACTION_META_MOCK = {
     data: '0x1',
     to: '0x2',
   },
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any as TransactionMeta;
 
 const UPDATE_GAS_REQUEST_MOCK = {
@@ -46,9 +50,17 @@ describe('gas', () => {
     estimateGasResponse,
     estimateGasError,
   }: {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getCodeResponse?: any;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getBlockByNumberResponse?: any;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     estimateGasResponse?: any;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     estimateGasError?: any;
   }) {
     if (getCodeResponse !== undefined) {

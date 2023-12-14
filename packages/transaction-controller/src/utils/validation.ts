@@ -172,6 +172,8 @@ function validateParamData(value?: string) {
     const ERC20Interface = new Interface(abiERC20);
     try {
       ERC20Interface.parseTransaction({ data: value });
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error.message.match(/BUFFER_OVERRUN/u)) {
         throw rpcErrors.invalidParams(

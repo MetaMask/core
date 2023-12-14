@@ -57,6 +57,8 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK = {
  * @param value - The value to set.
  * @returns The copied object with the property path set to the given value.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setPropertyPath(object: any, pathString: string, value: any): any {
   const copy = cloneDeep(object);
   const path = pathString.split('.');
@@ -67,6 +69,8 @@ function setPropertyPath(object: any, pathString: string, value: any): any {
     currentObject = currentObject[key];
   }
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   currentObject[lastKey as any] = value;
 
   return copy;
@@ -83,9 +87,15 @@ function setPropertyPath(object: any, pathString: string, value: any): any {
  * @param rootPropertyName - The name of the root input.
  */
 function expectValidationError(
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validateFunction: any,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   input: any,
   propertyName: string,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value: any,
   expectedMainError: string,
   expectedInternalError: string,
@@ -347,7 +357,11 @@ describe('validation', () => {
       'throws if no gas and dummy signature is %s',
       (dummySignature) => {
         const response = cloneDeep(PREPARE_USER_OPERATION_RESPONSE_MOCK);
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response as any).gas = undefined;
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response as any).dummySignature = dummySignature;
 
         expect(() => validatePrepareUserOperationResponse(response)).toThrow(

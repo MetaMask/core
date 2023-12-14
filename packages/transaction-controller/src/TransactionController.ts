@@ -136,6 +136,8 @@ export interface FeeMarketEIP1559Values {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionConfig extends BaseConfig {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sign?: (txParams: TransactionParams, from: string) => Promise<any>;
   txHistoryLimit: number;
 }
@@ -233,6 +235,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly nonceTracker: NonceTracker;
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private registry: any;
 
   private readonly provider: Provider;
@@ -699,6 +703,8 @@ export class TransactionController extends BaseControllerV1<
       await updateSwapsTransaction(transactionMeta, transactionType, swaps, {
         isSwapsDisabled: this.isSwapsDisabled,
         cancelTransaction: this.cancelTransaction.bind(this),
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         controllerHubEmitter: this.hub.emit.bind(this.hub) as any,
       });
 
@@ -1349,6 +1355,8 @@ export class TransactionController extends BaseControllerV1<
       originalGasEstimate,
       userEditedGasLimit,
       userFeeLevel,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
     // only update what is defined
@@ -1404,6 +1412,8 @@ export class TransactionController extends BaseControllerV1<
         maxFeePerGas,
         maxPriorityFeePerGas,
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
     // only update what is defined
@@ -1667,6 +1677,8 @@ export class TransactionController extends BaseControllerV1<
     filterToCurrentNetwork = true,
     limit,
   }: {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     searchCriteria?: any;
     initialList?: TransactionMeta[];
     filterToCurrentNetwork?: boolean;
@@ -1682,7 +1694,9 @@ export class TransactionController extends BaseControllerV1<
     const predicateMethods = mapValues(searchCriteria, (predicate) => {
       return typeof predicate === 'function'
         ? predicate
-        : (v: any) => v === predicate;
+        : // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (v: any) => v === predicate;
     });
 
     const transactionsToFilter = initialList ?? this.state.transactions;
@@ -1703,9 +1717,13 @@ export class TransactionController extends BaseControllerV1<
           // are not fully satisfied. We check both txParams and the base
           // object as predicate keys can be either.
           if (key in transaction.txParams) {
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (predicate((transaction.txParams as any)[key]) === false) {
               return false;
             }
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } else if (predicate((transaction as any)[key]) === false) {
             return false;
           }
@@ -1938,6 +1956,8 @@ export class TransactionController extends BaseControllerV1<
             actionId,
           });
         }
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         const { isCompleted: isTxCompleted } =
           this.isTransactionCompleted(transactionId);
@@ -2095,6 +2115,8 @@ export class TransactionController extends BaseControllerV1<
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 
       this.onTransactionStatusChange(transactionMeta);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {

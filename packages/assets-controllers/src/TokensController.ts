@@ -58,6 +58,8 @@ import type { Token } from './TokenRatesController';
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any;
 }
 
@@ -673,6 +675,8 @@ export class TokensController extends BaseControllerV1<
     );
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // currently we see a variety of errors across different networks when
       // token contracts are not ERC721 compatible. We need to figure out a better

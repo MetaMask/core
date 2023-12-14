@@ -14,6 +14,8 @@ const TIME_MOCK = 123;
 const MESSENGER_MOCK = {
   registerActionHandler: jest.fn(),
   publish: jest.fn(),
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 const CONTROLLER_ARGS_MOCK = {
@@ -369,6 +371,8 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name: NAME_MOCK,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow('Must specify a non-empty string for value.');
       });
@@ -387,6 +391,8 @@ describe('NameController', () => {
             type,
             name: NAME_MOCK,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow(
           `Must specify one of the following types: ${Object.values(
@@ -408,6 +414,8 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow('Must specify a non-empty string or null for name.');
       });
@@ -425,6 +433,8 @@ describe('NameController', () => {
             name: NAME_MOCK,
             sourceId,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow('Must specify a non-empty string for sourceId.');
       });
@@ -443,6 +453,8 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name: NAME_MOCK,
             variation,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow(
           `Must specify a chain ID in hexidecimal format for variation when using '${NameType.ETHEREUM_ADDRESS}' type.`,
@@ -459,6 +471,8 @@ describe('NameController', () => {
             name: NAME_MOCK,
             sourceId: SOURCE_ID_MOCK,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow(
           `Unknown source ID for type '${NameType.ETHEREUM_ADDRESS}': ${SOURCE_ID_MOCK}`,
@@ -475,6 +489,8 @@ describe('NameController', () => {
             name: null,
             sourceId: SOURCE_ID_MOCK,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow(
           `Cannot specify a source ID when clearing the saved name: ${SOURCE_ID_MOCK}`,
@@ -498,6 +514,8 @@ describe('NameController', () => {
           providers: [provider1, provider2],
         });
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         controller.state.names = getExistingState(controller) as any;
 
         const result = await controller.updateProposedNames({
@@ -988,6 +1006,8 @@ describe('NameController', () => {
             ],
           },
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       const controller = new NameController({
@@ -1694,6 +1714,8 @@ describe('NameController', () => {
             value,
             type: NameType.ETHEREUM_ADDRESS,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).rejects.toThrow('Must specify a non-empty string for value.');
       });
@@ -1716,6 +1738,8 @@ describe('NameController', () => {
             value: VALUE_MOCK,
             type,
             variation: CHAIN_ID_MOCK,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).rejects.toThrow(
           `Must specify one of the following types: ${Object.values(
@@ -1739,6 +1763,8 @@ describe('NameController', () => {
               value: VALUE_MOCK,
               type: NameType.ETHEREUM_ADDRESS,
               variation,
+              // TODO: Replace `any` with type
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any),
           ).rejects.toThrow(
             `Must specify a chain ID in hexidecimal format for variation when using '${NameType.ETHEREUM_ADDRESS}' type.`,
@@ -2112,6 +2138,8 @@ describe('NameController', () => {
           providers: [provider1, provider2],
         });
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         controller.state.names = {} as any;
 
         const result = await controller.updateProposedNames({
