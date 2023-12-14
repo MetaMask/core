@@ -157,17 +157,13 @@ export function validateSignUserOperationResponse(
  * @param struct - The struct to validate against.
  * @param message - The message to throw if validation fails.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function validate(data: any, struct: Struct<any>, message: string) {
+function validate<T>(data: unknown, struct: Struct<T>, message: string) {
   try {
     assert(data, struct, message);
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
-    const causes = error
+  } catch (error) {
+    const causes = (error as StructError)
       .failures()
-      .map((failure: StructError) => {
+      .map((failure) => {
         if (!failure.path.length) {
           return failure.message;
         }

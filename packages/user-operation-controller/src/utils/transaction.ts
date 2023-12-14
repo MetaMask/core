@@ -56,8 +56,8 @@ export function getTransactionMetadata(
           name: rawError.name,
           message: rawError.message,
           stack: rawError.stack,
-          code: (rawError as any).code,
-          rpc: (rawError as any).rpc,
+          code: rawError.code,
+          rpc: rawError.rpc,
         }
       : undefined
   ) as TransactionError;

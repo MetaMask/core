@@ -13,7 +13,7 @@ const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   status: UserOperationStatus.Submitted,
   transactionParams: {},
   userOperation: {},
-} as any;
+} as UserOperationMetadata;
 
 const ERROR_MOCK = {
   name: 'TestError',
@@ -53,7 +53,10 @@ describe('transation', () => {
         status: UserOperationStatus.Failed,
       };
 
-      const transactionMetadata = getTransactionMetadata(metadata) as any;
+      const transactionMetadata = getTransactionMetadata(metadata) as Record<
+        string,
+        unknown
+      >;
 
       expect(transactionMetadata?.error).toStrictEqual(ERROR_MOCK);
     });

@@ -66,7 +66,10 @@ export class Bundler {
     hash?: string,
   ): Promise<UserOperationReceipt | undefined> {
     log('Getting user operation receipt', { url: this.#url, hash });
-    return await this.#query('eth_getUserOperationReceipt', [hash]);
+
+    return (await this.#query('eth_getUserOperationReceipt', [hash])) as
+      | UserOperationReceipt
+      | undefined;
   }
 
   /**
@@ -92,12 +95,10 @@ export class Bundler {
 
     log('Sent user operation', hash);
 
-    return hash;
+    return hash as string;
   }
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async #query(method: string, params: any[]): Promise<any> {
+  async #query(method: string, params: unknown[]): Promise<unknown> {
     const request = {
       method: 'POST',
       headers: {
@@ -112,9 +113,9 @@ export class Bundler {
 
     if (responseJson.error) {
       const error = new Error(responseJson.error.message || responseJson.error);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (error as any).code = responseJson.error.code;
+
+      (error as unknown as Record<string, string>).code =
+        responseJson.error.code;
 
       throw error;
     }

@@ -2,6 +2,15 @@
 
 import { cloneDeep } from 'lodash';
 
+import type {
+  PrepareUserOperationResponse,
+  SignUserOperationResponse,
+  UpdateUserOperationResponse,
+} from '../types';
+import type {
+  AddUserOperationOptions,
+  AddUserOperationRequest,
+} from '../UserOperationController';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
@@ -16,7 +25,7 @@ const ADD_USER_OPERATION_REQUEST_MOCK = {
   value: '0x3',
   maxFeePerGas: '0x4',
   maxPriorityFeePerGas: '0x5',
-};
+} as AddUserOperationRequest;
 
 const ADD_USER_OPERATION_OPTIONS_MOCK = {
   networkClientId: 'testNetworkClientId',
@@ -26,7 +35,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK = {
     updateUserOperation: jest.fn(),
     signUserOperation: jest.fn(),
   },
-};
+} as AddUserOperationOptions;
 
 const PREPARE_USER_OPERATION_RESPONSE_MOCK = {
   bundler: 'http://test.com',
@@ -41,15 +50,15 @@ const PREPARE_USER_OPERATION_RESPONSE_MOCK = {
   initCode: '0x7',
   nonce: '0x8',
   sender: '0x9',
-};
+} as PrepareUserOperationResponse;
 
 const UPDATE_USER_OPERATION_RESPONSE_MOCK = {
   paymasterAndData: '0x1',
-};
+} as UpdateUserOperationResponse;
 
 const SIGN_USER_OPERATION_RESPONSE_MOCK = {
   signature: '0x1',
-};
+} as SignUserOperationResponse;
 
 /**
  * Copy an object and set a property path to a given value.
@@ -58,21 +67,17 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK = {
  * @param value - The value to set.
  * @returns The copied object with the property path set to the given value.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setPropertyPath(object: any, pathString: string, value: any): any {
+function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
   const copy = cloneDeep(object);
   const path = pathString.split('.');
-  const lastKey = path.pop();
-  let currentObject = copy;
+  const lastKey = path.pop() as string;
+  let currentObject = copy as Record<string, unknown>;
 
   for (const key of path) {
-    currentObject = currentObject[key];
+    currentObject = currentObject[key] as Record<string, unknown>;
   }
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  currentObject[lastKey as any] = value;
+  currentObject[lastKey] = value;
 
   return copy;
 }
@@ -87,17 +92,11 @@ function setPropertyPath(object: any, pathString: string, value: any): any {
  * @param expectedInternalError - The specific validation error.
  * @param rootPropertyName - The name of the root input.
  */
-function expectValidationError(
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  validateFunction: any,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  input: any,
+function expectValidationError<T>(
+  validateFunction: (request: T) => void,
+  input: T,
   propertyName: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: any,
+  value: unknown,
   expectedMainError: string,
   expectedInternalError: string,
   rootPropertyName: string,
@@ -105,7 +104,7 @@ function expectValidationError(
   const isRootTest = propertyName === rootPropertyName;
 
   const request = isRootTest
-    ? value
+    ? (value as T)
     : setPropertyPath(input, propertyName, value);
 
   expect(() => validateFunction(request)).toThrow(
@@ -365,12 +364,8 @@ describe('validation', () => {
       'throws if no gas and dummy signature is %s',
       (dummySignature) => {
         const response = cloneDeep(PREPARE_USER_OPERATION_RESPONSE_MOCK);
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (response as any).gas = undefined;
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (response as any).dummySignature = dummySignature;
+        response.gas = undefined;
+        response.dummySignature = dummySignature;
 
         expect(() => validatePrepareUserOperationResponse(response)).toThrow(
           'Invalid response when preparing user operation\nMust specify dummySignature if not specifying gas',

@@ -128,9 +128,7 @@ export class PendingUserOperationTracker extends StaticIntervalPollingController
       }
 
       log('No receipt found for user operation', { id, hash });
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error) {
       log('Failed to check user operation', id, error);
     }
   }
@@ -151,9 +149,7 @@ export class PendingUserOperationTracker extends StaticIntervalPollingController
     log('User operation confirmed', id, transactionHash);
 
     const { baseFeePerGas } = await query(
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      new EthQuery(provider as any),
+      new EthQuery(provider),
       'getBlockByHash',
       [blockHash, false],
     );

@@ -114,8 +114,8 @@ export type UserOperationControllerOptions = {
 
 export type AddUserOperationRequest = {
   data?: string;
-  maxFeePerGas: string;
-  maxPriorityFeePerGas: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
   to?: string;
   value?: string;
 };
@@ -226,7 +226,7 @@ export class UserOperationController extends BaseController<
         maxPriorityFeePerGas,
         to,
         value,
-      } as any,
+      } as AddUserOperationRequest,
       { ...options, transaction },
     );
   }
@@ -314,8 +314,9 @@ export class UserOperationController extends BaseController<
         chainId,
       );
 
-      metadata.userOperation.maxFeePerGas = maxFeePerGas;
-      metadata.userOperation.maxPriorityFeePerGas = maxPriorityFeePerGas;
+      metadata.userOperation.maxFeePerGas = maxFeePerGas as string;
+      metadata.userOperation.maxPriorityFeePerGas =
+        maxPriorityFeePerGas as string;
 
       await this.#updateGas(metadata);
       await this.#addPaymasterData(metadata, smartContractAccount);
@@ -334,9 +335,9 @@ export class UserOperationController extends BaseController<
       resultCallbacks?.success();
 
       return metadata.hash as string;
-    } catch (error: any) {
+    } catch (error) {
       /* istanbul ignore next */
-      resultCallbacks?.error(error);
+      resultCallbacks?.error(error as Error);
       throw error;
     }
   }
@@ -516,11 +517,12 @@ export class UserOperationController extends BaseController<
   ) {
     log('Requesting approval');
 
-    const { resultCallbacks, value } = await this.#requestApproval(metadata);
+    const { resultCallbacks, value: rawValue } = await this.#requestApproval(
+      metadata,
+    );
 
-    const updatedTransaction = (value as any)?.txMeta as
-      | TransactionMeta
-      | undefined;
+    const value = rawValue as { txMeta?: TransactionMeta } | undefined;
+    const updatedTransaction = value?.txMeta;
 
     if (updatedTransaction) {
       await this.#updateUserOperationAfterApproval(
@@ -580,9 +582,7 @@ export class UserOperationController extends BaseController<
 
   #failUserOperation(metadata: UserOperationMetadata, error: unknown) {
     const { id } = metadata;
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawError = error as any;
+    const rawError = error as Record<string, string>;
 
     log('User operation failed', id, error);
 
