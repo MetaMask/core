@@ -5,11 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Generalize polling abstraction ([#3636](https://github.com/MetaMask/core/pull/3636))
-- Update controllers that rely on provider to listen to `NetworkController:networkDidChange` instead of `NetworkController:stateChange` ([#3610](https://github.com/MetaMask/core/pull/3610))
-- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
 
 ## [11.0.0]
 ### Changed

@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [21.0.0]
 ### Uncategorized
 - Retry failed token price updates ([#3655](https://github.com/MetaMask/core/pull/3655))
 - Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
@@ -451,7 +453,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@20.0.0...@metamask/assets-controllers@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...@metamask/assets-controllers@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@18.0.0...@metamask/assets-controllers@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@17.0.0...@metamask/assets-controllers@18.0.0

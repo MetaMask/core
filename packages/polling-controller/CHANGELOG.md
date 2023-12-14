@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.0.0]
 ### Uncategorized
 - Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
 - Generalize polling abstraction ([#3636](https://github.com/MetaMask/core/pull/3636))
@@ -50,7 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@2.0.0...@metamask/polling-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.2...@metamask/polling-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.1...@metamask/polling-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.0...@metamask/polling-controller@1.0.1
