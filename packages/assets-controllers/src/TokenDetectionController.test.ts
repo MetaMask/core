@@ -481,8 +481,8 @@ describe('TokenDetectionController', () => {
       tokenDetection.stop();
       changeNetwork({
         chainId: toHex(polygonDecimalChainId),
-        type: NetworkType.goerli,
-        ticker: NetworksTicker.goerli,
+        type: NetworkType.rpc,
+        ticker: NetworksTicker.rpc,
       });
       expect(getBalancesInSingleCallMock.called).toBe(false);
     });
