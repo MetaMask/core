@@ -10,6 +10,7 @@ import {
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
@@ -42,6 +43,7 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerFindNetworkClientIdByChainIdAction
   | GetTokenListState;
 
 export type TokenDetectionControllerStateChangeEvent =
@@ -82,6 +84,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   #chainId: Hex;
 
   #selectedAddress: string;
+
+  #networkClientId: NetworkClientId;
 
   #isDetectionEnabledFromPreferences: boolean;
 
@@ -147,6 +151,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.setIntervalLength(interval);
     this.#chainId = chainId;
     this.#selectedAddress = selectedAddress;
+    this.#networkClientId = this.messagingSystem.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      chainId,
+    );
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
     this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
       this.#chainId,
@@ -188,12 +196,17 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
-      async ({ providerConfig: { chainId: newChainId } }) => {
+      async ({
+        providerConfig: { chainId: newChainId },
+        selectedNetworkClientId,
+      }) => {
+        const isChainIdChanged = this.#chainId !== newChainId;
+        this.#chainId = newChainId;
+
+        this.#networkClientId = selectedNetworkClientId;
+
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
-        const isChainIdChanged = this.#chainId !== newChainId;
-
-        this.#chainId = newChainId;
 
         if (this.#isDetectionEnabledForNetwork && isChainIdChanged) {
           await this.detectTokens();
@@ -237,7 +250,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const { chainId } =
       this.messagingSystem.call(
         'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId ?? this.#chainId,
+        networkClientId ?? this.#networkClientId,
       ) ?? {};
     if (chainId) {
       this.#chainId = chainId;

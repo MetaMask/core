@@ -146,6 +146,7 @@ function buildTokenDetectionControllerMessenger(
     name: controllerName,
     allowedActions: [
       'NetworkController:getNetworkConfigurationByNetworkClientId',
+      'NetworkController:findNetworkClientIdByChainId',
       'TokenListController:getState',
     ],
     allowedEvents: [
@@ -169,6 +170,7 @@ describe('TokenDetectionController', () => {
 
   const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const getNetworkConfigurationByNetworkClientIdHandler = jest.fn();
+  const findNetworkClientIdByChainIdHandler = jest.fn();
   const changeNetwork = (providerConfig: ProviderConfig) => {
     onNetworkDidChangeListeners.forEach((listener) => {
       listener({
@@ -218,6 +220,17 @@ describe('TokenDetectionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .callsFake(() => null as any);
 
+    controllerMessenger.registerActionHandler(
+      `NetworkController:getNetworkConfigurationByNetworkClientId`,
+      getNetworkConfigurationByNetworkClientIdHandler.mockReturnValueOnce(
+        mainnet,
+      ),
+    );
+    controllerMessenger.registerActionHandler(
+      `NetworkController:findNetworkClientIdByChainId`,
+      findNetworkClientIdByChainIdHandler.mockReturnValue(NetworkType.mainnet),
+    );
+
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -246,13 +259,6 @@ describe('TokenDetectionController', () => {
       getPreferencesState: () => preferences.state,
       messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     });
-
-    controllerMessenger.registerActionHandler(
-      `NetworkController:getNetworkConfigurationByNetworkClientId`,
-      getNetworkConfigurationByNetworkClientIdHandler.mockReturnValueOnce(
-        mainnet,
-      ),
-    );
 
     sinon
       .stub(tokensController, '_detectIsERC721')
@@ -449,6 +455,12 @@ describe('TokenDetectionController', () => {
         `NetworkController:getNetworkConfigurationByNetworkClientId`,
         getNetworkConfigurationByNetworkClientIdHandler.mockReturnValueOnce(
           mainnet,
+        ),
+      );
+      controllerMessenger.registerActionHandler(
+        `NetworkController:findNetworkClientIdByChainId`,
+        findNetworkClientIdByChainIdHandler.mockReturnValue(
+          NetworkType.mainnet,
         ),
       );
 
