@@ -524,7 +524,7 @@ describe('TokenDetectionController', () => {
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       preferencesStateChangeListener!({
-        selectedAddress: '0x2',
+        selectedAddress: '0x1',
         useTokenDetection: true,
       });
       expect(getBalancesInSingleCallMock.called).toBe(true);
