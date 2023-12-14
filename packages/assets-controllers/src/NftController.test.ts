@@ -2127,6 +2127,121 @@ describe('NftController', () => {
       });
     });
 
+    it('should add NFT erc721 and not get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
+      const { assetsContract, nftController } = setupController();
+      nock(OPENSEA_PROXY_URL)
+        .get(`/chain/ethereum/contract/${ERC721_NFT_ADDRESS}`)
+        .replyWithError(new Error('Failed to fetch'))
+        .get(`/chain/ethereum/contract/${ERC721_NFT_ADDRESS}/nfts/${ERC721_NFT_ID}`)
+        .replyWithError(new Error('Failed to fetch'));
+
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 17,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
+              data: '0x06fdde03',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 17,
+          result:
+            '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000194f70656e536561205368617265642053746f726566726f6e7400000000000000',
+        });
+
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 18,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
+              data: '0x95d89b41',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 18,
+          result:
+            '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000094f50454e53544f52450000000000000000000000000000000000000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 19,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
+              data: '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 19,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000005868747470733a2f2f6170692e6f70656e7365612e696f2f6170692f76312f6d657461646174612f3078343935663934373237363734394365363436663638414338633234383432303034356362376235652f30787b69647d0000000000000000',
+        });
+
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 21,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
+              data: '0xc87b56dd000000000000000000000000000000000000000000000000000000000011781a',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 21,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003a697066733a2f2f697066732f516d6266617037397677663241513533417a554846426e426b6776337643525579726e736e5034726968314c6158000000000000',
+        });
+
+      nock('https://api.opensea.io:443', { encodedQueryParams: true })
+        .get(`/api/v1/metadata/${ERC721_NFT_ADDRESS}/${ERC721_NFT_ID}`)
+        .reply(200, [
+          '1f8b080000000000000334ce5d6f82301480e1ffd26b1015a3913bcdd8d4c1b20f9dc31bd274b51c3d3d85b664a0f1bf2f66d9ed9bbcc97365c4b564095be440e3e168ce02f62d9db0507b30c4126a1103263b2f2d712c11e8fc1f4173755f2bef6b97441156f14019a350b64e5a61c84bf203617494ef8aed27e5611cea7836f5fdfe510dc561cf9fcb23d8d364ed8a99cd2e4db30a1fb2d57184d9d9c6c547caab27dc35cbf779dd6bdfbfa88d5abca1b079d77ea5cbf4f24a6b389c5c2f4074d39fb16201e3049adfe1656bf1cf79fb050000ffff03002c5b5b9be3000000',
+        ]);
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = nftController.config;
+
+      nftController.setApiKey('fake-api-key');
+      expect(nftController.openSeaApiKey).toBe('fake-api-key');
+
+      await nftController.addNft(ERC721_NFT_ADDRESS, ERC721_NFT_ID);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC721_NFT_ADDRESS,
+        image: null,
+        name: null,
+        description: null,
+        tokenId: ERC721_NFT_ID,
+        standard: null,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: '',
+      });
+    });
+
     it('should add an NFT with the correct chainId and metadata when passed a networkClientId', async () => {
       nock('https://testtokenuri-1.com')
         .get('/')
