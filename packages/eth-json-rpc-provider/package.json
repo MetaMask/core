@@ -24,6 +24,7 @@
     "build": "tsc --project tsconfig.build.json",
     "build:clean": "rimraf dist && yarn build",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-json-rpc-provider",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-provider",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies",
     "lint:dependencies": "depcheck",
