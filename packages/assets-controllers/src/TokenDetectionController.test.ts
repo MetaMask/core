@@ -520,11 +520,10 @@ describe('TokenDetectionController', () => {
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
-      await tokenDetection.start();
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       preferencesStateChangeListener!({
-        selectedAddress: '0x1',
+        selectedAddress: '0x2',
         useTokenDetection: true,
       });
       expect(getBalancesInSingleCallMock.called).toBe(true);
