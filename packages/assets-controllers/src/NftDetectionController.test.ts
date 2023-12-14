@@ -850,7 +850,7 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should fetch the detected NFT individually if theres metadata but no image_url', async () => {
+  it('should fetch the original image url if image_url is null but theres metadata', async () => {
     const selectedAddress = '0x1994';
     const nftContract = '0x26B4a381D694c1AC6812eA80C3f3d088572802db';
     const nftId = '123';
@@ -893,7 +893,7 @@ describe('NftDetectionController', () => {
       {
         address: nftContract,
         name: undefined,
-        image: 'https://example.com/image.gif',
+        imageOriginal: 'https://example.com/image.gif',
         tokenId: nftId,
         standard: 'ERC721',
         favorite: false,
