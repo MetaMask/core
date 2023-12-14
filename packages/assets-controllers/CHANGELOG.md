@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Retry failed token price updates ([#3655](https://github.com/MetaMask/core/pull/3655))
+- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
+- Generalize polling abstraction ([#3636](https://github.com/MetaMask/core/pull/3636))
+- fix(assets-controllers): Prevent overlapping token rate updates ([#3635](https://github.com/MetaMask/core/pull/3635))
+- Add polling by `networkClientId` to `AccountTrackerController` ([#3586](https://github.com/MetaMask/core/pull/3586))
+- Add on-chain validation to ERC20 wallet_watchAsset ([#1745](https://github.com/MetaMask/core/pull/1745))
+- Make `safelyExecute` type safe ([#3629](https://github.com/MetaMask/core/pull/3629))
+- feat(assets-controllers): Drop support for updating arbitary token rates ([#3639](https://github.com/MetaMask/core/pull/3639))
+- fix(assets-controllers): TokenRatesController state consistency ([#3624](https://github.com/MetaMask/core/pull/3624))
+- Support token detection on Base and zkSync ([#3584](https://github.com/MetaMask/core/pull/3584))
+- Make `TokenRatesController.fetchAndMapExchangeRates` private ([#3621](https://github.com/MetaMask/core/pull/3621))
+- Update controllers that rely on provider to listen to `NetworkController:networkDidChange` instead of `NetworkController:stateChange` ([#3610](https://github.com/MetaMask/core/pull/3610))
+- fix: Make `updateExchangeRatesByChainId` respect `disabled` ([#3596](https://github.com/MetaMask/core/pull/3596))
+- Support token detection on Arbitrum and Optimism ([#2035](https://github.com/MetaMask/core/pull/2035))
+- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
+
 ### Added
 - Add `codefiTokenPricesServiceV2` ([#3600](https://github.com/MetaMask/core/pull/3600))
   - This object can be used for the new `tokenPricesService` argument for TokenRatesController. It uses an internal API to fetch prices for tokens instead of CoinGecko.
