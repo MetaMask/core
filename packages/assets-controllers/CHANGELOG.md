@@ -26,8 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This object is responsible for fetching the prices for tokens held by this controller.
 - **BREAKING:** Update signature of `TokenRatesController.updateExchangeRatesByChainId` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3653](https://github.com/MetaMask/core/pull/3653))
   - Change the type of `tokenAddresses` from `string[]` to `Hex[]`
-- **BREAKING:** Change signature of `TokenRatesController.fetchAndMapExchangeRates` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3653](https://github.com/MetaMask/core/pull/3653))
-  - This method now takes an object with shape `{ tokenAddresses: Hex[]; chainId: Hex; nativeCurrency: string; }` rather than positional arguments
 - **BREAKING:** `AccountTrackerController` constructor params object requires `getCurrentChainId` and `getNetworkClientById` hooks ([#3586](https://github.com/MetaMask/core/pull/3586))
   - These are needed for the new "polling by `networkClientId`" feature
 - **BREAKING**: `AccountTrackerController` adds a mutex to `refresh` making it only possible for one call to be executed at time ([#3586](https://github.com/MetaMask/core/pull/3586))
