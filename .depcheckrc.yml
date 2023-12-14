@@ -1,0 +1,24 @@
+---
+ignores:
+  # Ignore dependencies used by Yarn binaries in `.yarn`
+  - '@yarnpkg/*'
+  - 'clipanion'
+  - 'typanion'
+  # Ignore dependencies imported implicitly by TypeScript
+  - '@types/*'
+  # Ignore tools (packages which we use as executables and not libraries)
+  - '@lavamoat/allow-scripts'
+  - '@metamask/auto-changelog'
+  - '@metamask/create-release-branch'
+  - 'depcheck'
+  - 'eslint-interactive'
+  - 'simple-git-hooks'
+  - 'ts-node'
+  - 'typedoc'
+  # Ignore plugins implicitly imported by tools
+  - 'jest-silent-reporter'
+  - 'prettier-plugin-packagejson'
+  # Ignore plugins we explicitly use with tools
+  - 'babel-jest'
+  # Ignore dependencies which plug into the NPM lifecycle
+  - '@lavamoat/preinstall-always-fail'
