@@ -71,6 +71,7 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
  * @property chainId - The chain ID of the current network
  * @property selectedAddress - Vault selected address
  * @property networkClientId - The network client ID of the current selected network
+ * @property disabled - Boolean to track if passive auto-detection is currently enabled in this controller
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
@@ -86,6 +87,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   #selectedAddress: string;
 
   #networkClientId: NetworkClientId;
+
+  #disabled: boolean;
 
   #isDetectionEnabledFromPreferences: boolean;
 
@@ -148,6 +151,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       metadata: {},
     });
 
+    this.#disabled = false;
     this.setIntervalLength(interval);
     this.#chainId = chainId;
     this.#selectedAddress = selectedAddress;
@@ -219,6 +223,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * Start polling for detected tokens.
    */
   async start() {
+    this.#disabled = false;
     await this.#startPolling();
   }
 
@@ -226,6 +231,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * Stop polling for detected tokens.
    */
   stop() {
+    this.#disabled = true;
     this.#stopPolling();
   }
 
@@ -281,6 +287,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }): Promise<void> {
     const { networkClientId, accountAddress } = options ?? {};
     if (
+      this.#disabled ||
       !this.#isDetectionEnabledForNetwork ||
       !this.#isDetectionEnabledFromPreferences
     ) {
