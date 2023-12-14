@@ -10,6 +10,7 @@ import { CID } from 'multiformats/cid';
 import type {
   Nft,
   NftMetadata,
+  OpenSeaV2Collection,
   OpenSeaV2Contract,
   OpenSeaV2DetailedNft,
   OpenSeaV2Nft,
@@ -361,11 +362,13 @@ export function mapOpenSeaDetailedNftV2ToV1(nft: OpenSeaV2DetailedNft): ApiNft {
 
 /**
  * Maps an OpenSea V2 contract to the V1 schema.
- * @param contract - The v2 contract to map.
+ * @param contract - The v2 contract data.
+ * @param collection - The v2 collection data.
  * @returns The contract in the v1 schema.
  */
 export function mapOpenSeaContractV2ToV1(
   contract: OpenSeaV2Contract,
+  collection?: OpenSeaV2Collection,
 ): ApiNftContract {
   return {
     address: contract.address,
@@ -374,11 +377,11 @@ export function mapOpenSeaContractV2ToV1(
     schema_name: contract.contract_standard.toUpperCase(),
     symbol: null,
     total_supply: contract.supply.toString(),
-    description: null,
-    external_link: null,
+    description: collection?.description ?? null,
+    external_link: collection?.project_url ?? null,
     collection: {
-      name: contract.name,
-      image_url: null,
+      name: collection?.name ?? contract.name,
+      image_url: collection?.image_url,
     },
   };
 }

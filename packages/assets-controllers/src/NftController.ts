@@ -60,7 +60,7 @@ export enum OpenSeaV2ChainIds {
   ethereum = 'ethereum',
 }
 
-type OpenSeaV2GetNftResponse = { nft: OpenSeaV2DetailedNft };
+export type OpenSeaV2GetNftResponse = { nft: OpenSeaV2DetailedNft };
 
 export type OpenSeaV2Nft = {
   identifier: string;
@@ -106,6 +106,25 @@ export type OpenSeaV2Contract = {
   contract_standard: string;
   name: string;
   supply: number;
+};
+
+export type OpenSeaV2Collection = {
+  collection: string;
+  name: string;
+  description: string;
+  image_url: string;
+  owner: string;
+  category: string;
+  is_disabled: boolean;
+  is_nsfw: boolean;
+  trait_offers_enabled: boolean;
+  opensea_url: string;
+  project_url: string;
+  wiki_url: string;
+  discord_url: string;
+  telegram_url: string;
+  twitter_username: string;
+  instagram_username: string;
 };
 
 /**
@@ -287,7 +306,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
 
   private readonly messagingSystem: NftControllerMessenger;
 
-  private getNftApi({
+  getNftApi({
     contractAddress,
     tokenId,
   }: {
@@ -303,6 +322,14 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     contractAddress: string;
   }) {
     return `${OPENSEA_PROXY_URL}/chain/${OpenSeaV2ChainIds.ethereum}/contract/${contractAddress}`;
+  }
+
+  private getNftCollectionInformationApi({
+    collectionSlug,
+  }: {
+    collectionSlug: string;
+  }) {
+    return `${OPENSEA_PROXY_URL}/collections/${collectionSlug}`;
   }
 
   /**
@@ -604,9 +631,17 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         }),
       });
 
-    // if we successfully fetched return the fetched data immediately
+    // If we successfully fetched the contract
     if (apiNftContractObject) {
-      return mapOpenSeaContractV2ToV1(apiNftContractObject);
+      // Then fetch some additional details from the collection
+      const collection: OpenSeaV2Collection | undefined =
+        await fetchWithErrorHandling({
+          url: this.getNftCollectionInformationApi({
+            collectionSlug: apiNftContractObject.collection,
+          }),
+        });
+
+      return mapOpenSeaContractV2ToV1(apiNftContractObject, collection);
     }
 
     // If we've reached this point we were unable to fetch data from either the proxy or opensea so we return
