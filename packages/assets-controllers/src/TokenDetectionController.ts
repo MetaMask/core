@@ -83,8 +83,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #selectedAddress: string;
 
-  #networkClientId: NetworkClientId;
-
   #isDetectionEnabledFromPreferences: boolean;
 
   #isDetectionEnabledForNetwork: boolean;
@@ -148,7 +146,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.setIntervalLength(interval);
     this.#chainId = chainId;
-    this.#networkClientId = chainId;
     this.#selectedAddress = selectedAddress;
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
     this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
@@ -191,17 +188,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
-      async ({
-        providerConfig: { chainId: newChainId },
-        selectedNetworkClientId,
-      }) => {
-        const isChainIdChanged = this.#chainId !== newChainId;
-        this.#chainId = newChainId;
-
-        this.#networkClientId = selectedNetworkClientId;
-
+      async ({ providerConfig: { chainId: newChainId } }) => {
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
+        const isChainIdChanged = this.#chainId !== newChainId;
+
+        this.#chainId = newChainId;
 
         if (this.#isDetectionEnabledForNetwork && isChainIdChanged) {
           await this.detectTokens();
