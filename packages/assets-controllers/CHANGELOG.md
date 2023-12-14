@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `CoinGeckoResponse` and `CoinGeckoPlatform` types ([#3600](https://github.com/MetaMask/core/pull/3600))
   - These types were previously used in TokenRatesController to represent data returned from the CoinGecko API. There is no equivalent.
 
+### Fixed
+- Fix TokenRatesController to prevent redundant token rate updates when tokens change ([#3647](https://github.com/MetaMask/core/pull/3647), [#3663](https://github.com/MetaMask/core/pull/3663))
+  - Previously, token rates would be re-fetched for the globally selected network on all TokensController state changes, but now token rates are always performed for a deduplicated and normalized set of addresses, and changes to this set determine whether rates should be re-fetched.
+
 ## [20.0.0]
 ### Added
 - **BREAKING**: `TokenRatesControllerState` now has required `contractExchangeRatesByChainId` property which an object keyed by `chainId` and `nativeCurrency` ([#2015](https://github.com/MetaMask/core/pull/2015))
