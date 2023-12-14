@@ -33,10 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: `AccountTrackerController` adds a mutex to `refresh` making it only possible for one call to be executed at time ([#3586](https://github.com/MetaMask/core/pull/3586))
 - **BREAKING**: `TokensController.watchAsset` now performs on-chain validation of the asset's symbol and decimals, if they're defined in the contract ([#1745](https://github.com/MetaMask/core/pull/1745))
   - Additionally, if the symbol and decimals are defined in the contract, they are no longer required to be passed to `watchAsset`
-- **BREAKING**: The TokenRatesController now only supports updating and polling rates for tokens tracked by the TokensController ([#3639](https://github.com/MetaMask/core/pull/3639))
-  - The `tokenAddresses` option has been removed from `startPollingByNetworkClientId`
-  - The `tokenContractAddresses` option has been removed from `updateExchangeRatesByChainId`
-- **BREAKING**: `TokenRatesController.fetchAndMapExchangeRates` is no longer exposed publicly ([#3621](https://github.com/MetaMask/core/pull/3621))
 - **BREAKING:** Update controllers that rely on provider to listen to `NetworkController:networkDidChange` instead of `NetworkController:stateChange` ([#3610](https://github.com/MetaMask/core/pull/3610))
   - The `networkDidChange` event is safer in cases where the provider is used because the provider is guaranteed to have been updated by the time that event is emitted. The same is not true of the `stateChange` event.
   - The following controllers now accept a `onNetworkDidChange` constructor option instead of a `onNetworkStateChange` option:
@@ -62,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This method was previously used in TokenRatesController to access the CoinGecko API. There is no equivalent.
 - **BREAKING:** Remove `CoinGeckoResponse` and `CoinGeckoPlatform` types ([#3600](https://github.com/MetaMask/core/pull/3600))
   - These types were previously used in TokenRatesController to represent data returned from the CoinGecko API. There is no equivalent.
+- **BREAKING**: The TokenRatesController now only supports updating and polling rates for tokens tracked by the TokensController ([#3639](https://github.com/MetaMask/core/pull/3639))
+  - The `tokenAddresses` option has been removed from `startPollingByNetworkClientId`
+  - The `tokenContractAddresses` option has been removed from `updateExchangeRatesByChainId`
+- **BREAKING**: `TokenRatesController.fetchAndMapExchangeRates` is no longer exposed publicly ([#3621](https://github.com/MetaMask/core/pull/3621))
 
 ### Fixed
 - Prevent `TokenRatesController` from making redundant token rate updates when tokens change ([#3647](https://github.com/MetaMask/core/pull/3647), [#3663](https://github.com/MetaMask/core/pull/3663))
