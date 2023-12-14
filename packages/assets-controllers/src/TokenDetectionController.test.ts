@@ -601,7 +601,7 @@ describe('TokenDetectionController', () => {
         [sampleTokenA.address]: new BN(1),
       });
       await tokenDetection.detectTokens({
-        networkClientId: ChainId.mainnet,
+        networkClientId: NetworkType.mainnet,
         accountAddress: selectedAddress,
       });
       const tokens =
