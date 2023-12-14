@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Generalize polling abstraction ([#3636](https://github.com/MetaMask/core/pull/3636))
-- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
+### Added
+- `BlockTrackerPollingController`, `BlockTrackerPollingControllerV1` and `BlockTrackerPollingControllerOnly` have been added and can be used by subclasses to poll with a blockTracker using the same API as the `StaticIntervalPollingController` versions - the only exception is the requirement to implement the abstract method `_getNetworkClientById` on subclasses.
+
+### Changed
+- **BREAKING:** `PollingController`, `PollingControllerV1` and `PollingControllerOnly` are all removed and replaced by `StaticIntervalPollingController`, `StaticIntervalPollingControllerV1` and `StaticIntervalPollingControllerOnly` ([#3636](https://github.com/MetaMask/core/pull/3636))
 
 ## [2.0.0]
 ### Changed

@@ -1757,7 +1757,7 @@ __metadata:
     "@metamask/ethjs-provider-http": ^0.2.0
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": ^17.0.0
-    "@metamask/polling-controller": ^2.0.0
+    "@metamask/polling-controller": ^3.0.0
     "@metamask/preferences-controller": ^5.0.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.2.0
@@ -2251,7 +2251,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.2.1
     "@metamask/network-controller": ^17.0.0
-    "@metamask/polling-controller": ^2.0.0
+    "@metamask/polling-controller": ^3.0.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -2635,7 +2635,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/polling-controller@^2.0.0, @metamask/polling-controller@workspace:packages/polling-controller":
+"@metamask/polling-controller@^3.0.0, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
@@ -3005,7 +3005,7 @@ __metadata:
     "@metamask/controller-utils": ^6.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/network-controller": ^17.0.0
-    "@metamask/polling-controller": ^2.0.0
+    "@metamask/polling-controller": ^3.0.0
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
