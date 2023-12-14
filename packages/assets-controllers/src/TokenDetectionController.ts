@@ -65,9 +65,10 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
 
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
- * @property interval - Polling interval used to fetch new token rates
- * @property selectedAddress - Vault selected address
+ * @property intervalId - Polling interval used to fetch new token rates
  * @property chainId - The chain ID of the current network
+ * @property selectedAddress - Vault selected address
+ * @property networkClientId - The network client ID of the current selected network
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
