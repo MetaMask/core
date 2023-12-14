@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A new state property, `accountByChainId` has been added for keeping track of account balances across chains
   - `AccountTrackerController` implements `PollingController` and can now poll by `networkClientId` via the new methods `startPollingByNetworkClientId`, `stopPollingByPollingToken`, and `stopPollingByPollingToken`.
   - `AccountTrackerController` accepts an optional `networkClientId` value on the `refresh` method
-  - `AccountTrackerController` accepts an optional `networkClientId` value as the last parameter of the `syncBalanceWithAddresses ` method
+  - `AccountTrackerController` accepts an optional `networkClientId` value as the last parameter of the `syncBalanceWithAddresses` method
 - Support token detection on Base and zkSync ([#3584](https://github.com/MetaMask/core/pull/3584))
 - Support token detection on Arbitrum and Optimism ([#2035](https://github.com/MetaMask/core/pull/2035))
 
