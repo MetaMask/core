@@ -251,6 +251,8 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
@@ -291,6 +293,8 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
@@ -331,6 +335,8 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {

@@ -37,6 +37,8 @@ const BLOCK_MOCK = {
 
 jest.mock('@metamask/controller-utils', () => ({
   query: jest.fn(),
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   safelyExecute: (fn: () => any) => fn(),
 }));
 
@@ -44,12 +46,16 @@ function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
   return {
     on: jest.fn(),
     removeListener: jest.fn(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
 function createNonceTrackerMock(): jest.Mocked<NonceTracker> {
   return {
     getGlobalLock: () => Promise.resolve({ releaseLock: jest.fn() }),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
@@ -58,6 +64,8 @@ describe('PendingTransactionTracker', () => {
   let blockTracker: jest.Mocked<BlockTracker>;
   let failTransaction: jest.Mock;
   let onStateChange: jest.Mock;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let options: any;
 
   async function onLatestBlock(latestBlockNumber?: string) {
@@ -187,6 +195,8 @@ describe('PendingTransactionTracker', () => {
                 isUserOperation: true,
               },
             ],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-dropped', listener);
@@ -205,6 +215,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-dropped', listener);
@@ -232,6 +244,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transactionMetaMock],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-failed', listener);
@@ -262,6 +276,8 @@ describe('PendingTransactionTracker', () => {
               beforeCheckPendingTransaction: () => false,
               beforePublish: () => false,
             },
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-failed', listener);
@@ -277,6 +293,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-failed', listener);
@@ -313,6 +331,8 @@ describe('PendingTransactionTracker', () => {
               confirmedTransactionMetaMock,
               submittedTransactionMetaMock,
             ],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-dropped', listener);
@@ -329,6 +349,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-dropped', listener);
@@ -354,6 +376,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-confirmed', listener);
@@ -382,6 +406,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-updated', listener);
@@ -412,6 +438,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-updated', listener);
@@ -443,6 +471,8 @@ describe('PendingTransactionTracker', () => {
           new PendingTransactionTracker({
             ...options,
             getTransactions: () => [],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           await onLatestBlock();
@@ -459,6 +489,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-updated', listener);
@@ -485,6 +517,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-updated', listener);
@@ -519,6 +553,8 @@ describe('PendingTransactionTracker', () => {
               beforeCheckPendingTransaction: () => false,
               beforePublish: () => false,
             },
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-updated', listener);
@@ -547,6 +583,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-updated', listener);
@@ -583,6 +621,8 @@ describe('PendingTransactionTracker', () => {
           const tracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           tracker.hub.addListener('transaction-updated', listener);
@@ -612,6 +652,8 @@ describe('PendingTransactionTracker', () => {
           new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           queryMock.mockResolvedValueOnce(undefined);
@@ -632,6 +674,8 @@ describe('PendingTransactionTracker', () => {
           new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           queryMock.mockResolvedValueOnce(undefined);
@@ -666,6 +710,8 @@ describe('PendingTransactionTracker', () => {
             ...options,
             getTransactions: () => [transaction],
             isResubmitEnabled: false,
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           queryMock.mockResolvedValueOnce(undefined);
@@ -688,6 +734,8 @@ describe('PendingTransactionTracker', () => {
           new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
           queryMock.mockResolvedValueOnce(undefined);

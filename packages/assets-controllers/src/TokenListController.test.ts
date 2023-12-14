@@ -1100,6 +1100,8 @@ describe('TokenListController', () => {
       preventPollingOnNetworkRestart: false,
     });
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await new Promise((resolve: any) => {
       messenger.subscribe('TokenListController:stateChange', (_, patch) => {
         const tokenListChanged = patch.find(

@@ -7460,6 +7460,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       // the signature of `subscribe` and the way that we're using it. Try
       // changing `any` to either `((...args: E['payload']) => void)` or
       // `ExtractEventHandler<E, E['type']>` to see the issue.
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eventListener: any = (...payload: E['payload']) => {
         allEventPayloads.push(payload);
 

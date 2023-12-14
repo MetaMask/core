@@ -580,6 +580,8 @@ export class UserOperationController extends BaseController<
 
   #failUserOperation(metadata: UserOperationMetadata, error: unknown) {
     const { id } = metadata;
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawError = error as any;
 
     log('User operation failed', id, error);

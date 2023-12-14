@@ -55,6 +55,8 @@ const buildMocks = (
     mocks.getNetworkConfigurations ?? jest.fn(() => ({}));
   const mockGetProviderConfig =
     mocks.getProviderConfig ??
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     jest.fn<ProviderConfig, any[]>(() => ({
       chainId: '0x1',
       type: NetworkType.mainnet,

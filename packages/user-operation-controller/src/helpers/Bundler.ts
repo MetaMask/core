@@ -95,6 +95,8 @@ export class Bundler {
     return hash;
   }
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async #query(method: string, params: any[]): Promise<any> {
     const request = {
       method: 'POST',
@@ -110,6 +112,8 @@ export class Bundler {
 
     if (responseJson.error) {
       const error = new Error(responseJson.error.message || responseJson.error);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error as any).code = responseJson.error.code;
 
       throw error;

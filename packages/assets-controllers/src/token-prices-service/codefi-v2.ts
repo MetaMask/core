@@ -1,6 +1,15 @@
 import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
+import {
+  circuitBreaker,
+  ConsecutiveBreaker,
+  ExponentialBackoff,
+  handleAll,
+  type IPolicy,
+  retry,
+  wrap,
+} from 'cockatiel';
 
 import type {
   AbstractTokenPricesService,
@@ -238,15 +247,53 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
  */
 const BASE_URL = 'https://price-api.metafi.codefi.network/v2';
 
+const DEFAULT_TOKEN_PRICE_RETRIES = 3;
+// Each update attempt will result (1 + retries) calls if the server is down
+const DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES =
+  (1 + DEFAULT_TOKEN_PRICE_RETRIES) * 3;
+
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
-export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
-  SupportedChainId,
-  Hex,
-  SupportedCurrency
-> = {
+export class CodefiTokenPricesServiceV2
+  implements
+    AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
+{
+  #tokenPricePolicy: IPolicy;
+
+  /**
+   * Construct a Codefi Token Price Service.
+   *
+   * @param options - Constructor options
+   * @param options.retries - Number of retry attempts for each token price update.
+   * @param options.maximumConsecutiveFailures - The maximum number of consecutive failures
+   * allowed before breaking the circuit and pausing further updates.
+   * @param options.circuitBreakDuration - The amount of time to wait when the circuit breaks
+   * from too many consecutive failures.
+   */
+  constructor({
+    retries = DEFAULT_TOKEN_PRICE_RETRIES,
+    maximumConsecutiveFailures = DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES,
+    circuitBreakDuration = 30 * 60 * 1000,
+  }: {
+    retries?: number;
+    maximumConsecutiveFailures?: number;
+    circuitBreakDuration?: number;
+  } = {}) {
+    // Construct a policy that will retry each update, and halt further updates
+    // for a certain period after too many consecutive failures.
+    const retryPolicy = retry(handleAll, {
+      maxAttempts: retries,
+      backoff: new ExponentialBackoff(),
+    });
+    const circuitBreakerPolicy = circuitBreaker(handleAll, {
+      halfOpenAfter: circuitBreakDuration,
+      breaker: new ConsecutiveBreaker(maximumConsecutiveFailures),
+    });
+    this.#tokenPricePolicy = wrap(retryPolicy, circuitBreakerPolicy);
+  }
+
   /**
    * Retrieves prices in the given currency for the tokens identified by the
    * given addresses which are expected to live on the given chain.
@@ -275,7 +322,7 @@ export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
     const pricesByCurrencyByTokenAddress: SpotPricesEndpointData<
       Lowercase<Hex>,
       Lowercase<SupportedCurrency>
-    > = await handleFetch(url);
+    > = await this.#tokenPricePolicy.execute(() => handleFetch(url));
 
     return tokenAddresses.reduce(
       (
@@ -312,7 +359,7 @@ export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
       },
       {},
     ) as TokenPricesByTokenAddress<Hex, SupportedCurrency>;
-  },
+  }
 
   /**
    * Type guard for whether the API can return token prices for the given chain
@@ -324,7 +371,7 @@ export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
   validateChainIdSupported(chainId: unknown): chainId is SupportedChainId {
     const supportedChainIds: readonly string[] = SUPPORTED_CHAIN_IDS;
     return typeof chainId === 'string' && supportedChainIds.includes(chainId);
-  },
+  }
 
   /**
    * Type guard for whether the API can return token prices in the given
@@ -340,5 +387,5 @@ export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
       typeof currency === 'string' &&
       supportedCurrencies.includes(currency.toLowerCase())
     );
-  },
-};
+  }
+}
