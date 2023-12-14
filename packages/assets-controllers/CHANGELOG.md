@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The constructor now expects an options object as its only argument, with required properties `messenger`, `chainId`, required callbacks `onPreferencesStateChange`, `getBalancesInSingleCall`, `addDetectedTokens`, `getTokensState`, `getPreferencesState`, and optional properties `interval`, `selectedAddress`.
   - The controller state is an empty object and the controller config object is deprecated.
   - Polling can only be initiated by a `.start()` call made from a controller client. There is no longer an option to automatically start polling when the controller is instantiated.
-- The `detectTokens` method of `TokenDetectionController` can now handle any number of tokens. Previously the limit was 2000 ([#3609](https://github.com/MetaMask/core/pull/3609)).
 
 ### Removed
 - **BREAKING:** Remove `fetchExchangeRate` method from TokenRatesController ([#3600](https://github.com/MetaMask/core/pull/3600))
