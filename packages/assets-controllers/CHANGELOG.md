@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [21.0.0]
 ### Added
 - Add `CodefiTokenPricesServiceV2` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3655](https://github.com/MetaMask/core/pull/3655), [#3655](https://github.com/MetaMask/core/pull/3655))
-  - This class can be used for the new `tokenPricesService` argument for TokenRatesController. It uses an internal API to fetch prices for tokens instead of CoinGecko.
+  - This class can be used for the new `tokenPricesService` argument for TokenRatesController. It uses a MetaMask API to fetch prices for tokens instead of CoinGecko.
   - The `CodefiTokenPricesServiceV2` will retry if the token price update fails
     - We retry each request up to 3 times using a randomized exponential backoff strategy
     - If the token price update still fails 12 times consecutively (3 update attempts, each of which has 4 calls due to retries), we stop trying for 30 minutes before we try again.
