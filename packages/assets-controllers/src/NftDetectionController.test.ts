@@ -849,4 +849,61 @@ describe('NftDetectionController', () => {
       'UNEXPECTED ERROR',
     );
   });
+
+  it('should fetch the detected NFT individually if theres metadata but no image_url', async () => {
+    const selectedAddress = '0x1994';
+    const nftContract = '0x26B4a381D694c1AC6812eA80C3f3d088572802db';
+    const nftId = '123';
+
+    nock(OPENSEA_PROXY_URL)
+      .persist()
+      .get(`/chain/ethereum/account/${selectedAddress}/nfts?limit=200&next=`)
+      .reply(200, {
+        nfts: [
+          {
+            identifier: nftId,
+            contract: nftContract,
+            image_url: null,
+            token_standard: 'erc721',
+            metadata_url: 'https://example.com',
+          },
+        ],
+      })
+      .get(`/chain/ethereum/contract/${nftContract}/nfts/${nftId}`)
+      .reply(200, { nft: { image_url: 'https://example.com/image.gif' } })
+      .get(`/chain/ethereum/contract/${nftContract}`)
+      .reply(200, {
+        address: nftContract,
+        chain: 'ethereum',
+        collection: 'mycollection',
+        contract_standard: 'erc721',
+        name: 'myname',
+        supply: 0,
+      })
+      .get(`/collections/mycollection`)
+      .reply(200, {});
+
+    nftDetection.configure({ chainId: ChainId.mainnet, selectedAddress });
+    nftController.configure({ selectedAddress });
+
+    await nftDetection.detectNfts();
+    const nfts =
+      nftController.state.allNfts[selectedAddress][nftDetection.config.chainId];
+    expect(nfts).toStrictEqual([
+      {
+        address: nftContract,
+        name: undefined,
+        image: 'https://example.com/image.gif',
+        tokenId: nftId,
+        standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
+        creator: {
+          user: { username: '' },
+          profile_img_url: '',
+          address: '',
+        },
+      },
+    ]);
+  });
 });

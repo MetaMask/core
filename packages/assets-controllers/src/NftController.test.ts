@@ -2132,7 +2132,9 @@ describe('NftController', () => {
       nock(OPENSEA_PROXY_URL)
         .get(`/chain/ethereum/contract/${ERC721_NFT_ADDRESS}`)
         .replyWithError(new Error('Failed to fetch'))
-        .get(`/chain/ethereum/contract/${ERC721_NFT_ADDRESS}/nfts/${ERC721_NFT_ID}`)
+        .get(
+          `/chain/ethereum/contract/${ERC721_NFT_ADDRESS}/nfts/${ERC721_NFT_ID}`,
+        )
         .replyWithError(new Error('Failed to fetch'));
 
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
