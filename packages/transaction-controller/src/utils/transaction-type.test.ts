@@ -14,6 +14,8 @@ describe('determineTransactionType', () => {
 
   it('returns a token transfer type when the recipient is a contract, there is no value passed, and data is for the respective method call', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '0xab');
       }
@@ -38,6 +40,8 @@ describe('determineTransactionType', () => {
       ' when the recipient is a contract, the data matches the respective method call, but there is a value passed',
     async () => {
       class MockEthQuery extends EthQuery {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getCode(_to: any, cb: any) {
           cb(null, '0xab');
         }
@@ -83,6 +87,8 @@ describe('determineTransactionType', () => {
 
   it('does NOT return a token transfer type when the recipient is not a contract but the data matches the respective method call', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '0x');
       }
@@ -99,6 +105,8 @@ describe('determineTransactionType', () => {
 
   it('returns a token approve type when the recipient is a contract and data is for the respective method call', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '0xab');
       }
@@ -118,6 +126,8 @@ describe('determineTransactionType', () => {
 
   it('returns a contract deployment type when "to" is falsy and there is data', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '');
       }
@@ -138,6 +148,8 @@ describe('determineTransactionType', () => {
 
   it('returns a simple send type with a 0x getCodeResponse when there is data, but the "to" address is not a contract address', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '0x');
       }
@@ -157,6 +169,8 @@ describe('determineTransactionType', () => {
 
   it('returns a simple send type with a null getCodeResponse when "to" is truthy and there is data, but getCode returns an error', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(new Error('Some error'));
       }
@@ -176,6 +190,8 @@ describe('determineTransactionType', () => {
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is truthy and there is data, and it is not a token transaction', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '0xa');
       }
@@ -195,6 +211,8 @@ describe('determineTransactionType', () => {
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is a contract address and data is falsy', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '0xa');
       }
@@ -214,6 +232,8 @@ describe('determineTransactionType', () => {
 
   it('returns contractInteraction for send with approve', async () => {
     class MockEthQuery extends EthQuery {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode(_to: any, cb: any) {
         cb(null, '0xa');
       }

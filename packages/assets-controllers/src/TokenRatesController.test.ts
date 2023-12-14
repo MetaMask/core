@@ -734,6 +734,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is active', () => {
       it('should update exchange rates when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -765,6 +767,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should update exchange rates when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -796,6 +800,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -825,6 +831,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -854,6 +862,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates when network state changes without a ticker/chain id change', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -887,6 +897,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is inactive', () => {
       it('should not update exchange rates when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -917,6 +929,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -947,6 +961,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -975,6 +991,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -1017,6 +1035,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is active', () => {
       it('should update exchange rates when selected address changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = jest
           .fn()
@@ -1062,6 +1082,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates when preferences state changes without selected address changing', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = jest
           .fn()
@@ -1108,6 +1130,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is inactive', () => {
       it('should not update exchange rates when selected address changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = jest
           .fn()

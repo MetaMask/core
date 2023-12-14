@@ -73,6 +73,8 @@ async function setupAssetContractControllers() {
       ({
         ...network.getNetworkClientById(networkClientId),
         provider,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any),
   });
 

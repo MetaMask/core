@@ -126,6 +126,8 @@ type NetworkConfigurations = Record<
  * itself.
  */
 export function knownKeysOf<K extends PropertyKey>(
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   object: Partial<Record<K, any>>,
 ) {
   return Object.keys(object) as K[];
@@ -158,6 +160,8 @@ function assertOfType<Type>(
  * @param keys - The keys to pick from the object.
  * @returns the portion of the object.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pick<Obj extends Record<any, any>, Keys extends keyof Obj>(
   object: Obj,
   keys: Keys[],
@@ -1204,6 +1208,8 @@ export class NetworkController extends BaseController<
     }
     try {
       new URL(rpcUrl);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       if (e.message.includes('Invalid URL')) {
         throw new Error('rpcUrl must be a valid URL');
