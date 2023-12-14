@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This is needed to track balances accross chains. It was introduced for the "polling by `networkClientId`" feature, but is useful on its own as well.
 - **BREAKING**: `AccountTrackerController` adds a mutex to `refresh` making it only possible for one call to be executed at time ([#3586](https://github.com/MetaMask/core/pull/3586))
 - **BREAKING**: `TokensController.watchAsset` now performs on-chain validation of the asset's symbol and decimals, if they're defined in the contract ([#1745](https://github.com/MetaMask/core/pull/1745))
+  - The `TokensController` constructor no longer accepts a `getERC20TokenName` option. It was no longer needed due to this change.
+  - Add new method `_getProvider`, though this is intended for internal use and should not be called externally.
   - Additionally, if the symbol and decimals are defined in the contract, they are no longer required to be passed to `watchAsset`
 - **BREAKING:** Update controllers that rely on provider to listen to `NetworkController:networkDidChange` instead of `NetworkController:stateChange` ([#3610](https://github.com/MetaMask/core/pull/3610))
   - The `networkDidChange` event is safer in cases where the provider is used because the provider is guaranteed to have been updated by the time that event is emitted. The same is not true of the `stateChange` event.
