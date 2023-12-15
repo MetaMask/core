@@ -4399,4 +4399,29 @@ describe('TransactionController', () => {
       Current tx status: ${TransactionStatus.submitted}`);
     });
   });
+  describe('startTrackinbByNetworkClientId', () => {
+    it('should start tracking in a tracking map', () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+      expect(trackingMap.get('mainnet')?.nonceTracker).toBeDefined();
+      expect(
+        trackingMap.get('mainnet')?.incomingTransactionHelper,
+      ).toBeDefined();
+      expect(
+        trackingMap.get('mainnet')?.pendingTransactionTracker,
+      ).toBeDefined();
+    });
+    it('should stop tracking in a tracking map', () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+      const incomingTransactionHelper =
+        trackingMap.get('mainnet')?.incomingTransactionHelper;
+      if (!incomingTransactionHelper) {
+        throw new Error('incomingTransactionHelper is undefined');
+      }
+      const stopSpy = jest.spyOn(incomingTransactionHelper, 'stop');
+      controller.stopTrackingByNetworkClientId('mainnet');
+      expect(stopSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
