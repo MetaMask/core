@@ -643,7 +643,7 @@ export class TokenRatesController extends BaseController<
         return resultArray;
       }, []);
 
-    const tokensPairsChunks = tokenPairsChunks(20);
+    const tokensPairsChunks = tokenPairsChunks(100);
 
     const results: CoinGeckoResponse[] = [];
     for (const tokenPairsChunk of tokensPairsChunks) {
