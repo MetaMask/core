@@ -20,4 +20,4 @@ export {
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
 } from './assetsUtil';
-export { CodefiTokenPricesServiceV2 } from './token-prices-service';
+export { codefiTokenPricesServiceV2 } from './token-prices-service';
