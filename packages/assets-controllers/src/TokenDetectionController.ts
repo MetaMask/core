@@ -25,7 +25,10 @@ import type {
   TokenListStateChange,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
-import type { TokensController, TokensState } from './TokensController';
+import type {
+  TokensControllerAddDetectedTokensAction,
+  TokensControllerGetStateAction,
+} from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -44,6 +47,8 @@ export type TokenDetectionControllerActions =
 export type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerFindNetworkClientIdByChainIdAction
+  | TokensControllerGetStateAction
+  | TokensControllerAddDetectedTokensAction
   | GetTokenListState;
 
 export type TokenDetectionControllerStateChangeEvent =
@@ -100,10 +105,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  readonly #addDetectedTokens: TokensController['addDetectedTokens'];
-
-  readonly #getTokensState: () => TokensState;
-
   /**
    * Creates a TokenDetectionController instance.
    *
@@ -114,8 +115,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.selectedAddress - Vault selected address
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
-   * @param options.addDetectedTokens - Add a list of detected tokens.
-   * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param options.getPreferencesState - Gets the state of the preferences controller.
    */
   constructor({
@@ -124,8 +123,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     interval = DEFAULT_INTERVAL,
     onPreferencesStateChange,
     getBalancesInSingleCall,
-    addDetectedTokens,
-    getTokensState,
     getPreferencesState,
     messenger,
   }: {
@@ -136,8 +133,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-    addDetectedTokens: TokensController['addDetectedTokens'];
-    getTokensState: () => TokensState;
     getPreferencesState: () => PreferencesState;
     messenger: TokenDetectionControllerMessenger;
   }) {
@@ -164,8 +159,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       this.#chainId,
     );
 
-    this.#getTokensState = getTokensState;
-    this.#addDetectedTokens = addDetectedTokens;
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
 
     this.messagingSystem.subscribe(
@@ -293,7 +286,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     ) {
       return;
     }
-    const { tokens } = this.#getTokensState();
+    const { tokens } = this.messagingSystem.call('TokensController:getState');
     const selectedAddress = accountAddress ?? this.#selectedAddress;
     const chainId = this.#getCorrectChainId(networkClientId);
     const tokensAddresses = tokens.map(
@@ -334,7 +327,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         for (const tokenAddress of Object.keys(balances)) {
           let ignored;
           /* istanbul ignore else */
-          const { ignoredTokens } = this.#getTokensState();
+          const { ignoredTokens } = this.messagingSystem.call(
+            'TokensController:getState',
+          );
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -362,10 +357,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         }
 
         if (tokensToAdd.length) {
-          await this.#addDetectedTokens(tokensToAdd, {
-            selectedAddress,
-            chainId,
-          });
+          this.messagingSystem.call(
+            'TokensController:addDetectedTokens',
+            tokensToAdd,
+            {
+              selectedAddress,
+              chainId,
+            },
+          );
         }
       });
     }

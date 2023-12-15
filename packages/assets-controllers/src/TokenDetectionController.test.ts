@@ -147,6 +147,8 @@ function buildTokenDetectionControllerMessenger(
     allowedActions: [
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'NetworkController:findNetworkClientIdByChainId',
+      'TokensController:getState',
+      'TokensController:addDetectedTokens',
       'TokenListController:getState',
     ],
     allowedEvents: [
@@ -248,6 +250,15 @@ describe('TokenDetectionController', () => {
       messenger: undefined as unknown as TokensControllerMessenger,
     });
 
+    controllerMessenger.registerActionHandler(
+      `TokensController:getState`,
+      () => tokensController.state,
+    );
+    controllerMessenger.registerActionHandler(
+      `TokensController:addDetectedTokens`,
+      tokensController.addDetectedTokens.bind(tokensController),
+    );
+
     const tokenListSetup = setupTokenListController(controllerMessenger);
     tokenList = tokenListSetup.tokenList;
     await tokenList.start();
@@ -258,9 +269,6 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       getBalancesInSingleCall:
         getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
-      addDetectedTokens:
-        tokensController.addDetectedTokens.bind(tokensController),
-      getTokensState: () => tokensController.state,
       getPreferencesState: () => preferences.state,
       messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     });
@@ -468,6 +476,14 @@ describe('TokenDetectionController', () => {
           NetworkType.mainnet,
         ),
       );
+      controllerMessenger.registerActionHandler(
+        `TokensController:getState`,
+        () => tokensController.state,
+      );
+      controllerMessenger.registerActionHandler(
+        `TokensController:addDetectedTokens`,
+        tokensController.addDetectedTokens.bind(tokensController),
+      );
 
       const tokenListSetup = setupTokenListController(controllerMessenger);
       tokenList = tokenListSetup.tokenList;
@@ -485,8 +501,6 @@ describe('TokenDetectionController', () => {
         selectedAddress: '0x1',
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: () => tokensController.state,
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
@@ -509,8 +523,6 @@ describe('TokenDetectionController', () => {
         chainId: ChainId.mainnet,
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: () => tokensController.state,
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
@@ -532,8 +544,6 @@ describe('TokenDetectionController', () => {
         selectedAddress: '0x1',
         onPreferencesStateChange,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: () => tokensController.state,
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
@@ -552,8 +562,6 @@ describe('TokenDetectionController', () => {
         selectedAddress: '0x1',
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: () => tokensController.state,
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
