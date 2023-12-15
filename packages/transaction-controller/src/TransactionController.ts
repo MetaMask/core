@@ -1662,10 +1662,11 @@ export class TransactionController extends BaseControllerV1<
     }
 
     const initialTx = listOfTxParams[0];
-    const initialTxAsEthTx = this.prepareUnsignedEthTx(
-      initialTx.chainId,
-      initialTx,
-    );
+    const common = this.getCommonConfiguration(initialTx.chainId);
+
+    const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
+      common,
+    });
     const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
 
     if (this.inProcessOfSigning.has(initialTxAsSerializedHex)) {
@@ -1914,9 +1915,10 @@ export class TransactionController extends BaseControllerV1<
     };
 
     const { from } = updatedTransactionParams;
-    const unsignedTransaction = this.prepareUnsignedEthTx(
-      chainId,
+    const common = this.getCommonConfiguration(chainId);
+    const unsignedTransaction = TransactionFactory.fromTxData(
       updatedTransactionParams,
+      { common },
     );
     const signedTransaction = await this.sign(unsignedTransaction, from);
 
@@ -2429,6 +2431,7 @@ export class TransactionController extends BaseControllerV1<
     txParams: TransactionParams,
   ): TypedTransaction {
     return TransactionFactory.fromTxData(txParams, {
+      freeze: false,
       common: this.getCommonConfiguration(chainId),
     });
   }
