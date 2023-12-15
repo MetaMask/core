@@ -1,6 +1,9 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { BlockTracker, NetworkClientId } from '@metamask/network-controller';
+import type {
+  BlockTracker,
+  NetworkClientId,
+} from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 import type { NonceTracker } from 'nonce-tracker';
@@ -278,7 +281,7 @@ export class PendingTransactionTracker {
       return;
     }
 
-    const ethQuery = this.#getEthQuery(txMeta.networkClientId)
+    const ethQuery = this.#getEthQuery(txMeta.networkClientId);
     await this.#publishTransaction(ethQuery, rawTx);
 
     txMeta.retryCount = (txMeta.retryCount ?? 0) + 1;
