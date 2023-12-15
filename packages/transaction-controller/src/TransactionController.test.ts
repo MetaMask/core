@@ -1355,7 +1355,9 @@ describe('TransactionController', () => {
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
         ethQuery: expect.any(Object),
-        providerConfig: MOCK_NETWORK.state.providerConfig,
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        isCustomNetwork:
+          MOCK_NETWORK.state.providerConfig.type === NetworkType.rpc,
         txMeta: expect.any(Object),
       });
     });

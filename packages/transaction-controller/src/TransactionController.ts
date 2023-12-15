@@ -99,6 +99,7 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+import { NetworkClientType } from '@metamask/network-controller';
 
 export const HARDFORK = Hardfork.London;
 
@@ -1949,14 +1950,19 @@ export class TransactionController extends BaseControllerV1<
 
     const { networkClientId } = transactionMeta;
 
-    let providerConfig: ProviderConfig | NetworkClientConfiguration =  this.getNetworkState().providerConfig
+    const { providerConfig } = this.getNetworkState();
+    let { chainId } = providerConfig;
+    let isCustomNetwork = providerConfig.type === NetworkType.rpc;
     if (networkClientId) {
-      providerConfig = this.getNetworkClientById(networkClientId).configuration
+      const { configuration } = this.getNetworkClientById(networkClientId);
+      chainId = configuration.chainId;
+      isCustomNetwork = configuration.type === NetworkClientType.Custom;
     }
 
     await updateGas({
       ethQuery: this.getEthQuery(networkClientId),
-      providerConfig,  // should this be renamed?
+      chainId,
+      isCustomNetwork,
       txMeta: transactionMeta,
     });
 
