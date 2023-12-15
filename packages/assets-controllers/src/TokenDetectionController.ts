@@ -251,10 +251,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         'NetworkController:getNetworkConfigurationByNetworkClientId',
         networkClientId ?? this.#networkClientId,
       ) ?? {};
-    if (chainId) {
-      this.#chainId = chainId;
-    }
-    return this.#chainId;
+    return chainId ?? this.#chainId;
   }
 
   async _executePoll(
