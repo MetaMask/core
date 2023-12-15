@@ -274,11 +274,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.networkClientId - The ID of the network client to use.
    * @param options.accountAddress - The account address to use.
    */
-  async detectTokens(options?: {
+  async detectTokens({
+    networkClientId,
+    accountAddress,
+  }: {
     networkClientId?: NetworkClientId;
     accountAddress?: string;
-  }): Promise<void> {
-    const { networkClientId, accountAddress } = options ?? {};
+  } = {}): Promise<void> {
     if (
       this.#disabled ||
       !this.#isDetectionEnabledForNetwork ||
