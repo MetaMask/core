@@ -140,9 +140,9 @@ function setupTokenListController(
  * @returns The restricted messenger.
  */
 function buildTokenDetectionControllerMessenger(
-  controllerMessenger?: MainControllerMessenger,
+  controllerMessenger: MainControllerMessenger = getControllerMessenger(),
 ): TokenDetectionControllerMessenger {
-  return (controllerMessenger ?? getControllerMessenger()).getRestricted({
+  return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
       'NetworkController:getNetworkConfigurationByNetworkClientId',
