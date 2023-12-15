@@ -20,7 +20,6 @@ import {
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
-  UserOperationControllerActions,
   UserOperationControllerMessenger,
 } from './UserOperationController';
 import { UserOperationController } from './UserOperationController';
@@ -40,7 +39,7 @@ jest.mock('./helpers/PendingUserOperationTracker');
 const CHAIN_ID_MOCK = '0x5';
 const USER_OPERATION_HASH_MOCK = '0x123';
 const ERROR_MESSAGE_MOCK = 'Test Error';
-const ERROR_CODE_MOCK = 1234;
+const ERROR_CODE_MOCK = '1234';
 const INTERVAL_MOCK = 1234;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const TRANSACTION_HASH_MOCK = '0x456';
@@ -209,9 +208,10 @@ describe('UserOperationController', () => {
 
     messenger.call.mockImplementation(
       (
-        action: UserOperationControllerActions['type'],
-        ..._args: Parameters<UserOperationControllerActions['handler']>
-      ) => {
+        ...args: Parameters<UserOperationControllerMessenger['call']>
+      ): ReturnType<UserOperationControllerMessenger['call']> => {
+        const action = args[0];
+
         if (action === 'NetworkController:getNetworkClientById') {
           return networkControllerGetClientByIdMock();
         }
@@ -220,7 +220,7 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
-        return undefined;
+        throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );
 
