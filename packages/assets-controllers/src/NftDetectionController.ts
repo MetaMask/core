@@ -246,7 +246,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
    * @param options.addNft - Add an NFT.
-   * @param options.getNftApi - TODO
+   * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
    * @param options.getNftState - Gets the current state of the Assets controller.
    * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
    * @param config - Initial options used to configure this controller.
