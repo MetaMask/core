@@ -6,7 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- `TokenListController` now exports a `TokenListControllerMessenger` type ([#3609](https://github.com/MetaMask/core/pull/3609)).
+- `TokensController` exports types `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerActions`, `TokensControllerStateChangeEvent`, `TokensControllerEvents` ([#3609](https://github.com/MetaMask/core/pull/3609)).
+- `TokenListController` exports type `TokenListControllerMessenger` ([#3609](https://github.com/MetaMask/core/pull/3609)).
 - `TokenDetectionController` exports types `TokenDetectionControllerMessenger`, `TokenDetectionControllerActions`, `TokenDetectionControllerGetStateAction`, `TokenDetectionControllerEvents`, `TokenDetectionControllerStateChangeEvent` ([#3609](https://github.com/MetaMask/core/pull/3609)).
 
 ### Changed

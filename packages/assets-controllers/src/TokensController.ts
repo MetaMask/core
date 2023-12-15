@@ -5,6 +5,8 @@ import type {
   BaseConfig,
   BaseState,
   RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
@@ -52,16 +54,13 @@ import type { Token } from './TokenRatesController';
  * Tokens controller configuration
  * @property selectedAddress - Vault selected address
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TokensConfig extends BaseConfig {
+export type TokensConfig = BaseConfig & {
   selectedAddress: string;
   chainId: Hex;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any;
-}
+};
 
 /**
  * @type SuggestedAssetMeta
@@ -73,7 +72,7 @@ export interface TokensConfig extends BaseConfig {
  * @property asset - Asset suggested object
  * @property interactingAddress - Account address that requested watch asset
  */
-type SuggestedAssetMeta = {
+export type SuggestedAssetMeta = {
   id: string;
   time: number;
   type: string;
@@ -92,36 +91,55 @@ type SuggestedAssetMeta = {
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TokensState extends BaseState {
-  tokens: Token[];
-  ignoredTokens: string[];
-  detectedTokens: Token[];
-  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-  allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
-  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-}
+export type TokensState = BaseState &
+  Record<string, unknown> & {
+    tokens: Token[];
+    ignoredTokens: string[];
+    detectedTokens: Token[];
+    allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+    allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
+    allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  };
 
 /**
  * The name of the {@link TokensController}.
  */
-const controllerName = 'TokensController';
+export const controllerName = 'TokensController';
+
+export type TokensControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  TokensState
+>;
+
+export type TokensControllerAddDetectedTokensAction = {
+  type: `${typeof controllerName}:addDetectedTokens`;
+  handler: TokensController['addDetectedTokens'];
+};
+
+export type TokensControllerActions =
+  | TokensControllerGetStateAction
+  | TokensControllerAddDetectedTokensAction;
 
 /**
  * The external actions available to the {@link TokensController}.
  */
-type AllowedActions = AddApprovalRequest;
+export type AllowedActions = AddApprovalRequest;
+
+export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  TokensState
+>;
+
+export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link TokensController}.
  */
 export type TokensControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  AllowedActions,
-  never,
-  AllowedActions['type'],
+  TokensControllerActions | AllowedActions,
+  TokensControllerEvents,
+  (TokensControllerActions | AllowedActions)['type'],
   never
 >;
 
