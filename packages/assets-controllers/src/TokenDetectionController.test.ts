@@ -474,7 +474,7 @@ describe('TokenDetectionController', () => {
       await tokenList.start();
     });
 
-    it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
+    it('should not be called after stopping polling, and then switching between networks that support token detection', async () => {
       const polygonDecimalChainId = '137';
       nock(TOKEN_END_POINT_API)
         .get(getTokensPath(toHex(polygonDecimalChainId)))
@@ -504,7 +504,7 @@ describe('TokenDetectionController', () => {
       expect(getBalancesInSingleCallMock.called).toBe(false);
     });
 
-    it('should not call getBalancesInSingleCall if TokenListController is updated to have an empty token list', async () => {
+    it('should not be called if TokenListController is updated to have an empty token list', async () => {
       tokenDetection = new TokenDetectionController({
         chainId: ChainId.mainnet,
         onPreferencesStateChange: stub,
@@ -519,7 +519,7 @@ describe('TokenDetectionController', () => {
       expect(getBalancesInSingleCallMock.called).toBe(false);
     });
 
-    it('should call getBalancesInSingleCall if onPreferencesStateChange is called with useTokenDetection being true and is changed', async () => {
+    it('should be called if onPreferencesStateChange is called with useTokenDetection being true and is changed', async () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let preferencesStateChangeListener: (state: any) => void;
@@ -546,7 +546,7 @@ describe('TokenDetectionController', () => {
       expect(getBalancesInSingleCallMock.called).toBe(true);
     });
 
-    it('should call getBalancesInSingleCall if network is changed to a chainId that supports token detection', async () => {
+    it('should be called if network is changed to a chainId that supports token detection', async () => {
       tokenDetection = new TokenDetectionController({
         chainId: SupportedTokenDetectionNetworks.polygon,
         selectedAddress: '0x1',
