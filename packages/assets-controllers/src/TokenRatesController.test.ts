@@ -42,7 +42,6 @@ describe('TokenRatesController', () => {
 
     it('should set default state', () => {
       const controller = new TokenRatesController({
-        getNetworkClientById: jest.fn(),
         chainId: '0x1',
         ticker: NetworksTicker.mainnet,
         selectedAddress: defaultSelectedAddress,
@@ -59,7 +58,6 @@ describe('TokenRatesController', () => {
 
     it('should initialize with the default config', () => {
       const controller = new TokenRatesController({
-        getNetworkClientById: jest.fn(),
         chainId: '0x1',
         ticker: NetworksTicker.mainnet,
         selectedAddress: defaultSelectedAddress,
@@ -84,7 +82,6 @@ describe('TokenRatesController', () => {
       const fetchSpy = jest.spyOn(globalThis, 'fetch');
       new TokenRatesController({
         interval: 100,
-        getNetworkClientById: jest.fn(),
         chainId: '0x1',
         ticker: NetworksTicker.mainnet,
         selectedAddress: defaultSelectedAddress,
@@ -744,7 +741,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -777,7 +773,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -810,7 +805,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -841,7 +835,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -872,7 +865,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -907,7 +899,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -939,7 +930,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -971,7 +961,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -1001,7 +990,6 @@ describe('TokenRatesController', () => {
           });
         const controller = new TokenRatesController({
           interval: 100,
-          getNetworkClientById: jest.fn(),
           chainId: toHex(1337),
           ticker: 'TEST',
           selectedAddress: defaultSelectedAddress,
@@ -1048,7 +1036,6 @@ describe('TokenRatesController', () => {
         const controller = new TokenRatesController(
           {
             interval: 100,
-            getNetworkClientById: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
             selectedAddress: defaultSelectedAddress,
@@ -1093,7 +1080,6 @@ describe('TokenRatesController', () => {
         const controller = new TokenRatesController(
           {
             interval: 100,
-            getNetworkClientById: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
             selectedAddress: defaultSelectedAddress,
@@ -1143,7 +1129,6 @@ describe('TokenRatesController', () => {
         const controller = new TokenRatesController(
           {
             interval: 100,
-            getNetworkClientById: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
             selectedAddress: defaultSelectedAddress,
@@ -1196,7 +1181,6 @@ describe('TokenRatesController', () => {
         const controller = new TokenRatesController(
           {
             interval,
-            getNetworkClientById: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
             selectedAddress: defaultSelectedAddress,
@@ -1240,7 +1224,6 @@ describe('TokenRatesController', () => {
         const controller = new TokenRatesController(
           {
             interval,
-            getNetworkClientById: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
             selectedAddress: defaultSelectedAddress,
@@ -1276,309 +1259,6 @@ describe('TokenRatesController', () => {
     });
   });
 
-  describe('polling by networkClientId', () => {
-    let clock: sinon.SinonFakeTimers;
-
-    beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
-    });
-
-    afterEach(() => {
-      clock.restore();
-    });
-
-    it('should poll on the right interval', async () => {
-      const interval = 100;
-      const tokenPricesService = buildMockTokenPricesService();
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
-      const controller = new TokenRatesController(
-        {
-          interval,
-          chainId: '0x2',
-          ticker: 'ticker',
-          selectedAddress: defaultSelectedAddress,
-          onPreferencesStateChange: jest.fn(),
-          onTokensStateChange: jest.fn(),
-          onNetworkStateChange: jest.fn(),
-          getNetworkClientById: jest.fn().mockReturnValue({
-            configuration: {
-              chainId: '0x1',
-              ticker: NetworksTicker.mainnet,
-            },
-          }),
-          tokenPricesService,
-        },
-        {
-          allTokens: {
-            '0x1': {
-              [defaultSelectedAddress]: [
-                {
-                  address: mockTokenAddress,
-                  decimals: 0,
-                  symbol: '',
-                  aggregators: [],
-                },
-              ],
-            },
-          },
-        },
-      );
-
-      controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
-      expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
-
-      await advanceTime({ clock, duration: interval });
-      expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(2);
-
-      await advanceTime({ clock, duration: interval });
-      expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(3);
-    });
-
-    describe('updating state on poll', () => {
-      describe('when the native currency is supported', () => {
-        it('returns the exchange rates directly', async () => {
-          const tokenPricesService = buildMockTokenPricesService({
-            fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
-            validateCurrencySupported(currency: unknown): currency is string {
-              return currency === 'ETH';
-            },
-          });
-          const controller = new TokenRatesController(
-            {
-              chainId: '0x2',
-              ticker: 'ticker',
-              selectedAddress: defaultSelectedAddress,
-              onPreferencesStateChange: jest.fn(),
-              onTokensStateChange: jest.fn(),
-              onNetworkStateChange: jest.fn(),
-              getNetworkClientById: jest.fn().mockReturnValue({
-                configuration: {
-                  chainId: '0x1',
-                  ticker: NetworksTicker.mainnet,
-                },
-              }),
-              tokenPricesService,
-            },
-            {
-              allTokens: {
-                '0x1': {
-                  [defaultSelectedAddress]: [
-                    {
-                      address: '0x02',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                    {
-                      address: '0x03',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                  ],
-                },
-              },
-            },
-          );
-
-          controller.startPollingByNetworkClientId('mainnet');
-          await advanceTime({ clock, duration: 0 });
-
-          expect(controller.state.contractExchangeRatesByChainId).toStrictEqual(
-            {
-              '0x1': {
-                ETH: {
-                  '0x02': 0.001,
-                  '0x03': 0.002,
-                },
-              },
-            },
-          );
-        });
-      });
-
-      describe('when the native currency is not supported', () => {
-        it('returns the exchange rates using ETH as a fallback currency', async () => {
-          nock('https://min-api.cryptocompare.com')
-            .get('/data/price?fsym=ETH&tsyms=LOL')
-            .reply(200, { LOL: 0.5 });
-          const tokenPricesService = buildMockTokenPricesService({
-            fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
-            validateCurrencySupported(currency: unknown): currency is string {
-              return currency !== 'LOL';
-            },
-          });
-          const controller = new TokenRatesController(
-            {
-              chainId: '0x2',
-              ticker: 'ticker',
-              selectedAddress: defaultSelectedAddress,
-              onPreferencesStateChange: jest.fn(),
-              onTokensStateChange: jest.fn(),
-              onNetworkStateChange: jest.fn(),
-              getNetworkClientById: jest.fn().mockReturnValue({
-                configuration: {
-                  chainId: '0x1',
-                  ticker: 'LOL',
-                },
-              }),
-              tokenPricesService,
-            },
-            {
-              allTokens: {
-                '0x1': {
-                  [defaultSelectedAddress]: [
-                    {
-                      address: '0x02',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                    {
-                      address: '0x03',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                  ],
-                },
-              },
-            },
-          );
-
-          controller.startPollingByNetworkClientId('mainnet');
-          // flush promises and advance setTimeouts they enqueue 3 times
-          // needed because fetch() doesn't resolve immediately, so any
-          // downstream promises aren't flushed until the next advanceTime loop
-          await advanceTime({ clock, duration: 1, stepSize: 1 / 3 });
-
-          expect(controller.state.contractExchangeRatesByChainId).toStrictEqual(
-            {
-              '0x1': {
-                LOL: {
-                  // token price in LOL = (token price in ETH) * (ETH value in LOL)
-                  '0x02': 0.0005,
-                  '0x03': 0.001,
-                },
-              },
-            },
-          );
-          controller.stopAllPolling();
-        });
-
-        it('returns the an empty object when market does not exist for pair', async () => {
-          nock('https://min-api.cryptocompare.com')
-            .get('/data/price?fsym=ETH&tsyms=LOL')
-            .replyWithError(
-              new Error('market does not exist for this coin pair'),
-            );
-
-          const tokenPricesService = buildMockTokenPricesService();
-          const controller = new TokenRatesController(
-            {
-              chainId: '0x2',
-              ticker: 'ETH',
-              selectedAddress: defaultSelectedAddress,
-              onPreferencesStateChange: jest.fn(),
-              onTokensStateChange: jest.fn(),
-              onNetworkStateChange: jest.fn(),
-              getNetworkClientById: jest.fn().mockReturnValue({
-                configuration: {
-                  chainId: '0x1',
-                  ticker: 'LOL',
-                },
-              }),
-              tokenPricesService,
-            },
-            {
-              allTokens: {
-                '0x1': {
-                  [defaultSelectedAddress]: [
-                    {
-                      address: '0x02',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                    {
-                      address: '0x03',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                  ],
-                },
-              },
-            },
-          );
-
-          controller.startPollingByNetworkClientId('mainnet');
-          // flush promises and advance setTimeouts they enqueue 3 times
-          // needed because fetch() doesn't resolve immediately, so any
-          // downstream promises aren't flushed until the next advanceTime loop
-          await advanceTime({ clock, duration: 1, stepSize: 1 / 3 });
-
-          expect(controller.state.contractExchangeRatesByChainId).toStrictEqual(
-            {
-              '0x1': {
-                LOL: {},
-              },
-            },
-          );
-          controller.stopAllPolling();
-        });
-      });
-    });
-
-    it('should stop polling', async () => {
-      const interval = 100;
-      const tokenPricesService = buildMockTokenPricesService();
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
-      const controller = new TokenRatesController(
-        {
-          interval,
-          chainId: '0x2',
-          ticker: 'ticker',
-          selectedAddress: defaultSelectedAddress,
-          onPreferencesStateChange: jest.fn(),
-          onTokensStateChange: jest.fn(),
-          onNetworkStateChange: jest.fn(),
-          getNetworkClientById: jest.fn().mockReturnValue({
-            configuration: {
-              chainId: '0x1',
-              ticker: NetworksTicker.mainnet,
-            },
-          }),
-          tokenPricesService,
-        },
-        {
-          allTokens: {
-            '0x1': {
-              [defaultSelectedAddress]: [
-                {
-                  address: mockTokenAddress,
-                  decimals: 0,
-                  symbol: '',
-                  aggregators: [],
-                },
-              ],
-            },
-          },
-        },
-      );
-
-      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
-      expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
-
-      controller.stopPollingByPollingToken(pollingToken);
-
-      await advanceTime({ clock, duration: interval });
-      expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
-    });
-  });
-
   // The TokenRatesController has two methods for updating exchange rates:
   // `updateExchangeRates` and `updateExchangeRatesByChainId`. They are the same
   // except in how the inputs are specified. `updateExchangeRates` gets the
@@ -1588,10 +1268,7 @@ describe('TokenRatesController', () => {
   // Here we test both of these methods using the same test cases. The
   // differences between them are abstracted away by the helper function
   // `callUpdateExchangeRatesMethod`.
-  describe.each([
-    'updateExchangeRates' as const,
-    'updateExchangeRatesByChainId' as const,
-  ])('%s', (method) => {
+  describe('updateExchangeRates', () => {
     it('does not update state when disabled', async () => {
       await withController(
         { config: { disabled: true } },
@@ -1614,7 +1291,6 @@ describe('TokenRatesController', () => {
             chainId: toHex(1),
             controller,
             controllerEvents,
-            method,
             nativeCurrency: 'ETH',
           });
 
@@ -1659,7 +1335,6 @@ describe('TokenRatesController', () => {
           chainId: toHex(1),
           controller,
           controllerEvents,
-          method,
           nativeCurrency: 'ETH',
         });
 
@@ -1699,7 +1374,6 @@ describe('TokenRatesController', () => {
                 chainId: toHex(1),
                 controller,
                 controllerEvents,
-                method,
                 nativeCurrency: 'ETH',
               }),
           ).rejects.toThrow('Failed to fetch');
@@ -1744,7 +1418,6 @@ describe('TokenRatesController', () => {
             chainId,
             controller,
             controllerEvents,
-            method,
             nativeCurrency: ticker,
           });
 
@@ -1807,7 +1480,6 @@ describe('TokenRatesController', () => {
             chainId: toHex(1),
             controller,
             controllerEvents,
-            method,
             nativeCurrency: 'ETH',
           });
 
@@ -1830,74 +1502,6 @@ describe('TokenRatesController', () => {
         },
       );
     });
-
-    if (method === 'updateExchangeRatesByChainId') {
-      it('updates rates only for a non-selected chain', async () => {
-        const tokenAddresses = [
-          '0x0000000000000000000000000000000000000001',
-          '0x0000000000000000000000000000000000000002',
-        ];
-        const tokenPricesService = buildMockTokenPricesService({
-          fetchTokenPrices: jest.fn().mockResolvedValue({
-            [tokenAddresses[0]]: {
-              currency: 'ETH',
-              tokenAddress: tokenAddresses[0],
-              value: 0.001,
-            },
-            [tokenAddresses[1]]: {
-              currency: 'ETH',
-              tokenAddress: tokenAddresses[1],
-              value: 0.002,
-            },
-          }),
-        });
-        await withController(
-          { options: { tokenPricesService } },
-          async ({ controller, controllerEvents }) => {
-            await callUpdateExchangeRatesMethod({
-              allTokens: {
-                [toHex(2)]: {
-                  [controller.config.selectedAddress]: [
-                    {
-                      address: tokenAddresses[0],
-                      decimals: 18,
-                      symbol: 'TST1',
-                      aggregators: [],
-                    },
-                    {
-                      address: tokenAddresses[1],
-                      decimals: 18,
-                      symbol: 'TST2',
-                      aggregators: [],
-                    },
-                  ],
-                },
-              },
-              chainId: toHex(2),
-              controller,
-              controllerEvents,
-              method,
-              nativeCurrency: 'ETH',
-              setChainAsCurrent: false,
-            });
-
-            expect(controller.state).toMatchInlineSnapshot(`
-              Object {
-                "contractExchangeRates": Object {},
-                "contractExchangeRatesByChainId": Object {
-                  "0x2": Object {
-                    "ETH": Object {
-                      "0x0000000000000000000000000000000000000001": 0.001,
-                      "0x0000000000000000000000000000000000000002": 0.002,
-                    },
-                  },
-                },
-              }
-          `);
-          },
-        );
-      });
-    }
 
     it('updates exchange rates when native currency is not supported by the Price API', async () => {
       const tokenAddresses = [
@@ -1956,7 +1560,6 @@ describe('TokenRatesController', () => {
             chainId: toHex(137),
             controller,
             controllerEvents,
-            method,
             nativeCurrency: 'UNSUPPORTED',
           });
 
@@ -2024,7 +1627,6 @@ describe('TokenRatesController', () => {
             chainId,
             controller,
             controllerEvents,
-            method,
             nativeCurrency: ticker,
           });
 
@@ -2092,7 +1694,6 @@ describe('TokenRatesController', () => {
             chainId: toHex(999),
             controller,
             controllerEvents,
-            method,
             nativeCurrency: 'TST',
           });
 
@@ -2162,7 +1763,6 @@ describe('TokenRatesController', () => {
               chainId: toHex(1),
               controller,
               controllerEvents,
-              method,
               nativeCurrency: 'ETH',
             });
 
@@ -2251,7 +1851,6 @@ async function withController<ReturnValue>(
     typeof TokenRatesController
   >[0] = {
     chainId: toHex(1),
-    getNetworkClientById: jest.fn(),
     onNetworkStateChange: (listener) => {
       controllerEvents.networkStateChange = listener;
     },
@@ -2310,64 +1909,42 @@ async function flushPromises(): Promise<void> {
  * @param args.controller - The controller to call the method with.
  * @param args.controllerEvents - Controller event handlers, used to
  * update controller configuration.
- * @param args.method - The "update exchange rates" method to call.
  * @param args.nativeCurrency - The symbol for the native currency of the
  * network we're getting updated exchange rates for.
- * @param args.setChainAsCurrent - When calling `updateExchangeRatesByChainId`,
- * this determines whether to set the chain as the globally selected chain.
  */
 async function callUpdateExchangeRatesMethod({
   allTokens,
   chainId,
   controller,
   controllerEvents,
-  method,
   nativeCurrency,
-  setChainAsCurrent = true,
 }: {
   allTokens: TokenRatesConfig['allTokens'];
   chainId: TokenRatesConfig['chainId'];
   controller: TokenRatesController;
   controllerEvents: ControllerEvents;
-  method: 'updateExchangeRates' | 'updateExchangeRatesByChainId';
   nativeCurrency: TokenRatesConfig['nativeCurrency'];
-  setChainAsCurrent?: boolean;
 }) {
-  if (method === 'updateExchangeRates' && !setChainAsCurrent) {
-    throw new Error(
-      'The "setChainAsCurrent" flag cannot be enabled when calling the "updateExchangeRates" method',
-    );
-  }
   // Note that the state given here is intentionally incomplete because the
   // controller only uses these two properties, and the tests are written to
   // only consider these two. We want this to break if we start relying on
   // more, as we'd need to update the tests accordingly.
   // @ts-expect-error Intentionally incomplete state
   controllerEvents.tokensStateChange({ allDetectedTokens: {}, allTokens });
+  // We're using controller events here instead of calling `configure`
+  // because `configure` does not update internal controller state correctly.
+  // As with many BaseControllerV1-based controllers, runtime config
+  // modification is allowed by the API but not supported in practice.
+  controllerEvents.networkStateChange({
+    // Note that the state given here is intentionally incomplete because the
+    // controller only uses these two properties, and the tests are written to
+    // only consider these two. We want this to break if we start relying on
+    // more, as we'd need to update the tests accordingly.
+    // @ts-expect-error Intentionally incomplete state
+    providerConfig: { chainId, ticker: nativeCurrency },
+  });
 
-  if (setChainAsCurrent) {
-    // We're using controller events here instead of calling `configure`
-    // because `configure` does not update internal controller state correctly.
-    // As with many BaseControllerV1-based controllers, runtime config
-    // modification is allowed by the API but not supported in practice.
-    controllerEvents.networkStateChange({
-      // Note that the state given here is intentionally incomplete because the
-      // controller only uses these two properties, and the tests are written to
-      // only consider these two. We want this to break if we start relying on
-      // more, as we'd need to update the tests accordingly.
-      // @ts-expect-error Intentionally incomplete state
-      providerConfig: { chainId, ticker: nativeCurrency },
-    });
-  }
-
-  if (method === 'updateExchangeRates') {
-    await controller.updateExchangeRates();
-  } else {
-    await controller.updateExchangeRatesByChainId({
-      chainId,
-      nativeCurrency,
-    });
-  }
+  await controller.updateExchangeRates();
 }
 
 /**

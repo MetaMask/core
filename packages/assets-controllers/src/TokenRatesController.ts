@@ -1,3 +1,4 @@
+import { BaseControllerV1 } from '@metamask/base-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
   safelyExecute,
@@ -5,12 +6,7 @@ import {
   FALL_BACK_VS_CURRENCY,
   toHex,
 } from '@metamask/controller-utils';
-import type {
-  NetworkClientId,
-  NetworkController,
-  NetworkState,
-} from '@metamask/network-controller';
-import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
@@ -143,7 +139,7 @@ async function getCurrencyConversionRate({
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
-export class TokenRatesController extends StaticIntervalPollingControllerV1<
+export class TokenRatesController extends BaseControllerV1<
   TokenRatesConfig,
   TokenRatesState
 > {
@@ -160,15 +156,12 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    */
   override name = 'TokenRatesController';
 
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
-
   /**
    * Creates a TokenRatesController instance.
    *
    * @param options - The controller options.
    * @param options.interval - The polling interval in ms
    * @param options.threshold - The duration in ms before metadata fetched from CoinGecko is considered stale
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.chainId - The chain ID of the current network.
    * @param options.ticker - The ticker for the current network.
    * @param options.selectedAddress - The current selected address.
@@ -183,7 +176,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     {
       interval = 3 * 60 * 1000,
       threshold = 6 * 60 * 60 * 1000,
-      getNetworkClientById,
       chainId: initialChainId,
       ticker: initialTicker,
       selectedAddress: initialSelectedAddress,
@@ -194,7 +186,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     }: {
       interval?: number;
       threshold?: number;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
       chainId: Hex;
       ticker: string;
       selectedAddress: string;
@@ -229,8 +220,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       contractExchangeRatesByChainId: {},
     };
     this.initialize();
-    this.setIntervalLength(interval);
-    this.getNetworkClientById = getNetworkClientById;
     this.#tokenPricesService = tokenPricesService;
 
     if (config?.disabled) {
@@ -340,26 +329,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    */
   async updateExchangeRates() {
     const { chainId, nativeCurrency } = this.config;
-    await this.updateExchangeRatesByChainId({
-      chainId,
-      nativeCurrency,
-    });
-  }
 
-  /**
-   * Updates exchange rates for all tokens.
-   *
-   * @param options - The options to fetch exchange rates.
-   * @param options.chainId - The chain ID.
-   * @param options.nativeCurrency - The ticker for the chain.
-   */
-  async updateExchangeRatesByChainId({
-    chainId,
-    nativeCurrency,
-  }: {
-    chainId: Hex;
-    nativeCurrency: string;
-  }) {
     if (this.disabled) {
       return;
     }
@@ -474,20 +444,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
       tokenAddresses,
       nativeCurrency,
-    });
-  }
-
-  /**
-   * Updates token rates for the given networkClientId
-   *
-   * @param networkClientId - The network client ID used to get a ticker value.
-   * @returns The controller state.
-   */
-  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
-    const networkClient = this.getNetworkClientById(networkClientId);
-    await this.updateExchangeRatesByChainId({
-      chainId: networkClient.configuration.chainId,
-      nativeCurrency: networkClient.configuration.ticker,
     });
   }
 
