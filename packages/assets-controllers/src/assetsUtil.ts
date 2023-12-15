@@ -311,7 +311,7 @@ export function mapOpenSeaNftV2ToV1(nft: OpenSeaV2Nft): ApiNft {
     token_id: nft.identifier,
     num_sales: null,
     background_color: null,
-    image_url: nft.image_url,
+    image_url: nft.image_url ?? null,
     image_preview_url: null,
     image_thumbnail_url: null,
     image_original_url: null,
@@ -352,7 +352,7 @@ export function mapOpenSeaDetailedNftV2ToV1(nft: OpenSeaV2DetailedNft): ApiNft {
   const mapped = mapOpenSeaNftV2ToV1(nft);
   return {
     ...mapped,
-    animation_url: nft.animation_url,
+    animation_url: nft.animation_url ?? null,
     creator: {
       ...mapped.creator,
       address: nft.creator,

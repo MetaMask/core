@@ -69,22 +69,22 @@ export type OpenSeaV2Nft = {
   token_standard: string;
   name: string;
   description: string;
-  image_url: string;
-  metadata_url: string;
+  image_url?: string;
+  metadata_url?: string;
   updated_at: string;
   is_disabled: boolean;
   is_nsfw: boolean;
 };
 
 export type OpenSeaV2DetailedNft = OpenSeaV2Nft & {
-  animation_url: string;
+  animation_url?: string;
   is_suspicious: boolean;
   creator: string;
   traits: {
     trait_type: string;
-    display_type: string;
+    display_type?: string;
     max_value: string;
-    trait_count: number;
+    trait_count?: number;
     value: number | string;
   }[];
   owners: {
@@ -111,20 +111,20 @@ export type OpenSeaV2Contract = {
 export type OpenSeaV2Collection = {
   collection: string;
   name: string;
-  description: string;
-  image_url: string;
+  description?: string;
+  image_url?: string;
   owner: string;
   category: string;
   is_disabled: boolean;
   is_nsfw: boolean;
   trait_offers_enabled: boolean;
   opensea_url: string;
-  project_url: string;
-  wiki_url: string;
-  discord_url: string;
-  telegram_url: string;
-  twitter_username: string;
-  instagram_username: string;
+  project_url?: string;
+  wiki_url?: string;
+  discord_url?: string;
+  telegram_url?: string;
+  twitter_username?: string;
+  instagram_username?: string;
 };
 
 /**
