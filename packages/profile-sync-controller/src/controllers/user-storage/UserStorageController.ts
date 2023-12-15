@@ -346,6 +346,8 @@ export default class UserStorageController extends BaseController<
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
+        // False negative.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `accounts.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
