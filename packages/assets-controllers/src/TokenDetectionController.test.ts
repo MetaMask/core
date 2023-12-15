@@ -531,7 +531,7 @@ describe('TokenDetectionController', () => {
       expect(getBalancesInSingleCallMock.called).toBe(false);
     });
 
-    it('should be called if onPreferencesStateChange is called with useTokenDetection being true and is changed', async () => {
+    it('should be called if onPreferencesStateChange is called with useTokenDetection being true and selectedAddress is changed', async () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let preferencesStateChangeListener: (state: any) => void;
