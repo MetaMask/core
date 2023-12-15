@@ -3,6 +3,8 @@ import { BaseController } from '@metamask/base-controller';
 import { hexToBN } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import { BN, addHexPrefix } from 'ethereumjs-util';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';

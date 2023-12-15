@@ -32,6 +32,8 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import { EventEmitter } from 'events';
 import { mapValues, merge, pickBy, sortBy } from 'lodash';
 import { NonceTracker } from 'nonce-tracker';

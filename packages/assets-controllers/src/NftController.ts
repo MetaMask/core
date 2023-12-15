@@ -28,6 +28,8 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import { EventEmitter } from 'events';
 import { v4 as random } from 'uuid';
 

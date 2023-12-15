@@ -2,6 +2,8 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 import type { NonceTracker } from 'nonce-tracker';
 

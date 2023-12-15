@@ -39,6 +39,7 @@
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.2.0",
     "ethereumjs-util": "^7.0.10",
+    "events": "^3.3.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

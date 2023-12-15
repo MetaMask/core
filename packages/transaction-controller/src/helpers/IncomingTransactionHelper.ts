@@ -1,6 +1,8 @@
 import type { BlockTracker, NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 
 import { incomingTransactionsLogger as log } from '../logger';
