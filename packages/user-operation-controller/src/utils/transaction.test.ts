@@ -4,7 +4,8 @@ import {
   TransactionType,
   UserFeeLevel,
 } from '../../../transaction-controller/src';
-import { EMPTY_BYTES } from '../constants';
+import { EMPTY_BYTES, VALUE_ZERO } from '../constants';
+import type { UserOperation } from '../types';
 import { UserOperationStatus, type UserOperationMetadata } from '../types';
 import { getTransactionMetadata } from './transaction';
 
@@ -79,8 +80,8 @@ describe('transation', () => {
           preVerificationGas: '0x1',
           verificationGasLimit: '0x2',
           callGasLimit: '0x3',
-        },
-      } as UserOperationMetadata;
+        } as UserOperation,
+      };
 
       const transactionMetadata = getTransactionMetadata(metadata);
 
@@ -102,7 +103,7 @@ describe('transation', () => {
 
         const transactionMetadata = getTransactionMetadata(metadata);
 
-        expect(transactionMetadata?.txParams?.[propertyName]).toBe('0x0');
+        expect(transactionMetadata?.txParams?.[propertyName]).toBe(VALUE_ZERO);
       },
     );
 

@@ -46,30 +46,30 @@ export class Bundler {
   ): Promise<BundlerEstimateUserOperationGasResponse> {
     log('Estimating gas', { url: this.#url, userOperation, entrypoint });
 
-    const response = await this.#query('eth_estimateUserOperationGas', [
-      userOperation,
-      entrypoint,
-    ]);
+    const response: BundlerEstimateUserOperationGasResponse = await this.#query(
+      'eth_estimateUserOperationGas',
+      [userOperation, entrypoint],
+    );
 
     log('Estimated gas', { response });
 
-    return response as BundlerEstimateUserOperationGasResponse;
+    return response;
   }
 
   /**
    * Retrieve the receipt for a user operation.
-   * Returns `null` or `undefined` if the user operation is still pending.
    * @param hash - The hash of the user operation.
-   * @returns The receipt for the user operation.
+   * @returns The receipt for the user operation, or `undefined` if the user operation is pending.
    */
   async getUserOperationReceipt(
     hash?: string,
   ): Promise<UserOperationReceipt | undefined> {
     log('Getting user operation receipt', { url: this.#url, hash });
 
-    return (await this.#query('eth_getUserOperationReceipt', [hash])) as
-      | UserOperationReceipt
-      | undefined;
+    return await this.#query<UserOperationReceipt | undefined>(
+      'eth_getUserOperationReceipt',
+      [hash],
+    );
   }
 
   /**
@@ -88,17 +88,17 @@ export class Bundler {
       entrypoint,
     });
 
-    const hash = await this.#query('eth_sendUserOperation', [
+    const hash: string = await this.#query('eth_sendUserOperation', [
       userOperation,
       entrypoint,
     ]);
 
     log('Sent user operation', hash);
 
-    return hash as string;
+    return hash;
   }
 
-  async #query(method: string, params: unknown[]): Promise<unknown> {
+  async #query<T>(method: string, params: unknown[]): Promise<T> {
     const request = {
       method: 'POST',
       headers: {

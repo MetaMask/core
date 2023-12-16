@@ -10,7 +10,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
 
-import { EMPTY_BYTES } from '../constants';
+import { EMPTY_BYTES, VALUE_ZERO } from '../constants';
 import { UserOperationStatus } from '../types';
 import type { UserOperationMetadata } from '../types';
 
@@ -41,6 +41,7 @@ export function getTransactionMetadata(
     return undefined;
   }
 
+  // effectiveGasPrice = actualGasCost / actualGasUsed
   const effectiveGasPrice =
     actualGasCost && actualGasUsed
       ? addHexPrefix(
@@ -79,10 +80,10 @@ export function getTransactionMetadata(
 
   const hasPaymaster = userOperation.paymasterAndData !== EMPTY_BYTES;
 
-  const maxFeePerGas = hasPaymaster ? '0x0' : userOperation.maxFeePerGas;
+  const maxFeePerGas = hasPaymaster ? VALUE_ZERO : userOperation.maxFeePerGas;
 
   const maxPriorityFeePerGas = hasPaymaster
-    ? '0x0'
+    ? VALUE_ZERO
     : userOperation.maxPriorityFeePerGas;
 
   const nonce =
@@ -99,7 +100,7 @@ export function getTransactionMetadata(
     maxPriorityFeePerGas,
   } as TransactionParams;
 
-  // Since the user operations only support EIP-1559, we won't need this.
+  // User operations only support EIP-1559 gas fee properties.
   delete txParams.gasPrice;
 
   return {

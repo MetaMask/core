@@ -6,7 +6,7 @@ import {
 } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT, VALUE_ZERO } from './constants';
 import * as BundlerHelper from './helpers/Bundler';
 import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
 import type { UserOperationMetadata } from './types';
@@ -1075,7 +1075,7 @@ describe('UserOperationController', () => {
             txMeta: {
               txParams: {
                 ...ADD_USER_OPERATION_REQUEST_MOCK,
-                value: '0x0',
+                value: VALUE_ZERO,
               },
             },
           },
@@ -1118,7 +1118,7 @@ describe('UserOperationController', () => {
 
         const { hash } = await addUserOperation(
           controller,
-          { ...ADD_USER_OPERATION_REQUEST_MOCK, value: '0x0' },
+          { ...ADD_USER_OPERATION_REQUEST_MOCK, value: VALUE_ZERO },
           {
             ...ADD_USER_OPERATION_OPTIONS_MOCK,
             smartContractAccount,
