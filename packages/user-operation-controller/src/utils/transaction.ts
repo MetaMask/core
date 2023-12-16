@@ -34,6 +34,7 @@ export function getTransactionMetadata(
     time,
     transactionParams,
     transactionType,
+    userFeeLevel,
     userOperation,
   } = metadata;
 
@@ -88,8 +89,6 @@ export function getTransactionMetadata(
   const nonce =
     userOperation.nonce === EMPTY_BYTES ? undefined : userOperation.nonce;
 
-  const userFeeLevel = UserFeeLevel.CUSTOM;
-
   const txParams = {
     ...transactionParams,
     from: userOperation.sender,
@@ -118,7 +117,7 @@ export function getTransactionMetadata(
       gasUsed: actualGasUsed ?? undefined,
     },
     type: transactionType ?? undefined,
-    userFeeLevel,
+    userFeeLevel: userFeeLevel as string,
   };
 }
 

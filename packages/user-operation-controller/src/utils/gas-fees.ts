@@ -1,4 +1,9 @@
-import { gweiDecToWEIBN, query, toHex } from '@metamask/controller-utils';
+import {
+  gweiDecToWEIBN,
+  ORIGIN_METAMASK,
+  query,
+  toHex,
+} from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import {
   GAS_ESTIMATE_TYPES,
@@ -6,6 +11,7 @@ import {
 } from '@metamask/gas-fee-controller';
 import type { Provider } from '@metamask/network-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
+import { UserFeeLevel } from '@metamask/transaction-controller';
 import { addHexPrefix } from 'ethereumjs-util';
 
 import { EMPTY_BYTES } from '../constants';
@@ -40,7 +46,7 @@ type SuggestedGasFees = {
 export async function updateGasFees(request: UpdateGasFeesRequest) {
   const { metadata, originalRequest, transaction } = request;
   const { userOperation } = metadata;
-  let suggestedGasFees: SuggestedGasFees;
+  let suggestedGasFees: SuggestedGasFees | undefined;
 
   const getGasFeeEstimates = async () => {
     if (!suggestedGasFees) {
@@ -62,6 +68,13 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
     userOperation,
     transaction,
   );
+
+  metadata.userFeeLevel = getUserFeeLevel(
+    metadata,
+    originalRequest,
+    suggestedGasFees,
+    transaction,
+  );
 }
 
 /**
@@ -79,15 +92,12 @@ async function getMaxFeePerGas(
   const { maxFeePerGas, maxPriorityFeePerGas } = originalRequest;
   const { gasPrice } = transaction ?? {};
 
-  if (maxFeePerGas && maxFeePerGas !== EMPTY_BYTES) {
+  if (!isGasFeeEmpty(maxFeePerGas)) {
     log('Using maxFeePerGas from request', maxFeePerGas);
-    return maxFeePerGas;
+    return maxFeePerGas as string;
   }
 
-  if (
-    (!maxPriorityFeePerGas || maxPriorityFeePerGas !== EMPTY_BYTES) &&
-    gasPrice
-  ) {
+  if (isGasFeeEmpty(maxPriorityFeePerGas) && gasPrice) {
     log('Setting maxFeePerGas to transaction gasPrice', gasPrice);
     return gasPrice;
   }
@@ -121,12 +131,12 @@ async function getMaxPriorityFeePerGas(
   const { gasPrice } = transaction ?? {};
   const { maxFeePerGas: updatedMaxFeePerGas } = userOperation;
 
-  if (maxPriorityFeePerGas && maxPriorityFeePerGas !== EMPTY_BYTES) {
+  if (!isGasFeeEmpty(maxPriorityFeePerGas)) {
     log('Using maxPriorityFeePerGas from request', maxPriorityFeePerGas);
-    return maxPriorityFeePerGas;
+    return maxPriorityFeePerGas as string;
   }
 
-  if ((!maxFeePerGas || maxFeePerGas !== EMPTY_BYTES) && gasPrice) {
+  if (isGasFeeEmpty(maxFeePerGas) && gasPrice) {
     log('Setting maxPriorityFeePerGas to transaction gasPrice', gasPrice);
     return gasPrice;
   }
@@ -145,6 +155,54 @@ async function getMaxPriorityFeePerGas(
   log('Setting maxPriorityFeePerGas to maxFeePerGas', updatedMaxFeePerGas);
 
   return updatedMaxFeePerGas;
+}
+
+/**
+ * Gets the userFeeLevel for a user operation.
+ * @param metadata - The metadata for the user operation.
+ * @param originalRequest - The original request to add the user operation.
+ * @param suggestedGasFees - The suggested gas fees, if any.
+ * @param transaction - The transaction that created the user operation.
+ * @returns The userFeeLevel for the user operation.
+ */
+function getUserFeeLevel(
+  metadata: UserOperationMetadata,
+  originalRequest: AddUserOperationRequest,
+  suggestedGasFees?: SuggestedGasFees,
+  transaction?: TransactionParams,
+): UserFeeLevel {
+  const { origin } = metadata;
+  const { maxFeePerGas, maxPriorityFeePerGas } = originalRequest;
+
+  const {
+    maxFeePerGas: suggestedMaxFeePerGas,
+    maxPriorityFeePerGas: suggestedMaxPriorityFeePerGas,
+  } = suggestedGasFees || {};
+
+  if (
+    isGasFeeEmpty(maxFeePerGas) &&
+    isGasFeeEmpty(maxPriorityFeePerGas) &&
+    transaction?.gasPrice
+  ) {
+    return origin === ORIGIN_METAMASK
+      ? UserFeeLevel.CUSTOM
+      : UserFeeLevel.DAPP_SUGGESTED;
+  }
+
+  if (
+    isGasFeeEmpty(maxFeePerGas) &&
+    isGasFeeEmpty(maxPriorityFeePerGas) &&
+    suggestedMaxFeePerGas &&
+    suggestedMaxPriorityFeePerGas
+  ) {
+    return UserFeeLevel.MEDIUM;
+  }
+
+  if (origin === ORIGIN_METAMASK) {
+    return UserFeeLevel.CUSTOM;
+  }
+
+  return UserFeeLevel.DAPP_SUGGESTED;
 }
 
 /**
@@ -224,4 +282,13 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
  */
 function gweiDecimalToWeiHex(value: string) {
   return toHex(gweiDecToWEIBN(value));
+}
+
+/**
+ * Checks if a gas fee property is empty.
+ * @param value - The gas fee value to check.
+ * @returns Whether the gas fee property is empty.
+ */
+function isGasFeeEmpty(value?: string): boolean {
+  return !value || value === EMPTY_BYTES;
 }

@@ -12,6 +12,7 @@ const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   id: 'testUserOperationId',
   status: UserOperationStatus.Submitted,
   transactionParams: {},
+  userFeeLevel: UserFeeLevel.CUSTOM,
   userOperation: {},
 } as UserOperationMetadata;
 
@@ -152,7 +153,7 @@ describe('transation', () => {
       expect(transactionMetadata?.txParams?.nonce).toBeUndefined();
     });
 
-    it('returns userFeeLevel as custom', () => {
+    it('returns userFeeLevel from metadata', () => {
       expect(
         getTransactionMetadata(USER_OPERATION_METADATA_MOCK)?.userFeeLevel,
       ).toBe(UserFeeLevel.CUSTOM);

@@ -380,6 +380,7 @@ export class UserOperationController extends BaseController<
       transactionHash: null,
       transactionParams: (transaction as Required<TransactionParams>) ?? null,
       transactionType: null,
+      userFeeLevel: null,
       userOperation: this.#createEmptyUserOperation(transaction),
     };
 
