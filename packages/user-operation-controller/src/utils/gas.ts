@@ -57,7 +57,9 @@ export async function updateGas(
     estimate.preVerificationGas,
   );
   userOperation.verificationGasLimit = normalizeGasEstimate(
-    estimate.verificationGasLimit ?? estimate.verificationGas,
+    (estimate.verificationGasLimit ?? estimate.verificationGas) as
+      | string
+      | number,
   );
 
   log('Using buffered gas values from bundler estimate', {

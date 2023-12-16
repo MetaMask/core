@@ -23,6 +23,8 @@ import type {
   UserOperationControllerMessenger,
 } from './UserOperationController';
 import { UserOperationController } from './UserOperationController';
+import { updateGas } from './utils/gas';
+import { updateGasFees } from './utils/gas-fees';
 import {
   validateAddUserOperationRequest,
   validateAddUserOperationOptions,
@@ -32,6 +34,8 @@ import {
 } from './utils/validation';
 
 jest.mock('@metamask/transaction-controller');
+jest.mock('./utils/gas');
+jest.mock('./utils/gas-fees');
 jest.mock('./utils/validation');
 jest.mock('./helpers/Bundler');
 jest.mock('./helpers/PendingUserOperationTracker');
@@ -152,6 +156,8 @@ describe('UserOperationController', () => {
   const resultCallbackErrorMock = jest.fn();
   const determineTransactionTypeMock = jest.mocked(determineTransactionType);
   const getGasFeeEstimates = jest.fn();
+  const updateGasMock = jest.mocked(updateGas);
+  const updateGasFeesMock = jest.mocked(updateGasFees);
 
   const optionsMock = {
     getGasFeeEstimates,
@@ -232,6 +238,31 @@ describe('UserOperationController', () => {
     determineTransactionTypeMock.mockResolvedValue({
       type: TransactionType.simpleSend,
     });
+
+    updateGasMock.mockImplementation(async (metadata) => {
+      metadata.userOperation.callGasLimit = PREPARE_USER_OPERATION_RESPONSE_MOCK
+        .gas?.callGasLimit as string;
+
+      metadata.userOperation.preVerificationGas =
+        PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.preVerificationGas as string;
+
+      metadata.userOperation.verificationGasLimit =
+        PREPARE_USER_OPERATION_RESPONSE_MOCK.gas
+          ?.verificationGasLimit as string;
+    });
+
+    updateGasFeesMock
+      .mockImplementationOnce(async ({ metadata }) => {
+        metadata.userOperation.maxFeePerGas =
+          ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas;
+
+        metadata.userOperation.maxPriorityFeePerGas =
+          ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas;
+      })
+      .mockImplementationOnce(async ({ metadata }) => {
+        metadata.userOperation.maxFeePerGas = '0x6';
+        metadata.userOperation.maxPriorityFeePerGas = '0x7';
+      });
   });
 
   describe('constructor', () => {
@@ -427,119 +458,6 @@ describe('UserOperationController', () => {
         }),
         ENTRYPOINT,
       );
-    });
-
-    describe('estimates gas if gas not specified by account', () => {
-      it('using bundler', async () => {
-        const controller = new UserOperationController(optionsMock);
-
-        bundlerMock.estimateUserOperationGas.mockResolvedValue({
-          callGasLimit: 123,
-          preVerificationGas: 456,
-          verificationGasLimit: 789,
-          verificationGas: 789,
-        });
-
-        smartContractAccount.prepareUserOperation.mockResolvedValue({
-          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
-          gas: undefined,
-        });
-
-        const { hash } = await controller.addUserOperation(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
-        );
-
-        await hash();
-
-        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledTimes(1);
-        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
-          {
-            callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
-            callGasLimit: '0x1',
-            initCode: PREPARE_USER_OPERATION_RESPONSE_MOCK.initCode,
-            maxFeePerGas: ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas,
-            maxPriorityFeePerGas:
-              ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas,
-            nonce: PREPARE_USER_OPERATION_RESPONSE_MOCK.nonce,
-            paymasterAndData:
-              PREPARE_USER_OPERATION_RESPONSE_MOCK.dummyPaymasterAndData,
-            preVerificationGas: '0x1',
-            sender: PREPARE_USER_OPERATION_RESPONSE_MOCK.sender,
-            signature: PREPARE_USER_OPERATION_RESPONSE_MOCK.dummySignature,
-            verificationGasLimit: '0x1',
-          },
-          ENTRYPOINT,
-        );
-      });
-
-      it('if estimates are numbers', async () => {
-        const controller = new UserOperationController(optionsMock);
-
-        bundlerMock.estimateUserOperationGas.mockResolvedValue({
-          callGasLimit: 123,
-          preVerificationGas: 456,
-          verificationGasLimit: 789,
-          verificationGas: 789,
-        });
-
-        smartContractAccount.prepareUserOperation.mockResolvedValue({
-          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
-          gas: undefined,
-        });
-
-        const { hash } = await controller.addUserOperation(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
-        );
-
-        await hash();
-
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
-          expect.objectContaining({
-            // Estimated values multiplied by gas buffer and converted to hexadecimal.
-            callGasLimit: '0xb8',
-            preVerificationGas: '0x2ac',
-            verificationGasLimit: '0x49f',
-          }),
-          ENTRYPOINT,
-        );
-      });
-
-      it('if estimates are hexadecimal strings', async () => {
-        const controller = new UserOperationController(optionsMock);
-
-        bundlerMock.estimateUserOperationGas.mockResolvedValue({
-          callGasLimit: '0x7B',
-          preVerificationGas: '0x1C8',
-          verificationGasLimit: '0x315',
-          verificationGas: '0x315',
-        });
-
-        smartContractAccount.prepareUserOperation.mockResolvedValue({
-          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
-          gas: undefined,
-        });
-
-        const { hash } = await controller.addUserOperation(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
-        );
-
-        await hash();
-
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
-          expect.objectContaining({
-            // Estimated values multiplied by gas buffer and converted to hexadecimal.
-            callGasLimit: '0xb8',
-            preVerificationGas: '0x2ac',
-            verificationGasLimit: '0x49f',
-          }),
-          ENTRYPOINT,
-        );
-      });
     });
 
     it('marks user operation as failed if error', async () => {
