@@ -450,7 +450,7 @@ describe('PermissionLogController', () => {
       });
     });
 
-    describe('permission history log', () => {
+    describe('permissionLogController', () => {
       let permissionLockController: PermissionLogController;
       let logMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 

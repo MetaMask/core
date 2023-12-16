@@ -18,7 +18,6 @@ import {
   WALLET_PREFIX,
   CAVEAT_TYPES,
 } from './enums';
-import { getAccountToTimeMap } from './helpers';
 
 export type JsonRpcRequestWithOrigin<
   Params extends JsonRpcParams = JsonRpcParams,
@@ -138,7 +137,7 @@ export class PermissionLogController extends BaseController<
     }
     const newEntries = {
       eth_accounts: {
-        accounts: getAccountToTimeMap(accounts, Date.now()),
+        accounts: this.#getAccountToTimeMap(accounts, Date.now()),
       },
     };
     this.#commitNewHistory(origin, newEntries);
@@ -168,15 +167,7 @@ export class PermissionLogController extends BaseController<
       ) {
         const activityEntry = this.#logRequest(req, isInternal);
 
-        let requestedMethods: string[] | null;
-
-        if (isEthRequestAccounts) {
-          requestedMethods = ['eth_accounts'];
-        } else if (method === `${WALLET_PREFIX}requestPermissions`) {
-          requestedMethods = this.#getRequestedMethods(req);
-        } else {
-          requestedMethods = null;
-        }
+        const requestedMethods = this.#getRequestedMethods(req);
 
         // Call next with a return handler for capturing the response
         next((cb) => {
@@ -199,6 +190,26 @@ export class PermissionLogController extends BaseController<
 
       next();
     };
+  }
+
+  /**
+   * Get a map from account addresses to the given time.
+   *
+   * @param accounts - An array of addresses.
+   * @param time - A time, e.g. Date.now().
+   * @returns A string:number map of addresses to time.
+   */
+  #getAccountToTimeMap(
+    accounts: string[],
+    time: number,
+  ): Record<string, number> {
+    return accounts.reduce(
+      (acc, account) => ({
+        ...acc,
+        [account]: time,
+      }),
+      {},
+    );
   }
 
   /**
@@ -292,7 +303,7 @@ export class PermissionLogController extends BaseController<
       const accounts = result as string[];
       newEntries = {
         eth_accounts: {
-          accounts: getAccountToTimeMap(accounts, time),
+          accounts: this.#getAccountToTimeMap(accounts, time),
           lastApproved: time,
         },
       };
@@ -314,7 +325,7 @@ export class PermissionLogController extends BaseController<
           const accounts = this.#getAccountsFromPermission(permission);
           acc[method] = {
             lastApproved: time,
-            accounts: getAccountToTimeMap(accounts, time),
+            accounts: this.#getAccountToTimeMap(accounts, time),
           };
         } else {
           acc[method] = {
@@ -343,7 +354,7 @@ export class PermissionLogController extends BaseController<
     const { permissionHistory } = this.state;
 
     // a simple merge updates most permissions
-    const oldOriginHistory = permissionHistory[origin] || {};
+    const oldOriginHistory = permissionHistory[origin] ?? {};
     const newOriginHistory = {
       ...oldOriginHistory,
       ...newEntries,
@@ -386,8 +397,12 @@ export class PermissionLogController extends BaseController<
    * @returns The names of the requested permissions.
    */
   #getRequestedMethods(request: JsonRpcRequestWithOrigin): string[] | null {
-    const { params } = request;
-    if (
+    const { method, params } = request;
+    if (method === 'eth_requestAccounts') {
+      return ['eth_accounts'];
+    } else if (
+      method === `${WALLET_PREFIX}requestPermissions` &&
+      params &&
       Array.isArray(params) &&
       params[0] &&
       typeof params[0] === 'object' &&
