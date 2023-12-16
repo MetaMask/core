@@ -246,12 +246,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }
 
   #getCorrectChainId(networkClientId?: NetworkClientId) {
-    const { chainId } =
-      this.messagingSystem.call(
-        'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId ?? this.#networkClientId,
-      ) ?? {};
-    return chainId ?? this.#chainId;
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId ?? this.#networkClientId,
+    );
+    return chainId;
   }
 
   async _executePoll(
