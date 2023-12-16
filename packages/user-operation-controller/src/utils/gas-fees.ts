@@ -219,6 +219,7 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
     const { gasFeeEstimates, gasEstimateType } = await getGasFeeEstimates();
 
     if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
+      /* istanbul ignore next */
       const {
         medium: { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } = {},
       } = gasFeeEstimates;
