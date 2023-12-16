@@ -450,13 +450,13 @@ describe('PermissionLogController', () => {
       });
     });
 
-    describe('permissionLogController', () => {
-      let permissionLockController: PermissionLogController;
+    describe('permission history log', () => {
+      let permissionLogController: PermissionLogController;
       let logMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 
       beforeEach(() => {
-        permissionLockController = initPermissionLogController();
-        logMiddleware = initMiddleware(permissionLockController);
+        permissionLogController = initPermissionLogController();
+        logMiddleware = initMiddleware(permissionLogController);
         initClock();
       });
 
@@ -477,14 +477,14 @@ describe('PermissionLogController', () => {
         // noop => no response
         logMiddleware(req, res, noop, noop);
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           {},
         );
 
         // response => records granted permissions
         logMiddleware(req, res, mockNext, noop);
 
-        const permHistory = permissionLockController.state.permissionHistory;
+        const permHistory = permissionLogController.state.permissionHistory;
         expect(Object.keys(permHistory)).toHaveLength(1);
         expect(permHistory[SUBJECTS.a.origin]).toBeDefined();
       });
@@ -510,7 +510,7 @@ describe('PermissionLogController', () => {
           noop,
         );
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           {},
         );
       });
@@ -527,7 +527,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[0],
         );
 
@@ -537,7 +537,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[1],
         );
       });
@@ -555,7 +555,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case2[0],
         );
       });
@@ -574,7 +574,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[0],
         );
       });
@@ -596,7 +596,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[0],
         );
       });
@@ -613,7 +613,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case4[0],
         );
 
@@ -633,7 +633,7 @@ describe('PermissionLogController', () => {
         logMiddleware(req, res, mockNext, noop);
 
         // history should be unmodified
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case4[0],
         );
       });
@@ -695,7 +695,7 @@ describe('PermissionLogController', () => {
           handlers1[i](noop);
         }
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case3[0],
         );
 
@@ -739,7 +739,7 @@ describe('PermissionLogController', () => {
           logMiddleware(x.req, x.res, mockNext, noop);
         });
 
-        expect(permissionLockController.state.permissionHistory).toStrictEqual(
+        expect(permissionLogController.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case3[1],
         );
       });
