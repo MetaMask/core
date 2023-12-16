@@ -40,7 +40,6 @@ const CHAIN_ID_MOCK = '0x5';
 const USER_OPERATION_HASH_MOCK = '0x123';
 const ERROR_MESSAGE_MOCK = 'Test Error';
 const ERROR_CODE_MOCK = '1234';
-const INTERVAL_MOCK = 1234;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const TRANSACTION_HASH_MOCK = '0x456';
 const ORIGIN_MOCK = 'test.com';
@@ -251,31 +250,6 @@ describe('UserOperationController', () => {
         .mock.calls[0][0].getUserOperations();
 
       expect(result).toStrictEqual(Object.values(userOperationsMock));
-    });
-
-    it('sets polling interval', () => {
-      new UserOperationController({
-        ...optionsMock,
-        interval: INTERVAL_MOCK,
-      });
-
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledWith(INTERVAL_MOCK);
-    });
-
-    it('sets polling interval to default if not specified', () => {
-      new UserOperationController(optionsMock);
-
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledWith(expect.any(Number));
     });
   });
 

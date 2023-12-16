@@ -45,8 +45,6 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation';
 
-const DEFAULT_INTERVAL = 10 * 1000; // 10 Seconds
-
 const controllerName = 'UserOperationController';
 
 const stateMetadata = {
@@ -164,13 +162,11 @@ export class UserOperationController extends BaseController<
    *
    * @param options - Controller options.
    * @param options.getGasFeeEstimates - Callback to get gas fee estimates.
-   * @param options.interval - Polling interval used to check the status of pending user operations.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
    */
   constructor({
     getGasFeeEstimates,
-    interval,
     messenger,
     state,
   }: UserOperationControllerOptions) {
@@ -190,10 +186,6 @@ export class UserOperationController extends BaseController<
         cloneDeep(Object.values(this.state.userOperations)),
       messenger,
     });
-
-    this.#pendingUserOperationTracker.setIntervalLength(
-      interval ?? DEFAULT_INTERVAL,
-    );
 
     this.#addPendingUserOperationTrackerListeners();
   }
