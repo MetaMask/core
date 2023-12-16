@@ -35,6 +35,7 @@
     "@metamask/base-controller": "^4.0.0",
     "@metamask/controller-utils": "^6.1.0",
     "@metamask/eth-query": "^4.0.0",
+    "@metamask/gas-fee-controller": "^11.0.0",
     "@metamask/network-controller": "^17.0.0",
     "@metamask/polling-controller": "^2.0.0",
     "@metamask/transaction-controller": "^18.3.0",
@@ -57,6 +58,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^5.0.0",
+    "@metamask/gas-fee-controller": "^11.0.0",
     "@metamask/network-controller": "^17.0.0",
     "@metamask/polling-controller": "^2.0.0",
     "@metamask/transaction-controller": "^18.3.0"

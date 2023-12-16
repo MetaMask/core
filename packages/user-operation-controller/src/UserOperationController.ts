@@ -7,6 +7,7 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   Provider,
@@ -108,6 +109,7 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type UserOperationControllerOptions = {
+  getGasFeeEstimates: () => Promise<GasFeeState>;
   interval?: number;
   messenger: UserOperationControllerMessenger;
   state?: Partial<UserOperationControllerState>;
@@ -134,6 +136,15 @@ export type AddUserOperationResponse = {
   transactionHash: () => Promise<string | undefined>;
 };
 
+type UserOperationCache = {
+  chainId: string;
+  metadata: UserOperationMetadata;
+  options: AddUserOperationOptions;
+  provider: Provider;
+  request: AddUserOperationRequest;
+  transaction?: TransactionParams;
+};
+
 /**
  * Controller for creating and managing the life cycle of user operations.
  */
@@ -144,17 +155,25 @@ export class UserOperationController extends BaseController<
 > {
   hub: UserOperationControllerEventEmitter;
 
+  #getGasFeeEstimates: () => Promise<GasFeeState>;
+
   #pendingUserOperationTracker: PendingUserOperationTracker;
 
   /**
    * Construct a UserOperationController instance.
    *
    * @param options - Controller options.
+   * @param options.getGasFeeEstimates - Callback to get gas fee estimates.
    * @param options.interval - Polling interval used to check the status of pending user operations.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
    */
-  constructor({ interval, messenger, state }: UserOperationControllerOptions) {
+  constructor({
+    getGasFeeEstimates,
+    interval,
+    messenger,
+    state,
+  }: UserOperationControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
@@ -163,6 +182,8 @@ export class UserOperationController extends BaseController<
     });
 
     this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
+
+    this.#getGasFeeEstimates = getGasFeeEstimates;
 
     this.#pendingUserOperationTracker = new PendingUserOperationTracker({
       getUserOperations: () =>
@@ -246,25 +267,23 @@ export class UserOperationController extends BaseController<
 
     const { networkClientId, origin, transaction } = options;
     const { chainId, provider } = await this.#getProvider(networkClientId);
+    const metadata = await this.#createMetadata(chainId, origin, transaction);
 
-    const metadata = await this.#createMetadata(
+    const cache: UserOperationCache = {
       chainId,
-      origin,
+      metadata,
+      options,
       provider,
+      request,
       transaction,
-    );
+    };
 
     const { id } = metadata;
     let throwError = false;
 
     const hashValue = (async () => {
       try {
-        return await this.#prepareAndSubmitUserOperation(
-          metadata,
-          request,
-          options,
-          { chainId },
-        );
+        return await this.#prepareAndSubmitUserOperation(cache);
       } catch (error) {
         this.#failUserOperation(metadata, error);
 
@@ -297,31 +316,17 @@ export class UserOperationController extends BaseController<
     };
   }
 
-  async #prepareAndSubmitUserOperation(
-    metadata: UserOperationMetadata,
-    request: AddUserOperationRequest,
-    options: AddUserOperationOptions,
-    { chainId }: { chainId: string },
-  ) {
+  async #prepareAndSubmitUserOperation(cache: UserOperationCache) {
+    const { metadata, options } = cache;
     const { requireApproval, smartContractAccount } = options;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      await this.#prepareUserOperation(
-        request,
-        metadata,
-        smartContractAccount,
-        chainId,
-      );
-
+      await this.#prepareUserOperation(cache);
       await this.#addPaymasterData(metadata, smartContractAccount);
 
       if (requireApproval !== false) {
-        resultCallbacks = await this.#approveUserOperation(
-          metadata,
-          request,
-          options,
-        );
+        resultCallbacks = await this.#approveUserOperation(cache);
       }
 
       await this.#signUserOperation(metadata, smartContractAccount);
@@ -358,16 +363,8 @@ export class UserOperationController extends BaseController<
   async #createMetadata(
     chainId: string,
     origin: string,
-    provider: Provider,
     transaction?: TransactionParams,
   ): Promise<UserOperationMetadata> {
-    const transactionType = await this.#getTransactionType(
-      transaction,
-      provider,
-    );
-
-    log('Determined transaction type', transactionType);
-
     const metadata: UserOperationMetadata = {
       actualGasCost: null,
       actualGasUsed: null,
@@ -382,7 +379,7 @@ export class UserOperationController extends BaseController<
       time: Date.now(),
       transactionHash: null,
       transactionParams: (transaction as Required<TransactionParams>) ?? null,
-      transactionType: transactionType ?? null,
+      transactionType: null,
       userOperation: this.#createEmptyUserOperation(transaction),
     };
 
@@ -393,18 +390,37 @@ export class UserOperationController extends BaseController<
     return metadata;
   }
 
-  async #prepareUserOperation(
-    request: AddUserOperationRequest,
-    metadata: UserOperationMetadata,
-    smartContractAccount: SmartContractAccount,
-    chainId: string,
-  ) {
+  async #prepareUserOperation(cache: UserOperationCache) {
+    const {
+      chainId,
+      metadata,
+      options: { smartContractAccount },
+      provider,
+      request,
+      transaction,
+    } = cache;
+
     const { data, to, value } = request;
-    const { id, userOperation } = metadata;
+    const { id, transactionParams, userOperation } = metadata;
 
     log('Preparing user operation', { id });
 
-    await updateGasFees(metadata, request);
+    const transactionType = await this.#getTransactionType(
+      transaction,
+      provider,
+    );
+
+    metadata.transactionType = transactionType ?? null;
+
+    log('Determined transaction type', transactionType);
+
+    await updateGasFees({
+      getGasFeeEstimates: this.#getGasFeeEstimates,
+      metadata,
+      originalRequest: request,
+      provider,
+      transaction: transactionParams ?? undefined,
+    });
 
     const response = await smartContractAccount.prepareUserOperation({
       chainId,
@@ -458,12 +474,10 @@ export class UserOperationController extends BaseController<
     this.#updateMetadata(metadata);
   }
 
-  async #approveUserOperation(
-    metadata: UserOperationMetadata,
-    request: AddUserOperationRequest,
-    options: AddUserOperationOptions,
-  ) {
+  async #approveUserOperation(cache: UserOperationCache) {
     log('Requesting approval');
+
+    const { metadata } = cache;
 
     const { resultCallbacks, value: rawValue } = await this.#requestApproval(
       metadata,
@@ -473,12 +487,7 @@ export class UserOperationController extends BaseController<
     const updatedTransaction = value?.txMeta;
 
     if (updatedTransaction) {
-      await this.#updateUserOperationAfterApproval(
-        metadata,
-        request,
-        options,
-        updatedTransaction,
-      );
+      await this.#updateUserOperationAfterApproval(cache, updatedTransaction);
     }
 
     metadata.status = UserOperationStatus.Approved;
@@ -655,12 +664,12 @@ export class UserOperationController extends BaseController<
   }
 
   async #updateUserOperationAfterApproval(
-    metadata: UserOperationMetadata,
-    request: AddUserOperationRequest,
-    options: AddUserOperationOptions,
+    cache: UserOperationCache,
     updatedTransaction: TransactionMeta,
   ) {
     log('Found updated transaction in approval', { updatedTransaction });
+
+    const { metadata, request } = cache;
 
     const { userOperation } = metadata;
     const usingPaymaster = userOperation.paymasterAndData !== EMPTY_BYTES;
@@ -719,29 +728,24 @@ export class UserOperationController extends BaseController<
         value: updatedValue,
       };
 
-      await this.#regenerateUserOperation(metadata, updatedRequest, options);
+      await this.#regenerateUserOperation({
+        ...cache,
+        request: updatedRequest,
+      });
     }
   }
 
-  async #regenerateUserOperation(
-    metadata: UserOperationMetadata,
-    updatedRequest: AddUserOperationRequest,
-    options: AddUserOperationOptions,
-  ) {
+  async #regenerateUserOperation(cache: UserOperationCache) {
     log(
       'Regenerating user operation as parameters were updated during approval',
     );
 
-    const { chainId } = metadata;
-    const { smartContractAccount } = options;
-
-    await this.#prepareUserOperation(
-      updatedRequest,
+    const {
+      options: { smartContractAccount },
       metadata,
-      smartContractAccount,
-      chainId,
-    );
+    } = cache;
 
+    await this.#prepareUserOperation(cache);
     await this.#addPaymasterData(metadata, smartContractAccount);
 
     log('Regenerated user operation', metadata.userOperation);
