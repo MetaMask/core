@@ -323,17 +323,21 @@ export class PermissionLogController extends BaseController<
 
         if (method === 'eth_accounts') {
           const accounts = this.#getAccountsFromPermission(permission);
-          acc[method] = {
-            lastApproved: time,
-            accounts: this.#getAccountToTimeMap(accounts, time),
-          };
-        } else {
-          acc[method] = {
-            lastApproved: time,
+          return {
+            ...acc,
+            [method]: {
+              lastApproved: time,
+              accounts: this.#getAccountToTimeMap(accounts, time),
+            },
           };
         }
 
-        return acc;
+        return {
+          ...acc,
+          [method]: {
+            lastApproved: time,
+          },
+        };
       }, {});
     }
 
