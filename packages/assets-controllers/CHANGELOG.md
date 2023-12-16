@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING:** `TokenDetectionController` is upgraded to extend `BaseControllerV2` and `StaticIntervalPollingController` ([#3609](https://github.com/MetaMask/core/pull/3609)).
-  - The constructor now expects an options object as its only argument, with required properties `messenger`, `chainId`, required callbacks `onPreferencesStateChange`, `getBalancesInSingleCall`, `getPreferencesState`, and optional properties `interval`, `selectedAddress`. Note that the `config` object is no longer used by the constructor.
+  - The constructor now expects an options object as its only argument, with required properties `messenger`, `networkClientId`, required callbacks `onPreferencesStateChange`, `getBalancesInSingleCall`, `getPreferencesState`, and optional properties `interval`, `selectedAddress`. Note that the `config` object is no longer used by the constructor.
   - Polling can only be initiated by calling `start` or `startPollingByNetworkClientId` from a controller client. There is no longer an option to automatically start polling when the controller is instantiated.
 
 ## [21.0.0]

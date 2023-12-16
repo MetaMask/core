@@ -9,10 +9,9 @@ import {
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
+  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -45,8 +44,7 @@ export type TokenDetectionControllerActions =
   TokenDetectionControllerGetStateAction;
 
 export type AllowedActions =
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId
-  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction
   | GetTokenListState;
@@ -111,14 +109,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options - The controller options.
    * @param options.messenger - The controller messaging system.
    * @param options.interval - Polling interval used to fetch new token rates
-   * @param options.chainId - The chain ID of the current network
+   * @param options.networkClientId - The selected network client ID of the current network
    * @param options.selectedAddress - Vault selected address
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.getPreferencesState - Gets the state of the preferences controller.
    */
   constructor({
-    chainId,
+    networkClientId,
     selectedAddress = '',
     interval = DEFAULT_INTERVAL,
     onPreferencesStateChange,
@@ -126,7 +124,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     getPreferencesState,
     messenger,
   }: {
-    chainId: Hex;
+    networkClientId: NetworkClientId;
     selectedAddress?: string;
     interval?: number;
     onPreferencesStateChange: (
@@ -148,12 +146,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.#disabled = false;
     this.setIntervalLength(interval);
-    this.#chainId = chainId;
+
+    this.#networkClientId = networkClientId;
     this.#selectedAddress = selectedAddress;
-    this.#networkClientId = this.messagingSystem.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
+    this.#chainId = this.#getCorrectChainId(networkClientId);
+
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
     this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
       this.#chainId,
@@ -193,14 +190,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
-      async ({
-        providerConfig: { chainId: newChainId },
-        selectedNetworkClientId,
-      }) => {
+      async ({ selectedNetworkClientId }) => {
+        this.#networkClientId = selectedNetworkClientId;
+        const newChainId = this.#getCorrectChainId(selectedNetworkClientId);
         const isChainIdChanged = this.#chainId !== newChainId;
         this.#chainId = newChainId;
-
-        this.#networkClientId = selectedNetworkClientId;
 
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);

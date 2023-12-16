@@ -145,8 +145,7 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
-      'NetworkController:getNetworkConfigurationByNetworkClientId',
-      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getNetworkClientById',
       'TokensController:getState',
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
@@ -172,23 +171,25 @@ describe('TokenDetectionController', () => {
 
   const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const getNetworkConfigurationByNetworkClientIdHandler = jest.fn();
-  const findNetworkClientIdByChainIdHandler = jest.fn();
+  const getNetworkClientByIdHandler = jest.fn();
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkDidChangeListeners.forEach((listener) => {
-      listener({
-        ...defaultNetworkState,
-        providerConfig,
-      });
-    });
-
     controllerMessenger.publish('NetworkController:networkDidChange', {
       ...defaultNetworkState,
       providerConfig,
+      selectedNetworkClientId: providerConfig.type,
     });
 
     getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue(
       providerConfig,
     );
+    getNetworkClientByIdHandler.mockReturnValue({
+      configuration: {
+        chainId: providerConfig.chainId,
+      },
+      provider: {},
+      blockTracker: {},
+      destroy: jest.fn(),
+    });
   };
   const mainnet = {
     chainId: ChainId.mainnet,
@@ -228,14 +229,15 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null as any);
 
     controllerMessenger.registerActionHandler(
-      `NetworkController:getNetworkConfigurationByNetworkClientId`,
-      getNetworkConfigurationByNetworkClientIdHandler.mockReturnValueOnce(
-        mainnet,
-      ),
-    );
-    controllerMessenger.registerActionHandler(
-      `NetworkController:findNetworkClientIdByChainId`,
-      findNetworkClientIdByChainIdHandler.mockReturnValue(NetworkType.mainnet),
+      `NetworkController:getNetworkClientById`,
+      getNetworkClientByIdHandler.mockReturnValue({
+        configuration: {
+          chainId: ChainId.mainnet,
+        },
+        provider: {},
+        blockTracker: {},
+        destroy: jest.fn(),
+      }),
     );
 
     tokensController = new TokensController({
@@ -265,7 +267,7 @@ describe('TokenDetectionController', () => {
 
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
-      chainId: ChainId.mainnet,
+      networkClientId: NetworkType.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       getBalancesInSingleCall:
         getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
@@ -465,16 +467,15 @@ describe('TokenDetectionController', () => {
 
       controllerMessenger = getControllerMessenger();
       controllerMessenger.registerActionHandler(
-        `NetworkController:getNetworkConfigurationByNetworkClientId`,
-        getNetworkConfigurationByNetworkClientIdHandler.mockReturnValueOnce(
-          mainnet,
-        ),
-      );
-      controllerMessenger.registerActionHandler(
-        `NetworkController:findNetworkClientIdByChainId`,
-        findNetworkClientIdByChainIdHandler.mockReturnValue(
-          NetworkType.mainnet,
-        ),
+        `NetworkController:getNetworkClientById`,
+        getNetworkClientByIdHandler.mockReturnValue({
+          configuration: {
+            chainId: ChainId.mainnet,
+          },
+          provider: {},
+          blockTracker: {},
+          destroy: jest.fn(),
+        }),
       );
       controllerMessenger.registerActionHandler(
         `TokensController:getState`,
@@ -497,7 +498,7 @@ describe('TokenDetectionController', () => {
         .reply(200, sampleTokenList);
 
       tokenDetection = new TokenDetectionController({
-        chainId: ChainId.mainnet,
+        networkClientId: NetworkType.mainnet,
         selectedAddress: '0x1',
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
@@ -520,7 +521,7 @@ describe('TokenDetectionController', () => {
 
     it('should not be called if TokenListController is updated to have an empty token list', async () => {
       tokenDetection = new TokenDetectionController({
-        chainId: ChainId.mainnet,
+        networkClientId: NetworkType.mainnet,
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         getPreferencesState: () => preferences.state,
@@ -540,7 +541,7 @@ describe('TokenDetectionController', () => {
       });
 
       tokenDetection = new TokenDetectionController({
-        chainId: ChainId.mainnet,
+        networkClientId: NetworkType.mainnet,
         selectedAddress: '0x1',
         onPreferencesStateChange,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
@@ -558,7 +559,7 @@ describe('TokenDetectionController', () => {
 
     it('should be called if network is changed to a chainId that supports token detection', async () => {
       tokenDetection = new TokenDetectionController({
-        chainId: SupportedTokenDetectionNetworks.polygon,
+        networkClientId: 'polygon',
         selectedAddress: '0x1',
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
