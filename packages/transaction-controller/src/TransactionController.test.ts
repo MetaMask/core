@@ -862,6 +862,7 @@ describe('TransactionController', () => {
         methodData: {},
         transactions: [],
         lastFetchedBlockNumbers: {},
+        submitHistory: [],
       });
     });
 

@@ -78,6 +78,7 @@ import type {
   SimulationData,
   GasFeeEstimates,
   GasFeeFlowResponse,
+  SubmitHistoryEntry,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -141,9 +142,14 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  submitHistory: {
+    persist: true,
+    anonymous: false,
+  },
 };
 
 export const HARDFORK = Hardfork.London;
+const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
  * Object with new transaction's meta and a promise resolving to the
@@ -211,6 +217,7 @@ export type TransactionControllerState = {
   transactions: TransactionMeta[];
   methodData: Record<string, MethodData>;
   lastFetchedBlockNumbers: { [key: string]: number };
+  submitHistory: SubmitHistoryEntry[];
 };
 
 /**
@@ -570,6 +577,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
     methodData: {},
     transactions: [],
     lastFetchedBlockNumbers: {},
+    submitHistory: [],
   };
 }
 
@@ -1302,7 +1310,9 @@ export class TransactionController extends BaseController<
     const hash = await this.publishTransactionForRetry(
       ethQuery,
       rawTx,
+      newTxParams,
       transactionMeta,
+      'cancel',
     );
 
     const cancelTransactionMeta = {
@@ -1471,7 +1481,9 @@ export class TransactionController extends BaseController<
     const hash = await this.publishTransactionForRetry(
       ethQuery,
       rawTx,
+      txParams,
       transactionMeta,
+      ORIGIN_METAMASK,
     );
 
     const baseTransactionMeta = {
@@ -2728,7 +2740,13 @@ export class TransactionController extends BaseController<
       );
 
       if (hash === undefined) {
-        hash = await this.publishTransaction(ethQuery, rawTx);
+        hash = await this.publishTransaction(
+          ethQuery,
+          rawTx,
+          transactionMeta.txParams,
+          transactionMeta.chainId,
+          transactionMeta.origin,
+        );
       }
 
       log('Publish successful', hash);
@@ -2774,8 +2792,23 @@ export class TransactionController extends BaseController<
   private async publishTransaction(
     ethQuery: EthQuery,
     rawTransaction: string,
+    transaction: TransactionParams,
+    chainId?: Hex,
+    origin?: string,
   ): Promise<string> {
-    return await query(ethQuery, 'sendRawTransaction', [rawTransaction]);
+    const transactionHash = await query(ethQuery, 'sendRawTransaction', [
+      rawTransaction,
+    ]);
+
+    this.#updateSubmitHistory(
+      rawTransaction,
+      transactionHash,
+      transaction,
+      chainId,
+      origin,
+    );
+
+    return transactionHash;
   }
 
   /**
@@ -3470,7 +3503,8 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId: getChainId(),
         }),
-      publishTransaction: this.publishTransaction.bind(this),
+      publishTransaction: (_ethQuery, rawTx) =>
+        query(_ethQuery, 'sendRawTransaction', [rawTx]),
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
@@ -3577,11 +3611,18 @@ export class TransactionController extends BaseController<
   private async publishTransactionForRetry(
     ethQuery: EthQuery,
     rawTx: string,
+    params: TransactionParams,
     transactionMeta: TransactionMeta,
+    origin?: string,
   ): Promise<string> {
     try {
-      const hash = await this.publishTransaction(ethQuery, rawTx);
-      return hash;
+      return await this.publishTransaction(
+        ethQuery,
+        rawTx,
+        params,
+        transactionMeta.chainId,
+        origin,
+      );
     } catch (error: unknown) {
       if (this.isTransactionAlreadyConfirmedError(error as Error)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
@@ -3854,5 +3895,49 @@ export class TransactionController extends BaseController<
 
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
+
+  #updateSubmitHistory(
+    rawTransaction: string,
+    hash: string,
+    transaction: TransactionParams,
+    chainId?: Hex,
+    origin?: string,
+  ): void {
+    const { networkConfigurations, selectedNetworkClientId } =
+      this.getNetworkState();
+
+    const networkConfiguration = networkConfigurations[selectedNetworkClientId];
+    const networkUrl = networkConfiguration?.rpcUrl;
+
+    const networkType =
+      networkConfiguration?.nickname || selectedNetworkClientId;
+
+    const submitHistoryEntry: SubmitHistoryEntry = {
+      chainId,
+      hash,
+      networkType,
+      networkUrl,
+      origin,
+      time: Date.now(),
+      transaction,
+      rawTransaction,
+    };
+
+    log('Updating submit history', submitHistoryEntry);
+
+    this.update((state) => {
+      const { submitHistory: currentSubmitHistory } = state;
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      const newSubmitHistory = [submitHistoryEntry, ...currentSubmitHistory];
+
+      if (newSubmitHistory.length > SUBMIT_HISTORY_LIMIT) {
+        newSubmitHistory.pop();
+      }
+
+      state.submitHistory = newSubmitHistory;
+    });
   }
 }
