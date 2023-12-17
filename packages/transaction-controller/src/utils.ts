@@ -190,7 +190,8 @@ export function getAndFormatTransactionsForNonceTracker(
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ chainId, status, txParams: { from } }) =>
+      ({ chainId, isTransfer, status, txParams: { from } }) =>
+        !isTransfer &&
         chainId === currentChainId &&
         status === transactionStatus &&
         from.toLowerCase() === fromAddress.toLowerCase(),
