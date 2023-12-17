@@ -20,6 +20,7 @@ import type {
   BlockTrackerProxy,
 } from '@metamask/network-controller';
 import {
+  ORIGIN_METAMASK,
   BNToHex,
   fractionBN,
   hexToBN,
@@ -28,12 +29,15 @@ import {
   NetworkType,
   RPC,
 } from '@metamask/controller-utils';
+import NonceTracker from 'nonce-tracker';
 import {
   AcceptResultCallbacks,
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
+import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import {
+  getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
   validateTransaction,
   getIncreasedPriceFromExisting,
@@ -48,6 +52,7 @@ import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import {
   SecurityAlertResponse,
+  SubmitHistoryEntry,
   Transaction,
   TransactionMeta,
   TransactionStatus,
@@ -55,6 +60,7 @@ import {
 } from './types';
 
 const HARDFORK = 'london';
+const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
  * @type Result
@@ -112,6 +118,7 @@ export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
   lastFetchedBlockNumbers: { [key: string]: number };
+  submitHistory: SubmitHistoryEntry[];
 }
 
 /**
@@ -153,6 +160,8 @@ export class TransactionController extends BaseController<
   TransactionState
 > {
   private ethQuery: any;
+
+  private nonceTracker: NonceTracker;
 
   private registry: any;
 
@@ -257,6 +266,7 @@ export class TransactionController extends BaseController<
       methodData: {},
       transactions: [],
       lastFetchedBlockNumbers: {},
+      submitHistory: [],
     };
 
     this.initialize();
@@ -265,6 +275,19 @@ export class TransactionController extends BaseController<
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
     this.messagingSystem = messenger;
+
+    this.nonceTracker = new NonceTracker({
+      provider,
+      blockTracker,
+      getPendingTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.submitted,
+      ),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
+    });
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
@@ -551,9 +574,18 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.transaction.from,
     );
+
     const rawTransaction = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+
+    await this.publishTransaction(
+      rawTransaction,
+      txParams,
+      transactionMeta.chainId,
+      'cancel',
+    );
+
     transactionMeta.status = TransactionStatus.cancelled;
+
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
 
@@ -650,15 +682,21 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.from,
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
-    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+
+    const transactionHash = await this.publishTransaction(
       rawTransaction,
-    ]);
+      txParams,
+      transactionMeta.chainId,
+      ORIGIN_METAMASK,
+    );
+
     const baseTransactionMeta = {
       ...transactionMeta,
       id: random(),
       time: Date.now(),
       transactionHash,
     };
+
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
@@ -676,8 +714,11 @@ export class TransactionController extends BaseController<
               gasPrice: newGasPrice,
             },
           };
+
     transactions.push(newTransactionMeta);
+
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
@@ -872,6 +913,17 @@ export class TransactionController extends BaseController<
     this.update({
       transactions: this.trimTransactionsForState(newTransactions),
     });
+  }
+
+  /**
+   * Gets the next nonce according to the nonce-tracker.
+   * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
+   *
+   * @param address - The hex string address for the transaction.
+   * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
+   */
+  async getNonceLock(address: string): Promise<NonceLock> {
+    return this.nonceTracker.getNonceLock(address);
   }
 
   /**
@@ -1135,6 +1187,7 @@ export class TransactionController extends BaseController<
     const {
       transaction: { nonce, from },
     } = transactionMeta;
+    let nonceLock;
     try {
       if (!this.sign) {
         releaseLock();
@@ -1151,13 +1204,16 @@ export class TransactionController extends BaseController<
 
       const chainId = parseInt(currentChainId, undefined);
       const { approved: status } = TransactionStatus;
-
-      const txNonce =
-        nonce ||
-        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
+      let nonceToUse = nonce;
+      // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
+      // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
+      if (!nonceToUse) {
+        nonceLock = await this.nonceTracker.getNonceLock(from);
+        nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
+      }
 
       transactionMeta.status = status;
-      transactionMeta.transaction.nonce = txNonce;
+      transactionMeta.transaction.nonce = nonceToUse;
       transactionMeta.transaction.chainId = chainId;
 
       const baseTxParams = {
@@ -1192,18 +1248,50 @@ export class TransactionController extends BaseController<
 
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
-      const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+
+      const transactionHash = await this.publishTransaction(
         rawTransaction,
-      ]);
+        txParams,
+        currentChainId,
+        transactionMeta.origin,
+      );
+
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
+
       this.updateTransaction(transactionMeta);
+
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
+      // must set transaction to submitted/failed before releasing lock
+      if (nonceLock) {
+        nonceLock.releaseLock();
+      }
       releaseLock();
     }
+  }
+
+  private async publishTransaction(
+    rawTransaction: string,
+    transaction: Record<string, unknown>,
+    chainId?: string,
+    origin?: string,
+  ): Promise<string> {
+    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+      rawTransaction,
+    ]);
+
+    this.updateSubmitHistory(
+      rawTransaction,
+      transactionHash,
+      transaction,
+      chainId,
+      origin,
+    );
+
+    return transactionHash;
   }
 
   /**
@@ -1302,6 +1390,50 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
+  }
+
+  private getNonceTrackerTransactions(
+    status: TransactionStatus,
+    address: string,
+  ) {
+    const { chainId: currentChainId } = this.getNetworkState().providerConfig;
+
+    return getAndFormatTransactionsForNonceTracker(
+      currentChainId,
+      address,
+      status,
+      this.state.transactions,
+    );
+  }
+
+  private updateSubmitHistory(
+    rawTransaction: string,
+    hash: string,
+    transaction: Record<string, unknown>,
+    chainId?: string,
+    origin?: string,
+  ): void {
+    const { rpcTarget: networkUrl, type: networkType } =
+      this.getNetworkState().providerConfig;
+
+    const submitHistoryEntry: SubmitHistoryEntry = {
+      chainId,
+      hash,
+      networkType,
+      networkUrl,
+      origin,
+      time: Date.now(),
+      transaction,
+      rawTransaction,
+    };
+
+    const submitHistory = [submitHistoryEntry, ...this.state.submitHistory];
+
+    if (submitHistory.length > SUBMIT_HISTORY_LIMIT) {
+      submitHistory.pop();
+    }
+
+    this.update({ submitHistory });
   }
 }
 
