@@ -130,4 +130,6 @@ export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [NetworkId.goerli]: NetworkType.goerli,
   [NetworkId.sepolia]: NetworkType.sepolia,
   [NetworkId.mainnet]: NetworkType.mainnet,
+  [NetworkId['linea-goerli']]: NetworkType['linea-goerli'],
+  [NetworkId['linea-mainnet']]: NetworkType['linea-mainnet'],
 };

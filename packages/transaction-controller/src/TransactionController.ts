@@ -1414,7 +1414,7 @@ export class TransactionController extends BaseController<
     chainId?: string,
     origin?: string,
   ): void {
-    const { rpcTarget: networkUrl, type: networkType } =
+    const { rpcUrl: networkUrl, type: networkType } =
       this.getNetworkState().providerConfig;
 
     const submitHistoryEntry: SubmitHistoryEntry = {

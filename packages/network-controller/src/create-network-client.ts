@@ -27,6 +27,7 @@ import {
   ChainId,
   NetworkId,
 } from '@metamask/controller-utils';
+import { InfuraJsonRpcSupportedNetwork } from '@metamask/eth-json-rpc-infura/dist/types';
 import type { BlockTracker, Provider } from './types';
 
 const SECOND = 1000;
@@ -71,7 +72,7 @@ export function createNetworkClient(
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          network: networkConfig.network,
+          network: networkConfig.network as InfuraJsonRpcSupportedNetwork,
           projectId: networkConfig.infuraProjectId,
           maxAttempts: 5,
           source: 'metamask',

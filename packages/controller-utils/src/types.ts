@@ -68,6 +68,8 @@ export const NetworkId = {
   [InfuraNetworkType.mainnet]: '1',
   [InfuraNetworkType.goerli]: '5',
   [InfuraNetworkType.sepolia]: '11155111',
+  [InfuraNetworkType['linea-goerli']]: '59140',
+  [InfuraNetworkType['linea-mainnet']]: '59144',
 } as const;
 export type NetworkId = typeof NetworkId[keyof typeof NetworkId];
 
