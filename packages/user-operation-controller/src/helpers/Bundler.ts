@@ -46,26 +46,30 @@ export class Bundler {
   ): Promise<BundlerEstimateUserOperationGasResponse> {
     log('Estimating gas', { url: this.#url, userOperation, entrypoint });
 
-    const response = await this.#query('eth_estimateUserOperationGas', [
-      userOperation,
-      entrypoint,
-    ]);
+    const response: BundlerEstimateUserOperationGasResponse = await this.#query(
+      'eth_estimateUserOperationGas',
+      [userOperation, entrypoint],
+    );
 
     log('Estimated gas', { response });
 
-    return response as BundlerEstimateUserOperationGasResponse;
+    return response;
   }
 
   /**
    * Retrieve the receipt for a user operation.
    * @param hash - The hash of the user operation.
-   * @returns The receipt for the user operation.
+   * @returns The receipt for the user operation, or `undefined` if the user operation is pending.
    */
   async getUserOperationReceipt(
     hash?: string,
   ): Promise<UserOperationReceipt | undefined> {
     log('Getting user operation receipt', { url: this.#url, hash });
-    return await this.#query('eth_getUserOperationReceipt', [hash]);
+
+    return await this.#query<UserOperationReceipt | undefined>(
+      'eth_getUserOperationReceipt',
+      [hash],
+    );
   }
 
   /**
@@ -84,7 +88,7 @@ export class Bundler {
       entrypoint,
     });
 
-    const hash = await this.#query('eth_sendUserOperation', [
+    const hash: string = await this.#query('eth_sendUserOperation', [
       userOperation,
       entrypoint,
     ]);
@@ -94,9 +98,7 @@ export class Bundler {
     return hash;
   }
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async #query(method: string, params: any[]): Promise<any> {
+  async #query<T>(method: string, params: unknown[]): Promise<T> {
     const request = {
       method: 'POST',
       headers: {
@@ -111,9 +113,9 @@ export class Bundler {
 
     if (responseJson.error) {
       const error = new Error(responseJson.error.message || responseJson.error);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (error as any).code = responseJson.error.code;
+
+      (error as unknown as Record<string, string>).code =
+        responseJson.error.code;
 
       throw error;
     }
