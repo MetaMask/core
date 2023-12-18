@@ -540,7 +540,11 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
-      onStateChange: this.subscribe.bind(this),
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+        onNetworkStateChange(listener);
+        listener();
+      },
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -552,8 +556,7 @@ export class TransactionController extends BaseControllerV1<
     this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
-      this.ethQuery = new EthQuery(this.provider);
-      this.registry = new MethodRegistry({ provider: this.provider });
+      log('Detected network change', this.getChainId());
       this.onBootCleanup();
     });
 
