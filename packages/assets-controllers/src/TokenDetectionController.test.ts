@@ -510,7 +510,7 @@ describe('TokenDetectionController', () => {
       changeNetwork({
         chainId: toHex(polygonDecimalChainId),
         type: NetworkType.rpc,
-        ticker: NetworksTicker.rpc,
+        ticker: 'MATIC',
       });
       expect(getBalancesInSingleCallMock.called).toBe(false);
     });
@@ -550,7 +550,7 @@ describe('TokenDetectionController', () => {
         selectedAddress: '0x2',
         useTokenDetection: true,
       });
-      expect(getBalancesInSingleCallMock.called).toBe(true);
+      expect(getBalancesInSingleCallMock.calledOnce).toBe(true);
     });
 
     it('should be called if network is changed to a chainId that supports token detection', async () => {
@@ -562,9 +562,17 @@ describe('TokenDetectionController', () => {
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
+      getNetworkClientByIdHandler.mockReturnValue({
+        configuration: {
+          chainId: SupportedTokenDetectionNetworks.polygon,
+        },
+        provider: {},
+        blockTracker: {},
+        destroy: jest.fn(),
+      });
 
       changeNetwork(mainnet);
-      expect(getBalancesInSingleCallMock.called).toBe(true);
+      expect(getBalancesInSingleCallMock.calledOnce).toBe(true);
     });
   });
 
