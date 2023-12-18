@@ -74,7 +74,7 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
  * @property chainId - The chain ID of the current network
  * @property selectedAddress - Vault selected address
  * @property networkClientId - The network client ID of the current selected network
- * @property disabled - Boolean to track if passive auto-detection is currently enabled in this controller
+ * @property disabled - Boolean to track if network requests are blocked
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
@@ -108,6 +108,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    *
    * @param options - The controller options.
    * @param options.messenger - The controller messaging system.
+   * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.networkClientId - The selected network client ID of the current network
    * @param options.selectedAddress - Vault selected address
@@ -119,6 +120,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId,
     selectedAddress = '',
     interval = DEFAULT_INTERVAL,
+    disabled = false,
     onPreferencesStateChange,
     getBalancesInSingleCall,
     getPreferencesState,
@@ -127,6 +129,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId: NetworkClientId;
     selectedAddress?: string;
     interval?: number;
+    disabled?: boolean;
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
@@ -144,7 +147,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       metadata: {},
     });
 
-    this.#disabled = false;
+    this.#disabled = disabled;
     this.setIntervalLength(interval);
 
     this.#networkClientId = networkClientId;
@@ -232,6 +235,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * Starts a new polling interval.
    */
   async #startPolling(): Promise<void> {
+    if (this.#disabled) {
+      return;
+    }
     this.#stopPolling();
     await this.detectTokens();
     this.#intervalId = setInterval(async () => {
@@ -253,7 +259,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    return await this.detectTokens({
+    if (this.#disabled) {
+      throw new Error(
+        'Poll cannot be executed while network requests are disabled',
+      );
+    }
+    await this.detectTokens({
       networkClientId,
       accountAddress: options.address,
     });
