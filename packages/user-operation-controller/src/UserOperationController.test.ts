@@ -1,6 +1,12 @@
+import { ApprovalType } from '@metamask/controller-utils';
+import {
+  determineTransactionType,
+  TransactionType,
+  type TransactionParams,
+} from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT, VALUE_ZERO } from './constants';
 import * as BundlerHelper from './helpers/Bundler';
 import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
 import type { UserOperationMetadata } from './types';
@@ -11,7 +17,12 @@ import {
   type SmartContractAccount,
   type UpdateUserOperationResponse,
 } from './types';
-import type { UserOperationControllerMessenger } from './UserOperationController';
+import type {
+  AddUserOperationOptions,
+  AddUserOperationRequest,
+  UserOperationControllerActions,
+  UserOperationControllerMessenger,
+} from './UserOperationController';
 import { UserOperationController } from './UserOperationController';
 import {
   validateAddUserOperationRequest,
@@ -21,6 +32,7 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation';
 
+jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/validation');
 jest.mock('./helpers/Bundler');
 jest.mock('./helpers/PendingUserOperationTracker');
@@ -32,14 +44,13 @@ const ERROR_CODE_MOCK = 1234;
 const INTERVAL_MOCK = 1234;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const TRANSACTION_HASH_MOCK = '0x456';
+const ORIGIN_MOCK = 'test.com';
 
-const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
+const USER_OPERATION_METADATA_MOCK = {
   chainId: CHAIN_ID_MOCK,
   id: 'testUserOperationId',
   status: UserOperationStatus.Confirmed,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any;
+} as UserOperationMetadata;
 
 const PREPARE_USER_OPERATION_RESPONSE_MOCK: PrepareUserOperationResponse = {
   bundler: 'http://test.com',
@@ -73,61 +84,55 @@ const ADD_USER_OPERATION_REQUEST_MOCK = {
 };
 
 const ADD_USER_OPERATION_OPTIONS_MOCK = {
-  chainId: CHAIN_ID_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  origin: ORIGIN_MOCK,
 };
 
 /**
  * Creates a mock user operation messenger.
  * @returns The mock user operation messenger.
  */
-function createMessengerMock(): jest.Mocked<UserOperationControllerMessenger> {
+function createMessengerMock() {
   return {
+    call: jest.fn(),
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }
 
 /**
  * Creates a mock smart contract account.
  * @returns The mock smart contract account.
  */
-function createSmartContractAccountMock(): jest.Mocked<SmartContractAccount> {
+function createSmartContractAccountMock() {
   return {
     prepareUserOperation: jest.fn(),
     updateUserOperation: jest.fn(),
     signUserOperation: jest.fn(),
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  } as jest.Mocked<SmartContractAccount>;
 }
 
 /**
  * Creates a mock bundler.
  * @returns The mock bundler.
  */
-function createBundlerMock(): jest.Mocked<BundlerHelper.Bundler> {
+function createBundlerMock() {
   return {
     estimateUserOperationGas: jest.fn(),
     sendUserOperation: jest.fn(),
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  } as unknown as jest.Mocked<BundlerHelper.Bundler>;
 }
 
 /**
  * Creates a mock PendingUserOperationTracker.
  * @returns The mock PendingUserOperationTracker.
  */
-function createPendingUserOperationTrackerMock(): jest.Mocked<PendingUserOperationTrackerHelper.PendingUserOperationTracker> {
+function createPendingUserOperationTrackerMock() {
   return {
     startPollingByNetworkClientId: jest.fn(),
     setIntervalLength: jest.fn(),
     hub: new EventEmitter(),
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  } as unknown as jest.Mocked<PendingUserOperationTrackerHelper.PendingUserOperationTracker>;
 }
 
 /**
@@ -143,6 +148,11 @@ describe('UserOperationController', () => {
   const bundlerMock = createBundlerMock();
   const pendingUserOperationTrackerMock =
     createPendingUserOperationTrackerMock();
+  const approvalControllerAddRequestMock = jest.fn();
+  const networkControllerGetClientByIdMock = jest.fn();
+  const resultCallbackSuccessMock = jest.fn();
+  const resultCallbackErrorMock = jest.fn();
+  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
 
   const validateAddUserOperationRequestMock = jest.mocked(
     validateAddUserOperationRequest,
@@ -183,6 +193,40 @@ describe('UserOperationController', () => {
     );
 
     bundlerMock.sendUserOperation.mockResolvedValue(USER_OPERATION_HASH_MOCK);
+
+    networkControllerGetClientByIdMock.mockReturnValue({
+      configuration: {
+        chainId: CHAIN_ID_MOCK,
+      },
+    });
+
+    approvalControllerAddRequestMock.mockResolvedValue({
+      resultCallbacks: {
+        success: resultCallbackSuccessMock,
+        error: resultCallbackErrorMock,
+      },
+    });
+
+    messenger.call.mockImplementation(
+      (
+        action: UserOperationControllerActions['type'],
+        ..._args: Parameters<UserOperationControllerActions['handler']>
+      ) => {
+        if (action === 'NetworkController:getNetworkClientById') {
+          return networkControllerGetClientByIdMock();
+        }
+
+        if (action === 'ApprovalController:addRequest') {
+          return approvalControllerAddRequestMock();
+        }
+
+        return undefined;
+      },
+    );
+
+    determineTransactionTypeMock.mockResolvedValue({
+      type: TransactionType.simpleSend,
+    });
   });
 
   describe('constructor', () => {
@@ -233,13 +277,33 @@ describe('UserOperationController', () => {
     });
   });
 
-  describe('addUserOperation', () => {
+  describe.each([
+    'addUserOperation',
+    'addUserOperationFromTransaction',
+  ] as const)('%s', (method) => {
+    /**
+     * Add a user operation using the specified method.
+     *
+     * @param controller - The controller instance.
+     * @param request - The request argument.
+     * @param options - The options argument.
+     * @returns The user operation hash.
+     */
+    function addUserOperation(
+      controller: UserOperationController,
+      request: AddUserOperationRequest | TransactionParams,
+      options: AddUserOperationOptions,
+    ) {
+      return controller[method](request as TransactionParams, options);
+    }
+
     it('submits user operation to bundler', async () => {
       const controller = new UserOperationController({
         messenger,
       });
 
-      const { hash } = await controller.addUserOperation(
+      const { hash } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
       );
@@ -275,38 +339,40 @@ describe('UserOperationController', () => {
         messenger,
       });
 
-      const { id } = await controller.addUserOperation(
+      const { id } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
       );
 
       expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
-      expect(controller.state.userOperations[id]).toStrictEqual({
-        actualGasCost: null,
-        actualGasUsed: null,
-        baseFeePerGas: null,
-        bundlerUrl: null,
-        chainId: CHAIN_ID_MOCK,
-        error: null,
-        hash: null,
-        id,
-        status: UserOperationStatus.Unapproved,
-        time: expect.any(Number),
-        transactionHash: null,
-        userOperation: {
-          callData: EMPTY_BYTES,
-          callGasLimit: EMPTY_BYTES,
-          initCode: EMPTY_BYTES,
-          maxFeePerGas: EMPTY_BYTES,
-          maxPriorityFeePerGas: EMPTY_BYTES,
-          nonce: EMPTY_BYTES,
-          paymasterAndData: EMPTY_BYTES,
-          preVerificationGas: EMPTY_BYTES,
-          sender: ADDRESS_ZERO,
-          signature: EMPTY_BYTES,
-          verificationGasLimit: EMPTY_BYTES,
-        },
-      });
+      expect(controller.state.userOperations[id]).toStrictEqual(
+        expect.objectContaining({
+          actualGasCost: null,
+          actualGasUsed: null,
+          baseFeePerGas: null,
+          bundlerUrl: null,
+          chainId: CHAIN_ID_MOCK,
+          error: null,
+          hash: null,
+          id,
+          origin: ORIGIN_MOCK,
+          status: UserOperationStatus.Unapproved,
+          time: expect.any(Number),
+          transactionHash: null,
+          userOperation: expect.objectContaining({
+            callData: EMPTY_BYTES,
+            callGasLimit: EMPTY_BYTES,
+            initCode: EMPTY_BYTES,
+            nonce: EMPTY_BYTES,
+            paymasterAndData: EMPTY_BYTES,
+            preVerificationGas: EMPTY_BYTES,
+            sender: ADDRESS_ZERO,
+            signature: EMPTY_BYTES,
+            verificationGasLimit: EMPTY_BYTES,
+          }),
+        }),
+      );
     });
 
     it('updates metadata in state after submission', async () => {
@@ -314,7 +380,8 @@ describe('UserOperationController', () => {
         messenger,
       });
 
-      const { id, hash } = await controller.addUserOperation(
+      const { id, hash } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
       );
@@ -322,36 +389,40 @@ describe('UserOperationController', () => {
       await hash();
 
       expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
-      expect(controller.state.userOperations[id]).toStrictEqual({
-        actualGasCost: null,
-        actualGasUsed: null,
-        baseFeePerGas: null,
-        bundlerUrl: PREPARE_USER_OPERATION_RESPONSE_MOCK.bundler,
-        chainId: CHAIN_ID_MOCK,
-        error: null,
-        hash: USER_OPERATION_HASH_MOCK,
-        id,
-        status: UserOperationStatus.Submitted,
-        time: expect.any(Number),
-        transactionHash: null,
-        userOperation: {
-          callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
-          callGasLimit: PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.callGasLimit,
-          initCode: PREPARE_USER_OPERATION_RESPONSE_MOCK.initCode,
-          maxFeePerGas: ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas,
-          maxPriorityFeePerGas:
-            ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas,
-          nonce: PREPARE_USER_OPERATION_RESPONSE_MOCK.nonce,
-          paymasterAndData:
-            UPDATE_USER_OPERATION_RESPONSE_MOCK.paymasterAndData,
-          preVerificationGas:
-            PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.preVerificationGas,
-          sender: PREPARE_USER_OPERATION_RESPONSE_MOCK.sender,
-          signature: SIGN_USER_OPERATION_RESPONSE_MOCK.signature,
-          verificationGasLimit:
-            PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.verificationGasLimit,
-        },
-      });
+      expect(controller.state.userOperations[id]).toStrictEqual(
+        expect.objectContaining({
+          actualGasCost: null,
+          actualGasUsed: null,
+          baseFeePerGas: null,
+          bundlerUrl: PREPARE_USER_OPERATION_RESPONSE_MOCK.bundler,
+          chainId: CHAIN_ID_MOCK,
+          error: null,
+          hash: USER_OPERATION_HASH_MOCK,
+          id,
+          origin: ORIGIN_MOCK,
+          status: UserOperationStatus.Submitted,
+          time: expect.any(Number),
+          transactionHash: null,
+          userOperation: {
+            callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
+            callGasLimit:
+              PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.callGasLimit,
+            initCode: PREPARE_USER_OPERATION_RESPONSE_MOCK.initCode,
+            maxFeePerGas: ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas,
+            maxPriorityFeePerGas:
+              ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas,
+            nonce: PREPARE_USER_OPERATION_RESPONSE_MOCK.nonce,
+            paymasterAndData:
+              UPDATE_USER_OPERATION_RESPONSE_MOCK.paymasterAndData,
+            preVerificationGas:
+              PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.preVerificationGas,
+            sender: PREPARE_USER_OPERATION_RESPONSE_MOCK.sender,
+            signature: SIGN_USER_OPERATION_RESPONSE_MOCK.signature,
+            verificationGasLimit:
+              PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.verificationGasLimit,
+          },
+        }),
+      );
     });
 
     it('defaults optional properties if not specified by account', async () => {
@@ -371,7 +442,8 @@ describe('UserOperationController', () => {
         paymasterAndData: undefined,
       });
 
-      const { hash } = await controller.addUserOperation(
+      const { hash } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
       );
@@ -514,9 +586,7 @@ describe('UserOperationController', () => {
       });
 
       const error = new Error(ERROR_MESSAGE_MOCK);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (error as any).code = ERROR_CODE_MOCK;
+      (error as unknown as Record<string, unknown>).code = ERROR_CODE_MOCK;
 
       bundlerMock.sendUserOperation.mockRejectedValue(error);
 
@@ -553,36 +623,12 @@ describe('UserOperationController', () => {
         new Error(ERROR_MESSAGE_MOCK),
       );
 
-      await controller.addUserOperation(ADD_USER_OPERATION_REQUEST_MOCK, {
+      await addUserOperation(controller, ADD_USER_OPERATION_REQUEST_MOCK, {
         ...ADD_USER_OPERATION_OPTIONS_MOCK,
         smartContractAccount,
       });
 
       await flushPromises();
-
-      // Unhandled error would fail test.
-    });
-
-    it('validates arguments', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
-
-      await controller.addUserOperation(ADD_USER_OPERATION_REQUEST_MOCK, {
-        ...ADD_USER_OPERATION_OPTIONS_MOCK,
-        smartContractAccount,
-      });
-
-      expect(validateAddUserOperationRequestMock).toHaveBeenCalledTimes(1);
-      expect(validateAddUserOperationRequestMock).toHaveBeenCalledWith(
-        ADD_USER_OPERATION_REQUEST_MOCK,
-      );
-
-      expect(validateAddUserOperationOptionsMock).toHaveBeenCalledTimes(1);
-      expect(validateAddUserOperationOptionsMock).toHaveBeenCalledWith({
-        ...ADD_USER_OPERATION_OPTIONS_MOCK,
-        smartContractAccount,
-      });
     });
 
     it('validates responses from account', async () => {
@@ -590,7 +636,8 @@ describe('UserOperationController', () => {
         messenger,
       });
 
-      const { hash } = await controller.addUserOperation(
+      const { hash } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         {
           ...ADD_USER_OPERATION_OPTIONS_MOCK,
@@ -621,7 +668,8 @@ describe('UserOperationController', () => {
         messenger,
       });
 
-      const { transactionHash } = await controller.addUserOperation(
+      const { transactionHash } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
       );
@@ -647,7 +695,8 @@ describe('UserOperationController', () => {
         messenger,
       });
 
-      const { transactionHash } = await controller.addUserOperation(
+      const { transactionHash } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
       );
@@ -664,7 +713,8 @@ describe('UserOperationController', () => {
         messenger,
       });
 
-      const { transactionHash } = await controller.addUserOperation(
+      const { transactionHash } = await addUserOperation(
+        controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
         { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
       );
@@ -683,6 +733,483 @@ describe('UserOperationController', () => {
 
       await expect(getTransactionHash).rejects.toThrow(ERROR_MESSAGE_MOCK);
     });
+
+    it('requests approval if not explicitly disabled', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const { hash, id } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      await hash();
+
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id,
+          type: ApprovalType.Transaction,
+          origin: ORIGIN_MOCK,
+          expectsResult: true,
+          requestData: {
+            txId: id,
+          },
+        },
+        true,
+      );
+    });
+
+    it('does not request approval if disabled', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const { hash } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        {
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+          requireApproval: false,
+        },
+      );
+
+      await hash();
+
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+    });
+
+    it('invokes result callbacks if submit successful', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const { hash } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        {
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+        },
+      );
+
+      await hash();
+
+      expect(resultCallbackSuccessMock).toHaveBeenCalledTimes(1);
+      expect(resultCallbackErrorMock).not.toHaveBeenCalled();
+    });
+
+    it('invokes result callbacks if error while submitting', async () => {
+      const controller = new UserOperationController({
+        messenger,
+      });
+
+      const errorMock = new Error(ERROR_MESSAGE_MOCK);
+
+      bundlerMock.sendUserOperation.mockRejectedValue(errorMock);
+
+      await addUserOperation(controller, ADD_USER_OPERATION_REQUEST_MOCK, {
+        ...ADD_USER_OPERATION_OPTIONS_MOCK,
+        smartContractAccount,
+      });
+
+      await flushPromises();
+
+      expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
+      expect(resultCallbackErrorMock).toHaveBeenCalledWith(errorMock);
+      expect(resultCallbackSuccessMock).not.toHaveBeenCalled();
+    });
+
+    describe('if approval request resolved with updated transaction', () => {
+      it('updates gas fees without regeneration if paymaster data not set', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                maxFeePerGas: '0x6',
+                maxPriorityFeePerGas: '0x7',
+              },
+            },
+          },
+        });
+
+        smartContractAccount.updateUserOperation.mockResolvedValue({
+          paymasterAndData: EMPTY_BYTES,
+        });
+
+        const { hash, id } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(controller.state.userOperations[id].userOperation).toStrictEqual(
+          expect.objectContaining({
+            maxFeePerGas: '0x6',
+            maxPriorityFeePerGas: '0x7',
+          }),
+        );
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('regenerates if gas fees updated and paymaster data set', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                maxFeePerGas: '0x6',
+                maxPriorityFeePerGas: '0x7',
+              },
+            },
+          },
+        });
+
+        const { hash, id } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(controller.state.userOperations[id].userOperation).toStrictEqual(
+          expect.objectContaining({
+            maxFeePerGas: '0x6',
+            maxPriorityFeePerGas: '0x7',
+          }),
+        );
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledWith({
+          userOperation: expect.objectContaining({
+            maxFeePerGas: '0x6',
+            maxPriorityFeePerGas: '0x7',
+          }),
+        });
+      });
+
+      it('regenerates if data updated', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                data: '0x6',
+              },
+            },
+          },
+        });
+
+        const { hash } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledWith(
+          expect.objectContaining({ data: '0x6' }),
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          2,
+        );
+      });
+
+      it('regenerates if value updated', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                value: '0x6',
+              },
+            },
+          },
+        });
+
+        const { hash } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledWith(
+          expect.objectContaining({ value: '0x6' }),
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          2,
+        );
+      });
+
+      it('does not regenerate if original data is undefined and updated data is empty', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                data: EMPTY_BYTES,
+              },
+            },
+          },
+        });
+
+        const { hash } = await addUserOperation(
+          controller,
+          { ...ADD_USER_OPERATION_REQUEST_MOCK, data: undefined },
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('does not regenerate if original data is empty and updated data is undefined', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                data: undefined,
+              },
+            },
+          },
+        });
+
+        const { hash } = await addUserOperation(
+          controller,
+          { ...ADD_USER_OPERATION_REQUEST_MOCK, data: EMPTY_BYTES },
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('does not regenerate if original value is undefined and updated value is zero', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                value: VALUE_ZERO,
+              },
+            },
+          },
+        });
+
+        const { hash } = await addUserOperation(
+          controller,
+          { ...ADD_USER_OPERATION_REQUEST_MOCK, value: undefined },
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('does not regenerate if original value is zero and updated value is undefined', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                value: undefined,
+              },
+            },
+          },
+        });
+
+        const { hash } = await addUserOperation(
+          controller,
+          { ...ADD_USER_OPERATION_REQUEST_MOCK, value: VALUE_ZERO },
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+    });
+
+    if (method === 'addUserOperation') {
+      it('validates arguments', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        await addUserOperation(controller, ADD_USER_OPERATION_REQUEST_MOCK, {
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+        });
+
+        expect(validateAddUserOperationRequestMock).toHaveBeenCalledTimes(1);
+        expect(validateAddUserOperationRequestMock).toHaveBeenCalledWith(
+          ADD_USER_OPERATION_REQUEST_MOCK,
+        );
+
+        expect(validateAddUserOperationOptionsMock).toHaveBeenCalledTimes(1);
+        expect(validateAddUserOperationOptionsMock).toHaveBeenCalledWith({
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+        });
+      });
+    }
+
+    if (method === 'addUserOperationFromTransaction') {
+      it('sets data as undefined if empty string', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        await addUserOperation(
+          controller,
+          { ...ADD_USER_OPERATION_REQUEST_MOCK, data: '' },
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: undefined,
+          }),
+        );
+      });
+
+      it('sets transaction type in metadata', async () => {
+        const controller = new UserOperationController({
+          messenger,
+        });
+
+        const { id } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        expect(controller.state.userOperations[id].transactionType).toBe(
+          TransactionType.simpleSend,
+        );
+
+        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(1);
+        expect(determineTransactionTypeMock).toHaveBeenCalledWith(
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          expect.anything(),
+        );
+      });
+    }
   });
 
   describe('startPollingByNetworkClientId', () => {

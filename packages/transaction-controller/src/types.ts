@@ -196,6 +196,11 @@ type TransactionMetaBase = {
   isTransfer?: boolean;
 
   /**
+   * Whether the transaction entry is generated from a user operation.
+   */
+  isUserOperation?: boolean;
+
+  /**
    * Network code as per EIP-155 for this transaction
    *
    * @deprecated Use `chainId` instead.
