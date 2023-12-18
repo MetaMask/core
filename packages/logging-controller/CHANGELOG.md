@@ -5,11 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- Release 100.0.0 ([#3667](https://github.com/MetaMask/core/pull/3667))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Remove superfluous typescript reference paths ([#3608](https://github.com/MetaMask/core/pull/3608))
-- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
 
 ## [2.0.0]
 ### Changed
