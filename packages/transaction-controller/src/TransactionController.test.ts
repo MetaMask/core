@@ -753,6 +753,46 @@ describe('TransactionController', () => {
 
         expect(transactions[0].status).toBe(TransactionStatus.submitted);
       });
+
+      it('only reads the current chain id once to filter for approved transactions', async () => {
+        const mockTransactionMeta = {
+          from: ACCOUNT_MOCK,
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+        const mockedTransactions = [
+          {
+            id: '123',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '123' }],
+          },
+        ];
+
+        const mockedControllerState = {
+          transactions: mockedTransactions,
+          methodData: {},
+          lastFetchedBlockNumbers: {},
+        };
+
+        const getNetworkStateMock = jest
+          .fn()
+          .mockReturnValue(MOCK_NETWORK.state);
+
+        newController({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+          options: { getNetworkState: getNetworkStateMock },
+        });
+
+        await flushPromises();
+
+        expect(getNetworkStateMock).toHaveBeenCalledTimes(1);
+      });
     });
   });
 
@@ -1115,6 +1155,20 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0]?.history).toStrictEqual([
         expectedInitialSnapshot,
       ]);
+    });
+
+    it('only reads the current chain id to filter to initially populate the metadata and for onBootCleanup', async () => {
+      const getNetworkStateMock = jest.fn().mockReturnValue(MOCK_NETWORK.state);
+      const controller = newController({
+        options: { getNetworkState: getNetworkStateMock },
+      });
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(getNetworkStateMock).toHaveBeenCalledTimes(4); // not sure why this is 4. we shouldn't test like this
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -2539,7 +2593,7 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         hash: externalTransactionHash,
         id: externalTransactionId,
-        chainId: toHex(1),  // note that this doesn't match the globally selected chain Id
+        chainId: toHex(1), // note that this doesn't match the globally selected chain Id
         status: TransactionStatus.confirmed as const,
         time: 123456789,
         txParams: {
@@ -3989,6 +4043,59 @@ describe('TransactionController', () => {
           },
           false,
         );
+      });
+
+      it('only reads the current chain id to filter for unapproved transactions and for onBootCleanup', async () => {
+        const mockTransactionMeta = {
+          from: ACCOUNT_MOCK,
+          chainId: toHex(5),
+          status: TransactionStatus.unapproved,
+          txParams: {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+        };
+
+        const mockedTransactions = [
+          {
+            id: '123',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '123' }],
+          },
+          {
+            id: '1234',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '1234' }],
+          },
+          {
+            id: '12345',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '12345' }],
+            isUserOperation: true,
+          },
+        ];
+
+        const mockedControllerState = {
+          transactions: mockedTransactions,
+          methodData: {},
+          lastFetchedBlockNumbers: {},
+        };
+
+        const getNetworkStateMock = jest
+          .fn()
+          .mockReturnValue(MOCK_NETWORK.state);
+
+        const controller = newController({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+          options: { getNetworkState: getNetworkStateMock },
+        });
+
+        controller.initApprovals();
+        await flushPromises();
+
+        expect(getNetworkStateMock).toHaveBeenCalledTimes(2);
       });
 
       it('catches error without code property in error object while creating approval', async () => {
