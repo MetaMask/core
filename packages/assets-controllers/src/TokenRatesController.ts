@@ -139,6 +139,8 @@ async function getCurrencyConversionRate({
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
+// This is using BaseController on BaseController v3, which relates to BaseController V1
+// When rebase this patch doesn't forget about change this to `BaseController` instead of `BaseControllerV1`
 export class TokenRatesController extends BaseControllerV1<
   TokenRatesConfig,
   TokenRatesState
