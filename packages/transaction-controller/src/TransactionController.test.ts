@@ -3309,17 +3309,23 @@ describe('TransactionController', () => {
           txParams: { ...duplicate_1.txParams, from: '0x2' },
         };
 
+        const wrongType = {
+          ...duplicate_1,
+          id: 'testId8',
+          status: TransactionStatus.confirmed,
+          type: TransactionType.incoming,
+        };
+
         controller.state.transactions = [
           confirmed,
           wrongChain,
           wrongNonce,
           wrongFrom,
+          wrongType,
           duplicate_1,
           duplicate_2,
           duplicate_3,
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ] as any;
+        ] as TransactionMeta[];
 
         firePendingTransactionTrackerEvent('transaction-confirmed', confirmed);
 
@@ -3330,6 +3336,7 @@ describe('TransactionController', () => {
           TransactionStatus.submitted,
           TransactionStatus.submitted,
           TransactionStatus.submitted,
+          TransactionStatus.confirmed,
           TransactionStatus.dropped,
           TransactionStatus.dropped,
           TransactionStatus.failed,
@@ -3342,6 +3349,7 @@ describe('TransactionController', () => {
           undefined,
           undefined,
           undefined,
+          undefined,
           confirmed.hash,
           confirmed.hash,
           confirmed.hash,
@@ -3350,6 +3358,7 @@ describe('TransactionController', () => {
         expect(
           controller.state.transactions.map((tx) => tx.replacedById),
         ).toStrictEqual([
+          undefined,
           undefined,
           undefined,
           undefined,

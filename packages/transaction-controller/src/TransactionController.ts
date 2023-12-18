@@ -2453,11 +2453,14 @@ export class TransactionController extends BaseControllerV1<
     const transactionMeta = this.getTransaction(transactionId);
     const nonce = transactionMeta?.txParams?.nonce;
     const from = transactionMeta?.txParams?.from;
+
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
+        transaction.id !== transactionId &&
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId &&
+        transaction.type !== TransactionType.incoming,
     );
 
     if (!sameNonceTxs.length) {
@@ -2466,9 +2469,6 @@ export class TransactionController extends BaseControllerV1<
 
     // Mark all same nonce transactions as dropped and give it a replacedBy hash
     for (const transaction of sameNonceTxs) {
-      if (transaction.id === transactionId) {
-        continue;
-      }
       transaction.replacedBy = transactionMeta?.hash;
       transaction.replacedById = transactionMeta?.id;
       // Drop any transaction that wasn't previously failed (off chain failure)
