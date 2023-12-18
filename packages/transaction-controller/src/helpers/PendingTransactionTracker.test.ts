@@ -187,7 +187,24 @@ describe('PendingTransactionTracker', () => {
           tracker.hub.addListener('transaction-confirmed', listener);
           tracker.hub.addListener('transaction-updated', listener);
 
-          await onLatestBlock(undefined, []);
+          await onLatestBlock(undefined, [
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              status: TransactionStatus.dropped,
+            },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              chainId: '0x2',
+            },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              verifiedOnBlockchain: true,
+            },
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              isUserOperation: true,
+            },
+          ] as TransactionMeta[]);
 
           expect(listener).toHaveBeenCalledTimes(0);
         });

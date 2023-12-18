@@ -3943,6 +3943,12 @@ describe('TransactionController', () => {
             ...mockTransactionMeta,
             history: [{ ...mockTransactionMeta, id: '1234' }],
           },
+          {
+            id: '12345',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '12345' }],
+            isUserOperation: true,
+          },
         ];
 
         const mockedControllerState = {

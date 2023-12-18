@@ -463,7 +463,9 @@ export class PendingTransactionTracker {
   #getPendingTransactions(): TransactionMeta[] {
     return this.#getCurrentChainTransactions().filter(
       (tx) =>
-        tx.status === TransactionStatus.submitted && !tx.verifiedOnBlockchain,
+        tx.status === TransactionStatus.submitted &&
+        !tx.verifiedOnBlockchain &&
+        !tx.isUserOperation,
     );
   }
 
