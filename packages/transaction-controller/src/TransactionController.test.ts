@@ -2164,6 +2164,39 @@ describe('TransactionController', () => {
       expect(speedUpTransaction.v).toBe('0x123');
     });
 
+    it('verifies s,r and v values are correctly populated if values are zero', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        config: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          sign: async (transaction: any) => {
+            transaction.r = 0;
+            transaction.s = 0;
+            transaction.v = 0;
+            return transaction;
+          },
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.r).toBe('0x0');
+      expect(speedUpTransaction.s).toBe('0x0');
+      expect(speedUpTransaction.v).toBe('0x0');
+    });
+
     it('creates additional transaction specifying the gasPrice', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,

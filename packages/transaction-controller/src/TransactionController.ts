@@ -2528,15 +2528,15 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
   ): Promise<void> {
-    if (signedTx.r) {
+    if (signedTx.r !== undefined) {
       transactionMeta.r = addHexPrefix(signedTx.r.toString(16));
     }
 
-    if (signedTx.s) {
+    if (signedTx.s !== undefined) {
       transactionMeta.s = addHexPrefix(signedTx.s.toString(16));
     }
 
-    if (signedTx.v) {
+    if (signedTx.v !== undefined) {
       transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
     }
   }
