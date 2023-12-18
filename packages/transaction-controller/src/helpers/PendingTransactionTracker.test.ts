@@ -213,6 +213,50 @@ describe('PendingTransactionTracker', () => {
 
           expect(listener).toHaveBeenCalledTimes(0);
         });
+
+        it('if receipt has no status', async () => {
+          const listener = jest.fn();
+
+          const tracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any);
+
+          tracker.hub.addListener('transaction-dropped', listener);
+          tracker.hub.addListener('transaction-failed', listener);
+          tracker.hub.addListener('transaction-confirmed', listener);
+
+          queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: null });
+          queryMock.mockResolvedValueOnce('0x1');
+
+          await onLatestBlock();
+
+          expect(listener).toHaveBeenCalledTimes(0);
+        });
+
+        it('if receipt has invalid status', async () => {
+          const listener = jest.fn();
+
+          const tracker = new PendingTransactionTracker({
+            ...options,
+            getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any);
+
+          tracker.hub.addListener('transaction-dropped', listener);
+          tracker.hub.addListener('transaction-failed', listener);
+          tracker.hub.addListener('transaction-confirmed', listener);
+
+          queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: '0x3' });
+          queryMock.mockResolvedValueOnce('0x1');
+
+          await onLatestBlock();
+
+          expect(listener).toHaveBeenCalledTimes(0);
+        });
       });
 
       describe('fires failed event', () => {

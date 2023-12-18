@@ -338,8 +338,9 @@ export class PendingTransactionTracker {
     try {
       const receipt = await this.#getTransactionReceipt(hash);
       const isSuccess = receipt?.status === '0x1';
+      const isFailure = receipt?.status === '0x0';
 
-      if (receipt && !isSuccess) {
+      if (isFailure) {
         log('Transaction receipt has failed status');
 
         this.#failTransaction(
