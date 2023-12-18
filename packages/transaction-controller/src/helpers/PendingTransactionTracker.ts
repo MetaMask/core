@@ -15,6 +15,8 @@ import { TransactionStatus, TransactionType } from '../types';
  */
 const DROPPED_BLOCK_COUNT = 3;
 
+const RECEIPT_STATUS_SUCCESS = '0x1';
+const RECEIPT_STATUS_FAILURE = '0x0';
 const MAX_RETRY_BLOCK_DISTANCE = 50;
 
 const KNOWN_TRANSACTION_ERRORS = [
@@ -337,8 +339,8 @@ export class PendingTransactionTracker {
 
     try {
       const receipt = await this.#getTransactionReceipt(hash);
-      const isSuccess = receipt?.status === '0x1';
-      const isFailure = receipt?.status === '0x0';
+      const isSuccess = receipt?.status === RECEIPT_STATUS_SUCCESS;
+      const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
       if (isFailure) {
         log('Transaction receipt has failed status');

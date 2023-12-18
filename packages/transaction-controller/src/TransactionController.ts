@@ -2508,16 +2508,14 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
   ): Promise<void> {
-    if (signedTx.r !== undefined) {
-      transactionMeta.r = addHexPrefix(signedTx.r.toString(16));
-    }
+    for (const key of ['r', 's', 'v'] as const) {
+      const value = signedTx[key];
 
-    if (signedTx.s !== undefined) {
-      transactionMeta.s = addHexPrefix(signedTx.s.toString(16));
-    }
+      if (value === undefined || value === null) {
+        continue;
+      }
 
-    if (signedTx.v !== undefined) {
-      transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
+      transactionMeta[key] = addHexPrefix(value.toString(16));
     }
   }
 
