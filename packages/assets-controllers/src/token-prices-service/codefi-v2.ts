@@ -169,70 +169,70 @@ type SupportedCurrency =
  */
 export const SUPPORTED_CHAIN_IDS = [
   // Ethereum Mainnet
-  '0x1',
+  '1',
   // OP Mainnet
-  '0xa',
+  '10',
   // Cronos Mainnet
-  '0x19',
+  '25',
   // BNB Smart Chain Mainnet
-  '0x38',
+  '56',
   // Syscoin Mainnet
-  '0x39',
+  '57',
   // OKXChain Mainnet
-  '0x42',
+  '66',
   // Hoo Smart Chain
-  '0x46',
+  '70',
   // Meter Mainnet
-  '0x52',
+  '82',
   // TomoChain
-  '0x58',
+  '88',
   // Gnosis
-  '0x64',
+  '100',
   // Velas EVM Mainnet
-  '0x6a',
+  '106',
   // Fuse Mainnet
-  '0x7a',
+  '122',
   // Huobi ECO Chain Mainnet
-  '0x80',
+  '128',
   // Polygon Mainnet
-  '0x89',
+  '137',
   // Fantom Opera
-  '0xfa',
+  '250',
   // Boba Network
-  '0x120',
+  '288',
   // KCC Mainnet
-  '0x141',
+  '321',
   // zkSync Era Mainnet
-  '0x144',
+  '328',
   // Theta Mainnet
-  '0x169',
+  '361',
   // Metis Andromeda Mainnet
-  '0x440',
+  '1088',
   // Moonbeam
-  '0x504',
+  '1284',
   // Moonriver
-  '0x505',
+  '1285',
   // Base
-  '0x2105',
+  '8453',
   // Shiden
-  // NOTE: This is the wrong chain ID, this should be 0x150
-  '0x2107',
+  // NOTE: This is the wrong chain ID, this should be '336'
+  '336',
   // Smart Bitcoin Cash
-  '0x2710',
+  '10000',
   // Arbitrum One
-  '0xa4b1',
+  '42161',
   // Celo Mainnet
-  '0xa4ec',
+  '42220',
   // Oasis Emerald
-  '0xa516',
+  '42294',
   // Avalanche C-Chain
-  '0xa86a',
+  '43114',
   // Polis Mainnet
-  '0x518af',
+  '535824',
   // Aurora Mainnet
-  '0x4e454152',
+  '1313161554',
   // Harmony Mainnet Shard 0
-  '0x63564c40',
+  '1666600000',
 ] as const;
 
 /**
@@ -313,9 +313,7 @@ export class CodefiTokenPricesServiceV2
     tokenAddresses: Hex[];
     currency: SupportedCurrency;
   }): Promise<TokenPricesByTokenAddress<Hex, SupportedCurrency>> {
-    const chainIdAsNumber = hexToNumber(chainId);
-
-    const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
+    const url = new URL(`${BASE_URL}/chains/${chainId}/spot-prices`);
     url.searchParams.append('tokenAddresses', tokenAddresses.join(','));
     url.searchParams.append('vsCurrency', currency);
 

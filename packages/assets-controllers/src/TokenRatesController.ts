@@ -55,10 +55,10 @@ export interface Token {
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
-  chainId: Hex;
+  chainId: string;
   selectedAddress: string;
-  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allTokens: { [chainId: string]: { [key: string]: Token[] } };
+  allDetectedTokens: { [chainId: string]: { [key: string]: Token[] } };
   threshold: number;
 }
 
@@ -87,7 +87,7 @@ enum PollState {
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
   contractExchangeRatesByChainId: Record<
-    Hex,
+    string,
     Record<string, ContractExchangeRates>
   >;
 }
@@ -149,7 +149,8 @@ export class TokenRatesController extends BaseControllerV1<
 
   #tokenPricesService: AbstractTokenPricesService;
 
-  #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
+  #inProcessExchangeRateUpdates: Record<`${string}:${string}`, Promise<void>> =
+    {};
 
   /**
    * Name of this controller used during composition
@@ -186,7 +187,7 @@ export class TokenRatesController extends BaseControllerV1<
     }: {
       interval?: number;
       threshold?: number;
-      chainId: Hex;
+      chainId: string;
       ticker: string;
       selectedAddress: string;
       onPreferencesStateChange: (
@@ -270,7 +271,7 @@ export class TokenRatesController extends BaseControllerV1<
    * @param chainId - The chain ID.
    * @returns The list of tokens addresses for the current chain
    */
-  #getTokenAddresses(chainId: Hex): Hex[] {
+  #getTokenAddresses(chainId: string): Hex[] {
     const { allTokens, allDetectedTokens } = this.config;
     const tokens = allTokens[chainId]?.[this.config.selectedAddress] || [];
     const detectedTokens =
@@ -339,7 +340,7 @@ export class TokenRatesController extends BaseControllerV1<
       return;
     }
 
-    const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}`;
+    const updateKey: `${string}:${string}` = `${chainId}:${nativeCurrency}`;
     if (updateKey in this.#inProcessExchangeRateUpdates) {
       // This prevents redundant updates
       // This promise is resolved after the in-progress update has finished,
@@ -421,7 +422,7 @@ export class TokenRatesController extends BaseControllerV1<
     nativeCurrency,
   }: {
     tokenAddresses: Hex[];
-    chainId: Hex;
+    chainId: string;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
@@ -465,7 +466,7 @@ export class TokenRatesController extends BaseControllerV1<
     nativeCurrency,
   }: {
     tokenAddresses: Hex[];
-    chainId: Hex;
+    chainId: string;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<

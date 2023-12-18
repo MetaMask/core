@@ -33,7 +33,7 @@ export type TokenPricesByTokenAddress<
  * argument to `fetchTokenPrices`.
  */
 export type AbstractTokenPricesService<
-  ChainId extends Hex = Hex,
+  ChainId extends string = string,
   TokenAddress extends Hex = Hex,
   Currency extends string = string,
 > = {
