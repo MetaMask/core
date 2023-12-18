@@ -197,6 +197,11 @@ type TransactionMetaBase = {
   isTransfer?: boolean;
 
   /**
+   * Whether the transaction entry is generated from a user operation.
+   */
+  isUserOperation?: boolean;
+
+  /**
    * The id for the NetworkClient for the transaction.
    */
   networkClientId?: NetworkClientId;

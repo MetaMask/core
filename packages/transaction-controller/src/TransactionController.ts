@@ -1795,7 +1795,8 @@ export class TransactionController extends BaseControllerV1<
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId &&
+        !transaction.isUserOperation,
     );
 
     for (const txMeta of unapprovedTxs) {
@@ -2002,28 +2003,6 @@ export class TransactionController extends BaseControllerV1<
 
   private onBootCleanup() {
     this.submitApprovedTransactions();
-  }
-
-  /**
-   * Create approvals for all unapproved transactions on current chain.
-   */
-  private createApprovalsForUnapprovedTransactions() {
-    // NOTE(JL): this doesn't seem to be used anywhere. Can we remove it?
-    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
-      TransactionStatus.unapproved,
-    );
-
-    for (const transactionMeta of unapprovedTransactions) {
-      this.processApproval(transactionMeta, {
-        shouldShowRequest: false,
-      }).catch((error) => {
-        if (error?.code === errorCodes.provider.userRejectedRequest) {
-          return;
-        }
-        /* istanbul ignore next */
-        console.error('Error during persisted transaction approval', error);
-      });
-    }
   }
 
   /**

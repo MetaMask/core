@@ -472,7 +472,8 @@ export class PendingTransactionTracker {
       (tx) =>
         tx.status === TransactionStatus.submitted &&
         tx.chainId === currentChainId &&
-        !tx.verifiedOnBlockchain,
+        !tx.verifiedOnBlockchain &&
+        !tx.isUserOperation,
     );
   }
 
