@@ -4,10 +4,13 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 
 import type {
+  AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
+  ErrorOptions,
   StartFlowOptions,
+  SuccessOptions,
 } from './ApprovalController';
 import {
   APPROVAL_TYPE_RESULT_ERROR,
@@ -37,19 +40,28 @@ const ERROR_MOCK = new Error('TestError');
 const FLOW_ID_MOCK = 'TestFlowId';
 const MESSAGE_MOCK = 'TestMessage';
 const ERROR_MESSAGE_MOCK = 'TestErrorMessage';
+const TITLE_MOCK = 'TestTitle';
+const ICON_MOCK = 'TestIcon';
+
 const RESULT_COMPONENT_MOCK = {
   key: 'testKey',
   name: 'TestComponentName',
   properties: { testProp: 'testPropValue' },
   children: ['testChild1', 'testChild2'],
 };
+
 const SUCCESS_OPTIONS_MOCK = {
   message: MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
+  title: TITLE_MOCK,
+  icon: ICON_MOCK,
 };
+
 const ERROR_OPTIONS_MOCK = {
   error: ERROR_MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
+  title: TITLE_MOCK,
+  icon: ICON_MOCK,
 };
 
 const controllerName = 'ApprovalController';
@@ -197,15 +209,15 @@ function getApprovalCountParamsError() {
  * @returns An Error.
  */
 function getError(message: string, code?: number) {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const err: any = {
+  const err = {
     name: 'Error',
     message,
-  };
+  } as { name: string; message: string; code?: number };
+
   if (code !== undefined) {
     err.code = code;
   }
+
   return err;
 }
 
@@ -234,7 +246,10 @@ describe('approval controller', () => {
   let showApprovalRequest: jest.Mock;
 
   beforeEach(() => {
+    jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
+
     showApprovalRequest = jest.fn();
+
     approvalController = new ApprovalController({
       messenger: getRestrictedMessenger(),
       showApprovalRequest,
@@ -244,21 +259,21 @@ describe('approval controller', () => {
   describe('add', () => {
     it('validates input', () => {
       expect(() =>
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        approvalController.add({ id: null, origin: 'bar.baz' } as any),
+        approvalController.add({
+          id: null,
+          origin: 'bar.baz',
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidIdError());
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => approvalController.add({ id: 'foo' } as any)).toThrow(
-        getInvalidOriginError(),
-      );
+      expect(() =>
+        approvalController.add({ id: 'foo' } as unknown as AddApprovalOptions),
+      ).toThrow(getInvalidOriginError());
 
       expect(() =>
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        approvalController.add({ id: 'foo', origin: true } as any),
+        approvalController.add({
+          id: 'foo',
+          origin: true,
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidOriginError());
 
       expect(() =>
@@ -266,9 +281,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: {},
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -276,9 +289,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: '',
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -287,9 +298,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestData: 'foo',
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidRequestDataError());
 
       expect(() =>
@@ -298,9 +307,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestState: 'foo',
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidRequestStateError());
     });
 
@@ -509,25 +516,15 @@ describe('approval controller', () => {
 
       expect(approvalController.get('fizz')).toBeUndefined();
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((approvalController as any).get()).toBeUndefined();
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(approvalController.get({} as any)).toBeUndefined();
+      expect(approvalController.get({} as never)).toBeUndefined();
     });
   });
 
   describe('getApprovalCount', () => {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let addWithCatch: (args: any) => void;
+    let addWithCatch: (args: AddApprovalOptions) => void;
 
     beforeEach(() => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      addWithCatch = (args: any) => {
+      addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
       };
     });
@@ -542,15 +539,11 @@ describe('approval controller', () => {
       );
 
       expect(() =>
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        approvalController.getApprovalCount({ origin: null } as any),
+        approvalController.getApprovalCount({ origin: null } as never),
       ).toThrow(getApprovalCountParamsError());
 
       expect(() =>
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        approvalController.getApprovalCount({ type: false } as any),
+        approvalController.getApprovalCount({ type: false } as never),
       ).toThrow(getApprovalCountParamsError());
     });
 
@@ -664,9 +657,7 @@ describe('approval controller', () => {
     it('gets the total approval count', () => {
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const addWithCatch = (args: any) => {
+      const addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
       };
 
@@ -694,9 +685,7 @@ describe('approval controller', () => {
       });
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const addWithCatch = (args: any) => {
+      const addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
       };
 
@@ -724,28 +713,20 @@ describe('approval controller', () => {
         getInvalidHasParamsError(),
       );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => approvalController.has({ id: true } as any)).toThrow(
+      expect(() => approvalController.has({ id: true } as never)).toThrow(
         getInvalidHasIdError(),
       );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => approvalController.has({ origin: true } as any)).toThrow(
+      expect(() => approvalController.has({ origin: true } as never)).toThrow(
         getInvalidHasOriginError(),
       );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(() => approvalController.has({ type: true } as any)).toThrow(
+      expect(() => approvalController.has({ type: true } as never)).toThrow(
         getInvalidHasTypeError(),
       );
 
       expect(() =>
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        approvalController.has({ origin: 'foo', type: true } as any),
+        approvalController.has({ origin: 'foo', type: true } as never),
       ).toThrow(getInvalidHasTypeError());
     });
 
@@ -1381,9 +1362,7 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function endsSpecifiedFlowTemplate(
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      methodCallback: (flowId: string) => Promise<any>,
+      methodCallback: (flowId: string) => Promise<unknown>,
     ) {
       approvalController.startFlow({ id: FLOW_ID_MOCK });
 
@@ -1407,12 +1386,8 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfAddingRequestFails(
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      methodCallback: () => Promise<any>,
+      methodCallback: () => Promise<unknown>,
     ) {
-      jest.spyOn(global.console, 'info');
-
       methodCallback();
 
       // Second call will fail as mocked nanoid will generate the same ID.
@@ -1433,12 +1408,8 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfEndFlowFails(
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      methodCallback: () => Promise<any>,
+      methodCallback: () => Promise<unknown>,
     ) {
-      jest.spyOn(global.console, 'info');
-
       const promise = methodCallback();
 
       const resultRequestId = Object.values(
@@ -1467,16 +1438,16 @@ describe('approval controller', () => {
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
           message: undefined,
           header: undefined,
+          title: undefined,
+          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (approvalController as any).success({
+        approvalController.success({
           ...SUCCESS_OPTIONS_MOCK,
           extra: 'testValue',
-        });
+        } as SuccessOptions);
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1527,16 +1498,16 @@ describe('approval controller', () => {
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
           error: undefined,
           header: undefined,
+          title: undefined,
+          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (approvalController as any).error({
+        approvalController.error({
           ...ERROR_OPTIONS_MOCK,
           extra: 'testValue',
-        });
+        } as ErrorOptions);
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],
