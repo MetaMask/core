@@ -170,7 +170,6 @@ describe('TokenDetectionController', () => {
   >;
 
   const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
-  const getNetworkConfigurationByNetworkClientIdHandler = jest.fn();
   const getNetworkClientByIdHandler = jest.fn();
   const changeNetwork = (providerConfig: ProviderConfig) => {
     controllerMessenger.publish('NetworkController:networkDidChange', {
@@ -179,9 +178,6 @@ describe('TokenDetectionController', () => {
       selectedNetworkClientId: providerConfig.type,
     });
 
-    getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue(
-      providerConfig,
-    );
     getNetworkClientByIdHandler.mockReturnValue({
       configuration: {
         chainId: providerConfig.chainId,
