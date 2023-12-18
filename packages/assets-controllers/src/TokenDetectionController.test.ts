@@ -355,10 +355,7 @@ describe('TokenDetectionController', () => {
 
   it('should not add ignoredTokens to the tokens list if detected with balance', async () => {
     preferences.setSelectedAddress('0x0001');
-
     changeNetwork(mainnet);
-
-    await tokenDetection.start();
 
     await tokensController.addToken({
       address: sampleTokenA.address,
@@ -390,8 +387,6 @@ describe('TokenDetectionController', () => {
     preferences.setSelectedAddress('0x0001');
     changeNetwork(mainnet);
 
-    await tokenDetection.start();
-
     await tokensController.addToken({
       address: sampleTokenA.address,
       symbol: sampleTokenA.symbol,
@@ -413,8 +408,6 @@ describe('TokenDetectionController', () => {
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork(mainnet);
 
-    await tokenDetection.start();
-
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
     });
@@ -428,7 +421,6 @@ describe('TokenDetectionController', () => {
   });
 
   it('should not detect tokens if there is no selectedAddress set', async () => {
-    await tokenDetection.start();
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
     });
