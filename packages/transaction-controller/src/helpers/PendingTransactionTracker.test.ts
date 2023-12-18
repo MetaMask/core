@@ -177,7 +177,24 @@ describe('PendingTransactionTracker', () => {
 
           const tracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => [],
+            getTransactions: () => [
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                status: TransactionStatus.dropped,
+              },
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                chainId: '0x2',
+              },
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                verifiedOnBlockchain: true,
+              },
+              {
+                ...TRANSACTION_SUBMITTED_MOCK,
+                isUserOperation: true,
+              },
+            ],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
