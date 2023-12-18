@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [8.0.0]
-### Uncategorized
-- OpenSea V2 -> V1 compatibility ([#3654](https://github.com/MetaMask/core/pull/3654))
+### Changed
+- **BREAKING**: `OPENSEA_PROXY_URL` now points to OpenSea's v2 API. `OPENSEA_API_URL` + `OPENSEA_TEST_API_URL` have been removed.
 
 ## [7.0.0]
 ### Changed

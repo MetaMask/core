@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [22.0.0]
-### Uncategorized
-- OpenSea V2 -> V1 compatibility ([#3654](https://github.com/MetaMask/core/pull/3654))
+### Changed
+- **BREAKING:** OpenSea V2 API is used instead of V1:
+  - `NftDetectionController` constructor now requires  the `NftController.getNftApi` function.
+  - NFT controllers will no longer return `last_sale` information for NFTs fetched after the OpenSea V2 update
 
 ## [21.0.0]
 ### Added
