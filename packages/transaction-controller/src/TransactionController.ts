@@ -223,7 +223,7 @@ export class TransactionController extends BaseControllerV1<
   TransactionConfig,
   TransactionState
 > {
-  private ethQuery: EthQuery;
+  private readonly ethQuery: EthQuery;
 
   private readonly isHistoryDisabled: boolean;
 
@@ -237,7 +237,7 @@ export class TransactionController extends BaseControllerV1<
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private registry: any;
+  private readonly registry: any;
 
   private readonly provider: Provider;
 
