@@ -1,9 +1,15 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type {
+  NetworkControllerActions,
+  NetworkControllerEvents,
+} from '@metamask/network-controller';
+import {} from '@metamask/network-controller';
 import { BN } from 'ethereumjs-util';
 
 import { flushPromises } from '../../../tests/helpers';
 import { TokenBalancesController } from './TokenBalancesController';
+import type { TokenListStateChange } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import { getDefaultTokensState, type TokensState } from './TokensController';
 
@@ -25,12 +31,21 @@ function getMessenger() {
 }
 
 describe('TokenBalancesController', () => {
+  let controllerMessenger: ControllerMessenger<
+    NetworkControllerActions,
+    NetworkControllerEvents | TokenListStateChange
+  >;
+
   beforeEach(() => {
     jest.useFakeTimers();
+    controllerMessenger = new ControllerMessenger();
   });
 
   afterEach(() => {
     jest.useRealTimers();
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:networkDidChange',
+    );
   });
 
   it('should set default state', () => {
