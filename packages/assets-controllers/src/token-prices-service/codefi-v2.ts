@@ -348,7 +348,8 @@ export class CodefiTokenPricesServiceV2
           ];
 
         if (!price) {
-          throw new Error(
+          // console error instead of throwing to not interrupt the fetching of other tokens in case just one fails
+          console.error(
             `Could not find price for "${tokenAddress}" in "${currency}"`,
           );
         }
