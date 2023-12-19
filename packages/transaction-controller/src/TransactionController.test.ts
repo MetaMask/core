@@ -2722,7 +2722,7 @@ describe('TransactionController', () => {
         from: ACCOUNT_MOCK,
         to: ACCOUNT_2_MOCK,
         id: '1',
-        chainId: toHex(1),
+        chainId: toHex(5),
         status: TransactionStatus.confirmed,
         txParams: {
           gasUsed: undefined,
@@ -2749,6 +2749,55 @@ describe('TransactionController', () => {
       expect(confirmedEventListener).toHaveBeenCalledWith({
         transactionMeta: externalTransaction,
       });
+    });
+
+    it('emits confirmed event with transaction chainId regardless of whether it matches globally selected chainId', async () => {
+      const mockGloballySelectedNetwork = {
+        ...MOCK_NETWORK,
+        state: {
+          ...MOCK_NETWORK.state,
+          providerConfig: {
+            type: NetworkType.sepolia,
+            chainId: ChainId.sepolia,
+            ticker: NetworksTicker.sepolia,
+          },
+        },
+      };
+      const controller = newController({
+        network: mockGloballySelectedNetwork,
+      });
+
+      const confirmedEventListener = jest.fn();
+
+      controller.hub.on('transaction-confirmed', confirmedEventListener);
+
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: '1',
+        chainId: ChainId.goerli, // doesn't match globally selected chainId (which is sepolia)
+        status: TransactionStatus.confirmed,
+        txParams: {
+          gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const [[{ transactionMeta }]] = confirmedEventListener.mock.calls;
+      expect(transactionMeta.chainId).toBe(ChainId.goerli);
     });
   });
 
