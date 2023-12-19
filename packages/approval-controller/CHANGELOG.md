@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Add title and icon options to result page methods ([#3675](https://github.com/MetaMask/core/pull/3675))
+- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
+- Remove superfluous typescript reference paths ([#3608](https://github.com/MetaMask/core/pull/3608))
 
 ## [5.0.0]
 ### Changed
