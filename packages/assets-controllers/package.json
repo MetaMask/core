@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/assets-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -56,7 +57,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.2.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
