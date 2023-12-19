@@ -97,10 +97,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #isDetectionEnabledForNetwork: boolean;
 
-  /**
-   * Name of this controller used during composition
-   */
-
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   /**
