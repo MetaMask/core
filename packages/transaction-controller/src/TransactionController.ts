@@ -1136,6 +1136,7 @@ export class TransactionController extends BaseControllerV1<
   stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const trackers = this.trackingMap.get(networkClientId);
     if (trackers) {
+      trackers.pendingTransactionTracker.stop();
       this.removePendingTransactionTrackerListeners(
         trackers.pendingTransactionTracker,
       );
