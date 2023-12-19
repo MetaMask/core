@@ -591,7 +591,8 @@ export class TransactionController extends BaseControllerV1<
 
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
-      // NOTE(JL): Network state changes also trigger PendingTransactionTracker's onStateChange
+      // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
+      // Verify if this is still necessary when the feature branch is being reviewed
       this.#onStateChange()
       this.onBootCleanup();
     });
