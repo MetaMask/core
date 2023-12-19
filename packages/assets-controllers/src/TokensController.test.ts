@@ -17,6 +17,7 @@ import {
 } from '@metamask/controller-utils';
 import type {
   BlockTrackerProxy,
+  NetworkController,
   ProviderConfig,
   ProviderProxy,
 } from '@metamask/network-controller';
@@ -32,6 +33,7 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { FakeProvider } from '../../../tests/fake-provider';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -130,7 +132,10 @@ describe('TokensController', () => {
     });
   };
 
-  const getNetworkClientByIdHandler = jest.fn();
+  const getNetworkClientByIdHandler = jest.fn<
+    ReturnType<NetworkController['getNetworkClientById']>,
+    Parameters<NetworkController['getNetworkClientById']>
+  >();
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
     const preferencesStateChangeListeners: ((
@@ -155,7 +160,9 @@ describe('TokensController', () => {
 
     messenger.registerActionHandler(
       `NetworkController:getNetworkClientById`,
-      getNetworkClientByIdHandler.mockReturnValue(mockMainnetClient),
+      getNetworkClientByIdHandler.mockReturnValue(
+        mockMainnetClient as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+      ),
     );
   });
 
@@ -426,7 +433,7 @@ describe('TokensController', () => {
       `NetworkController:getNetworkClientById`,
       getNetworkClientByIdHandler.mockReturnValue({
         configuration: { chainId: '0x5' },
-      }),
+      } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
     );
     await tokensController.addToken({
       address: '0x01',
@@ -1117,7 +1124,7 @@ describe('TokensController', () => {
         `NetworkController:getNetworkClientById`,
         getNetworkClientByIdHandler.mockReturnValue({
           configuration: { chainId: '0x5' },
-        }),
+        } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
       );
       const dummyTokens: Token[] = [
         {
@@ -1578,8 +1585,8 @@ describe('TokensController', () => {
         `NetworkController:getNetworkClientById`,
         getNetworkClientByIdHandler.mockReturnValue({
           configuration: { chainId: '0x5' },
-          provider: sinon.stub(),
-        }),
+          provider: new FakeProvider({ stubs: [] }),
+        } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
       );
 
       const generateRandomIdStub = jest
