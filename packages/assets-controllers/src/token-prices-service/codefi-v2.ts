@@ -215,8 +215,7 @@ export const SUPPORTED_CHAIN_IDS = [
   // Base
   '0x2105',
   // Shiden
-  // NOTE: This is the wrong chain ID, this should be 0x150
-  '0x2107',
+  '0x150',
   // Smart Bitcoin Cash
   '0x2710',
   // Arbitrum One
