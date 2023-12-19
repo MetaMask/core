@@ -577,11 +577,6 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
-      onStateChange: (listener) => {
-        this.subscribe(listener);
-        onNetworkStateChange(listener);
-        listener();
-      },
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -592,12 +587,25 @@ export class TransactionController extends BaseControllerV1<
 
     this.addPendingTransactionTrackerListeners();
 
+    this.subscribe(this.#onStateChange)
+
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
+      // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
+      // Verify if this is still necessary when the feature branch is being reviewed
+      this.#onStateChange()
       this.onBootCleanup();
     });
 
     this.onBootCleanup();
+  }
+
+  #onStateChange = () => {
+    // PendingTransactionTracker reads state through its getTransactions hook
+    this.pendingTransactionTracker.onStateChange()
+    for (const [_, trackingMap] of this.trackingMap) {
+      trackingMap.pendingTransactionTracker.onStateChange()
+    }
   }
 
   /**
@@ -1129,6 +1137,7 @@ export class TransactionController extends BaseControllerV1<
   stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const trackers = this.trackingMap.get(networkClientId);
     if (trackers) {
+      trackers.pendingTransactionTracker.stop();
       this.removePendingTransactionTrackerListeners(
         trackers.pendingTransactionTracker,
       );
@@ -1174,7 +1183,6 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: true, // TODO: make this configurable
       nonceTracker,
-      onStateChange: this.subscribe.bind(this),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
