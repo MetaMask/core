@@ -1541,7 +1541,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/approval-controller@^5.0.0, @metamask/approval-controller@workspace:packages/approval-controller":
+"@metamask/approval-controller@^5.1.0, @metamask/approval-controller@workspace:packages/approval-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/approval-controller@workspace:packages/approval-controller"
   dependencies:
@@ -1583,7 +1583,7 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.2
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/contract-metadata": ^2.4.0
@@ -1601,7 +1601,7 @@ __metadata:
     "@types/node": ^16.18.54
     "@types/uuid": ^8.3.0
     async-mutex: ^0.2.6
-    cockatiel: 3.1.1
+    cockatiel: ^3.1.2
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
     jest: ^27.5.1
@@ -1617,7 +1617,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/network-controller": ^17.0.0
     "@metamask/preferences-controller": ^5.0.0
   languageName: unknown
@@ -2386,7 +2386,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^8.0.0
@@ -2405,7 +2405,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
   languageName: unknown
   linkType: soft
 
@@ -2541,7 +2541,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/queued-request-controller@workspace:packages/queued-request-controller"
   dependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^8.0.0
@@ -2563,7 +2563,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/network-controller": ^17.0.0
     "@metamask/selected-network-controller": ^5.0.0
   languageName: unknown
@@ -2650,7 +2650,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
   dependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^8.0.0
@@ -2669,7 +2669,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/keyring-controller": ^10.0.0
     "@metamask/logging-controller": ^2.0.0
   languageName: unknown
@@ -2784,14 +2784,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^18.3.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@^18.3.1, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
     "@ethersproject/abi": ^5.7.0
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^8.0.0
@@ -2820,7 +2820,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/gas-fee-controller": ^11.0.0
     "@metamask/network-controller": ^17.0.0
     babel-runtime: ^6.26.0
@@ -2831,14 +2831,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/user-operation-controller@workspace:packages/user-operation-controller"
   dependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/auto-changelog": ^3.4.3
     "@metamask/base-controller": ^4.0.0
     "@metamask/controller-utils": ^8.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/network-controller": ^17.0.0
     "@metamask/polling-controller": ^3.0.0
-    "@metamask/transaction-controller": ^18.3.0
+    "@metamask/transaction-controller": ^18.3.1
     "@metamask/utils": ^8.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2853,9 +2853,9 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/approval-controller": ^5.0.0
+    "@metamask/approval-controller": ^5.1.0
     "@metamask/network-controller": ^17.0.0
-    "@metamask/transaction-controller": ^18.3.0
+    "@metamask/transaction-controller": ^18.3.1
   languageName: unknown
   linkType: soft
 
@@ -4698,10 +4698,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cockatiel@npm:3.1.1":
-  version: 3.1.1
-  resolution: "cockatiel@npm:3.1.1"
-  checksum: c394fa5dc5a0f21a9ff9f007f16320a162000191c570fa277b527a72505a954aae5f2e93b0de0a558f5e3340fed37c014c9fe72d43adfee4aa09d976bdefe745
+"cockatiel@npm:^3.1.2":
+  version: 3.1.2
+  resolution: "cockatiel@npm:3.1.2"
+  checksum: 5ba2d9ffd738d38c5f1af66f4c36f302485f4ebf25b96e47aa9c9ea3fecd47ed770bfc9da52ac58bef3dfb330efd7e9be557691b4e620a1479d79009bff2b74e
   languageName: node
   linkType: hard
 
