@@ -598,10 +598,10 @@ export class TransactionController extends BaseControllerV1<
     this.onBootCleanup();
   }
 
-  #onStateChange = () => {
-    this.pendingTransactionTracker.onStateChange(this.state)
-    for (const [key, trackingMap] of this.trackingMap) {
-      trackingMap.pendingTransactionTracker.onStateChange(this.state)
+  #onStateChange = (state: TransactionState) => {
+    this.pendingTransactionTracker.onStateChange(state)
+    for (const [_, trackingMap] of this.trackingMap) {
+      trackingMap.pendingTransactionTracker.onStateChange(state)
     }
   }
 
@@ -1179,7 +1179,6 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: true, // TODO: make this configurable
       nonceTracker,
-      onStateChange: this.subscribe.bind(this),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
