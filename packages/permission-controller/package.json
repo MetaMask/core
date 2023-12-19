@@ -30,7 +30,6 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^5.1.0",
     "@metamask/base-controller": "^4.0.0",
     "@metamask/controller-utils": "^8.0.0",
     "@metamask/json-rpc-engine": "^7.3.0",
@@ -42,6 +41,7 @@
     "nanoid": "^3.1.31"
   },
   "devDependencies": {
+    "@metamask/approval-controller": "^5.1.0",
     "@metamask/auto-changelog": "^3.4.3",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
