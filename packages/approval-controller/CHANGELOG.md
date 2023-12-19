@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [5.1.0]
-### Uncategorized
-- Add title and icon options to result page methods ([#3675](https://github.com/MetaMask/core/pull/3675))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Remove superfluous typescript reference paths ([#3608](https://github.com/MetaMask/core/pull/3608))
+### Added
+- Add `title` and `icon` options to `success` and `error` methods ([#3675](https://github.com/MetaMask/core/pull/3675))
 
 ## [5.0.0]
 ### Changed
