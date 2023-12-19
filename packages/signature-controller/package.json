@@ -30,9 +30,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^5.0.0",
+    "@metamask/approval-controller": "^5.1.0",
     "@metamask/base-controller": "^4.0.0",
-    "@metamask/controller-utils": "^7.0.0",
+    "@metamask/controller-utils": "^8.0.0",
     "@metamask/keyring-controller": "^10.0.0",
     "@metamask/logging-controller": "^2.0.0",
     "@metamask/message-manager": "^7.3.6",
@@ -52,7 +52,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^5.0.0",
+    "@metamask/approval-controller": "^5.1.0",
     "@metamask/keyring-controller": "^10.0.0",
     "@metamask/logging-controller": "^2.0.0"
   },
