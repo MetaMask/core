@@ -108,7 +108,6 @@ export class PendingTransactionTracker {
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
     nonceTracker: NonceTracker;
-    onStateChange: (listener: (state: TransactionState) => void) => void;
     publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
@@ -134,18 +133,18 @@ export class PendingTransactionTracker {
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
+  }
 
-    this.#onStateChange((state) => {
-      const pendingTransactions = this.#getPendingTransactions(
-        state.transactions,
-      );
+  onStateChange = (state: TransactionState) => {
+    const pendingTransactions = this.#getPendingTransactions(
+      state.transactions,
+    );
 
-      if (pendingTransactions.length) {
-        this.#start();
-      } else {
-        this.#stop();
-      }
-    });
+    if (pendingTransactions.length) {
+      this.#start();
+    } else {
+      this.stop();
+    }
   }
 
   #start() {
@@ -159,7 +158,7 @@ export class PendingTransactionTracker {
     log('Started polling');
   }
 
-  #stop() {
+  stop() {
     if (!this.#running) {
       return;
     }
