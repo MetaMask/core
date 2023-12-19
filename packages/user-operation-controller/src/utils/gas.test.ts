@@ -9,7 +9,7 @@ import type {
 } from '../types';
 import { updateGas } from './gas';
 
-jest.mock('../helpers/bundler', () => ({
+jest.mock('../helpers/Bundler', () => ({
   Bundler: jest.fn(),
 }));
 
