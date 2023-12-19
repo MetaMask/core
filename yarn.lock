@@ -1601,7 +1601,7 @@ __metadata:
     "@types/node": ^16.18.54
     "@types/uuid": ^8.3.0
     async-mutex: ^0.2.6
-    cockatiel: 3.1.1
+    cockatiel: ^3.1.2
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
     jest: ^27.5.1
@@ -4698,10 +4698,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cockatiel@npm:3.1.1":
-  version: 3.1.1
-  resolution: "cockatiel@npm:3.1.1"
-  checksum: c394fa5dc5a0f21a9ff9f007f16320a162000191c570fa277b527a72505a954aae5f2e93b0de0a558f5e3340fed37c014c9fe72d43adfee4aa09d976bdefe745
+"cockatiel@npm:^3.1.2":
+  version: 3.1.2
+  resolution: "cockatiel@npm:3.1.2"
+  checksum: 5ba2d9ffd738d38c5f1af66f4c36f302485f4ebf25b96e47aa9c9ea3fecd47ed770bfc9da52ac58bef3dfb330efd7e9be557691b4e620a1479d79009bff2b74e
   languageName: node
   linkType: hard
 
