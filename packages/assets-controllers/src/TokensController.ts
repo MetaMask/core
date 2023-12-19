@@ -706,7 +706,7 @@ export class TokensController extends BaseControllerV1<
             'NetworkController:getNetworkClientById',
             networkClientId,
           ).provider
-        : this.config?.provider,
+        : this.config.provider,
     );
   }
 
