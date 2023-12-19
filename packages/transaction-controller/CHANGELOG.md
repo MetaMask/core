@@ -7,15 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [18.3.1]
-### Uncategorized
-- Fix transaction status incorrectly set to dropped, submitted, or failed ([#3676](https://github.com/MetaMask/core/pull/3676))
-- Release 102.0.0 ([#3680](https://github.com/MetaMask/core/pull/3680))
-- Fix Linea Goerli Etherscan subdomain ([#3674](https://github.com/MetaMask/core/pull/3674))
-- Release 101.0.0 ([#3678](https://github.com/MetaMask/core/pull/3678))
-- Create user operations from transactions ([#3656](https://github.com/MetaMask/core/pull/3656))
-- Release 100.0.0 ([#3667](https://github.com/MetaMask/core/pull/3667))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- determineTransactionType: Moved parseStandardTokenTransactionData call and made it more readable ([#1969](https://github.com/MetaMask/core/pull/1969))
+### Fixed
+- Fix incorrect transaction statuses ([#3676](https://github.com/MetaMask/core/pull/3676))
+  - Fix `dropped` status detection by ignoring transactions on other chains.
+  - Start polling if network changes and associated transactions are pending.
+  - Record `r`, `s`, and `v` values even if zero.
+  - Only fail transactions if receipt `status` is explicitly `0x0`.
+- Fix incoming transactions on Linea Goerli ([#3674](https://github.com/MetaMask/core/pull/3674))
 
 ## [18.3.0]
 ### Added
