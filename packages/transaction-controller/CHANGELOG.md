@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Fix transaction status incorrectly set to dropped, submitted, or failed ([#3676](https://github.com/MetaMask/core/pull/3676))
+- Release 102.0.0 ([#3680](https://github.com/MetaMask/core/pull/3680))
+- Fix Linea Goerli Etherscan subdomain ([#3674](https://github.com/MetaMask/core/pull/3674))
+- Release 101.0.0 ([#3678](https://github.com/MetaMask/core/pull/3678))
+- Create user operations from transactions ([#3656](https://github.com/MetaMask/core/pull/3656))
+- Release 100.0.0 ([#3667](https://github.com/MetaMask/core/pull/3667))
+- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
+- determineTransactionType: Moved parseStandardTokenTransactionData call and made it more readable ([#1969](https://github.com/MetaMask/core/pull/1969))
 
 ## [18.3.0]
 ### Added
