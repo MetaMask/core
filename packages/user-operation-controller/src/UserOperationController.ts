@@ -24,7 +24,7 @@ import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT } from './constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT, VALUE_ZERO } from './constants';
 import { Bundler } from './helpers/Bundler';
 import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
 import { projectLogger as log } from './logger';
@@ -472,11 +472,7 @@ export class UserOperationController extends BaseController<
 
     const { metadata } = cache;
 
-    const { resultCallbacks, value: rawValue } = await this.#requestApproval(
-      metadata,
-    );
-
-    const value = rawValue as { txMeta?: TransactionMeta } | undefined;
+    const { resultCallbacks, value } = await this.#requestApproval(metadata);
     const updatedTransaction = value?.txMeta;
 
     if (updatedTransaction) {
@@ -611,7 +607,7 @@ export class UserOperationController extends BaseController<
     );
   }
 
-  async #requestApproval(metadata: UserOperationMetadata): Promise<AddResult> {
+  async #requestApproval(metadata: UserOperationMetadata) {
     const { id, origin } = metadata;
     const type = ApprovalType.Transaction;
     const requestData = { txId: id };
@@ -626,7 +622,7 @@ export class UserOperationController extends BaseController<
         expectsResult: true,
       },
       true, // Should display approval request to user
-    )) as Promise<AddResult>;
+    )) as AddResult & { value?: { txMeta?: TransactionMeta } };
   }
 
   async #getTransactionType(
@@ -675,7 +671,7 @@ export class UserOperationController extends BaseController<
       updatedTransaction.txParams.maxPriorityFeePerGas as string,
     );
 
-    let refreshUserOperation = false;
+    let regenerateUserOperation = false;
     const previousMaxFeePerGas = userOperation.maxFeePerGas;
     const previousMaxPriorityFeePerGas = userOperation.maxPriorityFeePerGas;
 
@@ -693,7 +689,7 @@ export class UserOperationController extends BaseController<
       userOperation.maxFeePerGas = updatedMaxFeePerGas;
       userOperation.maxPriorityFeePerGas = updatedMaxPriorityFeePerGas;
 
-      refreshUserOperation = usingPaymaster;
+      regenerateUserOperation = usingPaymaster;
     }
 
     const previousData = request.data ?? EMPTY_BYTES;
@@ -701,18 +697,18 @@ export class UserOperationController extends BaseController<
 
     if (previousData !== updatedData) {
       log('Data updated during approval', { previousData, updatedData });
-      refreshUserOperation = true;
+      regenerateUserOperation = true;
     }
 
-    const previousValue = request.value ?? '0x0';
-    const updatedValue = updatedTransaction.txParams.value ?? '0x0';
+    const previousValue = request.value ?? VALUE_ZERO;
+    const updatedValue = updatedTransaction.txParams.value ?? VALUE_ZERO;
 
     if (previousValue !== updatedValue) {
       log('Value updated during approval', { previousValue, updatedValue });
-      refreshUserOperation = true;
+      regenerateUserOperation = true;
     }
 
-    if (refreshUserOperation) {
+    if (regenerateUserOperation) {
       const updatedRequest = {
         ...request,
         data: updatedData,

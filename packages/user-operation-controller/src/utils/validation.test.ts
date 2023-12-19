@@ -19,15 +19,15 @@ import {
   validateUpdateUserOperationResponse,
 } from './validation';
 
-const ADD_USER_OPERATION_REQUEST_MOCK = {
+const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',
   to: '0x2',
   value: '0x3',
   maxFeePerGas: '0x4',
   maxPriorityFeePerGas: '0x5',
-} as AddUserOperationRequest;
+};
 
-const ADD_USER_OPERATION_OPTIONS_MOCK = {
+const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
   networkClientId: 'testNetworkClientId',
   origin: 'test.com',
   smartContractAccount: {
@@ -35,9 +35,9 @@ const ADD_USER_OPERATION_OPTIONS_MOCK = {
     updateUserOperation: jest.fn(),
     signUserOperation: jest.fn(),
   },
-} as AddUserOperationOptions;
+};
 
-const PREPARE_USER_OPERATION_RESPONSE_MOCK = {
+const PREPARE_USER_OPERATION_RESPONSE_MOCK: PrepareUserOperationResponse = {
   bundler: 'http://test.com',
   callData: '0x1',
   dummyPaymasterAndData: '0x2',
@@ -50,15 +50,15 @@ const PREPARE_USER_OPERATION_RESPONSE_MOCK = {
   initCode: '0x7',
   nonce: '0x8',
   sender: '0x9',
-} as PrepareUserOperationResponse;
+};
 
-const UPDATE_USER_OPERATION_RESPONSE_MOCK = {
+const UPDATE_USER_OPERATION_RESPONSE_MOCK: UpdateUserOperationResponse = {
   paymasterAndData: '0x1',
-} as UpdateUserOperationResponse;
+};
 
-const SIGN_USER_OPERATION_RESPONSE_MOCK = {
+const SIGN_USER_OPERATION_RESPONSE_MOCK: SignUserOperationResponse = {
   signature: '0x1',
-} as SignUserOperationResponse;
+};
 
 /**
  * Copy an object and set a property path to a given value.

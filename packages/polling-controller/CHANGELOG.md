@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+### Added
+- `BlockTrackerPollingController`, `BlockTrackerPollingControllerV1` and `BlockTrackerPollingControllerOnly` have been added and can be used by subclasses to poll with a blockTracker using the same API as the `StaticIntervalPollingController` versions - the only exception is the requirement to implement the abstract method `_getNetworkClientById` on subclasses.
+
+### Changed
+- **BREAKING:** `PollingController`, `PollingControllerV1` and `PollingControllerOnly` are all removed and replaced by `StaticIntervalPollingController`, `StaticIntervalPollingControllerV1` and `StaticIntervalPollingControllerOnly` ([#3636](https://github.com/MetaMask/core/pull/3636))
+
 ## [2.0.0]
 ### Changed
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
@@ -46,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@2.0.0...@metamask/polling-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.2...@metamask/polling-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.1...@metamask/polling-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.0...@metamask/polling-controller@1.0.1

@@ -9,7 +9,6 @@ import {
   OPENSEA_PROXY_URL,
   IPFS_DEFAULT_GATEWAY_URL,
   ERC1155,
-  OPENSEA_API_URL,
   ERC721,
   ChainId,
   NetworkType,
@@ -266,52 +265,62 @@ function setupController({
 describe('NftController', () => {
   beforeEach(() => {
     nock(OPENSEA_PROXY_URL)
-      .get(`/asset_contract/0x01`)
+      .get(`/chain/ethereum/contract/0x01`)
       .reply(200, {
-        description: 'Description',
-        symbol: 'FOO',
-        total_supply: 0,
-        collection: {
-          name: 'Name',
-          image_url: 'url',
-        },
+        address: '0x01',
+        chain: 'ethereum',
+        collection: 'FOO',
+        contract_standard: 'erc721',
+        name: 'Name',
+        supply: 0,
       })
-      .get(`/asset_contract/0x02`)
+      .get(`/collections/FOO`)
       .reply(200, {
         description: 'Description',
         image_url: 'url',
-        name: 'Name',
-        symbol: 'FOU',
-        total_supply: 10,
-        collection: {
+      })
+      .get(`/chain/ethereum/contract/0x02`)
+      .reply(200, {
+        address: '0x02',
+        chain: 'ethereum',
+        collection: 'FOU',
+        contract_standard: 'erc721',
+        name: 'FOU',
+        supply: 0,
+      })
+      .get(`/collections/FOO`)
+      .reply(200, {
+        description: 'Description',
+        image_url: 'url',
+      })
+      .get(`/chain/ethereum/contract/0x01/nfts/1`)
+      .reply(200, {
+        nft: {
+          token_standard: 'erc1155',
           name: 'Name',
+          description: 'Description',
           image_url: 'url',
         },
       })
-      .get(`/asset/0x01/1`)
-      .reply(200, {
-        description: 'Description',
-        image_original_url: 'url',
-        image_url: 'url',
-        name: 'Name',
-        asset_contract: {
-          schema_name: 'ERC1155',
-        },
-      })
-      .get(`/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`)
+      .get(
+        `/chain/ethereum/contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/nfts/798958393`,
+      )
       .replyWithError(new TypeError('Failed to fetch'))
-      .get(`/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`)
+      .get(
+        `/chain/ethereum/contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`,
+      )
       .replyWithError(new TypeError('Failed to fetch'));
 
     nock(OPENSEA_PROXY_URL)
-      .get(`/asset/${ERC1155_NFT_ADDRESS}/${ERC1155_NFT_ID}`)
+      .get(
+        `/chain/ethereum/contract/${ERC1155_NFT_ADDRESS}/nfts/${ERC1155_NFT_ID}`,
+      )
       .reply(200, {
-        num_sales: 1,
-        image_original_url: 'image.uri',
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        asset_contract: { schema_name: 'ERC1155' },
+        nft: {
+          token_standard: 'erc1155',
+          name: 'name',
+          description: 'description',
+        },
       });
 
     nock(DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH).get('/').reply(200, {
@@ -1065,8 +1074,8 @@ describe('NftController', () => {
         description: 'Description',
         logo: 'url',
         name: 'Name',
-        symbol: 'FOO',
-        totalSupply: 0,
+        totalSupply: '0',
+        schemaName: 'ERC721',
       });
     });
 
@@ -1090,7 +1099,6 @@ describe('NftController', () => {
         tokenId: '1',
         address: '0x01',
         standard: 'ERC1155',
-        symbol: 'FOO',
       });
     });
 
@@ -1117,7 +1125,6 @@ describe('NftController', () => {
         tokenId: '2',
         address: '0x01',
         standard: 'ERC721',
-        symbol: 'FOO',
       });
     });
 
@@ -1243,7 +1250,6 @@ describe('NftController', () => {
       ).toStrictEqual({
         address: '0x01',
         description: 'Description',
-        imageOriginal: 'url',
         image: 'url',
         name: 'Name',
         standard: 'ERC1155',
@@ -1251,30 +1257,38 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
         tokenURI: '',
+        creator: {
+          address: undefined,
+          profile_img_url: '',
+          user: {
+            username: '',
+          },
+        },
       });
     });
 
     it('should add NFT erc721 and aggregate NFT data from both contract and OpenSea', async () => {
       const { assetsContract, nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
-        .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
+        .get(
+          `/chain/ethereum/contract/${ERC721_KUDOSADDRESS}/nfts/${ERC721_KUDOS_TOKEN_ID}`,
+        )
         .reply(200, {
-          image_original_url: 'Kudos image (from proxy API)',
-          name: 'Kudos Name',
-          description: 'Kudos Description',
-          asset_contract: {
-            schema_name: 'ERC721',
+          nft: {
+            token_standard: 'erc721',
+            name: 'Kudos Name',
+            description: 'Kudos Description',
+            image_url: 'url',
           },
         })
-        .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
+        .get(`/chain/ethereum/contract/${ERC721_KUDOSADDRESS}`)
         .reply(200, {
-          description: 'Kudos Description',
-          symbol: 'KDO',
-          total_supply: 10,
-          collection: {
-            name: 'Kudos',
-            image_url: 'Kudos logo (from proxy API)',
-          },
+          address: ERC721_KUDOSADDRESS,
+          chain: 'ethereum',
+          collection: 'Kudos',
+          contract_standard: 'erc721',
+          name: 'Name',
+          supply: 10,
         });
 
       nock('https://ipfs.gitcoin.co:443')
@@ -1377,12 +1391,18 @@ describe('NftController', () => {
         name: 'Kudos Name (directly from tokenURI)',
         description: 'Kudos Description (directly from tokenURI)',
         tokenId: ERC721_KUDOS_TOKEN_ID,
-        imageOriginal: 'Kudos image (from proxy API)',
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+        creator: {
+          address: undefined,
+          profile_img_url: '',
+          user: {
+            username: '',
+          },
+        },
       });
 
       expect(
@@ -1471,7 +1491,7 @@ describe('NftController', () => {
         });
 
       nock(OPENSEA_PROXY_URL)
-        .get(`/asset_contract/${ERC1155_NFT_ADDRESS}`)
+        .get(`/chain/ethereum/contract/${ERC1155_NFT_ADDRESS}`)
         .replyWithError(new TypeError('Failed to fetch'));
 
       // the tokenURI for ERC1155_NFT_ADDRESS + ERC1155_NFT_ID
@@ -1505,10 +1525,15 @@ describe('NftController', () => {
         standard: ERC1155,
         favorite: false,
         isCurrentlyOwned: true,
-        imageOriginal: 'image.uri',
-        numberOfSales: 1,
         tokenURI:
           'https://api.opensea.io/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+        creator: {
+          address: undefined,
+          profile_img_url: '',
+          user: {
+            username: '',
+          },
+        },
       });
     });
 
@@ -1802,24 +1827,30 @@ describe('NftController', () => {
         includeOnNftAdded: true,
       });
       nock(OPENSEA_PROXY_URL)
-        .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
+        .get(
+          `/chain/ethereum/contract/${ERC721_KUDOSADDRESS}/nfts/${ERC721_KUDOS_TOKEN_ID}`,
+        )
         .reply(200, {
-          image_original_url: 'Kudos image (from proxy API)',
-          name: 'Kudos Name',
-          description: 'Kudos Description',
-          asset_contract: {
-            schema_name: 'ERC721',
+          nft: {
+            token_standard: 'erc721',
+            name: 'Kudos Name',
+            description: 'Kudos Description',
+            image_url: 'Kudos image (from proxy API)',
           },
         })
-        .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
+        .get(`/chain/ethereum/contract/${ERC721_KUDOSADDRESS}`)
+        .reply(200, {
+          address: ERC721_KUDOSADDRESS,
+          chain: 'ethereum',
+          collection: 'KDO',
+          contract_standard: 'erc721',
+          name: 'Kudos',
+          supply: 10,
+        })
+        .get(`/collections/KDO`)
         .reply(200, {
           description: 'Kudos Description',
-          symbol: 'KDO',
-          total_supply: 10,
-          collection: {
-            name: 'Kudos',
-            image_url: 'Kudos logo (from proxy API)',
-          },
+          image_url: 'Kudos logo (from proxy API)',
         });
 
       const { selectedAddress, chainId } = nftController.config;
@@ -1851,14 +1882,20 @@ describe('NftController', () => {
         {
           address: ERC721_KUDOSADDRESS,
           description: 'Kudos Description',
-          imageOriginal: 'Kudos image (from proxy API)',
+          image: 'Kudos image (from proxy API)',
           name: 'Kudos Name',
-          image: null,
           standard: 'ERC721',
           tokenId: ERC721_KUDOS_TOKEN_ID,
           favorite: false,
           isCurrentlyOwned: true,
           tokenURI: '',
+          creator: {
+            address: undefined,
+            profile_img_url: '',
+            user: {
+              username: '',
+            },
+          },
         },
       ]);
 
@@ -1870,8 +1907,8 @@ describe('NftController', () => {
           description: 'Kudos Description',
           logo: 'Kudos logo (from proxy API)',
           name: 'Kudos',
-          symbol: 'KDO',
-          totalSupply: 10,
+          totalSupply: '10',
+          schemaName: 'ERC721',
         },
       ]);
 
@@ -1879,7 +1916,6 @@ describe('NftController', () => {
         address: ERC721_KUDOSADDRESS,
         tokenId: ERC721_KUDOS_TOKEN_ID,
         standard: 'ERC721',
-        symbol: 'KDO',
         source: Source.Detected,
       });
     });
@@ -1889,16 +1925,18 @@ describe('NftController', () => {
         includeOnNftAdded: true,
       });
       nock(OPENSEA_PROXY_URL)
-        .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
+        .get(
+          `/chain/ethereum/contract/${ERC721_KUDOSADDRESS}/nfts/${ERC721_KUDOS_TOKEN_ID}`,
+        )
         .reply(200, {
-          image_original_url: 'Kudos image (from proxy API)',
-          name: 'Kudos Name',
-          description: 'Kudos Description',
-          asset_contract: {
-            schema_name: 'ERC721',
+          nft: {
+            token_standard: 'erc721',
+            name: 'Kudos Name',
+            description: 'Kudos Description',
+            image_url: 'Kudos image (from proxy API)',
           },
         })
-        .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
+        .get(`/chain/ethereum/contract${ERC721_KUDOSADDRESS}`)
         .replyWithError(new Error('Failed to fetch'));
 
       const { selectedAddress } = nftController.config;
@@ -2092,33 +2130,12 @@ describe('NftController', () => {
     it('should add NFT erc721 and not get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
       const { assetsContract, nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
-        .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
+        .get(`/chain/ethereum/contract/${ERC721_NFT_ADDRESS}`)
         .replyWithError(new Error('Failed to fetch'))
-        .get(`/asset/${ERC721_NFT_ADDRESS}/${ERC721_NFT_ID}`)
+        .get(
+          `/chain/ethereum/contract/${ERC721_NFT_ADDRESS}/nfts/${ERC721_NFT_ID}`,
+        )
         .replyWithError(new Error('Failed to fetch'));
-
-      nock(OPENSEA_API_URL, {
-        encodedQueryParams: true,
-      })
-        .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
-        .reply(200, {
-          description: 'description (from opensea)',
-          symbol: 'KDO',
-          total_supply: 10,
-          collection: {
-            name: 'name (from opensea)',
-            image_url: 'logo (from opensea)',
-          },
-        })
-        .get(`/asset/${ERC721_NFT_ADDRESS}/${ERC721_NFT_ID}`)
-        .reply(200, {
-          image_original_url: 'image (directly from opensea)',
-          name: 'name (directly from opensea)',
-          description: 'description (directly from opensea)',
-          asset_contract: {
-            schema_name: 'ERC721',
-          },
-        });
 
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
