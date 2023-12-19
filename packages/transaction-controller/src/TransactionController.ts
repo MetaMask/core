@@ -229,7 +229,7 @@ export class TransactionController extends BaseControllerV1<
   TransactionConfig,
   TransactionState
 > {
-  private ethQuery: EthQuery;
+  private readonly ethQuery: EthQuery;
 
   private readonly isHistoryDisabled: boolean;
 
@@ -243,7 +243,7 @@ export class TransactionController extends BaseControllerV1<
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private registry: any;
+  private readonly registry: any;
 
   private readonly provider: Provider;
 
@@ -577,7 +577,11 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
-      onStateChange: this.subscribe.bind(this),
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+        onNetworkStateChange(listener);
+        listener();
+      },
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -589,8 +593,7 @@ export class TransactionController extends BaseControllerV1<
     this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
-      this.ethQuery = new EthQuery(this.provider);
-      this.registry = new MethodRegistry({ provider: this.provider });
+      log('Detected network change', this.getChainId());
       this.onBootCleanup();
     });
 
@@ -2597,12 +2600,18 @@ export class TransactionController extends BaseControllerV1<
     // NOTE(JL): Should this method be exiting early if getTransaction returns no transaction object?
     const nonce = transactionMeta?.txParams?.nonce;
     const from = transactionMeta?.txParams?.from;
+    // NOTE(JL): the line below was removed upstream in favor of this.getChainId()
+    // not sure specifically why that was the case
+    // https://github.com/MetaMask/core/commit/89654542c9c61308cfad6a310f7fe2b4b669117b
     const chainId = transactionMeta?.chainId;
+
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
+        transaction.id !== transactionId &&
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId &&
+        transaction.type !== TransactionType.incoming,
     );
 
     if (!sameNonceTxs.length) {
@@ -2611,9 +2620,6 @@ export class TransactionController extends BaseControllerV1<
 
     // Mark all same nonce transactions as dropped and give it a replacedBy hash
     for (const transaction of sameNonceTxs) {
-      if (transaction.id === transactionId) {
-        continue;
-      }
       transaction.replacedBy = transactionMeta?.hash;
       transaction.replacedById = transactionMeta?.id;
       // Drop any transaction that wasn't previously failed (off chain failure)
@@ -2673,16 +2679,14 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
   ): Promise<void> {
-    if (signedTx.r) {
-      transactionMeta.r = addHexPrefix(signedTx.r.toString(16));
-    }
+    for (const key of ['r', 's', 'v'] as const) {
+      const value = signedTx[key];
 
-    if (signedTx.s) {
-      transactionMeta.s = addHexPrefix(signedTx.s.toString(16));
-    }
+      if (value === undefined || value === null) {
+        continue;
+      }
 
-    if (signedTx.v) {
-      transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
+      transactionMeta[key] = addHexPrefix(value.toString(16));
     }
   }
 

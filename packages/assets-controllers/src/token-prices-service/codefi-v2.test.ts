@@ -287,6 +287,70 @@ describe('CodefiTokenPricesServiceV2', () => {
         expect(successfullCallScope.isDone()).toBe(false);
       });
 
+      it('calls onBreak handler upon break', async () => {
+        const retries = 3;
+        // Max consencutive failures is set to match number of calls in three update attempts (including retries)
+        const maximumConsecutiveFailures = (1 + retries) * 3;
+        // Initial interceptor for failing requests
+        nock('https://price-api.metafi.codefi.network')
+          .get('/v2/chains/1/spot-prices')
+          .query({
+            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            vsCurrency: 'ETH',
+          })
+          .times(maximumConsecutiveFailures)
+          .replyWithError('Failed to fetch');
+        // This interceptor should not be used
+        nock('https://price-api.metafi.codefi.network')
+          .get('/v2/chains/1/spot-prices')
+          .query({
+            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            vsCurrency: 'ETH',
+          })
+          .reply(200, {
+            '0xaaa': {
+              eth: 148.17205755299946,
+            },
+            '0xbbb': {
+              eth: 33689.98134554716,
+            },
+            '0xccc': {
+              eth: 148.1344197578456,
+            },
+          });
+        const onBreakHandler = jest.fn();
+        const service = new CodefiTokenPricesServiceV2({
+          retries,
+          maximumConsecutiveFailures,
+          // Ensure break duration is well over the max delay for a single request, so that the
+          // break doesn't end during a retry attempt
+          onBreak: onBreakHandler,
+          circuitBreakDuration: defaultMaxRetryDelay * 10,
+        });
+        const fetchTokenPrices = () =>
+          service.fetchTokenPrices({
+            chainId: '0x1',
+            tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+            currency: 'ETH',
+          });
+        expect(onBreakHandler).not.toHaveBeenCalled();
+
+        // Initial three calls to exhaust maximum allowed failures
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const _retryAttempt of Array(retries).keys()) {
+          // eslint-disable-next-line no-loop-func
+          await expect(() =>
+            fetchTokenPricesWithFakeTimers({
+              clock,
+              fetchTokenPrices,
+              retries,
+            }),
+          ).rejects.toThrow('Failed to fetch');
+        }
+
+        expect(onBreakHandler).toHaveBeenCalledTimes(1);
+      });
+
       it('keeps circuit closed if first request fails when half-open', async () => {
         const retries = 3;
         // Max consencutive failures is set to match number of calls in three update attempts (including retries)
