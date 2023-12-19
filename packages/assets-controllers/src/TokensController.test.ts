@@ -1957,8 +1957,13 @@ describe('TokensController', () => {
           aggregators: ['Aave'],
         },
       };
-
-      await tokenListStateChangeListener({ tokenList: sampleMainnetTokenList });
+      messenger.publish(
+        'TokenListController:stateChange',
+        {
+          tokenList: sampleMainnetTokenList,
+        } as unknown as TokenListState,
+        [],
+      );
 
       expect(tokensController.state.tokens[0]).toStrictEqual({
         address: '0x01',
