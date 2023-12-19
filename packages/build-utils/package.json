@@ -35,7 +35,7 @@
     "@types/eslint": "^8.44.7"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "eslint": "^8.44.0",
