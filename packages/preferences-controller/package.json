@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/preferences-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/preferences-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -34,7 +35,7 @@
     "@metamask/controller-utils": "^8.0.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
