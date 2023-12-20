@@ -7,7 +7,10 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import {
+  defaultState as defaultNetworkState,
+  NetworkClientType,
+} from '@metamask/network-controller';
 import type {
   NetworkState,
   ProviderConfig,
@@ -172,6 +175,13 @@ describe('TokenDetectionController', () => {
   const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
   const getNetworkClientByIdHandler = jest.fn();
   const changeNetwork = (providerConfig: ProviderConfig) => {
+    onNetworkDidChangeListeners.forEach((listener) => {
+      listener({
+        ...defaultNetworkState,
+        providerConfig,
+      });
+    });
+
     controllerMessenger.publish('NetworkController:networkDidChange', {
       ...defaultNetworkState,
       providerConfig,
@@ -186,16 +196,39 @@ describe('TokenDetectionController', () => {
       blockTracker: {},
       destroy: jest.fn(),
     });
+
+    controllerMessenger.unregisterActionHandler(
+      'NetworkController:getNetworkClientById',
+    );
+    controllerMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientById',
+      getNetworkClientByIdHandler,
+    );
+  };
+
+  const goerli = {
+    chainId: ChainId.goerli,
+    id: 'goerli',
+    type: NetworkType.goerli,
+    ticker: NetworksTicker.goerli,
+  };
+  const polygon = {
+    chainId: SupportedTokenDetectionNetworks.polygon,
+    id: 'polygon',
+    type: NetworkType.rpc,
+    ticker: 'MATIC',
+  };
+  const mockPolygonClient = {
+    configuration: {
+      ...polygon,
+      type: NetworkClientType.Custom,
+    },
   };
   const mainnet = {
     chainId: ChainId.mainnet,
+    id: 'mainnet',
     type: NetworkType.mainnet,
     ticker: NetworksTicker.mainnet,
-  };
-  const goerli = {
-    chainId: ChainId.goerli,
-    type: NetworkType.goerli,
-    ticker: NetworksTicker.goerli,
   };
 
   beforeEach(async () => {
@@ -224,6 +257,11 @@ describe('TokenDetectionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .callsFake(() => null as any);
 
+    controllerMessenger.publish('NetworkController:networkDidChange', {
+      ...defaultNetworkState,
+      providerConfig: mainnet,
+      selectedNetworkClientId: NetworkType.mainnet,
+    });
     controllerMessenger.registerActionHandler(
       `NetworkController:getNetworkClientById`,
       getNetworkClientByIdHandler.mockReturnValue({
@@ -454,6 +492,11 @@ describe('TokenDetectionController', () => {
       getBalancesInSingleCallMock = sinon.stub();
 
       controllerMessenger = getControllerMessenger();
+      controllerMessenger.publish('NetworkController:networkDidChange', {
+        ...defaultNetworkState,
+        providerConfig: mainnet,
+        selectedNetworkClientId: NetworkType.mainnet,
+      });
       controllerMessenger.registerActionHandler(
         `NetworkController:getNetworkClientById`,
         getNetworkClientByIdHandler.mockReturnValue({
@@ -562,6 +605,14 @@ describe('TokenDetectionController', () => {
         blockTracker: {},
         destroy: jest.fn(),
       });
+
+      controllerMessenger.unregisterActionHandler(
+        'NetworkController:getNetworkClientById',
+      );
+      controllerMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        getNetworkClientByIdHandler.mockReturnValue(mockPolygonClient),
+      );
 
       changeNetwork(mainnet);
       expect(getBalancesInSingleCallMock.calledOnce).toBe(true);
