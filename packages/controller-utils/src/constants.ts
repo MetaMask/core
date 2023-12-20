@@ -138,5 +138,4 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId.mainnet]: BuiltInNetworkName.Mainnet,
   [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
-  [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };

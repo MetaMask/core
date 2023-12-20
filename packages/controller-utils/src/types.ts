@@ -59,7 +59,6 @@ export enum BuiltInNetworkName {
   Sepolia = 'sepolia',
   LineaGoerli = 'linea-goerli',
   LineaMainnet = 'linea-mainnet',
-  Aurora = 'aurora',
 }
 
 /**
@@ -71,7 +70,6 @@ export const ChainId = {
   [BuiltInNetworkName.Mainnet]: '0x1', // toHex(1)
   [BuiltInNetworkName.Goerli]: '0x5', // toHex(5)
   [BuiltInNetworkName.Sepolia]: '0xaa36a7', // toHex(11155111)
-  [BuiltInNetworkName.Aurora]: '0x4e454152', // toHex(1313161554)
   [BuiltInNetworkName.LineaGoerli]: '0xe704', // toHex(59140)
   [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
 } as const;

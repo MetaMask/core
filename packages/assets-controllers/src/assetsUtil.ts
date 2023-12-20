@@ -116,7 +116,6 @@ export enum SupportedTokenDetectionNetworks {
   bsc = '0x38', // decimal: 56
   polygon = '0x89', // decimal: 137
   avax = '0xa86a', // decimal: 43114
-  aurora = '0x4e454152', // decimal: 1313161554
   linea_goerli = '0xe704', // decimal: 59140
   linea_mainnet = '0xe708', // decimal: 59144
   arbitrum = '0xa4b1', // decimal: 42161
