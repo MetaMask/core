@@ -14,16 +14,7 @@ export type {
 export { TokenDetectionController } from './TokenDetectionController';
 export * from './TokenListController';
 export * from './TokenRatesController';
-export type {
-  TokensState,
-  TokensControllerGetStateAction,
-  TokensControllerAddDetectedTokensAction,
-  TokensControllerActions,
-  TokensControllerStateChangeEvent,
-  TokensControllerEvents,
-  TokensControllerMessenger,
-} from './TokensController';
-export { TokensController } from './TokensController';
+export * from './TokensController';
 export {
   isTokenDetectionSupportedForNetwork,
   formatIconUrlWithProxy,
