@@ -272,7 +272,7 @@ describe('NftController', () => {
         collection: 'FOO',
         contract_standard: 'erc721',
         name: 'Name',
-        supply: 0,
+        total_supply: 0,
       })
       .get(`/collections/FOO`)
       .reply(200, {
@@ -286,7 +286,7 @@ describe('NftController', () => {
         collection: 'FOU',
         contract_standard: 'erc721',
         name: 'FOU',
-        supply: 0,
+        total_supply: 0,
       })
       .get(`/collections/FOO`)
       .reply(200, {
@@ -1288,7 +1288,7 @@ describe('NftController', () => {
           collection: 'Kudos',
           contract_standard: 'erc721',
           name: 'Name',
-          supply: 10,
+          total_supply: 10,
         });
 
       nock('https://ipfs.gitcoin.co:443')
@@ -1845,7 +1845,7 @@ describe('NftController', () => {
           collection: 'KDO',
           contract_standard: 'erc721',
           name: 'Kudos',
-          supply: 10,
+          total_supply: 10,
         })
         .get(`/collections/KDO`)
         .reply(200, {
