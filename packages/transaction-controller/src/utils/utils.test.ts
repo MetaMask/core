@@ -217,6 +217,8 @@ describe('utils', () => {
   describe('normalizeGasFeeValues', () => {
     it('returns normalized object if legacy gas fees', () => {
       expect(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         util.normalizeGasFeeValues({ gasPrice: '1A', test: 'value' } as any),
       ).toStrictEqual({ gasPrice: '0x1A' });
     });
@@ -227,6 +229,8 @@ describe('utils', () => {
           maxFeePerGas: '1A',
           maxPriorityFeePerGas: '2B3C',
           test: 'value',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toStrictEqual({ maxFeePerGas: '0x1A', maxPriorityFeePerGas: '0x2B3C' });
     });
@@ -235,6 +239,8 @@ describe('utils', () => {
       expect(
         util.normalizeGasFeeValues({
           test: 'value',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
       ).toStrictEqual({
         maxFeePerGas: undefined,

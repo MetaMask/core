@@ -1,15 +1,26 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import { createModuleLogger, projectLogger } from '../logger';
-import type { UserOperation } from '../types';
+import type { UserOperation, UserOperationReceipt } from '../types';
 
 const log = createModuleLogger(projectLogger, 'bundler');
 
+/**
+ * Response from the `eth_estimateUserOperationGas` bundler method.
+ * Includes the estimated gas limits required by a user operation.
+ */
 export type BundlerEstimateUserOperationGasResponse = {
-  preVerificationGas: number;
-  verificationGas: number;
-  verificationGasLimit: number;
-  callGasLimit: number;
+  /** Estimated gas required to compensate the bundler for any pre-verification. */
+  preVerificationGas: number | string;
+
+  /** Estimated gas required to verify the user operation. */
+  verificationGas: number | string;
+
+  /** Estimated gas required to verify the user operation. */
+  verificationGasLimit: number | string;
+
+  /** Estimated gas required for the execution of the user operation. */
+  callGasLimit: number | string;
 };
 
 /**
@@ -33,14 +44,32 @@ export class Bundler {
     userOperation: UserOperation,
     entrypoint: string,
   ): Promise<BundlerEstimateUserOperationGasResponse> {
-    const response = await this.#query('eth_estimateUserOperationGas', [
-      userOperation,
-      entrypoint,
-    ]);
+    log('Estimating gas', { url: this.#url, userOperation, entrypoint });
 
-    log('Estimated gas', { url: this.#url, response });
+    const response: BundlerEstimateUserOperationGasResponse = await this.#query(
+      'eth_estimateUserOperationGas',
+      [userOperation, entrypoint],
+    );
 
-    return response as BundlerEstimateUserOperationGasResponse;
+    log('Estimated gas', { response });
+
+    return response;
+  }
+
+  /**
+   * Retrieve the receipt for a user operation.
+   * @param hash - The hash of the user operation.
+   * @returns The receipt for the user operation, or `undefined` if the user operation is pending.
+   */
+  async getUserOperationReceipt(
+    hash?: string,
+  ): Promise<UserOperationReceipt | undefined> {
+    log('Getting user operation receipt', { url: this.#url, hash });
+
+    return await this.#query<UserOperationReceipt | undefined>(
+      'eth_getUserOperationReceipt',
+      [hash],
+    );
   }
 
   /**
@@ -59,7 +88,7 @@ export class Bundler {
       entrypoint,
     });
 
-    const hash = await this.#query('eth_sendUserOperation', [
+    const hash: string = await this.#query('eth_sendUserOperation', [
       userOperation,
       entrypoint,
     ]);
@@ -69,7 +98,7 @@ export class Bundler {
     return hash;
   }
 
-  async #query(method: string, params: any[]): Promise<any> {
+  async #query<T>(method: string, params: unknown[]): Promise<T> {
     const request = {
       method: 'POST',
       headers: {
@@ -84,7 +113,9 @@ export class Bundler {
 
     if (responseJson.error) {
       const error = new Error(responseJson.error.message || responseJson.error);
-      (error as any).code = responseJson.error.code;
+
+      (error as unknown as Record<string, string>).code =
+        responseJson.error.code;
 
       throw error;
     }

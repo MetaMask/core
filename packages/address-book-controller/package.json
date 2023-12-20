@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/address-book-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/address-book-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -31,11 +32,11 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^4.0.0",
-    "@metamask/controller-utils": "^6.1.0",
+    "@metamask/controller-utils": "^8.0.0",
     "@metamask/utils": "^8.2.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

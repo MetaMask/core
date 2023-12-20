@@ -131,120 +131,6 @@ describe('assetsUtil', () => {
     });
   });
 
-  describe('validateTokenToWatch', () => {
-    it('should throw if undefined token atrributes', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: undefined,
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0x1',
-          decimals: 0,
-          symbol: undefined,
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0x1',
-          decimals: undefined,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-    });
-
-    it('should throw if symbol is not a string', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: { foo: 'bar' },
-        } as any),
-      ).toThrow('Invalid symbol: not a string.');
-    });
-
-    it('should throw if symbol is an empty string', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: '',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-    });
-
-    it('should not throw if symbol is exactly 1 character long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'T',
-        } as any),
-      ).not.toThrow();
-    });
-
-    it('should not throw if symbol is exactly 11 characters long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKNTKNTKNTK',
-        } as any),
-      ).not.toThrow();
-    });
-
-    it('should throw if symbol is more than 11 characters long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKNTKNTKNTKN',
-        } as any),
-      ).toThrow('Invalid symbol "TKNTKNTKNTKN": longer than 11 characters.');
-    });
-
-    it('should throw if invalid decimals', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).not.toThrow();
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 38,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid decimals "38": must be 0 <= 36.');
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: -1,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid decimals "-1": must be 0 <= 36.');
-    });
-
-    it('should throw if invalid address', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9',
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid address "0xe9".');
-    });
-  });
-
   describe('isTokenDetectionSupportedForNetwork', () => {
     it('returns true for Mainnet', () => {
       expect(
@@ -434,6 +320,120 @@ describe('assetsUtil', () => {
 
     it('should return a URL as is if https:// is already prepended', () => {
       expect(assetsUtil.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
+    });
+  });
+
+  describe('divideIntoBatches', () => {
+    describe('given a non-empty list of values', () => {
+      it('partitions the values into max-N-sized groups', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5, 6], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]);
+      });
+
+      it('does not fill every group completely if the number of values does not divide evenly', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5], {
+          batchSize: 4,
+        });
+        expect(batches).toStrictEqual([[1, 2, 3, 4], [5]]);
+      });
+    });
+
+    describe('given a empty list of values', () => {
+      it('returns an empty array', () => {
+        const batches = assetsUtil.divideIntoBatches([], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([]);
+      });
+    });
+  });
+
+  describe('reduceInBatchesSerially', () => {
+    it('can build an object from running the given async function for each batch of the given values', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: (workingResult, batch) => {
+          const newBatch = batch.reduce<Partial<Record<string, number>>>(
+            (obj, value) => {
+              // We can assume that the first character is present.
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const codePoint = value.codePointAt(0)!;
+              return {
+                ...obj,
+                [value]: codePoint,
+              };
+            },
+            {},
+          );
+          return { ...workingResult, ...newBatch };
+        },
+        initialResult: {},
+      });
+
+      expect(results).toStrictEqual({
+        a: 97,
+        b: 98,
+        c: 99,
+        d: 100,
+        e: 101,
+        f: 102,
+      });
+    });
+
+    it('processes each batch one after another, not in parallel, even if the given callback is async', async () => {
+      const timestampsByIndex = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: async (workingResult, _batch, index) => {
+          const timestamp = new Date().getTime();
+          await new Promise<number[]>((resolve) => {
+            let duration: number;
+            switch (index) {
+              case 0:
+                duration = 2;
+                break;
+              case 1:
+                duration = 10;
+                break;
+              case 2:
+                duration = 4;
+                break;
+              default:
+                throw new Error(`invalid index ${index}`);
+            }
+            setTimeout(resolve, duration);
+          });
+          const newBatch = { [index]: timestamp };
+          return { ...workingResult, ...newBatch };
+        },
+        initialResult: {},
+      });
+
+      let previousTimestamp = 0;
+      let timestampsIncreasing = true;
+      for (const timestamp of Object.values(timestampsByIndex)) {
+        if (timestamp <= previousTimestamp) {
+          timestampsIncreasing = false;
+          break;
+        }
+        previousTimestamp = timestamp;
+      }
+
+      expect(Object.keys(timestampsByIndex)).toHaveLength(3);
+      expect(timestampsIncreasing).toBe(true);
     });
   });
 });

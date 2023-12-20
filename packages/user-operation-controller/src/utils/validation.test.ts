@@ -2,6 +2,15 @@
 
 import { cloneDeep } from 'lodash';
 
+import type {
+  PrepareUserOperationResponse,
+  SignUserOperationResponse,
+  UpdateUserOperationResponse,
+} from '../types';
+import type {
+  AddUserOperationOptions,
+  AddUserOperationRequest,
+} from '../UserOperationController';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
@@ -10,7 +19,7 @@ import {
   validateUpdateUserOperationResponse,
 } from './validation';
 
-const ADD_USER_OPERATION_REQUEST_MOCK = {
+const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',
   to: '0x2',
   value: '0x3',
@@ -18,8 +27,9 @@ const ADD_USER_OPERATION_REQUEST_MOCK = {
   maxPriorityFeePerGas: '0x5',
 };
 
-const ADD_USER_OPERATION_OPTIONS_MOCK = {
-  chainId: '0x1',
+const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
+  networkClientId: 'testNetworkClientId',
+  origin: 'test.com',
   smartContractAccount: {
     prepareUserOperation: jest.fn(),
     updateUserOperation: jest.fn(),
@@ -27,7 +37,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK = {
   },
 };
 
-const PREPARE_USER_OPERATION_RESPONSE_MOCK = {
+const PREPARE_USER_OPERATION_RESPONSE_MOCK: PrepareUserOperationResponse = {
   bundler: 'http://test.com',
   callData: '0x1',
   dummyPaymasterAndData: '0x2',
@@ -42,11 +52,11 @@ const PREPARE_USER_OPERATION_RESPONSE_MOCK = {
   sender: '0x9',
 };
 
-const UPDATE_USER_OPERATION_RESPONSE_MOCK = {
+const UPDATE_USER_OPERATION_RESPONSE_MOCK: UpdateUserOperationResponse = {
   paymasterAndData: '0x1',
 };
 
-const SIGN_USER_OPERATION_RESPONSE_MOCK = {
+const SIGN_USER_OPERATION_RESPONSE_MOCK: SignUserOperationResponse = {
   signature: '0x1',
 };
 
@@ -57,17 +67,17 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK = {
  * @param value - The value to set.
  * @returns The copied object with the property path set to the given value.
  */
-function setPropertyPath(object: any, pathString: string, value: any): any {
+function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
   const copy = cloneDeep(object);
   const path = pathString.split('.');
-  const lastKey = path.pop();
-  let currentObject = copy;
+  const lastKey = path.pop() as string;
+  let currentObject = copy as Record<string, unknown>;
 
   for (const key of path) {
-    currentObject = currentObject[key];
+    currentObject = currentObject[key] as Record<string, unknown>;
   }
 
-  currentObject[lastKey as any] = value;
+  currentObject[lastKey] = value;
 
   return copy;
 }
@@ -82,11 +92,11 @@ function setPropertyPath(object: any, pathString: string, value: any): any {
  * @param expectedInternalError - The specific validation error.
  * @param rootPropertyName - The name of the root input.
  */
-function expectValidationError(
-  validateFunction: any,
-  input: any,
+function expectValidationError<T>(
+  validateFunction: (request: T) => void,
+  input: T,
   propertyName: string,
-  value: any,
+  value: unknown,
   expectedMainError: string,
   expectedInternalError: string,
   rootPropertyName: string,
@@ -94,7 +104,7 @@ function expectValidationError(
   const isRootTest = propertyName === rootPropertyName;
 
   const request = isRootTest
-    ? value
+    ? (value as T)
     : setPropertyPath(input, propertyName, value);
 
   expect(() => validateFunction(request)).toThrow(
@@ -182,10 +192,16 @@ describe('validation', () => {
       ],
       ['options', 'wrong type', 123, 'Expected an object, but received: 123'],
       [
-        'chainId',
+        'networkClientId',
         'missing',
         undefined,
-        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
+        'Expected a string, but received: undefined',
+      ],
+      [
+        'origin',
+        'missing',
+        undefined,
+        'Expected a string, but received: undefined',
       ],
       [
         'smartContractAccount',
@@ -212,11 +228,12 @@ describe('validation', () => {
         'Expected a function, but received: undefined',
       ],
       [
-        'chainId',
+        'networkClientId',
         'wrong type',
         123,
-        'Expected a value of type `Hexadecimal String`, but received: `123`',
+        'Expected a string, but received: 123',
       ],
+      ['origin', 'wrong type', 123, 'Expected a string, but received: 123'],
       [
         'smartContractAccount',
         'wrong type',
@@ -347,8 +364,8 @@ describe('validation', () => {
       'throws if no gas and dummy signature is %s',
       (dummySignature) => {
         const response = cloneDeep(PREPARE_USER_OPERATION_RESPONSE_MOCK);
-        (response as any).gas = undefined;
-        (response as any).dummySignature = dummySignature;
+        response.gas = undefined;
+        response.dummySignature = dummySignature;
 
         expect(() => validatePrepareUserOperationResponse(response)).toThrow(
           'Invalid response when preparing user operation\nMust specify dummySignature if not specifying gas',

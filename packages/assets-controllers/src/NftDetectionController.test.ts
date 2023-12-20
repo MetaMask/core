@@ -81,6 +81,7 @@ describe('NftDetectionController', () => {
       onNetworkStateChange: networkStateChangeNoop,
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addNft: nftController.addNft.bind(nftController),
+      getNftApi: nftController.getNftApi.bind(nftController),
       getNetworkClientById,
       getNftState: () => nftController.state,
     });
@@ -91,108 +92,105 @@ describe('NftDetectionController', () => {
 
     nock(OPENSEA_PROXY_URL)
       .persist()
-      .get(`/assets?owner=0x1&offset=0&limit=50`)
+      .get(`/chain/ethereum/account/0x1/nfts?limit=200&next=`)
       .reply(200, {
-        assets: [
+        nfts: [
           {
-            asset_contract: {
-              address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2577',
-              image_url: 'url',
-            },
+            contract: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+            collection: 'Collection 2577',
+            token_standard: 'erc721',
+            name: 'ID 2577',
             description: 'Description 2577',
             image_url: 'image/2577.png',
-            name: 'ID 2577',
-            token_id: '2577',
+            identifier: '2577',
+            metadata_url: '',
+            updated_at: '',
+            is_disabled: false,
+            is_nsfw: false,
           },
           {
-            asset_contract: {
-              address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2577',
-              image_url: 'url',
-            },
+            contract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+            collection: 'Collection 2577',
+            token_standard: 'erc721',
+            name: 'ID 2578',
             description: 'Description 2578',
             image_url: 'image/2578.png',
-            name: 'ID 2578',
-            token_id: '2578',
+            identifier: '2578',
+            metadata_url: '',
+            updated_at: '',
+            is_disabled: false,
+            is_nsfw: false,
           },
           {
-            asset_contract: {
-              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2574',
-              image_url: 'url',
-            },
+            contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+            collection: 'Collection 2574',
+            token_standard: 'erc721',
+            name: 'ID 2574',
             description: 'Description 2574',
             image_url: 'image/2574.png',
-            name: 'ID 2574',
-            token_id: '2574',
+            identifier: '2574',
+            metadata_url: '',
+            updated_at: '',
+            is_disabled: false,
+            is_nsfw: false,
           },
         ],
       })
-      .get(`/assets?owner=0x1&offset=50&limit=50`)
+      .get(`/chain/ethereum/account/0x9/nfts?limit=200&next=`)
       .reply(200, {
-        assets: [],
-      })
-      .get(`/assets?owner=0x9&offset=0&limit=50`)
-      .reply(200, {
-        assets: [
+        nfts: [
           {
-            asset_contract: {
-              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2574',
-              image_url: 'url',
-            },
+            contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+            collection: 'Collection 2574',
+            token_standard: 'erc721',
+            name: 'ID 2574',
             description: 'Description 2574',
             image_url: 'image/2574.png',
-            name: 'ID 2574',
-            token_id: '2574',
+            identifier: '2574',
+            metadata_url: '',
+            updated_at: '',
+            is_disabled: false,
+            is_nsfw: false,
           },
         ],
-      })
-      .get(`/assets?owner=0x9&offset=50&limit=50`)
-      .reply(200, {
-        assets: [],
       });
 
     nock(OPENSEA_PROXY_URL)
       .persist()
-      .get(`/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
+      .get(
+        `/chain/ethereum/contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
+      )
       .reply(200, {
-        description: 'Description',
-        image_url: 'url',
+        address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
+        chain: 'ethereum',
+        collection: 'Name',
+        contract_standard: 'erc721',
         name: 'Name',
-        symbol: 'FOO',
-        total_supply: 0,
-        collection: {
-          image_url: 'url',
-          name: 'Name',
-        },
+        supply: 0,
       })
-      .get(`/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`)
+      .get(
+        `/chain/ethereum/contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
+      )
+      .reply(200, {
+        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+        chain: 'ethereum',
+        collection: 'Name HH',
+        contract_standard: 'erc721',
+        name: 'Name HH',
+        supply: 10,
+      })
+      .get(`/collections/Name%20HH`)
       .reply(200, {
         description: 'Description HH',
-        symbol: 'HH',
-        total_supply: 10,
-        collection: {
-          image_url: 'url HH',
-          name: 'Name HH',
-        },
+        image_url: 'url HH',
       })
-      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
+      .get(
+        `/chain/ethereum/contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
+      )
       .replyWithError(new Error('Failed to fetch'))
-      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
+      .get(
+        `/chain/ethereum/contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
+      )
       .replyWithError(new Error('Failed to fetch'));
   });
 
@@ -223,6 +221,7 @@ describe('NftDetectionController', () => {
         onNetworkStateChange: networkStateChangeNoop,
         getOpenSeaApiKey: () => nftController.openSeaApiKey,
         addNft: nftController.addNft.bind(nftController),
+        getNftApi: nftController.getNftApi.bind(nftController),
         getNftState: () => nftController.state,
       },
       { interval: 10 },
@@ -261,6 +260,7 @@ describe('NftDetectionController', () => {
       onNetworkStateChange: networkStateChangeNoop,
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addNft: nftController.addNft.bind(nftController),
+      getNftApi: nftController.getNftApi.bind(nftController),
       getNetworkClientById,
       getNftState: () => nftController.state,
     });
@@ -334,6 +334,7 @@ describe('NftDetectionController', () => {
           onNetworkStateChange: networkStateChangeNoop,
           getOpenSeaApiKey: () => nftController.openSeaApiKey,
           addNft: nftController.addNft.bind(nftController),
+          getNftApi: nftController.getNftApi.bind(nftController),
           getNftState: () => nftController.state,
         },
         { interval: 10, chainId: ChainId.goerli },
@@ -369,6 +370,11 @@ describe('NftDetectionController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        creator: {
+          user: { username: '' },
+          profile_img_url: '',
+          address: '',
+        },
       },
     ]);
   });
@@ -392,6 +398,11 @@ describe('NftDetectionController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        creator: {
+          user: { username: '' },
+          profile_img_url: '',
+          address: '',
+        },
       },
     ]);
     nftDetection.stopAllPolling();
@@ -410,10 +421,14 @@ describe('NftDetectionController', () => {
     });
 
     sinon
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .stub(nftController, 'getNftContractInformationFromApi' as any)
       .returns(undefined);
 
     sinon
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .stub(nftController, 'getNftInformationFromApi' as any)
       .returns(undefined);
 
@@ -441,6 +456,11 @@ describe('NftDetectionController', () => {
           image: 'image/2573.png',
           name: 'ID 2573',
           standard: 'ERC721',
+          creator: {
+            user: { username: '' },
+            profile_img_url: '',
+            address: '',
+          },
         },
       },
     );
@@ -459,6 +479,11 @@ describe('NftDetectionController', () => {
         tokenId: '2573',
         favorite: false,
         isCurrentlyOwned: true,
+        creator: {
+          user: { username: '' },
+          profile_img_url: '',
+          address: '',
+        },
       },
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -469,6 +494,11 @@ describe('NftDetectionController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        creator: {
+          user: { username: '' },
+          profile_img_url: '',
+          address: '',
+        },
       },
     ]);
   });
@@ -571,6 +601,11 @@ describe('NftDetectionController', () => {
       standard: 'ERC721',
       favorite: false,
       isCurrentlyOwned: true,
+      creator: {
+        user: { username: '' },
+        profile_img_url: '',
+        address: '',
+      },
     };
     const nftGG2574 = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
@@ -581,6 +616,11 @@ describe('NftDetectionController', () => {
       standard: 'ERC721',
       favorite: false,
       isCurrentlyOwned: true,
+      creator: {
+        user: { username: '' },
+        profile_img_url: '',
+        address: '',
+      },
     };
     const nftII2577 = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
@@ -591,30 +631,35 @@ describe('NftDetectionController', () => {
       standard: 'ERC721',
       favorite: false,
       isCurrentlyOwned: true,
+      creator: {
+        user: { username: '' },
+        profile_img_url: '',
+        address: '',
+      },
     };
     const nftContractHH = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       description: 'Description HH',
       logo: 'url HH',
       name: 'Name HH',
-      symbol: 'HH',
-      totalSupply: 10,
+      totalSupply: '10',
+      schemaName: 'ERC721',
     };
     const nftContractGG = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description GG',
       logo: 'url GG',
       name: 'Name GG',
-      symbol: 'GG',
-      totalSupply: 10,
+      totalSupply: '10',
+      schemaName: 'ERC721',
     };
     const nftContractII = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description II',
       logo: 'url II',
       name: 'Name II',
-      symbol: 'II',
-      totalSupply: 10,
+      totalSupply: '10',
+      schemaName: 'ERC721',
     };
 
     const selectedAddress = '0x1';
@@ -640,76 +685,81 @@ describe('NftDetectionController', () => {
     // During next call of assets detection, API succeeds returning contract ending in gg information
     nock.cleanAll();
     nock(OPENSEA_PROXY_URL)
-      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
+      .get(
+        `/chain/ethereum/contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
+      )
+      .reply(200, {
+        address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+        chain: 'ethereum',
+        collection: 'Name GG',
+        contract_standard: 'erc721',
+        name: 'Name GG',
+        supply: 10,
+      })
+      .get(`/collections/Name%20GG`)
       .reply(200, {
         description: 'Description GG',
-        symbol: 'GG',
-        total_supply: 10,
-        collection: {
-          image_url: 'url GG',
-          name: 'Name GG',
-        },
+        image_url: 'url GG',
       })
-      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
+      .get(
+        `/chain/ethereum/contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
+      )
+      .reply(200, {
+        address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+        chain: 'ethereum',
+        collection: 'Name II',
+        contract_standard: 'erc721',
+        name: 'Name II',
+        supply: 10,
+      })
+      .get(`/collections/Name%20II`)
       .reply(200, {
         description: 'Description II',
-        symbol: 'II',
-        total_supply: 10,
-        collection: {
-          image_url: 'url II',
-          name: 'Name II',
-        },
+        image_url: 'url II',
       })
-      .get(`/assets?owner=0x1&offset=0&limit=50`)
+      .get(`/chain/ethereum/account/0x1/nfts?limit=200&next=`)
       .reply(200, {
-        assets: [
+        nfts: [
           {
-            asset_contract: {
-              address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2577',
-              image_url: 'url',
-            },
+            contract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+            collection: 'Collection 2577',
+            token_standard: 'erc721',
+            name: 'ID 2577',
             description: 'Description 2577',
             image_url: 'image/2577.png',
-            name: 'ID 2577',
-            token_id: '2577',
+            identifier: '2577',
+            metadata_url: '',
+            updated_at: '',
+            is_disabled: false,
+            is_nsfw: false,
           },
           {
-            asset_contract: {
-              address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2574',
-              image_url: 'url',
-            },
+            contract: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+            collection: 'Collection 2574',
+            token_standard: 'erc721',
+            name: 'ID 2574',
             description: 'Description 2574',
             image_url: 'image/2574.png',
-            name: 'ID 2574',
-            token_id: '2574',
+            identifier: '2574',
+            metadata_url: '',
+            updated_at: '',
+            is_disabled: false,
+            is_nsfw: false,
           },
           {
-            asset_contract: {
-              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'Collection 2574',
-              image_url: 'url',
-            },
+            contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+            collection: 'Collection 2574',
+            token_standard: 'erc721',
+            name: 'ID 2574',
             description: 'Description 2574',
             image_url: 'image/2574.png',
-            name: 'ID 2574',
-            token_id: '2574',
+            identifier: '2574',
+            metadata_url: '',
+            updated_at: '',
+            is_disabled: false,
+            is_nsfw: false,
           },
         ],
-      })
-      .get(`/assets?owner=0x1&offset=50&limit=50`)
-      .reply(200, {
-        assets: [],
       });
 
     // Now user should have respective NFTs
@@ -732,59 +782,36 @@ describe('NftDetectionController', () => {
     nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
-      .get('/opensea/v1/api/v1/assets')
-      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .get(`/opensea/v1/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
+      .query({ next: '', limit: '200' })
       .replyWithError(new Error('Failed to fetch'));
 
     nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
-      .get('/opensea/v1/api/v1/assets')
-      .query({ owner: selectedAddress, offset: '50', limit: '50' })
+      .get(`/opensea/v1/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
+      .query({ next: '', limit: '200' })
       .replyWithError(new Error('Failed to fetch'));
 
     nock('https://api.opensea.io:443', { encodedQueryParams: true })
-      .get('/api/v1/assets')
-      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .get(`/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
+      .query({ next: '', limit: '200' })
       .reply(200, {
-        assets: [
-          {
-            asset_contract: {
-              address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
-              schema_name: 'ERC721',
-            },
-            collection: {
-              name: 'DIRECT FROM OPENSEA',
-              image_url: 'URL',
-            },
-            description: 'DESCRIPTION: DIRECT FROM OPENSEA',
-            image_original_url: 'DIRECT FROM OPENSEA.jpg',
-            name: 'NAME: DIRECT FROM OPENSEA',
-            token_id: '2577',
-          },
-        ],
+        nfts: [],
       });
 
     nock('https://api.opensea.io:443', { encodedQueryParams: true })
-      .get('/api/v1/assets')
-      .query({ owner: selectedAddress, offset: '50', limit: '50' })
+      .get(`/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
+      .query({ next: '', limit: '200' })
       .reply(200, {
-        assets: [],
+        nfts: [],
       });
 
     nock('https://api.opensea.io:443')
-      .get(`/api/v1/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
-      .reply(200, {
-        description: 'Description',
-        image_url: 'url',
-        name: 'Name',
-        symbol: 'FOO',
-        total_supply: 0,
-        collection: {
-          image_url: 'url',
-          name: 'Name',
-        },
-      });
+      .get(
+        `/api/v2/chain/ethereum/contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
+      )
+      .reply(200, {});
 
     nftDetection.configure({
       chainId: ChainId.mainnet,
@@ -805,8 +832,8 @@ describe('NftDetectionController', () => {
     nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
-      .get('/opensea/v1/api/v1/assets')
-      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .get(`/opensea/v1/api/v2/chain/ethereum/account/${selectedAddress}/nfts`)
+      .query({ next: '', limit: '200' })
       .replyWithError(new Error('UNEXPECTED ERROR'));
 
     nftDetection.configure({
@@ -821,5 +848,62 @@ describe('NftDetectionController', () => {
     await expect(() => nftDetection.detectNfts()).rejects.toThrow(
       'UNEXPECTED ERROR',
     );
+  });
+
+  it('should fetch the original image url if image_url is null but theres metadata', async () => {
+    const selectedAddress = '0x1994';
+    const nftContract = '0x26B4a381D694c1AC6812eA80C3f3d088572802db';
+    const nftId = '123';
+
+    nock(OPENSEA_PROXY_URL)
+      .persist()
+      .get(`/chain/ethereum/account/${selectedAddress}/nfts?limit=200&next=`)
+      .reply(200, {
+        nfts: [
+          {
+            identifier: nftId,
+            contract: nftContract,
+            image_url: null,
+            token_standard: 'erc721',
+            metadata_url: 'https://example.com',
+          },
+        ],
+      })
+      .get(`/chain/ethereum/contract/${nftContract}/nfts/${nftId}`)
+      .reply(200, { nft: { image_url: 'https://example.com/image.gif' } })
+      .get(`/chain/ethereum/contract/${nftContract}`)
+      .reply(200, {
+        address: nftContract,
+        chain: 'ethereum',
+        collection: 'mycollection',
+        contract_standard: 'erc721',
+        name: 'myname',
+        supply: 0,
+      })
+      .get(`/collections/mycollection`)
+      .reply(200, {});
+
+    nftDetection.configure({ chainId: ChainId.mainnet, selectedAddress });
+    nftController.configure({ selectedAddress });
+
+    await nftDetection.detectNfts();
+    const nfts =
+      nftController.state.allNfts[selectedAddress][nftDetection.config.chainId];
+    expect(nfts).toStrictEqual([
+      {
+        address: nftContract,
+        name: undefined,
+        imageOriginal: 'https://example.com/image.gif',
+        tokenId: nftId,
+        standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
+        creator: {
+          user: { username: '' },
+          profile_img_url: '',
+          address: '',
+        },
+      },
+    ]);
   });
 });

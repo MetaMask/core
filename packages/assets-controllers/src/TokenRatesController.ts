@@ -10,10 +10,12 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
-import { PollingControllerV1 } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
+import { isEqual } from 'lodash';
 
+import { reduceInBatchesSerially } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import type { TokensState } from './TokensController';
@@ -95,6 +97,12 @@ export interface TokenRatesState extends BaseState {
 }
 
 /**
+ * The maximum number of token addresses that should be sent to the Price API in
+ * a single request.
+ */
+const TOKEN_PRICES_BATCH_SIZE = 100;
+
+/**
  * Uses the CryptoCompare API to fetch the exchange rate between one currency
  * and another, i.e., the multiplier to apply the amount of one currency in
  * order to convert it to another.
@@ -135,7 +143,7 @@ async function getCurrencyConversionRate({
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
-export class TokenRatesController extends PollingControllerV1<
+export class TokenRatesController extends StaticIntervalPollingControllerV1<
   TokenRatesConfig,
   TokenRatesState
 > {
@@ -144,6 +152,8 @@ export class TokenRatesController extends PollingControllerV1<
   #pollState = PollState.Inactive;
 
   #tokenPricesService: AbstractTokenPricesService;
+
+  #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
 
   /**
    * Name of this controller used during composition
@@ -237,15 +247,16 @@ export class TokenRatesController extends PollingControllerV1<
     });
 
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
-      // These two state properties are assumed to be immutable
+      const previousTokenAddresses = this.#getTokenAddresses(
+        this.config.chainId,
+      );
+      this.configure({ allTokens, allDetectedTokens });
+      const newTokenAddresses = this.#getTokenAddresses(this.config.chainId);
       if (
-        this.config.allTokens !== allTokens ||
-        this.config.allDetectedTokens !== allDetectedTokens
+        !isEqual(previousTokenAddresses, newTokenAddresses) &&
+        this.#pollState === PollState.Active
       ) {
-        this.configure({ allTokens, allDetectedTokens });
-        if (this.#pollState === PollState.Active) {
-          await this.updateExchangeRates();
-        }
+        await this.updateExchangeRates();
       }
     });
 
@@ -276,7 +287,13 @@ export class TokenRatesController extends PollingControllerV1<
     const detectedTokens =
       allDetectedTokens[chainId]?.[this.config.selectedAddress] || [];
 
-    return [...tokens, ...detectedTokens].map((token) => toHex(token.address));
+    return [
+      ...new Set(
+        [...tokens, ...detectedTokens].map((token) =>
+          toHex(toChecksumHexAddress(token.address)),
+        ),
+      ),
+    ].sort();
   }
 
   /**
@@ -347,41 +364,65 @@ export class TokenRatesController extends PollingControllerV1<
       return;
     }
 
-    const tokenContractAddresses = this.#getTokenAddresses(chainId);
-    if (tokenContractAddresses.length === 0) {
+    const tokenAddresses = this.#getTokenAddresses(chainId);
+    if (tokenAddresses.length === 0) {
       return;
     }
 
-    const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
-      tokenContractAddresses,
-      chainId,
-      nativeCurrency,
-    });
+    const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}`;
+    if (updateKey in this.#inProcessExchangeRateUpdates) {
+      // This prevents redundant updates
+      // This promise is resolved after the in-progress update has finished,
+      // and state has been updated.
+      await this.#inProcessExchangeRateUpdates[updateKey];
+      return;
+    }
 
-    const existingContractExchangeRates = this.state.contractExchangeRates;
-    const updatedContractExchangeRates =
-      chainId === this.config.chainId &&
-      nativeCurrency === this.config.nativeCurrency
-        ? newContractExchangeRates
-        : existingContractExchangeRates;
+    const {
+      promise: inProgressUpdate,
+      resolve: updateSucceeded,
+      reject: updateFailed,
+    } = createDeferredPromise({ suppressUnhandledRejection: true });
+    this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
 
-    const existingContractExchangeRatesForChainId =
-      this.state.contractExchangeRatesByChainId[chainId] ?? {};
-    const updatedContractExchangeRatesForChainId = {
-      ...this.state.contractExchangeRatesByChainId,
-      [chainId]: {
-        ...existingContractExchangeRatesForChainId,
-        [nativeCurrency]: {
-          ...existingContractExchangeRatesForChainId[nativeCurrency],
-          ...newContractExchangeRates,
+    try {
+      const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
+        tokenAddresses,
+        chainId,
+        nativeCurrency,
+      });
+
+      const existingContractExchangeRates = this.state.contractExchangeRates;
+      const updatedContractExchangeRates =
+        chainId === this.config.chainId &&
+        nativeCurrency === this.config.nativeCurrency
+          ? newContractExchangeRates
+          : existingContractExchangeRates;
+
+      const existingContractExchangeRatesForChainId =
+        this.state.contractExchangeRatesByChainId[chainId] ?? {};
+      const updatedContractExchangeRatesForChainId = {
+        ...this.state.contractExchangeRatesByChainId,
+        [chainId]: {
+          ...existingContractExchangeRatesForChainId,
+          [nativeCurrency]: {
+            ...existingContractExchangeRatesForChainId[nativeCurrency],
+            ...newContractExchangeRates,
+          },
         },
-      },
-    };
+      };
 
-    this.update({
-      contractExchangeRates: updatedContractExchangeRates,
-      contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
-    });
+      this.update({
+        contractExchangeRates: updatedContractExchangeRates,
+        contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
+      });
+      updateSucceeded();
+    } catch (error: unknown) {
+      updateFailed(error);
+      throw error;
+    } finally {
+      delete this.#inProcessExchangeRateUpdates[updateKey];
+    }
   }
 
   /**
@@ -396,42 +437,42 @@ export class TokenRatesController extends PollingControllerV1<
    * exchange rate between the known currency and desired currency.
    *
    * @param args - The arguments to this function.
-   * @param args.tokenContractAddresses - Contract addresses for tokens.
+   * @param args.tokenAddresses - Addresses for tokens.
    * @param args.chainId - The EIP-155 ID of the chain where the tokens live.
    * @param args.nativeCurrency - The native currency in which to request
    * exchange rates.
-   * @returns A map from token contract address to its exchange rate in the
-   * native currency, or an empty map if no exchange rates can be obtained for
-   * the chain ID.
+   * @returns A map from token address to its exchange rate in the native
+   * currency, or an empty map if no exchange rates can be obtained for the
+   * chain ID.
    */
   async #fetchAndMapExchangeRates({
-    tokenContractAddresses,
+    tokenAddresses,
     chainId,
     nativeCurrency,
   }: {
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
-      return tokenContractAddresses.reduce((obj, tokenContractAddress) => {
+      return tokenAddresses.reduce((obj, tokenAddress) => {
         return {
           ...obj,
-          [tokenContractAddress]: undefined,
+          [tokenAddress]: undefined,
         };
       }, {});
     }
 
     if (this.#tokenPricesService.validateCurrencySupported(nativeCurrency)) {
       return await this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
-        tokenContractAddresses,
+        tokenAddresses,
         chainId,
         nativeCurrency,
       });
     }
 
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
-      tokenContractAddresses,
+      tokenAddresses,
       nativeCurrency,
     });
   }
@@ -455,7 +496,7 @@ export class TokenRatesController extends PollingControllerV1<
    * chain. Ensures that token addresses are checksum addresses.
    *
    * @param args - The arguments to this function.
-   * @param args.tokenContractAddresses - Contract addresses for tokens.
+   * @param args.tokenAddresses - Addresses for tokens.
    * @param args.chainId - The EIP-155 ID of the chain where the tokens live.
    * @param args.nativeCurrency - The native currency in which to request
    * prices.
@@ -463,26 +504,41 @@ export class TokenRatesController extends PollingControllerV1<
    * native currency.
    */
   async #fetchAndMapExchangeRatesForSupportedNativeCurrency({
-    tokenContractAddresses,
+    tokenAddresses,
     chainId,
     nativeCurrency,
   }: {
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
-    const tokenPricesByTokenContractAddress =
-      await this.#tokenPricesService.fetchTokenPrices({
-        tokenContractAddresses,
-        chainId,
-        currency: nativeCurrency,
-      });
+    const tokenPricesByTokenAddress = await reduceInBatchesSerially<
+      Hex,
+      Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+    >({
+      values: tokenAddresses,
+      batchSize: TOKEN_PRICES_BATCH_SIZE,
+      eachBatch: async (allTokenPricesByTokenAddress, batch) => {
+        const tokenPricesByTokenAddressForBatch =
+          await this.#tokenPricesService.fetchTokenPrices({
+            tokenAddresses: batch,
+            chainId,
+            currency: nativeCurrency,
+          });
 
-    return Object.entries(tokenPricesByTokenContractAddress).reduce(
-      (obj, [tokenContractAddress, tokenPrice]) => {
+        return {
+          ...allTokenPricesByTokenAddress,
+          ...tokenPricesByTokenAddressForBatch,
+        };
+      },
+      initialResult: {},
+    });
+
+    return Object.entries(tokenPricesByTokenAddress).reduce(
+      (obj, [tokenAddress, tokenPrice]) => {
         return {
           ...obj,
-          [toChecksumHexAddress(tokenContractAddress)]: tokenPrice.value,
+          [tokenAddress]: tokenPrice.value,
         };
       },
       {},
@@ -495,27 +551,27 @@ export class TokenRatesController extends PollingControllerV1<
    * API, then convert the prices to our desired native currency.
    *
    * @param args - The arguments to this function.
-   * @param args.tokenContractAddresses - The contract addresses for the tokens you
-   * want to retrieve prices for.
-   * @param args.nativeCurrency - The currency you want the prices to be in.
+   * @param args.tokenAddresses - Addresses for tokens.
+   * @param args.nativeCurrency - The native currency in which to request
+   * prices.
    * @returns A map of the token addresses (as checksums) to their prices in the
    * native currency.
    */
   async #fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
-    tokenContractAddresses,
+    tokenAddresses,
     nativeCurrency,
   }: {
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     const [
-      tokenPricesByTokenContractAddress,
+      contractExchangeRates,
       fallbackCurrencyToNativeCurrencyConversionRate,
     ] = await Promise.all([
-      this.#tokenPricesService.fetchTokenPrices({
-        tokenContractAddresses,
-        currency: FALL_BACK_VS_CURRENCY,
+      this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
+        tokenAddresses,
         chainId: this.config.chainId,
+        nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
       getCurrencyConversionRate({
         from: FALL_BACK_VS_CURRENCY,
@@ -527,17 +583,74 @@ export class TokenRatesController extends PollingControllerV1<
       return {};
     }
 
-    return Object.entries(tokenPricesByTokenContractAddress).reduce(
-      (obj, [tokenContractAddress, tokenPrice]) => {
+    return Object.entries(contractExchangeRates).reduce(
+      (obj, [tokenAddress, tokenValue]) => {
         return {
           ...obj,
-          [toChecksumHexAddress(tokenContractAddress)]:
-            tokenPrice.value * fallbackCurrencyToNativeCurrencyConversionRate,
+          [tokenAddress]: tokenValue
+            ? tokenValue * fallbackCurrencyToNativeCurrencyConversionRate
+            : undefined,
         };
       },
       {},
     );
   }
+}
+
+/**
+ * A deferred Promise.
+ *
+ * A deferred Promise is one that can be resolved or rejected independently of
+ * the Promise construction.
+ */
+type DeferredPromise = {
+  /**
+   * The Promise that has been deferred.
+   */
+  promise: Promise<void>;
+  /**
+   * A function that resolves the Promise.
+   */
+  resolve: () => void;
+  /**
+   * A function that rejects the Promise.
+   */
+  reject: (error: unknown) => void;
+};
+
+/**
+ * Create a defered Promise.
+ *
+ * TODO: Migrate this to utils
+ *
+ * @param args - The arguments.
+ * @param args.suppressUnhandledRejection - This option adds an empty error handler
+ * to the Promise to suppress the UnhandledPromiseRejection error. This can be
+ * useful if the deferred Promise is sometimes intentionally not used.
+ * @returns A deferred Promise.
+ */
+function createDeferredPromise({
+  suppressUnhandledRejection = false,
+}: {
+  suppressUnhandledRejection: boolean;
+}): DeferredPromise {
+  let resolve: DeferredPromise['resolve'];
+  let reject: DeferredPromise['reject'];
+  const promise = new Promise<void>(
+    (innerResolve: () => void, innerReject: () => void) => {
+      resolve = innerResolve;
+      reject = innerReject;
+    },
+  );
+
+  if (suppressUnhandledRejection) {
+    promise.catch((_error) => {
+      // This handler is used to suppress the UnhandledPromiseRejection error
+    });
+  }
+
+  // @ts-expect-error We know that these are assigned, but TypeScript doesn't
+  return { promise, resolve, reject };
 }
 
 export default TokenRatesController;

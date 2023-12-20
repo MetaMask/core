@@ -694,10 +694,11 @@ describe('PermissionController', () => {
     });
 
     it('throws if a permission specification lists unrecognized caveats', () => {
-      const permissionSpecifications = getDefaultPermissionSpecifications();
-      (
-        permissionSpecifications as any
-      ).wallet_getSecretArray.allowedCaveats.push('foo');
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const permissionSpecifications: any =
+        getDefaultPermissionSpecifications();
+      permissionSpecifications.wallet_getSecretArray.allowedCaveats.push('foo');
 
       expect(
         () =>
@@ -1653,6 +1654,8 @@ describe('PermissionController', () => {
           origin,
           PermissionNames.wallet_getSecretObject,
           CaveatTypes.noopCaveat,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           'bar' as any,
         ),
       ).toThrow(new Error('NoopCaveat value must be null'));
@@ -2081,6 +2084,8 @@ describe('PermissionController', () => {
       const controller = getMultiCaveatController();
 
       let counter = 0;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mutator: any = () => {
         counter += 1;
         return counter === 1
@@ -2170,6 +2175,8 @@ describe('PermissionController', () => {
       const controller = getMultiCaveatController();
 
       let counter = 0;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mutator: any = () => {
         counter += 1;
         return {
@@ -2186,6 +2193,8 @@ describe('PermissionController', () => {
       );
 
       const matcher = getMultiCaveatStateMatcher();
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (matcher.subjects as any)[MultiCaveatOrigins.a];
 
       expect(controller.state).toStrictEqual(matcher);
@@ -2224,6 +2233,8 @@ describe('PermissionController', () => {
         controller.updatePermissionsByCaveat(
           CaveatTypes.filterArrayResponse,
           () => {
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return { operation: 'foobar' } as any;
           },
         ),
@@ -2494,6 +2505,8 @@ describe('PermissionController', () => {
 
       expect(() =>
         controller.grantPermissions({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           subject: { origin: 2 as any },
           approvedPermissions: {
             wallet_getSecretArray: {},
@@ -2594,6 +2607,8 @@ describe('PermissionController', () => {
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
+              // TODO: Replace `any` with type
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               caveats: [[]] as any,
             },
           },
@@ -2611,6 +2626,8 @@ describe('PermissionController', () => {
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
+              // TODO: Replace `any` with type
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               caveats: ['foo'] as any,
             },
           },
@@ -2638,6 +2655,8 @@ describe('PermissionController', () => {
                   ...{ type: CaveatTypes.filterArrayResponse, value: ['foo'] },
                   bar: 'bar',
                 },
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ] as any,
             },
           },
@@ -2668,6 +2687,8 @@ describe('PermissionController', () => {
                   type: 2,
                   value: ['foo'],
                 },
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ] as any,
             },
           },
@@ -2720,6 +2741,8 @@ describe('PermissionController', () => {
                   type: CaveatTypes.filterArrayResponse,
                   foo: 'bar',
                 },
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ] as any,
             },
           },
@@ -2740,6 +2763,8 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const circular: any = { foo: 'bar' };
       circular.circular = circular;
 
@@ -2875,6 +2900,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -2925,6 +2952,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -2985,6 +3014,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3049,6 +3080,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3122,6 +3155,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3177,6 +3212,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3229,6 +3266,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3274,6 +3313,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3329,6 +3370,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3398,6 +3441,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3476,6 +3521,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           const approvedPermissions = { ...requestData.permissions };
@@ -3550,6 +3597,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           const approvedPermissions = { ...requestData.permissions };
@@ -3644,6 +3693,8 @@ describe('PermissionController', () => {
           async () =>
             await controller.requestPermissions(
               { origin },
+              // TODO: Replace `any` with type
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               invalidInput as any,
             ),
         ).rejects.toThrow(
@@ -3807,6 +3858,8 @@ describe('PermissionController', () => {
             extensionId: null,
           };
         })
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -3899,6 +3952,8 @@ describe('PermissionController', () => {
               { origin },
               {
                 [PermissionNames.wallet_getSecretArray]: {
+                  // TODO: Replace `any` with type
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   caveats: invalidCaveatsValue as any,
                 },
               },
@@ -3997,6 +4052,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -4047,6 +4104,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -4097,6 +4156,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -4149,6 +4210,8 @@ describe('PermissionController', () => {
       const callActionSpy = jest.spyOn(messenger, 'call');
 
       // The metadata is valid, but the permissions are invalid
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const getInvalidRequestObject = (invalidPermissions: any) => {
         return {
           metadata: { origin, id },
@@ -4207,6 +4270,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
@@ -4282,7 +4347,11 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => true)
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => undefined);
 
       const controller = getDefaultPermissionController(options);
@@ -4324,7 +4393,11 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => true)
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => undefined);
 
       const controller = getDefaultPermissionController(options);
@@ -4361,6 +4434,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => false);
 
       const controller = getDefaultPermissionController(options);
@@ -4393,10 +4468,16 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => true)
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => {
           throw new Error('unexpected failure');
         })
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => undefined);
 
       const controller = getDefaultPermissionController(options);
@@ -4449,7 +4530,11 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (..._args: any) => true)
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce(async (..._args: any) => undefined);
 
       const controller = getDefaultPermissionController(options);
@@ -4480,6 +4565,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockImplementationOnce((..._args: any) => false);
 
       const controller = getDefaultPermissionController(options);
@@ -4533,6 +4620,8 @@ describe('PermissionController', () => {
       await expect(
         controller.getEndowments(
           origin,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           PermissionNames.wallet_getSecretArray as any,
         ),
       ).rejects.toThrow(
@@ -4663,15 +4752,19 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       await expect(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         controller.executeRestrictedMethod(origin, 'wallet_getMeTacos' as any),
       ).rejects.toThrow(errors.methodNotFound('wallet_getMeTacos', { origin }));
     });
 
     it('throws if the restricted method returns undefined', async () => {
-      const permissionSpecifications = getDefaultPermissionSpecifications();
-      (
-        permissionSpecifications as any
-      ).wallet_doubleNumber.methodImplementation = () => undefined;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const permissionSpecifications: any =
+        getDefaultPermissionSpecifications();
+      permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
+        undefined;
 
       const controller = new PermissionController<
         DefaultPermissionSpecifications,
@@ -5155,6 +5248,8 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
@@ -5180,6 +5275,8 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
@@ -5208,6 +5305,8 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
@@ -5225,9 +5324,15 @@ describe('PermissionController', () => {
       engine.push(controller.createPermissionMiddleware({ origin }));
       engine.push(
         (
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           _req: any,
           res: PendingJsonRpcResponse<'success'>,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           _next: any,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           end: () => any,
         ) => {
           res.result = 'success';
@@ -5235,6 +5340,8 @@ describe('PermissionController', () => {
         },
       );
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
@@ -5250,6 +5357,8 @@ describe('PermissionController', () => {
       ['', null, undefined, 2].forEach((invalidOrigin) => {
         expect(() =>
           controller.createPermissionMiddleware({
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             origin: invalidOrigin as any,
           }),
         ).toThrow(
@@ -5265,6 +5374,8 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const request: any = {
         jsonrpc: '2.0',
         id: 1,
@@ -5281,6 +5392,8 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error }: any = await engine.handle(request);
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
@@ -5292,6 +5405,8 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const request: any = {
         jsonrpc: '2.0',
         id: 1,
@@ -5300,6 +5415,8 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error }: any = await engine.handle(request);
 
       expect(error.message).toStrictEqual(expectedError.message);
@@ -5310,10 +5427,12 @@ describe('PermissionController', () => {
     });
 
     it('returns an error if the restricted method returns undefined', async () => {
-      const permissionSpecifications = getDefaultPermissionSpecifications();
-      (
-        permissionSpecifications as any
-      ).wallet_doubleNumber.methodImplementation = () => undefined;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const permissionSpecifications: any =
+        getDefaultPermissionSpecifications();
+      permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
+        undefined;
 
       const controller = new PermissionController<
         DefaultPermissionSpecifications,
@@ -5335,6 +5454,8 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const request: any = {
         jsonrpc: '2.0',
         id: 1,
@@ -5346,6 +5467,8 @@ describe('PermissionController', () => {
         { request: { ...request } },
       );
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error }: any = await engine.handle(request);
       expect(error.message).toStrictEqual(expectedError.message);
       expect(error.data.cause).toBeNull();

@@ -2,6 +2,7 @@ import { isStrictHexString } from '@metamask/utils';
 import type { Struct, StructError } from 'superstruct';
 import {
   assert,
+  boolean,
   define,
   func,
   object,
@@ -16,12 +17,18 @@ import type {
   SignUserOperationResponse,
   UpdateUserOperationResponse,
 } from '../types';
+import type {
+  AddUserOperationOptions,
+  AddUserOperationRequest,
+} from '../UserOperationController';
 
 /**
  * Validate a request to add a user operation.
  * @param request - The request to validate.
  */
-export function validateAddUserOperationRequest(request: any) {
+export function validateAddUserOperationRequest(
+  request: AddUserOperationRequest,
+) {
   const Hex = defineHex();
   const HexOrEmptyBytes = defineHexOrEmptyBytes();
 
@@ -40,11 +47,13 @@ export function validateAddUserOperationRequest(request: any) {
  * Validate the options when adding a user operation.
  * @param options - The options to validate.
  */
-export function validateAddUserOperationOptions(options: any) {
-  const Hex = defineHex();
-
+export function validateAddUserOperationOptions(
+  options: AddUserOperationOptions,
+) {
   const ValidOptions = object({
-    chainId: Hex,
+    networkClientId: string(),
+    origin: string(),
+    requireApproval: optional(boolean()),
     smartContractAccount: object({
       prepareUserOperation: func(),
       updateUserOperation: func(),
@@ -148,13 +157,13 @@ export function validateSignUserOperationResponse(
  * @param struct - The struct to validate against.
  * @param message - The message to throw if validation fails.
  */
-function validate(data: any, struct: Struct<any>, message: string) {
+function validate<T>(data: unknown, struct: Struct<T>, message: string) {
   try {
     assert(data, struct, message);
-  } catch (error: any) {
-    const causes = error
+  } catch (error) {
+    const causes = (error as StructError)
       .failures()
-      .map((failure: StructError) => {
+      .map((failure) => {
         if (!failure.path.length) {
           return failure.message;
         }

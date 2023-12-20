@@ -184,7 +184,11 @@ export class RateLimitController<
     const rateLimitTimeout =
       this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const previous = (state as any).requests[api][origin] ?? 0;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (state as any).requests[api][origin] = previous + 1;
 
       if (previous === 0) {
@@ -201,6 +205,8 @@ export class RateLimitController<
    */
   private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (state as any).requests[api][origin] = 0;
     });
   }

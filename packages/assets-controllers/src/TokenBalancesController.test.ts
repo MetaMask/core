@@ -20,6 +20,8 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
     return {
       supportsInterface: sinon.stub().returns(res),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
   });
 };
@@ -142,7 +144,8 @@ describe('TokenBalancesController', () => {
       onNetworkDidChange: (listener) =>
         messenger.subscribe('NetworkController:networkDidChange', listener),
       onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -182,7 +185,8 @@ describe('TokenBalancesController', () => {
       onNetworkDidChange: (listener) =>
         messenger.subscribe('NetworkController:networkDidChange', listener),
       onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -239,7 +243,8 @@ describe('TokenBalancesController', () => {
       onNetworkDidChange: (listener) =>
         messenger.subscribe('NetworkController:networkDidChange', listener),
       onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -271,6 +276,8 @@ describe('TokenBalancesController', () => {
   });
 
   it('should update token balances when detected tokens are added', async () => {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let tokenStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub().callsFake((listener) => {
       tokenStateChangeListener = listener;

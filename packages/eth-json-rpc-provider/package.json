@@ -24,6 +24,7 @@
     "build": "tsc --project tsconfig.build.json",
     "build:clean": "rimraf dist && yarn build",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-json-rpc-provider",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-provider",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies",
     "lint:dependencies": "depcheck",
@@ -42,10 +43,9 @@
     "@metamask/utils": "^8.2.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
-    "depcheck": "^1.4.3",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",

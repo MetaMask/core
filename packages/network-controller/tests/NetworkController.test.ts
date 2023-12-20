@@ -3921,6 +3921,50 @@ describe('NetworkController', () => {
         );
       });
 
+      it('updates state only after creating the new network client', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller, messenger }) => {
+            uuidV4Mock.mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+            const newCustomNetworkClient = buildFakeClient();
+            mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
+              infuraProjectId: 'some-infura-project-id',
+            })
+              .calledWith({
+                chainId: toHex(111),
+                rpcUrl: 'https://test.network',
+                type: NetworkClientType.Custom,
+                ticker: 'TICKER',
+              })
+              .mockReturnValue(newCustomNetworkClient);
+
+            await waitForStateChanges({
+              messenger,
+              count: 1,
+              operation: async () => {
+                await controller.upsertNetworkConfiguration(
+                  {
+                    rpcUrl: 'https://test.network',
+                    chainId: toHex(111),
+                    ticker: 'TICKER',
+                  },
+                  {
+                    referrer: 'https://test-dapp.com',
+                    source: 'dapp',
+                  },
+                );
+              },
+              beforeResolving: () => {
+                const newNetworkClient = controller.getNetworkClientById(
+                  'AAAA-AAAA-AAAA-AAAA',
+                );
+                expect(newNetworkClient).toBeDefined();
+              },
+            });
+          },
+        );
+      });
+
       describe('if the setActive option is not given', () => {
         it('does not update the provider config to the new network configuration by default', async () => {
           const originalProvider = {
@@ -7460,6 +7504,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       // the signature of `subscribe` and the way that we're using it. Try
       // changing `any` to either `((...args: E['payload']) => void)` or
       // `ExtractEventHandler<E, E['type']>` to see the issue.
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eventListener: any = (...payload: E['payload']) => {
         allEventPayloads.push(payload);
 

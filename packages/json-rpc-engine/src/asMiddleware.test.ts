@@ -41,6 +41,8 @@ describe('asMiddleware', () => {
 
     subengine.push(function (request, response, _next, end) {
       originalRequest = request;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (response as any).xyz = true;
       response.result = true;
       end();
@@ -56,6 +58,8 @@ describe('asMiddleware', () => {
         expect(response).toBeDefined();
         expect(originalRequest.id).toStrictEqual(response.id);
         expect(originalRequest.jsonrpc).toStrictEqual(response.jsonrpc);
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((response as any).xyz).toBe(true);
         resolve();
       });
@@ -69,7 +73,11 @@ describe('asMiddleware', () => {
 
     subengine.push(function (request, response, _next, end) {
       originalRequest = request;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (request as any).xyz = true;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (response as any).xyz = true;
       response.result = true;
       end();
@@ -85,6 +93,8 @@ describe('asMiddleware', () => {
         expect(response).toBeDefined();
         expect(originalRequest.id).toStrictEqual(response.id);
         expect(originalRequest.jsonrpc).toStrictEqual(response.jsonrpc);
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((originalRequest as any).xyz).toBe(true);
         resolve();
       });
@@ -120,6 +130,8 @@ describe('asMiddleware', () => {
 
     subengine.push((_request, response, next, _end) => {
       next((callback) => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response as any).copy = response.result;
         callback();
       });
@@ -153,6 +165,8 @@ describe('asMiddleware', () => {
 
     subengine.push((_request, response, next, _end) => {
       next((callback) => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (response as any).copy = response.result;
         callback();
       });
@@ -196,6 +210,8 @@ describe('asMiddleware', () => {
     await new Promise<void>((resolve) => {
       engine.handle(payload, function (error, response) {
         expect(error).toBeDefined();
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((error as any).message).toBe('foo');
         expect(isJsonRpcSuccess(response)).toBe(false);
         resolve();
@@ -223,6 +239,8 @@ describe('asMiddleware', () => {
     await new Promise<void>((resolve) => {
       engine.handle(payload, function (error, response) {
         expect(error).toBeDefined();
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((error as any).message).toBe('foo');
         expect(isJsonRpcSuccess(response)).toBe(false);
         resolve();
@@ -251,6 +269,8 @@ describe('asMiddleware', () => {
     await new Promise<void>((resolve) => {
       engine.handle(payload, function (error, response) {
         expect(error).toBeDefined();
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((error as any).message).toBe('foo');
         expect(isJsonRpcSuccess(response)).toBe(false);
         resolve();

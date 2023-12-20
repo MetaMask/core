@@ -170,6 +170,8 @@ describe('TokenDetectionController', () => {
     controllerMessenger = getControllerMessenger();
     sinon
       .stub(TokensController.prototype, '_createEthersContract')
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .callsFake(() => null as any);
 
     tokensController = new TokensController({
@@ -178,7 +180,8 @@ describe('TokenDetectionController', () => {
       onNetworkDidChange: (listener) =>
         onNetworkDidChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -443,6 +446,8 @@ describe('TokenDetectionController', () => {
 
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let networkStateChangeListener: (state: any) => void;
     const onNetworkStateChange = sinon.stub().callsFake((listener) => {
       networkStateChangeListener = listener;
@@ -487,6 +492,8 @@ describe('TokenDetectionController', () => {
   it('should not call getBalancesInSingleCall if onTokenListStateChange is called with an empty token list', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let tokenListStateChangeListener: (state: any) => void;
     const onTokenListStateChange = sinon.stub().callsFake((listener) => {
       tokenListStateChangeListener = listener;
@@ -520,6 +527,8 @@ describe('TokenDetectionController', () => {
   it('should call getBalancesInSingleCall if onPreferencesStateChange is called with useTokenDetection being true and is changed', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let preferencesStateChangeListener: (state: any) => void;
     const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
       preferencesStateChangeListener = listener;
@@ -557,6 +566,8 @@ describe('TokenDetectionController', () => {
   it('should call getBalancesInSingleCall if onNetworkStateChange is called with a chainId that supports token detection and is changed', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let networkStateChangeListener: (state: any) => void;
     const onNetworkStateChange = sinon.stub().callsFake((listener) => {
       networkStateChangeListener = listener;

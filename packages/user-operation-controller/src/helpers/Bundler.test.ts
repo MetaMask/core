@@ -5,6 +5,7 @@ const URL_MOCK = 'http://test.com';
 const ENTRYPOINT_MOCK = '0x123';
 const ERROR_MESSAGE_MOCK = 'Test Error';
 const ERROR_CODE_MOCK = 123;
+const USER_OPERATION_HASH_MOCK = '0xabc';
 
 const USER_OPERATION_MOCK: UserOperation = {
   callData: '0x1',
@@ -22,91 +23,96 @@ const USER_OPERATION_MOCK: UserOperation = {
 
 describe('Bundler', () => {
   describe.each([
-    ['estimateUserOperationGas', [USER_OPERATION_MOCK, ENTRYPOINT_MOCK]],
-    ['sendUserOperation', [USER_OPERATION_MOCK, ENTRYPOINT_MOCK]],
-  ])('%s', (methodName, args) => {
-    it('sends JSON-RPC request to URL', async () => {
+    [
+      'estimateUserOperationGas' as const,
+      [USER_OPERATION_MOCK, ENTRYPOINT_MOCK],
+    ],
+    ['getUserOperationReceipt' as const, [USER_OPERATION_HASH_MOCK]],
+    ['sendUserOperation' as const, [USER_OPERATION_MOCK, ENTRYPOINT_MOCK]],
+  ])(
+    '%s',
+
+    (methodName, args) => {
       const bundler = new Bundler(URL_MOCK);
 
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            result: {},
+      /**
+       * Invoke the current method on the bundler instance.
+       */
+      async function invokeBundler() {
+        return await (
+          bundler[methodName] as (...args: unknown[]) => Promise<unknown>
+        )(...args);
+      }
+
+      /**
+       * Mock fetch to return a JSON response.
+       * @param jsonResponse - The JSON response to return.
+       */
+      function mockJsonResponse(jsonResponse: Record<string, unknown>) {
+        jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+          json: () => Promise.resolve(jsonResponse),
+        } as Response);
+      }
+
+      it('sends JSON-RPC request to URL', async () => {
+        mockJsonResponse({ result: {} });
+
+        await invokeBundler();
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(global.fetch).toHaveBeenCalledWith(
+          URL_MOCK,
+          expect.objectContaining({
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: `eth_${methodName}`,
+              params: args,
+            }),
           }),
-      } as any);
+        );
+      });
 
-      await (bundler as any)[methodName](...args);
+      it('returns JSON result', async () => {
+        const responseMock = {
+          test: 'value',
+        };
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(global.fetch).toHaveBeenCalledWith(
-        URL_MOCK,
-        expect.objectContaining({
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: `eth_${methodName}`,
-            params: args,
+        mockJsonResponse({ result: responseMock });
+
+        const response = await invokeBundler();
+
+        expect(response).toStrictEqual(responseMock);
+      });
+
+      it('throws if response has error message', async () => {
+        mockJsonResponse({
+          error: ERROR_MESSAGE_MOCK,
+        });
+
+        await expect(invokeBundler()).rejects.toThrow(
+          expect.objectContaining({
+            message: ERROR_MESSAGE_MOCK,
+            code: undefined,
           }),
-        }),
-      );
-    });
+        );
+      });
 
-    it('returns JSON result', async () => {
-      const bundler = new Bundler(URL_MOCK);
+      it('throws if response has error message and code', async () => {
+        mockJsonResponse({
+          error: {
+            message: ERROR_MESSAGE_MOCK,
+            code: ERROR_CODE_MOCK,
+          },
+        });
 
-      const responseMock = {
-        test: 'value',
-      };
-
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            result: responseMock,
+        await expect(invokeBundler()).rejects.toThrow(
+          expect.objectContaining({
+            message: ERROR_MESSAGE_MOCK,
+            code: ERROR_CODE_MOCK,
           }),
-      } as any);
-
-      const response = await (bundler as any)[methodName](...args);
-
-      expect(response).toStrictEqual(responseMock);
-    });
-
-    it('throws if response has error message', async () => {
-      const bundler = new Bundler(URL_MOCK);
-
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            error: ERROR_MESSAGE_MOCK,
-          }),
-      } as any);
-
-      await expect((bundler as any)[methodName](...args)).rejects.toThrow(
-        expect.objectContaining({
-          message: ERROR_MESSAGE_MOCK,
-          code: undefined,
-        }),
-      );
-    });
-
-    it('throws if response has error message and code', async () => {
-      const bundler = new Bundler(URL_MOCK);
-
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-        json: () =>
-          Promise.resolve({
-            error: {
-              message: ERROR_MESSAGE_MOCK,
-              code: ERROR_CODE_MOCK,
-            },
-          }),
-      } as any);
-
-      await expect((bundler as any)[methodName](...args)).rejects.toThrow(
-        expect.objectContaining({
-          message: ERROR_MESSAGE_MOCK,
-          code: ERROR_CODE_MOCK,
-        }),
-      );
-    });
-  });
+        );
+      });
+    },
+  );
 });
