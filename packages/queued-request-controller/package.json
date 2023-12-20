@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/queued-request-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/queued-request-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -39,7 +40,7 @@
   },
   "devDependencies": {
     "@metamask/approval-controller": "^5.1.0",
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^17.0.0",
     "@metamask/selected-network-controller": "^5.0.0",
     "@types/jest": "^27.4.1",
