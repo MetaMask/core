@@ -24,10 +24,7 @@ import type {
   TokenListStateChange,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
-import type {
-  TokensControllerAddDetectedTokensAction,
-  TokensControllerGetStateAction,
-} from './TokensController';
+import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -45,8 +42,6 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
-  | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction
   | GetTokenListState;
 
 export type TokenDetectionControllerStateChangeEvent =
@@ -97,7 +92,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #isDetectionEnabledForNetwork: boolean;
 
+  readonly #addDetectedTokens: TokensController['addDetectedTokens'];
+
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+
+  readonly #getTokensState: () => TokensState;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -109,7 +108,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.networkClientId - The selected network client ID of the current network
    * @param options.selectedAddress - Vault selected address
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
+   * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
+   * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param options.getPreferencesState - Gets the state of the preferences controller.
    */
   constructor({
@@ -119,7 +120,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     disabled = false,
     onPreferencesStateChange,
     getBalancesInSingleCall,
+    addDetectedTokens,
     getPreferencesState,
+    getTokensState,
     messenger,
   }: {
     networkClientId: NetworkClientId;
@@ -129,7 +132,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
+    addDetectedTokens: TokensController['addDetectedTokens'];
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+    getTokensState: () => TokensState;
     getPreferencesState: () => PreferencesState;
     messenger: TokenDetectionControllerMessenger;
   }) {
@@ -155,7 +160,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       this.#chainId,
     );
 
+    this.#addDetectedTokens = addDetectedTokens;
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
+    this.#getTokensState = getTokensState;
 
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
@@ -287,9 +294,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     ) {
       return;
     }
-    const { tokens } = this.messagingSystem.call('TokensController:getState');
-    const selectedAddress = accountAddress ?? this.#selectedAddress;
+    const { tokens } = this.#getTokensState();
+    const selectedAddress = accountAddress || this.#selectedAddress;
     const chainId = this.#getCorrectChainId(networkClientId);
+
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
@@ -328,9 +336,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         for (const tokenAddress of Object.keys(balances)) {
           let ignored;
           /* istanbul ignore else */
-          const { ignoredTokens } = this.messagingSystem.call(
-            'TokensController:getState',
-          );
+          const { ignoredTokens } = this.#getTokensState();
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -358,14 +364,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         }
 
         if (tokensToAdd.length) {
-          this.messagingSystem.call(
-            'TokensController:addDetectedTokens',
-            tokensToAdd,
-            {
-              selectedAddress,
-              chainId,
-            },
-          );
+          await this.#addDetectedTokens(tokensToAdd, {
+            selectedAddress,
+            chainId,
+          });
         }
       });
     }
