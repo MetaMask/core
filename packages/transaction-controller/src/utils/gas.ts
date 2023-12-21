@@ -172,7 +172,7 @@ async function requiresFixedGas({
   }
 
   if (!to) {
-    return true;
+    return false;
   }
 
   const code = await getCode(ethQuery, to);

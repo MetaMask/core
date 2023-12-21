@@ -6,7 +6,13 @@ import type EthQuery from '@metamask/eth-query';
 import { CHAIN_IDS } from '../constants';
 import type { TransactionMeta } from '../types';
 import type { UpdateGasRequest } from './gas';
-import { addGasBuffer, estimateGas, updateGas, FIXED_GAS } from './gas';
+import {
+  addGasBuffer,
+  estimateGas,
+  updateGas,
+  FIXED_GAS,
+  DEFAULT_GAS_MULTIPLIER,
+} from './gas';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -127,6 +133,23 @@ describe('gas', () => {
         );
       });
 
+      it('to estimate if not custom network and no to parameter', async () => {
+        updateGasRequest.providerConfig.type = NetworkType.mainnet;
+        const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
+        delete updateGasRequest.txMeta.txParams.to;
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(gasEstimation));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
       it('to estimate if estimate greater than 90% of block gas limit', async () => {
         const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
 
@@ -210,19 +233,6 @@ describe('gas', () => {
       });
 
       describe('to fixed value', () => {
-        it('if not custom network and no to parameter', async () => {
-          updateGasRequest.providerConfig.type = NetworkType.mainnet;
-          delete updateGasRequest.txMeta.txParams.to;
-
-          await updateGas(updateGasRequest);
-
-          expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
-          expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
-            updateGasRequest.txMeta.txParams.gas,
-          );
-          expectEstimateGasNotCalled();
-        });
-
         it('if not custom network and to parameter and no data and no code', async () => {
           updateGasRequest.providerConfig.type = NetworkType.mainnet;
           delete updateGasRequest.txMeta.txParams.data;
