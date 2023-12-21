@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.0]
-### Uncategorized
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
+### Changed
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^11.0.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 
 ## [6.0.0]
 ### Changed

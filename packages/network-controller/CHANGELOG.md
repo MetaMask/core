@@ -7,14 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [17.1.0]
-### Uncategorized
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Move state update call after networkClient is instantiated and added to registry in `upsertNetworkConfiguration` ([#3679](https://github.com/MetaMask/core/pull/3679))
-- Release 101.0.0 ([#3678](https://github.com/MetaMask/core/pull/3678))
-- Release 100.0.0 ([#3667](https://github.com/MetaMask/core/pull/3667))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+- Bump `@metamask/eth-json-rpc-provider` to `^2.3.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/json-rpc-engine` to `^7.3.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Create new network clients before updating `networkConfigurations` state ([#3679](https://github.com/MetaMask/core/pull/3679))
+  - This primarily affects subscribers to the `NetworkController:stateChange` event. It's now safe to use a network client for any network that appears in the `networkConfigurations` state, whereas previously it was possible that synchronous attempts to access a network client in response to this event would fail.
 - Add `NetworkState` payload to `NetworkController:networkWillChange` and `NetworkController:networkDidChange` ([#3598](https://github.com/MetaMask/core/pull/3598))
-- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
+  - Both of these events now include `NetworkState`` as the first and only item in the payload
 
 ### Added
 - Add `getNetworkConfigurationByNetworkClientId` method which can be used to retrieve details for both custom and built-in networks (using the network configuration object shape) ([#2055](https://github.com/MetaMask/core/pull/2055))

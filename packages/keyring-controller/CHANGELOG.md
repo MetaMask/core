@@ -7,15 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [11.0.0]
-### Uncategorized
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- fix: update forgetQRDevice method ([#3641](https://github.com/MetaMask/core/pull/3641))
-- deps(keyring-controller,message-manager): @metamask/eth-sig-util@^7.0.0->^7.0.1 ([#3614](https://github.com/MetaMask/core/pull/3614))
-- Remove superfluous typescript reference paths ([#3608](https://github.com/MetaMask/core/pull/3608))
-
 ### Changed
+- **BREAKING:** Bump `@metamask/preferences-controller` dependency and peer dependency from `^5.0.0` to `^5.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - Bump `@metamask/eth-keyring-controller` to `^15.1.0` ([#3617](https://github.com/MetaMask/core/pull/3617))
+- Bump `@metamask/eth-sig-util` to `^7.0.1` ([#3614](https://github.com/MetaMask/core/pull/3614))
+- Bump `@metamask/message-manager` to `^7.3.7` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Update `forgetQRDevice` to return an object containing `removedAccounts` and `remainingAccounts` ([#3641](https://github.com/MetaMask/core/pull/3641))
 
 ## [10.0.0]
 ### Changed

@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [23.0.0]
-### Uncategorized
-- OpenSea supply -> total_supply ([#3692](https://github.com/MetaMask/core/pull/3692))
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- fix: shiden chain id ([#3683](https://github.com/MetaMask/core/pull/3683))
-- chore(assets-controllers): Update `cockatiel` and widen range ([#3682](https://github.com/MetaMask/core/pull/3682))
-- feat: Add `onBreak` handler to token price service ([#3677](https://github.com/MetaMask/core/pull/3677))
-- Release 102.0.0 ([#3680](https://github.com/MetaMask/core/pull/3680))
+### Added
+- Add `onBreak` handler to `CodefiTokenPricesServiceV2` ([#3677](https://github.com/MetaMask/core/pull/3677))
+  - This allows listening for "circuit breaks", which can indicate an outage. Useful for metrics.
+
+### Changed
+- **BREAKING:** Bump `@metamask/approval-controller` dependency and peer dependency from `^5.1.0` to `^5.1.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- **BREAKING:** Bump `@metamask/network-controller` dependency and peer dependency from `^17.0.0` to `^17.1.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- **BREAKING:** Bump `@metamask/preferences-controller` dependency and peer dependency from `^5.0.0` to `^5.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- **BREAKING:** Update `OpenSeaV2Contract` type, renaming `supply` to `total_supply` ([#3692](https://github.com/MetaMask/core/pull/3692))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/polling-controller` to `^4.0.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `cockatiel` from `3.1.1` to `^3.1.2` ([#3682](https://github.com/MetaMask/core/pull/3682))
+
+### Fixed
+- Fix error caused by OpenSea API rename of `supply` to `total_supply` ([#3692](https://github.com/MetaMask/core/pull/3692))
+- Fix `CodefiTokenPricesServiceV2` support for Shiden ([#3683](https://github.com/MetaMask/core/pull/3683))
 
 ## [22.0.0]
 ### Changed

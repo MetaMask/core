@@ -7,13 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [2.0.1]
-### Uncategorized
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Release 101.0.0 ([#3678](https://github.com/MetaMask/core/pull/3678))
-- Release 100.0.0 ([#3667](https://github.com/MetaMask/core/pull/3667))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Remove superfluous typescript reference paths ([#3608](https://github.com/MetaMask/core/pull/3608))
-- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
 
 ## [2.0.0]
 ### Changed

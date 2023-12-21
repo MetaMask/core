@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [1.0.1]
-### Uncategorized
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Fix broken URL in `build-utils/README.md` ([#3599](https://github.com/MetaMask/core/pull/3599))
+### Fixed
+- Fix broken URL in `README.md` ([#3599](https://github.com/MetaMask/core/pull/3599))
 
 ## [1.0.0]
 ### Added

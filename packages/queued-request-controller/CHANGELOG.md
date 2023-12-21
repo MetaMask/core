@@ -6,22 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0]
-### Uncategorized
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Release 102.0.0 ([#3680](https://github.com/MetaMask/core/pull/3680))
-- Release 101.0.0 ([#3678](https://github.com/MetaMask/core/pull/3678))
-- Release 100.0.0 ([#3667](https://github.com/MetaMask/core/pull/3667))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Release 99.0.0 ([#3603](https://github.com/MetaMask/core/pull/3603))
-- Release 95.0.0 ([#3580](https://github.com/MetaMask/core/pull/3580))
-
+## [0.3.0]
 ### Added
 - Add `QueuedRequestMiddlewareJsonRpcRequest` type ([#1970](https://github.com/MetaMask/core/pull/1970)).
 
 ### Changed
 - **BREAKING:** `QueuedRequestControllerMessenger` can no longer be defined with any allowed actions or events ([#1970](https://github.com/MetaMask/core/pull/1970)).
-- Move `@metamask/approval-controller` from devDependency to dependency ([#1970](https://github.com/MetaMask/core/pull/1970)).
+- **BREAKING:** Add `@metamask/approval-controller` as dependency and peer dependency ([#1970](https://github.com/MetaMask/core/pull/1970), [#3695](https://github.com/MetaMask/core/pull/3695), [#3680](https://github.com/MetaMask/core/pull/3680))
+- **BREAKING:** Bump `@metamask/network-controller` dependency and peer dependency from `^17.0.0` to `^17.1.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- **BREAKING:** Bump `@metamask/selected-network-controller` dependency and peer dependency from `^4.0.0` to `^6.1.0` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3603](https://github.com/MetaMask/core/pull/3603))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 
 ## [0.2.0]
 ### Changed
@@ -57,8 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@1.0.0...HEAD
-[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.2.0...@metamask/queued-request-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.2.0...@metamask/queued-request-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.4...@metamask/queued-request-controller@0.2.0
 [0.1.4]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.3...@metamask/queued-request-controller@0.1.4
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.2...@metamask/queued-request-controller@0.1.3

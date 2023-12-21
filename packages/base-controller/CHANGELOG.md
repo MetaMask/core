@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.1]
-### Uncategorized
-- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
-- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
-- Upgrade `ComposableController` to extend `BaseControllerV2` ([#3590](https://github.com/MetaMask/core/pull/3590))
+### Changed
+- Remove `subscribe` property from `BaseControllerV2` ([#3590](https://github.com/MetaMask/core/pull/3590))
+  - This is non-breaking because previously it was set to `undefined`. Accessing it still gets the same result.
 
 ## [4.0.0]
 ### Added
