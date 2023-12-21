@@ -540,6 +540,7 @@ describe('TokenDetectionController', () => {
       });
 
       tokenDetection = new TokenDetectionController({
+        disabled: false,
         networkClientId: NetworkType.mainnet,
         selectedAddress: '0x1',
         onPreferencesStateChange,
@@ -561,6 +562,7 @@ describe('TokenDetectionController', () => {
 
     it('should be called if network is changed to a chainId that supports token detection', async () => {
       tokenDetection = new TokenDetectionController({
+        disabled: false,
         networkClientId: 'polygon',
         selectedAddress: '0x1',
         onPreferencesStateChange: stub,
@@ -603,6 +605,7 @@ describe('TokenDetectionController', () => {
         .mockImplementation(() => {
           return Promise.resolve();
         });
+      tokenDetection.enable();
       tokenDetection.startPollingByNetworkClientId('mainnet', {
         address: '0x1',
       });
@@ -639,6 +642,7 @@ describe('TokenDetectionController', () => {
       getBalancesInSingleCall.resolves({
         [sampleTokenA.address]: new BN(1),
       });
+      tokenDetection.enable();
       await tokenDetection.detectTokens({
         networkClientId: NetworkType.mainnet,
         accountAddress: selectedAddress,
