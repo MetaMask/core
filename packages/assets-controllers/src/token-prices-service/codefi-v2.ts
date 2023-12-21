@@ -359,9 +359,12 @@ export class CodefiTokenPricesServiceV2
           value: price,
           currency,
         };
+
         return {
           ...obj,
-          [tokenAddress]: tokenPrice.value ? tokenPrice : {},
+          ...(tokenPrice.value !== undefined
+            ? { [tokenAddress]: tokenPrice }
+            : {}),
         };
       },
       {},
