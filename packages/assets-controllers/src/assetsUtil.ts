@@ -376,7 +376,10 @@ export function mapOpenSeaContractV2ToV1(
     created_date: null,
     schema_name: contract.contract_standard.toUpperCase(),
     symbol: null,
-    total_supply: contract.supply.toString(),
+    total_supply:
+      collection?.total_supply?.toString() ??
+      contract.total_supply?.toString() ??
+      null,
     description: collection?.description ?? null,
     external_link: collection?.project_url ?? null,
     collection: {
