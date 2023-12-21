@@ -262,9 +262,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     options: { address: string },
   ): Promise<void> {
     if (this.#disabled) {
-      throw new Error(
-        'Poll cannot be executed while network requests are disabled',
-      );
+      return;
     }
     await this.detectTokens({
       networkClientId,
