@@ -58,7 +58,7 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
     });
 
-    it('throws if one of the token addresses cannot be found in the response data', async () => {
+    it('should not include token price object for token address when token price in not included the response data', async () => {
       nock('https://price-api.metafi.codefi.network')
         .get('/v2/chains/1/spot-prices')
         .query({
@@ -74,16 +74,26 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
         });
 
-      await expect(
-        new CodefiTokenPricesServiceV2().fetchTokenPrices({
-          chainId: '0x1',
-          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+      const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+        chainId: '0x1',
+        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        currency: 'ETH',
+      });
+      expect(result).toStrictEqual({
+        '0xBBB': {
+          tokenAddress: '0xBBB',
+          value: 33689.98134554716,
           currency: 'ETH',
-        }),
-      ).rejects.toThrow('Could not find price for "0xAAA" in "ETH"');
+        },
+        '0xCCC': {
+          tokenAddress: '0xCCC',
+          value: 148.1344197578456,
+          currency: 'ETH',
+        },
+      });
     });
 
-    it('throws if the currency cannot be found in the response data', async () => {
+    it('should not include token price object for token address when price is undefined for token response data', async () => {
       nock('https://price-api.metafi.codefi.network')
         .get('/v2/chains/1/spot-prices')
         .query({
@@ -100,13 +110,24 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
         });
 
-      await expect(
-        new CodefiTokenPricesServiceV2().fetchTokenPrices({
-          chainId: '0x1',
-          tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+      const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+        chainId: '0x1',
+        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        currency: 'ETH',
+      });
+
+      expect(result).toStrictEqual({
+        '0xBBB': {
+          tokenAddress: '0xBBB',
+          value: 33689.98134554716,
           currency: 'ETH',
-        }),
-      ).rejects.toThrow('Could not find price for "0xAAA" in "ETH"');
+        },
+        '0xCCC': {
+          tokenAddress: '0xCCC',
+          value: 148.1344197578456,
+          currency: 'ETH',
+        },
+      });
     });
 
     it('throws if the request fails consistently', async () => {

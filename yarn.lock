@@ -2424,7 +2424,6 @@ __metadata:
     deepmerge: ^4.2.2
     jest: ^27.5.1
     nanoid: ^3.1.31
-    sinon: ^9.2.4
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
     typedoc-plugin-missing-exports: ^2.0.0

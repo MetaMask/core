@@ -105,7 +105,7 @@ export type OpenSeaV2Contract = {
   collection: string;
   contract_standard: string;
   name: string;
-  supply: number;
+  total_supply?: number;
 };
 
 export type OpenSeaV2Collection = {
@@ -125,6 +125,7 @@ export type OpenSeaV2Collection = {
   telegram_url?: string;
   twitter_username?: string;
   instagram_username?: string;
+  total_supply?: number;
 };
 
 /**

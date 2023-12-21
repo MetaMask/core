@@ -15,7 +15,7 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
-import { reduceInBatchesSerially } from './assetsUtil';
+import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import type { TokensState } from './TokensController';
@@ -69,7 +69,7 @@ export interface TokenRatesConfig extends BaseConfig {
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-interface ContractExchangeRates {
+export interface ContractExchangeRates {
   [address: string]: number | undefined;
 }
 
@@ -95,12 +95,6 @@ export interface TokenRatesState extends BaseState {
     Record<string, ContractExchangeRates>
   >;
 }
-
-/**
- * The maximum number of token addresses that should be sent to the Price API in
- * a single request.
- */
-const TOKEN_PRICES_BATCH_SIZE = 100;
 
 /**
  * Uses the CryptoCompare API to fetch the exchange rate between one currency
@@ -538,7 +532,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       (obj, [tokenAddress, tokenPrice]) => {
         return {
           ...obj,
-          [tokenAddress]: tokenPrice.value,
+          [tokenAddress]: tokenPrice?.value,
         };
       },
       {},
