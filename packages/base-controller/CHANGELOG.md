@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [5.0.0]
+## [4.0.1]
 ### Uncategorized
 - Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
 - Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
@@ -104,8 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@5.0.0...HEAD
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.0...@metamask/base-controller@5.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.0...@metamask/base-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.3...@metamask/base-controller@4.0.0
 [3.2.3]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.2...@metamask/base-controller@3.2.3
 [3.2.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.1...@metamask/base-controller@3.2.2

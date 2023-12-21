@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^5.0.0",
+    "@metamask/base-controller": "^4.0.1",
     "@metamask/controller-utils": "^8.0.1",
     "@metamask/network-controller": "^17.1.0",
     "@metamask/utils": "^8.2.0",
