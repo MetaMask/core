@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 
+### Fixed
+- Use estimate gas instead of fixed gas (21k) when a contract is deployed and the gas is not specified ([#3694](https://github.com/MetaMask/core/pull/3694))
+
 ## [18.3.1]
 ### Fixed
 - Fix incorrect transaction statuses ([#3676](https://github.com/MetaMask/core/pull/3676))

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add `onBreak` handler to `CodefiTokenPricesServiceV2` ([#3677](https://github.com/MetaMask/core/pull/3677))
   - This allows listening for "circuit breaks", which can indicate an outage. Useful for metrics.
+- Add `fetchTokenContractExchangeRates` utility method ([#3657](https://github.com/MetaMask/core/pull/3657))
 
 ### Changed
 - **BREAKING:** Bump `@metamask/approval-controller` dependency and peer dependency from `^5.1.0` to `^5.1.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
@@ -23,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix error caused by OpenSea API rename of `supply` to `total_supply` ([#3692](https://github.com/MetaMask/core/pull/3692))
 - Fix `CodefiTokenPricesServiceV2` support for Shiden ([#3683](https://github.com/MetaMask/core/pull/3683))
+- Improve how `CodefiTokenPricesServiceV2` handles token price update failures ([#3687](https://github.com/MetaMask/core/pull/3687))
+  - Previously a single failed token price update would prevent all other token prices from updating as well. With this update, we log and error and continue when we fail to update a token price, ensuring the others still get updated.
 
 ## [22.0.0]
 ### Changed
