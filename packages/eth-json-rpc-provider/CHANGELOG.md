@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
+- Check for unused dependencies in lint pipeline ([#2046](https://github.com/MetaMask/core/pull/2046))
+- Enable `@typescript-eslint/no-explicit-any` ([#3660](https://github.com/MetaMask/core/pull/3660))
 
 ## [2.3.0]
 ### Added
