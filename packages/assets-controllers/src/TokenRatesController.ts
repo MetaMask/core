@@ -538,7 +538,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       (obj, [tokenAddress, tokenPrice]) => {
         return {
           ...obj,
-          [tokenAddress]: tokenPrice.value,
+          [tokenAddress]: tokenPrice?.value,
         };
       },
       {},
