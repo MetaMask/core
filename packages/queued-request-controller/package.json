@@ -31,13 +31,13 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^5.1.0",
-    "@metamask/base-controller": "^4.0.0",
-    "@metamask/controller-utils": "^8.0.0",
-    "@metamask/json-rpc-engine": "^7.3.0",
-    "@metamask/network-controller": "^17.0.0",
+    "@metamask/approval-controller": "^5.1.1",
+    "@metamask/base-controller": "^5.0.0",
+    "@metamask/controller-utils": "^8.0.1",
+    "@metamask/json-rpc-engine": "^7.3.1",
+    "@metamask/network-controller": "^17.1.0",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/selected-network-controller": "^5.0.0",
+    "@metamask/selected-network-controller": "^6.0.0",
     "@metamask/swappable-obj-proxy": "^2.1.0",
     "@metamask/utils": "^8.2.0"
   },
@@ -56,9 +56,9 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^5.1.0",
-    "@metamask/network-controller": "^17.0.0",
-    "@metamask/selected-network-controller": "^5.0.0"
+    "@metamask/approval-controller": "^5.1.1",
+    "@metamask/network-controller": "^17.1.0",
+    "@metamask/selected-network-controller": "^6.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

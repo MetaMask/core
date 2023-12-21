@@ -32,9 +32,9 @@
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^4.0.0",
-    "@metamask/controller-utils": "^8.0.0",
-    "@metamask/network-controller": "^17.0.0",
+    "@metamask/base-controller": "^5.0.0",
+    "@metamask/controller-utils": "^8.0.1",
+    "@metamask/network-controller": "^17.1.0",
     "@metamask/utils": "^8.2.0",
     "ethereum-ens-network-map": "^1.0.2",
     "punycode": "^2.1.1"
@@ -50,7 +50,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^17.0.0"
+    "@metamask/network-controller": "^17.1.0"
   },
   "engines": {
     "node": ">=16.0.0"
