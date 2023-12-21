@@ -2,6 +2,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
   GANACHE_CHAIN_ID,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
@@ -16,6 +17,14 @@ import type {
   OpenSeaV2Nft,
 } from './NftController';
 import type { ApiNft, ApiNftContract } from './NftDetectionController';
+import type { AbstractTokenPricesService } from './token-prices-service';
+import { type ContractExchangeRates } from './TokenRatesController';
+
+/**
+ * The maximum number of token addresses that should be sent to the Price API in
+ * a single request.
+ */
+export const TOKEN_PRICES_BATCH_SIZE = 100;
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -387,4 +396,67 @@ export function mapOpenSeaContractV2ToV1(
       image_url: collection?.image_url,
     },
   };
+}
+
+/**
+ * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
+ *
+ * @param args - The arguments to function.
+ * @param args.tokenPricesService - An object in charge of retrieving token prices.
+ * @param args.nativeCurrency - The native currency to request price in.
+ * @param args.tokenAddresses - The list of contract addresses.
+ * @param args.chainId - The chainId of the tokens.
+ * @returns The prices for the requested tokens.
+ */
+export async function fetchTokenContractExchangeRates({
+  tokenPricesService,
+  nativeCurrency,
+  tokenAddresses,
+  chainId,
+}: {
+  tokenPricesService: AbstractTokenPricesService;
+  nativeCurrency: string;
+  tokenAddresses: Hex[];
+  chainId: Hex;
+}): Promise<ContractExchangeRates> {
+  const isChainIdSupported =
+    tokenPricesService.validateChainIdSupported(chainId);
+  const isCurrencySupported =
+    tokenPricesService.validateCurrencySupported(nativeCurrency);
+
+  if (!isChainIdSupported || !isCurrencySupported) {
+    return {};
+  }
+
+  const tokenPricesByTokenAddress = await reduceInBatchesSerially<
+    Hex,
+    Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+  >({
+    values: tokenAddresses,
+    batchSize: TOKEN_PRICES_BATCH_SIZE,
+    eachBatch: async (allTokenPricesByTokenAddress, batch) => {
+      const tokenPricesByTokenAddressForBatch =
+        await tokenPricesService.fetchTokenPrices({
+          tokenAddresses: batch,
+          chainId,
+          currency: nativeCurrency,
+        });
+
+      return {
+        ...allTokenPricesByTokenAddress,
+        ...tokenPricesByTokenAddressForBatch,
+      };
+    },
+    initialResult: {},
+  });
+
+  return Object.entries(tokenPricesByTokenAddress).reduce(
+    (obj, [tokenAddress, tokenPrice]) => {
+      return {
+        ...obj,
+        [toChecksumHexAddress(tokenAddress)]: tokenPrice?.value,
+      };
+    },
+    {},
+  );
 }

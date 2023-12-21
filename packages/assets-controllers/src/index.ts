@@ -12,5 +12,6 @@ export {
   isTokenDetectionSupportedForNetwork,
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
+  fetchTokenContractExchangeRates,
 } from './assetsUtil';
 export { CodefiTokenPricesServiceV2 } from './token-prices-service';
