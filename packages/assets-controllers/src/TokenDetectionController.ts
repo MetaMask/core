@@ -117,7 +117,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId,
     selectedAddress = '',
     interval = DEFAULT_INTERVAL,
-    disabled = false,
+    disabled = true,
     onPreferencesStateChange,
     getBalancesInSingleCall,
     addDetectedTokens,
@@ -213,10 +213,24 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }
 
   /**
+   * Allows controller to make active and passive polling requests
+   */
+  enable() {
+    this.#disabled = false;
+  }
+
+  /**
+   * Blocks controller from making network calls
+   */
+  disable() {
+    this.#disabled = true;
+  }
+
+  /**
    * Start polling for detected tokens.
    */
   async start() {
-    this.#disabled = false;
+    this.enable();
     await this.#startPolling();
   }
 
@@ -224,7 +238,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * Stop polling for detected tokens.
    */
   stop() {
-    this.#disabled = true;
+    this.disable();
     this.#stopPolling();
   }
 
