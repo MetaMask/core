@@ -318,7 +318,7 @@ export class CodefiTokenPricesServiceV2
     chainId: SupportedChainId;
     tokenAddresses: Hex[];
     currency: SupportedCurrency;
-  }): Promise<TokenPricesByTokenAddress<Hex, SupportedCurrency>> {
+  }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
     const chainIdAsNumber = hexToNumber(chainId);
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
@@ -361,11 +361,11 @@ export class CodefiTokenPricesServiceV2
         };
         return {
           ...obj,
-          [tokenAddress]: tokenPrice,
+          [tokenAddress]: tokenPrice.value ? tokenPrice : {},
         };
       },
       {},
-    ) as TokenPricesByTokenAddress<Hex, SupportedCurrency>;
+    ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
   }
 
   /**
