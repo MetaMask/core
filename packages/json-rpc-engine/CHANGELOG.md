@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [7.3.1]
 ### Uncategorized
 - Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
 - Check for unused dependencies in lint pipeline ([#2046](https://github.com/MetaMask/core/pull/2046))
@@ -96,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.1...HEAD
+[7.3.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.0...@metamask/json-rpc-engine@7.3.1
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.2.0...@metamask/json-rpc-engine@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.0...@metamask/json-rpc-engine@7.1.1

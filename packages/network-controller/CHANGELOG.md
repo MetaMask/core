@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [17.1.0]
 ### Uncategorized
 - Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
 - Move state update call after networkClient is instantiated and added to registry in `upsertNetworkConfiguration` ([#3679](https://github.com/MetaMask/core/pull/3679))
@@ -327,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...HEAD
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...@metamask/network-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@16.0.0...@metamask/network-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.2.0...@metamask/network-controller@16.0.0
 [15.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.1.0...@metamask/network-controller@15.2.0

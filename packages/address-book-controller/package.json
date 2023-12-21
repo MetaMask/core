@@ -1,6 +1,6 @@
 {
   "name": "@metamask/address-book-controller",
-  "version": "3.1.5",
+  "version": "3.1.6",
   "description": "Manages a list of recipient addresses associated with nicknames",
   "keywords": [
     "MetaMask",

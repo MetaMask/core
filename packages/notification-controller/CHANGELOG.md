@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [4.0.1]
 ### Uncategorized
 - Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
 - Remove superfluous typescript reference paths ([#3608](https://github.com/MetaMask/core/pull/3608))
@@ -59,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.0...@metamask/notification-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.3...@metamask/notification-controller@4.0.0
 [3.1.3]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.2...@metamask/notification-controller@3.1.3
 [3.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.1...@metamask/notification-controller@3.1.2

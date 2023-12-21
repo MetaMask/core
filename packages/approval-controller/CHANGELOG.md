@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [5.1.1]
 ### Uncategorized
 - Add script to update changelogs of a release candidate ([#3668](https://github.com/MetaMask/core/pull/3668))
 
@@ -103,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.1...HEAD
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.0...@metamask/approval-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.0.0...@metamask/approval-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.1.0...@metamask/approval-controller@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.0.1...@metamask/approval-controller@4.1.0
