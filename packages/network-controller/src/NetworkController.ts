@@ -1237,13 +1237,6 @@ export class NetworkController extends BaseController<
       upsertedNetworkConfigurationId,
     );
 
-    this.update((state) => {
-      state.networkConfigurations[upsertedNetworkConfigurationId] = {
-        id: upsertedNetworkConfigurationId,
-        ...sanitizedNetworkConfiguration,
-      };
-    });
-
     const customNetworkClientRegistry =
       autoManagedNetworkClientRegistry[NetworkClientType.Custom];
     const existingAutoManagedNetworkClient =
@@ -1266,6 +1259,13 @@ export class NetworkController extends BaseController<
           ticker,
         });
     }
+
+    this.update((state) => {
+      state.networkConfigurations[upsertedNetworkConfigurationId] = {
+        id: upsertedNetworkConfigurationId,
+        ...sanitizedNetworkConfiguration,
+      };
+    });
 
     if (!existingNetworkConfiguration) {
       this.#trackMetaMetricsEvent({

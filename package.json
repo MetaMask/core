@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "100.0.0",
+  "version": "103.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -16,6 +16,7 @@
     "build:clean": "rimraf dist '**/*.tsbuildinfo' && yarn build",
     "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run build:docs",
     "build:watch": "yarn run build --watch",
+    "changelog:update": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
     "create-package": "ts-node scripts/create-package",

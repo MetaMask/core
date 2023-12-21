@@ -276,6 +276,16 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', CorrectChangelogV
   atom_concat('../../scripts/validate-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
   \+ atom_concat(ExpectedPrefix, _, ChangelogValidationCommand).
 
+% The "changelog:update" script for each published package must run a common
+% script with the name of the package as the first argument.
+gen_enforced_field(WorkspaceCwd, 'scripts.changelog:update', CorrectChangelogUpdateCommand) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_field(WorkspaceCwd, 'scripts.changelog:update', ChangelogUpdateCommand),
+  workspace_package_name(WorkspaceCwd, WorkspacePackageName),
+  atomic_list_concat(['../../scripts/update-changelog.sh ', WorkspacePackageName, ' [...]'], CorrectChangelogUpdateCommand),
+  atom_concat('../../scripts/update-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
+  \+ atom_concat(ExpectedPrefix, _, ChangelogUpdateCommand).
+
 % All non-root packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
