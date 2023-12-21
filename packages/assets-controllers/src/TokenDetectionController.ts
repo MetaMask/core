@@ -11,7 +11,7 @@ import type {
   NetworkClientId,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
-  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetNetworkConfigurationByNetworkClientId,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -41,7 +41,7 @@ export type TokenDetectionControllerActions =
   TokenDetectionControllerGetStateAction;
 
 export type AllowedActions =
-  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | GetTokenListState;
 
 export type TokenDetectionControllerStateChangeEvent =
@@ -249,13 +249,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }
 
   #getCorrectChainId(networkClientId?: NetworkClientId) {
-    const {
-      configuration: { chainId },
-    } = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId ?? this.#networkClientId,
-    );
-    return chainId;
+    const { chainId } =
+      this.messagingSystem.call(
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        networkClientId ?? this.#networkClientId,
+      ) ?? {};
+    return chainId ?? this.#chainId;
   }
 
   async _executePoll(

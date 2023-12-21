@@ -7,10 +7,7 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  defaultState as defaultNetworkState,
-  NetworkClientType,
-} from '@metamask/network-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import type {
   NetworkState,
   ProviderConfig,
@@ -148,7 +145,7 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
-      'NetworkController:getNetworkClientById',
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
       'TokenListController:getState',
     ],
     allowedEvents: [
@@ -171,7 +168,7 @@ describe('TokenDetectionController', () => {
   >;
 
   const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
-  const getNetworkClientByIdHandler = jest.fn();
+  const getNetworkConfigurationByNetworkClientIdHandler = jest.fn();
   const changeNetwork = (providerConfig: ProviderConfig) => {
     onNetworkDidChangeListeners.forEach((listener) => {
       listener({
@@ -186,21 +183,16 @@ describe('TokenDetectionController', () => {
       selectedNetworkClientId: providerConfig.type,
     });
 
-    getNetworkClientByIdHandler.mockReturnValue({
-      configuration: {
-        chainId: providerConfig.chainId,
-      },
-      provider: {},
-      blockTracker: {},
-      destroy: jest.fn(),
+    getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue({
+      chainId: providerConfig.chainId,
     });
 
     controllerMessenger.unregisterActionHandler(
-      'NetworkController:getNetworkClientById',
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
     );
     controllerMessenger.registerActionHandler(
-      'NetworkController:getNetworkClientById',
-      getNetworkClientByIdHandler,
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
+      getNetworkConfigurationByNetworkClientIdHandler,
     );
   };
 
@@ -209,18 +201,6 @@ describe('TokenDetectionController', () => {
     id: 'goerli',
     type: NetworkType.goerli,
     ticker: NetworksTicker.goerli,
-  };
-  const polygon = {
-    chainId: SupportedTokenDetectionNetworks.polygon,
-    id: 'polygon',
-    type: NetworkType.rpc,
-    ticker: 'MATIC',
-  };
-  const mockPolygonClient = {
-    configuration: {
-      ...polygon,
-      type: NetworkClientType.Custom,
-    },
   };
   const mainnet = {
     chainId: ChainId.mainnet,
@@ -261,14 +241,9 @@ describe('TokenDetectionController', () => {
       selectedNetworkClientId: NetworkType.mainnet,
     });
     controllerMessenger.registerActionHandler(
-      `NetworkController:getNetworkClientById`,
-      getNetworkClientByIdHandler.mockReturnValue({
-        configuration: {
-          chainId: ChainId.mainnet,
-        },
-        provider: {},
-        blockTracker: {},
-        destroy: jest.fn(),
+      `NetworkController:getNetworkConfigurationByNetworkClientId`,
+      getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue({
+        chainId: ChainId.mainnet,
       }),
     );
 
@@ -490,14 +465,9 @@ describe('TokenDetectionController', () => {
         selectedNetworkClientId: NetworkType.mainnet,
       });
       controllerMessenger.registerActionHandler(
-        `NetworkController:getNetworkClientById`,
-        getNetworkClientByIdHandler.mockReturnValue({
-          configuration: {
-            chainId: ChainId.mainnet,
-          },
-          provider: {},
-          blockTracker: {},
-          destroy: jest.fn(),
+        `NetworkController:getNetworkConfigurationByNetworkClientId`,
+        getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue({
+          chainId: ChainId.mainnet,
         }),
       );
 
@@ -593,21 +563,15 @@ describe('TokenDetectionController', () => {
         getPreferencesState: () => preferences.state,
         messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
       });
-      getNetworkClientByIdHandler.mockReturnValue({
-        configuration: {
-          chainId: SupportedTokenDetectionNetworks.polygon,
-        },
-        provider: {},
-        blockTracker: {},
-        destroy: jest.fn(),
-      });
 
       controllerMessenger.unregisterActionHandler(
-        'NetworkController:getNetworkClientById',
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
       );
       controllerMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientByIdHandler.mockReturnValue(mockPolygonClient),
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        getNetworkConfigurationByNetworkClientIdHandler.mockReturnValue({
+          chainId: SupportedTokenDetectionNetworks.polygon,
+        }),
       );
 
       changeNetwork(mainnet);
