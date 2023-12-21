@@ -441,27 +441,16 @@ describe('assetsUtil', () => {
   });
 
   describe('fetchAndMapExchangeRates', () => {
-    const mockedPricesService: AbstractTokenPricesService = {
-      validateChainIdSupported(_chainId: unknown): _chainId is Hex {
-        return true;
-      },
-      validateCurrencySupported(_currency: unknown): _currency is string {
-        return true;
-      },
-      async fetchTokenPrices() {
-        return {};
-      },
-    };
-
     it('should return empty object when chainId not supported', async () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
 
       jest
-        .spyOn(mockedPricesService, 'validateChainIdSupported')
+        .spyOn(mockPriceService, 'validateChainIdSupported')
         .mockReturnValue(false);
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
-        tokenPricesService: mockedPricesService,
+        tokenPricesService: mockPriceService,
         nativeCurrency: 'ETH',
         tokenAddresses: [testTokenAddress],
         chainId: '0x0',
@@ -472,12 +461,13 @@ describe('assetsUtil', () => {
 
     it('should return empty object when nativeCurrency not supported', async () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
       jest
-        .spyOn(mockedPricesService, 'validateCurrencySupported')
+        .spyOn(mockPriceService, 'validateCurrencySupported')
         .mockReturnValue(false);
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
-        tokenPricesService: mockedPricesService,
+        tokenPricesService: mockPriceService,
         nativeCurrency: 'X',
         tokenAddresses: [testTokenAddress],
         chainId: '0x1',
@@ -490,15 +480,16 @@ describe('assetsUtil', () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
+      const mockPriceService = createMockPriceService();
       jest
-        .spyOn(mockedPricesService, 'validateCurrencySupported')
+        .spyOn(mockPriceService, 'validateCurrencySupported')
         .mockReturnValue(true);
 
       jest
-        .spyOn(mockedPricesService, 'validateChainIdSupported')
+        .spyOn(mockPriceService, 'validateChainIdSupported')
         .mockReturnValue(true);
 
-      jest.spyOn(mockedPricesService, 'fetchTokenPrices').mockResolvedValue({
+      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
         [testTokenAddress]: {
           tokenAddress: testTokenAddress,
           value: 0.0004588648479937523,
@@ -507,7 +498,7 @@ describe('assetsUtil', () => {
       });
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
-        tokenPricesService: mockedPricesService,
+        tokenPricesService: mockPriceService,
         nativeCurrency: testNativeCurrency,
         tokenAddresses: [testTokenAddress],
         chainId: testChainId,
@@ -519,6 +510,7 @@ describe('assetsUtil', () => {
     });
 
     it('should fetch successfully in batches of 100', async () => {
+      const mockPriceService = createMockPriceService();
       const tokenAddresses = [...new Array(200).keys()]
         .map(buildAddress)
         .sort();
@@ -526,20 +518,20 @@ describe('assetsUtil', () => {
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
       jest
-        .spyOn(mockedPricesService, 'validateCurrencySupported')
+        .spyOn(mockPriceService, 'validateCurrencySupported')
         .mockReturnValue(true);
 
       jest
-        .spyOn(mockedPricesService, 'validateChainIdSupported')
+        .spyOn(mockPriceService, 'validateChainIdSupported')
         .mockReturnValue(true);
 
       const fetchTokenPricesSpy = jest.spyOn(
-        mockedPricesService,
+        mockPriceService,
         'fetchTokenPrices',
       );
 
       await assetsUtil.fetchTokenContractExchangeRates({
-        tokenPricesService: mockedPricesService,
+        tokenPricesService: mockPriceService,
         nativeCurrency: testNativeCurrency,
         tokenAddresses: tokenAddresses as Hex[],
         chainId: testChainId,
@@ -569,4 +561,23 @@ describe('assetsUtil', () => {
  */
 function buildAddress(number: number) {
   return toChecksumHexAddress(add0x(number.toString(16).padStart(40, '0')));
+}
+
+/**
+ * Creates a mock for token prices service.
+ *
+ * @returns The mocked functions of token prices service.
+ */
+function createMockPriceService(): AbstractTokenPricesService {
+  return {
+    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
+      return true;
+    },
+    validateCurrencySupported(_currency: unknown): _currency is string {
+      return true;
+    },
+    async fetchTokenPrices() {
+      return {};
+    },
+  };
 }

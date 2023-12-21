@@ -454,7 +454,7 @@ export async function fetchTokenContractExchangeRates({
     (obj, [tokenAddress, tokenPrice]) => {
       return {
         ...obj,
-        [toChecksumHexAddress(tokenAddress)]: tokenPrice.value,
+        [toChecksumHexAddress(tokenAddress)]: tokenPrice?.value,
       };
     },
     {},
