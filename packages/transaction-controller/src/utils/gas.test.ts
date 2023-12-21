@@ -22,7 +22,6 @@ jest.mock('@metamask/controller-utils', () => ({
 const GAS_MOCK = 100;
 const BLOCK_GAS_LIMIT_MOCK = 1234567;
 const BLOCK_NUMBER_MOCK = '0x5678';
-const CODE_MOCK = '0x987';
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ETH_QUERY_MOCK = {} as any as EthQuery;
@@ -154,7 +153,6 @@ describe('gas', () => {
         const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
 
         mockQuery({
-          getCodeResponse: CODE_MOCK,
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
           estimateGasResponse: toHex(estimatedGas),
         });
@@ -173,7 +171,6 @@ describe('gas', () => {
         const estimatedGas = Math.round(estimatedGasPadded / 1.5);
 
         mockQuery({
-          getCodeResponse: CODE_MOCK,
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
           estimateGasResponse: toHex(estimatedGas),
         });
@@ -196,7 +193,6 @@ describe('gas', () => {
         updateGasRequest.providerConfig.chainId = CHAIN_IDS.OPTIMISM;
 
         mockQuery({
-          getCodeResponse: CODE_MOCK,
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
           estimateGasResponse: toHex(estimatedGas),
         });
@@ -217,7 +213,6 @@ describe('gas', () => {
         const estimatedGas = Math.ceil(estimatedGasPadded / 1.5);
 
         mockQuery({
-          getCodeResponse: CODE_MOCK,
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
           estimateGasResponse: toHex(estimatedGas),
         });
@@ -274,7 +269,6 @@ describe('gas', () => {
         const fallbackGas = Math.floor(BLOCK_GAS_LIMIT_MOCK * 0.95);
 
         mockQuery({
-          getCodeResponse: CODE_MOCK,
           getBlockByNumberResponse: {
             gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           },
@@ -291,7 +285,6 @@ describe('gas', () => {
 
       it('sets simulationFails property', async () => {
         mockQuery({
-          getCodeResponse: CODE_MOCK,
           getBlockByNumberResponse: {
             gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
             number: BLOCK_NUMBER_MOCK,
