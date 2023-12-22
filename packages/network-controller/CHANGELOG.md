@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Create new network clients before updating `networkConfigurations` state ([#3679](https://github.com/MetaMask/core/pull/3679))
   - This primarily affects subscribers to the `NetworkController:stateChange` event. It's now safe to use a network client for any network that appears in the `networkConfigurations` state, whereas previously it was possible that synchronous attempts to access a network client in response to this event would fail.
 - Add `NetworkState` payload to `NetworkController:networkWillChange` and `NetworkController:networkDidChange` ([#3598](https://github.com/MetaMask/core/pull/3598))
-  - Both of these events now include `NetworkState`` as the first and only item in the payload
+  - Both of these events now include `NetworkState` as the first and only item in the payload
 
 ## [17.0.0]
 ### Changed
