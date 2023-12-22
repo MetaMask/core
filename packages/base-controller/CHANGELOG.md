@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.1]
 ### Changed
-- Remove `subscribe` property from `BaseControllerV2` ([#3590](https://github.com/MetaMask/core/pull/3590))
-  - This is non-breaking because previously it was set to `undefined`. Accessing it still gets the same result.
+- Deprecate `subscribe` property from `BaseControllerV2` ([#3590](https://github.com/MetaMask/core/pull/3590), [#3698](https://github.com/MetaMask/core/pull/3698))
+  - This property was used to differentiate between `BaseControllerV1` and `BaseControllerV2` controllers. It is no longer used, so it has been marked as deprecated.
 
 ## [4.0.0]
 ### Added
