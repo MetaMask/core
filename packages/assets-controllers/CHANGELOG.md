@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- `TokenListController` now exports a `TokenListControllerMessenger` type ([#3609](https://github.com/MetaMask/core/pull/3609)).
+- `TokenDetectionController` exports types `TokenDetectionControllerMessenger`, `TokenDetectionControllerActions`, `TokenDetectionControllerGetStateAction`, `TokenDetectionControllerEvents`, `TokenDetectionControllerStateChangeEvent` ([#3609](https://github.com/MetaMask/core/pull/3609)).
+- Add `enable` and `disable` methods to `TokenDetectionController`, which control whether the controller is able to make polling requests or all of its network calls are blocked.  ([#3609](https://github.com/MetaMask/core/pull/3609)).
+  - Note that if the controller is initiated without the `disabled` constructor option set to `false`, the `enable` method will need to be called before the controller can make polling requests in response to subscribed events.
+
+### Changed
+- **BREAKING:** `TokenDetectionController` is upgraded to extend `BaseControllerV2` and `StaticIntervalPollingController` ([#3609](https://github.com/MetaMask/core/pull/3609)).
+  - The constructor now expects an options object as its only argument, with required properties `messenger`, `networkClientId`, required callbacks `onPreferencesStateChange`, `getBalancesInSingleCall`, `addDetectedTokens`, `getTokenState`, `getPreferencesState`, and optional properties `disabled`, `interval`, `selectedAddress`.
 
 ## [22.0.0]
 ### Changed
