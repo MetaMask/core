@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 
 ### Fixed
-- Recategorize `@metamask/approval-controller`, `@metamask/network-controller`, `@metamask/selected-network-controller` as dev dependencies ([#3607](https://github.com/MetaMask/core/pull/3607))
+- Remove `@metamask/approval-controller`, `@metamask/network-controller`, and `@metamask/selected-network-controller` dependencies ([#3607](https://github.com/MetaMask/core/pull/3607))
 
 ## [0.2.0]
 ### Changed
