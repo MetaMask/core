@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - Bump `@metamask/polling-controller` to `^4.0.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - Bump `cockatiel` from `3.1.1` to `^3.1.2` ([#3682](https://github.com/MetaMask/core/pull/3682))
+- Bump `@metamask/controller-utils` from `8.0.0` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 
 ### Fixed
 - Fix error caused by OpenSea API rename of `supply` to `total_supply` ([#3692](https://github.com/MetaMask/core/pull/3692))
