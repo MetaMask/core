@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/message-manager` to `^7.3.7` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - Update `forgetQRDevice` to return an object containing `removedAccounts` and `remainingAccounts` ([#3641](https://github.com/MetaMask/core/pull/3641))
 
+### Fixed
+- Recategorize `@metamask/preferences-controller` as a dev dependency and peer dependency ([#3607](https://github.com/MetaMask/core/pull/3607))
+
 ## [10.0.0]
 ### Changed
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))

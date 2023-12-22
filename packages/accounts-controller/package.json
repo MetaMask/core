@@ -54,7 +54,8 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^11.0.0"
+    "@metamask/keyring-controller": "^11.0.0",
+    "@metamask/snaps-controllers": "^3.2.0"
   },
   "engines": {
     "node": ">=16.0.0"
