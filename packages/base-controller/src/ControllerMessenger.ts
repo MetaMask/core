@@ -130,6 +130,16 @@ export class ControllerMessenger<
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
 
   /**
+   * A map of functions for getting the initial event payload.
+   *
+   * Used only for events that represent state changes.
+   */
+  readonly #getEventPayload = new Map<
+    Event['type'],
+    () => ExtractEventPayload<Event, Event['type']>
+  >();
+
+  /**
    * A cache of selector return values for their respective handlers.
    */
   readonly #eventPayloadCache = new Map<
@@ -208,6 +218,27 @@ export class ControllerMessenger<
       throw new Error(`A handler for ${actionType} has not been registered`);
     }
     return handler(...params);
+  }
+
+  /**
+   * Register a function for getting the initial payload for an event.
+   *
+   * This is used for events that represent a state change, where the payload is the state.
+   * Registering a function for getting the payload allows event selectors to have a point of
+   * comparison the first time state changes.
+   *
+   * @param args - The arguments to this function
+   * @param args.eventType - The event type to register a payload for.
+   * @param args.getPayload - A function for retrieving the event payload.
+   */
+  registerInitialEventPayload<EventType extends Event['type']>({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
+    this.#getEventPayload.set(eventType, getPayload);
   }
 
   /**
@@ -310,6 +341,14 @@ export class ControllerMessenger<
     }
 
     subscribers.set(handler, selector);
+
+    if (selector) {
+      const getPayload = this.#getEventPayload.get(eventType);
+      if (getPayload) {
+        const initialValue = selector(...getPayload());
+        this.#eventPayloadCache.set(handler, initialValue);
+      }
+    }
   }
 
   /**
