@@ -166,7 +166,7 @@ describe('NftDetectionController', () => {
         collection: 'Name',
         contract_standard: 'erc721',
         name: 'Name',
-        supply: 0,
+        total_supply: 0,
       })
       .get(
         `/chain/ethereum/contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
@@ -177,7 +177,7 @@ describe('NftDetectionController', () => {
         collection: 'Name HH',
         contract_standard: 'erc721',
         name: 'Name HH',
-        supply: 10,
+        total_supply: 10,
       })
       .get(`/collections/Name%20HH`)
       .reply(200, {
@@ -694,7 +694,7 @@ describe('NftDetectionController', () => {
         collection: 'Name GG',
         contract_standard: 'erc721',
         name: 'Name GG',
-        supply: 10,
+        total_supply: 10,
       })
       .get(`/collections/Name%20GG`)
       .reply(200, {
@@ -710,7 +710,7 @@ describe('NftDetectionController', () => {
         collection: 'Name II',
         contract_standard: 'erc721',
         name: 'Name II',
-        supply: 10,
+        total_supply: 10,
       })
       .get(`/collections/Name%20II`)
       .reply(200, {
@@ -878,7 +878,7 @@ describe('NftDetectionController', () => {
         collection: 'mycollection',
         contract_standard: 'erc721',
         name: 'myname',
-        supply: 0,
+        total_supply: 0,
       })
       .get(`/collections/mycollection`)
       .reply(200, {});
