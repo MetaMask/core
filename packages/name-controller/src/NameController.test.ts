@@ -13,6 +13,7 @@ const TIME_MOCK = 123;
 
 const MESSENGER_MOCK = {
   registerActionHandler: jest.fn(),
+  registerInitialEventPayload: jest.fn(),
   publish: jest.fn(),
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
