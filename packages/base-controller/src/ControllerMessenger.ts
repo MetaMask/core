@@ -399,30 +399,19 @@ export class ControllerMessenger<
     allowedEvents,
   }: {
     name: Namespace;
-    allowedActions?: NotNamespacedBy<
-      Namespace,
-      Extract<Action['type'], AllowedAction>
-    >[];
-    allowedEvents?: NotNamespacedBy<
-      Namespace,
-      Extract<Event['type'], AllowedEvent>
-    >[];
+    allowedActions?: AllowedAction[];
+    allowedEvents?: AllowedEvent[];
   }): RestrictedControllerMessenger<
     Namespace,
     | NarrowToNamespace<Action, Namespace>
     | NarrowToAllowed<Action, AllowedAction>,
-    NarrowToNamespace<Event, Namespace> | NarrowToAllowed<Event, AllowedEvent>,
-    AllowedAction,
-    AllowedEvent
+    NarrowToNamespace<Event, Namespace> | NarrowToAllowed<Event, AllowedEvent>
   > {
     return new RestrictedControllerMessenger<
       Namespace,
       | NarrowToNamespace<Action, Namespace>
       | NarrowToAllowed<Action, AllowedAction>,
-      | NarrowToNamespace<Event, Namespace>
-      | NarrowToAllowed<Event, AllowedEvent>,
-      AllowedAction,
-      AllowedEvent
+      NarrowToNamespace<Event, Namespace> | NarrowToAllowed<Event, AllowedEvent>
     >({
       controllerMessenger: this,
       name,

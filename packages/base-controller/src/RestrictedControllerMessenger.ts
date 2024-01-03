@@ -22,19 +22,15 @@ import type {
  * @template Namespace - The namespace for this messenger. Typically this is the name of the controller or
  * module that this messenger has been created for. The authority to publish events and register
  * actions under this namespace is granted to this restricted messenger instance.
- * @template Action - A type union of all Action types.
- * @template Event - A type union of all Event types.
- * @template AllowedAction - A type union of the 'type' string for any allowed actions.
- * This must not include internal actions that are in the messenger's namespace.
- * @template AllowedEvent - A type union of the 'type' string for any allowed events.
- * This must not include internal events that are in the messenger's namespace.
+ * @template AllowedAction - A type union of all allowed actions. This includes internal actions
+ * and external allowed actions.
+ * @template AllowedEvent - A type union of all allowed events. This includes internal events and
+ * external allowed events.
  */
 export class RestrictedControllerMessenger<
   Namespace extends string,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
-  AllowedAction extends string,
-  AllowedEvent extends string,
+  AllowedAction extends ActionConstraint,
+  AllowedEvent extends EventConstraint,
 > {
   readonly #controllerMessenger: ControllerMessenger<
     ActionConstraint,
@@ -43,9 +39,13 @@ export class RestrictedControllerMessenger<
 
   readonly #controllerName: Namespace;
 
-  readonly #allowedActions: NotNamespacedBy<Namespace, AllowedAction>[] | null;
+  readonly #externalActions:
+    | NotNamespacedBy<Namespace, AllowedAction['type']>[]
+    | null;
 
-  readonly #allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[] | null;
+  readonly #externalEvents:
+    | NotNamespacedBy<Namespace, AllowedEvent['type']>[]
+    | null;
 
   /**
    * Constructs a restricted controller messenger
@@ -73,13 +73,13 @@ export class RestrictedControllerMessenger<
   }: {
     controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
     name: Namespace;
-    allowedActions?: NotNamespacedBy<Namespace, AllowedAction>[];
-    allowedEvents?: NotNamespacedBy<Namespace, AllowedEvent>[];
+    allowedActions?: NotNamespacedBy<Namespace, AllowedAction['type']>[];
+    allowedEvents?: NotNamespacedBy<Namespace, AllowedEvent['type']>[];
   }) {
     this.#controllerMessenger = controllerMessenger;
     this.#controllerName = name;
-    this.#allowedActions = allowedActions ?? null;
-    this.#allowedEvents = allowedEvents ?? null;
+    this.#externalActions = allowedActions ?? null;
+    this.#externalEvents = allowedEvents ?? null;
   }
 
   /**
@@ -93,11 +93,11 @@ export class RestrictedControllerMessenger<
    * @param handler - The action handler. This function gets called when the `call` method is
    * invoked with the given action type.
    * @throws Will throw if an action handler that is not in the current namespace is being registered.
-   * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
+   * @template ActionType - A type union of AllowedAction type strings that are namespaced by Namespace.
    */
   registerActionHandler<
-    ActionType extends Action['type'] & NamespacedName<Namespace>,
-  >(action: ActionType, handler: ActionHandler<Action, ActionType>) {
+    ActionType extends AllowedAction['type'] & NamespacedName<Namespace>,
+  >(action: ActionType, handler: ActionHandler<AllowedAction, ActionType>) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(action)) {
       throw new Error(
@@ -118,10 +118,10 @@ export class RestrictedControllerMessenger<
    *
    * @param action - The action type. This is a unique identifier for this action.
    * @throws Will throw if an action handler that is not in the current namespace is being unregistered.
-   * @template ActionType - A type union of Action type strings that are namespaced by Namespace.
+   * @template ActionType - A type union of AllowedAction type strings that are namespaced by Namespace.
    */
   unregisterActionHandler<
-    ActionType extends Action['type'] & NamespacedName<Namespace>,
+    ActionType extends AllowedAction['type'] & NamespacedName<Namespace>,
   >(action: ActionType) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(action)) {
@@ -146,17 +146,13 @@ export class RestrictedControllerMessenger<
    * @param params - The action parameters. These must match the type of the parameters of the
    * registered action handler.
    * @throws Will throw when no handler has been registered for the given type.
-   * @template ActionType - A type union of allowed Action type strings.
+   * @template ActionType - A type union of AllowedAction type strings.
    * @returns The action return value.
    */
-  call<
-    ActionType extends
-      | AllowedAction
-      | (Action['type'] & NamespacedName<Namespace>),
-  >(
+  call<ActionType extends AllowedAction['type']>(
     actionType: ActionType,
-    ...params: ExtractActionParameters<Action, ActionType>
-  ): ExtractActionResponse<Action, ActionType> {
+    ...params: ExtractActionParameters<AllowedAction, ActionType>
+  ): ExtractActionResponse<AllowedAction, ActionType> {
     if (!this.#isAllowedAction(actionType)) {
       throw new Error(`Action missing from allow list: ${actionType}`);
     }
@@ -179,11 +175,11 @@ export class RestrictedControllerMessenger<
    * @param payload - The event payload. The type of the parameters for each event handler must
    * match the type of this payload.
    * @throws Will throw if an event that is not in the current namespace is being published.
-   * @template EventType - A type union of Event type strings that are namespaced by Namespace.
+   * @template EventType - A type union of AllowedEvent type strings that are namespaced by Namespace.
    */
-  publish<EventType extends Event['type'] & NamespacedName<Namespace>>(
+  publish<EventType extends AllowedEvent['type'] & NamespacedName<Namespace>>(
     event: EventType,
-    ...payload: ExtractEventPayload<Event, EventType>
+    ...payload: ExtractEventPayload<AllowedEvent, EventType>
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(event)) {
@@ -205,13 +201,12 @@ export class RestrictedControllerMessenger<
    * @param handler - The event handler. The type of the parameters for this event handler must
    * match the type of the payload for this event type.
    * @throws Will throw if the given event is not an allowed event for this controller messenger.
-   * @template EventType - A type union of Event type strings.
+   * @template EventType - A type union of AllowedEvent type strings.
    */
-  subscribe<
-    EventType extends
-      | AllowedEvent
-      | (Event['type'] & NamespacedName<Namespace>),
-  >(eventType: EventType, handler: ExtractEventHandler<Event, EventType>): void;
+  subscribe<EventType extends AllowedEvent['type']>(
+    eventType: EventType,
+    handler: ExtractEventHandler<AllowedEvent, EventType>,
+  ): void;
 
   /**
    * Subscribe to an event, with a selector.
@@ -230,33 +225,23 @@ export class RestrictedControllerMessenger<
    * the event payload. The type of the parameters for this selector must match
    * the type of the payload for this event type.
    * @throws Will throw if the given event is not an allowed event for this controller messenger.
-   * @template EventType - A type union of Event type strings.
+   * @template EventType - A type union of AllowedEvent type strings.
    * @template SelectorReturnValue - The selector return value.
    */
-  subscribe<
-    EventType extends
-      | AllowedEvent
-      | (Event['type'] & NamespacedName<Namespace>),
-    SelectorReturnValue,
-  >(
+  subscribe<EventType extends AllowedEvent['type'], SelectorReturnValue>(
     eventType: EventType,
     handler: SelectorEventHandler<SelectorReturnValue>,
     selector: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
+      ExtractEventPayload<AllowedEvent, EventType>,
       SelectorReturnValue
     >,
   ): void;
 
-  subscribe<
-    EventType extends
-      | AllowedEvent
-      | (Event['type'] & NamespacedName<Namespace>),
-    SelectorReturnValue,
-  >(
+  subscribe<EventType extends AllowedEvent['type'], SelectorReturnValue>(
     event: EventType,
-    handler: ExtractEventHandler<Event, EventType>,
+    handler: ExtractEventHandler<AllowedEvent, EventType>,
     selector?: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
+      ExtractEventPayload<AllowedEvent, EventType>,
       SelectorReturnValue
     >,
   ) {
@@ -280,13 +265,12 @@ export class RestrictedControllerMessenger<
    * @param event - The event type. This is a unique identifier for this event.
    * @param handler - The event handler to unregister.
    * @throws Will throw if the given event is not an allowed event for this controller messenger.
-   * @template EventType - A type union of allowed Event type strings.
+   * @template EventType - A type union of allowed AllowedEvent type strings.
    */
-  unsubscribe<
-    EventType extends
-      | AllowedEvent
-      | (Event['type'] & NamespacedName<Namespace>),
-  >(event: EventType, handler: ExtractEventHandler<Event, EventType>) {
+  unsubscribe<EventType extends AllowedEvent['type']>(
+    event: EventType,
+    handler: ExtractEventHandler<AllowedEvent, EventType>,
+  ) {
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
@@ -302,10 +286,10 @@ export class RestrictedControllerMessenger<
    *
    * @param event - The event type. This is a unique identifier for this event.
    * @throws Will throw if a subscription for an event that is not in the current namespace is being cleared.
-   * @template EventType - A type union of Event type strings that are namespaced by Namespace.
+   * @template EventType - A type union of AllowedEvent type strings that are namespaced by Namespace.
    */
   clearEventSubscriptions<
-    EventType extends Event['type'] & NamespacedName<Namespace>,
+    EventType extends AllowedEvent['type'] & NamespacedName<Namespace>,
   >(event: EventType) {
     if (!this.#isInCurrentNamespace(event)) {
       throw new Error(
@@ -324,12 +308,12 @@ export class RestrictedControllerMessenger<
    * @returns Whether the event type is allowed.
    */
   #isAllowedEvent(
-    eventType: Event['type'],
+    eventType: AllowedEvent['type'],
   ): eventType is
     | NamespacedName<Namespace>
-    | NotNamespacedBy<Namespace, AllowedEvent> {
+    | NotNamespacedBy<Namespace, AllowedEvent['type']> {
     // Safely upcast to allow runtime check
-    const allowedEvents: string[] | null = this.#allowedEvents;
+    const allowedEvents: string[] | null = this.#externalEvents;
     return (
       this.#isInCurrentNamespace(eventType) ||
       (allowedEvents !== null && allowedEvents.includes(eventType))
@@ -345,12 +329,12 @@ export class RestrictedControllerMessenger<
    * @returns Whether the action type is allowed.
    */
   #isAllowedAction(
-    actionType: Action['type'],
+    actionType: AllowedAction['type'],
   ): actionType is
     | NamespacedName<Namespace>
-    | NotNamespacedBy<Namespace, AllowedAction> {
+    | NotNamespacedBy<Namespace, AllowedAction['type']> {
     // Safely upcast to allow runtime check
-    const allowedActions: string[] | null = this.#allowedActions;
+    const allowedActions: string[] | null = this.#externalActions;
     return (
       this.#isInCurrentNamespace(actionType) ||
       (allowedActions !== null && allowedActions.includes(actionType))

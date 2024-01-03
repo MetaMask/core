@@ -34,9 +34,7 @@ const countControllerStateMetadata = {
 type CountMessenger = RestrictedControllerMessenger<
   typeof countControllerName,
   CountControllerAction,
-  CountControllerEvent,
-  never,
-  never
+  CountControllerEvent
 >;
 
 /**
@@ -797,9 +795,7 @@ describe('getPersistentState', () => {
     type VisitorMessenger = RestrictedControllerMessenger<
       typeof visitorName,
       VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      never,
-      never
+      VisitorControllerEvent | VisitorOverflowControllerEvent
     >;
     class VisitorController extends BaseController<
       typeof visitorName,
@@ -861,9 +857,7 @@ describe('getPersistentState', () => {
     type VisitorOverflowMessenger = RestrictedControllerMessenger<
       typeof visitorOverflowName,
       VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      `${typeof visitorName}:clear`,
-      `${typeof visitorName}:stateChange`
+      VisitorControllerEvent | VisitorOverflowControllerEvent
     >;
 
     class VisitorOverflowController extends BaseController<

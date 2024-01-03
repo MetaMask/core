@@ -95,9 +95,7 @@ export class BaseController<
   messenger extends RestrictedControllerMessenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,
-    EventConstraint | ControllerEvents<ControllerName, ControllerState>,
-    string,
-    string
+    EventConstraint | ControllerEvents<ControllerName, ControllerState>
   >,
 > {
   #internalState: ControllerState;
