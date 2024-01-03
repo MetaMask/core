@@ -275,8 +275,8 @@ describe('validation', () => {
       [
         'swaps.destinationTokenDecimals',
         'wrong type',
-        123,
-        'Expected a string, but received: 123',
+        '123',
+        'Expected a number, but received: "123"',
       ],
       [
         'swaps.destinationTokenSymbol',

@@ -1,3 +1,4 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import { isStrictHexString } from '@metamask/utils';
 import type { Struct, StructError } from 'superstruct';
 import {
@@ -6,13 +7,13 @@ import {
   define,
   enums,
   func,
+  number,
   object,
   optional,
   refine,
   string,
 } from 'superstruct';
 
-import { TransactionType } from '../../../transaction-controller/src';
 import { EMPTY_BYTES } from '../constants';
 import type {
   PrepareUserOperationResponse,
@@ -65,7 +66,7 @@ export function validateAddUserOperationOptions(
       object({
         approvalTxId: optional(string()),
         destinationTokenAddress: optional(string()),
-        destinationTokenDecimals: optional(string()),
+        destinationTokenDecimals: optional(number()),
         destinationTokenSymbol: optional(string()),
         estimatedBaseFee: optional(string()),
         sourceTokenSymbol: optional(string()),

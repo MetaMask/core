@@ -126,7 +126,7 @@ export type AddUserOperationRequest = {
 export type AddUserOperationSwapOptions = {
   approvalTxId?: string;
   destinationTokenAddress?: string;
-  destinationTokenDecimals?: string;
+  destinationTokenDecimals?: number;
   destinationTokenSymbol?: string;
   estimatedBaseFee?: string;
   sourceTokenSymbol?: string;

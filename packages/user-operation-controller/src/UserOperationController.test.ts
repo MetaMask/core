@@ -418,7 +418,7 @@ describe('UserOperationController', () => {
           swaps: {
             approvalTxId: 'testTxId',
             destinationTokenAddress: '0x1',
-            destinationTokenDecimals: '3',
+            destinationTokenDecimals: 3,
             destinationTokenSymbol: 'TEST',
             estimatedBaseFee: '0x2',
             sourceTokenSymbol: 'ETH',
@@ -434,7 +434,7 @@ describe('UserOperationController', () => {
           swapsMetadata: {
             approvalTxId: 'testTxId',
             destinationTokenAddress: '0x1',
-            destinationTokenDecimals: '3',
+            destinationTokenDecimals: 3,
             destinationTokenSymbol: 'TEST',
             estimatedBaseFee: '0x2',
             sourceTokenSymbol: 'ETH',

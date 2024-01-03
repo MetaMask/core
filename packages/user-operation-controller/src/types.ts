@@ -327,7 +327,7 @@ export type SwapsMetadata = {
   destinationTokenAddress: string | null;
 
   /** Number of decimals of the destination token. */
-  destinationTokenDecimals: string | null;
+  destinationTokenDecimals: number | null;
 
   /** Symbol of the destination token. */
   destinationTokenSymbol: string | null;
