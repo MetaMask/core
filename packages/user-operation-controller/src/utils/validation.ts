@@ -4,6 +4,7 @@ import {
   assert,
   boolean,
   define,
+  enums,
   func,
   object,
   optional,
@@ -11,6 +12,7 @@ import {
   string,
 } from 'superstruct';
 
+import { TransactionType } from '../../../transaction-controller/src';
 import { EMPTY_BYTES } from '../constants';
 import type {
   PrepareUserOperationResponse,
@@ -59,6 +61,19 @@ export function validateAddUserOperationOptions(
       updateUserOperation: func(),
       signUserOperation: func(),
     }),
+    swaps: optional(
+      object({
+        approvalTxId: optional(string()),
+        destinationTokenAddress: optional(string()),
+        destinationTokenDecimals: optional(string()),
+        destinationTokenSymbol: optional(string()),
+        estimatedBaseFee: optional(string()),
+        sourceTokenSymbol: optional(string()),
+        swapMetaData: optional(object()),
+        swapTokenValue: optional(string()),
+      }),
+    ),
+    type: optional(enums(Object.values(TransactionType))),
   });
 
   validate(options, ValidOptions, 'Invalid options to add user operation');

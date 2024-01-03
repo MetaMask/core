@@ -1,7 +1,6 @@
 import { hexToBN } from '@metamask/controller-utils';
 import { BN, addHexPrefix } from 'ethereumjs-util';
 
-import { ENTRYPOINT } from '../constants';
 import { Bundler } from '../helpers/Bundler';
 import { createModuleLogger, projectLogger } from '../logger';
 import type {
@@ -20,10 +19,12 @@ const GAS_ESTIMATE_MULTIPLIER = 1.5;
  * Populates the gas properties for a user operation.
  * @param metadata - The metadata for the user operation.
  * @param prepareResponse - The prepare response from the smart contract account.
+ * @param entrypoint - Address of the entrypoint contract.
  */
 export async function updateGas(
   metadata: UserOperationMetadata,
   prepareResponse: PrepareUserOperationResponse,
+  entrypoint: string,
 ) {
   const { userOperation } = metadata;
 
@@ -50,7 +51,7 @@ export async function updateGas(
   };
 
   const bundler = new Bundler(metadata.bundlerUrl as string);
-  const estimate = await bundler.estimateUserOperationGas(payload, ENTRYPOINT);
+  const estimate = await bundler.estimateUserOperationGas(payload, entrypoint);
 
   userOperation.callGasLimit = normalizeGasEstimate(estimate.callGasLimit);
   userOperation.preVerificationGas = normalizeGasEstimate(

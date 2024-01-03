@@ -1,6 +1,5 @@
 import { cloneDeep } from 'lodash';
 
-import { ENTRYPOINT } from '../constants';
 import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler';
 import { Bundler } from '../helpers/Bundler';
 import type {
@@ -12,6 +11,8 @@ import { updateGas } from './gas';
 jest.mock('../helpers/Bundler', () => ({
   Bundler: jest.fn(),
 }));
+
+const ENTRYPOINT_MOCK = '0x789';
 
 const METADATA_MOCK = {
   userOperation: {},
@@ -49,6 +50,13 @@ describe('gas', () => {
   let prepareUserOperationResponse: PrepareUserOperationResponse;
   const bundlerMock = createBundlerMock();
 
+  /**
+   * Invoke the updateGas function with the mock data.
+   */
+  async function callUpdateGas() {
+    await updateGas(metadata, prepareUserOperationResponse, ENTRYPOINT_MOCK);
+  }
+
   beforeEach(() => {
     metadata = cloneDeep(METADATA_MOCK);
 
@@ -67,7 +75,7 @@ describe('gas', () => {
         verificationGasLimit: '0x3',
       };
 
-      await updateGas(metadata, prepareUserOperationResponse);
+      await callUpdateGas();
 
       expect(metadata.userOperation.callGasLimit).toBe('0x1');
       expect(metadata.userOperation.preVerificationGas).toBe('0x2');
@@ -80,7 +88,7 @@ describe('gas', () => {
           ESTIMATE_RESPONSE_DECIMAL_MOCK,
         );
 
-        await updateGas(metadata, prepareUserOperationResponse);
+        await callUpdateGas();
 
         expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledTimes(1);
         expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
@@ -90,7 +98,7 @@ describe('gas', () => {
             preVerificationGas: '0x1',
             verificationGasLimit: '0x1',
           },
-          ENTRYPOINT,
+          ENTRYPOINT_MOCK,
         );
       });
 
@@ -99,7 +107,7 @@ describe('gas', () => {
           ESTIMATE_RESPONSE_DECIMAL_MOCK,
         );
 
-        await updateGas(metadata, prepareUserOperationResponse);
+        await callUpdateGas();
 
         expect(metadata.userOperation).toStrictEqual(
           expect.objectContaining({
@@ -116,7 +124,7 @@ describe('gas', () => {
           ESTIMATE_RESPONSE_HEX_MOCK,
         );
 
-        await updateGas(metadata, prepareUserOperationResponse);
+        await callUpdateGas();
 
         expect(metadata.userOperation).toStrictEqual(
           expect.objectContaining({
@@ -135,7 +143,7 @@ describe('gas', () => {
           verificationGasLimit: undefined,
         });
 
-        await updateGas(metadata, prepareUserOperationResponse);
+        await callUpdateGas();
 
         expect(metadata.userOperation).toStrictEqual(
           expect.objectContaining({

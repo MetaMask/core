@@ -24,7 +24,7 @@ import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT, VALUE_ZERO } from './constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
 import { Bundler } from './helpers/Bundler';
 import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
 import { projectLogger as log } from './logger';
@@ -57,6 +57,7 @@ const getDefaultState = () => ({
 
 type Events = {
   'transaction-updated': [metadata: TransactionMeta];
+  'user-operation-added': [metadata: UserOperationMetadata];
   'user-operation-confirmed': [metadata: UserOperationMetadata];
   'user-operation-failed': [metadata: UserOperationMetadata, error: Error];
   [key: `${string}:confirmed`]: [metadata: UserOperationMetadata];
@@ -107,6 +108,7 @@ export type UserOperationControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type UserOperationControllerOptions = {
+  entrypoint: string;
   getGasFeeEstimates: () => Promise<GasFeeState>;
   interval?: number;
   messenger: UserOperationControllerMessenger;
@@ -121,11 +123,24 @@ export type AddUserOperationRequest = {
   value?: string;
 };
 
+export type AddUserOperationSwapOptions = {
+  approvalTxId?: string;
+  destinationTokenAddress?: string;
+  destinationTokenDecimals?: string;
+  destinationTokenSymbol?: string;
+  estimatedBaseFee?: string;
+  sourceTokenSymbol?: string;
+  swapMetaData?: Record<string, unknown>;
+  swapTokenValue?: string;
+};
+
 export type AddUserOperationOptions = {
   networkClientId: string;
   origin: string;
   requireApproval?: boolean;
   smartContractAccount: SmartContractAccount;
+  swaps?: AddUserOperationSwapOptions;
+  type?: TransactionType;
 };
 
 export type AddUserOperationResponse = {
@@ -153,6 +168,8 @@ export class UserOperationController extends BaseController<
 > {
   hub: UserOperationControllerEventEmitter;
 
+  #entrypoint: string;
+
   #getGasFeeEstimates: () => Promise<GasFeeState>;
 
   #pendingUserOperationTracker: PendingUserOperationTracker;
@@ -161,11 +178,13 @@ export class UserOperationController extends BaseController<
    * Construct a UserOperationController instance.
    *
    * @param options - Controller options.
+   * @param options.entrypoint - Address of the entrypoint contract.
    * @param options.getGasFeeEstimates - Callback to get gas fee estimates.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
    */
   constructor({
+    entrypoint,
     getGasFeeEstimates,
     messenger,
     state,
@@ -179,6 +198,7 @@ export class UserOperationController extends BaseController<
 
     this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
 
+    this.#entrypoint = entrypoint;
     this.#getGasFeeEstimates = getGasFeeEstimates;
 
     this.#pendingUserOperationTracker = new PendingUserOperationTracker({
@@ -224,6 +244,8 @@ export class UserOperationController extends BaseController<
    * @param options.origin - Origin of the user operation, such as the hostname of a dApp.
    * @param options.requireApproval - Whether to require user approval before submitting the user operation. Defaults to true.
    * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce.
+   * @param options.swaps - Swap metadata to record with the user operation.
+   * @param options.type - Type of the transaction.
    */
   async addUserOperationFromTransaction(
     transaction: TransactionParams,
@@ -257,9 +279,15 @@ export class UserOperationController extends BaseController<
   ): Promise<AddUserOperationResponse> {
     log('Adding user operation', { request, options });
 
-    const { networkClientId, origin, transaction } = options;
+    const { networkClientId, origin, transaction, swaps } = options;
     const { chainId, provider } = await this.#getProvider(networkClientId);
-    const metadata = await this.#createMetadata(chainId, origin, transaction);
+
+    const metadata = await this.#createMetadata(
+      chainId,
+      origin,
+      transaction,
+      swaps,
+    );
 
     const cache: UserOperationCache = {
       chainId,
@@ -317,6 +345,8 @@ export class UserOperationController extends BaseController<
       await this.#prepareUserOperation(cache);
       await this.#addPaymasterData(metadata, smartContractAccount);
 
+      this.hub.emit('user-operation-added', metadata);
+
       if (requireApproval !== false) {
         resultCallbacks = await this.#approveUserOperation(cache);
       }
@@ -356,6 +386,7 @@ export class UserOperationController extends BaseController<
     chainId: string,
     origin: string,
     transaction?: TransactionParams,
+    swaps?: AddUserOperationSwapOptions,
   ): Promise<UserOperationMetadata> {
     const metadata: UserOperationMetadata = {
       actualGasCost: null,
@@ -368,6 +399,18 @@ export class UserOperationController extends BaseController<
       id: random(),
       origin,
       status: UserOperationStatus.Unapproved,
+      swapsMetadata: swaps
+        ? {
+            approvalTxId: swaps.approvalTxId ?? null,
+            destinationTokenAddress: swaps.destinationTokenAddress ?? null,
+            destinationTokenDecimals: swaps.destinationTokenDecimals ?? null,
+            destinationTokenSymbol: swaps.destinationTokenSymbol ?? null,
+            estimatedBaseFee: swaps.estimatedBaseFee ?? null,
+            sourceTokenSymbol: swaps.sourceTokenSymbol ?? null,
+            swapMetaData: (swaps.swapMetaData as Record<string, never>) ?? null,
+            swapTokenValue: swaps.swapTokenValue ?? null,
+          }
+        : null,
       time: Date.now(),
       transactionHash: null,
       transactionParams: (transaction as Required<TransactionParams>) ?? null,
@@ -384,23 +427,19 @@ export class UserOperationController extends BaseController<
   }
 
   async #prepareUserOperation(cache: UserOperationCache) {
-    const {
-      chainId,
-      metadata,
-      options: { smartContractAccount },
-      provider,
-      request,
-      transaction,
-    } = cache;
+    const { chainId, metadata, options, provider, request, transaction } =
+      cache;
 
     const { data, to, value } = request;
     const { id, transactionParams, userOperation } = metadata;
+    const { smartContractAccount } = options;
 
     log('Preparing user operation', { id });
 
     const transactionType = await this.#getTransactionType(
       transaction,
       provider,
+      options,
     );
 
     metadata.transactionType = transactionType ?? null;
@@ -443,7 +482,7 @@ export class UserOperationController extends BaseController<
 
     metadata.bundlerUrl = bundlerUrl;
 
-    await updateGas(metadata, response);
+    await updateGas(metadata, response, this.#entrypoint);
 
     this.#updateMetadata(metadata);
   }
@@ -518,7 +557,11 @@ export class UserOperationController extends BaseController<
     log('Submitting user operation', userOperation);
 
     const bundler = new Bundler(metadata.bundlerUrl as string);
-    const hash = await bundler.sendUserOperation(userOperation, ENTRYPOINT);
+
+    const hash = await bundler.sendUserOperation(
+      userOperation,
+      this.#entrypoint,
+    );
 
     metadata.hash = hash;
     metadata.status = UserOperationStatus.Submitted;
@@ -628,9 +671,14 @@ export class UserOperationController extends BaseController<
   async #getTransactionType(
     transaction: TransactionParams | undefined,
     provider: Provider,
+    options: AddUserOperationOptions,
   ): Promise<TransactionType | undefined> {
     if (!transaction) {
       return undefined;
+    }
+
+    if (options.type) {
+      return options.type;
     }
 
     const ethQuery = new EthQuery(provider);

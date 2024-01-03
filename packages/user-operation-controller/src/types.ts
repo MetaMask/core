@@ -129,6 +129,9 @@ export type UserOperationMetadata = {
   /** Current status of the user operation. */
   status: UserOperationStatus;
 
+  /** Metadata specific to swap transactions. */
+  swapsMetadata: SwapsMetadata | null;
+
   /** Timestamp of when the user operation was created. */
   time: number;
 
@@ -313,4 +316,31 @@ export type UserOperationReceipt = {
     /** Hash of the confirmed transaction. */
     transactionHash: string;
   };
+};
+
+/** Information specific to user operations created from swap transactions. */
+export type SwapsMetadata = {
+  /** ID of the associated approval transaction. */
+  approvalTxId: string | null;
+
+  /** Address of the destination token. */
+  destinationTokenAddress: string | null;
+
+  /** Number of decimals of the destination token. */
+  destinationTokenDecimals: string | null;
+
+  /** Symbol of the destination token. */
+  destinationTokenSymbol: string | null;
+
+  /** Estimated base fee of the swap. */
+  estimatedBaseFee: string | null;
+
+  /** Symbol of the source token. */
+  sourceTokenSymbol: string | null;
+
+  /** Untyped raw metadata values. */
+  swapMetaData: Record<string, never> | null;
+
+  /** Value of the token being swapped. */
+  swapTokenValue: string | null;
 };
