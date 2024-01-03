@@ -134,7 +134,7 @@ export class ControllerMessenger<
    *
    * Used only for events that represent state changes.
    */
-  readonly #getEventPayload = new Map<
+  readonly #initialEventPayloadGetters = new Map<
     Event['type'],
     () => ExtractEventPayload<Event, Event['type']>
   >();
@@ -238,7 +238,7 @@ export class ControllerMessenger<
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
   }) {
-    this.#getEventPayload.set(eventType, getPayload);
+    this.#initialEventPayloadGetters.set(eventType, getPayload);
   }
 
   /**
@@ -343,7 +343,7 @@ export class ControllerMessenger<
     subscribers.set(handler, selector);
 
     if (selector) {
-      const getPayload = this.#getEventPayload.get(eventType);
+      const getPayload = this.#initialEventPayloadGetters.get(eventType);
       if (getPayload) {
         const initialValue = selector(...getPayload());
         this.#eventPayloadCache.set(handler, initialValue);
