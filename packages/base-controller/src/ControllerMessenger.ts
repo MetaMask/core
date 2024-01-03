@@ -1,5 +1,3 @@
-import { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
-
 export type ActionHandler<
   Action extends ActionConstraint,
   ActionType = Action['type'],
@@ -99,18 +97,6 @@ export type NotNamespacedBy<
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
 
-type NarrowToNamespace<Name, Namespace extends string> = Name extends {
-  type: `${Namespace}:${string}`;
-}
-  ? Name
-  : never;
-
-type NarrowToAllowed<Name, Allowed extends string> = Name extends {
-  type: Allowed;
-}
-  ? Name
-  : never;
-
 /**
  * A messaging system for controllers.
  *
@@ -129,6 +115,10 @@ export class ControllerMessenger<
 
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
 
+  readonly #parent:
+    | ControllerMessenger<ActionConstraint, EventConstraint>
+    | undefined;
+
   /**
    * A cache of selector return values for their respective handlers.
    */
@@ -136,6 +126,20 @@ export class ControllerMessenger<
     GenericEventHandler,
     unknown | undefined
   >();
+
+  /**
+   * Construct a messenger, optionally specifying a parent to extend from.
+   *
+   * @param options - Options.
+   * @param options.parent - The parent messenger.
+   */
+  constructor({
+    parent,
+  }: {
+    parent?: ControllerMessenger<ActionConstraint, EventConstraint>;
+  } = {}) {
+    this.#parent = parent;
+  }
 
   /**
    * Register an action handler.
@@ -157,6 +161,9 @@ export class ControllerMessenger<
         `A handler for ${actionType} has already been registered`,
       );
     }
+    if (this.#parent) {
+      this.#parent.registerActionHandler(actionType, handler);
+    }
     this.#actions.set(actionType, handler);
   }
 
@@ -171,6 +178,9 @@ export class ControllerMessenger<
   unregisterActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
   ) {
+    if (this.#parent) {
+      this.#parent.unregisterActionHandler(actionType);
+    }
     this.#actions.delete(actionType);
   }
 
@@ -227,6 +237,10 @@ export class ControllerMessenger<
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
+    if (this.#parent) {
+      this.#parent.publish(eventType, ...payload);
+    }
+
     const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
@@ -364,70 +378,51 @@ export class ControllerMessenger<
   }
 
   /**
-   * Get a restricted controller messenger
+   * Create another controller messenger that has access to a subset of actions/events.
    *
-   * Returns a wrapper around the controller messenger instance that restricts access to actions
-   * and events. The provided allowlists grant the ability to call the listed actions and subscribe
-   * to the listed events. The "name" provided grants ownership of any actions and events under
-   * that namespace. Ownership allows registering actions and publishing events, as well as
-   * unregistering actions and clearing event subscriptions.
-   *
-   * @param options - Controller messenger options.
-   * @param options.name - The name of the thing this messenger will be handed to (e.g. the
-   * controller name). This grants "ownership" of actions and events under this namespace to the
-   * restricted controller messenger returned.
-   * @param options.allowedActions - The list of actions that this restricted controller messenger
-   * should be alowed to call.
-   * @param options.allowedEvents - The list of events that this restricted controller messenger
-   * should be allowed to subscribe to.
-   * @template Namespace - The namespace for this messenger. Typically this is the name of the controller or
-   * module that this messenger has been created for. The authority to publish events and register
-   * actions under this namespace is granted to this restricted messenger instance.
-   * @template AllowedAction - A type union of the 'type' string for any allowed actions.
-   * This must not include internal actions that are in the messenger's namespace.
-   * @template AllowedEvent - A type union of the 'type' string for any allowed events.
-   * This must not include internal events that are in the messenger's namespace.
-   * @returns The restricted controller messenger.
+   * @param args - Arguments.
+   * @param args.delegatedActions - Actions to delegate to this child messenger.
+   * @param args.delegatedEvents - Events to delegate to this child messenger.
+   * @returns A child controller messenger.
    */
-  getRestricted<
-    Namespace extends string,
-    AllowedAction extends NotNamespacedBy<Namespace, Action['type']>,
-    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']>,
+  createChildMessenger<
+    ChildAction extends ActionConstraint,
+    ChildEvent extends EventConstraint,
   >({
-    name,
-    allowedActions,
-    allowedEvents,
+    delegatedActions,
+    delegatedEvents,
   }: {
-    name: Namespace;
-    allowedActions?: NotNamespacedBy<
-      Namespace,
-      Extract<Action['type'], AllowedAction>
-    >[];
-    allowedEvents?: NotNamespacedBy<
-      Namespace,
-      Extract<Event['type'], AllowedEvent>
-    >[];
-  }): RestrictedControllerMessenger<
-    Namespace,
-    | NarrowToNamespace<Action, Namespace>
-    | NarrowToAllowed<Action, AllowedAction>,
-    NarrowToNamespace<Event, Namespace> | NarrowToAllowed<Event, AllowedEvent>,
-    AllowedAction,
-    AllowedEvent
-  > {
-    return new RestrictedControllerMessenger<
-      Namespace,
-      | NarrowToNamespace<Action, Namespace>
-      | NarrowToAllowed<Action, AllowedAction>,
-      | NarrowToNamespace<Event, Namespace>
-      | NarrowToAllowed<Event, AllowedEvent>,
-      AllowedAction,
-      AllowedEvent
-    >({
-      controllerMessenger: this,
-      name,
-      allowedActions,
-      allowedEvents,
+    delegatedActions: ChildAction['type'][];
+    delegatedEvents: ChildEvent['type'][];
+  }): ControllerMessenger<ChildAction, ChildEvent> {
+    const childMessenger = new ControllerMessenger<ChildAction, ChildEvent>({
+      parent: this,
     });
+
+    for (const delegatedAction of delegatedActions) {
+      childMessenger.registerActionHandler(
+        delegatedAction,
+        // Cast used because I don't know of a way to convince TypeScript that
+        // this handler matches the type for this specific action
+        this.call.bind(delegatedAction) as ActionHandler<
+          ChildAction,
+          ChildAction['type']
+        >,
+      );
+    }
+
+    for (const delegatedEvent of delegatedEvents) {
+      this.subscribe(
+        delegatedEvent,
+        // Cast used because I don't know of a way to convince TypeScript that
+        // this event handler matches the type for this specific event
+        childMessenger.publish.bind(delegatedEvent) as ExtractEventHandler<
+          ChildEvent,
+          ChildEvent['type']
+        >,
+      );
+    }
+
+    return childMessenger;
   }
 }
