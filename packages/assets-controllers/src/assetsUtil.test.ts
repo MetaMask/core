@@ -3,10 +3,13 @@ import {
   ChainId,
   convertHexToDecimal,
   toHex,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { add0x, type Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
+import type { AbstractTokenPricesService } from './token-prices-service';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -436,4 +439,145 @@ describe('assetsUtil', () => {
       expect(timestampsIncreasing).toBe(true);
     });
   });
+
+  describe('fetchAndMapExchangeRates', () => {
+    it('should return empty object when chainId not supported', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
+
+      jest
+        .spyOn(mockPriceService, 'validateChainIdSupported')
+        .mockReturnValue(false);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: 'ETH',
+        tokenAddresses: [testTokenAddress],
+        chainId: '0x0',
+      });
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return empty object when nativeCurrency not supported', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
+      jest
+        .spyOn(mockPriceService, 'validateCurrencySupported')
+        .mockReturnValue(false);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: 'X',
+        tokenAddresses: [testTokenAddress],
+        chainId: '0x1',
+      });
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return successfully with a number of tokens less than 100', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+      const mockPriceService = createMockPriceService();
+      jest
+        .spyOn(mockPriceService, 'validateCurrencySupported')
+        .mockReturnValue(true);
+
+      jest
+        .spyOn(mockPriceService, 'validateChainIdSupported')
+        .mockReturnValue(true);
+
+      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
+        [testTokenAddress]: {
+          tokenAddress: testTokenAddress,
+          value: 0.0004588648479937523,
+          currency: testNativeCurrency,
+        },
+      });
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: [testTokenAddress],
+        chainId: testChainId,
+      });
+
+      expect(result).toMatchObject({
+        [testTokenAddress]: 0.0004588648479937523,
+      });
+    });
+
+    it('should fetch successfully in batches of 100', async () => {
+      const mockPriceService = createMockPriceService();
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort();
+
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+      jest
+        .spyOn(mockPriceService, 'validateCurrencySupported')
+        .mockReturnValue(true);
+
+      jest
+        .spyOn(mockPriceService, 'validateChainIdSupported')
+        .mockReturnValue(true);
+
+      const fetchTokenPricesSpy = jest.spyOn(
+        mockPriceService,
+        'fetchTokenPrices',
+      );
+
+      await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: tokenAddresses as Hex[],
+        chainId: testChainId,
+      });
+
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
+      expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
+        chainId: testChainId,
+        tokenAddresses: tokenAddresses.slice(0, 100),
+        currency: testNativeCurrency,
+      });
+      expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
+        chainId: testChainId,
+        tokenAddresses: tokenAddresses.slice(100),
+        currency: testNativeCurrency,
+      });
+    });
+  });
 });
+
+/**
+ * Constructs a checksum Ethereum address.
+ *
+ * @param number - The address as a decimal number.
+ * @returns The address as an 0x-prefixed ERC-55 mixed-case checksum address in
+ * hexadecimal format.
+ */
+function buildAddress(number: number) {
+  return toChecksumHexAddress(add0x(number.toString(16).padStart(40, '0')));
+}
+
+/**
+ * Creates a mock for token prices service.
+ *
+ * @returns The mocked functions of token prices service.
+ */
+function createMockPriceService(): AbstractTokenPricesService {
+  return {
+    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
+      return true;
+    },
+    validateCurrencySupported(_currency: unknown): _currency is string {
+      return true;
+    },
+    async fetchTokenPrices() {
+      return {};
+    },
+  };
+}
