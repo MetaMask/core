@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "19.0.0",
+  "version": "19.0.1",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -44,7 +44,7 @@
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.2.0",
     "async-mutex": "^0.2.6",
-    "eth-method-registry": "1.1.0",
+    "eth-method-registry": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "fast-json-patch": "^3.1.1",
     "lodash": "^4.17.21",

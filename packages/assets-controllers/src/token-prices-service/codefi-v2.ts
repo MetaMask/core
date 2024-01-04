@@ -9,6 +9,7 @@ import {
   type IPolicy,
   retry,
   wrap,
+  CircuitState,
 } from 'cockatiel';
 
 import type {
@@ -251,6 +252,8 @@ const DEFAULT_TOKEN_PRICE_RETRIES = 3;
 const DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES =
   (1 + DEFAULT_TOKEN_PRICE_RETRIES) * 3;
 
+const DEFAULT_DEGRADED_THRESHOLD = 5_000;
+
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
@@ -265,23 +268,31 @@ export class CodefiTokenPricesServiceV2
    * Construct a Codefi Token Price Service.
    *
    * @param options - Constructor options
+   * @param options.degradedThreshold - The threshold between "normal" and "degrated" service,
+   * in milliseconds.
    * @param options.retries - Number of retry attempts for each token price update.
    * @param options.maximumConsecutiveFailures - The maximum number of consecutive failures
    * allowed before breaking the circuit and pausing further updates.
    * @param options.onBreak - An event handler for when the circuit breaks, useful for capturing
    * metrics about network failures.
+   * @param options.onDegraded - An event handler for when the circuit remains closed, but requests
+   * are failing or resolving too slowly (i.e. resolving more slowly than the `degradedThreshold).
    * @param options.circuitBreakDuration - The amount of time to wait when the circuit breaks
    * from too many consecutive failures.
    */
   constructor({
+    degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
     retries = DEFAULT_TOKEN_PRICE_RETRIES,
     maximumConsecutiveFailures = DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES,
     onBreak,
+    onDegraded,
     circuitBreakDuration = 30 * 60 * 1000,
   }: {
+    degradedThreshold?: number;
     retries?: number;
     maximumConsecutiveFailures?: number;
     onBreak?: () => void;
+    onDegraded?: () => void;
     circuitBreakDuration?: number;
   } = {}) {
     // Construct a policy that will retry each update, and halt further updates
@@ -296,6 +307,21 @@ export class CodefiTokenPricesServiceV2
     });
     if (onBreak) {
       circuitBreakerPolicy.onBreak(onBreak);
+    }
+    if (onDegraded) {
+      retryPolicy.onGiveUp(() => {
+        if (circuitBreakerPolicy.state === CircuitState.Closed) {
+          onDegraded();
+        }
+      });
+      retryPolicy.onSuccess(({ duration }) => {
+        if (
+          circuitBreakerPolicy.state === CircuitState.Closed &&
+          duration > degradedThreshold
+        ) {
+          onDegraded();
+        }
+      });
     }
     this.#tokenPricePolicy = wrap(retryPolicy, circuitBreakerPolicy);
   }
