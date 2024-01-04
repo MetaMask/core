@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [19.0.1]
-### Uncategorized
-- deps(transactions-controller): eth-method-registry@^1.1.0->^3.0.0 ([#3688](https://github.com/MetaMask/core/pull/3688))
+### Changed
+- Bump `eth-method-registry` from `^1.1.0` to `^3.0.0` ([#3688](https://github.com/MetaMask/core/pull/3688))
 
 ## [19.0.0]
 ### Changed
