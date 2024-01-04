@@ -1,6 +1,6 @@
 import { query } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import type { ContactEntry } from '@metamask/preferences-controller';
+import type { Identity } from '@metamask/preferences-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
 
@@ -105,8 +105,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                bar: {} as ContactEntry,
-                baz: {} as ContactEntry,
+                bar: {} as Identity,
+                baz: {} as Identity,
               };
             },
             getSelectedAddress: () => '0x0',
@@ -158,7 +158,7 @@ describe('AccountTrackerController', () => {
           {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
-              return { [ADDRESS_1]: {} as ContactEntry };
+              return { [ADDRESS_1]: {} as Identity };
             },
             getSelectedAddress: () => ADDRESS_1,
             getMultiAccountBalancesEnabled: () => true,
@@ -196,8 +196,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                [ADDRESS_1]: {} as ContactEntry,
-                [ADDRESS_2]: {} as ContactEntry,
+                [ADDRESS_1]: {} as Identity,
+                [ADDRESS_2]: {} as Identity,
               };
             },
             getSelectedAddress: () => ADDRESS_1,
@@ -234,8 +234,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                [ADDRESS_1]: {} as ContactEntry,
-                [ADDRESS_2]: {} as ContactEntry,
+                [ADDRESS_1]: {} as Identity,
+                [ADDRESS_2]: {} as Identity,
               };
             },
             getSelectedAddress: () => ADDRESS_1,
@@ -270,8 +270,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                bar: {} as ContactEntry,
-                baz: {} as ContactEntry,
+                bar: {} as Identity,
+                baz: {} as Identity,
               };
             },
             getSelectedAddress: () => '0x0',
@@ -331,7 +331,7 @@ describe('AccountTrackerController', () => {
         const controller = new AccountTrackerController({
           onPreferencesStateChange: sinon.stub(),
           getIdentities: () => {
-            return { [ADDRESS_1]: {} as ContactEntry };
+            return { [ADDRESS_1]: {} as Identity };
           },
           getSelectedAddress: () => ADDRESS_1,
           getMultiAccountBalancesEnabled: () => true,
@@ -376,8 +376,8 @@ describe('AccountTrackerController', () => {
           onPreferencesStateChange: sinon.stub(),
           getIdentities: () => {
             return {
-              [ADDRESS_1]: {} as ContactEntry,
-              [ADDRESS_2]: {} as ContactEntry,
+              [ADDRESS_1]: {} as Identity,
+              [ADDRESS_2]: {} as Identity,
             };
           },
           getSelectedAddress: () => ADDRESS_1,
@@ -420,8 +420,8 @@ describe('AccountTrackerController', () => {
           onPreferencesStateChange: sinon.stub(),
           getIdentities: () => {
             return {
-              [ADDRESS_1]: {} as ContactEntry,
-              [ADDRESS_2]: {} as ContactEntry,
+              [ADDRESS_1]: {} as Identity,
+              [ADDRESS_2]: {} as Identity,
             };
           },
           getSelectedAddress: () => ADDRESS_1,
