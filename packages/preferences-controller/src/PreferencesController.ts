@@ -1,5 +1,9 @@
-import type { BaseConfig } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+  type ControllerGetStateAction,
+  type RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
@@ -71,12 +75,6 @@ export type PreferencesState = {
    */
   lostIdentities: { [address: string]: Identity };
   /**
-   * The name of the controller
-   *
-   * @deprecated This property is never set, and will be removed in a future release
-   */
-  name?: string;
-  /**
    * Controls whether the OpenSea API is used
    */
   openSeaEnabled: boolean;
@@ -107,6 +105,47 @@ export type PreferencesState = {
    */
   useTokenDetection: boolean;
 };
+
+const metadata = {
+  disabledRpcMethodPreferences: { persist: true, anonymous: true },
+  featureFlags: { persist: true, anonymous: true },
+  identities: { persist: true, anonymous: false },
+  ipfsGateway: { persist: true, anonymous: false },
+  isIpfsGatewayEnabled: { persist: true, anonymous: true },
+  isMultiAccountBalancesEnabled: { persist: true, anonymous: true },
+  lostIdentities: { persist: true, anonymous: false },
+  openSeaEnabled: { persist: true, anonymous: true },
+  securityAlertsEnabled: { persist: true, anonymous: true },
+  selectedAddress: { persist: true, anonymous: false },
+  showTestNetworks: { persist: true, anonymous: true },
+  showIncomingTransactions: { persist: true, anonymous: true },
+  useNftDetection: { persist: true, anonymous: true },
+  useTokenDetection: { persist: true, anonymous: true },
+};
+
+const name = 'PreferencesController';
+
+export type PreferencesControllerGetStateAction = ControllerGetStateAction<
+  typeof name,
+  PreferencesState
+>;
+
+export type PreferencesControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof name,
+  PreferencesState
+>;
+
+export type PreferencesControllerActions = PreferencesControllerGetStateAction;
+
+export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
+
+export type PreferencesControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  PreferencesControllerActions,
+  PreferencesControllerEvents,
+  never,
+  never
+>;
 
 /**
  * Get the default PreferencesController state.
@@ -157,25 +196,34 @@ export function getDefaultPreferencesState() {
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
-export class PreferencesController extends BaseControllerV1<
-  BaseConfig,
-  PreferencesState
+export class PreferencesController extends BaseController<
+  typeof name,
+  PreferencesState,
+  PreferencesControllerMessenger
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'PreferencesController';
-
   /**
    * Creates a PreferencesController instance.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param args - Arguments
+   * @param args.messenger - The preferences controller messenger.
+   * @param args.state - Preferences controller state.
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
-    super(config, state);
-    this.defaultState = getDefaultPreferencesState();
-    this.initialize();
+  constructor({
+    messenger,
+    state,
+  }: {
+    messenger: PreferencesControllerMessenger;
+    state?: Partial<PreferencesState>;
+  }) {
+    super({
+      name,
+      metadata,
+      messenger,
+      state: {
+        ...getDefaultPreferencesState(),
+        ...state,
+      },
+    });
   }
 
   /**
@@ -184,21 +232,22 @@ export class PreferencesController extends BaseControllerV1<
    * @param addresses - List of addresses to use to generate new identities.
    */
   addIdentities(addresses: string[]) {
-    const { identities } = this.state;
-    addresses.forEach((address) => {
-      address = toChecksumHexAddress(address);
-      if (identities[address]) {
-        return;
-      }
-      const identityCount = Object.keys(identities).length;
+    const checksummedAddresses = addresses.map(toChecksumHexAddress);
+    this.update((state) => {
+      const { identities } = state;
+      for (const address of checksummedAddresses) {
+        if (identities[address]) {
+          return;
+        }
+        const identityCount = Object.keys(identities).length;
 
-      identities[address] = {
-        name: `Account ${identityCount + 1}`,
-        address,
-        importTime: Date.now(),
-      };
+        identities[address] = {
+          name: `Account ${identityCount + 1}`,
+          address,
+          importTime: Date.now(),
+        };
+      }
     });
-    this.update({ identities: { ...identities } });
   }
 
   /**
@@ -212,11 +261,12 @@ export class PreferencesController extends BaseControllerV1<
     if (!identities[address]) {
       return;
     }
-    delete identities[address];
-    this.update({ identities: { ...identities } });
-    if (address === this.state.selectedAddress) {
-      this.update({ selectedAddress: Object.keys(identities)[0] });
-    }
+    this.update((state) => {
+      delete state.identities[address];
+      if (address === state.selectedAddress) {
+        state.selectedAddress = Object.keys(state.identities)[0];
+      }
+    });
   }
 
   /**
@@ -227,10 +277,11 @@ export class PreferencesController extends BaseControllerV1<
    */
   setAccountLabel(address: string, label: string) {
     address = toChecksumHexAddress(address);
-    const { identities } = this.state;
-    identities[address] = identities[address] || {};
-    identities[address].name = label;
-    this.update({ identities: { ...identities } });
+    this.update((state) => {
+      const identity = state.identities[address] || {};
+      identity.name = label;
+      state.identities[address] = identity;
+    });
   }
 
   /**
@@ -240,9 +291,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param activated - Value to assign.
    */
   setFeatureFlag(feature: string, activated: boolean) {
-    const oldFeatureFlags = this.state.featureFlags;
-    const featureFlags = { ...oldFeatureFlags, ...{ [feature]: activated } };
-    this.update({ featureFlags: { ...featureFlags } });
+    this.update((state) => {
+      state.featureFlags[feature] = activated;
+    });
   }
 
   /**
@@ -255,28 +306,28 @@ export class PreferencesController extends BaseControllerV1<
     addresses = addresses.map((address: string) =>
       toChecksumHexAddress(address),
     );
-    const { identities, lostIdentities } = this.state;
-    const newlyLost: { [address: string]: Identity } = {};
 
-    for (const [address, identity] of Object.entries(identities)) {
-      if (!addresses.includes(address)) {
-        newlyLost[address] = identity;
-        delete identities[address];
+    this.update((state) => {
+      const { identities } = state;
+      const newlyLost: { [address: string]: Identity } = {};
+
+      for (const [address, identity] of Object.entries(identities)) {
+        if (!addresses.includes(address)) {
+          newlyLost[address] = identity;
+          delete identities[address];
+        }
       }
-    }
 
-    for (const [address, identity] of Object.entries(newlyLost)) {
-      lostIdentities[address] = identity;
-    }
-
-    this.update({
-      identities: { ...identities },
-      lostIdentities: { ...lostIdentities },
+      for (const [address, identity] of Object.entries(newlyLost)) {
+        state.lostIdentities[address] = identity;
+      }
     });
     this.addIdentities(addresses);
 
     if (!addresses.includes(this.state.selectedAddress)) {
-      this.update({ selectedAddress: addresses[0] });
+      this.update((state) => {
+        state.selectedAddress = addresses[0];
+      });
     }
 
     return this.state.selectedAddress;
@@ -293,23 +344,23 @@ export class PreferencesController extends BaseControllerV1<
     addresses = addresses.map((address: string) =>
       toChecksumHexAddress(address),
     );
-    const oldIdentities = this.state.identities;
-    const identities = addresses.reduce(
-      (ids: { [address: string]: Identity }, address, index) => {
-        ids[address] = oldIdentities[address] || {
-          address,
-          name: `Account ${index + 1}`,
-          importTime: Date.now(),
-        };
-        return ids;
-      },
-      {},
-    );
-    let { selectedAddress } = this.state;
-    if (!Object.keys(identities).includes(selectedAddress)) {
-      selectedAddress = Object.keys(identities)[0];
-    }
-    this.update({ identities: { ...identities }, selectedAddress });
+    this.update((state) => {
+      const identities = addresses.reduce(
+        (ids: { [address: string]: Identity }, address, index) => {
+          ids[address] = state.identities[address] || {
+            address,
+            name: `Account ${index + 1}`,
+            importTime: Date.now(),
+          };
+          return ids;
+        },
+        {},
+      );
+      state.identities = identities;
+      if (!Object.keys(identities).includes(state.selectedAddress)) {
+        state.selectedAddress = Object.keys(identities)[0];
+      }
+    });
   }
 
   /**
@@ -318,7 +369,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param selectedAddress - Ethereum address.
    */
   setSelectedAddress(selectedAddress: string) {
-    this.update({ selectedAddress: toChecksumHexAddress(selectedAddress) });
+    this.update((state) => {
+      state.selectedAddress = toChecksumHexAddress(selectedAddress);
+    });
   }
 
   /**
@@ -327,7 +380,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param ipfsGateway - IPFS gateway string.
    */
   setIpfsGateway(ipfsGateway: string) {
-    this.update({ ipfsGateway });
+    this.update((state) => {
+      state.ipfsGateway = ipfsGateway;
+    });
   }
 
   /**
@@ -336,7 +391,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param useTokenDetection - Boolean indicating user preference on token detection.
    */
   setUseTokenDetection(useTokenDetection: boolean) {
-    this.update({ useTokenDetection });
+    this.update((state) => {
+      state.useTokenDetection = useTokenDetection;
+    });
   }
 
   /**
@@ -350,7 +407,9 @@ export class PreferencesController extends BaseControllerV1<
         'useNftDetection cannot be enabled if openSeaEnabled is false',
       );
     }
-    this.update({ useNftDetection });
+    this.update((state) => {
+      state.useNftDetection = useNftDetection;
+    });
   }
 
   /**
@@ -359,10 +418,12 @@ export class PreferencesController extends BaseControllerV1<
    * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
    */
   setOpenSeaEnabled(openSeaEnabled: boolean) {
-    this.update({ openSeaEnabled });
-    if (!openSeaEnabled) {
-      this.update({ useNftDetection: false });
-    }
+    this.update((state) => {
+      state.openSeaEnabled = openSeaEnabled;
+      if (!openSeaEnabled) {
+        state.useNftDetection = false;
+      }
+    });
   }
 
   /**
@@ -371,7 +432,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param securityAlertsEnabled - Boolean indicating user preference on using security alerts.
    */
   setSecurityAlertsEnabled(securityAlertsEnabled: boolean) {
-    this.update({ securityAlertsEnabled });
+    this.update((state) => {
+      state.securityAlertsEnabled = securityAlertsEnabled;
+    });
   }
 
   /**
@@ -386,7 +449,9 @@ export class PreferencesController extends BaseControllerV1<
       ...disabledRpcMethodPreferences,
       [methodName]: isEnabled,
     };
-    this.update({ disabledRpcMethodPreferences: newDisabledRpcMethods });
+    this.update((state) => {
+      state.disabledRpcMethodPreferences = newDisabledRpcMethods;
+    });
   }
 
   /**
@@ -395,7 +460,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param isMultiAccountBalancesEnabled - true to enable multiple accounts balance fetch, false to fetch only selectedAddress.
    */
   setIsMultiAccountBalancesEnabled(isMultiAccountBalancesEnabled: boolean) {
-    this.update({ isMultiAccountBalancesEnabled });
+    this.update((state) => {
+      state.isMultiAccountBalancesEnabled = isMultiAccountBalancesEnabled;
+    });
   }
 
   /**
@@ -404,7 +471,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param showTestNetworks - true to show test networks, false to hidden.
    */
   setShowTestNetworks(showTestNetworks: boolean) {
-    this.update({ showTestNetworks });
+    this.update((state) => {
+      state.showTestNetworks = showTestNetworks;
+    });
   }
 
   /**
@@ -413,7 +482,9 @@ export class PreferencesController extends BaseControllerV1<
    * @param isIpfsGatewayEnabled - true to enable ipfs source
    */
   setIsIpfsGatewayEnabled(isIpfsGatewayEnabled: boolean) {
-    this.update({ isIpfsGatewayEnabled });
+    this.update((state) => {
+      state.isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+    });
   }
 
   /**
@@ -427,11 +498,11 @@ export class PreferencesController extends BaseControllerV1<
     isIncomingTransactionNetworkEnable: boolean,
   ) {
     if (Object.values(ETHERSCAN_SUPPORTED_CHAIN_IDS).includes(chainId)) {
-      this.update({
-        showIncomingTransactions: {
+      this.update((state) => {
+        state.showIncomingTransactions = {
           ...this.state.showIncomingTransactions,
           [chainId]: isIncomingTransactionNetworkEnable,
-        },
+        };
       });
     }
   }
