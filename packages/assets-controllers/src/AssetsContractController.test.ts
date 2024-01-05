@@ -14,7 +14,10 @@ import {
   NetworkController,
   NetworkClientType,
 } from '@metamask/network-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
+import {
+  getDefaultPreferencesState,
+  type PreferencesState,
+} from '@metamask/preferences-controller';
 
 import { mockNetwork } from '../../../tests/mock-network';
 import {
@@ -58,15 +61,18 @@ async function setupAssetContractControllers() {
     messenger,
     trackMetaMetricsEvent: jest.fn(),
   });
-  const preferences = new PreferencesController();
 
   const provider = new HttpProvider(
     `https://mainnet.infura.io/v3/${networkClientConfiguration.infuraProjectId}`,
   );
 
+  const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
+    [];
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
-    onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+    onPreferencesStateChange: (listener) => {
+      preferencesStateChangeListeners.push(listener);
+    },
     onNetworkDidChange: (listener) =>
       messenger.subscribe('NetworkController:networkDidChange', listener),
     getNetworkClientById: (networkClientId: NetworkClientId) =>
@@ -81,10 +87,14 @@ async function setupAssetContractControllers() {
   return {
     messenger,
     network,
-    preferences,
     assetsContract,
     provider,
     networkClientConfiguration,
+    triggerPreferencesStateChange: (state: PreferencesState) => {
+      for (const listener of preferencesStateChangeListeners) {
+        listener(state);
+      }
+    },
   };
 }
 
@@ -135,7 +145,7 @@ describe('AssetsContractController', () => {
   });
 
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', async () => {
-    const { assetsContract, messenger, preferences } =
+    const { assetsContract, messenger, triggerPreferencesStateChange } =
       await setupAssetContractControllers();
     expect(assetsContract.config).toStrictEqual({
       chainId: SupportedTokenDetectionNetworks.mainnet,
@@ -143,7 +153,11 @@ describe('AssetsContractController', () => {
       provider: undefined,
     });
 
-    preferences.setIpfsGateway('newIPFSGateWay');
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: 'newIPFSGateWay',
+    });
+
     expect(assetsContract.config).toStrictEqual({
       ipfsGateway: 'newIPFSGateWay',
       chainId: SupportedTokenDetectionNetworks.mainnet,
