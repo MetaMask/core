@@ -109,6 +109,52 @@ export type PreferencesState = {
 };
 
 /**
+ * Get the default PreferencesController state.
+ *
+ * @returns The default PreferencesController state.
+ */
+export function getDefaultPreferencesState() {
+  return {
+    disabledRpcMethodPreferences: {
+      eth_sign: false,
+    },
+    featureFlags: {},
+    identities: {},
+    ipfsGateway: 'https://ipfs.io/ipfs/',
+    isIpfsGatewayEnabled: true,
+    isMultiAccountBalancesEnabled: true,
+    lostIdentities: {},
+    openSeaEnabled: false,
+    securityAlertsEnabled: false,
+    selectedAddress: '',
+    showIncomingTransactions: {
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.MAINNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.GOERLI]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC_TESTNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM_TESTNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON_TESTNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.AVALANCHE]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.AVALANCHE_TESTNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.FANTOM]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.FANTOM_TESTNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.SEPOLIA]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_GOERLI]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_MAINNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM_TESTNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONRIVER]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.GNOSIS]: true,
+    },
+    showTestNetworks: false,
+    useNftDetection: false,
+    useTokenDetection: true,
+  };
+}
+
+/**
  * Controller that stores shared settings and exposes convenience methods
  */
 export class PreferencesController extends BaseControllerV1<
@@ -121,52 +167,6 @@ export class PreferencesController extends BaseControllerV1<
   override name = 'PreferencesController';
 
   /**
-   * Get the default PreferencesController state.
-   *
-   * @returns The default PreferencesController state.
-   */
-  static getDefaultState() {
-    return {
-      disabledRpcMethodPreferences: {
-        eth_sign: false,
-      },
-      featureFlags: {},
-      identities: {},
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      isIpfsGatewayEnabled: true,
-      isMultiAccountBalancesEnabled: true,
-      lostIdentities: {},
-      openSeaEnabled: false,
-      securityAlertsEnabled: false,
-      selectedAddress: '',
-      showIncomingTransactions: {
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MAINNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.GOERLI]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC_TESTNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM_TESTNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON_TESTNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.AVALANCHE]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.AVALANCHE_TESTNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.FANTOM]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.FANTOM_TESTNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.SEPOLIA]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_GOERLI]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_MAINNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM_TESTNET]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONRIVER]: true,
-        [ETHERSCAN_SUPPORTED_CHAIN_IDS.GNOSIS]: true,
-      },
-      showTestNetworks: false,
-      useNftDetection: false,
-      useTokenDetection: true,
-    };
-  }
-
-  /**
    * Creates a PreferencesController instance.
    *
    * @param config - Initial options used to configure this controller.
@@ -174,7 +174,7 @@ export class PreferencesController extends BaseControllerV1<
    */
   constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
     super(config, state);
-    this.defaultState = PreferencesController.getDefaultState();
+    this.defaultState = getDefaultPreferencesState();
     this.initialize();
   }
 

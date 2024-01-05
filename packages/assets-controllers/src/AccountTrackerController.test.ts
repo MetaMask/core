@@ -1,7 +1,7 @@
 import { query } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import {
-  PreferencesController,
+  getDefaultPreferencesState,
   type Identity,
   type PreferencesState,
 } from '@metamask/preferences-controller';
@@ -97,7 +97,7 @@ describe('AccountTrackerController', () => {
     };
     controller.refresh = sinon.stub();
 
-    triggerPreferencesStateChange(PreferencesController.getDefaultState());
+    triggerPreferencesStateChange(getDefaultPreferencesState());
 
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
