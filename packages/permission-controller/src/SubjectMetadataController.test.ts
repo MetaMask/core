@@ -282,7 +282,7 @@ describe('SubjectMetadataController', () => {
   });
 
   describe('controller actions', () => {
-    it('subjectMetadataController:getSubjectMetadata returns the subject metadata', () => {
+    it('SubjectMetadataController:getSubjectMetadata returns the subject metadata', () => {
       const [messenger, hasPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
@@ -314,7 +314,7 @@ describe('SubjectMetadataController', () => {
       ).toStrictEqual(getSubjectMetadata('bar.io', 'bar', SubjectType.Website));
     });
 
-    it('subjectMetadataController:addSubjectMetadata adds subject metadata', () => {
+    it('SubjectMetadataController:addSubjectMetadata adds passed subject metadata', () => {
       const [messenger, hasPermissionsSpy] =
         getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
