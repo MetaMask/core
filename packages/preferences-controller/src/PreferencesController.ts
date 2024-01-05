@@ -121,14 +121,12 @@ export class PreferencesController extends BaseControllerV1<
   override name = 'PreferencesController';
 
   /**
-   * Creates a PreferencesController instance.
+   * Get the default PreferencesController state.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @returns The default PreferencesController state.
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
-    super(config, state);
-    this.defaultState = {
+  static getDefaultState() {
+    return {
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
@@ -166,6 +164,17 @@ export class PreferencesController extends BaseControllerV1<
       useNftDetection: false,
       useTokenDetection: true,
     };
+  }
+
+  /**
+   * Creates a PreferencesController instance.
+   *
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
+   */
+  constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
+    super(config, state);
+    this.defaultState = PreferencesController.getDefaultState();
     this.initialize();
   }
 
