@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Addition of "fallback" Variation to the NameController for Petnames ([#3705](https://github.com/MetaMask/controllers.git/pull/3705))
 
 ## [4.0.1]
 ### Changed
@@ -47,10 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.0.1...HEAD
-[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.0.0...@metamask/name-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@3.0.1...@metamask/name-controller@4.0.0
-[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@3.0.0...@metamask/name-controller@3.0.1
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@2.0.0...@metamask/name-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@1.0.0...@metamask/name-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/name-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@4.0.0...@metamask/name-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@3.0.1...@metamask/name-controller@4.0.0
+[3.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@3.0.0...@metamask/name-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@2.0.0...@metamask/name-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/name-controller@1.0.0...@metamask/name-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/name-controller@1.0.0
