@@ -1358,6 +1358,58 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@json-schema-spec/json-pointer@npm:^0.1.2":
+  version: 0.1.2
+  resolution: "@json-schema-spec/json-pointer@npm:0.1.2"
+  checksum: 2a691ffc11f1a266ca4d0c9e2c99791679d580f343ef69746fad623d1abcf4953adde987890e41f906767d7729604c0182341e9012388b73a44d5b21fb296453
+  languageName: node
+  linkType: hard
+
+"@json-schema-tools/dereferencer@npm:1.5.4":
+  version: 1.5.4
+  resolution: "@json-schema-tools/dereferencer@npm:1.5.4"
+  dependencies:
+    "@json-schema-tools/reference-resolver": ^1.2.4
+    "@json-schema-tools/traverse": ^1.7.8
+    fast-safe-stringify: ^2.0.7
+  checksum: da7ca7e01a428fb8e3e1af44f92945dc9416c8a34e05fe7e82a0824b2f25affe3ca93f7424daa0bc3b578252243be8606e1a31b7b4e7001073942886fc1421d2
+  languageName: node
+  linkType: hard
+
+"@json-schema-tools/meta-schema@npm:1.6.19":
+  version: 1.6.19
+  resolution: "@json-schema-tools/meta-schema@npm:1.6.19"
+  checksum: 0105281416ee79fe027b10b952eec02e21466a7a0ffffc5e280d7d32ec8776536fd420456d0b4f605ecb1bef04efe3e35e75687aa3b1a256e8825078d4843233
+  languageName: node
+  linkType: hard
+
+"@json-schema-tools/reference-resolver@npm:1.2.4":
+  version: 1.2.4
+  resolution: "@json-schema-tools/reference-resolver@npm:1.2.4"
+  dependencies:
+    "@json-schema-spec/json-pointer": ^0.1.2
+    isomorphic-fetch: ^3.0.0
+  checksum: 6d5763c3632cb86a542dcffb67114c2176a5f20812ccf0a21ebc64d10bc569a7904a4323b26fc87339c3f16129a44c63b5b37dab06f575c9845e037d80aa2f9a
+  languageName: node
+  linkType: hard
+
+"@json-schema-tools/reference-resolver@npm:^1.2.4":
+  version: 1.2.5
+  resolution: "@json-schema-tools/reference-resolver@npm:1.2.5"
+  dependencies:
+    "@json-schema-spec/json-pointer": ^0.1.2
+    isomorphic-fetch: ^3.0.0
+  checksum: 469aa847c9d90dff5909fda01164076c5ab66baa671640a1b0cffc81fb72bd2a9339d7a4a5b7115b824c99efd98fce1f4eb1a3c98fdc1d968929ad7becebbdbd
+  languageName: node
+  linkType: hard
+
+"@json-schema-tools/traverse@npm:^1.7.8":
+  version: 1.10.1
+  resolution: "@json-schema-tools/traverse@npm:1.10.1"
+  checksum: 230e0700e3840ef206a13acaae67942f8c9d67c9ef315deec6868f0c7852c148c3e697eb038326c98bf242ace80b8d1d08cb5022995d623c9cbcb68fd6a5a4e0
+  languageName: node
+  linkType: hard
+
 "@keystonehq/base-eth-keyring@npm:^0.14.1":
   version: 0.14.1
   resolution: "@keystonehq/base-eth-keyring@npm:0.14.1"
@@ -1541,6 +1593,47 @@ __metadata:
     typescript: ~4.8.4
   languageName: unknown
   linkType: soft
+
+"@metamask/api-spec-validation-middleware@workspace:packages/api-spec-validation-middleware":
+  version: 0.0.0-use.local
+  resolution: "@metamask/api-spec-validation-middleware@workspace:packages/api-spec-validation-middleware"
+  dependencies:
+    "@metamask/api-specs": ^0.0.30
+    "@metamask/approval-controller": ^5.1.1
+    "@metamask/auto-changelog": ^3.4.4
+    "@metamask/base-controller": ^4.0.1
+    "@metamask/controller-utils": ^8.0.1
+    "@metamask/json-rpc-engine": ^7.3.1
+    "@metamask/network-controller": ^17.1.0
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/selected-network-controller": ^6.0.0
+    "@metamask/swappable-obj-proxy": ^2.1.0
+    "@metamask/utils": ^8.2.0
+    "@open-rpc/schema-utils-js": ^1.16.1
+    "@types/jest": ^27.4.1
+    deepmerge: ^4.2.2
+    immer: ^9.0.6
+    jest: ^27.5.1
+    lodash: ^4.17.21
+    nock: ^13.3.1
+    sinon: ^9.2.4
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
+  peerDependencies:
+    "@metamask/approval-controller": ^5.1.1
+    "@metamask/network-controller": ^17.1.0
+    "@metamask/selected-network-controller": ^6.0.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/api-specs@npm:^0.0.30":
+  version: 0.0.30
+  resolution: "@metamask/api-specs@npm:0.0.30"
+  checksum: d9fb50b6e92059bc516d4d58031cc8aa183d631fd234ad0f3ac2aa7ded7c0a75f8e51b11232544f9f4ba2c5118672ca7640a92254b0d6b67f2cee855d65c7975
+  languageName: node
+  linkType: hard
 
 "@metamask/approval-controller@^5.1.1, @metamask/approval-controller@workspace:packages/approval-controller":
   version: 0.0.0-use.local
@@ -3103,6 +3196,31 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@open-rpc/meta-schema@npm:1.14.2":
+  version: 1.14.2
+  resolution: "@open-rpc/meta-schema@npm:1.14.2"
+  checksum: 63d3672aeea6941a96522ab2b7a9f95c4b3216ea6d7b700bdbb0ca0595b0ad28e439818d22788991a36403953e39cda9f8c7a99ed5c18258b0a45b815ecfaf8b
+  languageName: node
+  linkType: hard
+
+"@open-rpc/schema-utils-js@npm:^1.16.1":
+  version: 1.16.1
+  resolution: "@open-rpc/schema-utils-js@npm:1.16.1"
+  dependencies:
+    "@json-schema-tools/dereferencer": 1.5.4
+    "@json-schema-tools/meta-schema": 1.6.19
+    "@json-schema-tools/reference-resolver": 1.2.4
+    "@open-rpc/meta-schema": 1.14.2
+    ajv: ^6.10.0
+    detect-node: ^2.0.4
+    fast-safe-stringify: ^2.0.7
+    fs-extra: ^9.0.0
+    is-url: ^1.2.4
+    isomorphic-fetch: ^3.0.0
+  checksum: 0a7d89849aa575c1597defac089d766ab351ddf1d796069b73f100907580163e2acf72ad1e0b0ac8f889060ac87d81d006f32c55f30fcbdcb0b6625b3f7f32b6
+  languageName: node
+  linkType: hard
+
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"
@@ -4157,6 +4275,13 @@ __metadata:
   version: 0.4.0
   resolution: "asynckit@npm:0.4.0"
   checksum: 7b78c451df768adba04e2d02e63e2d0bf3b07adcd6e42b4cf665cb7ce899bedd344c69a1dcbce355b5f972d597b25aaa1c1742b52cffd9caccb22f348114f6be
+  languageName: node
+  linkType: hard
+
+"at-least-node@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "at-least-node@npm:1.0.0"
+  checksum: 463e2f8e43384f1afb54bc68485c436d7622acec08b6fad269b421cb1d29cebb5af751426793d0961ed243146fe4dc983402f6d5a51b720b277818dbf6f2e49e
   languageName: node
   linkType: hard
 
@@ -5267,6 +5392,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"detect-node@npm:^2.0.4":
+  version: 2.1.0
+  resolution: "detect-node@npm:2.1.0"
+  checksum: 832184ec458353e41533ac9c622f16c19f7c02d8b10c303dfd3a756f56be93e903616c0bb2d4226183c9351c15fc0b3dba41a17a2308262afabcfa3776e6ae6e
+  languageName: node
+  linkType: hard
+
 "diff-sequences@npm:^27.5.1":
   version: 27.5.1
   resolution: "diff-sequences@npm:27.5.1"
@@ -6245,7 +6377,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-safe-stringify@npm:^2.0.6":
+"fast-safe-stringify@npm:^2.0.6, fast-safe-stringify@npm:^2.0.7":
   version: 2.1.1
   resolution: "fast-safe-stringify@npm:2.1.1"
   checksum: a851cbddc451745662f8f00ddb622d6766f9bd97642dabfd9a405fb0d646d69fc0b9a1243cbf67f5f18a39f40f6fa821737651ff1bceeba06c9992ca2dc5bd3d
@@ -6395,6 +6527,18 @@ __metadata:
     combined-stream: ^1.0.8
     mime-types: ^2.1.12
   checksum: b019e8d35c8afc14a2bd8a7a92fa4f525a4726b6d5a9740e8d2623c30e308fbb58dc8469f90415a856698933c8479b01646a9dff33c87cc4e76d72aedbbf860d
+  languageName: node
+  linkType: hard
+
+"fs-extra@npm:^9.0.0":
+  version: 9.1.0
+  resolution: "fs-extra@npm:9.1.0"
+  dependencies:
+    at-least-node: ^1.0.0
+    graceful-fs: ^4.2.0
+    jsonfile: ^6.0.1
+    universalify: ^2.0.0
+  checksum: ba71ba32e0faa74ab931b7a0031d1523c66a73e225de7426e275e238e312d07313d2da2d33e34a52aa406c8763ade5712eb3ec9ba4d9edce652bcacdc29e6b20
   languageName: node
   linkType: hard
 
@@ -6696,7 +6840,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"graceful-fs@npm:^4.2.4, graceful-fs@npm:^4.2.6, graceful-fs@npm:^4.2.9":
+"graceful-fs@npm:^4.1.6, graceful-fs@npm:^4.2.0, graceful-fs@npm:^4.2.4, graceful-fs@npm:^4.2.6, graceful-fs@npm:^4.2.9":
   version: 4.2.11
   resolution: "graceful-fs@npm:4.2.11"
   checksum: ac85f94da92d8eb6b7f5a8b20ce65e43d66761c55ce85ac96df6865308390da45a8d3f0296dd3a663de65d30ba497bd46c696cc1e248c72b13d6d567138a4fc7
@@ -7405,6 +7549,13 @@ __metadata:
   version: 1.3.0
   resolution: "is-unicode-supported@npm:1.3.0"
   checksum: 20a1fc161afafaf49243551a5ac33b6c4cf0bbcce369fcd8f2951fbdd000c30698ce320de3ee6830497310a8f41880f8066d440aa3eb0a853e2aa4836dd89abc
+  languageName: node
+  linkType: hard
+
+"is-url@npm:^1.2.4":
+  version: 1.2.4
+  resolution: "is-url@npm:1.2.4"
+  checksum: 100e74b3b1feab87a43ef7653736e88d997eb7bd32e71fd3ebc413e58c1cbe56269699c776aaea84244b0567f2a7d68dfaa512a062293ed2f9fdecb394148432
   languageName: node
   linkType: hard
 
@@ -8349,6 +8500,19 @@ __metadata:
   version: 3.2.0
   resolution: "jsonc-parser@npm:3.2.0"
   checksum: 946dd9a5f326b745aa326d48a7257e3f4a4b62c5e98ec8e49fa2bdd8d96cef7e6febf1399f5c7016114fd1f68a1c62c6138826d5d90bc650448e3cf0951c53c7
+  languageName: node
+  linkType: hard
+
+"jsonfile@npm:^6.0.1":
+  version: 6.1.0
+  resolution: "jsonfile@npm:6.1.0"
+  dependencies:
+    graceful-fs: ^4.1.6
+    universalify: ^2.0.0
+  dependenciesMeta:
+    graceful-fs:
+      optional: true
+  checksum: 7af3b8e1ac8fe7f1eccc6263c6ca14e1966fcbc74b618d3c78a0a2075579487547b94f72b7a1114e844a1e15bb00d440e5d1720bfc4612d790a6f285d5ea8354
   languageName: node
   linkType: hard
 
@@ -11041,6 +11205,13 @@ __metadata:
   version: 0.2.0
   resolution: "universalify@npm:0.2.0"
   checksum: e86134cb12919d177c2353196a4cc09981524ee87abf621f7bc8d249dbbbebaec5e7d1314b96061497981350df786e4c5128dbf442eba104d6e765bc260678b5
+  languageName: node
+  linkType: hard
+
+"universalify@npm:^2.0.0":
+  version: 2.0.1
+  resolution: "universalify@npm:2.0.1"
+  checksum: ecd8469fe0db28e7de9e5289d32bd1b6ba8f7183db34f3bfc4ca53c49891c2d6aa05f3fb3936a81285a905cc509fb641a0c3fc131ec786167eff41236ae32e60
   languageName: node
   linkType: hard
 
