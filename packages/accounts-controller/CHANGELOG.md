@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.1]
-### Uncategorized
-- Bump snaps dependencies ([#3734](https://github.com/MetaMask/controllers.git/pull/3734))
+### Changed
+- Bump snaps dependencies ([#3734](https://github.com/MetaMask/core/pull/3734))
 
 ## [7.0.0]
 ### Changed
@@ -62,14 +62,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@7.0.1...HEAD
-[7.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@7.0.0...@metamask/accounts-controller@7.0.1
-[7.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@6.0.0...@metamask/accounts-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@5.0.0...@metamask/accounts-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@4.0.0...@metamask/accounts-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@3.0.0...@metamask/accounts-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@2.0.2...@metamask/accounts-controller@3.0.0
-[2.0.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@2.0.1...@metamask/accounts-controller@2.0.2
-[2.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@2.0.0...@metamask/accounts-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/accounts-controller@1.0.0...@metamask/accounts-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/accounts-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@7.0.1...HEAD
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@7.0.0...@metamask/accounts-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@6.0.0...@metamask/accounts-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@5.0.0...@metamask/accounts-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@4.0.0...@metamask/accounts-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@3.0.0...@metamask/accounts-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@2.0.2...@metamask/accounts-controller@3.0.0
+[2.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@2.0.1...@metamask/accounts-controller@2.0.2
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@2.0.0...@metamask/accounts-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@1.0.0...@metamask/accounts-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/accounts-controller@1.0.0
