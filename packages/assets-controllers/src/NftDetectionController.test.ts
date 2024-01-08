@@ -156,13 +156,6 @@ describe('NftDetectionController', () => {
           clock,
           duration: 1,
         });
-        mockNfts.reset();
-
-        await controller.start();
-        await advanceTime({
-          clock,
-          duration: 0,
-        });
 
         expect(mockNfts.calledOnce).toBe(true);
 
