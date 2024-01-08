@@ -2218,6 +2218,39 @@ describe('TransactionController', () => {
       expect(speedUpTransaction.v).toBe('0x123');
     });
 
+    it('verifies s,r and v values are correctly populated if values are zero', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        config: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          sign: async (transaction: any) => {
+            transaction.r = 0;
+            transaction.s = 0;
+            transaction.v = 0;
+            return transaction;
+          },
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.r).toBe('0x0');
+      expect(speedUpTransaction.s).toBe('0x0');
+      expect(speedUpTransaction.v).toBe('0x0');
+    });
+
     it('creates additional transaction specifying the gasPrice', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
@@ -2689,7 +2722,7 @@ describe('TransactionController', () => {
         from: ACCOUNT_MOCK,
         to: ACCOUNT_2_MOCK,
         id: '1',
-        chainId: toHex(1),
+        chainId: toHex(5),
         status: TransactionStatus.confirmed,
         txParams: {
           gasUsed: undefined,
@@ -2716,6 +2749,55 @@ describe('TransactionController', () => {
       expect(confirmedEventListener).toHaveBeenCalledWith({
         transactionMeta: externalTransaction,
       });
+    });
+
+    it('emits confirmed event with transaction chainId regardless of whether it matches globally selected chainId', async () => {
+      const mockGloballySelectedNetwork = {
+        ...MOCK_NETWORK,
+        state: {
+          ...MOCK_NETWORK.state,
+          providerConfig: {
+            type: NetworkType.sepolia,
+            chainId: ChainId.sepolia,
+            ticker: NetworksTicker.sepolia,
+          },
+        },
+      };
+      const controller = newController({
+        network: mockGloballySelectedNetwork,
+      });
+
+      const confirmedEventListener = jest.fn();
+
+      controller.hub.on('transaction-confirmed', confirmedEventListener);
+
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: '1',
+        chainId: ChainId.goerli, // doesn't match globally selected chainId (which is sepolia)
+        status: TransactionStatus.confirmed,
+        txParams: {
+          gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const [[{ transactionMeta }]] = confirmedEventListener.mock.calls;
+      expect(transactionMeta.chainId).toBe(ChainId.goerli);
     });
   });
 
@@ -3330,17 +3412,23 @@ describe('TransactionController', () => {
           txParams: { ...duplicate_1.txParams, from: '0x2' },
         };
 
+        const wrongType = {
+          ...duplicate_1,
+          id: 'testId8',
+          status: TransactionStatus.confirmed,
+          type: TransactionType.incoming,
+        };
+
         controller.state.transactions = [
           confirmed,
           wrongChain,
           wrongNonce,
           wrongFrom,
+          wrongType,
           duplicate_1,
           duplicate_2,
           duplicate_3,
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ] as any;
+        ] as TransactionMeta[];
 
         firePendingTransactionTrackerEvent('transaction-confirmed', confirmed);
 
@@ -3351,6 +3439,7 @@ describe('TransactionController', () => {
           TransactionStatus.submitted,
           TransactionStatus.submitted,
           TransactionStatus.submitted,
+          TransactionStatus.confirmed,
           TransactionStatus.dropped,
           TransactionStatus.dropped,
           TransactionStatus.failed,
@@ -3363,6 +3452,7 @@ describe('TransactionController', () => {
           undefined,
           undefined,
           undefined,
+          undefined,
           confirmed.hash,
           confirmed.hash,
           confirmed.hash,
@@ -3371,6 +3461,7 @@ describe('TransactionController', () => {
         expect(
           controller.state.transactions.map((tx) => tx.replacedById),
         ).toStrictEqual([
+          undefined,
           undefined,
           undefined,
           undefined,
