@@ -1615,6 +1615,7 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
+    // TODO(JL): Revisit this method. It's a bit complicated and not obvious what it achieves.
     let nonceMutexForChainId: Mutex | undefined;
     let nonceTracker = this.nonceTracker
     if (networkClientId) {
@@ -1629,6 +1630,10 @@ export class TransactionController extends BaseControllerV1<
       nonceTracker = trackers?.nonceTracker
     }
 
+    // Acquires the lock for the chainId and the nonceLock from the nonceTracker and then
+    // couples them together by replacing the nonceLock's releaseLock method with
+    // an anonymous function that calls releases both the original nonceLock and the
+    // lock for the chainId.
     const releaseLockForChainId = await nonceMutexForChainId?.acquire();
     try {
       const nonceLock = await nonceTracker.getNonceLock(address);
