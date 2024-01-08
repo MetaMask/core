@@ -15,7 +15,6 @@ import { BaseControllerV1 } from '@metamask/base-controller';
 import {
   query,
   NetworkType,
-  RPC,
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
@@ -28,9 +27,10 @@ import type {
   NetworkController,
   NetworkState,
   Provider,
-  ProviderConfig,
 } from '@metamask/network-controller';
-import { NetworkClientConfiguration } from '@metamask/network-controller';
+import {
+  NetworkClientType,
+} from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -99,7 +99,6 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
-import { NetworkClientType } from '@metamask/network-controller';
 
 export const HARDFORK = Hardfork.London;
 
@@ -248,6 +247,8 @@ export class TransactionController extends BaseControllerV1<
   private readonly provider: Provider;
 
   private readonly mutex = new Mutex();
+
+  private readonly nonceMutexByChainId = new Map<Hex, Mutex>();
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
@@ -1161,6 +1162,11 @@ export class TransactionController extends BaseControllerV1<
 
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
+    const { chainId } = networkClient.configuration;
+    if (!this.nonceMutexByChainId.get(chainId)) {
+      this.nonceMutexByChainId.set(chainId, new Mutex());
+    }
+
     const nonceTracker = new NonceTracker({
       provider: networkClient.provider as any,
       blockTracker: networkClient.blockTracker,
@@ -1222,6 +1228,7 @@ export class TransactionController extends BaseControllerV1<
    * Estimates required gas for a given transaction.
    *
    * @param transaction - The transaction to estimate gas for.
+   * @param networkClientId
    * @returns The gas and gas price.
    */
   async estimateGas(
@@ -1242,6 +1249,7 @@ export class TransactionController extends BaseControllerV1<
    *
    * @param transaction - The transaction params to estimate gas for.
    * @param multiplier - The multiplier to use for the gas buffer.
+   * @param networkClientId
    */
   async estimateGasBuffered(
     // NOTE(JL): Need to update SwapsController's usage of this method
@@ -1603,11 +1611,46 @@ export class TransactionController extends BaseControllerV1<
    * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
    *
    * @param address - The hex string address for the transaction.
+   * @param networkClientId
    * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
    */
-  async getNonceLock(address: string): Promise<NonceLock> {
-    // NOTE(JL): i think this should take in chainId, but not sure how to deal with networkClientId mapping
-    return this.nonceTracker.getNonceLock(address);
+  async getNonceLock(
+    address: string,
+    networkClientId?: NetworkClientId,
+  ): Promise<NonceLock> {
+    // TODO(JL): Revisit this method. It's a bit complicated and not obvious what it achieves.
+    let nonceMutexForChainId: Mutex | undefined;
+    let nonceTracker = this.nonceTracker
+    if (networkClientId) {
+      const networkClient = this.getNetworkClientById(networkClientId);
+      nonceMutexForChainId = this.nonceMutexByChainId.get(
+        networkClient.configuration.chainId,
+      );
+      const trackers = this.trackingMap.get(networkClientId)
+      if (!trackers) {
+        throw new Error('missing nonceTracker for networkClientId')
+      }
+      nonceTracker = trackers?.nonceTracker
+    }
+
+    // Acquires the lock for the chainId and the nonceLock from the nonceTracker and then
+    // couples them together by replacing the nonceLock's releaseLock method with
+    // an anonymous function that calls releases both the original nonceLock and the
+    // lock for the chainId.
+    const releaseLockForChainId = await nonceMutexForChainId?.acquire();
+    try {
+      const nonceLock = await nonceTracker.getNonceLock(address);
+      return {
+        ...nonceLock,
+        releaseLock: () => {
+          nonceLock.releaseLock();
+          releaseLockForChainId?.();
+        },
+      };
+    } catch (err) {
+      releaseLockForChainId?.();
+      throw err;
+    }
   }
 
   /**
@@ -1714,7 +1757,7 @@ export class TransactionController extends BaseControllerV1<
     try {
       // TODO: we should add a check to verify that all transactions have the same from address
       const fromAddress = initialTx.from;
-      nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
+      nonceLock = await this.getNonceLock(fromAddress);
       const nonce = nonceLock.nextNonce;
 
       log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
