@@ -24,8 +24,11 @@ import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   BlockTracker,
+  NetworkClientId,
+  NetworkController,
   NetworkState,
   Provider,
+  ProviderConfig,
 } from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -41,6 +44,7 @@ import type {
 } from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
+import type { SelectedNetworkController } from '../../selected-network-controller/src/SelectedNetworkController';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
@@ -94,6 +98,8 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+import { NetworkClientConfiguration } from '@metamask/network-controller';
+import { NetworkClientType } from '@metamask/network-controller';
 
 export const HARDFORK = Hardfork.London;
 
@@ -249,7 +255,9 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
 
-  private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+  private readonly getCurrentNetworkEIP1559Compatibility: (
+    networkClientId?: NetworkClientId,
+  ) => Promise<boolean>;
 
   private readonly getGasFeeEstimates: () => Promise<GasFeeState>;
 
@@ -259,6 +267,7 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getExternalPendingTransactions: (
     address: string,
+    chainId?: string,
   ) => NonceTrackerTransaction[];
 
   private readonly messagingSystem: TransactionControllerMessenger;
@@ -291,6 +300,12 @@ export class TransactionController extends BaseControllerV1<
   private readonly getAdditionalSignArguments: (
     transactionMeta: TransactionMeta,
   ) => (TransactionMeta | undefined)[];
+
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
+  private readonly getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
+
+  private readonly etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
 
   private failTransaction(
     transactionMeta: TransactionMeta,
@@ -331,6 +346,15 @@ export class TransactionController extends BaseControllerV1<
    */
   override name = 'TransactionController';
 
+  private readonly trackingMap: Map<
+    NetworkClientId,
+    {
+      nonceTracker: NonceTracker;
+      pendingTransactionTracker: PendingTransactionTracker;
+      incomingTransactionHelper: IncomingTransactionHelper;
+    }
+  > = new Map();
+
   /**
    * Method used to sign transactions
    */
@@ -369,14 +393,17 @@ export class TransactionController extends BaseControllerV1<
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
+   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.hooks - The controller hooks.
    * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
    * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
    * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
+   * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
+   * @param options.getNetworkClientIdForDomain
    */
   constructor(
     {
@@ -400,6 +427,8 @@ export class TransactionController extends BaseControllerV1<
       provider,
       securityProviderRequest,
       speedUpMultiplier,
+      getNetworkClientById,
+      getNetworkClientIdForDomain,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -411,6 +440,7 @@ export class TransactionController extends BaseControllerV1<
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getExternalPendingTransactions?: (
         address: string,
+        chainId?: string,
       ) => NonceTrackerTransaction[];
       getGasFeeEstimates?: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
@@ -431,6 +461,8 @@ export class TransactionController extends BaseControllerV1<
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
       speedUpMultiplier?: number;
+      getNetworkClientById: NetworkController['getNetworkClientById'];
+      getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -462,7 +494,7 @@ export class TransactionController extends BaseControllerV1<
     };
 
     this.initialize();
-
+    this.getNetworkClientById = getNetworkClientById;
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
@@ -487,6 +519,8 @@ export class TransactionController extends BaseControllerV1<
     this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
     this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
 
+    this.getNetworkClientIdForDomain = getNetworkClientIdForDomain;
+
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
     this.beforeCheckPendingTransaction =
@@ -509,6 +543,11 @@ export class TransactionController extends BaseControllerV1<
       ),
     });
 
+    this.etherscanRemoteTransactionSource =
+      new EtherscanRemoteTransactionSource({
+        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
+      });
+
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
       getCurrentAccount: getSelectedAddress,
@@ -516,9 +555,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
-      remoteTransactionSource: new EtherscanRemoteTransactionSource({
-        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
-      }),
+      remoteTransactionSource: this.etherscanRemoteTransactionSource,
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: incomingTransactions.updateTransactions,
     });
@@ -541,11 +578,6 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
-      onStateChange: (listener) => {
-        this.subscribe(listener);
-        onNetworkStateChange(listener);
-        listener();
-      },
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -556,12 +588,25 @@ export class TransactionController extends BaseControllerV1<
 
     this.addPendingTransactionTrackerListeners();
 
+    this.subscribe(this.#onStateChange)
+
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
+      // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
+      // Verify if this is still necessary when the feature branch is being reviewed
+      this.#onStateChange()
       this.onBootCleanup();
     });
 
     this.onBootCleanup();
+  }
+
+  #onStateChange = () => {
+    // PendingTransactionTracker reads state through its getTransactions hook
+    this.pendingTransactionTracker.onStateChange()
+    for (const [_, trackingMap] of this.trackingMap) {
+      trackingMap.pendingTransactionTracker.onStateChange()
+    }
   }
 
   /**
@@ -590,6 +635,13 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
+  getEthQuery(networkClientId?: NetworkClientId): EthQuery {
+    if (networkClientId) {
+      return new EthQuery(this.getNetworkClientById(networkClientId).provider);
+    }
+    return this.ethQuery;
+  }
+
   /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
    * unique transaction id will be generated, and gas and gasPrice will be calculated
@@ -608,6 +660,7 @@ export class TransactionController extends BaseControllerV1<
    * @param opts.swaps - Options for swaps transactions.
    * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
    * @param opts.swaps.meta - Metadata for swap transaction.
+   * @param opts.networkClientId
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -622,6 +675,7 @@ export class TransactionController extends BaseControllerV1<
       sendFlowHistory,
       swaps = {},
       type,
+      networkClientId,
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
@@ -635,13 +689,21 @@ export class TransactionController extends BaseControllerV1<
         meta?: Partial<TransactionMeta>;
       };
       type?: TransactionType;
+      networkClientId?: NetworkClientId;
     } = {},
   ): Promise<Result> {
     log('Adding transaction', txParams);
 
+    // TODO(JL): Revisit this fallback during implementation
+    // networkClientId ??= this.getNetworkClientIdForDomain(
+    //   origin ?? ORIGIN_METAMASK,
+    // );
+
     txParams = normalizeTxParams(txParams);
 
-    const isEIP1559Compatible = await this.getEIP1559Compatibility();
+    const isEIP1559Compatible = await this.getEIP1559Compatibility(
+      networkClientId,
+    );
 
     validateTxParams(txParams, isEIP1559Compatible);
 
@@ -659,11 +721,13 @@ export class TransactionController extends BaseControllerV1<
       origin,
     );
 
+    const ethQuery = this.getEthQuery(networkClientId);
+
     const transactionType =
-      type ?? (await determineTransactionType(txParams, this.ethQuery)).type;
+      type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
-    const chainId = this.getChainId();
+    const chainId = this.getChainId(networkClientId);
 
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     const transactionMeta: TransactionMeta = existingTransactionMeta || {
@@ -681,6 +745,7 @@ export class TransactionController extends BaseControllerV1<
       userEditedGasLimit: false,
       verifiedOnBlockchain: false,
       type: transactionType,
+      networkClientId,
     };
 
     await this.updateGasProperties(transactionMeta);
@@ -863,11 +928,13 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransaction(rawTx);
+    const ethQuery = this.getEthQuery(transactionMeta.networkClientId);
+    const hash = await this.publishTransaction(ethQuery, rawTx);
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
       chainId: transactionMeta.chainId,
+      networkClientId: transactionMeta.networkClientId,
       estimatedBaseFee,
       hash,
       id: random(),
@@ -1015,7 +1082,12 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+    // TODO(JL): Usually we only want submit transactions on the specific network
+    // that the user approved them on, but it makes sense to allow cancelling
+    // from any network that's also on the same chain. We will need to add a fallback
+    // here to allow using networkClientIds other than the original
+    const ethQuery = this.getEthQuery(transactionMeta.networkClientId);
+    const hash = await this.publishTransaction(ethQuery, rawTx);
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
@@ -1063,16 +1135,97 @@ export class TransactionController extends BaseControllerV1<
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
+  stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+    const trackers = this.trackingMap.get(networkClientId);
+    if (trackers) {
+      trackers.pendingTransactionTracker.stop();
+      this.removePendingTransactionTrackerListeners(
+        trackers.pendingTransactionTracker,
+      );
+      trackers.incomingTransactionHelper.stop();
+
+      // doesn't seem like any cleanup is needed for nonceTracker
+      // trackers.nonceTracker
+
+      // stop not exposed for pendingTransactionTracker
+      // trackers.pendingTransactionTracker.stop();
+    }
+    this.trackingMap.delete(networkClientId);
+  }
+
+  startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+    const networkClient = this.getNetworkClientById(networkClientId);
+    const nonceTracker = new NonceTracker({
+      provider: networkClient.provider as any,
+      blockTracker: networkClient.blockTracker,
+      getPendingTransactions:
+        this.getNonceTrackerPendingTransactions.bind(this),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
+    });
+    const incomingTransactionHelper = new IncomingTransactionHelper({
+      blockTracker: networkClient.blockTracker,
+      getCurrentAccount: this.getSelectedAddress,
+      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getNetworkState: this.getNetworkState, // TODO: fake this via networkClient
+      isEnabled: () => true,
+      queryEntireHistory: true,
+      remoteTransactionSource: this.etherscanRemoteTransactionSource,
+      transactionLimit: this.config.txHistoryLimit,
+      updateTransactions: true,
+    });
+    const pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
+      blockTracker: networkClient.provider as any,
+      getChainId: () => networkClient.configuration.chainId,
+      getEthQuery: () => this.ethQuery, // TODO: use networkClient to construct ethQuery
+      getTransactions: () => this.state.transactions,
+      isResubmitEnabled: true, // TODO: make this configurable
+      nonceTracker,
+      publishTransaction: this.publishTransaction.bind(this),
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.beforeCheckPendingTransaction.bind(this),
+        beforePublish: this.beforePublish.bind(this),
+      },
+    });
+    // subscribe to trackers
+    incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+
+    incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
+    this.addPendingTransactionTrackerListeners(pendingTransactionTracker);
+
+    // add to tracking map
+    this.trackingMap.set(networkClientId, {
+      nonceTracker,
+      incomingTransactionHelper,
+      pendingTransactionTracker,
+    });
+    return this.trackingMap;
+  }
+
   /**
    * Estimates required gas for a given transaction.
    *
    * @param transaction - The transaction to estimate gas for.
    * @returns The gas and gas price.
    */
-  async estimateGas(transaction: TransactionParams) {
+  async estimateGas(
+    transaction: TransactionParams,
+    networkClientId?: NetworkClientId,
+  ) {
+    const ethQuery = this.getEthQuery(networkClientId);
     const { estimatedGas, simulationFails } = await estimateGas(
       transaction,
-      this.ethQuery,
+      ethQuery,
     );
 
     return { gas: estimatedGas, simulationFails };
@@ -1085,12 +1238,15 @@ export class TransactionController extends BaseControllerV1<
    * @param multiplier - The multiplier to use for the gas buffer.
    */
   async estimateGasBuffered(
+    // NOTE(JL): Need to update SwapsController's usage of this method
     transaction: TransactionParams,
     multiplier: number,
+    networkClientId?: NetworkClientId,
   ) {
+    const ethQuery = this.getEthQuery(networkClientId);
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
       transaction,
-      this.ethQuery,
+      ethQuery,
     );
 
     const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
@@ -1444,6 +1600,7 @@ export class TransactionController extends BaseControllerV1<
    * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
    */
   async getNonceLock(address: string): Promise<NonceLock> {
+    // NOTE(JL): i think this should take in chainId, but not sure how to deal with networkClientId mapping
     return this.nonceTracker.getNonceLock(address);
   }
 
@@ -1689,7 +1846,7 @@ export class TransactionController extends BaseControllerV1<
     filterToCurrentNetwork?: boolean;
     limit?: number;
   } = {}): TransactionMeta[] {
-    const chainId = this.getChainId();
+    const chainId = this.getChainId(); // TODO(JL): This should be made into an optional param
     // searchCriteria is an object that might have values that aren't predicate
     // methods. When providing any other value type (string, number, etc), we
     // consider this shorthand for "check the value at key for strict equality
@@ -1818,21 +1975,31 @@ export class TransactionController extends BaseControllerV1<
 
   private async updateGasProperties(transactionMeta: TransactionMeta) {
     const isEIP1559Compatible =
-      (await this.getEIP1559Compatibility()) &&
+      (await this.getEIP1559Compatibility(transactionMeta.networkClientId)) &&
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
 
-    const chainId = this.getChainId();
+    const { networkClientId } = transactionMeta;
+
+    const { providerConfig } = this.getNetworkState();
+    let { chainId } = providerConfig;
+    let isCustomNetwork = providerConfig.type === NetworkType.rpc;
+    if (networkClientId) {
+      const { configuration } = this.getNetworkClientById(networkClientId);
+      chainId = configuration.chainId;
+      isCustomNetwork = configuration.type === NetworkClientType.Custom;
+    }
 
     await updateGas({
-      ethQuery: this.ethQuery,
-      providerConfig: this.getNetworkState().providerConfig,
+      ethQuery: this.getEthQuery(networkClientId),
+      chainId,
+      isCustomNetwork,
       txMeta: transactionMeta,
     });
 
     await updateGasFees({
       eip1559: isEIP1559Compatible,
       ethQuery: this.ethQuery,
-      getSavedGasFees: this.getSavedGasFees.bind(this, chainId),
+      getSavedGasFees: this.getSavedGasFees.bind(this),
       getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
     });
@@ -2066,10 +2233,12 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
+      const ethQuery = this.getEthQuery(transactionMeta.networkClientId);
+
       if (transactionMeta.type === TransactionType.swap) {
         log('Determining pre-transaction balance');
 
-        const preTxBalance = await query(this.ethQuery, 'getBalance', [from]);
+        const preTxBalance = await query(ethQuery, 'getBalance', [from]);
 
         transactionMeta.preTxBalance = preTxBalance;
 
@@ -2078,7 +2247,7 @@ export class TransactionController extends BaseControllerV1<
 
       log('Publishing transaction', txParams);
 
-      const hash = await this.publishTransaction(rawTx);
+      const hash = await this.publishTransaction(ethQuery, rawTx);
 
       log('Publish successful', hash);
 
@@ -2110,8 +2279,11 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
-  private async publishTransaction(rawTransaction: string): Promise<string> {
-    return await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+  private async publishTransaction(
+    ethQuery: EthQuery,
+    rawTransaction: string,
+  ): Promise<string> {
+    return await query(ethQuery, 'sendRawTransaction', [rawTransaction]);
   }
 
   /**
@@ -2263,7 +2435,10 @@ export class TransactionController extends BaseControllerV1<
     return { meta: transaction, isCompleted };
   }
 
-  private getChainId(): Hex {
+  private getChainId(networkClientId?: NetworkClientId): Hex {
+    if (networkClientId) {
+      return this.getNetworkClientById(networkClientId).configuration.chainId;
+    }
     const { providerConfig } = this.getNetworkState();
     return providerConfig.chainId;
   }
@@ -2430,9 +2605,14 @@ export class TransactionController extends BaseControllerV1<
    */
   private markNonceDuplicatesDropped(transactionId: string) {
     const transactionMeta = this.getTransaction(transactionId);
+    // NOTE(JL): Should this method be exiting early if getTransaction returns no transaction object?
     const nonce = transactionMeta?.txParams?.nonce;
     const from = transactionMeta?.txParams?.from;
+    // NOTE(JL): the line below was removed upstream in favor of this.getChainId()
+    // not sure specifically why that was the case
+    // https://github.com/MetaMask/core/commit/89654542c9c61308cfad6a310f7fe2b4b669117b
     const chainId = transactionMeta?.chainId;
+
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.id !== transactionId &&
@@ -2518,9 +2698,9 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
-  private async getEIP1559Compatibility() {
+  private async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
     const currentNetworkIsEIP1559Compatible =
-      await this.getCurrentNetworkEIP1559Compatibility();
+      await this.getCurrentNetworkEIP1559Compatibility(networkClientId);
 
     const currentAccountIsEIP1559Compatible =
       await this.getCurrentAccountEIP1559Compatibility();
@@ -2530,23 +2710,34 @@ export class TransactionController extends BaseControllerV1<
     );
   }
 
-  private addPendingTransactionTrackerListeners() {
-    this.pendingTransactionTracker.hub.on(
+  private removePendingTransactionTrackerListeners(
+    pendingTransactionTracker = this.pendingTransactionTracker,
+  ) {
+    pendingTransactionTracker.hub.removeAllListeners('transaction-confirmed');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-dropped');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-failed');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-updated');
+  }
+
+  private addPendingTransactionTrackerListeners(
+    pendingTransactionTracker = this.pendingTransactionTracker,
+  ) {
+    pendingTransactionTracker.hub.on(
       'transaction-confirmed',
       this.onConfirmedTransaction.bind(this),
     );
 
-    this.pendingTransactionTracker.hub.on(
+    pendingTransactionTracker.hub.on(
       'transaction-dropped',
       this.setTransactionStatusDropped.bind(this),
     );
 
-    this.pendingTransactionTracker.hub.on(
+    pendingTransactionTracker.hub.on(
       'transaction-failed',
       this.failTransaction.bind(this),
     );
 
-    this.pendingTransactionTracker.hub.on(
+    pendingTransactionTracker.hub.on(
       'transaction-updated',
       this.updateTransaction.bind(this),
     );
@@ -2593,7 +2784,7 @@ export class TransactionController extends BaseControllerV1<
       'TransactionController#approveTransaction - Transaction signed',
     );
 
-    this.onTransactionStatusChange(transactionMeta);
+    this.onTransactionStatusChange(transactionMeta); // TODO: fake this via networkClient
 
     const rawTx = bufferToHex(signedTx.serialize());
 
@@ -2611,14 +2802,21 @@ export class TransactionController extends BaseControllerV1<
     this.hub.emit('transaction-status-update', { transactionMeta });
   }
 
-  private getNonceTrackerPendingTransactions(address: string) {
+  private getNonceTrackerPendingTransactions(
+    address: string,
+    chainId?: string,
+  ) {
     const standardPendingTransactions = this.getNonceTrackerTransactions(
       TransactionStatus.submitted,
       address,
+      chainId,
     );
 
-    const externalPendingTransactions =
-      this.getExternalPendingTransactions(address);
+    // TODO(JL): modify getExternalPendingTransactions in extension to accept a chainId to filter for smartTransactions by chainId
+    const externalPendingTransactions = this.getExternalPendingTransactions(
+      address,
+      chainId,
+    );
 
     return [...standardPendingTransactions, ...externalPendingTransactions];
   }
@@ -2626,11 +2824,10 @@ export class TransactionController extends BaseControllerV1<
   private getNonceTrackerTransactions(
     status: TransactionStatus,
     address: string,
+    chainId: string = this.getChainId(),
   ) {
-    const currentChainId = this.getChainId();
-
     return getAndFormatTransactionsForNonceTracker(
-      currentChainId,
+      chainId,
       address,
       status,
       this.state.transactions,
@@ -2658,9 +2855,10 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
+      const ethQuery = this.getEthQuery(transactionMeta.networkClientId);
       const { updatedTransactionMeta, approvalTransactionMeta } =
         await updatePostTransactionBalance(transactionMeta, {
-          ethQuery: this.ethQuery,
+          ethQuery,
           getTransaction: this.getTransaction.bind(this),
           updateTransaction: this.updateTransaction.bind(this),
         });

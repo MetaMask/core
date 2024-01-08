@@ -1,6 +1,9 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { BlockTracker } from '@metamask/network-controller';
+import type {
+  BlockTracker,
+  NetworkClientId,
+} from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 import type { NonceTracker } from 'nonce-tracker';
@@ -65,7 +68,7 @@ export class PendingTransactionTracker {
 
   #getChainId: () => string;
 
-  #getEthQuery: () => EthQuery;
+  #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -77,9 +80,7 @@ export class PendingTransactionTracker {
 
   #nonceTracker: NonceTracker;
 
-  #onStateChange: (listener: () => void) => void;
-
-  #publishTransaction: (rawTx: string) => Promise<string>;
+  #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
 
   #running: boolean;
 
@@ -95,19 +96,17 @@ export class PendingTransactionTracker {
     getTransactions,
     isResubmitEnabled,
     nonceTracker,
-    onStateChange,
     publishTransaction,
     hooks,
   }: {
     approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
     getChainId: () => string;
-    getEthQuery: () => EthQuery;
+    getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
     nonceTracker: NonceTracker;
-    onStateChange: (listener: () => void) => void;
-    publishTransaction: (rawTx: string) => Promise<string>;
+    publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
@@ -126,22 +125,21 @@ export class PendingTransactionTracker {
     this.#isResubmitEnabled = isResubmitEnabled ?? true;
     this.#listener = this.#onLatestBlock.bind(this);
     this.#nonceTracker = nonceTracker;
-    this.#onStateChange = onStateChange;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
+  }
 
-    this.#onStateChange(() => {
-      const pendingTransactions = this.#getPendingTransactions();
+  onStateChange = () => {
+    const pendingTransactions = this.#getPendingTransactions();
 
-      if (pendingTransactions.length) {
-        this.#start();
-      } else {
-        this.#stop();
-      }
-    });
+    if (pendingTransactions.length) {
+      this.#start();
+    } else {
+      this.stop();
+    }
   }
 
   #start() {
@@ -155,7 +153,7 @@ export class PendingTransactionTracker {
     log('Started polling');
   }
 
-  #stop() {
+  stop() {
     if (!this.#running) {
       return;
     }
@@ -277,7 +275,8 @@ export class PendingTransactionTracker {
       return;
     }
 
-    await this.#publishTransaction(rawTx);
+    const ethQuery = this.#getEthQuery(txMeta.networkClientId);
+    await this.#publishTransaction(ethQuery, rawTx);
 
     txMeta.retryCount = (txMeta.retryCount ?? 0) + 1;
 

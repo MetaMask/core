@@ -13,6 +13,8 @@ const CHAIN_ID_MOCK = '0x1';
 const NONCE_MOCK = '0x2';
 const BLOCK_NUMBER_MOCK = '0x123';
 
+const ETH_QUERY_MOCK = {}
+
 const TRANSACTION_SUBMITTED_MOCK = {
   id: ID_MOCK,
   chainId: CHAIN_ID_MOCK,
@@ -98,7 +100,7 @@ describe('PendingTransactionTracker', () => {
       blockTracker,
       failTransaction,
       getChainId: () => CHAIN_ID_MOCK,
-      getEthQuery: () => ({}),
+      getEthQuery: () => (ETH_QUERY_MOCK),
       getTransactions: jest.fn(),
       nonceTracker: createNonceTrackerMock(),
       onStateChange,
@@ -734,6 +736,7 @@ describe('PendingTransactionTracker', () => {
 
           expect(options.publishTransaction).toHaveBeenCalledTimes(1);
           expect(options.publishTransaction).toHaveBeenCalledWith(
+            ETH_QUERY_MOCK,
             TRANSACTION_SUBMITTED_MOCK.rawTx,
           );
         });

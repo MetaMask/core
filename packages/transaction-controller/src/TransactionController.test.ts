@@ -1409,7 +1409,9 @@ describe('TransactionController', () => {
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
         ethQuery: expect.any(Object),
-        providerConfig: MOCK_NETWORK.state.providerConfig,
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        isCustomNetwork:
+          MOCK_NETWORK.state.providerConfig.type === NetworkType.rpc,
         txMeta: expect.any(Object),
       });
     });
@@ -4599,6 +4601,31 @@ describe('TransactionController', () => {
         .rejects
         .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
       Current tx status: ${TransactionStatus.submitted}`);
+    });
+  });
+  describe('startTrackinbByNetworkClientId', () => {
+    it('should start tracking in a tracking map', () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+      expect(trackingMap.get('mainnet')?.nonceTracker).toBeDefined();
+      expect(
+        trackingMap.get('mainnet')?.incomingTransactionHelper,
+      ).toBeDefined();
+      expect(
+        trackingMap.get('mainnet')?.pendingTransactionTracker,
+      ).toBeDefined();
+    });
+    it('should stop tracking in a tracking map', () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+      const incomingTransactionHelper =
+        trackingMap.get('mainnet')?.incomingTransactionHelper;
+      if (!incomingTransactionHelper) {
+        throw new Error('incomingTransactionHelper is undefined');
+      }
+      const stopSpy = jest.spyOn(incomingTransactionHelper, 'stop');
+      controller.stopTrackingByNetworkClientId('mainnet');
+      expect(stopSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
