@@ -448,6 +448,20 @@ describe('TokensController', () => {
     stub.restore();
   });
 
+  it('should remove detected token', async () => {
+    const stub = stubCreateEthers(tokensController, () => false);
+    await tokensController.addDetectedTokens([
+      {
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      },
+    ]);
+    tokensController.ignoreTokens(['0x01']);
+    expect(tokensController.state.detectedTokens).toHaveLength(0);
+    stub.restore();
+  });
+
   it('should remove token by selected address', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
     const firstAddress = '0x123';
