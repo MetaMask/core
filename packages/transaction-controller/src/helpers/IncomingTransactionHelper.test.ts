@@ -26,7 +26,7 @@ const NETWORK_STATE_MOCK: NetworkState = {
   },
 } as unknown as NetworkState;
 
-const ADDERSS_MOCK = '0x1';
+const ADDRESS_MOCK = '0x1';
 const FROM_BLOCK_HEX_MOCK = '0x20';
 const FROM_BLOCK_DECIMAL_MOCK = 32;
 const LAST_BLOCK_VARIATION_MOCK = 'test-variation';
@@ -39,7 +39,7 @@ const BLOCK_TRACKER_MOCK = {
 
 const CONTROLLER_ARGS_MOCK = {
   blockTracker: BLOCK_TRACKER_MOCK,
-  getCurrentAccount: () => ADDERSS_MOCK,
+  getCurrentAccount: () => ADDRESS_MOCK,
   getLastFetchedBlockNumbers: () => ({}),
   getNetworkState: () => NETWORK_STATE_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
@@ -152,7 +152,7 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
-          address: ADDERSS_MOCK,
+          address: ADDRESS_MOCK,
           currentChainId: NETWORK_STATE_MOCK.providerConfig.chainId,
           fromBlock: undefined,
           limit: CONTROLLER_ARGS_MOCK.transactionLimit,
@@ -187,6 +187,7 @@ describe('IncomingTransactionHelper', () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource,
+          getCurrentAccount: () => undefined as unknown as string,
         });
 
         await emitBlockTrackerLatestEvent(helper);
@@ -209,7 +210,7 @@ describe('IncomingTransactionHelper', () => {
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource,
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
+            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               FROM_BLOCK_DECIMAL_MOCK,
           }),
         });
@@ -476,7 +477,7 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
-          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
+          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
             parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
         });
       });
@@ -534,7 +535,7 @@ describe('IncomingTransactionHelper', () => {
             TRANSACTION_MOCK_2,
           ]),
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
+            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
           }),
         });
@@ -560,7 +561,7 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
-          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}`]:
             parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
         });
       });
