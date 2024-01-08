@@ -165,17 +165,13 @@ async function requiresFixedGas({
     txParams: { to, data },
   } = txMeta;
 
-  if (isCustomNetwork) {
+  if (isCustomNetwork || !to || data) {
     return false;
-  }
-
-  if (!to) {
-    return true;
   }
 
   const code = await getCode(ethQuery, to);
 
-  return !data && (!code || code === '0x');
+  return !code || code === '0x';
 }
 
 async function getCode(
