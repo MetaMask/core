@@ -85,6 +85,77 @@ export interface NftContract {
   externalLink?: string;
 }
 
+export enum OpenSeaV2ChainIds {
+  ethereum = 'ethereum',
+}
+
+export type OpenSeaV2GetNftResponse = { nft: OpenSeaV2DetailedNft };
+
+export type OpenSeaV2Nft = {
+  identifier: string;
+  collection: string;
+  contract: string;
+  token_standard: string;
+  name: string;
+  description: string;
+  image_url?: string;
+  metadata_url?: string;
+  updated_at: string;
+  is_disabled: boolean;
+  is_nsfw: boolean;
+};
+
+export type OpenSeaV2DetailedNft = OpenSeaV2Nft & {
+  animation_url?: string;
+  is_suspicious: boolean;
+  creator: string;
+  traits: {
+    trait_type: string;
+    display_type?: string;
+    max_value: string;
+    trait_count?: number;
+    value: number | string;
+  }[];
+  owners: {
+    address: string;
+    quantity: number;
+  }[];
+  rarity: { rank: number };
+};
+
+export type OpenSeaV2ListNftsResponse = {
+  nfts: OpenSeaV2Nft[];
+  next?: string;
+};
+
+export type OpenSeaV2Contract = {
+  address: string;
+  chain: string;
+  collection: string;
+  contract_standard: string;
+  name: string;
+  supply: number;
+};
+
+export type OpenSeaV2Collection = {
+  collection: string;
+  name: string;
+  description?: string;
+  image_url?: string;
+  owner: string;
+  category: string;
+  is_disabled: boolean;
+  is_nsfw: boolean;
+  trait_offers_enabled: boolean;
+  opensea_url: string;
+  project_url?: string;
+  wiki_url?: string;
+  discord_url?: string;
+  telegram_url?: string;
+  twitter_username?: string;
+  instagram_username?: string;
+};
+
 /**
  * @type NftMetadata
  *
@@ -169,27 +240,27 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private getNftApi({
     contractAddress,
     tokenId,
-    useProxy,
   }: {
     contractAddress: string;
     tokenId: string;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`
-      : `${OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
+    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
   private getNftContractInformationApi({
     contractAddress,
-    useProxy,
   }: {
     contractAddress: string;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`
-      : `${OPENSEA_API_URL}/asset_contract/${contractAddress}`;
+    return `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`;
+  }
+
+  private getNftCollectionInformationApi({
+    collectionSlug,
+  }: {
+    collectionSlug: string;
+  }) {
+    return `${OPENSEA_PROXY_URL}/collections/${collectionSlug}`;
   }
 
   /**
@@ -237,82 +308,75 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
     tokenId: string,
   ): Promise<NftMetadata> {
-    // Attempt to fetch the data with the proxy
-    let nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
-      url: this.getNftApi({
-        contractAddress,
-        tokenId,
-        useProxy: true,
-      }),
-    });
-
-    // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
-    if (!nftInformation && this.openSeaApiKey) {
-      nftInformation = await fetchWithErrorHandling({
+    try {
+      // Attempt to fetch the data with the proxy
+      const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
         url: this.getNftApi({
           contractAddress,
           tokenId,
-          useProxy: false,
         }),
-        options: {
-          headers: { 'X-API-KEY': this.openSeaApiKey },
-        },
-        // catch 403 errors (in case API key is down we don't want to blow up)
-        errorCodesToCatch: [403],
       });
-    }
 
-    // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
-    if (!nftInformation) {
+      // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
+      if (!nftInformation?.nft) {
+        return {
+          name: null,
+          description: null,
+          image: null,
+          standard: null,
+        };
+      }
+
+      // if we've reached this point, we have successfully fetched some data for nftInformation
+      // now we reconfigure the data to conform to the `NftMetadata` type for storage.
+      const {
+        num_sales,
+        background_color,
+        image_url,
+        image_preview_url,
+        image_thumbnail_url,
+        image_original_url,
+        animation_url,
+        animation_original_url,
+        name,
+        description,
+        external_link,
+        creator,
+        last_sale,
+        asset_contract: { schema_name },
+      } = mapOpenSeaDetailedNftV2ToV1(nftInformation.nft);
+
+      /* istanbul ignore next */
+      const nftMetadata: NftMetadata = Object.assign(
+        {},
+        { name: name || null },
+        { description: description || null },
+        { image: image_url || null },
+        creator && { creator },
+        num_sales && { numberOfSales: num_sales },
+        background_color && { backgroundColor: background_color },
+        image_preview_url && { imagePreview: image_preview_url },
+        image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
+        image_original_url && { imageOriginal: image_original_url },
+        animation_url && { animation: animation_url },
+        animation_original_url && {
+          animationOriginal: animation_original_url,
+        },
+        external_link && { externalLink: external_link },
+        last_sale && { lastSale: last_sale },
+        schema_name && { standard: schema_name },
+      );
+
+      return nftMetadata;
+    } catch (error) {
       return {
         name: null,
         description: null,
         image: null,
         standard: null,
+        error: 'Opensea import error',
       };
     }
-
-    // if we've reached this point, we have successfully fetched some data for nftInformation
-    // now we reconfigure the data to conform to the `NftMetadata` type for storage.
-    const {
-      num_sales,
-      background_color,
-      image_url,
-      image_preview_url,
-      image_thumbnail_url,
-      image_original_url,
-      animation_url,
-      animation_original_url,
-      name,
-      description,
-      external_link,
-      creator,
-      last_sale,
-      asset_contract: { schema_name },
-    } = nftInformation;
-
-    /* istanbul ignore next */
-    const nftMetadata: NftMetadata = Object.assign(
-      {},
-      { name: name || null },
-      { description: description || null },
-      { image: image_url || null },
-      creator && { creator },
-      num_sales && { numberOfSales: num_sales },
-      background_color && { backgroundColor: background_color },
-      image_preview_url && { imagePreview: image_preview_url },
-      image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
-      image_original_url && { imageOriginal: image_original_url },
-      animation_url && { animation: animation_url },
-      animation_original_url && {
-        animationOriginal: animation_original_url,
-      },
-      external_link && { externalLink: external_link },
-      last_sale && { lastSale: last_sale },
-      schema_name && { standard: schema_name },
-    );
-
-    return nftMetadata;
   }
 
   /**
@@ -326,13 +390,52 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
     tokenId: string,
   ): Promise<NftMetadata> {
-    const { ipfsGateway, useIPFSSubdomains } = this.config;
+    const {
+      ipfsGateway,
+      useIPFSSubdomains,
+      isIpfsGatewayEnabled,
+      displayNftMedia,
+    } = this.config;
     const result = await this.getNftURIAndStandard(contractAddress, tokenId);
     let tokenURI = result[0];
     const standard = result[1];
 
-    if (tokenURI.startsWith('ipfs://')) {
+    if (!displayNftMedia && !isIpfsGatewayEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI,
+      };
+    }
+
+    const hasIpfsTokenURI = tokenURI.startsWith('ipfs://');
+
+    if (hasIpfsTokenURI && !isIpfsGatewayEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
+    }
+    if (hasIpfsTokenURI) {
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
+    }
+
+    if (!hasIpfsTokenURI && !displayNftMedia) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
     }
 
     try {
@@ -348,6 +451,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: object.description,
         standard,
         favorite: false,
+        tokenURI,
       };
     } catch {
       return {
@@ -356,6 +460,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: null,
         standard: standard || null,
         favorite: false,
+        tokenURI: tokenURI ?? null,
+        error: 'URI import error',
       };
     }
   }
@@ -420,13 +526,28 @@ export class NftController extends BaseController<NftConfig, NftState> {
     });
 
     let openSeaMetadata;
-    if (this.config.openSeaEnabled) {
+    if (this.config.displayNftMedia) {
       openSeaMetadata = await safelyExecute(async () => {
         return await this.getNftInformationFromApi(contractAddress, tokenId);
       });
     }
+
+    if (blockchainMetadata.error && openSeaMetadata.error) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: blockchainMetadata.standard ?? null,
+        favorite: false,
+        tokenURI: blockchainMetadata.tokenURI ?? null,
+        error: 'Both import failed',
+      };
+    }
+
     return {
       ...openSeaMetadata,
+      tokenURI:
+        blockchainMetadata.tokenURI ?? openSeaMetadata?.tokenURI ?? null,
       name: blockchainMetadata.name ?? openSeaMetadata?.name ?? null,
       description:
         blockchainMetadata.description ?? openSeaMetadata?.description ?? null,
@@ -446,36 +567,26 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
   ): Promise<ApiNftContract> {
     /* istanbul ignore if */
-    let apiNftContractObject: ApiNftContract | undefined =
+    const apiNftContractObject: ApiNftContract | undefined =
       await fetchWithErrorHandling({
         url: this.getNftContractInformationApi({
           contractAddress,
-          useProxy: true,
         }),
       });
 
     // if we successfully fetched return the fetched data immediately
     if (apiNftContractObject) {
-      return apiNftContractObject;
-    }
-
-    // if we were unsuccessful in fetching from the API and an OpenSea API key is present
-    // attempt to refetch directly against the OpenSea API and if successful return the data immediately
-    if (this.openSeaApiKey) {
-      apiNftContractObject = await fetchWithErrorHandling({
-        url: this.getNftContractInformationApi({
-          contractAddress,
-          useProxy: false,
-        }),
-        options: {
-          headers: { 'X-API-KEY': this.openSeaApiKey },
-        },
-        // catch 403 errors (in case API key is down we don't want to blow up)
-        errorCodesToCatch: [403],
-      });
-
+      // If we successfully fetched the contract
       if (apiNftContractObject) {
-        return apiNftContractObject;
+        // Then fetch some additional details from the collection
+        const collection: OpenSeaV2Collection | undefined =
+          await fetchWithErrorHandling({
+            url: this.getNftCollectionInformationApi({
+              collectionSlug: apiNftContractObject.collection,
+            }),
+          });
+
+        return mapOpenSeaContractV2ToV1(apiNftContractObject, collection);
       }
     }
 
@@ -539,7 +650,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     });
 
     let openSeaContractData: Partial<ApiNftContract> | undefined;
-    if (this.config.openSeaEnabled) {
+    if (this.config.displayNftMedia) {
       openSeaContractData = await safelyExecute(async () => {
         return await this.getNftContractInformationFromApi(contractAddress);
       });
@@ -653,6 +764,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
           source: detection ? 'detected' : 'custom',
+          tokenURI: nftMetadata.tokenURI,
         });
       }
 
@@ -914,8 +1026,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
       selectedAddress: '',
       chainId: initialChainId,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      openSeaEnabled: false,
+      displayNftMedia: true,
       useIPFSSubdomains: true,
+      isIpfsGatewayEnabled: true,
     };
 
     this.defaultState = {
@@ -933,8 +1046,18 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.onNftAdded = onNftAdded;
 
     onPreferencesStateChange(
-      ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
-        this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
+      ({
+        selectedAddress,
+        ipfsGateway,
+        displayNftMedia,
+        isIpfsGatewayEnabled,
+      }) => {
+        this.configure({
+          selectedAddress,
+          ipfsGateway,
+          displayNftMedia,
+          isIpfsGatewayEnabled,
+        });
       },
     );
 

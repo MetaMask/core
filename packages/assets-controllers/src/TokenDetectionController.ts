@@ -14,7 +14,7 @@ import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
-import { TokenListState } from './TokenListController';
+import { TokenListMap, TokenListState } from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -53,6 +53,7 @@ export class TokenDetectionController extends BaseController<
   private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   private addDetectedTokens: TokensController['addDetectedTokens'];
+  private updateTokensName: TokensController['updateTokensName'];
 
   private getTokensState: () => TokensState;
 
@@ -67,6 +68,7 @@ export class TokenDetectionController extends BaseController<
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.addDetectedTokens - Add a list of detected tokens.
+   * @param options.updateTokensName - Updates the token name.
    * @param options.getTokenListState - Gets the current state of the TokenList controller.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param options.getNetworkState - Gets the state of the network controller.
@@ -81,6 +83,7 @@ export class TokenDetectionController extends BaseController<
       onTokenListStateChange,
       getBalancesInSingleCall,
       addDetectedTokens,
+      updateTokensName,
       getTokenListState,
       getTokensState,
       getNetworkState,
@@ -97,6 +100,7 @@ export class TokenDetectionController extends BaseController<
       ) => void;
       getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
       addDetectedTokens: TokensController['addDetectedTokens'];
+      updateTokensName: TokensController['updateTokensName'];
       getTokenListState: () => TokenListState;
       getTokensState: () => TokensState;
       getNetworkState: () => NetworkState;
@@ -127,6 +131,7 @@ export class TokenDetectionController extends BaseController<
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
+    this.updateTokensName = updateTokensName;
     this.getBalancesInSingleCall = getBalancesInSingleCall;
 
     onTokenListStateChange(({ tokenList }) => {
@@ -236,6 +241,11 @@ export class TokenDetectionController extends BaseController<
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
     const { tokenList } = this.getTokenListState();
+
+    if (tokens.length && !tokens[0].name) {
+      this.updateTokensName(tokenList);
+    }
+
     const tokensToDetect: string[] = [];
     for (const address in tokenList) {
       if (!tokensAddresses.includes(address)) {
@@ -281,7 +291,7 @@ export class TokenDetectionController extends BaseController<
             ) || '';
 
           if (ignored === undefined) {
-            const { decimals, symbol, aggregators, iconUrl } =
+            const { decimals, symbol, aggregators, iconUrl, name } =
               tokenList[caseInsensitiveTokenKey];
             tokensToAdd.push({
               address: tokenAddress,
@@ -290,6 +300,7 @@ export class TokenDetectionController extends BaseController<
               aggregators,
               image: iconUrl,
               isERC721: false,
+              name,
             });
           }
         }

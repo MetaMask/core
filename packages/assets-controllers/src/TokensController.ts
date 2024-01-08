@@ -168,6 +168,7 @@ export class TokensController extends BaseController<
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
+   * @param options.getERC20TokenName - Allows fetch an ERC-20 token name
    */
   constructor({
     chainId: initialChainId,
@@ -176,6 +177,7 @@ export class TokensController extends BaseController<
     config,
     state,
     messenger,
+    getERC20TokenName,
   }: {
     chainId: Hex;
     onPreferencesStateChange: (
@@ -211,7 +213,7 @@ export class TokensController extends BaseController<
     this.abortController = new WhatwgAbortController();
 
     this.messagingSystem = messenger;
-
+    this.getERC20TokenName = getERC20TokenName;
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { chainId } = this.config;
@@ -249,16 +251,21 @@ export class TokensController extends BaseController<
    * @param address - Hex address of the token contract.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
-   * @param image - Image of the token.
-   * @param interactingAddress - The address of the account to add a token to.
+   * @param options - Object containing name and image of the token
+   * @param options.name - Name of the token
+   * @param options.image - Image of the token
+   * @param options.interactingAddress - The address of the account to add a token to.
    * @returns Current token list.
    */
   async addToken(
     address: string,
     symbol: string,
     decimals: number,
-    image?: string,
-    interactingAddress?: string,
+    {
+      name,
+      image,
+      interactingAddress,
+    }: { name?: string; image?: string; interactingAddress?: string },
   ): Promise<Token[]> {
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId: currentChainId, selectedAddress } = this.config;
@@ -295,6 +302,7 @@ export class TokensController extends BaseController<
           }),
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+        name,
       };
       const previousEntry = newTokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -361,7 +369,8 @@ export class TokensController extends BaseController<
 
     try {
       tokensToImport.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators } = tokenToAdd;
+        const { address, symbol, decimals, image, aggregators, name } =
+          tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const formattedToken: Token = {
           address: checksumAddress,
@@ -369,6 +378,7 @@ export class TokensController extends BaseController<
           decimals,
           image,
           aggregators,
+          name,
         };
         newTokensMap[address] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
@@ -462,8 +472,15 @@ export class TokensController extends BaseController<
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators, isERC721 } =
-          tokenToAdd;
+        const {
+          address,
+          symbol,
+          decimals,
+          image,
+          aggregators,
+          isERC721,
+          name,
+        } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
           address: checksumAddress,
@@ -472,6 +489,7 @@ export class TokensController extends BaseController<
           image,
           isERC721,
           aggregators,
+          name,
         };
         const previousImportedEntry = newTokens.find(
           (token) =>
@@ -551,6 +569,23 @@ export class TokensController extends BaseController<
     tokens[tokenIndex].isERC721 = isERC721;
     this.update({ tokens });
     return tokens[tokenIndex];
+  }
+
+  /**
+   * This is a function that updates the tokens name for the tokens name if it is not defined
+   * @param tokenList - Represents the fetched token list from service API
+   */
+  async updateTokensName(tokenList) {
+    const { tokens } = this.state;
+
+    const newTokens = tokens.map((token) => {
+      const newToken = tokenList[token.address.toLowerCase()];
+      return !token.name && newToken?.name
+        ? { ...token, name: newToken.name }
+        : { ...token };
+    });
+
+    this.update({ tokens: newTokens });
   }
 
   /**
@@ -638,6 +673,18 @@ export class TokensController extends BaseController<
       asset.image,
       suggestedAssetMeta.interactingAddress,
     );
+    let name;
+    try {
+      name = await this.getERC20TokenName(address);
+    } catch (error) {
+      name = undefined;
+    }
+
+    await this.addToken(asset.address, asset.symbol, asset.decimals, {
+      name,
+      image: asset.image,
+      interactingAddress: suggestedAssetMeta.interactingAddress,
+    });
   }
 
   /**

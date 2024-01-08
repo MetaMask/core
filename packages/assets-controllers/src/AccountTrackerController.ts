@@ -98,6 +98,8 @@ export class AccountTrackerController extends BaseController<
     {
       onPreferencesStateChange,
       getIdentities,
+      getSelectedAddress,
+      getMultiAccountBalancesEnabled,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -114,6 +116,8 @@ export class AccountTrackerController extends BaseController<
     this.defaultState = { accounts: {} };
     this.initialize();
     this.getIdentities = getIdentities;
+    this.getSelectedAddress = getSelectedAddress;
+    this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     onPreferencesStateChange(() => {
       this.refresh();
     });
@@ -152,17 +156,44 @@ export class AccountTrackerController extends BaseController<
   }
 
   /**
-   * Refreshes all accounts in the current keychain.
+   * Fetches the balance of a given address from the blockchain.
+   *
+   * @async
+   * @param {string} address - The account address to fetch the balance for.
+   * @returns {Promise<string>} - A promise that resolves to the balance in a hex string format.
+   */
+  async getBalanceFromChain(address) {
+    let balance;
+    await safelyExecuteWithTimeout(
+      async () =>
+        (balance = await query(this.ethQuery, 'getBalance', [address])),
+    );
+    return balance;
+  }
+
+  /**
+   * Refreshes the balances of the accounts depending on the multi-account setting.
+   * If multi-account is disabled, only updates the selected account balance.
+   * If multi-account is enabled, updates balances for all accounts.
+   *
+   * @async
    */
   refresh = async () => {
     this.syncAccounts();
     const accounts = { ...this.state.accounts };
+    const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
+    if (!isMultiAccountBalancesEnabled) {
+      const selectedAddress = this.getSelectedAddress();
+      const balance = await this.getBalanceFromChain(selectedAddress);
+      if (!balance) return;
+      accounts[selectedAddress] = { balance: BNToHex(balance) };
+      this.update({ accounts });
+      return;
+    }
     for (const address in accounts) {
-      await safelyExecuteWithTimeout(async () => {
-        assert(this.ethQuery, 'Provider not set.');
-        const balance = await query(this.ethQuery, 'getBalance', [address]);
-        accounts[address] = { balance: BNToHex(balance) };
-      });
+      const balance = await this.getBalanceFromChain(address);
+      if (!balance) continue;
+      accounts[address] = { balance: BNToHex(balance) };
     }
     this.update({ accounts });
   };
