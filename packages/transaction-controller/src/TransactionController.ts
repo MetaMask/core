@@ -1616,16 +1616,22 @@ export class TransactionController extends BaseControllerV1<
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
     let nonceMutexForChainId: Mutex | undefined;
+    let nonceTracker = this.nonceTracker
     if (networkClientId) {
       const networkClient = this.getNetworkClientById(networkClientId);
       nonceMutexForChainId = this.nonceMutexByChainId.get(
         networkClient.configuration.chainId,
       );
+      const trackers = this.trackingMap.get(networkClientId)
+      if (!trackers) {
+        throw new Error('missing nonceTracker for networkClientId')
+      }
+      nonceTracker = trackers?.nonceTracker
     }
 
     const releaseLockForChainId = await nonceMutexForChainId?.acquire();
     try {
-      const nonceLock = await this.nonceTracker.getNonceLock(address);
+      const nonceLock = await nonceTracker.getNonceLock(address);
       return {
         ...nonceLock,
         releaseLock: () => {
