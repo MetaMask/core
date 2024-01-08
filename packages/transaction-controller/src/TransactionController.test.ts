@@ -3465,6 +3465,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId
       };
 
       await expect(
@@ -3494,6 +3495,7 @@ describe('TransactionController', () => {
         gas: '0x5208',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId
       };
 
       // Send the transaction to put it in the process of being signed
@@ -3524,6 +3526,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId
       };
       const mockTransactionParam2 = {
         from: ACCOUNT_MOCK,
@@ -3531,6 +3534,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId
       };
 
       const result = await controller.approveTransactionsWithSameNonce([
@@ -3561,6 +3565,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId
       };
       const mockTransactionParam2 = {
         from: ACCOUNT_MOCK,
@@ -3568,6 +3573,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId
       };
 
       await expect(

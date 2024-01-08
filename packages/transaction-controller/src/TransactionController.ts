@@ -30,6 +30,7 @@ import type {
   Provider,
   ProviderConfig,
 } from '@metamask/network-controller';
+import { NetworkClientConfiguration } from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -98,7 +99,6 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
-import { NetworkClientConfiguration } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 
 export const HARDFORK = Hardfork.London;
@@ -907,7 +907,10 @@ export class TransactionController extends BaseControllerV1<
             value: '0x0',
           };
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(newTxParams);
+    const unsignedEthTx = this.prepareUnsignedEthTx(
+      transactionMeta.chainId,
+      newTxParams,
+    );
 
     const signedTx = await this.sign(
       unsignedEthTx,
@@ -1064,7 +1067,10 @@ export class TransactionController extends BaseControllerV1<
             gasPrice: newGasPrice,
           };
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+    const unsignedEthTx = this.prepareUnsignedEthTx(
+      transactionMeta.chainId,
+      txParams,
+    );
 
     const signedTx = await this.sign(
       unsignedEthTx,
@@ -1680,7 +1686,7 @@ export class TransactionController extends BaseControllerV1<
    * @returns The raw transactions.
    */
   async approveTransactionsWithSameNonce(
-    listOfTxParams: TransactionParams[] = [],
+    listOfTxParams: (TransactionParams & { chainId: Hex })[] = [],
   ): Promise<string | string[]> {
     log('Approving transactions with same nonce', {
       transactions: listOfTxParams,
@@ -1691,12 +1697,11 @@ export class TransactionController extends BaseControllerV1<
     }
 
     const initialTx = listOfTxParams[0];
-    const common = this.getCommonConfiguration();
+    const common = this.getCommonConfiguration(initialTx.chainId);
 
     const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
       common,
     });
-
     const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
 
     if (this.inProcessOfSigning.has(initialTxAsSerializedHex)) {
@@ -1717,7 +1722,7 @@ export class TransactionController extends BaseControllerV1<
       rawTransactions = await Promise.all(
         listOfTxParams.map((txParams) => {
           txParams.nonce = addHexPrefix(nonce.toString(16));
-          return this.signExternalTransaction(txParams);
+          return this.signExternalTransaction(txParams.chainId, txParams);
         }),
       );
     } catch (err) {
@@ -1927,6 +1932,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   private async signExternalTransaction(
+    chainId: Hex,
     transactionParams: TransactionParams,
   ): Promise<string> {
     if (!this.sign) {
@@ -1934,7 +1940,6 @@ export class TransactionController extends BaseControllerV1<
     }
 
     const normalizedTransactionParams = normalizeTxParams(transactionParams);
-    const chainId = this.getChainId();
     const type = isEIP1559Transaction(normalizedTransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
@@ -1946,7 +1951,7 @@ export class TransactionController extends BaseControllerV1<
     };
 
     const { from } = updatedTransactionParams;
-    const common = this.getCommonConfiguration();
+    const common = this.getCommonConfiguration(chainId);
     const unsignedTransaction = TransactionFactory.fromTxData(
       updatedTransactionParams,
       { common },
@@ -2444,10 +2449,13 @@ export class TransactionController extends BaseControllerV1<
     return providerConfig.chainId;
   }
 
-  private prepareUnsignedEthTx(txParams: TransactionParams): TypedTransaction {
+  private prepareUnsignedEthTx(
+    chainId: Hex,
+    txParams: TransactionParams,
+  ): TypedTransaction {
     return TransactionFactory.fromTxData(txParams, {
-      common: this.getCommonConfiguration(),
       freeze: false,
+      common: this.getCommonConfiguration(chainId),
     });
   }
 
@@ -2458,23 +2466,11 @@ export class TransactionController extends BaseControllerV1<
    * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
    * transaction type to use.
    *
+   * @param chainId
    * @returns common configuration object
    */
-  private getCommonConfiguration(): Common {
-    const {
-      providerConfig: { type: chain, chainId, nickname: name },
-    } = this.getNetworkState();
-
-    if (
-      chain !== RPC &&
-      chain !== NetworkType['linea-goerli'] &&
-      chain !== NetworkType['linea-mainnet']
-    ) {
-      return new Common({ chain, hardfork: HARDFORK });
-    }
-
+  private getCommonConfiguration(chainId: Hex): Common {
     const customChainParams: Partial<ChainConfig> = {
-      name,
       chainId: parseInt(chainId, 16),
       defaultHardfork: HARDFORK,
     };
@@ -2750,7 +2746,10 @@ export class TransactionController extends BaseControllerV1<
   ): Promise<string | undefined> {
     log('Signing transaction', txParams);
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+    const unsignedEthTx = this.prepareUnsignedEthTx(
+      transactionMeta.chainId,
+      txParams,
+    );
 
     this.inProcessOfSigning.add(transactionMeta.id);
 
