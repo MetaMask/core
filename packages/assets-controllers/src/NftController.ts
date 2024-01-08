@@ -105,7 +105,7 @@ export type OpenSeaV2Contract = {
   collection: string;
   contract_standard: string;
   name: string;
-  supply: number;
+  total_supply?: number;
 };
 
 export type OpenSeaV2Collection = {
@@ -125,6 +125,7 @@ export type OpenSeaV2Collection = {
   telegram_url?: string;
   twitter_username?: string;
   instagram_username?: string;
+  total_supply?: number;
 };
 
 /**
@@ -297,6 +298,14 @@ export type NftControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   never
 >;
+
+export const getDefaultNftState = (): NftState => {
+  return {
+    allNftContracts: {},
+    allNfts: {},
+    ignoredNfts: [],
+  };
+};
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -1152,11 +1161,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       isIpfsGatewayEnabled: true,
     };
 
-    this.defaultState = {
-      allNftContracts: {},
-      allNfts: {},
-      ignoredNfts: [],
-    };
+    this.defaultState = getDefaultNftState();
     this.initialize();
     this.getERC721AssetName = getERC721AssetName;
     this.getERC721AssetSymbol = getERC721AssetSymbol;

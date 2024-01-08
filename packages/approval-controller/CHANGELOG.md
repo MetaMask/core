@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1]
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+
+## [5.1.0]
+### Added
+- Add `title` and `icon` options to `success` and `error` methods ([#3675](https://github.com/MetaMask/core/pull/3675))
+
 ## [5.0.0]
 ### Changed
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 (TODO: THIS PR)
@@ -97,7 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.1...HEAD
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.0...@metamask/approval-controller@5.1.1
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.0.0...@metamask/approval-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.1.0...@metamask/approval-controller@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.0.1...@metamask/approval-controller@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.0.0...@metamask/approval-controller@4.0.1

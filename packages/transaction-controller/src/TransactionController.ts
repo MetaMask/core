@@ -37,7 +37,7 @@ import {
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import MethodRegistry from 'eth-method-registry';
+import { MethodRegistry } from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { mapValues, merge, pickBy, sortBy } from 'lodash';
@@ -231,7 +231,7 @@ export class TransactionController extends BaseControllerV1<
   TransactionConfig,
   TransactionState
 > {
-  private ethQuery: EthQuery;
+  private readonly ethQuery: EthQuery;
 
   private readonly isHistoryDisabled: boolean;
 
@@ -245,7 +245,7 @@ export class TransactionController extends BaseControllerV1<
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private registry: any;
+  private readonly registry: any;
 
   private readonly provider: Provider;
 
@@ -506,6 +506,7 @@ export class TransactionController extends BaseControllerV1<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
+    // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
     this.registry = new MethodRegistry({ provider });
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
@@ -581,7 +582,6 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
-      onStateChange: this.subscribe.bind(this),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -592,13 +592,25 @@ export class TransactionController extends BaseControllerV1<
 
     this.addPendingTransactionTrackerListeners();
 
+    this.subscribe(this.#onStateChange)
+
     onNetworkStateChange(() => {
-      this.ethQuery = new EthQuery(this.provider);
-      this.registry = new MethodRegistry({ provider: this.provider });
+      log('Detected network change', this.getChainId());
+      // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
+      // Verify if this is still necessary when the feature branch is being reviewed
+      this.#onStateChange()
       this.onBootCleanup();
     });
 
     this.onBootCleanup();
+  }
+
+  #onStateChange = () => {
+    // PendingTransactionTracker reads state through its getTransactions hook
+    this.pendingTransactionTracker.onStateChange()
+    for (const [_, trackingMap] of this.trackingMap) {
+      trackingMap.pendingTransactionTracker.onStateChange()
+    }
   }
 
   /**
@@ -1130,6 +1142,7 @@ export class TransactionController extends BaseControllerV1<
   stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const trackers = this.trackingMap.get(networkClientId);
     if (trackers) {
+      trackers.pendingTransactionTracker.stop();
       this.removePendingTransactionTrackerListeners(
         trackers.pendingTransactionTracker,
       );
@@ -1180,7 +1193,6 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: true, // TODO: make this configurable
       nonceTracker,
-      onStateChange: this.subscribe.bind(this),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -1830,7 +1842,8 @@ export class TransactionController extends BaseControllerV1<
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId &&
+        !transaction.isUserOperation,
     );
 
     for (const txMeta of unapprovedTxs) {
@@ -2037,28 +2050,6 @@ export class TransactionController extends BaseControllerV1<
 
   private onBootCleanup() {
     this.submitApprovedTransactions();
-  }
-
-  /**
-   * Create approvals for all unapproved transactions on current chain.
-   */
-  private createApprovalsForUnapprovedTransactions() {
-    // NOTE(JL): this doesn't seem to be used anywhere. Can we remove it?
-    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
-      TransactionStatus.unapproved,
-    );
-
-    for (const transactionMeta of unapprovedTransactions) {
-      this.processApproval(transactionMeta, {
-        shouldShowRequest: false,
-      }).catch((error) => {
-        if (error?.code === errorCodes.provider.userRejectedRequest) {
-          return;
-        }
-        /* istanbul ignore next */
-        console.error('Error during persisted transaction approval', error);
-      });
-    }
   }
 
   /**
@@ -2653,12 +2644,18 @@ export class TransactionController extends BaseControllerV1<
     // NOTE(JL): Should this method be exiting early if getTransaction returns no transaction object?
     const nonce = transactionMeta?.txParams?.nonce;
     const from = transactionMeta?.txParams?.from;
+    // NOTE(JL): the line below was removed upstream in favor of this.getChainId()
+    // not sure specifically why that was the case
+    // https://github.com/MetaMask/core/commit/89654542c9c61308cfad6a310f7fe2b4b669117b
     const chainId = transactionMeta?.chainId;
+
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
+        transaction.id !== transactionId &&
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId &&
+        transaction.type !== TransactionType.incoming,
     );
 
     if (!sameNonceTxs.length) {
@@ -2667,9 +2664,6 @@ export class TransactionController extends BaseControllerV1<
 
     // Mark all same nonce transactions as dropped and give it a replacedBy hash
     for (const transaction of sameNonceTxs) {
-      if (transaction.id === transactionId) {
-        continue;
-      }
       transaction.replacedBy = transactionMeta?.hash;
       transaction.replacedById = transactionMeta?.id;
       // Drop any transaction that wasn't previously failed (off chain failure)
@@ -2729,16 +2723,14 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
   ): Promise<void> {
-    if (signedTx.r) {
-      transactionMeta.r = addHexPrefix(signedTx.r.toString(16));
-    }
+    for (const key of ['r', 's', 'v'] as const) {
+      const value = signedTx[key];
 
-    if (signedTx.s) {
-      transactionMeta.s = addHexPrefix(signedTx.s.toString(16));
-    }
+      if (value === undefined || value === null) {
+        continue;
+      }
 
-    if (signedTx.v) {
-      transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
+      transactionMeta[key] = addHexPrefix(value.toString(16));
     }
   }
 

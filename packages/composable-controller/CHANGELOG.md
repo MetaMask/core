@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [5.0.0]
 ### Added
 - Add types `ComposableControllerState`, `ComposableControllerStateChangeEvent`, `ComposableControllerEvents`, `ComposableControllerMessenger` ([#3590](https://github.com/MetaMask/core/pull/3590))
 
@@ -13,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The constructor now expects an options object with required properties `controllers` and `messenger` as its only argument.
   - `ComposableController` no longer has a `subscribe` method. Instead, listeners for `ComposableController` events must be registered to the controller messenger that generated the restricted messenger assigned to the instance's `messagingSystem` class field.
   - Any getters for `ComposableController` state that access the internal class field directly should be refactored to instead use listeners that are subscribed to `ComposableControllerStateChangeEvent`.
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 
 ## [4.0.0]
 ### Changed
@@ -58,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@4.0.0...@metamask/composable-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@3.0.3...@metamask/composable-controller@4.0.0
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@3.0.2...@metamask/composable-controller@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@3.0.1...@metamask/composable-controller@3.0.2
