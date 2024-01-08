@@ -84,10 +84,12 @@ const metadata = {
   preventPollingOnNetworkRestart: { persist: true, anonymous: true },
 };
 
-const defaultState: TokenListState = {
-  tokenList: {},
-  tokensChainsCache: {},
-  preventPollingOnNetworkRestart: false,
+export const getDefaultTokenListState = (): TokenListState => {
+  return {
+    tokenList: {},
+    tokensChainsCache: {},
+    preventPollingOnNetworkRestart: false,
+  };
 };
 
 /**
@@ -145,7 +147,7 @@ export class TokenListController extends StaticIntervalPollingController<
       name,
       metadata,
       messenger,
-      state: { ...defaultState, ...state },
+      state: { ...getDefaultTokenListState(), ...state },
     });
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
