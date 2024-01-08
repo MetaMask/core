@@ -443,7 +443,7 @@ describe('TokenDetectionController', () => {
       clock.restore();
     });
 
-    describe('enabled', () => {
+    describe('when "disabled" is "false"', () => {
       it('should detect new tokens after switching between accounts', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
@@ -638,7 +638,7 @@ describe('TokenDetectionController', () => {
       });
     });
 
-    describe('disabled', () => {
+    describe('when "disabled" is "true"', () => {
       it('should not detect new tokens after switching between accounts', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
@@ -747,7 +747,7 @@ describe('TokenDetectionController', () => {
       clock.restore();
     });
 
-    describe('enabled', () => {
+    describe('when "disabled" is "false"', () => {
       it('should detect new tokens after switching chains', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
@@ -896,7 +896,7 @@ describe('TokenDetectionController', () => {
       });
     });
 
-    describe('disabled', () => {
+    describe('when "disabled" is "true"', () => {
       it('should not detect new tokens after switching chains', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
@@ -957,7 +957,7 @@ describe('TokenDetectionController', () => {
       clock.restore();
     });
 
-    describe('enabled', () => {
+    describe('when "disabled" is "false"', () => {
       it('should detect tokens if the token list is non-empty', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
@@ -1052,7 +1052,7 @@ describe('TokenDetectionController', () => {
       });
     });
 
-    describe('disabled', () => {
+    describe('when "disabled" is "true"', () => {
       it('should not detect tokens', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
