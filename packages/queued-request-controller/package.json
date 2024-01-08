@@ -1,6 +1,6 @@
 {
   "name": "@metamask/queued-request-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Includes a controller and middleware that implements a request queue",
   "keywords": [
     "MetaMask",
@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/queued-request-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/queued-request-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -30,18 +31,18 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^5.1.0",
-    "@metamask/base-controller": "^4.0.0",
-    "@metamask/controller-utils": "^8.0.0",
-    "@metamask/json-rpc-engine": "^7.3.0",
-    "@metamask/network-controller": "^17.0.0",
+    "@metamask/base-controller": "^4.0.1",
+    "@metamask/controller-utils": "^8.0.1",
+    "@metamask/json-rpc-engine": "^7.3.1",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/selected-network-controller": "^5.0.0",
     "@metamask/swappable-obj-proxy": "^2.1.0",
     "@metamask/utils": "^8.2.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/approval-controller": "^5.1.1",
+    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/network-controller": "^17.1.0",
+    "@metamask/selected-network-controller": "^6.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -55,9 +56,9 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^5.1.0",
-    "@metamask/network-controller": "^17.0.0",
-    "@metamask/selected-network-controller": "^5.0.0"
+    "@metamask/approval-controller": "^5.1.1",
+    "@metamask/network-controller": "^17.1.0",
+    "@metamask/selected-network-controller": "^6.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

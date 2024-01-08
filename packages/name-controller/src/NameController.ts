@@ -13,6 +13,7 @@ import type {
 } from './types';
 import { NameType } from './types';
 
+export const FALLBACK_VARIATION = '*';
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 const DEFAULT_VARIATION = '';
 
@@ -571,10 +572,11 @@ export class NameController extends BaseController<
     if (
       !variation?.length ||
       typeof variation !== 'string' ||
-      !variation.match(/^0x[0-9A-Fa-f]+$/u)
+      (!variation.match(/^0x[0-9A-Fa-f]+$/u) &&
+        variation !== FALLBACK_VARIATION)
     ) {
       errorMessages.push(
-        `Must specify a chain ID in hexidecimal format for variation when using '${type}' type.`,
+        `Must specify a chain ID in hexidecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
       );
     }
   }
