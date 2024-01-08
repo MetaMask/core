@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.3.1]
+### Fixed
+- Fix incorrect transaction statuses ([#3676](https://github.com/MetaMask/core/pull/3676))
+  - Fix `dropped` status detection by ignoring transactions on other chains.
+  - Start polling if network changes and associated transactions are pending.
+  - Record `r`, `s`, and `v` values even if zero.
+  - Only fail transactions if receipt `status` is explicitly `0x0`.
+- Fix incoming transactions on Linea Goerli ([#3674](https://github.com/MetaMask/core/pull/3674))
+
 ## [18.3.0]
 ### Added
 - Add optional `getExternalPendingTransactions` callback argument to constructor ([#3587](https://github.com/MetaMask/core/pull/3587))
@@ -331,7 +340,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.1...HEAD
+[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.0...@metamask/transaction-controller@18.3.1
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.2.0...@metamask/transaction-controller@18.3.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.1.0...@metamask/transaction-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.0.0...@metamask/transaction-controller@18.1.0

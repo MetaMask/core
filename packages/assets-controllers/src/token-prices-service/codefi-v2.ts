@@ -215,8 +215,7 @@ export const SUPPORTED_CHAIN_IDS = [
   // Base
   '0x2105',
   // Shiden
-  // NOTE: This is the wrong chain ID, this should be 0x150
-  '0x2107',
+  '0x150',
   // Smart Bitcoin Cash
   '0x2710',
   // Arbitrum One
@@ -269,16 +268,20 @@ export class CodefiTokenPricesServiceV2
    * @param options.retries - Number of retry attempts for each token price update.
    * @param options.maximumConsecutiveFailures - The maximum number of consecutive failures
    * allowed before breaking the circuit and pausing further updates.
+   * @param options.onBreak - An event handler for when the circuit breaks, useful for capturing
+   * metrics about network failures.
    * @param options.circuitBreakDuration - The amount of time to wait when the circuit breaks
    * from too many consecutive failures.
    */
   constructor({
     retries = DEFAULT_TOKEN_PRICE_RETRIES,
     maximumConsecutiveFailures = DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES,
+    onBreak,
     circuitBreakDuration = 30 * 60 * 1000,
   }: {
     retries?: number;
     maximumConsecutiveFailures?: number;
+    onBreak?: () => void;
     circuitBreakDuration?: number;
   } = {}) {
     // Construct a policy that will retry each update, and halt further updates
@@ -291,6 +294,9 @@ export class CodefiTokenPricesServiceV2
       halfOpenAfter: circuitBreakDuration,
       breaker: new ConsecutiveBreaker(maximumConsecutiveFailures),
     });
+    if (onBreak) {
+      circuitBreakerPolicy.onBreak(onBreak);
+    }
     this.#tokenPricePolicy = wrap(retryPolicy, circuitBreakerPolicy);
   }
 

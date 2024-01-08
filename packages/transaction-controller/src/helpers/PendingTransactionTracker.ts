@@ -9,9 +9,8 @@ import EventEmitter from 'events';
 import type { NonceTracker } from 'nonce-tracker';
 
 import { projectLogger } from '../logger';
-import type { TransactionState } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
-import { TransactionStatus } from '../types';
+import { TransactionStatus, TransactionType } from '../types';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -19,6 +18,8 @@ import { TransactionStatus } from '../types';
  */
 const DROPPED_BLOCK_COUNT = 3;
 
+const RECEIPT_STATUS_SUCCESS = '0x1';
+const RECEIPT_STATUS_FAILURE = '0x0';
 const MAX_RETRY_BLOCK_DISTANCE = 50;
 
 const KNOWN_TRANSACTION_ERRORS = [
@@ -79,8 +80,6 @@ export class PendingTransactionTracker {
 
   #nonceTracker: NonceTracker;
 
-  #onStateChange: (listener: (state: TransactionState) => void) => void;
-
   #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
 
   #running: boolean;
@@ -97,7 +96,6 @@ export class PendingTransactionTracker {
     getTransactions,
     isResubmitEnabled,
     nonceTracker,
-    onStateChange,
     publishTransaction,
     hooks,
   }: {
@@ -108,7 +106,6 @@ export class PendingTransactionTracker {
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
     nonceTracker: NonceTracker;
-    onStateChange: (listener: (state: TransactionState) => void) => void;
     publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
@@ -128,24 +125,21 @@ export class PendingTransactionTracker {
     this.#isResubmitEnabled = isResubmitEnabled ?? true;
     this.#listener = this.#onLatestBlock.bind(this);
     this.#nonceTracker = nonceTracker;
-    this.#onStateChange = onStateChange;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
+  }
 
-    this.#onStateChange((state) => {
-      const pendingTransactions = this.#getPendingTransactions(
-        state.transactions,
-      );
+  onStateChange = () => {
+    const pendingTransactions = this.#getPendingTransactions();
 
-      if (pendingTransactions.length) {
-        this.#start();
-      } else {
-        this.#stop();
-      }
-    });
+    if (pendingTransactions.length) {
+      this.#start();
+    } else {
+      this.stop();
+    }
   }
 
   #start() {
@@ -159,7 +153,7 @@ export class PendingTransactionTracker {
     log('Started polling');
   }
 
-  #stop() {
+  stop() {
     if (!this.#running) {
       return;
     }
@@ -344,9 +338,10 @@ export class PendingTransactionTracker {
 
     try {
       const receipt = await this.#getTransactionReceipt(hash);
-      const isSuccess = receipt?.status === '0x1';
+      const isSuccess = receipt?.status === RECEIPT_STATUS_SUCCESS;
+      const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
-      if (receipt && !isSuccess) {
+      if (isFailure) {
         log('Transaction receipt has failed status');
 
         this.#failTransaction(
@@ -456,23 +451,22 @@ export class PendingTransactionTracker {
   #isNonceTaken(txMeta: TransactionMeta): boolean {
     const { id, txParams } = txMeta;
 
-    return this.#getTransactions().some(
+    return this.#getCurrentChainTransactions().some(
       (tx) =>
         tx.id !== id &&
         tx.txParams.from === txParams.from &&
         tx.status === TransactionStatus.confirmed &&
-        tx.txParams.nonce === txParams.nonce,
+        tx.txParams.nonce === txParams.nonce &&
+        tx.type !== TransactionType.incoming,
     );
   }
 
-  #getPendingTransactions(transactions?: TransactionMeta[]): TransactionMeta[] {
-    const currentChainId = this.#getChainId();
-
-    return (transactions ?? this.#getTransactions()).filter(
+  #getPendingTransactions(): TransactionMeta[] {
+    return this.#getCurrentChainTransactions().filter(
       (tx) =>
         tx.status === TransactionStatus.submitted &&
-        tx.chainId === currentChainId &&
-        !tx.verifiedOnBlockchain,
+        !tx.verifiedOnBlockchain &&
+        !tx.isUserOperation,
     );
   }
 
@@ -522,5 +516,13 @@ export class PendingTransactionTracker {
 
   async #getNetworkTransactionCount(address: string): Promise<string> {
     return await query(this.#getEthQuery(), 'getTransactionCount', [address]);
+  }
+
+  #getCurrentChainTransactions(): TransactionMeta[] {
+    const currentChainId = this.#getChainId();
+
+    return this.#getTransactions().filter(
+      (tx) => tx.chainId === currentChainId,
+    );
   }
 }
