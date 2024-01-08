@@ -134,7 +134,7 @@ describe('gas', () => {
       });
 
       it('to estimate if not custom network and no to parameter', async () => {
-        updateGasRequest.providerConfig.type = NetworkType.mainnet;
+        updateGasRequest.isCustomNetwork = false;
         const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
         delete updateGasRequest.txMeta.txParams.to;
         mockQuery({
