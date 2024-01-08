@@ -68,12 +68,14 @@ export type TokenListControllerActions = GetTokenListState;
 
 type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
-type TokenListMessenger = RestrictedControllerMessenger<
+type AllowedEvents = NetworkControllerStateChangeEvent;
+
+export type TokenListControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   TokenListControllerActions | AllowedActions,
-  TokenListControllerEvents | NetworkControllerStateChangeEvent,
+  TokenListControllerEvents | AllowedEvents,
   AllowedActions['type'],
-  (TokenListControllerEvents | NetworkControllerStateChangeEvent)['type']
+  AllowedEvents['type']
 >;
 
 const metadata = {
@@ -94,7 +96,7 @@ const defaultState: TokenListState = {
 export class TokenListController extends StaticIntervalPollingController<
   typeof name,
   TokenListState,
-  TokenListMessenger
+  TokenListControllerMessenger
 > {
   private readonly mutex = new Mutex();
 
@@ -136,7 +138,7 @@ export class TokenListController extends StaticIntervalPollingController<
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
-    messenger: TokenListMessenger;
+    messenger: TokenListControllerMessenger;
     state?: Partial<TokenListState>;
   }) {
     super({

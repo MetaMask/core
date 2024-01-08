@@ -1,4 +1,4 @@
-import { NameController } from './NameController';
+import { FALLBACK_VARIATION, NameController } from './NameController';
 import type { NameProvider } from './types';
 import { NameType } from './types';
 
@@ -357,6 +357,19 @@ describe('NameController', () => {
       });
     });
 
+    it('does not throw if variation is fallback and type is Ethereum address', () => {
+      const controller = new NameController(CONTROLLER_ARGS_MOCK);
+
+      expect(() => {
+        controller.setName({
+          value: VALUE_MOCK,
+          type: NameType.ETHEREUM_ADDRESS,
+          name: NAME_MOCK,
+          variation: FALLBACK_VARIATION,
+        });
+      }).not.toThrow();
+    });
+
     describe('throws if', () => {
       it.each([
         ['missing', undefined],
@@ -457,7 +470,7 @@ describe('NameController', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any),
         ).toThrow(
-          `Must specify a chain ID in hexidecimal format for variation when using '${NameType.ETHEREUM_ADDRESS}' type.`,
+          `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
         );
       });
 
@@ -1767,7 +1780,7 @@ describe('NameController', () => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any),
           ).rejects.toThrow(
-            `Must specify a chain ID in hexidecimal format for variation when using '${NameType.ETHEREUM_ADDRESS}' type.`,
+            `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
           );
         },
       );
