@@ -134,6 +134,11 @@ export type AddUserOperationResponse = {
   transactionHash: () => Promise<string | undefined>;
 };
 
+/**
+ * All the objects related to a pending user operation in order to:
+ * - Avoid duplicated effort to derive the same properties.
+ * - Minimise duplicate arguments in private methods.
+ */
 type UserOperationCache = {
   chainId: string;
   metadata: UserOperationMetadata;

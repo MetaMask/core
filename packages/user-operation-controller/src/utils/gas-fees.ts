@@ -12,6 +12,7 @@ import {
 import type { Provider } from '@metamask/network-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { UserFeeLevel } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
 import { EMPTY_BYTES } from '../constants';
@@ -212,7 +213,9 @@ function getUserFeeLevel(
  * @param request.provider - A provider to query the network.
  * @returns The suggested gas fees.
  */
-async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
+async function getSuggestedGasFees(
+  request: UpdateGasFeesRequest,
+): Promise<{ maxFeePerGas?: Hex; maxPriorityFeePerGas?: Hex }> {
   const { getGasFeeEstimates, provider } = request;
 
   try {
@@ -269,7 +272,7 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
     return {};
   }
 
-  const maxFeePerGas = addHexPrefix(gasPriceDecimal.toString(16));
+  const maxFeePerGas = addHexPrefix(gasPriceDecimal.toString(16)) as Hex;
 
   log('Using gasPrice from network as fallback', maxFeePerGas);
 
