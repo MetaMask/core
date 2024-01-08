@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "7.3.6",
+  "version": "7.3.7",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/message-manager",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/message-manager",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -30,8 +31,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.0.0",
-    "@metamask/controller-utils": "^8.0.0",
+    "@metamask/base-controller": "^4.0.1",
+    "@metamask/controller-utils": "^8.0.1",
     "@metamask/eth-sig-util": "^7.0.1",
     "@metamask/utils": "^8.2.0",
     "@types/uuid": "^8.3.0",
@@ -40,7 +41,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

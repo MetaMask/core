@@ -55,7 +55,7 @@ export type AbstractTokenPricesService<
     chainId: ChainId;
     tokenAddresses: TokenAddress[];
     currency: Currency;
-  }): Promise<TokenPricesByTokenAddress<TokenAddress, Currency>>;
+  }): Promise<Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>>;
 
   /**
    * Type guard for whether the API can return token prices for the given chain
