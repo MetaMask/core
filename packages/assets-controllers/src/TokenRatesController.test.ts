@@ -17,7 +17,7 @@ import type {
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
-import type { TokenBalancesState } from './TokenBalancesController';
+import type { TokenBalancesControllerState } from './TokenBalancesController';
 import { TokenRatesController } from './TokenRatesController';
 import type { TokenRatesConfig, Token } from './TokenRatesController';
 import type { TokensState } from './TokensController';
@@ -2228,7 +2228,7 @@ type WithControllerCallback<ReturnValue> = ({
 type PartialConstructorParameters = {
   options?: Partial<ConstructorParameters<typeof TokenRatesController>[0]>;
   config?: Partial<TokenRatesConfig>;
-  state?: Partial<TokenBalancesState>;
+  state?: Partial<TokenBalancesControllerState>;
 };
 
 type WithControllerArgs<ReturnValue> =

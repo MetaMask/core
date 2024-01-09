@@ -1,12 +1,27 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import { BN } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
-import {
-  BN as exportedBn,
-  TokenBalancesController,
-} from './TokenBalancesController';
+import { TokenBalancesController } from './TokenBalancesController';
 import { getDefaultTokensState, type TokensState } from './TokensController';
+
+const controllerName = 'TokenBalancesController';
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
+function getMessenger() {
+  return new ControllerMessenger().getRestricted<
+    typeof controllerName,
+    never,
+    never
+  >({
+    name: controllerName,
+  });
+}
 
 describe('TokenBalancesController', () => {
   let clock: sinon.SinonFakeTimers;
@@ -14,8 +29,7 @@ describe('TokenBalancesController', () => {
     tokenBalances: TokenBalancesController,
     address: string,
   ) => {
-    const { tokens } = tokenBalances.config;
-    return tokens.find((token) => token.address === address);
+    return tokenBalances.getTokens().find((token) => token.address === address);
   };
   beforeEach(() => {
     clock = sinon.useFakeTimers();
@@ -26,29 +40,14 @@ describe('TokenBalancesController', () => {
     sinon.restore();
   });
 
-  it('should re-export BN', () => {
-    expect(exportedBn).toStrictEqual(BN);
-  });
-
   it('should set default state', () => {
     const tokenBalances = new TokenBalancesController({
       onTokensStateChange: sinon.stub(),
       getSelectedAddress: () => '0x1234',
       getERC20BalanceOf: sinon.stub(),
+      messenger: getMessenger(),
     });
     expect(tokenBalances.state).toStrictEqual({ contractBalances: {} });
-  });
-
-  it('should set default config', () => {
-    const tokenBalances = new TokenBalancesController({
-      onTokensStateChange: sinon.stub(),
-      getSelectedAddress: () => '0x1234',
-      getERC20BalanceOf: sinon.stub(),
-    });
-    expect(tokenBalances.config).toStrictEqual({
-      interval: 180000,
-      tokens: [],
-    });
   });
 
   it('should poll and update balances in the right interval', async () => {
@@ -56,14 +55,13 @@ describe('TokenBalancesController', () => {
       TokenBalancesController.prototype,
       'updateBalances',
     );
-    new TokenBalancesController(
-      {
-        onTokensStateChange: sinon.stub(),
-        getSelectedAddress: () => '0x1234',
-        getERC20BalanceOf: sinon.stub(),
-      },
-      { interval: 10 },
-    );
+    new TokenBalancesController({
+      interval: 10,
+      onTokensStateChange: sinon.stub(),
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: sinon.stub(),
+      messenger: getMessenger(),
+    });
     expect(mock.called).toBe(true);
     expect(mock.calledTwice).toBe(false);
 
@@ -72,32 +70,29 @@ describe('TokenBalancesController', () => {
   });
 
   it('should not update rates if disabled', async () => {
-    const tokenBalances = new TokenBalancesController(
-      {
-        onTokensStateChange: sinon.stub(),
-        getSelectedAddress: () => '0x1234',
-        getERC20BalanceOf: sinon.stub(),
-      },
-      {
-        disabled: true,
-        interval: 10,
-      },
-    );
-    const mock = sinon.stub(tokenBalances, 'update');
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const tokenBalances = new TokenBalancesController({
+      disabled: true,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      interval: 10,
+      onTokensStateChange: sinon.stub(),
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+      messenger: getMessenger(),
+    });
     await tokenBalances.updateBalances();
-    expect(mock.called).toBe(false);
+    expect(Object.keys(tokenBalances.state.contractBalances)).toStrictEqual({});
   });
 
   it('should clear previous interval', async () => {
     const mock = sinon.stub(global, 'clearTimeout');
-    const tokenBalances = new TokenBalancesController(
-      {
-        onTokensStateChange: sinon.stub(),
-        getSelectedAddress: () => '0x1234',
-        getERC20BalanceOf: sinon.stub(),
-      },
-      { interval: 1337 },
-    );
+    const tokenBalances = new TokenBalancesController({
+      interval: 1337,
+      onTokensStateChange: sinon.stub(),
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: sinon.stub(),
+      messenger: getMessenger(),
+    });
     await tokenBalances.poll(1338);
     await advanceTime({ clock, duration: 1339 });
     expect(mock.called).toBe(true);
@@ -106,17 +101,14 @@ describe('TokenBalancesController', () => {
   it('should update all balances', async () => {
     const selectedAddress = '0x0000000000000000000000000000000000000001';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    const tokenBalances = new TokenBalancesController(
-      {
-        onTokensStateChange: jest.fn(),
-        getSelectedAddress: () => selectedAddress,
-        getERC20BalanceOf: sinon.stub().returns(new BN(1)),
-      },
-      {
-        interval: 1337,
-        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      },
-    );
+    const tokenBalances = new TokenBalancesController({
+      interval: 1337,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      onTokensStateChange: jest.fn(),
+      getSelectedAddress: () => selectedAddress,
+      getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+      messenger: getMessenger(),
+    });
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
     await tokenBalances.updateBalances();
@@ -127,7 +119,7 @@ describe('TokenBalancesController', () => {
     );
 
     expect(
-      tokenBalances.state.contractBalances[address].toNumber(),
+      tokenBalances.state.contractBalances[address].toString(),
     ).toBeGreaterThan(0);
   });
 
@@ -137,17 +129,14 @@ describe('TokenBalancesController', () => {
     const getERC20BalanceOfStub = sinon
       .stub()
       .returns(Promise.reject(new Error(errorMsg)));
-    const tokenBalances = new TokenBalancesController(
-      {
-        onTokensStateChange: jest.fn(),
-        getSelectedAddress: jest.fn(),
-        getERC20BalanceOf: getERC20BalanceOfStub,
-      },
-      {
-        interval: 1337,
-        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      },
-    );
+    const tokenBalances = new TokenBalancesController({
+      interval: 1337,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      onTokensStateChange: jest.fn(),
+      getSelectedAddress: jest.fn(),
+      getERC20BalanceOf: getERC20BalanceOfStub,
+      messenger: getMessenger(),
+    });
 
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
     await tokenBalances.updateBalances();
@@ -170,16 +159,15 @@ describe('TokenBalancesController', () => {
 
   it('should update balances when tokens change', async () => {
     const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
-    const tokenBalances = new TokenBalancesController(
-      {
-        onTokensStateChange: (listener) => {
-          tokensStateChangeListeners.push(listener);
-        },
-        getSelectedAddress: jest.fn(),
-        getERC20BalanceOf: jest.fn(),
+    const tokenBalances = new TokenBalancesController({
+      onTokensStateChange: (listener) => {
+        tokensStateChangeListeners.push(listener);
       },
-      { interval: 1337 },
-    );
+      getSelectedAddress: jest.fn(),
+      getERC20BalanceOf: jest.fn(),
+      interval: 1337,
+      messenger: getMessenger(),
+    });
     const triggerTokensStateChange = (state: TokensState) => {
       for (const listener of tokensStateChangeListeners) {
         listener(state);
@@ -203,18 +191,15 @@ describe('TokenBalancesController', () => {
 
   it('should update token balances when detected tokens are added', async () => {
     const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
-    const tokenBalances = new TokenBalancesController(
-      {
-        onTokensStateChange: (listener) => {
-          tokensStateChangeListeners.push(listener);
-        },
-        getSelectedAddress: () => '0x1234',
-        getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+    const tokenBalances = new TokenBalancesController({
+      interval: 1337,
+      onTokensStateChange: (listener) => {
+        tokensStateChangeListeners.push(listener);
       },
-      {
-        interval: 1337,
-      },
-    );
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+      messenger: getMessenger(),
+    });
     const triggerTokensStateChange = (state: TokensState) => {
       for (const listener of tokensStateChangeListeners) {
         listener(state);
