@@ -554,21 +554,21 @@ describe('TransactionController', () => {
 
     // TODO(JL): This needs to use different provider from globally selected
     const mockGetNetworkClientById = jest
-    .fn()
-    .mockImplementation((networkClientId) => {
-      switch (networkClientId) {
-        case 'mainnet':
-          return {
-            configuration: {
-              chainId: toHex(1)
-            },
-            blockTracker: finalNetwork.blockTracker,
-            provider: finalNetwork.provider
-          };
-        default:
-          throw new Error('Invalid network client id');
-      }
-    });
+      .fn()
+      .mockImplementation((networkClientId) => {
+        switch (networkClientId) {
+          case 'mainnet':
+            return {
+              configuration: {
+                chainId: toHex(1),
+              },
+              blockTracker: finalNetwork.blockTracker,
+              provider: finalNetwork.provider,
+            };
+          default:
+            throw new Error('Invalid network client id');
+        }
+      });
 
     return new TransactionController(
       {
@@ -652,7 +652,7 @@ describe('TransactionController', () => {
       stop: jest.fn(),
       hub: {
         on: jest.fn(),
-        removeAllListeners: jest.fn()
+        removeAllListeners: jest.fn(),
       },
       onStateChange: jest.fn(),
     } as unknown as jest.Mocked<PendingTransactionTracker>;
@@ -732,7 +732,7 @@ describe('TransactionController', () => {
           ACCOUNT_MOCK,
           // TODO(JL): This shouldn't be undefined. NonceTracker needs
           // to be updated to call this method with the chainId.
-          undefined
+          undefined,
         );
       });
     });
