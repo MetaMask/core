@@ -51,6 +51,7 @@
     "async-mutex": "^0.2.6",
     "cockatiel": "^3.1.2",
     "ethereumjs-util": "^7.0.10",
+    "events": "^3.3.0",
     "lodash": "^4.17.21",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",

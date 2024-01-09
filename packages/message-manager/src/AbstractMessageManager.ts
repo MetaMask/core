@@ -1,6 +1,8 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
 import type { Hex, Json } from '@metamask/utils';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import { EventEmitter } from 'events';
 
 /**

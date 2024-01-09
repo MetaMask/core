@@ -47,6 +47,8 @@ import {
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
 import { bufferToHex } from 'ethereumjs-util';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
 

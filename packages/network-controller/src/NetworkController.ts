@@ -23,7 +23,6 @@ import {
   hasProperty,
   isPlainObject,
 } from '@metamask/utils';
-import { strict as assert } from 'assert';
 import { v4 as random } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -150,7 +149,9 @@ function assertOfType<Type>(
   validate: (value: unknown) => boolean,
   message: string,
 ): asserts value is Type {
-  assert.ok(validate(value), message);
+  if (!validate(value)) {
+    throw new Error(message);
+  }
 }
 
 /**
@@ -949,15 +950,14 @@ export class NetworkController extends BaseController<
    * @param type - Human readable network name.
    */
   async setProviderType(type: InfuraNetworkType) {
-    assert.notStrictEqual(
-      type,
-      NetworkType.rpc,
-      `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
-    );
-    assert.ok(
-      isInfuraNetworkType(type),
-      `Unknown Infura provider type "${type}".`,
-    );
+    if ((type as unknown) === NetworkType.rpc) {
+      throw new Error(
+        `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
+      );
+    }
+    if (!isInfuraNetworkType(type)) {
+      throw new Error(`Unknown Infura provider type "${String(type)}".`);
+    }
 
     this.#previousProviderConfig = this.state.providerConfig;
 

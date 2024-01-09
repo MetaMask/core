@@ -1606,6 +1606,7 @@ __metadata:
     cockatiel: ^3.1.2
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
+    events: ^3.3.0
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
     lodash: ^4.17.21
@@ -2328,6 +2329,7 @@ __metadata:
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
+    events: ^3.3.0
     jest: ^27.5.1
     jsonschema: ^1.2.4
     ts-jest: ^27.1.4
@@ -2764,6 +2766,7 @@ __metadata:
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
+    events: ^3.3.0
     jest: ^27.5.1
     lodash: ^4.17.21
     ts-jest: ^27.1.4
@@ -2991,6 +2994,7 @@ __metadata:
     deepmerge: ^4.2.2
     eth-method-registry: ^3.0.0
     ethereumjs-util: ^7.0.10
+    events: ^3.3.0
     fast-json-patch: ^3.1.1
     jest: ^27.5.1
     lodash: ^4.17.21
@@ -3025,6 +3029,7 @@ __metadata:
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
+    events: ^3.3.0
     immer: ^9.0.6
     jest: ^27.5.1
     lodash: ^4.17.21
@@ -6195,6 +6200,13 @@ __metadata:
   version: 5.0.1
   resolution: "event-target-shim@npm:5.0.1"
   checksum: 1ffe3bb22a6d51bdeb6bf6f7cf97d2ff4a74b017ad12284cc9e6a279e727dc30a5de6bb613e5596ff4dc3e517841339ad09a7eec44266eccb1aa201a30448166
+  languageName: node
+  linkType: hard
+
+"events@npm:^3.3.0":
+  version: 3.3.0
+  resolution: "events@npm:3.3.0"
+  checksum: f6f487ad2198aa41d878fa31452f1a3c00958f46e9019286ff4787c84aac329332ab45c9cdc8c445928fc6d7ded294b9e005a7fce9426488518017831b272780
   languageName: node
   linkType: hard
 

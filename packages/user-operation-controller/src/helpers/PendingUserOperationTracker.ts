@@ -4,6 +4,8 @@ import type { Provider } from '@metamask/network-controller';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';

@@ -18,6 +18,8 @@ import {
   type TransactionType,
 } from '@metamask/transaction-controller';
 import { BN, addHexPrefix } from 'ethereumjs-util';
+// We are using the `events` NPM package.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
