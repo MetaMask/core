@@ -11,6 +11,7 @@ import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
+import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
   TokenPrice,
@@ -1711,7 +1712,7 @@ describe('TokenRatesController', () => {
       );
     });
 
-    it('fetches rates for all tokens in batches of 100', async () => {
+    it('fetches rates for all tokens in batches', async () => {
       const chainId = toHex(1);
       const ticker = 'ETH';
       const tokenAddresses = [...new Array(200).keys()]
@@ -1748,17 +1749,21 @@ describe('TokenRatesController', () => {
             nativeCurrency: ticker,
           });
 
-          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
-            chainId,
-            tokenAddresses: tokenAddresses.slice(0, 100),
-            currency: ticker,
-          });
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
-            chainId,
-            tokenAddresses: tokenAddresses.slice(100),
-            currency: ticker,
-          });
+          const numBatches = Math.ceil(
+            tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+          );
+          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+          for (let i = 1; i <= numBatches; i++) {
+            expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+              chainId,
+              tokenAddresses: tokenAddresses.slice(
+                (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+                i * TOKEN_PRICES_BATCH_SIZE,
+              ),
+              currency: ticker,
+            });
+          }
         },
       );
     });
@@ -1981,7 +1986,7 @@ describe('TokenRatesController', () => {
       );
     });
 
-    it('fetches rates for all tokens in batches of 100 when native currency is not supported by the Price API', async () => {
+    it('fetches rates for all tokens in batches when native currency is not supported by the Price API', async () => {
       const chainId = toHex(1);
       const ticker = 'UNSUPPORTED';
       const tokenAddresses = [...new Array(200).keys()]
@@ -2028,17 +2033,21 @@ describe('TokenRatesController', () => {
             nativeCurrency: ticker,
           });
 
-          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
-            chainId,
-            tokenAddresses: tokenAddresses.slice(0, 100),
-            currency: 'ETH',
-          });
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
-            chainId,
-            tokenAddresses: tokenAddresses.slice(100),
-            currency: 'ETH',
-          });
+          const numBatches = Math.ceil(
+            tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+          );
+          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+          for (let i = 1; i <= numBatches; i++) {
+            expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+              chainId,
+              tokenAddresses: tokenAddresses.slice(
+                (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+                i * TOKEN_PRICES_BATCH_SIZE,
+              ),
+              currency: 'ETH',
+            });
+          }
         },
       );
     });

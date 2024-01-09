@@ -2209,7 +2209,6 @@ export class TransactionController extends BaseControllerV1<
   private async approveTransaction(transactionId: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const chainId = this.getChainId();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
 
@@ -2227,7 +2226,7 @@ export class TransactionController extends BaseControllerV1<
           new Error('No sign method defined.'),
         );
         return;
-      } else if (!chainId) {
+      } else if (!transactionMeta.chainId) {
         releaseLock();
         this.failTransaction(transactionMeta, new Error('No chainId defined.'));
         return;
