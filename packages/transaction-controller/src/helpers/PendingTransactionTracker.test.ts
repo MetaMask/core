@@ -66,7 +66,7 @@ describe('PendingTransactionTracker', () => {
   const queryMock = jest.mocked(query);
   let blockTracker: jest.Mocked<BlockTracker>;
   let failTransaction: jest.Mock;
-  let pendingTransactionTracker: PendingTransactionTracker
+  let pendingTransactionTracker: PendingTransactionTracker;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let options: any;
@@ -79,8 +79,7 @@ describe('PendingTransactionTracker', () => {
       { ...TRANSACTION_SUBMITTED_MOCK },
     ]);
 
-
-    pendingTransactionTracker.onStateChange()
+    pendingTransactionTracker.onStateChange();
 
     if (transactionsOnCheck) {
       options.getTransactions.mockReturnValue(transactionsOnCheck);
@@ -113,7 +112,7 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange()
+      pendingTransactionTracker.onStateChange();
 
       expect(blockTracker.on).toHaveBeenCalledTimes(1);
       expect(blockTracker.on).toHaveBeenCalledWith(
@@ -127,8 +126,8 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange()
-      pendingTransactionTracker.onStateChange()
+      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.onStateChange();
 
       expect(blockTracker.on).toHaveBeenCalledTimes(1);
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
@@ -139,13 +138,13 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange()
+      pendingTransactionTracker.onStateChange();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
 
       options.getTransactions.mockReturnValue([]);
 
-      pendingTransactionTracker.onStateChange()
+      pendingTransactionTracker.onStateChange();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
       expect(blockTracker.removeListener).toHaveBeenCalledWith(
@@ -159,13 +158,13 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange()
+      pendingTransactionTracker.onStateChange();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
 
       options.getTransactions.mockReturnValue([]);
 
-      pendingTransactionTracker.onStateChange()
+      pendingTransactionTracker.onStateChange();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
 
@@ -183,10 +182,22 @@ describe('PendingTransactionTracker', () => {
 
           pendingTransactionTracker = new PendingTransactionTracker(options);
 
-          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
-          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
-          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           await onLatestBlock(undefined, [
             {
@@ -220,9 +231,18 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
-          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
-          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -242,9 +262,18 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
-          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
-          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: null });
           queryMock.mockResolvedValueOnce('0x1');
@@ -264,9 +293,18 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
-          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
-          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: '0x3' });
           queryMock.mockResolvedValueOnce('0x1');
@@ -293,7 +331,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
 
           await onLatestBlock();
 
@@ -325,7 +366,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
 
           await onLatestBlock();
 
@@ -342,7 +386,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-failed',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: '0x0' });
 
@@ -380,7 +427,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
 
           await onLatestBlock();
 
@@ -398,7 +448,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
 
           for (let i = 0; i < 4; i++) {
             expect(listener).toHaveBeenCalledTimes(0);
@@ -437,7 +490,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-dropped',
+            listener,
+          );
 
           await onLatestBlock();
 
@@ -456,7 +512,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-confirmed',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -486,7 +545,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -518,7 +580,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           queryMock.mockRejectedValueOnce(new Error('TestError'));
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -544,7 +609,7 @@ describe('PendingTransactionTracker', () => {
     describe('resubmits', () => {
       describe('does nothing', () => {
         it('if no pending transactions', async () => {
-          pendingTransactionTracker =new PendingTransactionTracker(options);
+          pendingTransactionTracker = new PendingTransactionTracker(options);
 
           await onLatestBlock(undefined, []);
 
@@ -564,7 +629,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -592,7 +660,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -628,7 +699,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -658,7 +732,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -696,7 +773,10 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener(
+            'transaction-updated',
+            listener,
+          );
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
