@@ -2693,7 +2693,6 @@ export class TransactionController extends BaseControllerV1<
     // not sure specifically why that was the case
     // https://github.com/MetaMask/core/commit/89654542c9c61308cfad6a310f7fe2b4b669117b
     const chainId = transactionMeta?.chainId;
-    console.log(transactionMeta)
 
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
