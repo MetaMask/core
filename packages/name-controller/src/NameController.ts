@@ -14,6 +14,17 @@ import type {
 import { NameType } from './types';
 
 export const FALLBACK_VARIATION = '*';
+
+/**
+ * Enumerates the possible origins responsible for setting a petname.
+ */
+export enum ORIGIN {
+  CONTROLLER = 'controller',
+  UI = 'ui',
+  ADDRESS_BOOK = 'address-book',
+  ACCOUNT_IDENTITY = 'account-identity',
+}
+
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 const DEFAULT_VARIATION = '';
 
@@ -40,6 +51,7 @@ export type ProposedNamesEntry = {
 export type NameEntry = {
   name: string | null;
   sourceId: string | null;
+  origin: ORIGIN | null;
   proposedNames: Record<string, ProposedNamesEntry>;
 };
 
@@ -100,6 +112,7 @@ export type SetNameRequest = {
   name: string | null;
   sourceId?: string;
   variation?: string;
+  origin?: ORIGIN;
 };
 
 /**
@@ -153,12 +166,21 @@ export class NameController extends BaseController<
   setName(request: SetNameRequest) {
     this.#validateSetNameRequest(request);
 
-    const { value, type, name, sourceId: requestSourceId, variation } = request;
+    const {
+      value,
+      type,
+      name,
+      sourceId: requestSourceId,
+      origin: requestOrigin,
+      variation,
+    } = request;
     const sourceId = requestSourceId ?? null;
+    const origin = requestOrigin ?? null;
 
     this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
       entry.sourceId = sourceId;
+      entry.origin = origin;
     });
   }
 
@@ -434,7 +456,7 @@ export class NameController extends BaseController<
   }
 
   #validateSetNameRequest(request: SetNameRequest) {
-    const { name, value, type, sourceId, variation } = request;
+    const { name, value, type, sourceId, variation, origin } = request;
     const errorMessages: string[] = [];
 
     this.#validateValue(value, errorMessages);
@@ -442,6 +464,7 @@ export class NameController extends BaseController<
     this.#validateName(name, errorMessages);
     this.#validateSourceId(sourceId, type, name, errorMessages);
     this.#validateVariation(variation, type, errorMessages);
+    this.#validateOrigin(origin, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -577,6 +600,20 @@ export class NameController extends BaseController<
     ) {
       errorMessages.push(
         `Must specify a chain ID in hexidecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
+      );
+    }
+  }
+
+  #validateOrigin(origin: ORIGIN | null | undefined, errorMessages: string[]) {
+    if (!origin) {
+      return;
+    }
+
+    if (!Object.values(ORIGIN).includes(origin)) {
+      errorMessages.push(
+        `Must specify one of the following origins: ${Object.values(
+          ORIGIN,
+        ).join(', ')}`,
       );
     }
   }
