@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
@@ -400,12 +400,12 @@ export class AccountsController extends BaseController<
       address,
       options: {},
       methods: [
-        'personal_sign',
-        'eth_sign',
-        'eth_signTransaction',
-        'eth_signTypedData_v1',
-        'eth_signTypedData_v3',
-        'eth_signTypedData_v4',
+        EthMethod.PersonalSign,
+        EthMethod.Sign,
+        EthMethod.SignTransaction,
+        EthMethod.SignTypedDataV1,
+        EthMethod.SignTypedDataV3,
+        EthMethod.SignTypedDataV4,
       ],
       type: EthAccountType.Eoa,
       metadata: {
@@ -463,12 +463,12 @@ export class AccountsController extends BaseController<
         address,
         options: {},
         methods: [
-          'personal_sign',
-          'eth_sign',
-          'eth_signTransaction',
-          'eth_signTypedData_v1',
-          'eth_signTypedData_v3',
-          'eth_signTypedData_v4',
+          EthMethod.PersonalSign,
+          EthMethod.Sign,
+          EthMethod.SignTransaction,
+          EthMethod.SignTypedDataV1,
+          EthMethod.SignTypedDataV3,
+          EthMethod.SignTypedDataV4,
         ],
         type: EthAccountType.Eoa,
         metadata: {
