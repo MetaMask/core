@@ -1,7 +1,14 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { getDefaultKeyringState } from '@metamask/keyring-controller';
+import { cloneDeep } from 'lodash';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
-import type { EtherscanSupportedHexChainId } from './PreferencesController';
+import type {
+  AllowedEvents,
+  EtherscanSupportedHexChainId,
+  PreferencesControllerActions,
+  PreferencesControllerEvents,
+} from './PreferencesController';
 import { PreferencesController } from './PreferencesController';
 
 describe('PreferencesController', () => {
@@ -32,6 +39,189 @@ describe('PreferencesController', () => {
     });
   });
 
+  describe('KeyringController:stateChange', () => {
+    it('should update identities state to reflect new keyring accounts', () => {
+      const messenger = getControllerMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: {
+              '0x00': { address: '0x00', name: 'Account 1' },
+            },
+            selectedAddress: '0x00',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+          ],
+        },
+        [],
+      );
+
+      expect(controller.state.identities).toMatchObject({
+        '0x00': { address: '0x00', name: 'Account 1' },
+        '0x01': {
+          address: '0x01',
+          importTime: expect.any(Number),
+          name: 'Account 2',
+        },
+        '0x02': {
+          address: '0x02',
+          importTime: expect.any(Number),
+          name: 'Account 3',
+        },
+      });
+      expect(controller.state.selectedAddress).toBe('0x00');
+    });
+
+    it('should update identities state to reflect removed keyring accounts', () => {
+      const messenger = getControllerMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: {
+              '0x00': { address: '0x00', name: 'Account 1' },
+              '0x01': { address: '0x01', name: 'Account 2' },
+              '0x02': { address: '0x02', name: 'Account 3' },
+            },
+            selectedAddress: '0x00',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
+        },
+        [],
+      );
+
+      expect(controller.state.identities).toStrictEqual({
+        '0x00': { address: '0x00', name: 'Account 1' },
+      });
+    });
+
+    it('should update selected address to first identity if the selected address was removed', () => {
+      const messenger = getControllerMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: {
+              '0x00': { address: '0x00', name: 'Account 1' },
+              '0x01': { address: '0x01', name: 'Account 2' },
+              '0x02': { address: '0x02', name: 'Account 3' },
+            },
+            selectedAddress: '0x02',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
+        },
+        [],
+      );
+
+      expect(controller.state.selectedAddress).toBe('0x00');
+    });
+
+    it('should not update existing identities', () => {
+      const identitiesState = {
+        '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
+        '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
+        '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
+      };
+      const messenger = getControllerMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: cloneDeep(identitiesState),
+            selectedAddress: '0x00',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+          ],
+        },
+        [],
+      );
+
+      expect(controller.state.identities).toStrictEqual(identitiesState);
+    });
+
+    it('should not duplicate accounts present in multiple keyrings', () => {
+      const identitiesState = {
+        '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
+        '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
+        '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
+      };
+      const messenger = getControllerMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: cloneDeep(identitiesState),
+            selectedAddress: '0x00',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+          ],
+        },
+        [],
+      );
+
+      expect(controller.state.identities).toStrictEqual(identitiesState);
+    });
+
+    it('should not update selected address if it is still among identities', () => {
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: {
+              '0x00': { address: '0x00', name: 'Account 1' },
+              '0x01': { address: '0x01', name: 'Account 2' },
+              '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
+            },
+            selectedAddress: '0x01',
+          },
+        },
+      });
+
+      controller.updateIdentities(['0x00', '0x01']);
+
+      expect(controller.state.selectedAddress).toBe('0x01');
+    });
+  });
+
   it('should add identities', () => {
     const controller = setupPreferencesController();
     controller.addIdentities(['0x00']);
@@ -45,13 +235,15 @@ describe('PreferencesController', () => {
 
   it('should add multiple identities, skipping those that are already in state', () => {
     const controller = setupPreferencesController({
-      state: {
-        identities: {
-          '0x00': { address: '0x00', name: 'Account 1' },
-          '0x01': { address: '0x01', name: 'Account 2' },
-          '0x02': { address: '0x02', name: 'Account 3' },
+      options: {
+        state: {
+          identities: {
+            '0x00': { address: '0x00', name: 'Account 1' },
+            '0x01': { address: '0x01', name: 'Account 2' },
+            '0x02': { address: '0x02', name: 'Account 3' },
+          },
+          selectedAddress: '0x00',
         },
-        selectedAddress: '0x00',
       },
     });
 
@@ -76,13 +268,15 @@ describe('PreferencesController', () => {
 
   it('should remove identity', () => {
     const controller = setupPreferencesController({
-      state: {
-        identities: {
-          '0x00': { address: '0x00', name: 'Account 1' },
-          '0x01': { address: '0x01', name: 'Account 2' },
-          '0x02': { address: '0x02', name: 'Account 3' },
+      options: {
+        state: {
+          identities: {
+            '0x00': { address: '0x00', name: 'Account 1' },
+            '0x01': { address: '0x01', name: 'Account 2' },
+            '0x02': { address: '0x02', name: 'Account 3' },
+          },
+          selectedAddress: '0x00',
         },
-        selectedAddress: '0x00',
       },
     });
     controller.removeIdentity('0x00');
@@ -138,8 +332,10 @@ describe('PreferencesController', () => {
 
   it('should not update existing identities', () => {
     const controller = setupPreferencesController({
-      state: {
-        identities: { '0x01': { address: '0x01', name: 'Custom name' } },
+      options: {
+        state: {
+          identities: { '0x01': { address: '0x01', name: 'Custom name' } },
+        },
       },
     });
     controller.updateIdentities(['0x00', '0x01']);
@@ -155,10 +351,12 @@ describe('PreferencesController', () => {
 
   it('should remove identities', () => {
     const controller = setupPreferencesController({
-      state: {
-        identities: {
-          '0x01': { address: '0x01', name: 'Account 2' },
-          '0x00': { address: '0x00', name: 'Account 1' },
+      options: {
+        state: {
+          identities: {
+            '0x01': { address: '0x01', name: 'Account 2' },
+            '0x00': { address: '0x00', name: 'Account 1' },
+          },
         },
       },
     });
@@ -170,12 +368,14 @@ describe('PreferencesController', () => {
 
   it('should not update selected address if it is still among identities', () => {
     const controller = setupPreferencesController({
-      state: {
-        identities: {
-          '0x01': { address: '0x01', name: 'Account 2' },
-          '0x00': { address: '0x00', name: 'Account 1' },
+      options: {
+        state: {
+          identities: {
+            '0x01': { address: '0x01', name: 'Account 2' },
+            '0x00': { address: '0x00', name: 'Account 1' },
+          },
+          selectedAddress: '0x01',
         },
-        selectedAddress: '0x01',
       },
     });
     controller.updateIdentities(['0x00', '0x01']);
@@ -184,13 +384,15 @@ describe('PreferencesController', () => {
 
   it('should update selected address to first identity if it was removed from identities', () => {
     const controller = setupPreferencesController({
-      state: {
-        identities: {
-          '0x01': { address: '0x01', name: 'Account 2' },
-          '0x02': { address: '0x02', name: 'Account 3' },
-          '0x00': { address: '0x00', name: 'Account 1' },
+      options: {
+        state: {
+          identities: {
+            '0x01': { address: '0x01', name: 'Account 2' },
+            '0x02': { address: '0x02', name: 'Account 3' },
+            '0x00': { address: '0x00', name: 'Account 1' },
+          },
+          selectedAddress: '0x02',
         },
-        selectedAddress: '0x02',
       },
     });
     controller.updateIdentities(['0x00', '0x01']);
@@ -263,21 +465,49 @@ describe('PreferencesController', () => {
 });
 
 /**
+ * Construct a controller messenger for use in PreferencesController tests.
+ *
+ * This is a utility function that saves us from manually entering the correct
+ * type parameters for the ControllerMessenger each time we construct it.
+ *
+ * @returns A controller messenger
+ */
+function getControllerMessenger(): ControllerMessenger<
+  PreferencesControllerActions,
+  PreferencesControllerEvents | AllowedEvents
+> {
+  return new ControllerMessenger<
+    PreferencesControllerActions,
+    PreferencesControllerEvents | AllowedEvents
+  >();
+}
+
+/**
  * Setup a PreferencesController instance for testing.
  *
- * @param options - PreferencesController options.
+ * @param args - Arguments
+ * @param args.options - PreferencesController options.
+ * @param args.messenger - A controller messenger.
  * @returns A PreferencesController instance.
  */
-function setupPreferencesController(
-  options: Partial<ConstructorParameters<typeof PreferencesController>[0]> = {},
-) {
-  const controllerMessenger = new ControllerMessenger();
+function setupPreferencesController({
+  options = {},
+  messenger,
+}: {
+  options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
+  messenger?: ControllerMessenger<
+    PreferencesControllerActions,
+    PreferencesControllerEvents | AllowedEvents
+  >;
+} = {}) {
+  const controllerMessenger = messenger ?? getControllerMessenger();
   const preferencesControllerMessenger = controllerMessenger.getRestricted<
     'PreferencesController',
     never,
-    never
+    AllowedEvents['type']
   >({
     name: 'PreferencesController',
+    allowedEvents: ['KeyringController:stateChange'],
   });
   return new PreferencesController({
     messenger: preferencesControllerMessenger,
