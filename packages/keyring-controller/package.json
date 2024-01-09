@@ -36,7 +36,6 @@
     "@metamask/eth-keyring-controller": "^15.1.0",
     "@metamask/keyring-api": "^2.0.0",
     "@metamask/message-manager": "^7.3.7",
-    "@metamask/preferences-controller": "^5.0.0",
     "@metamask/utils": "^8.2.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
