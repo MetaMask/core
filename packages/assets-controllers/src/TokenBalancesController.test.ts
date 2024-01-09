@@ -47,6 +47,7 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: sinon.stub(),
       messenger: getMessenger(),
     });
+
     expect(tokenBalances.state).toStrictEqual({ contractBalances: {} });
   });
 
@@ -62,10 +63,12 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: sinon.stub(),
       messenger: getMessenger(),
     });
+
     expect(mock.called).toBe(true);
     expect(mock.calledTwice).toBe(false);
 
     await advanceTime({ clock, duration: 15 });
+
     expect(mock.calledTwice).toBe(true);
   });
 
@@ -80,8 +83,10 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: sinon.stub().returns(new BN(1)),
       messenger: getMessenger(),
     });
+
     await tokenBalances.updateBalances();
-    expect(Object.keys(tokenBalances.state.contractBalances)).toStrictEqual({});
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({});
   });
 
   it('should clear previous interval', async () => {
@@ -93,8 +98,10 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: sinon.stub(),
       messenger: getMessenger(),
     });
+
     await tokenBalances.poll(1338);
     await advanceTime({ clock, duration: 1339 });
+
     expect(mock.called).toBe(true);
   });
 
@@ -109,18 +116,20 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: sinon.stub().returns(new BN(1)),
       messenger: getMessenger(),
     });
+
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
     await tokenBalances.updateBalances();
+
     const mytoken = getToken(tokenBalances, address);
+
     expect(mytoken?.balanceError).toBeNull();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
       address,
     );
-
-    expect(
-      tokenBalances.state.contractBalances[address].toString(),
-    ).toBeGreaterThan(0);
+    expect(tokenBalances.state.contractBalances[address].toString()).not.toBe(
+      '0',
+    );
   });
 
   it('should handle `getERC20BalanceOf` error case', async () => {
@@ -139,22 +148,25 @@ describe('TokenBalancesController', () => {
     });
 
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
+
     await tokenBalances.updateBalances();
+
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
-    expect(tokenBalances.state.contractBalances[address].toNumber()).toBe(0);
+    expect(tokenBalances.state.contractBalances[address].toString()).toBe('0');
 
     getERC20BalanceOfStub.returns(new BN(1));
+
     await tokenBalances.updateBalances();
+
     expect(mytoken?.balanceError).toBeNull();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
       address,
     );
-
-    expect(
-      tokenBalances.state.contractBalances[address].toNumber(),
-    ).toBeGreaterThan(0);
+    expect(tokenBalances.state.contractBalances[address].toString()).not.toBe(
+      0,
+    );
   });
 
   it('should update balances when tokens change', async () => {
@@ -224,7 +236,7 @@ describe('TokenBalancesController', () => {
     await tokenBalances.updateBalances();
 
     expect(tokenBalances.state.contractBalances).toStrictEqual({
-      '0x02': new BN(1),
+      '0x02': new BN(1).toString(16),
     });
   });
 });

@@ -43,7 +43,7 @@ export type TokenBalancesControllerOptions = {
 /**
  * Represents a mapping of hash token contract addresses to their balances.
  */
-type ContractBalances = Record<string, BN>;
+type ContractBalances = Record<string, string>;
 
 /**
  * @type TokenBalancesControllerState
@@ -197,13 +197,12 @@ export class TokenBalancesController extends BaseController<
     for (const token of this.#tokens) {
       const { address } = token;
       try {
-        newContractBalances[address] = await this.#getERC20BalanceOf(
-          address,
-          this.#getSelectedAddress(),
-        );
+        newContractBalances[address] = (
+          await this.#getERC20BalanceOf(address, this.#getSelectedAddress())
+        ).toString(16);
         token.balanceError = null;
       } catch (error) {
-        newContractBalances[address] = new BN(0);
+        newContractBalances[address] = new BN(0).toString(16);
         token.balanceError = error;
       }
     }
