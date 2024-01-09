@@ -43,6 +43,37 @@ describe('PreferencesController', () => {
     );
   });
 
+  it('should add multiple identities, skipping those that are already in state', () => {
+    const controller = setupPreferencesController({
+      state: {
+        identities: {
+          '0x00': { address: '0x00', name: 'Account 1' },
+          '0x01': { address: '0x01', name: 'Account 2' },
+          '0x02': { address: '0x02', name: 'Account 3' },
+        },
+        selectedAddress: '0x00',
+      },
+    });
+
+    controller.addIdentities(['0x00', '0x01', '0x02', '0x03', '0x04']);
+
+    expect(controller.state.identities).toMatchObject({
+      '0x00': { address: '0x00', name: 'Account 1' },
+      '0x01': { address: '0x01', name: 'Account 2' },
+      '0x02': { address: '0x02', name: 'Account 3' },
+      '0x03': {
+        address: '0x03',
+        importTime: expect.any(Number),
+        name: 'Account 4',
+      },
+      '0x04': {
+        address: '0x04',
+        importTime: expect.any(Number),
+        name: 'Account 5',
+      },
+    });
+  });
+
   it('should remove identity', () => {
     const controller = setupPreferencesController({
       state: {

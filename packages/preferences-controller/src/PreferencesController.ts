@@ -237,7 +237,7 @@ export class PreferencesController extends BaseController<
       const { identities } = state;
       for (const address of checksummedAddresses) {
         if (identities[address]) {
-          return;
+          continue;
         }
         const identityCount = Object.keys(identities).length;
 
