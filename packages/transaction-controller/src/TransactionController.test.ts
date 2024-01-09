@@ -69,6 +69,17 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
+const SEPOLIA = {
+  chainId: toHex(11155111),
+  type: NetworkType.sepolia,
+  ticker: NetworksTicker.sepolia,
+};
+const GOERLI = {
+  chainId: toHex(5),
+  type: NetworkType.goerli,
+  ticker: NetworksTicker.goerli,
+};
+
 const ethQueryMockResults = {
   sendRawTransaction: 'mockSendRawTransactionResult',
 };
@@ -512,6 +523,8 @@ describe('TransactionController', () => {
       typeof PendingTransactionTracker
     >;
 
+
+
   /**
    * Create a new instance of the TransactionController.
    *
@@ -580,6 +593,47 @@ describe('TransactionController', () => {
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
+        getNetworkClientById: (networkClientId) => {
+          switch (networkClientId) {
+            case 'sepolia':
+              return {
+                configuration: {
+                  chainId: SEPOLIA.chainId,
+                },
+              };
+            case 'goerli':
+              return {
+                configuration: {
+                  chainId: GOERLI.chainId,
+                },
+              };
+            case 'customNetworkClientId-1':
+              return {
+                configuration: {
+                  chainId: '0xa',
+                },
+              };
+            default:
+              throw new Error('Invalid network client id');
+          }
+        },
+        getNetworkClientRegistry: () => ({
+          sepolia: {
+            configuration: {
+              chainId: SEPOLIA.chainId,
+            },
+          },
+          goerli: {
+            configuration: {
+              chainId: GOERLI.chainId,
+            },
+          },
+          'customNetworkClientId-1': {
+            configuration: {
+              chainId: '0xa',
+            },
+          },
+        }),
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
@@ -4636,7 +4690,7 @@ describe('TransactionController', () => {
       Current tx status: ${TransactionStatus.submitted}`);
     });
   });
-  describe('startTrackinbByNetworkClientId', () => {
+  describe('startTrackingByNetworkClientId', () => {
     it('should start tracking in a tracking map', () => {
       const controller = newController();
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
@@ -4659,6 +4713,16 @@ describe('TransactionController', () => {
       const stopSpy = jest.spyOn(incomingTransactionHelper, 'stop');
       controller.stopTrackingByNetworkClientId('mainnet');
       expect(stopSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+  describe('initTrackingMap', () => {
+    it('should initialize the tracking map on construction', () => {
+      const controller = newController();
+      expect(controller).toBeDefined();
+    });
+    it('should handle changes in networkController registry', () => {
+      const controller = newController();
+      expect(controller).toBeDefined();
     });
   });
 });

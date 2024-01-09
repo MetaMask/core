@@ -97,6 +97,7 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+import { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 
 export const HARDFORK = Hardfork.London;
 
@@ -302,6 +303,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
+  private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
+
   private readonly getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
 
   private readonly etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
@@ -402,6 +405,8 @@ export class TransactionController extends BaseControllerV1<
    * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
+   * @param options.getNetworkClientIdForDomain
+   * @param options.getNetworkClientRegistry - Gets the network client registry.
    */
   constructor(
     {
@@ -427,6 +432,7 @@ export class TransactionController extends BaseControllerV1<
       speedUpMultiplier,
       getNetworkClientById,
       getNetworkClientIdForDomain,
+      getNetworkClientRegistry,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -460,6 +466,7 @@ export class TransactionController extends BaseControllerV1<
       securityProviderRequest?: SecurityProviderRequest;
       speedUpMultiplier?: number;
       getNetworkClientById: NetworkController['getNetworkClientById'];
+      getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
       getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
       hooks: {
         afterSign?: (
@@ -493,6 +500,7 @@ export class TransactionController extends BaseControllerV1<
 
     this.initialize();
     this.getNetworkClientById = getNetworkClientById;
+    this.getNetworkClientRegistry = getNetworkClientRegistry;
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
@@ -594,10 +602,44 @@ export class TransactionController extends BaseControllerV1<
       // Verify if this is still necessary when the feature branch is being reviewed
       this.#onStateChange();
       this.onBootCleanup();
+
+      // TODO(SJ): Needs to check the patch for registry changes
+      this.#refreshTrackingMap();
     });
 
     this.onBootCleanup();
+    this.#initTrackingMap();
   }
+
+  #refreshTrackingMap = () => {
+    const networkClients = this.getNetworkClientRegistry();
+    const networkClientIds = Object.keys(networkClients);
+
+    const existingNetworkClientIds = Array.from(this.trackingMap.keys());
+
+    // Remove tracking for NetworkClientIds that no longer exist
+    const networkClientIdsToRemove = existingNetworkClientIds.filter(
+      (id) => !networkClientIds.includes(id),
+    );
+    networkClientIdsToRemove.forEach((id) => {
+      this.stopTrackingByNetworkClientId(id);
+    });
+
+    // Start tracking new NetworkClientIds from the registry
+    const networkClientIdsToAdd = networkClientIds.filter(
+      (id) => !existingNetworkClientIds.includes(id),
+    );
+    networkClientIdsToAdd.forEach((id) => {
+      this.startTrackingByNetworkClientId(id);
+    });
+  };
+
+  #initTrackingMap = () => {
+    const networkClients = this.getNetworkClientRegistry();
+    Object.keys(networkClients).map((id) =>
+      this.startTrackingByNetworkClientId(id),
+    );
+  };
 
   #onStateChange = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
