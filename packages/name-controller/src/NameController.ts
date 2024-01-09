@@ -22,6 +22,7 @@ export enum Origin {
   ACCOUNT_IDENTITY = 'account-identity',
   ADDRESS_BOOK = 'address-book',
   API = 'api',
+  UI = 'ui',
 }
 
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
