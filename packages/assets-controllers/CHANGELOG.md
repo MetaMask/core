@@ -13,10 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `getDefaultTokensState` function to the `TokensController` ([#3743](https://github.com/MetaMask/core/pull/3743))
 
 ### Changed
+- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0
 - Price API perf improvements ([#3753](https://github.com/MetaMask/core/pull/3753), [#3755](https://github.com/MetaMask/core/pull/3755))
   - Reduce token batch size from 100 to 30
   - Sort token addresses in query params for more cache hits
-- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0
 
 ## [23.1.0]
 ### Added
