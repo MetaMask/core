@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.1]
+### Changed
+- Bump `eth-method-registry` from `^1.1.0` to `^3.0.0` ([#3688](https://github.com/MetaMask/core/pull/3688))
+
+## [19.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/approval-controller` dependency and peer dependency from `^5.1.0` to `^5.1.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- **BREAKING:** Bump `@metamask/gas-fee-controller` dependency and peer dependency from `^11.0.0` to `^12.0.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- **BREAKING:** Bump `@metamask/network-controller` dependency and peer dependency from `^17.0.0` to `^17.1.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+
+### Fixed
+- Use estimate gas instead of fixed gas (21k) when a contract is deployed and the gas is not specified ([#3694](https://github.com/MetaMask/core/pull/3694))
+
+## [18.3.1]
+### Fixed
+- Fix incorrect transaction statuses ([#3676](https://github.com/MetaMask/core/pull/3676))
+  - Fix `dropped` status detection by ignoring transactions on other chains.
+  - Start polling if network changes and associated transactions are pending.
+  - Record `r`, `s`, and `v` values even if zero.
+  - Only fail transactions if receipt `status` is explicitly `0x0`.
+- Fix incoming transactions on Linea Goerli ([#3674](https://github.com/MetaMask/core/pull/3674))
+
 ## [18.3.0]
 ### Added
 - Add optional `getExternalPendingTransactions` callback argument to constructor ([#3587](https://github.com/MetaMask/core/pull/3587))
@@ -331,7 +355,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@19.0.1...HEAD
+[19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@19.0.0...@metamask/transaction-controller@19.0.1
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.1...@metamask/transaction-controller@19.0.0
+[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.0...@metamask/transaction-controller@18.3.1
 [18.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.2.0...@metamask/transaction-controller@18.3.0
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.1.0...@metamask/transaction-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.0.0...@metamask/transaction-controller@18.1.0

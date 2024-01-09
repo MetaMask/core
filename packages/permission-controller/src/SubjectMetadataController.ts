@@ -66,9 +66,15 @@ export type GetSubjectMetadata = {
   handler: (origin: SubjectOrigin) => SubjectMetadata | undefined;
 };
 
+export type AddSubjectMetadata = {
+  type: `${typeof controllerName}:addSubjectMetadata`;
+  handler: (metadata: SubjectMetadataToAdd) => void;
+};
+
 export type SubjectMetadataControllerActions =
   | GetSubjectMetadataState
-  | GetSubjectMetadata;
+  | GetSubjectMetadata
+  | AddSubjectMetadata;
 
 export type SubjectMetadataStateChange = ControllerStateChangeEvent<
   typeof controllerName,
@@ -139,6 +145,11 @@ export class SubjectMetadataController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getSubjectMetadata`,
       this.getSubjectMetadata.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:addSubjectMetadata`,
+      this.addSubjectMetadata.bind(this),
     );
   }
 

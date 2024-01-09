@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/network-controller` dependency and peer dependency from `^17.0.0` to `^17.1.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- **BREAKING:** The `GasFeeController` now detects network changes using the `NetworkController:networkDidChange` event instead of `NetworkController:stateChange` ([#3610](https://github.com/MetaMask/core/pull/3610))
+  - Additionally, the optional constructor parameter `onNetworkStateChange` has been replaced by `onNetworkDidChange`
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+- Bump `@metamask/polling-controller` to `^4.0.0` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3667](https://github.com/MetaMask/core/pull/3667), [#3636](https://github.com/MetaMask/core/pull/3636))
+  - This update adds two new methods to each polling controller: `_startPollingByNetworkClientId` and `_stopPollingByPollingTokenSetId`. These methods are intended for internal use, and should not be called directly.
+
 ## [11.0.0]
 ### Changed
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
@@ -134,7 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@11.0.0...@metamask/gas-fee-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@10.0.1...@metamask/gas-fee-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@10.0.0...@metamask/gas-fee-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@9.0.0...@metamask/gas-fee-controller@10.0.0

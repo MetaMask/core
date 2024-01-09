@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+### Changed
+- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
+
 ## [8.0.0]
 ### Changed
 - **BREAKING**: `OPENSEA_PROXY_URL` now points to OpenSea's v2 API. `OPENSEA_API_URL` + `OPENSEA_TEST_API_URL` have been removed ([#3654](https://github.com/MetaMask/core/pull/3654))
@@ -196,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@7.0.0...@metamask/controller-utils@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.1.0...@metamask/controller-utils@7.0.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.0.0...@metamask/controller-utils@6.1.0
