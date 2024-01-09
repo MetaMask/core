@@ -44,7 +44,7 @@
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/network-controller": "^17.1.0",
     "@metamask/polling-controller": "^4.0.0",
-    "@metamask/preferences-controller": "^5.0.1",
+    "@metamask/preferences-controller": "^6.0.0",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.2.0",
     "@types/uuid": "^8.3.0",
@@ -75,7 +75,7 @@
   "peerDependencies": {
     "@metamask/approval-controller": "^5.1.1",
     "@metamask/network-controller": "^17.1.0",
-    "@metamask/preferences-controller": "^5.0.1"
+    "@metamask/preferences-controller": "^6.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

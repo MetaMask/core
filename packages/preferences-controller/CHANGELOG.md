@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
-### Uncategorized
-- feat(preferences-controller): Convert to BaseControllerV2 ([#3713](https://github.com/MetaMask/core/pull/3713))
-- refactor(assets-controllers): Simplify `AccountTrackerController` tests and add `getDefaultPreferencesState` ([#3736](https://github.com/MetaMask/core/pull/3736))
-- chore(preferences-controller): Clean up types ([#3712](https://github.com/MetaMask/core/pull/3712))
+### Added
+- Added `getDefaultPreferencesState` function ([#3736](https://github.com/MetaMask/core/pull/3736))
+
+### Changed
+- **BREAKING** Clean up types ([#3712](https://github.com/MetaMask/core/pull/3712))
+  - Replace `ContactEntry` interface with `Identity` type
+  - Convert `PreferencesState` from an interface to a type
+- **BREAKING:** Convert to `BaseControllerV2` ([#3713](https://github.com/MetaMask/core/pull/3713))
+  - The constructor parameters have changed; rather than accepting an empty "config" parameter and a "state" parameter, there is now just a single object for all constructor arguments. This object has a mandatory `messenger` and an optional `state` property.
+  - Additional type exports have been added for the controller messenger and associated types
 
 ## [5.0.1]
 ### Changed

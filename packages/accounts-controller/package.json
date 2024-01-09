@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^11.0.0",
+    "@metamask/keyring-controller": "^12.0.0",
     "@metamask/snaps-controllers": "^3.6.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
@@ -55,7 +55,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^11.0.0",
+    "@metamask/keyring-controller": "^12.0.0",
     "@metamask/snaps-controllers": "^3.6.0"
   },
   "engines": {
