@@ -24,7 +24,7 @@ import { type ContractExchangeRates } from './TokenRatesController';
  * The maximum number of token addresses that should be sent to the Price API in
  * a single request.
  */
-export const TOKEN_PRICES_BATCH_SIZE = 100;
+export const TOKEN_PRICES_BATCH_SIZE = 30;
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -432,7 +432,7 @@ export async function fetchTokenContractExchangeRates({
     Hex,
     Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
   >({
-    values: tokenAddresses,
+    values: [...tokenAddresses].sort(),
     batchSize: TOKEN_PRICES_BATCH_SIZE,
     eachBatch: async (allTokenPricesByTokenAddress, batch) => {
       const tokenPricesByTokenAddressForBatch =
