@@ -19,9 +19,13 @@ export const FALLBACK_VARIATION = '*';
  * Enumerates the possible origins responsible for setting a petname.
  */
 export enum Origin {
+  // Originated from an account identity.
   ACCOUNT_IDENTITY = 'account-identity',
+  // Originated from an address book entry.
   ADDRESS_BOOK = 'address-book',
+  // Originated from the API (NameController.setName). This is the default.
   API = 'api',
+  // Originated from the user taking action in the UI.
   UI = 'ui',
 }
 
