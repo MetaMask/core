@@ -125,6 +125,7 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('on block tracker latest event', () => {
+    // eslint-disable-next-line jest/expect-expect
     it('handles errors', async () => {
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
@@ -187,7 +188,6 @@ describe('IncomingTransactionHelper', () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource,
-          getCurrentAccount: () => undefined as unknown as string,
         });
 
         await emitBlockTrackerLatestEvent(helper);
@@ -538,6 +538,22 @@ describe('IncomingTransactionHelper', () => {
             [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
           }),
+        });
+
+        const { blockNumberListener } = await emitBlockTrackerLatestEvent(
+          helper,
+        );
+
+        expect(blockNumberListener).not.toHaveBeenCalled();
+      });
+
+      it('does not if current account is undefined', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          remoteTransactionSource: createRemoteTransactionSourceMock([
+            TRANSACTION_MOCK_2,
+          ]),
+          getCurrentAccount: () => undefined as unknown as string,
         });
 
         const { blockNumberListener } = await emitBlockTrackerLatestEvent(
