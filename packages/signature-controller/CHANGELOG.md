@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ## [9.0.0]
 ### Changed
 - **BREAKING:** Bump `@metamask/approval-controller` dependency and peer dependency from `^5.0.0` to `^5.1.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3680](https://github.com/MetaMask/core/pull/3680))
@@ -121,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@9.0.0...@metamask/signature-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@8.0.0...@metamask/signature-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@7.0.0...@metamask/signature-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.3...@metamask/signature-controller@7.0.0

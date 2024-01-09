@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "7.0.1",
+  "version": "8.0.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
