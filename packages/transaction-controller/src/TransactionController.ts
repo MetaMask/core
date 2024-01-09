@@ -28,10 +28,9 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
-import {
-  NetworkClientType,
-} from '@metamask/network-controller';
+import { NetworkClientType } from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
+import type { SelectedNetworkController } from '@metamask/selected-network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
@@ -45,7 +44,6 @@ import type {
 } from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
-import type { SelectedNetworkController } from '../../selected-network-controller/src/SelectedNetworkController';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
@@ -404,7 +402,6 @@ export class TransactionController extends BaseControllerV1<
    * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
-   * @param options.getNetworkClientIdForDomain
    */
   constructor(
     {
@@ -589,13 +586,13 @@ export class TransactionController extends BaseControllerV1<
 
     this.addPendingTransactionTrackerListeners();
 
-    this.subscribe(this.#onStateChange)
+    this.subscribe(this.#onStateChange);
 
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
       // Verify if this is still necessary when the feature branch is being reviewed
-      this.#onStateChange()
+      this.#onStateChange();
       this.onBootCleanup();
     });
 
@@ -604,11 +601,11 @@ export class TransactionController extends BaseControllerV1<
 
   #onStateChange = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
-    this.pendingTransactionTracker.onStateChange()
-    for (const [_, trackingMap] of this.trackingMap) {
-      trackingMap.pendingTransactionTracker.onStateChange()
+    this.pendingTransactionTracker.onStateChange();
+    for (const [, trackingMap] of this.trackingMap) {
+      trackingMap.pendingTransactionTracker.onStateChange();
     }
-  }
+  };
 
   /**
    * Handle new method data request.
@@ -661,7 +658,7 @@ export class TransactionController extends BaseControllerV1<
    * @param opts.swaps - Options for swaps transactions.
    * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
    * @param opts.swaps.meta - Metadata for swap transaction.
-   * @param opts.networkClientId
+   * @param opts.networkClientId - The id of the network client for this transaction.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -1168,6 +1165,8 @@ export class TransactionController extends BaseControllerV1<
     }
 
     const nonceTracker = new NonceTracker({
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       provider: networkClient.provider as any,
       blockTracker: networkClient.blockTracker,
       getPendingTransactions:
@@ -1190,6 +1189,8 @@ export class TransactionController extends BaseControllerV1<
     });
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       blockTracker: networkClient.provider as any,
       getChainId: () => networkClient.configuration.chainId,
       getEthQuery: () => this.ethQuery, // TODO: use networkClient to construct ethQuery
@@ -1228,7 +1229,7 @@ export class TransactionController extends BaseControllerV1<
    * Estimates required gas for a given transaction.
    *
    * @param transaction - The transaction to estimate gas for.
-   * @param networkClientId
+   * @param networkClientId - The network client id to use for the estimate.
    * @returns The gas and gas price.
    */
   async estimateGas(
@@ -1249,7 +1250,7 @@ export class TransactionController extends BaseControllerV1<
    *
    * @param transaction - The transaction params to estimate gas for.
    * @param multiplier - The multiplier to use for the gas buffer.
-   * @param networkClientId
+   * @param networkClientId - The network client id to use for the estimate.
    */
   async estimateGasBuffered(
     // NOTE(JL): Need to update SwapsController's usage of this method
@@ -1611,7 +1612,7 @@ export class TransactionController extends BaseControllerV1<
    * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
    *
    * @param address - The hex string address for the transaction.
-   * @param networkClientId
+   * @param networkClientId - The network client ID for the transaction, used to fetch the correct nonce tracker.
    * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
    */
   async getNonceLock(
@@ -1620,17 +1621,17 @@ export class TransactionController extends BaseControllerV1<
   ): Promise<NonceLock> {
     // TODO(JL): Revisit this method. It's a bit complicated and not obvious what it achieves.
     let nonceMutexForChainId: Mutex | undefined;
-    let nonceTracker = this.nonceTracker
+    let { nonceTracker } = this;
     if (networkClientId) {
       const networkClient = this.getNetworkClientById(networkClientId);
       nonceMutexForChainId = this.nonceMutexByChainId.get(
         networkClient.configuration.chainId,
       );
-      const trackers = this.trackingMap.get(networkClientId)
+      const trackers = this.trackingMap.get(networkClientId);
       if (!trackers) {
-        throw new Error('missing nonceTracker for networkClientId')
+        throw new Error('missing nonceTracker for networkClientId');
       }
-      nonceTracker = trackers?.nonceTracker
+      nonceTracker = trackers?.nonceTracker;
     }
 
     // Acquires the lock for the chainId and the nonceLock from the nonceTracker and then
@@ -2054,7 +2055,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   private getCurrentChainTransactionsByStatus(status: TransactionStatus) {
-    const chainId = this.getChainId();
+    const chainId = this.getChainId(); // TODO remove this filter
     return this.state.transactions.filter(
       (transaction) =>
         transaction.status === status && transaction.chainId === chainId,
@@ -2508,7 +2509,7 @@ export class TransactionController extends BaseControllerV1<
    * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
    * transaction type to use.
    *
-   * @param chainId
+   * @param chainId - The chainId to use for the configuration.
    * @returns common configuration object
    */
   private getCommonConfiguration(chainId: Hex): Common {

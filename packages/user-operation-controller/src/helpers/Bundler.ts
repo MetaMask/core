@@ -14,10 +14,10 @@ export type BundlerEstimateUserOperationGasResponse = {
   preVerificationGas: number | string;
 
   /** Estimated gas required to verify the user operation. */
-  verificationGas: number | string;
+  verificationGas?: number | string;
 
   /** Estimated gas required to verify the user operation. */
-  verificationGasLimit: number | string;
+  verificationGasLimit?: number | string;
 
   /** Estimated gas required for the execution of the user operation. */
   callGasLimit: number | string;

@@ -140,7 +140,7 @@ export class PendingTransactionTracker {
     } else {
       this.stop();
     }
-  }
+  };
 
   #start() {
     if (this.#running) {

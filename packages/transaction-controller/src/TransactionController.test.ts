@@ -552,6 +552,24 @@ describe('TransactionController', () => {
       messenger = rejectMessengerMock;
     }
 
+    // TODO(JL): This needs to use different provider from globally selected
+    const mockGetNetworkClientById = jest
+      .fn()
+      .mockImplementation((networkClientId) => {
+        switch (networkClientId) {
+          case 'mainnet':
+            return {
+              configuration: {
+                chainId: toHex(1),
+              },
+              blockTracker: finalNetwork.blockTracker,
+              provider: finalNetwork.provider,
+            };
+          default:
+            throw new Error('Invalid network client id');
+        }
+      });
+
     return new TransactionController(
       {
         blockTracker: finalNetwork.blockTracker,
@@ -565,6 +583,7 @@ describe('TransactionController', () => {
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
+        getNetworkClientById: mockGetNetworkClientById,
         ...options,
       },
       {
@@ -622,6 +641,7 @@ describe('TransactionController', () => {
     NonceTrackerPackage.NonceTracker.prototype.getNonceLock = getNonceLockSpy;
 
     incomingTransactionHelperMock = {
+      stop: jest.fn(),
       hub: {
         on: jest.fn(),
       },
@@ -629,9 +649,12 @@ describe('TransactionController', () => {
 
     pendingTransactionTrackerMock = {
       start: jest.fn(),
+      stop: jest.fn(),
       hub: {
         on: jest.fn(),
+        removeAllListeners: jest.fn(),
       },
+      onStateChange: jest.fn(),
     } as unknown as jest.Mocked<PendingTransactionTracker>;
 
     incomingTransactionHelperClassMock.mockReturnValue(
@@ -707,6 +730,9 @@ describe('TransactionController', () => {
         expect(getExternalPendingTransactions).toHaveBeenCalledTimes(1);
         expect(getExternalPendingTransactions).toHaveBeenCalledWith(
           ACCOUNT_MOCK,
+          // TODO(JL): This shouldn't be undefined. NonceTracker needs
+          // to be updated to call this method with the chainId.
+          undefined,
         );
       });
     });
@@ -1137,6 +1163,7 @@ describe('TransactionController', () => {
       const expectedInitialSnapshot = {
         actionId: undefined,
         chainId: expect.any(String),
+        networkClientId: undefined,
         dappSuggestedGasFees: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
@@ -3568,7 +3595,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
       };
 
       await expect(
@@ -3598,7 +3625,7 @@ describe('TransactionController', () => {
         gas: '0x5208',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
       };
 
       // Send the transaction to put it in the process of being signed
@@ -3629,7 +3656,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
       };
       const mockTransactionParam2 = {
         from: ACCOUNT_MOCK,
@@ -3637,7 +3664,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
       };
 
       const result = await controller.approveTransactionsWithSameNonce([
@@ -3668,7 +3695,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
       };
       const mockTransactionParam2 = {
         from: ACCOUNT_MOCK,
@@ -3676,7 +3703,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
       };
 
       await expect(
