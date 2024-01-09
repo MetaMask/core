@@ -3,10 +3,7 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import {
-  TransactionStatus,
-  UserFeeLevel,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
 
@@ -34,6 +31,7 @@ export function getTransactionMetadata(
     time,
     transactionParams,
     transactionType,
+    userFeeLevel,
     userOperation,
   } = metadata;
 
@@ -89,8 +87,6 @@ export function getTransactionMetadata(
   const nonce =
     userOperation.nonce === EMPTY_BYTES ? undefined : userOperation.nonce;
 
-  const userFeeLevel = UserFeeLevel.CUSTOM;
-
   const txParams = {
     ...transactionParams,
     from: userOperation.sender,
@@ -119,7 +115,7 @@ export function getTransactionMetadata(
       gasUsed: actualGasUsed ?? undefined,
     },
     type: transactionType ?? undefined,
-    userFeeLevel,
+    userFeeLevel: userFeeLevel as string,
   };
 }
 

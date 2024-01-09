@@ -1,6 +1,7 @@
 import type {
   TransactionParams,
   TransactionType,
+  UserFeeLevel,
 } from '@metamask/transaction-controller';
 
 /**
@@ -139,6 +140,9 @@ export type UserOperationMetadata = {
 
   /** The type of transaction that the user operation will create. */
   transactionType: TransactionType | null;
+
+  /** The origin of the gas fee values. */
+  userFeeLevel: UserFeeLevel | null;
 
   /** Resulting user operation object to be submitted to the bundler. */
   userOperation: UserOperation;
