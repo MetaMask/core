@@ -942,9 +942,8 @@ export class KeyringController extends BaseController<
       KeyringTypes.hd,
     )!;
 
-    const hdKeyring = hdKeyringBuilder();
-    // @ts-expect-error @metamask/eth-hd-keyring correctly handles
     // Uint8Array seed phrases in the `deserialize` method.
+    const hdKeyring = hdKeyringBuilder();
     hdKeyring.deserialize({
       mnemonic: seedWords,
       numberOfAccounts: accounts.length,
