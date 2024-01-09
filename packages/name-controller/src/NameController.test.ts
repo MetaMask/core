@@ -1,3 +1,7 @@
+import type {
+  SetNameRequest,
+  UpdateProposedNamesRequest,
+} from './NameController';
 import { FALLBACK_VARIATION, NameController, Origin } from './NameController';
 import type { NameProvider } from './types';
 import { NameType } from './types';
@@ -369,6 +373,62 @@ describe('NameController', () => {
       } as typeof controller.state.names);
     });
 
+    it('stores origin', () => {
+      const provider1 = createMockProvider(1);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1],
+      });
+
+      controller.state.names = {
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              origin: Origin.API,
+              proposedNames: {
+                [SOURCE_ID_MOCK]: {
+                  proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                  lastRequestTime: null,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      controller.setName({
+        value: VALUE_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+        name: NAME_MOCK,
+        sourceId: `${SOURCE_ID_MOCK}1`,
+        origin: Origin.ADDRESS_BOOK,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names).toStrictEqual({
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: NAME_MOCK,
+              sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: Origin.ADDRESS_BOOK,
+              proposedNames: {
+                [SOURCE_ID_MOCK]: {
+                  proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                  lastRequestTime: null,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      } as typeof controller.state.names);
+    });
+
     it('does not throw if variation is fallback and type is Ethereum address', () => {
       const controller = new NameController(CONTROLLER_ARGS_MOCK);
 
@@ -396,9 +456,7 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name: NAME_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow('Must specify a non-empty string for value.');
       });
 
@@ -416,9 +474,7 @@ describe('NameController', () => {
             type,
             name: NAME_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow(
           `Must specify one of the following types: ${Object.values(
             NameType,
@@ -439,9 +495,7 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow('Must specify a non-empty string or null for name.');
       });
 
@@ -458,9 +512,7 @@ describe('NameController', () => {
             name: NAME_MOCK,
             sourceId,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow('Must specify a non-empty string for sourceId.');
       });
 
@@ -478,9 +530,7 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name: NAME_MOCK,
             variation,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow(
           `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
         );
@@ -496,9 +546,7 @@ describe('NameController', () => {
             name: NAME_MOCK,
             sourceId: SOURCE_ID_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          }),
         ).toThrow(
           `Unknown source ID for type '${NameType.ETHEREUM_ADDRESS}': ${SOURCE_ID_MOCK}`,
         );
@@ -514,12 +562,24 @@ describe('NameController', () => {
             name: null,
             sourceId: SOURCE_ID_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          }),
         ).toThrow(
           `Cannot specify a source ID when clearing the saved name: ${SOURCE_ID_MOCK}`,
         );
+      });
+
+      it('origin is unrecognised', () => {
+        const controller = new NameController(CONTROLLER_ARGS_MOCK);
+
+        expect(() =>
+          controller.setName({
+            value: VALUE_MOCK,
+            type: NameType.ETHEREUM_ADDRESS,
+            name: NAME_MOCK,
+            origin: 'invalid origin' as Origin,
+            variation: CHAIN_ID_MOCK,
+          }),
+        ).toThrow(/Must specify one of the following origins/u);
       });
     });
   });
@@ -1764,9 +1824,7 @@ describe('NameController', () => {
             value,
             type: NameType.ETHEREUM_ADDRESS,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as UpdateProposedNamesRequest),
         ).rejects.toThrow('Must specify a non-empty string for value.');
       });
 
@@ -1788,9 +1846,7 @@ describe('NameController', () => {
             value: VALUE_MOCK,
             type,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as UpdateProposedNamesRequest),
         ).rejects.toThrow(
           `Must specify one of the following types: ${Object.values(
             NameType,
