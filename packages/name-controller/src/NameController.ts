@@ -18,11 +18,10 @@ export const FALLBACK_VARIATION = '*';
 /**
  * Enumerates the possible origins responsible for setting a petname.
  */
-export enum ORIGIN {
-  CONTROLLER = 'controller',
-  UI = 'ui',
-  ADDRESS_BOOK = 'address-book',
+export enum Origin {
   ACCOUNT_IDENTITY = 'account-identity',
+  ADDRESS_BOOK = 'address-book',
+  API = 'api',
 }
 
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
@@ -51,7 +50,7 @@ export type ProposedNamesEntry = {
 export type NameEntry = {
   name: string | null;
   sourceId: string | null;
-  origin: ORIGIN | null;
+  origin: Origin;
   proposedNames: Record<string, ProposedNamesEntry>;
 };
 
@@ -112,7 +111,7 @@ export type SetNameRequest = {
   name: string | null;
   sourceId?: string;
   variation?: string;
-  origin?: ORIGIN;
+  origin?: Origin;
 };
 
 /**
@@ -180,7 +179,7 @@ export class NameController extends BaseController<
     this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
       entry.sourceId = sourceId;
-      entry.origin = origin;
+      entry.origin = origin ?? Origin.API;
     });
   }
 
@@ -444,6 +443,7 @@ export class NameController extends BaseController<
         proposedNames: {},
         name: null,
         sourceId: null,
+        origin: Origin.API,
       };
       variationEntries[normalizedVariation] = entry;
 
@@ -604,15 +604,15 @@ export class NameController extends BaseController<
     }
   }
 
-  #validateOrigin(origin: ORIGIN | null | undefined, errorMessages: string[]) {
+  #validateOrigin(origin: Origin | null | undefined, errorMessages: string[]) {
     if (!origin) {
       return;
     }
 
-    if (!Object.values(ORIGIN).includes(origin)) {
+    if (!Object.values(Origin).includes(origin)) {
       errorMessages.push(
         `Must specify one of the following origins: ${Object.values(
-          ORIGIN,
+          Origin,
         ).join(', ')}`,
       );
     }

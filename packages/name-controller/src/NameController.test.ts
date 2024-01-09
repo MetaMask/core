@@ -1,4 +1,4 @@
-import { FALLBACK_VARIATION, NameController } from './NameController';
+import { FALLBACK_VARIATION, NameController, Origin } from './NameController';
 import type { NameProvider } from './types';
 import { NameType } from './types';
 
@@ -88,11 +88,12 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: Origin.API,
               proposedNames: {},
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it('updates an entry if existing', () => {
@@ -109,6 +110,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -135,6 +137,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -145,7 +148,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it('removes source ID from entry if not specified', () => {
@@ -157,6 +160,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: SOURCE_ID_MOCK,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -182,6 +186,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -192,7 +197,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it('stores alternate name for each ethereum address for each variation', () => {
@@ -209,6 +214,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -234,6 +240,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -245,11 +252,12 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: alternateName,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {},
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it('can clear saved name', () => {
@@ -266,6 +274,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -291,6 +300,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -301,7 +311,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it('stores address as lowercase', () => {
@@ -318,6 +328,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -344,6 +355,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: Origin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -354,7 +366,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it('does not throw if variation is fallback and type is Ethereum address', () => {
@@ -543,6 +555,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -564,7 +577,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -602,6 +615,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldBeDeleted1'],
@@ -631,6 +645,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -652,7 +667,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
 
       expect(result).toStrictEqual({
         results: {
@@ -689,6 +704,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}3`]: {
                   proposedNames: ['ShouldBeDeleted3'],
@@ -713,6 +729,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -734,7 +751,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it.each([
@@ -767,6 +784,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [],
@@ -785,7 +803,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
 
       expect(result).toStrictEqual({
         results: {
@@ -860,6 +878,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
@@ -894,6 +913,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
@@ -915,6 +935,7 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -936,7 +957,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     it('ignores source IDs in response if not in metadata', async () => {
@@ -976,6 +997,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -989,7 +1011,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
 
       expect(result).toStrictEqual({
         results: {
@@ -1040,6 +1062,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1053,7 +1076,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
 
       expect(result).toStrictEqual({
         results: {
@@ -1082,6 +1105,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [],
@@ -1106,6 +1130,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: Origin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1119,7 +1144,7 @@ describe('NameController', () => {
             },
           },
         },
-      });
+      } as typeof controller.state.names);
     });
 
     describe('does not update existing proposed names if', () => {
@@ -1148,6 +1173,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1177,6 +1203,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1192,7 +1219,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
       });
 
       it('result error', async () => {
@@ -1218,6 +1245,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1242,6 +1270,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1252,7 +1281,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
       });
 
       it('response error', async () => {
@@ -1278,6 +1307,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1302,6 +1332,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1312,7 +1343,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
       });
     });
 
@@ -1341,6 +1372,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1359,7 +1391,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -1405,6 +1437,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1423,7 +1456,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -1472,6 +1505,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1490,7 +1524,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -1527,6 +1561,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeDeleted1'],
@@ -1562,6 +1597,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [`ShouldNotBeDeleted1`],
@@ -1585,7 +1621,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -1680,6 +1716,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -1693,7 +1730,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -1846,6 +1883,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1876,6 +1914,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1891,7 +1930,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {},
@@ -1913,6 +1952,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1943,6 +1983,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1958,7 +1999,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {},
@@ -1981,6 +2022,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2011,6 +2053,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2032,7 +2075,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -2069,6 +2112,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2099,6 +2143,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2120,7 +2165,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
@@ -2168,6 +2213,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: Origin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2189,7 +2235,7 @@ describe('NameController', () => {
               },
             },
           },
-        });
+        } as typeof controller.state.names);
 
         expect(result).toStrictEqual({
           results: {
