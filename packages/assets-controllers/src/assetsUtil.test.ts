@@ -8,6 +8,7 @@ import {
 import { add0x, type Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil';
+import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
 import type { AbstractTokenPricesService } from './token-prices-service';
 
@@ -476,18 +477,11 @@ describe('assetsUtil', () => {
       expect(result).toStrictEqual({});
     });
 
-    it('should return successfully with a number of tokens less than 100', async () => {
+    it('should return successfully with a number of tokens less than the batch size', async () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
       const mockPriceService = createMockPriceService();
-      jest
-        .spyOn(mockPriceService, 'validateCurrencySupported')
-        .mockReturnValue(true);
-
-      jest
-        .spyOn(mockPriceService, 'validateChainIdSupported')
-        .mockReturnValue(true);
 
       jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
         [testTokenAddress]: {
@@ -509,7 +503,7 @@ describe('assetsUtil', () => {
       });
     });
 
-    it('should fetch successfully in batches of 100', async () => {
+    it('should fetch successfully in batches', async () => {
       const mockPriceService = createMockPriceService();
       const tokenAddresses = [...new Array(200).keys()]
         .map(buildAddress)
@@ -517,13 +511,6 @@ describe('assetsUtil', () => {
 
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
-      jest
-        .spyOn(mockPriceService, 'validateCurrencySupported')
-        .mockReturnValue(true);
-
-      jest
-        .spyOn(mockPriceService, 'validateChainIdSupported')
-        .mockReturnValue(true);
 
       const fetchTokenPricesSpy = jest.spyOn(
         mockPriceService,
@@ -537,17 +524,65 @@ describe('assetsUtil', () => {
         chainId: testChainId,
       });
 
-      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
-      expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
+      const numBatches = Math.ceil(
+        tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+      );
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+      for (let i = 1; i <= numBatches; i++) {
+        expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+          chainId: testChainId,
+          tokenAddresses: tokenAddresses.slice(
+            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+            i * TOKEN_PRICES_BATCH_SIZE,
+          ),
+          currency: testNativeCurrency,
+        });
+      }
+    });
+
+    it('should sort token addresses when batching', async () => {
+      const mockPriceService = createMockPriceService();
+
+      // Mock addresses in descending order
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort()
+        .reverse();
+
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+
+      const fetchTokenPricesSpy = jest.spyOn(
+        mockPriceService,
+        'fetchTokenPrices',
+      );
+
+      await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: tokenAddresses as Hex[],
         chainId: testChainId,
-        tokenAddresses: tokenAddresses.slice(0, 100),
-        currency: testNativeCurrency,
       });
-      expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
-        chainId: testChainId,
-        tokenAddresses: tokenAddresses.slice(100),
-        currency: testNativeCurrency,
-      });
+
+      // Expect batches in ascending order
+      tokenAddresses.sort();
+
+      const numBatches = Math.ceil(
+        tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+      );
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+      for (let i = 1; i <= numBatches; i++) {
+        expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+          chainId: testChainId,
+          tokenAddresses: tokenAddresses.slice(
+            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+            i * TOKEN_PRICES_BATCH_SIZE,
+          ),
+          currency: testNativeCurrency,
+        });
+      }
     });
   });
 });
