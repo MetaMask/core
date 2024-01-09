@@ -5,6 +5,102 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add new types for TransactionController messenger actions ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - `TransactionControllerActions`
+  - `TransactionControllerGetStateAction`
+- Add new types for TransactionController messenger events ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - `TransactionControllerEvents`
+  - `TransactionControllerIncomingTransactionBlockEvent`
+  - `TransactionControllerPostTransactionBalanceUpdatedEvent`
+  - `TransactionControllerSpeedupTransactionAddedEvent`
+  - `TransactionControllerStateChangeEvent`
+  - `TransactionControllerTransactionApprovedEvent`
+  - `TransactionControllerTransactionConfirmedEvent`
+  - `TransactionControllerTransactionDroppedEvent`
+  - `TransactionControllerTransactionFailedEvent`
+  - `TransactionControllerTransactionFinishedEvent`
+  - `TransactionControllerTransactionNewSwapApprovalEvent`
+  - `TransactionControllerTransactionNewSwapEvent`
+  - `TransactionControllerTransactionPublishingSkipped`
+  - `TransactionControllerTransactionRejectedEvent`
+  - `TransactionControllerTransactionStatusUpdatedEvent`
+  - `TransactionControllerTransactionSubmittedEvent`
+  - `TransactionControllerUnapprovedTransactionAddedEvent`
+
+### Changed
+- **BREAKING:** Change superclass of TransactionController from BaseController v1 to BaseController v2 ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - Instead of accepting three arguments, the constructor now takes a single options argument. All of the existing options that were supported in the second argument are now a part of this options object, including `messenger`; `state` (the previous third argument) is also an option.
+- **BREAKING:** Switch some type definitions from `interface` to `type` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - These types are affected:
+    - `DappSuggestedGasFees`
+    - `Log`
+    - `MethodData`
+    - `TransactionControllerState` (formerly `TransactionState`)
+    - `TransactionParams`
+    - `TransactionReceipt`
+  - This is a breaking change because type aliases have different behavior from interfaces. Specifically, the `Json` type in `@metamask/utils`, which BaseController v2 controller state must conform to, is not compatible with interfaces.
+- **BREAKING:** Align `parsedRegistryMethod` in `MethodData` type with usage ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - The type of this is now `{ name: string; args: { type: string }[]; } | { name?: any; args?: any; }`, which is a `Json`-compatible version of a type found in `eth-method-registry`.
+- **BREAKING:** Rename `TransactionState` to `TransactionControllerState` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - This change aligns this controller with other MetaMask controllers.
+- **BREAKING:** Update allowed events in `TransactionControllerMessenger` type ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - The type of the restricted messenger that TransactionController takes must allow the following events:
+    - `TransactionController:incomingTransactionBlock`
+    - `TransactionController:postTransactionBalanceUpdated`
+    - `TransactionController:speedUpTransactionAdded`
+    - `TransactionController:transactionApproved`
+    - `TransactionController:transactionConfirmed`
+    - `TransactionController:transactionDropped`
+    - `TransactionController:transactionFinished`
+    - `TransactionController:transactionFinished`
+    - `TransactionController:transactionPublishingSkipped`
+    - `TransactionController:transactionRejected`
+    - `TransactionController:transactionStatusUpdated`
+    - `TransactionController:transactionSubmitted`
+    - `TransactionController:unapprovedTransactionAdded`
+- **BREAKING:** Update `TransactionMeta` type to be compatible with `Json` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - As dictated by BaseController v2, any types that are part of state need to be compatible with the `Json` type from `@metamask/utils`.
+- **BREAKING:** Transform `rpc` property on transaction errors so they're JSON-encodable ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - This change also results in typing this property as `Json` instead of `unknown`, avoiding a "Type instantiation is excessively deep and possibly infinite" error when resolving the `TransactionControllerState` type.
+
+### Removed
+- **BREAKING:** Remove `TransactionConfig` type ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - An equivalent is `Parameters<typeof TransactionController>[0]`.
+- **BREAKING:** Remove `hub` property from TransactionController ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - TransactionController now fully makes use of its messenger object to announce various kinds of activities. Instead of subscribing to an event like this:
+    ```
+    transactionController.hub.on(eventName, ...)
+    ```
+    use this:
+    ```
+    messenger.subscribe('TransactionController:${eventName}', ...)
+    ```
+  - The complete list of renamed events are:
+    - `incomingTransactionBlock` -> `TransactionController:incomingTransactionBlock`
+    - `post-transaction-balance-updated` -> `TransactionController:postTransactionBalanceUpdated`
+    - `transaction-approved` -> `TransactionController:transactionApproved`
+    - `transaction-confirmed` -> `TransactionController:transactionConfirmed`
+    - `transaction-dropped` -> `TransactionController:transactionDropped`
+    - `transaction-finished` -> `TransactionController:transactionFinished`
+    - `transaction-rejected` -> `TransactionController:transactionRejected`
+    - `transaction-status-update` -> `TransactionController:transactionStatusUpdated`
+    - `transaction-submitted` -> `TransactionController:transactionSubmitted`
+    - `unapprovedTransaction` -> `TransactionController:unapprovedTransactionAdded`
+  - Some events announced the state of specific transactions. These have been removed. Instead, subscribe to the appropriate generic event (which yields the transaction) and check for a specific transaction ID in your event handler:
+    - `${transactionId}:finished` -> `TransactionController:transactionFinished`
+    - `${transactionId}:speedup` -> `TransactionController:speedUpTransactionAdded`
+    - `${transactionId}:publish-skip` -> `TransactionController:transactionPublishingSkipped`
+
+### Fixed
+- Fix various methods so that they no longer update transactions in state directly but only via `update` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - `addTransaction`
+  - `confirmExternalTransaction`
+  - `speedUpTransaction`
+  - `updateCustodialTransaction`
+  - `updateSecurityAlertResponse`
+  - `updateTransaction`
+- Fix `handleMethodData` method to update state with an empty registry object instead of blowing up if registry could be found ([#3827](https://github.com/MetaMask/core/pull/3827))
 
 ## [21.0.0]
 ### Changed

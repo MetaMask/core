@@ -1,5 +1,6 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { getKnownPropertyNames } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 
 import type {
@@ -158,8 +159,8 @@ export function normalizeTxError(
     name: error.name,
     message: error.message,
     stack: error.stack,
-    code: error?.code,
-    rpc: error?.value,
+    code: error.code,
+    rpc: isJsonCompatible(error.value) ? error.value : undefined,
   };
 }
 
@@ -187,4 +188,19 @@ export function normalizeGasFeeValues(
     maxFeePerGas: normalize(gasFeeValues.maxFeePerGas),
     maxPriorityFeePerGas: normalize(gasFeeValues.maxPriorityFeePerGas),
   };
+}
+
+/**
+ * Determines whether the given value can be encoded as JSON.
+ *
+ * @param value - The value.
+ * @returns True if the value is JSON-encodable, false if not.
+ */
+function isJsonCompatible(value: unknown): value is Json {
+  try {
+    JSON.parse(JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
 }

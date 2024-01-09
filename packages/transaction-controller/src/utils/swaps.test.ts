@@ -45,24 +45,14 @@ describe('updateSwapsTransaction', () => {
 
   it('should not update if swaps are disabled', async () => {
     request.isSwapsDisabled = true;
-    await updateSwapsTransaction(
-      transactionMeta,
-      transactionType,
-      swaps,
-      request,
-    );
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
     expect(request.controllerHubEmitter).not.toHaveBeenCalled();
   });
 
   it('should not update if transaction type is not swap or swapApproval', async () => {
     transactionType = TransactionType.deployContract;
-    await updateSwapsTransaction(
-      transactionMeta,
-      transactionType,
-      swaps,
-      request,
-    );
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
     expect(request.controllerHubEmitter).not.toHaveBeenCalled();
   });
@@ -73,25 +63,20 @@ describe('updateSwapsTransaction', () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
-    await expect(
+    expect(() =>
       updateSwapsTransaction(transactionMeta, transactionType, swaps, request),
-    ).rejects.toThrow('Simulation failed');
+    ).toThrow('Simulation failed');
     expect(request.cancelTransaction).toHaveBeenCalledWith(transactionMeta.id);
   });
 
   it('should not update or call swap events if swaps meta is not defined', async () => {
     swaps.meta = undefined;
-    await updateSwapsTransaction(
-      transactionMeta,
-      transactionType,
-      swaps,
-      request,
-    );
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
     expect(request.controllerHubEmitter).not.toHaveBeenCalled();
   });
 
-  it('should update swap transaction and emit newSwap event', async () => {
+  it('should return the swap transaction updated with information', () => {
     const sourceTokenSymbol = 'ETH';
     const destinationTokenSymbol = 'DAI';
     const type = TransactionType.swap;
@@ -116,33 +101,27 @@ describe('updateSwapsTransaction', () => {
       approvalTxId,
     };
 
-    await updateSwapsTransaction(
+    const updatedSwapsTransaction = updateSwapsTransaction(
       transactionMeta,
       transactionType,
       swaps,
       request,
     );
-    expect(request.controllerHubEmitter).toHaveBeenCalledTimes(1);
-    expect(request.controllerHubEmitter).toHaveBeenCalledWith(
-      'transaction-new-swap',
-      {
-        transactionMeta: {
-          ...transactionMeta,
-          sourceTokenSymbol,
-          destinationTokenSymbol,
-          type,
-          destinationTokenDecimals,
-          destinationTokenAddress,
-          swapMetaData,
-          swapTokenValue,
-          estimatedBaseFee,
-          approvalTxId,
-        },
-      },
-    );
+    expect(updatedSwapsTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    });
   });
 
-  it('should update swap approval transaction and emit newSwapApproval event', async () => {
+  it('should return the swap approval transaction updated with information', async () => {
     const sourceTokenSymbol = 'ETH';
     const type = TransactionType.swapApproval;
 
@@ -152,23 +131,17 @@ describe('updateSwapsTransaction', () => {
     };
     transactionType = TransactionType.swapApproval;
 
-    await updateSwapsTransaction(
+    const updatedSwapsTransaction = updateSwapsTransaction(
       transactionMeta,
       transactionType,
       swaps,
       request,
     );
-    expect(request.controllerHubEmitter).toHaveBeenCalledTimes(1);
-    expect(request.controllerHubEmitter).toHaveBeenCalledWith(
-      'transaction-new-swap-approval',
-      {
-        transactionMeta: {
-          ...transactionMeta,
-          sourceTokenSymbol,
-          type,
-        },
-      },
-    );
+    expect(updatedSwapsTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      type,
+    });
   });
 });
 
