@@ -41,6 +41,7 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "@metamask/keyring-api": "^2.0.0",
     "@metamask/eth-keyring-controller": "github:MetaMask/KeyringController#42f5e97426468ede2df588ea6f5c62e309c1d25d",
     "@metamask/rpc-methods@^0.38.1-flask.1": "patch:@metamask/rpc-methods@npm%3A0.38.1-flask.1#./.yarn/patches/@metamask-rpc-methods-npm-0.38.1-flask.1-081e1eb5b3.patch"
   },
