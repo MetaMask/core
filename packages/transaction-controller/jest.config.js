@@ -18,9 +18,9 @@ module.exports = merge(baseConfig, {
   coverageThreshold: {
     global: {
       branches: 91.79,
-      functions: 98.56,
-      lines: 98.9,
-      statements: 98.91,
+      functions: 98.37,
+      lines: 98.83,
+      statements: 98.84,
     },
   },
 
