@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Sort token addresses before batching calls to price API ([#3755](https://github.com/MetaMask/core/pull/3755))
+- Price API perf improvements ([#3753](https://github.com/MetaMask/core/pull/3753))
+- refactor(assets-controllers): Simplify `TokenDetectionController` tests ([#3744](https://github.com/MetaMask/core/pull/3744))
+- refactor(assets-controllers): Simplify `NftDetectionController` tests ([#3742](https://github.com/MetaMask/core/pull/3742))
+- refactor(assets-controllers): Simplify `TokenBalancesController` tests ([#3743](https://github.com/MetaMask/core/pull/3743))
+- refactor(assets-controllers): Simplify `TokensController` tests ([#3745](https://github.com/MetaMask/core/pull/3745))
+- refactor(assets-controllers): Simplify `NftController` tests ([#3738](https://github.com/MetaMask/core/pull/3738))
+- refactor(assets-controllers): Simplify `AssetsContractController` tests ([#3737](https://github.com/MetaMask/core/pull/3737))
+- refactor(assets-controllers): Simplify `AccountTrackerController` tests and add `getDefaultPreferencesState` ([#3736](https://github.com/MetaMask/core/pull/3736))
+- chore(preferences-controller): Clean up types ([#3712](https://github.com/MetaMask/core/pull/3712))
 
 ## [23.1.0]
 ### Added

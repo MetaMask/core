@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- feat(preferences-controller): Convert to BaseControllerV2 ([#3713](https://github.com/MetaMask/core/pull/3713))
+- refactor(assets-controllers): Simplify `AccountTrackerController` tests and add `getDefaultPreferencesState` ([#3736](https://github.com/MetaMask/core/pull/3736))
+- chore(preferences-controller): Clean up types ([#3712](https://github.com/MetaMask/core/pull/3712))
 
 ## [5.0.1]
 ### Changed
