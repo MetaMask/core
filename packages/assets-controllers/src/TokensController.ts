@@ -125,6 +125,17 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
+export const getDefaultTokensState = (): TokensState => {
+  return {
+    tokens: [],
+    ignoredTokens: [],
+    detectedTokens: [],
+    allTokens: {},
+    allIgnoredTokens: {},
+    allDetectedTokens: {},
+  };
+};
+
 /**
  * Controller that stores assets and exposes convenience methods
  */
@@ -225,12 +236,7 @@ export class TokensController extends BaseControllerV1<
     };
 
     this.defaultState = {
-      tokens: [],
-      ignoredTokens: [],
-      detectedTokens: [],
-      allTokens: {},
-      allIgnoredTokens: {},
-      allDetectedTokens: {},
+      ...getDefaultTokensState(),
       ...state,
     };
 

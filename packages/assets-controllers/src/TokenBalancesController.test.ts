@@ -1,30 +1,12 @@
-import { ControllerMessenger } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
-import type { NetworkControllerMessenger } from '@metamask/network-controller';
-import { NetworkController } from '@metamask/network-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
-import { AssetsContractController } from './AssetsContractController';
 import {
   BN as exportedBn,
   TokenBalancesController,
 } from './TokenBalancesController';
-import type { Token } from './TokenRatesController';
-import type { TokensControllerMessenger } from './TokensController';
-import { TokensController } from './TokensController';
-
-const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
-  return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
-    return {
-      supportsInterface: sinon.stub().returns(res),
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
-  });
-};
+import { getDefaultTokensState, type TokensState } from './TokensController';
 
 describe('TokenBalancesController', () => {
   let clock: sinon.SinonFakeTimers;
@@ -121,39 +103,13 @@ describe('TokenBalancesController', () => {
     expect(mock.called).toBe(true);
   });
 
-  const setupControllers = () => {
-    const messenger: NetworkControllerMessenger =
-      new ControllerMessenger().getRestricted({
-        name: 'NetworkController',
-      });
-
-    new NetworkController({
-      messenger,
-      infuraProjectId: 'potato',
-      trackMetaMetricsEvent: jest.fn(),
-    });
-    const preferences = new PreferencesController();
-    return { messenger, preferences };
-  };
-
   it('should update all balances', async () => {
-    const { messenger, preferences } = setupControllers();
-    const assets = new TokensController({
-      chainId: toHex(1),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkDidChange: (listener) =>
-        messenger.subscribe('NetworkController:networkDidChange', listener),
-      onTokenListStateChange: sinon.stub(),
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getNetworkClientById: sinon.stub() as any,
-      messenger: undefined as unknown as TokensControllerMessenger,
-    });
+    const selectedAddress = '0x0000000000000000000000000000000000000001';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const tokenBalances = new TokenBalancesController(
       {
-        onTokensStateChange: (listener) => assets.subscribe(listener),
-        getSelectedAddress: () => preferences.state.selectedAddress,
+        onTokensStateChange: jest.fn(),
+        getSelectedAddress: () => selectedAddress,
         getERC20BalanceOf: sinon.stub().returns(new BN(1)),
       },
       {
@@ -173,23 +129,9 @@ describe('TokenBalancesController', () => {
     expect(
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toBeGreaterThan(0);
-
-    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should handle `getERC20BalanceOf` error case', async () => {
-    const { messenger, preferences } = setupControllers();
-    const assets = new TokensController({
-      chainId: toHex(1),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkDidChange: (listener) =>
-        messenger.subscribe('NetworkController:networkDidChange', listener),
-      onTokenListStateChange: sinon.stub(),
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getNetworkClientById: sinon.stub() as any,
-      messenger: undefined as unknown as TokensControllerMessenger,
-    });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const getERC20BalanceOfStub = sinon
@@ -197,8 +139,8 @@ describe('TokenBalancesController', () => {
       .returns(Promise.reject(new Error(errorMsg)));
     const tokenBalances = new TokenBalancesController(
       {
-        onTokensStateChange: (listener) => assets.subscribe(listener),
-        getSelectedAddress: () => preferences.state.selectedAddress,
+        onTokensStateChange: jest.fn(),
+        getSelectedAddress: jest.fn(),
         getERC20BalanceOf: getERC20BalanceOfStub,
       },
       {
@@ -224,67 +166,48 @@ describe('TokenBalancesController', () => {
     expect(
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toBeGreaterThan(0);
-
-    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
-  it('should subscribe to new sibling assets controllers', async () => {
-    const { messenger, preferences } = setupControllers();
-    const assetsContract = new AssetsContractController({
-      chainId: toHex(1),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkDidChange: (listener) =>
-        messenger.subscribe('NetworkController:networkDidChange', listener),
-      getNetworkClientById: jest.fn(),
-    });
-    const tokensController = new TokensController({
-      chainId: toHex(1),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkDidChange: (listener) =>
-        messenger.subscribe('NetworkController:networkDidChange', listener),
-      onTokenListStateChange: sinon.stub(),
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getNetworkClientById: sinon.stub() as any,
-      messenger: undefined as unknown as TokensControllerMessenger,
-    });
-
-    const stub = stubCreateEthers(tokensController, false);
-
+  it('should update balances when tokens change', async () => {
+    const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
     const tokenBalances = new TokenBalancesController(
       {
-        onTokensStateChange: (listener) => tokensController.subscribe(listener), // needs to be unsubbed?
-        getSelectedAddress: () => preferences.state.selectedAddress,
-        getERC20BalanceOf:
-          assetsContract.getERC20BalanceOf.bind(assetsContract),
+        onTokensStateChange: (listener) => {
+          tokensStateChangeListeners.push(listener);
+        },
+        getSelectedAddress: jest.fn(),
+        getERC20BalanceOf: jest.fn(),
       },
       { interval: 1337 },
     );
+    const triggerTokensStateChange = (state: TokensState) => {
+      for (const listener of tokensStateChangeListeners) {
+        listener(state);
+      }
+    };
     const updateBalances = sinon.stub(tokenBalances, 'updateBalances');
-    await tokensController.addToken({
-      address: '0x00',
-      symbol: 'FOO',
-      decimals: 18,
-    });
-    const { tokens } = tokensController.state;
-    const found = tokens.filter((token: Token) => token.address === '0x00');
-    expect(found.length > 0).toBe(true);
-    expect(updateBalances.called).toBe(true);
 
-    stub.restore();
-    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+    triggerTokensStateChange({
+      ...getDefaultTokensState(),
+      tokens: [
+        {
+          address: '0x00',
+          symbol: 'FOO',
+          decimals: 18,
+        },
+      ],
+    });
+
+    expect(updateBalances.called).toBe(true);
   });
 
   it('should update token balances when detected tokens are added', async () => {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
+    const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
     const tokenBalances = new TokenBalancesController(
       {
-        onTokensStateChange,
+        onTokensStateChange: (listener) => {
+          tokensStateChangeListeners.push(listener);
+        },
         getSelectedAddress: () => '0x1234',
         getERC20BalanceOf: sinon.stub().returns(new BN(1)),
       },
@@ -292,11 +215,15 @@ describe('TokenBalancesController', () => {
         interval: 1337,
       },
     );
-
+    const triggerTokensStateChange = (state: TokensState) => {
+      for (const listener of tokensStateChangeListeners) {
+        listener(state);
+      }
+    };
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    tokenStateChangeListener!({
+    triggerTokensStateChange({
+      ...getDefaultTokensState(),
       detectedTokens: [
         {
           address: '0x02',
