@@ -588,8 +588,7 @@ describe('NameController', () => {
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: ['AnotherExpiredName'],
-                  lastRequestTime:
-                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 2,
+                  lastRequestTime: null,
                   updateDelay: null,
                 },
               },
