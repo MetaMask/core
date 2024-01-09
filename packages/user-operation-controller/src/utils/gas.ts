@@ -1,6 +1,7 @@
 import { hexToBN } from '@metamask/controller-utils';
 import { BN, addHexPrefix } from 'ethereumjs-util';
 
+import { VALUE_ZERO } from '../constants';
 import { Bundler } from '../helpers/Bundler';
 import { createModuleLogger, projectLogger } from '../logger';
 import type {
@@ -45,9 +46,11 @@ export async function updateGas(
 
   const payload = {
     ...userOperation,
-    callGasLimit: '0x1',
-    preVerificationGas: '0x1',
-    verificationGasLimit: '0x1',
+    maxFeePerGas: VALUE_ZERO,
+    maxPriorityFeePerGas: VALUE_ZERO,
+    callGasLimit: VALUE_ZERO,
+    preVerificationGas: VALUE_ZERO,
+    verificationGasLimit: '0xF4240',
   };
 
   const bundler = new Bundler(metadata.bundlerUrl as string);

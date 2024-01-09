@@ -1,5 +1,6 @@
 import { cloneDeep } from 'lodash';
 
+import { VALUE_ZERO } from '../constants';
 import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler';
 import { Bundler } from '../helpers/Bundler';
 import type {
@@ -94,9 +95,11 @@ describe('gas', () => {
         expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
           {
             ...metadata.userOperation,
-            callGasLimit: '0x1',
-            preVerificationGas: '0x1',
-            verificationGasLimit: '0x1',
+            maxFeePerGas: VALUE_ZERO,
+            maxPriorityFeePerGas: VALUE_ZERO,
+            callGasLimit: VALUE_ZERO,
+            preVerificationGas: VALUE_ZERO,
+            verificationGasLimit: '0xF4240',
           },
           ENTRYPOINT_MOCK,
         );
