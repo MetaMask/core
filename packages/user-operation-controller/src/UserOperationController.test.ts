@@ -20,10 +20,11 @@ import {
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
-  UserOperationControllerActions,
   UserOperationControllerMessenger,
 } from './UserOperationController';
 import { UserOperationController } from './UserOperationController';
+import { updateGas } from './utils/gas';
+import { updateGasFees } from './utils/gas-fees';
 import {
   validateAddUserOperationRequest,
   validateAddUserOperationOptions,
@@ -33,6 +34,8 @@ import {
 } from './utils/validation';
 
 jest.mock('@metamask/transaction-controller');
+jest.mock('./utils/gas');
+jest.mock('./utils/gas-fees');
 jest.mock('./utils/validation');
 jest.mock('./helpers/Bundler');
 jest.mock('./helpers/PendingUserOperationTracker');
@@ -40,8 +43,7 @@ jest.mock('./helpers/PendingUserOperationTracker');
 const CHAIN_ID_MOCK = '0x5';
 const USER_OPERATION_HASH_MOCK = '0x123';
 const ERROR_MESSAGE_MOCK = 'Test Error';
-const ERROR_CODE_MOCK = 1234;
-const INTERVAL_MOCK = 1234;
+const ERROR_CODE_MOCK = '1234';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const TRANSACTION_HASH_MOCK = '0x456';
 const ORIGIN_MOCK = 'test.com';
@@ -153,6 +155,14 @@ describe('UserOperationController', () => {
   const resultCallbackSuccessMock = jest.fn();
   const resultCallbackErrorMock = jest.fn();
   const determineTransactionTypeMock = jest.mocked(determineTransactionType);
+  const getGasFeeEstimates = jest.fn();
+  const updateGasMock = jest.mocked(updateGas);
+  const updateGasFeesMock = jest.mocked(updateGasFees);
+
+  const optionsMock = {
+    getGasFeeEstimates,
+    messenger,
+  };
 
   const validateAddUserOperationRequestMock = jest.mocked(
     validateAddUserOperationRequest,
@@ -209,9 +219,10 @@ describe('UserOperationController', () => {
 
     messenger.call.mockImplementation(
       (
-        action: UserOperationControllerActions['type'],
-        ..._args: Parameters<UserOperationControllerActions['handler']>
-      ) => {
+        ...args: Parameters<UserOperationControllerMessenger['call']>
+      ): ReturnType<UserOperationControllerMessenger['call']> => {
+        const action = args[0];
+
         if (action === 'NetworkController:getNetworkClientById') {
           return networkControllerGetClientByIdMock();
         }
@@ -220,20 +231,43 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
-        return undefined;
+        throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );
 
     determineTransactionTypeMock.mockResolvedValue({
       type: TransactionType.simpleSend,
     });
+
+    updateGasMock.mockImplementation(async (metadata) => {
+      metadata.userOperation.callGasLimit = PREPARE_USER_OPERATION_RESPONSE_MOCK
+        .gas?.callGasLimit as string;
+
+      metadata.userOperation.preVerificationGas =
+        PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.preVerificationGas as string;
+
+      metadata.userOperation.verificationGasLimit =
+        PREPARE_USER_OPERATION_RESPONSE_MOCK.gas
+          ?.verificationGasLimit as string;
+    });
+
+    updateGasFeesMock
+      .mockImplementationOnce(async ({ metadata }) => {
+        metadata.userOperation.maxFeePerGas =
+          ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas;
+
+        metadata.userOperation.maxPriorityFeePerGas =
+          ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas;
+      })
+      .mockImplementationOnce(async ({ metadata }) => {
+        metadata.userOperation.maxFeePerGas = '0x6';
+        metadata.userOperation.maxPriorityFeePerGas = '0x7';
+      });
   });
 
   describe('constructor', () => {
     it('creates PendingUserOperationTracker using state user operations', () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const userOperationsMock = {
         testId1: { ...USER_OPERATION_METADATA_MOCK, id: 'testId1' },
@@ -247,33 +281,6 @@ describe('UserOperationController', () => {
         .mock.calls[0][0].getUserOperations();
 
       expect(result).toStrictEqual(Object.values(userOperationsMock));
-    });
-
-    it('sets polling interval', () => {
-      new UserOperationController({
-        interval: INTERVAL_MOCK,
-        messenger,
-      });
-
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledWith(INTERVAL_MOCK);
-    });
-
-    it('sets polling interval to default if not specified', () => {
-      new UserOperationController({
-        messenger,
-      });
-
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        pendingUserOperationTrackerMock.setIntervalLength,
-      ).toHaveBeenCalledWith(expect.any(Number));
     });
   });
 
@@ -298,9 +305,7 @@ describe('UserOperationController', () => {
     }
 
     it('submits user operation to bundler', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { hash } = await addUserOperation(
         controller,
@@ -335,9 +340,7 @@ describe('UserOperationController', () => {
     });
 
     it('creates initial empty metadata entry in state', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { id } = await addUserOperation(
         controller,
@@ -376,9 +379,7 @@ describe('UserOperationController', () => {
     });
 
     it('updates metadata in state after submission', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { id, hash } = await addUserOperation(
         controller,
@@ -426,9 +427,7 @@ describe('UserOperationController', () => {
     });
 
     it('defaults optional properties if not specified by account', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       smartContractAccount.prepareUserOperation.mockResolvedValue({
         ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
@@ -461,129 +460,8 @@ describe('UserOperationController', () => {
       );
     });
 
-    describe('estimates gas if gas not specified by account', () => {
-      it('using bundler', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
-
-        bundlerMock.estimateUserOperationGas.mockResolvedValue({
-          callGasLimit: 123,
-          preVerificationGas: 456,
-          verificationGasLimit: 789,
-          verificationGas: 789,
-        });
-
-        smartContractAccount.prepareUserOperation.mockResolvedValue({
-          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
-          gas: undefined,
-        });
-
-        const { hash } = await controller.addUserOperation(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
-        );
-
-        await hash();
-
-        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledTimes(1);
-        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
-          {
-            callData: PREPARE_USER_OPERATION_RESPONSE_MOCK.callData,
-            callGasLimit: '0x1',
-            initCode: PREPARE_USER_OPERATION_RESPONSE_MOCK.initCode,
-            maxFeePerGas: ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas,
-            maxPriorityFeePerGas:
-              ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas,
-            nonce: PREPARE_USER_OPERATION_RESPONSE_MOCK.nonce,
-            paymasterAndData:
-              PREPARE_USER_OPERATION_RESPONSE_MOCK.dummyPaymasterAndData,
-            preVerificationGas: '0x1',
-            sender: PREPARE_USER_OPERATION_RESPONSE_MOCK.sender,
-            signature: PREPARE_USER_OPERATION_RESPONSE_MOCK.dummySignature,
-            verificationGasLimit: '0x1',
-          },
-          ENTRYPOINT,
-        );
-      });
-
-      it('if estimates are numbers', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
-
-        bundlerMock.estimateUserOperationGas.mockResolvedValue({
-          callGasLimit: 123,
-          preVerificationGas: 456,
-          verificationGasLimit: 789,
-          verificationGas: 789,
-        });
-
-        smartContractAccount.prepareUserOperation.mockResolvedValue({
-          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
-          gas: undefined,
-        });
-
-        const { hash } = await controller.addUserOperation(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
-        );
-
-        await hash();
-
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
-          expect.objectContaining({
-            // Estimated values multiplied by gas buffer and converted to hexadecimal.
-            callGasLimit: '0xb8',
-            preVerificationGas: '0x2ac',
-            verificationGasLimit: '0x49f',
-          }),
-          ENTRYPOINT,
-        );
-      });
-
-      it('if estimates are hexadecimal strings', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
-
-        bundlerMock.estimateUserOperationGas.mockResolvedValue({
-          callGasLimit: '0x7B',
-          preVerificationGas: '0x1C8',
-          verificationGasLimit: '0x315',
-          verificationGas: '0x315',
-        });
-
-        smartContractAccount.prepareUserOperation.mockResolvedValue({
-          ...PREPARE_USER_OPERATION_RESPONSE_MOCK,
-          gas: undefined,
-        });
-
-        const { hash } = await controller.addUserOperation(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
-        );
-
-        await hash();
-
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledTimes(1);
-        expect(bundlerMock.sendUserOperation).toHaveBeenCalledWith(
-          expect.objectContaining({
-            // Estimated values multiplied by gas buffer and converted to hexadecimal.
-            callGasLimit: '0xb8',
-            preVerificationGas: '0x2ac',
-            verificationGasLimit: '0x49f',
-          }),
-          ENTRYPOINT,
-        );
-      });
-    });
-
     it('marks user operation as failed if error', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const error = new Error(ERROR_MESSAGE_MOCK);
       (error as unknown as Record<string, unknown>).code = ERROR_CODE_MOCK;
@@ -615,9 +493,7 @@ describe('UserOperationController', () => {
 
     // eslint-disable-next-line jest/expect-expect
     it('does not throw if hash function not invoked', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       bundlerMock.sendUserOperation.mockRejectedValue(
         new Error(ERROR_MESSAGE_MOCK),
@@ -632,9 +508,7 @@ describe('UserOperationController', () => {
     });
 
     it('validates responses from account', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { hash } = await addUserOperation(
         controller,
@@ -664,9 +538,7 @@ describe('UserOperationController', () => {
     });
 
     it('optionally waits for confirmation', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { transactionHash } = await addUserOperation(
         controller,
@@ -691,9 +563,7 @@ describe('UserOperationController', () => {
     });
 
     it('throws if submission failure while waiting for confirmation', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { transactionHash } = await addUserOperation(
         controller,
@@ -709,9 +579,7 @@ describe('UserOperationController', () => {
     });
 
     it('throws if confirmation failure while waiting for confirmation', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { transactionHash } = await addUserOperation(
         controller,
@@ -735,9 +603,7 @@ describe('UserOperationController', () => {
     });
 
     it('requests approval if not explicitly disabled', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { hash, id } = await addUserOperation(
         controller,
@@ -764,9 +630,7 @@ describe('UserOperationController', () => {
     });
 
     it('does not request approval if disabled', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { hash } = await addUserOperation(
         controller,
@@ -784,9 +648,7 @@ describe('UserOperationController', () => {
     });
 
     it('invokes result callbacks if submit successful', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const { hash } = await addUserOperation(
         controller,
@@ -804,9 +666,7 @@ describe('UserOperationController', () => {
     });
 
     it('invokes result callbacks if error while submitting', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       const errorMock = new Error(ERROR_MESSAGE_MOCK);
 
@@ -826,9 +686,7 @@ describe('UserOperationController', () => {
 
     describe('if approval request resolved with updated transaction', () => {
       it('updates gas fees without regeneration if paymaster data not set', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -872,9 +730,7 @@ describe('UserOperationController', () => {
       });
 
       it('regenerates if gas fees updated and paymaster data set', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -920,9 +776,7 @@ describe('UserOperationController', () => {
       });
 
       it('regenerates if data updated', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -958,9 +812,7 @@ describe('UserOperationController', () => {
       });
 
       it('regenerates if value updated', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -996,9 +848,7 @@ describe('UserOperationController', () => {
       });
 
       it('does not regenerate if original data is undefined and updated data is empty', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -1031,9 +881,7 @@ describe('UserOperationController', () => {
       });
 
       it('does not regenerate if original data is empty and updated data is undefined', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -1066,9 +914,7 @@ describe('UserOperationController', () => {
       });
 
       it('does not regenerate if original value is undefined and updated value is zero', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -1101,9 +947,7 @@ describe('UserOperationController', () => {
       });
 
       it('does not regenerate if original value is zero and updated value is undefined', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         approvalControllerAddRequestMock.mockResolvedValue({
           value: {
@@ -1138,9 +982,7 @@ describe('UserOperationController', () => {
 
     if (method === 'addUserOperation') {
       it('validates arguments', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         await addUserOperation(controller, ADD_USER_OPERATION_REQUEST_MOCK, {
           ...ADD_USER_OPERATION_OPTIONS_MOCK,
@@ -1162,9 +1004,7 @@ describe('UserOperationController', () => {
 
     if (method === 'addUserOperationFromTransaction') {
       it('sets data as undefined if empty string', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         await addUserOperation(
           controller,
@@ -1174,6 +1014,8 @@ describe('UserOperationController', () => {
             smartContractAccount,
           },
         );
+
+        await flushPromises();
 
         expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
           1,
@@ -1186,9 +1028,7 @@ describe('UserOperationController', () => {
       });
 
       it('sets transaction type in metadata', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         const { id } = await addUserOperation(
           controller,
@@ -1198,6 +1038,8 @@ describe('UserOperationController', () => {
             smartContractAccount,
           },
         );
+
+        await flushPromises();
 
         expect(controller.state.userOperations[id].transactionType).toBe(
           TransactionType.simpleSend,
@@ -1214,9 +1056,7 @@ describe('UserOperationController', () => {
 
   describe('startPollingByNetworkClientId', () => {
     it('starts polling in PendingUserOperationTracker', async () => {
-      const controller = new UserOperationController({
-        messenger,
-      });
+      const controller = new UserOperationController(optionsMock);
 
       controller.startPollingByNetworkClientId(NETWORK_CLIENT_ID_MOCK);
 
@@ -1234,9 +1074,7 @@ describe('UserOperationController', () => {
       it('bubbles event', async () => {
         const listener = jest.fn();
 
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         controller.hub.on('user-operation-confirmed', listener);
 
@@ -1252,9 +1090,7 @@ describe('UserOperationController', () => {
       it('emits id confirmed event', async () => {
         const listener = jest.fn();
 
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         controller.hub.on(
           `${USER_OPERATION_METADATA_MOCK.id}:confirmed`,
@@ -1276,9 +1112,7 @@ describe('UserOperationController', () => {
         const listener = jest.fn();
         const errorMock = new Error(ERROR_MESSAGE_MOCK);
 
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         controller.hub.on('user-operation-failed', listener);
 
@@ -1299,9 +1133,7 @@ describe('UserOperationController', () => {
         const listener = jest.fn();
         const errorMock = new Error(ERROR_MESSAGE_MOCK);
 
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         controller.hub.on(
           `${USER_OPERATION_METADATA_MOCK.id}:failed`,
@@ -1324,9 +1156,7 @@ describe('UserOperationController', () => {
 
     describe('on user operation updated', () => {
       it('updates state', async () => {
-        const controller = new UserOperationController({
-          messenger,
-        });
+        const controller = new UserOperationController(optionsMock);
 
         controller.state.userOperations = {
           [USER_OPERATION_METADATA_MOCK.id]: {

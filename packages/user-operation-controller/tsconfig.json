@@ -11,6 +11,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../gas-fee-controller"
+    },
+    {
       "path": "../network-controller"
     },
     {
