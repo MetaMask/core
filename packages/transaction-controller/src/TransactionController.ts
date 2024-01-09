@@ -676,7 +676,7 @@ export class TransactionController extends BaseControllerV1<
     // NOTE(JL): we're not ready to drop globally selected ethQuery yet.
     // Some calls to getEthQuery only have access to optional networkClientId
     // throw new Error('failed to get eth query instance');
-    return this.ethQuery
+    return this.ethQuery;
   }
 
   /**

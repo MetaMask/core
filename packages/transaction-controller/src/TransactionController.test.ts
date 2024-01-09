@@ -568,7 +568,7 @@ describe('TransactionController', () => {
           case 'global':
             return {
               configuration: {
-                chainId: finalNetwork.state.providerConfig.chainId
+                chainId: finalNetwork.state.providerConfig.chainId,
               },
               blockTracker: finalNetwork.blockTracker,
               provider: finalNetwork.provider,
@@ -584,8 +584,8 @@ describe('TransactionController', () => {
         if (chainId !== finalNetwork.state.providerConfig.chainId) {
           throw new Error("Couldn't find networkClientId for chainId");
         }
-        return 'global'
-      })
+        return 'global';
+      });
 
     return new TransactionController(
       {
