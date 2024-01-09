@@ -169,6 +169,40 @@ export class RestrictedControllerMessenger<
   }
 
   /**
+   * Register a function for getting the initial payload for an event.
+   *
+   * This is used for events that represent a state change, where the payload is the state.
+   * Registering a function for getting the payload allows event selectors to have a point of
+   * comparison the first time state changes.
+   *
+   * The event type *must* be in the current namespace
+   *
+   * @param args - The arguments to this function
+   * @param args.eventType - The event type to register a payload for.
+   * @param args.getPayload - A function for retrieving the event payload.
+   */
+  registerInitialEventPayload<
+    EventType extends Event['type'] & NamespacedName<Namespace>,
+  >({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(eventType)) {
+      throw new Error(
+        `Only allowed publishing events prefixed by '${this.#controllerName}:'`,
+      );
+    }
+    this.#controllerMessenger.registerInitialEventPayload({
+      eventType,
+      getPayload,
+    });
+  }
+
+  /**
    * Publish an event.
    *
    * Publishes the given payload to all subscribers of the given event type.
