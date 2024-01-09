@@ -533,8 +533,10 @@ export class TransactionController extends BaseControllerV1<
       // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
       provider,
       blockTracker,
-      getPendingTransactions:
-        this.getNonceTrackerPendingTransactions.bind(this),
+      getPendingTransactions: this.getNonceTrackerPendingTransactions.bind(
+        this,
+        undefined,
+      ),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
         TransactionStatus.confirmed,
@@ -1169,8 +1171,10 @@ export class TransactionController extends BaseControllerV1<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       provider: networkClient.provider as any,
       blockTracker: networkClient.blockTracker,
-      getPendingTransactions:
-        this.getNonceTrackerPendingTransactions.bind(this),
+      getPendingTransactions: this.getNonceTrackerPendingTransactions.bind(
+        this,
+        chainId,
+      ),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
         TransactionStatus.confirmed,
@@ -2846,8 +2850,8 @@ export class TransactionController extends BaseControllerV1<
   }
 
   private getNonceTrackerPendingTransactions(
+    chainId: string | undefined,
     address: string,
-    chainId?: string,
   ) {
     const standardPendingTransactions = this.getNonceTrackerTransactions(
       TransactionStatus.submitted,
