@@ -578,8 +578,32 @@ describe('TransactionController', () => {
               blockTracker: finalNetwork.blockTracker,
               provider: finalNetwork.provider,
             };
+          case 'sepolia':
+            return {
+              configuration: {
+                chainId: SEPOLIA.chainId,
+              },
+              blockTracker: buildMockBlockTracker('0x1'),
+              provider: MAINNET_PROVIDER,
+            };
+          case 'goerli':
+            return {
+              configuration: {
+                chainId: GOERLI.chainId,
+              },
+              blockTracker: buildMockBlockTracker('0x1'),
+              provider: MAINNET_PROVIDER,
+            };
+          case 'customNetworkClientId-1':
+            return {
+              configuration: {
+                chainId: '0xa',
+              },
+              blockTracker: buildMockBlockTracker('0x1'),
+              provider: MAINNET_PROVIDER,
+            };
           default:
-            throw new Error('Invalid network client id');
+            throw new Error(`Invalid network client id ${networkClientId}`);
         }
       });
 
@@ -593,30 +617,6 @@ describe('TransactionController', () => {
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
-        getNetworkClientById: (networkClientId) => {
-          switch (networkClientId) {
-            case 'sepolia':
-              return {
-                configuration: {
-                  chainId: SEPOLIA.chainId,
-                },
-              };
-            case 'goerli':
-              return {
-                configuration: {
-                  chainId: GOERLI.chainId,
-                },
-              };
-            case 'customNetworkClientId-1':
-              return {
-                configuration: {
-                  chainId: '0xa',
-                },
-              };
-            default:
-              throw new Error('Invalid network client id');
-          }
-        },
         getNetworkClientRegistry: () => ({
           sepolia: {
             configuration: {
@@ -776,7 +776,8 @@ describe('TransactionController', () => {
             ACCOUNT_MOCK,
           );
 
-        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
+        // gets called in constructor now
+        expect(nonceTrackerMock).toHaveBeenCalledTimes(4);
         expect(pendingTransactions).toStrictEqual([
           expect.any(Object),
           ...externalPendingTransactions,
