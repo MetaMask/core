@@ -1,4 +1,8 @@
-import { FALLBACK_VARIATION, NameController } from './NameController';
+import {
+  FALLBACK_VARIATION,
+  NameController,
+  PROPOSED_NAME_EXPIRE_DURATION,
+} from './NameController';
 import type { NameProvider } from './types';
 import { NameType } from './types';
 
@@ -513,6 +517,245 @@ describe('NameController', () => {
   });
 
   describe('updateProposedNames', () => {
+    it('does remove entries if all proposed names are expired', async () => {
+      const provider1 = createMockProvider(1);
+      const provider2 = createMockProvider(2);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1, provider2],
+      });
+
+      controller.state.names = {
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+                [`${SOURCE_ID_MOCK}2`]: {
+                  proposedNames: ['AnotherExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 2,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await controller.updateProposedNames({
+        value: 'another value',
+        type: NameType.ETHEREUM_ADDRESS,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(
+        controller.state.names[NameType.ETHEREUM_ADDRESS][VALUE_MOCK][
+          CHAIN_ID_MOCK
+        ],
+      ).toBeUndefined();
+    });
+
+    it('does remove entries if all proposed names are expired then updates entry with new proposed names', async () => {
+      const provider1 = createMockProvider(1);
+      const provider2 = createMockProvider(2);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1, provider2],
+      });
+
+      controller.state.names = {
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+                [`${SOURCE_ID_MOCK}2`]: {
+                  proposedNames: ['AnotherExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 2,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await controller.updateProposedNames({
+        value: VALUE_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names).toStrictEqual({
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: [
+                    `${PROPOSED_NAME_MOCK}1`,
+                    `${PROPOSED_NAME_MOCK}1_2`,
+                  ],
+                  lastRequestTime: TIME_MOCK,
+                  updateDelay: null,
+                },
+                [`${SOURCE_ID_MOCK}2`]: {
+                  proposedNames: [
+                    `${PROPOSED_NAME_MOCK}2`,
+                    `${PROPOSED_NAME_MOCK}2_2`,
+                  ],
+                  lastRequestTime: TIME_MOCK,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('does not remove entries if any of them are not expired', async () => {
+      const provider1 = createMockProvider(1);
+      const provider2 = createMockProvider(2);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1, provider2],
+      });
+
+      // Set up state with two entries, one expired and one not expired
+      controller.state.names = {
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+                [`${SOURCE_ID_MOCK}2`]: {
+                  proposedNames: ['NotExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION + 1,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await controller.updateProposedNames({
+        value: 'another value',
+        type: NameType.ETHEREUM_ADDRESS,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names[NameType.ETHEREUM_ADDRESS]).toStrictEqual(
+        expect.objectContaining({
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+                [`${SOURCE_ID_MOCK}2`]: {
+                  proposedNames: ['NotExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION + 1,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        }),
+      );
+    });
+
+    it('does not remove entries if name is defined', async () => {
+      const provider1 = createMockProvider(1);
+      const provider2 = createMockProvider(2);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1, provider2],
+      });
+
+      // Set up state with two entries, one expired and one not expired
+      controller.state.names = {
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: 'A defined name',
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await controller.updateProposedNames({
+        value: 'another value',
+        type: NameType.ETHEREUM_ADDRESS,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names[NameType.ETHEREUM_ADDRESS]).toStrictEqual(
+        expect.objectContaining({
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: 'A defined name',
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        }),
+      );
+    });
+
     it.each([
       ['', (controller: NameController) => controller.state.names],
       [' and no existing type state', () => ({})],

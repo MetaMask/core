@@ -14,6 +14,7 @@ import type {
 import { NameType } from './types';
 
 export const FALLBACK_VARIATION = '*';
+export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 const DEFAULT_VARIATION = '';
 
@@ -176,6 +177,7 @@ export class NameController extends BaseController<
     request: UpdateProposedNamesRequest,
   ): Promise<UpdateProposedNamesResult> {
     this.#validateUpdateProposedNamesRequest(request);
+    this.#cleanupExpiredEntries();
 
     const providerResponses = (
       await Promise.all(
@@ -611,5 +613,35 @@ export class NameController extends BaseController<
     for (const dormantSourceId of dormantSourceIds) {
       delete proposedNames[dormantSourceId];
     }
+  }
+
+  #cleanupExpiredEntries(): void {
+    const currentTime = this.#getCurrentTimeSeconds();
+
+    this.update((state: NameControllerState) => {
+      for (const type of Object.keys(state.names)) {
+        const nameType = type as NameType;
+        for (const value of Object.keys(state.names[nameType])) {
+          for (const variation of Object.keys(state.names[nameType][value])) {
+            const entry = state.names[nameType][value][variation];
+
+            if (entry.name !== null) {
+              continue;
+            }
+
+            const proposedNames = Object.values(entry.proposedNames);
+            const allProposedNamesExpired = proposedNames.every(
+              (proposedName: ProposedNamesEntry) =>
+                currentTime - (proposedName.lastRequestTime ?? 0) >
+                PROPOSED_NAME_EXPIRE_DURATION,
+            );
+
+            if (allProposedNamesExpired) {
+              delete state.names[nameType][value][variation];
+            }
+          }
+        }
+      }
+    });
   }
 }
