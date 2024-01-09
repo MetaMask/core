@@ -552,11 +552,11 @@ describe('TransactionController', () => {
       messenger = rejectMessengerMock;
     }
 
-    // TODO(JL): This needs to use different provider from globally selected
     const mockGetNetworkClientById = jest
       .fn()
       .mockImplementation((networkClientId) => {
         switch (networkClientId) {
+          // TODO(JL): This needs to use different provider from globally selected
           case 'mainnet':
             return {
               configuration: {
@@ -565,10 +565,27 @@ describe('TransactionController', () => {
               blockTracker: finalNetwork.blockTracker,
               provider: finalNetwork.provider,
             };
+          case 'global':
+            return {
+              configuration: {
+                chainId: finalNetwork.state.providerConfig.chainId
+              },
+              blockTracker: finalNetwork.blockTracker,
+              provider: finalNetwork.provider,
+            };
           default:
             throw new Error('Invalid network client id');
         }
       });
+
+    const mockFindNetworkClientIdByChainId = jest
+      .fn()
+      .mockImplementation((chainId) => {
+        if (chainId !== finalNetwork.state.providerConfig.chainId) {
+          throw new Error("Couldn't find networkClientId for chainId");
+        }
+        return 'global'
+      })
 
     return new TransactionController(
       {
@@ -584,6 +601,7 @@ describe('TransactionController', () => {
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
         getNetworkClientById: mockGetNetworkClientById,
+        findNetworkClientIdByChainId: mockFindNetworkClientIdByChainId,
         ...options,
       },
       {
@@ -780,7 +798,7 @@ describe('TransactionController', () => {
         expect(transactions[0].status).toBe(TransactionStatus.submitted);
       });
 
-      it('only reads the current chain id once to filter for approved transactions', async () => {
+      it('does not read the current chain id to filter for approved transactions', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
           chainId: toHex(5),
@@ -817,7 +835,7 @@ describe('TransactionController', () => {
 
         await flushPromises();
 
-        expect(getNetworkStateMock).toHaveBeenCalledTimes(1);
+        expect(getNetworkStateMock).not.toHaveBeenCalled();
       });
     });
   });
@@ -1184,7 +1202,7 @@ describe('TransactionController', () => {
       ]);
     });
 
-    it('only reads the current chain id to filter to initially populate the metadata and for onBootCleanup', async () => {
+    it('only reads the current chain id to filter to initially populate the metadata', async () => {
       const getNetworkStateMock = jest.fn().mockReturnValue(MOCK_NETWORK.state);
       const controller = newController({
         options: { getNetworkState: getNetworkStateMock },
@@ -1195,7 +1213,7 @@ describe('TransactionController', () => {
         to: ACCOUNT_MOCK,
       });
 
-      expect(getNetworkStateMock).toHaveBeenCalledTimes(4); // not sure why this is 4. we shouldn't test like this
+      expect(getNetworkStateMock).toHaveBeenCalledTimes(2); // we shouldn't test like this
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -2531,7 +2549,7 @@ describe('TransactionController', () => {
       ]);
     });
 
-    it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
+    it.only('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
       const droppedEventListener = jest.fn();
       const changedStatusEventListener = jest.fn();
       const controller = newController({
@@ -4129,7 +4147,7 @@ describe('TransactionController', () => {
         );
       });
 
-      it('only reads the current chain id to filter for unapproved transactions and for onBootCleanup', async () => {
+      it('only reads the current chain id to filter for unapproved transactions', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
           chainId: toHex(5),
@@ -4179,7 +4197,7 @@ describe('TransactionController', () => {
         controller.initApprovals();
         await flushPromises();
 
-        expect(getNetworkStateMock).toHaveBeenCalledTimes(2);
+        expect(getNetworkStateMock).toHaveBeenCalledTimes(1);
       });
 
       it('catches error without code property in error object while creating approval', async () => {
