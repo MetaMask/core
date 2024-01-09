@@ -66,7 +66,7 @@ describe('PendingTransactionTracker', () => {
   const queryMock = jest.mocked(query);
   let blockTracker: jest.Mocked<BlockTracker>;
   let failTransaction: jest.Mock;
-  let onStateChange: jest.Mock;
+  let pendingTransactionTracker: PendingTransactionTracker
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let options: any;
@@ -79,7 +79,8 @@ describe('PendingTransactionTracker', () => {
       { ...TRANSACTION_SUBMITTED_MOCK },
     ]);
 
-    onStateChange.mock.calls[0][0]();
+
+    pendingTransactionTracker.onStateChange()
 
     if (transactionsOnCheck) {
       options.getTransactions.mockReturnValue(transactionsOnCheck);
@@ -93,7 +94,6 @@ describe('PendingTransactionTracker', () => {
 
     blockTracker = createBlockTrackerMock();
     failTransaction = jest.fn();
-    onStateChange = jest.fn();
 
     options = {
       approveTransaction: jest.fn(),
@@ -103,18 +103,17 @@ describe('PendingTransactionTracker', () => {
       getEthQuery: () => ETH_QUERY_MOCK,
       getTransactions: jest.fn(),
       nonceTracker: createNonceTrackerMock(),
-      onStateChange,
       publishTransaction: jest.fn(),
     };
   });
 
   describe('on state change', () => {
     it('adds block tracker listener if pending transactions', () => {
-      new PendingTransactionTracker(options);
+      pendingTransactionTracker = new PendingTransactionTracker(options);
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      options.onStateChange.mock.calls[0][0]();
+      pendingTransactionTracker.onStateChange()
 
       expect(blockTracker.on).toHaveBeenCalledTimes(1);
       expect(blockTracker.on).toHaveBeenCalledWith(
@@ -124,29 +123,29 @@ describe('PendingTransactionTracker', () => {
     });
 
     it('does nothing if block tracker listener already added', () => {
-      new PendingTransactionTracker(options);
+      pendingTransactionTracker = new PendingTransactionTracker(options);
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      onStateChange.mock.calls[0][0]();
-      onStateChange.mock.calls[0][0]();
+      pendingTransactionTracker.onStateChange()
+      pendingTransactionTracker.onStateChange()
 
       expect(blockTracker.on).toHaveBeenCalledTimes(1);
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
     });
 
     it('removes block tracker listener if no pending transactions and running', () => {
-      new PendingTransactionTracker(options);
+      pendingTransactionTracker = new PendingTransactionTracker(options);
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      onStateChange.mock.calls[0][0]();
+      pendingTransactionTracker.onStateChange()
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
 
       options.getTransactions.mockReturnValue([]);
 
-      onStateChange.mock.calls[0][0]();
+      pendingTransactionTracker.onStateChange()
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
       expect(blockTracker.removeListener).toHaveBeenCalledWith(
@@ -156,21 +155,21 @@ describe('PendingTransactionTracker', () => {
     });
 
     it('does nothing if block tracker listener already removed', () => {
-      new PendingTransactionTracker(options);
+      pendingTransactionTracker = new PendingTransactionTracker(options);
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      onStateChange.mock.calls[0][0]();
+      pendingTransactionTracker.onStateChange()
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
 
       options.getTransactions.mockReturnValue([]);
 
-      onStateChange.mock.calls[0][0]();
+      pendingTransactionTracker.onStateChange()
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
 
-      onStateChange.mock.calls[0][0]();
+      pendingTransactionTracker.onStateChange();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
     });
@@ -182,12 +181,12 @@ describe('PendingTransactionTracker', () => {
         it('if no pending transactions', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker(options);
+          pendingTransactionTracker = new PendingTransactionTracker(options);
 
-          tracker.hub.addListener('transaction-dropped', listener);
-          tracker.hub.addListener('transaction-failed', listener);
-          tracker.hub.addListener('transaction-confirmed', listener);
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           await onLatestBlock(undefined, [
             {
@@ -214,16 +213,16 @@ describe('PendingTransactionTracker', () => {
         it('if no receipt', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-dropped', listener);
-          tracker.hub.addListener('transaction-failed', listener);
-          tracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -236,16 +235,16 @@ describe('PendingTransactionTracker', () => {
         it('if receipt has no status', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-dropped', listener);
-          tracker.hub.addListener('transaction-failed', listener);
-          tracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
 
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: null });
           queryMock.mockResolvedValueOnce('0x1');
@@ -258,16 +257,16 @@ describe('PendingTransactionTracker', () => {
         it('if receipt has invalid status', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-dropped', listener);
-          tracker.hub.addListener('transaction-failed', listener);
-          tracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
 
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: '0x3' });
           queryMock.mockResolvedValueOnce('0x1');
@@ -287,14 +286,14 @@ describe('PendingTransactionTracker', () => {
             hash: undefined,
           };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transactionMetaMock],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
 
           await onLatestBlock();
 
@@ -315,7 +314,7 @@ describe('PendingTransactionTracker', () => {
             hash: undefined,
           };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transactionMetaMock],
             hooks: {
@@ -326,7 +325,7 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
 
           await onLatestBlock();
 
@@ -336,14 +335,14 @@ describe('PendingTransactionTracker', () => {
         it('if receipt has error status', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-failed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-failed', listener);
 
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: '0x0' });
 
@@ -371,7 +370,7 @@ describe('PendingTransactionTracker', () => {
             ...TRANSACTION_SUBMITTED_MOCK,
           };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [
               confirmedTransactionMetaMock,
@@ -381,7 +380,7 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
 
           await onLatestBlock();
 
@@ -392,14 +391,14 @@ describe('PendingTransactionTracker', () => {
         it('if nonce exceeded for 3 subsequent blocks', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
 
           for (let i = 0; i < 4; i++) {
             expect(listener).toHaveBeenCalledTimes(0);
@@ -428,7 +427,7 @@ describe('PendingTransactionTracker', () => {
             ...TRANSACTION_SUBMITTED_MOCK,
           };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [
               confirmedTransactionMetaMock,
@@ -438,7 +437,7 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-dropped', listener);
+          pendingTransactionTracker.hub.addListener('transaction-dropped', listener);
 
           await onLatestBlock();
 
@@ -450,14 +449,14 @@ describe('PendingTransactionTracker', () => {
         it('if receipt has success status', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-confirmed', listener);
+          pendingTransactionTracker.hub.addListener('transaction-confirmed', listener);
 
           queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -480,14 +479,14 @@ describe('PendingTransactionTracker', () => {
         it('if receipt has success status', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -512,14 +511,14 @@ describe('PendingTransactionTracker', () => {
           const listener = jest.fn();
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           queryMock.mockRejectedValueOnce(new Error('TestError'));
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -545,7 +544,7 @@ describe('PendingTransactionTracker', () => {
     describe('resubmits', () => {
       describe('does nothing', () => {
         it('if no pending transactions', async () => {
-          new PendingTransactionTracker(options);
+          pendingTransactionTracker =new PendingTransactionTracker(options);
 
           await onLatestBlock(undefined, []);
 
@@ -558,14 +557,14 @@ describe('PendingTransactionTracker', () => {
         it('if first retry check', async () => {
           const listener = jest.fn();
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -586,14 +585,14 @@ describe('PendingTransactionTracker', () => {
           const listener = jest.fn();
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -618,7 +617,7 @@ describe('PendingTransactionTracker', () => {
             ...TRANSACTION_SUBMITTED_MOCK,
           };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             hooks: {
@@ -629,7 +628,7 @@ describe('PendingTransactionTracker', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
@@ -652,14 +651,14 @@ describe('PendingTransactionTracker', () => {
           const listener = jest.fn();
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -690,14 +689,14 @@ describe('PendingTransactionTracker', () => {
           const listener = jest.fn();
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
 
-          const tracker = new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
 
-          tracker.hub.addListener('transaction-updated', listener);
+          pendingTransactionTracker.hub.addListener('transaction-updated', listener);
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
@@ -721,7 +720,7 @@ describe('PendingTransactionTracker', () => {
         it('if latest block number increased', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
 
-          new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             // TODO: Replace `any` with type
@@ -744,7 +743,7 @@ describe('PendingTransactionTracker', () => {
         it('if latest block number matches retry count exponential delay', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
 
-          new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             // TODO: Replace `any` with type
@@ -779,7 +778,7 @@ describe('PendingTransactionTracker', () => {
         it('unless resubmit disabled', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
 
-          new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             isResubmitEnabled: false,
@@ -804,7 +803,7 @@ describe('PendingTransactionTracker', () => {
             rawTx: undefined,
           };
 
-          new PendingTransactionTracker({
+          pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
             getTransactions: () => [transaction],
             // TODO: Replace `any` with type
