@@ -643,7 +643,6 @@ describe('NameController', () => {
         providers: [provider1, provider2],
       });
 
-      // Set up state with two entries, one expired and one not expired
       controller.state.names = {
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
@@ -710,7 +709,6 @@ describe('NameController', () => {
         providers: [provider1, provider2],
       });
 
-      // Set up state with two entries, one expired and one not expired
       controller.state.names = {
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
