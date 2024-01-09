@@ -2096,25 +2096,18 @@ export class TransactionController extends BaseControllerV1<
     });
   }
 
-  private getCurrentChainTransactionsByStatus(status: TransactionStatus) {
-    const chainId = this.getChainId(); // TODO remove this filter
-    return this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === status && transaction.chainId === chainId,
-    );
-  }
-
   private onBootCleanup() {
     this.submitApprovedTransactions();
   }
 
   /**
-   * Force to submit approved transactions on current chain.
+   * Force submit approved transactions for all chains.
    */
   private submitApprovedTransactions() {
-    const approvedTransactions = this.getCurrentChainTransactionsByStatus(
-      TransactionStatus.approved,
+    const approvedTransactions = this.state.transactions.filter(
+      (transaction) => transaction.status === TransactionStatus.approved,
     );
+
     for (const transactionMeta of approvedTransactions) {
       if (this.beforeApproveOnInit(transactionMeta)) {
         this.approveTransaction(transactionMeta.id).catch((error) => {
