@@ -72,7 +72,7 @@ describe('TokenBalancesController', () => {
     expect(mock.calledTwice).toBe(true);
   });
 
-  it('should not update rates if disabled', async () => {
+  it('should not update banlances if disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const tokenBalances = new TokenBalancesController({
       disabled: true,
@@ -87,6 +87,73 @@ describe('TokenBalancesController', () => {
     await tokenBalances.updateBalances();
 
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
+  });
+
+  it('should update banlances if controller is manually enabled', async () => {
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const tokenBalances = new TokenBalancesController({
+      disabled: true,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      interval: 10,
+      onTokensStateChange: sinon.stub(),
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+      messenger: getMessenger(),
+    });
+
+    await tokenBalances.updateBalances();
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({});
+
+    tokenBalances.enable();
+    await tokenBalances.updateBalances();
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+    });
+  });
+
+  it('should not update banlances if controller is manually disabled', async () => {
+    const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const tokenBalances = new TokenBalancesController({
+      disabled: false,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      interval: 10,
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+      onTokensStateChange: (listener) => {
+        tokensStateChangeListeners.push(listener);
+      },
+      messenger: getMessenger(),
+    });
+    const triggerTokensStateChange = (state: TokensState) => {
+      for (const listener of tokensStateChangeListeners) {
+        listener(state);
+      }
+    };
+
+    await tokenBalances.updateBalances();
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+    });
+
+    tokenBalances.disable();
+    triggerTokensStateChange({
+      ...getDefaultTokensState(),
+      tokens: [
+        {
+          address: '0x00',
+          symbol: 'FOO',
+          decimals: 18,
+        },
+      ],
+    });
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+    });
   });
 
   it('should clear previous interval', async () => {
