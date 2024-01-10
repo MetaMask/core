@@ -643,7 +643,7 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
-  getEthQuery({
+  #getEthQuery({
     networkClientId,
     chainId,
   }: {
@@ -761,7 +761,7 @@ export class TransactionController extends BaseControllerV1<
     );
 
     const chainId = this.getChainId(networkClientId);
-    const ethQuery = this.getEthQuery({ networkClientId, chainId });
+    const ethQuery = this.#getEthQuery({ networkClientId, chainId });
 
     const transactionType =
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
@@ -970,7 +970,7 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const ethQuery = this.getEthQuery({
+    const ethQuery = this.#getEthQuery({
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
@@ -1130,7 +1130,7 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const ethQuery = this.getEthQuery({
+    const ethQuery = this.#getEthQuery({
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
@@ -1182,6 +1182,7 @@ export class TransactionController extends BaseControllerV1<
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
+  // NOTE(JL): Should this be private?
   stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const trackers = this.trackingMap.get(networkClientId);
     if (trackers) {
@@ -1200,6 +1201,7 @@ export class TransactionController extends BaseControllerV1<
     this.trackingMap.delete(networkClientId);
   }
 
+  // NOTE(JL): Should this be private?
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
@@ -1282,7 +1284,7 @@ export class TransactionController extends BaseControllerV1<
     transaction: TransactionParams,
     networkClientId?: NetworkClientId,
   ) {
-    const ethQuery = this.getEthQuery({ networkClientId });
+    const ethQuery = this.#getEthQuery({ networkClientId });
     const { estimatedGas, simulationFails } = await estimateGas(
       transaction,
       ethQuery,
@@ -1304,7 +1306,7 @@ export class TransactionController extends BaseControllerV1<
     multiplier: number,
     networkClientId?: NetworkClientId,
   ) {
-    const ethQuery = this.getEthQuery({ networkClientId });
+    const ethQuery = this.#getEthQuery({ networkClientId });
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
       transaction,
       ethQuery,
@@ -1397,14 +1399,6 @@ export class TransactionController extends BaseControllerV1<
     this.update({
       transactions: this.trimTransactionsForState(newTransactions),
     });
-  }
-
-  startIncomingTransactionProcessing() {
-    this.incomingTransactionHelper.start();
-  }
-
-  stopIncomingTransactionProcessing() {
-    this.incomingTransactionHelper.stop();
   }
 
   /**
@@ -1665,6 +1659,7 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
+    // TODO(JL): SmartTransactionController reaches into TransactionController.nonceTracker directly. Should probably change this.
     // TODO(JL): Revisit this method. It's a bit complicated and not obvious what it achieves.
     let nonceMutexForChainId: Mutex | undefined;
     let { nonceTracker } = this;
@@ -1758,7 +1753,7 @@ export class TransactionController extends BaseControllerV1<
     const updatedTransaction = merge(transactionMeta, editableParams);
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
-      this.getEthQuery({
+      this.#getEthQuery({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       }),
@@ -2088,7 +2083,7 @@ export class TransactionController extends BaseControllerV1<
     }
 
     await updateGas({
-      ethQuery: this.getEthQuery({ networkClientId, chainId }),
+      ethQuery: this.#getEthQuery({ networkClientId, chainId }),
       chainId,
       isCustomNetwork,
       txMeta: transactionMeta,
@@ -2096,7 +2091,7 @@ export class TransactionController extends BaseControllerV1<
 
     await updateGasFees({
       eip1559: isEIP1559Compatible,
-      ethQuery: this.getEthQuery({ networkClientId, chainId }),
+      ethQuery: this.#getEthQuery({ networkClientId, chainId }),
       getSavedGasFees: this.getSavedGasFees.bind(this),
       getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
@@ -2324,7 +2319,7 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      const ethQuery = this.getEthQuery({
+      const ethQuery = this.#getEthQuery({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       });
@@ -2943,7 +2938,7 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      const ethQuery = this.getEthQuery({
+      const ethQuery = this.#getEthQuery({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       });
