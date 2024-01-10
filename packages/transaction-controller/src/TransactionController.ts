@@ -830,16 +830,44 @@ export class TransactionController extends BaseControllerV1<
     };
   }
 
-  startIncomingTransactionPolling() {
+  startIncomingTransactionPolling(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      this.trackingMap.get(networkClientId)?.incomingTransactionHelper.start();
+      return;
+    }
+
     this.incomingTransactionHelper.start();
+    for (const [, trackingMap] of this.trackingMap) {
+      trackingMap.incomingTransactionHelper.start();
+    }
   }
 
-  stopIncomingTransactionPolling() {
+  stopIncomingTransactionPolling(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      this.trackingMap.get(networkClientId)?.incomingTransactionHelper.stop();
+      return;
+    }
+
     this.incomingTransactionHelper.stop();
+    for (const [, trackingMap] of this.trackingMap) {
+      trackingMap.incomingTransactionHelper.stop();
+    }
   }
 
-  async updateIncomingTransactions() {
+  async updateIncomingTransactions(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      await this.trackingMap
+        .get(networkClientId)
+        ?.incomingTransactionHelper.update();
+      return;
+    }
+
     await this.incomingTransactionHelper.update();
+    await Promise.allSettled(
+      Array.from(this.trackingMap).map(async ([_, trackingMap]) => {
+        return await trackingMap.incomingTransactionHelper.update();
+      }),
+    );
   }
 
   /**
