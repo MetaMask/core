@@ -631,31 +631,43 @@ export class NameController extends BaseController<
     }
 
     this.update((state: NameControllerState) => {
-      for (const type of Object.keys(state.names)) {
-        const nameType = type as NameType;
-        for (const value of Object.keys(state.names[nameType])) {
-          for (const variation of Object.keys(state.names[nameType][value])) {
-            const entry = state.names[nameType][value][variation];
+      const entries = this.#getEntriesList(state);
+      for (const { nameType, value, variation, entry } of entries) {
+        if (entry.name !== null) {
+          continue;
+        }
 
-            if (entry.name !== null) {
-              continue;
-            }
+        const proposedNames = Object.values(entry.proposedNames);
+        const allProposedNamesExpired = proposedNames.every(
+          (proposedName: ProposedNamesEntry) =>
+            currentTime - (proposedName.lastRequestTime ?? 0) >=
+            PROPOSED_NAME_EXPIRE_DURATION,
+        );
 
-            const proposedNames = Object.values(entry.proposedNames);
-            const allProposedNamesExpired = proposedNames.every(
-              (proposedName: ProposedNamesEntry) =>
-                currentTime - (proposedName.lastRequestTime ?? 0) >=
-                PROPOSED_NAME_EXPIRE_DURATION,
-            );
-
-            if (allProposedNamesExpired) {
-              delete state.names[nameType][value][variation];
-            }
-          }
+        if (allProposedNamesExpired) {
+          delete state.names[nameType][value][variation];
         }
       }
 
       state.lastProposedNameCleanupTime = currentTime;
     });
+  }
+
+  #getEntriesList(state: NameControllerState): {
+    nameType: NameType;
+    value: string;
+    variation: string;
+    entry: NameEntry;
+  }[] {
+    return Object.entries(state.names).flatMap(([type, typeEntries]) =>
+      Object.entries(typeEntries).flatMap(([value, variationEntries]) =>
+        Object.entries(variationEntries).map(([variation, entry]) => ({
+          entry,
+          nameType: type as NameType,
+          value,
+          variation,
+        })),
+      ),
+    );
   }
 }
