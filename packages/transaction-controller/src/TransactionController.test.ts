@@ -717,6 +717,7 @@ describe('TransactionController', () => {
           },
         ];
 
+        // this feels like a weird thing to test here
         const pendingTransactions =
           nonceTrackerMock.mock.calls[0][0].getPendingTransactions(
             ACCOUNT_MOCK,
@@ -730,8 +731,8 @@ describe('TransactionController', () => {
         expect(getExternalPendingTransactions).toHaveBeenCalledTimes(1);
         expect(getExternalPendingTransactions).toHaveBeenCalledWith(
           ACCOUNT_MOCK,
-          // TODO(JL): This shouldn't be undefined. NonceTracker needs
-          // to be updated to call this method with the chainId.
+          // This is undefined for the base nonceTracker
+          // TODO (AD) add tests for using external pending transactions with a networkClientId once we have trackingMaps instantiated
           undefined,
         );
       });
