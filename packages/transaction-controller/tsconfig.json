@@ -8,7 +8,8 @@
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
     { "path": "../gas-fee-controller" },
-    { "path": "../network-controller" }
+    { "path": "../network-controller" },
+    { "path": "../selected-network-controller" }
   ],
   "include": ["../../types", "./src"]
 }
