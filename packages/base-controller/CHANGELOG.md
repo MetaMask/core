@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.1.0]
-### Uncategorized
-- fix(base-controller): Fix `stateChange` subscriptions with selectors ([#3702](https://github.com/MetaMask/core/pull/3702))
-- fix(base-controller): Fix selectors initial value comparison ([#3697](https://github.com/MetaMask/core/pull/3697))
+### Added
+- Add `registerInitialEventPayload` to `ControllerMessenger` and `RestrictedControllerMessenger` ([#3697](https://github.com/MetaMask/core/pull/3697))
+  - This allows registering an event payload function for an event, which has the benefit of ensuring the "subscription selector" feature works correctly the first time the event is fired after subscribing.
+
+### Fixed
+- Fix `subscribe` method selector support on first publish ([#3697](https://github.com/MetaMask/core/pull/3697))
+  - An event with a registered initial event payload function will work better with selectors, in that it will correctly compare with the initial selected state and return the previous value the first time it's published. Without this, the initial published event will always return `undefined` as the previous value.
+- Subscribers to the `stateChange` event of any `BaseControllerV2`-based controllers will now correctly handle the initial state change event ([#3702](https://github.com/MetaMask/core/pull/3702))
+  - Previously the initial state change would always result in this event firing, even for subscriptions with selectors where the selected value has not changed. Additionally, the `previousValue` returned was always set to `undefined` the first time.
+  - `BaseControllerV2` has been updated to correctly compare with the previous value even for the first state change. The returned `previousValue` is also now guaranteed to be correct even for the initial state change.
 
 ## [4.0.1]
 ### Changed
