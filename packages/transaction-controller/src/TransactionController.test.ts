@@ -2532,7 +2532,7 @@ describe('TransactionController', () => {
       ]);
     });
 
-    it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
+    it('marks local transactions with the same nonce and chainId as status dropped and defines replacedBy properties', async () => {
       const droppedEventListener = jest.fn();
       const changedStatusEventListener = jest.fn();
       const controller = newController({
@@ -2567,11 +2567,11 @@ describe('TransactionController', () => {
       };
       const externalBaseFeePerGas = '0x14';
 
-      // Local unapproved transaction
+      // Local unapproved transaction with the same chainId and nonce
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
         id: localTransactionIdWithSameNonce,
-        chainId: toHex(1),
+        chainId: toHex(5),
         status: TransactionStatus.unapproved as const,
         time: 123456789,
         txParams: {
@@ -2614,7 +2614,7 @@ describe('TransactionController', () => {
       });
     });
 
-    it('doesnt mark transaction as dropped if same nonce local transaction status is failed', async () => {
+    it('doesnt mark transaction as dropped if local transaction with same nonce and chainId has status of failed', async () => {
       const controller = newController();
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
@@ -2637,11 +2637,11 @@ describe('TransactionController', () => {
       };
       const externalBaseFeePerGas = '0x14';
 
-      // Off-chain failed local transaction
+      // Off-chain failed local transaction with the same chainId and nonce
       const localTransactionIdWithSameNonce = '9';
       controller.state.transactions.push({
         id: localTransactionIdWithSameNonce,
-        chainId: toHex(1),
+        chainId: toHex(5),
         status: TransactionStatus.failed as const,
         error: new Error('mock error'),
         time: 123456789,
