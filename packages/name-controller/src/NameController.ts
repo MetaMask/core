@@ -178,7 +178,6 @@ export class NameController extends BaseController<
     request: UpdateProposedNamesRequest,
   ): Promise<UpdateProposedNamesResult> {
     this.#validateUpdateProposedNamesRequest(request);
-    this.#cleanupExpiredEntries();
 
     const providerResponses = (
       await Promise.all(
@@ -190,6 +189,7 @@ export class NameController extends BaseController<
 
     this.#updateProposedNameState(request, providerResponses);
     this.#updateSourceState(this.#providers);
+    this.#removeExpiredEntries();
 
     return this.#getUpdateProposedNamesResult(providerResponses);
   }
@@ -616,7 +616,7 @@ export class NameController extends BaseController<
     }
   }
 
-  #cleanupExpiredEntries(): void {
+  #removeExpiredEntries(): void {
     const currentTime = this.#getCurrentTimeSeconds();
 
     this.update((state: NameControllerState) => {
