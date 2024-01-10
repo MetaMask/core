@@ -1,4 +1,5 @@
 import {
+  EXPIRED_PROPOSED_NAME_CLEANUP_INTERVAL,
   FALLBACK_VARIATION,
   NameController,
   PROPOSED_NAME_EXPIRE_DURATION,
@@ -14,6 +15,10 @@ const SOURCE_LABEL_MOCK = 'TestSourceLabel';
 const VALUE_MOCK = 'testvalue';
 const CHAIN_ID_MOCK = '0x1';
 const TIME_MOCK = 123;
+const ELAPSED_CLEANUP_TIME_MOCK =
+  TIME_MOCK - EXPIRED_PROPOSED_NAME_CLEANUP_INTERVAL - 1;
+const NOT_ELAPSED_CLEANUP_TIME_MOCK =
+  TIME_MOCK - EXPIRED_PROPOSED_NAME_CLEANUP_INTERVAL + 1;
 
 const MESSENGER_MOCK = {
   registerActionHandler: jest.fn(),
@@ -2226,6 +2231,8 @@ describe('NameController', () => {
           providers: [provider1, provider2],
         });
 
+        controller.state.lastProposedNameCleanupTime =
+          ELAPSED_CLEANUP_TIME_MOCK;
         controller.state.names = {
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
@@ -2273,6 +2280,8 @@ describe('NameController', () => {
           providers: [provider1, provider2],
         });
 
+        controller.state.lastProposedNameCleanupTime =
+          ELAPSED_CLEANUP_TIME_MOCK;
         controller.state.names = {
           [NameType.ETHEREUM_ADDRESS]: {
             [`${VALUE_MOCK}1`]: {
@@ -2370,6 +2379,8 @@ describe('NameController', () => {
           providers: [provider1, provider2],
         });
 
+        controller.state.lastProposedNameCleanupTime =
+          ELAPSED_CLEANUP_TIME_MOCK;
         controller.state.names = {
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
@@ -2436,6 +2447,8 @@ describe('NameController', () => {
           providers: [provider1, provider2],
         });
 
+        controller.state.lastProposedNameCleanupTime =
+          ELAPSED_CLEANUP_TIME_MOCK;
         controller.state.names = {
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
@@ -2480,6 +2493,62 @@ describe('NameController', () => {
           }),
         );
       });
+    });
+
+    it('skips check of expired entries if interval not elapsed', async () => {
+      const provider1 = createMockProvider(1);
+      const provider2 = createMockProvider(2);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1, provider2],
+      });
+
+      controller.state.lastProposedNameCleanupTime =
+        NOT_ELAPSED_CLEANUP_TIME_MOCK;
+      controller.state.names = {
+        [NameType.ETHEREUM_ADDRESS]: {
+          [`${VALUE_MOCK}1`]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await controller.updateProposedNames({
+        value: VALUE_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names[NameType.ETHEREUM_ADDRESS]).toStrictEqual(
+        expect.objectContaining({
+          [`${VALUE_MOCK}1`]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              proposedNames: {
+                [`${SOURCE_ID_MOCK}1`]: {
+                  proposedNames: ['ExpiredName'],
+                  lastRequestTime:
+                    TIME_MOCK - PROPOSED_NAME_EXPIRE_DURATION - 1,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        }),
+      );
     });
   });
 });

@@ -13,6 +13,7 @@ import type {
 } from './types';
 import { NameType } from './types';
 
+export const EXPIRED_PROPOSED_NAME_CLEANUP_INTERVAL = 60 * 60; // 1 hour
 export const FALLBACK_VARIATION = '*';
 export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
 
@@ -24,6 +25,7 @@ const controllerName = 'NameController';
 const stateMetadata = {
   names: { persist: true, anonymous: false },
   nameSources: { persist: true, anonymous: false },
+  lastProposedNameCleanupTime: { persist: true, anonymous: false },
 };
 
 const getDefaultState = () => ({
@@ -31,6 +33,7 @@ const getDefaultState = () => ({
     [NameType.ETHEREUM_ADDRESS]: {},
   },
   nameSources: {},
+  lastProposedNameCleanupTime: 0,
 });
 
 export type ProposedNamesEntry = {
@@ -53,6 +56,7 @@ export type NameControllerState = {
   // Type > Value > Variation > Entry
   names: Record<NameType, Record<string, Record<string, NameEntry>>>;
   nameSources: Record<string, SourceEntry>;
+  lastProposedNameCleanupTime: number;
 };
 
 export type GetNameState = ControllerGetStateAction<
@@ -619,6 +623,13 @@ export class NameController extends BaseController<
   #removeExpiredEntries(): void {
     const currentTime = this.#getCurrentTimeSeconds();
 
+    if (
+      currentTime - this.state.lastProposedNameCleanupTime <=
+      EXPIRED_PROPOSED_NAME_CLEANUP_INTERVAL
+    ) {
+      return;
+    }
+
     this.update((state: NameControllerState) => {
       for (const type of Object.keys(state.names)) {
         const nameType = type as NameType;
@@ -643,6 +654,8 @@ export class NameController extends BaseController<
           }
         }
       }
+
+      state.lastProposedNameCleanupTime = currentTime;
     });
   }
 }
