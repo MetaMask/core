@@ -761,10 +761,9 @@ describe('TransactionController', () => {
         updateGasFeesMock.mockReset();
       });
 
-      it('submits an approved transaction', async () => {
+      it('submits approved transactions on all chains', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
-          chainId: toHex(5),
           status: TransactionStatus.approved,
           txParams: {
             from: ACCOUNT_MOCK,
@@ -774,8 +773,21 @@ describe('TransactionController', () => {
         const mockedTransactions = [
           {
             id: '123',
-            ...mockTransactionMeta,
             history: [{ ...mockTransactionMeta, id: '123' }],
+            chainId: toHex(5),
+            ...mockTransactionMeta,
+          },
+          {
+            id: '456',
+            history: [{ ...mockTransactionMeta, id: '456' }],
+            chainId: toHex(1),
+            ...mockTransactionMeta,
+          },
+          {
+            id: '789',
+            history: [{ ...mockTransactionMeta, id: '789' }],
+            chainId: toHex(16),
+            ...mockTransactionMeta,
           },
         ];
 
@@ -796,46 +808,8 @@ describe('TransactionController', () => {
         const { transactions } = controller.state;
 
         expect(transactions[0].status).toBe(TransactionStatus.submitted);
-      });
-
-      it('does not read the current chain id to filter for approved transactions', async () => {
-        const mockTransactionMeta = {
-          from: ACCOUNT_MOCK,
-          chainId: toHex(5),
-          status: TransactionStatus.approved,
-          txParams: {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-        };
-        const mockedTransactions = [
-          {
-            id: '123',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '123' }],
-          },
-        ];
-
-        const mockedControllerState = {
-          transactions: mockedTransactions,
-          methodData: {},
-          lastFetchedBlockNumbers: {},
-        };
-
-        const getNetworkStateMock = jest
-          .fn()
-          .mockReturnValue(MOCK_NETWORK.state);
-
-        newController({
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          state: mockedControllerState as any,
-          options: { getNetworkState: getNetworkStateMock },
-        });
-
-        await flushPromises();
-
-        expect(getNetworkStateMock).not.toHaveBeenCalled();
+        expect(transactions[1].status).toBe(TransactionStatus.submitted);
+        expect(transactions[2].status).toBe(TransactionStatus.submitted);
       });
     });
   });
