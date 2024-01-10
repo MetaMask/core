@@ -18,7 +18,7 @@ export const FALLBACK_VARIATION = '*';
 /**
  * Enumerates the possible origins responsible for setting a petname.
  */
-export enum Origin {
+export enum NameOrigin {
   // Originated from an account identity.
   ACCOUNT_IDENTITY = 'account-identity',
   // Originated from an address book entry.
@@ -55,7 +55,7 @@ export type ProposedNamesEntry = {
 export type NameEntry = {
   name: string | null;
   sourceId: string | null;
-  origin: Origin;
+  origin: NameOrigin | null;
   proposedNames: Record<string, ProposedNamesEntry>;
 };
 
@@ -116,7 +116,7 @@ export type SetNameRequest = {
   name: string | null;
   sourceId?: string;
   variation?: string;
-  origin?: Origin;
+  origin?: NameOrigin;
 };
 
 /**
@@ -184,7 +184,7 @@ export class NameController extends BaseController<
     this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
       entry.sourceId = sourceId;
-      entry.origin = origin ?? Origin.API;
+      entry.origin = origin ?? NameOrigin.API;
     });
   }
 
@@ -448,7 +448,7 @@ export class NameController extends BaseController<
         proposedNames: {},
         name: null,
         sourceId: null,
-        origin: Origin.API,
+        origin: NameOrigin.API,
       };
       variationEntries[normalizedVariation] = entry;
 
@@ -469,7 +469,7 @@ export class NameController extends BaseController<
     this.#validateName(name, errorMessages);
     this.#validateSourceId(sourceId, type, name, errorMessages);
     this.#validateVariation(variation, type, errorMessages);
-    this.#validateOrigin(origin, errorMessages);
+    this.#validateOrigin(origin, name, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -609,15 +609,26 @@ export class NameController extends BaseController<
     }
   }
 
-  #validateOrigin(origin: Origin | null | undefined, errorMessages: string[]) {
+  #validateOrigin(
+    origin: NameOrigin | null | undefined,
+    name: string | null,
+    errorMessages: string[],
+  ) {
     if (!origin) {
       return;
     }
 
-    if (!Object.values(Origin).includes(origin)) {
+    if (name === null) {
+      errorMessages.push(
+        `Cannot specify an origin when clearing the saved name: ${origin}`,
+      );
+      return;
+    }
+
+    if (!Object.values(NameOrigin).includes(origin)) {
       errorMessages.push(
         `Must specify one of the following origins: ${Object.values(
-          Origin,
+          NameOrigin,
         ).join(', ')}`,
       );
     }

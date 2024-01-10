@@ -2,7 +2,7 @@ import type {
   SetNameRequest,
   UpdateProposedNamesRequest,
 } from './NameController';
-import { FALLBACK_VARIATION, NameController, Origin } from './NameController';
+import { FALLBACK_VARIATION, NameController, NameOrigin } from './NameController';
 import type { NameProvider } from './types';
 import { NameType } from './types';
 
@@ -92,7 +92,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {},
             },
           },
@@ -114,7 +114,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -141,7 +141,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -164,7 +164,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: SOURCE_ID_MOCK,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -190,7 +190,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -218,7 +218,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -244,7 +244,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -256,7 +256,7 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: alternateName,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {},
             },
           },
@@ -278,7 +278,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -304,7 +304,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -332,7 +332,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -359,7 +359,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -387,7 +387,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -405,7 +405,7 @@ describe('NameController', () => {
         type: NameType.ETHEREUM_ADDRESS,
         name: NAME_MOCK,
         sourceId: `${SOURCE_ID_MOCK}1`,
-        origin: Origin.ADDRESS_BOOK,
+        origin: NameOrigin.ADDRESS_BOOK,
         variation: CHAIN_ID_MOCK,
       });
 
@@ -415,7 +415,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
-              origin: Origin.ADDRESS_BOOK,
+              origin: NameOrigin.ADDRESS_BOOK,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -576,10 +576,26 @@ describe('NameController', () => {
             value: VALUE_MOCK,
             type: NameType.ETHEREUM_ADDRESS,
             name: NAME_MOCK,
-            origin: 'invalid origin' as Origin,
+            origin: 'invalid origin' as NameOrigin,
             variation: CHAIN_ID_MOCK,
           }),
         ).toThrow(/Must specify one of the following origins/u);
+      });
+
+      it('origin is set but name is being cleared', () => {
+        const controller = new NameController(CONTROLLER_ARGS_MOCK);
+
+        expect(() =>
+          controller.setName({
+            value: VALUE_MOCK,
+            type: NameType.ETHEREUM_ADDRESS,
+            name: null,
+            variation: CHAIN_ID_MOCK,
+            origin: NameOrigin.ADDRESS_BOOK,
+          }),
+        ).toThrow(
+          `Cannot specify an origin when clearing the saved name: ${NameOrigin.ADDRESS_BOOK}`,
+        );
       });
     });
   });
@@ -615,7 +631,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -675,7 +691,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldBeDeleted1'],
@@ -705,7 +721,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -764,7 +780,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}3`]: {
                   proposedNames: ['ShouldBeDeleted3'],
@@ -789,7 +805,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -844,7 +860,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [],
@@ -938,7 +954,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
@@ -973,7 +989,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
@@ -995,7 +1011,7 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1057,7 +1073,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1122,7 +1138,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1165,7 +1181,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [],
@@ -1190,7 +1206,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
-              origin: Origin.API,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1233,7 +1249,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1263,7 +1279,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1305,7 +1321,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1330,7 +1346,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1367,7 +1383,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1392,7 +1408,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1432,7 +1448,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1497,7 +1513,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1565,7 +1581,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1621,7 +1637,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeDeleted1'],
@@ -1657,7 +1673,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [`ShouldNotBeDeleted1`],
@@ -1776,7 +1792,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -1939,7 +1955,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1970,7 +1986,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2008,7 +2024,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2039,7 +2055,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2078,7 +2094,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2109,7 +2125,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2168,7 +2184,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2199,7 +2215,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2269,7 +2285,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
-                origin: Origin.API,
+                origin: NameOrigin.API,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
