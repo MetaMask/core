@@ -633,7 +633,7 @@ export class NameController extends BaseController<
             const proposedNames = Object.values(entry.proposedNames);
             const allProposedNamesExpired = proposedNames.every(
               (proposedName: ProposedNamesEntry) =>
-                currentTime - (proposedName.lastRequestTime ?? 0) >
+                currentTime - (proposedName.lastRequestTime ?? 0) >=
                 PROPOSED_NAME_EXPIRE_DURATION,
             );
 
