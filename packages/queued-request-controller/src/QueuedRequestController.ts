@@ -1,13 +1,10 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { ApprovalType } from '@metamask/controller-utils';
 import type {
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
@@ -38,6 +35,7 @@ export type QueuedRequestControllerEnqueueRequestAction = {
 };
 
 export const QueuedRequestControllerEventTypes = {
+  networkSwitched: `${controllerName}:networkSwitched` as const,
   stateChange: `${controllerName}:stateChange` as const,
 };
 
@@ -47,8 +45,14 @@ export type QueuedRequestControllerStateChangeEvent =
     QueuedRequestControllerState
   >;
 
+export type QueuedRequestControllerNetworkSwitched = {
+  type: typeof QueuedRequestControllerEventTypes.networkSwitched;
+  payload: [string];
+};
+
 export type QueuedRequestControllerEvents =
-  QueuedRequestControllerStateChangeEvent;
+  | QueuedRequestControllerStateChangeEvent
+  | QueuedRequestControllerNetworkSwitched;
 
 export type QueuedRequestControllerActions =
   | QueuedRequestControllerGetStateAction
@@ -57,9 +61,7 @@ export type QueuedRequestControllerActions =
 export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId
-  | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-  | AddApprovalRequest;
+  | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
 
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -145,7 +147,7 @@ export class QueuedRequestController extends BaseController<
 
   #registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
-      QueuedRequestControllerActionTypes.enqueueRequest,
+      `${controllerName}:enqueueRequest`,
       this.enqueueRequest.bind(this),
     );
   }
@@ -211,40 +213,13 @@ export class QueuedRequestController extends BaseController<
       return;
     }
 
-    const toNetworkConfiguration = this.messagingSystem.call(
-      'NetworkController:getNetworkConfigurationByNetworkClientId',
-      originNetworkClientId,
-    );
-    const fromNetworkConfiguration = this.messagingSystem.call(
-      'NetworkController:getNetworkConfigurationByNetworkClientId',
-      selectedNetworkClientId,
-    );
-    if (!toNetworkConfiguration) {
-      throw new Error(
-        `Missing network configuration for ${originNetworkClientId}`,
-      );
-    } else if (!fromNetworkConfiguration) {
-      throw new Error(
-        `Missing network configuration for ${selectedNetworkClientId}`,
-      );
-    }
-
-    const requestData = {
-      toNetworkConfiguration,
-      fromNetworkConfiguration,
-    };
-    await this.messagingSystem.call(
-      'ApprovalController:addRequest',
-      {
-        origin: this.#originOfCurrentBatch,
-        type: ApprovalType.SwitchEthereumChain,
-        requestData,
-      },
-      true,
-    );
-
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
+      originNetworkClientId,
+    );
+
+    this.messagingSystem.publish(
+      'QueuedRequestController:networkSwitched',
       originNetworkClientId,
     );
   }
