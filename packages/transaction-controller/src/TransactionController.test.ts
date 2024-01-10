@@ -761,7 +761,7 @@ describe('TransactionController', () => {
         updateGasFeesMock.mockReset();
       });
 
-      it('submits approved transactions on all chains', async () => {
+      it('submits approved transactions for all chains', async () => {
         const mockTransactionMeta = {
           from: ACCOUNT_MOCK,
           status: TransactionStatus.approved,
