@@ -4629,6 +4629,7 @@ describe('TransactionController', () => {
       Current tx status: ${TransactionStatus.submitted}`);
     });
   });
+
   describe('startTrackinbByNetworkClientId', () => {
     it('should start tracking in a tracking map', () => {
       const controller = newController();
