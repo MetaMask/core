@@ -861,7 +861,7 @@ export class TransactionController extends BaseControllerV1<
     }
 
     await this.incomingTransactionHelper.update();
-    Promise.allSettled(Array.from( this.trackingMap ).map(async ([_, trackingMap]) => {
+    await Promise.allSettled(Array.from( this.trackingMap ).map(async ([_, trackingMap]) => {
       return await trackingMap.incomingTransactionHelper.update()
     }))
   }
