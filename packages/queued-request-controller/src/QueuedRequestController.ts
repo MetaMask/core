@@ -11,6 +11,8 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
+import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
+import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
@@ -56,6 +58,7 @@ export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | SelectedNetworkControllerGetNetworkClientIdForDomainAction
   | AddApprovalRequest;
 
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
@@ -68,6 +71,20 @@ export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
 
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
+};
+
+/**
+ * A queued request.
+ */
+type QueuedRequest = {
+  /**
+   * The origin of the queued request.
+   */
+  origin: string;
+  /**
+   * A callback used to continue processing the request, called when the request is dequeued.
+   */
+  processRequest: (error: unknown) => void;
 };
 
 /**
@@ -87,7 +104,24 @@ export class QueuedRequestController extends BaseController<
   QueuedRequestControllerState,
   QueuedRequestControllerMessenger
 > {
-  private currentRequest: Promise<unknown> = Promise.resolve();
+  /**
+   * The origin of the current batch of requests being processed, or `undefined` if there are no
+   * requests currently being processed.
+   */
+  #originOfCurrentBatch: string | undefined;
+
+  /**
+   * The list of all queued requests, in chronological order.
+   */
+  #requestQueue: QueuedRequest[] = [];
+
+  /**
+   * The number of requests currently being processed.
+   *
+   * Note that this does not include queued requests, just those being actively processed (i.e.
+   * those in the "current batch").
+   */
+  #processingRequestCount = 0;
 
   /**
    * Constructs a QueuedRequestController, responsible for managing and processing enqueued requests sequentially.
@@ -117,26 +151,69 @@ export class QueuedRequestController extends BaseController<
   }
 
   /**
-   * Switch the current globally selected network if necessary for processing the given
-   * request.
+   * Process the next batch of requests.
    *
-   * @param request - The request currently being processed.
+   * This will trigger the next batch of requests with matching origins to be processed. Each
+   * request in the batch is dequeued one at a time, in chronological order, but they all get
+   * processed in parallel.
+   *
+   * This should be called after a batch of requests has finished processing, if the queue is non-
+   * empty.
+   */
+  async #processNextBatch() {
+    const firstRequest = this.#requestQueue.shift() as QueuedRequest;
+    this.#originOfCurrentBatch = firstRequest.origin;
+    const batch = [firstRequest.processRequest];
+    while (this.#requestQueue[0]?.origin === this.#originOfCurrentBatch) {
+      const nextEntry = this.#requestQueue.shift() as QueuedRequest;
+      batch.push(nextEntry.processRequest);
+    }
+
+    // If globally selected network is different from origin selected network,
+    // switch network before processing batch
+    let networkSwitchError: unknown;
+    try {
+      await this.#switchNetworkIfNecessary();
+    } catch (error: unknown) {
+      networkSwitchError = error;
+    }
+
+    batch.map(async (processRequest) => {
+      // These promises are handled as the return value of `#enqueueRequest`
+      // We don't need to handle them here
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      processRequest(networkSwitchError);
+    });
+    this.#updateCount();
+  }
+
+  /**
+   * Switch the globally selected network client to match the network
+   * client of the current batch.
+   *
    * @throws Throws an error if the current selected `networkClientId` or the
    * `networkClientId` on the request are invalid.
    */
-  async #switchNetworkIfNecessary(
-    request: QueuedRequestMiddlewareJsonRpcRequest,
-  ) {
+  async #switchNetworkIfNecessary() {
+    // This branch is unreachable; it's just here for type reasons.
+    /* istanbul ignore next */
+    if (!this.#originOfCurrentBatch) {
+      throw new Error('Current batch origin must be initialized first');
+    }
+    const originNetworkClientId = this.messagingSystem.call(
+      'SelectedNetworkController:getNetworkClientIdForDomain',
+      this.#originOfCurrentBatch,
+    );
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    if (request.networkClientId === selectedNetworkClientId) {
+    if (originNetworkClientId === selectedNetworkClientId) {
       return;
     }
 
     const toNetworkConfiguration = this.messagingSystem.call(
       'NetworkController:getNetworkConfigurationByNetworkClientId',
-      request.networkClientId,
+      originNetworkClientId,
     );
     const fromNetworkConfiguration = this.messagingSystem.call(
       'NetworkController:getNetworkConfigurationByNetworkClientId',
@@ -144,7 +221,7 @@ export class QueuedRequestController extends BaseController<
     );
     if (!toNetworkConfiguration) {
       throw new Error(
-        `Missing network configuration for ${request.networkClientId}`,
+        `Missing network configuration for ${originNetworkClientId}`,
       );
     } else if (!fromNetworkConfiguration) {
       throw new Error(
@@ -159,7 +236,7 @@ export class QueuedRequestController extends BaseController<
     await this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
-        origin: request.origin,
+        origin: this.#originOfCurrentBatch,
         type: ApprovalType.SwitchEthereumChain,
         requestData,
       },
@@ -168,61 +245,87 @@ export class QueuedRequestController extends BaseController<
 
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
-      request.networkClientId,
+      originNetworkClientId,
     );
   }
 
-  #updateCount(change: -1 | 1) {
+  /**
+   * Update the queued request count.
+   */
+  #updateCount() {
     this.update((state) => {
-      state.queuedRequestCount += change;
+      state.queuedRequestCount = this.#requestQueue.length;
     });
   }
 
   /**
-   * Enqueues a new request for sequential processing in the request queue. This function manages the order of
-   * requests, ensuring they are executed one after the other to prevent concurrency issues and maintain proper
-   * execution flow.
+   * Enqueue a request to be processed in a batch with other requests from the same origin.
+   *
+   * We process requests one origin at a time, so that requests from different origins do not get
+   * interwoven, and so that we can ensure that the globally selected network matches the dapp-
+   * selected network. Request are executed in exactly the same order they come in.
    *
    * @param request - The JSON-RPC request to process.
-   * @param requestNext - A function representing the next steps for processing this request. It returns a promise that
-   * resolves when the request is complete.
-   * @returns A promise that resolves when the enqueued request and any subsequent asynchronous
-   * operations are fully processed. This allows you to await the completion of the enqueued request before continuing
-   * with additional actions. If there are multiple enqueued requests, this function ensures they are processed in
-   * the order they were enqueued, guaranteeing sequential execution.
+   * @param requestNext - A function representing the next steps for processing this request.
+   * @returns A promise that resolves when the given request has been fully processed.
    */
   async enqueueRequest(
     request: QueuedRequestMiddlewareJsonRpcRequest,
     requestNext: () => Promise<void>,
-  ) {
-    this.#updateCount(1);
-    if (this.state.queuedRequestCount > 1) {
-      try {
-        await this.currentRequest;
-      } catch (_error) {
-        // error ignored - this is handled in the middleware instead
-        this.#updateCount(-1);
-      }
+  ): Promise<void> {
+    if (this.#originOfCurrentBatch === undefined) {
+      this.#originOfCurrentBatch = request.origin;
     }
 
-    const processCurrentRequest = async () => {
-      try {
-        if (
-          request.method !== 'wallet_switchEthereumChain' &&
-          request.method !== 'wallet_addEthereumChain'
-        ) {
-          await this.#switchNetworkIfNecessary(request);
-        }
+    try {
+      // Queue request for later processing
+      // Network switch is handled when this batch is processed
+      if (
+        this.state.queuedRequestCount > 0 ||
+        this.#originOfCurrentBatch !== request.origin
+      ) {
+        const {
+          promise: waitForDequeue,
+          reject,
+          resolve,
+        } = createDeferredPromise({
+          suppressUnhandledRejection: true,
+        });
+        this.#requestQueue.push({
+          origin: request.origin,
+          processRequest: (error: unknown) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve();
+            }
+          },
+        });
+        this.#updateCount();
 
+        await waitForDequeue;
+      } else {
+        // Process request immediately
+        // Requires switching network now if necessary
+        await this.#switchNetworkIfNecessary();
+      }
+      this.#processingRequestCount += 1;
+      try {
         await requestNext();
       } finally {
-        // The count is updated as part of the request processing to ensure
-        // that it has been updated before the next request is run.
-        this.#updateCount(-1);
+        this.#processingRequestCount -= 1;
       }
-    };
-
-    this.currentRequest = processCurrentRequest();
-    await this.currentRequest;
+      return undefined;
+    } finally {
+      if (this.#processingRequestCount === 0) {
+        this.#originOfCurrentBatch = undefined;
+        if (this.#requestQueue.length > 0) {
+          // The next batch is triggered here. We intentionally omit the `await` because we don't
+          // want the next batch to block resolution of the current request.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#processNextBatch();
+        }
+      }
+    }
   }
 }
