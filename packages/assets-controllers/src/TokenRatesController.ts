@@ -510,7 +510,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       Hex,
       Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
     >({
-      values: tokenAddresses,
+      values: [...tokenAddresses].sort(),
       batchSize: TOKEN_PRICES_BATCH_SIZE,
       eachBatch: async (allTokenPricesByTokenAddress, batch) => {
         const tokenPricesByTokenAddressForBatch =

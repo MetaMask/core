@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+### Added
+- Add `getDefaultTokenListState` function to `TokenListController` ([#3744](https://github.com/MetaMask/core/pull/3744))
+- Add `getDefaultNftState` function to the `NftController` ([#3742](https://github.com/MetaMask/core/pull/3742))
+- Add `getDefaultTokensState` function to the `TokensController` ([#3743](https://github.com/MetaMask/core/pull/3743))
+
+### Changed
+- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0
+- Price API perf improvements ([#3753](https://github.com/MetaMask/core/pull/3753), [#3755](https://github.com/MetaMask/core/pull/3755))
+  - Reduce token batch size from 100 to 30
+  - Sort token addresses in query params for more cache hits
+
 ## [23.1.0]
 ### Added
 - Add support to `CodefiTokenPricesServiceV2` for tracking degraded service ([#3691](https://github.com/MetaMask/core/pull/3691))
@@ -519,7 +531,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.0.0...@metamask/assets-controllers@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@22.0.0...@metamask/assets-controllers@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@21.0.0...@metamask/assets-controllers@22.0.0
