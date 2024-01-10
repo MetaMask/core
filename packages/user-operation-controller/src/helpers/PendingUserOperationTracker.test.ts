@@ -49,6 +49,7 @@ jest.mock('@metamask/controller-utils', () => ({
 function createMessengerMock() {
   return {
     call: jest.fn(),
+    registerInitialEventPayload: jest.fn(),
   } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }
 
