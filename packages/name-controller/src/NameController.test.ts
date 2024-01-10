@@ -2,7 +2,11 @@ import type {
   SetNameRequest,
   UpdateProposedNamesRequest,
 } from './NameController';
-import { FALLBACK_VARIATION, NameController, NameOrigin } from './NameController';
+import {
+  FALLBACK_VARIATION,
+  NameController,
+  NameOrigin,
+} from './NameController';
 import type { NameProvider } from './types';
 import { NameType } from './types';
 
