@@ -403,6 +403,7 @@ export class TransactionController extends BaseControllerV1<
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
    * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
+   * @param options.hub - Use a different event emitter for the hub.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    * @param options.getNetworkClientIdForDomain
@@ -433,6 +434,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkClientById,
       getNetworkClientIdForDomain,
       getNetworkClientRegistry,
+      hub,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -468,6 +470,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkClientById: NetworkController['getNetworkClientById'];
       getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
       getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
+      hub: TransactionControllerEventEmitter;
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -499,6 +502,7 @@ export class TransactionController extends BaseControllerV1<
     };
 
     this.initialize();
+    this.hub = hub ?? this.hub;
     this.getNetworkClientById = getNetworkClientById;
     this.getNetworkClientRegistry = getNetworkClientRegistry;
     this.provider = provider;
@@ -625,6 +629,8 @@ export class TransactionController extends BaseControllerV1<
       this.stopTrackingByNetworkClientId(id);
     });
 
+    this.hub.emit('tracking-map-remove', networkClientIdsToRemove);
+
     // Start tracking new NetworkClientIds from the registry
     const networkClientIdsToAdd = networkClientIds.filter(
       (id) => !existingNetworkClientIds.includes(id),
@@ -632,6 +638,7 @@ export class TransactionController extends BaseControllerV1<
     networkClientIdsToAdd.forEach((id) => {
       this.startTrackingByNetworkClientId(id);
     });
+    this.hub.emit('tracking-map-add', networkClientIdsToAdd);
   };
 
   #initTrackingMap = () => {
@@ -639,6 +646,7 @@ export class TransactionController extends BaseControllerV1<
     Object.keys(networkClients).map((id) =>
       this.startTrackingByNetworkClientId(id),
     );
+    this.hub.emit('tracking-map-init', Object.keys(networkClients));
   };
 
   #onStateChange = () => {
@@ -1222,7 +1230,14 @@ export class TransactionController extends BaseControllerV1<
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getNetworkState: this.getNetworkState, // TODO: fake this via networkClient
+      getNetworkState: () => {
+        return {
+          selectedNetworkClientId: 'mainnet',
+          networkConfigurations: {},
+          networksMetadata: {},
+          providerConfig: {} as any,
+        };
+      },
       isEnabled: () => true,
       queryEntireHistory: true,
       remoteTransactionSource: this.etherscanRemoteTransactionSource,

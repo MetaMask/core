@@ -20,6 +20,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { EventEmitter } from 'events';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -30,6 +31,7 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
   TransactionState,
+  TransactionControllerEventEmitter,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type {
@@ -4717,8 +4719,17 @@ describe('TransactionController', () => {
     });
   });
   describe('initTrackingMap', () => {
-    it('should initialize the tracking map on construction', () => {
-      const controller = newController();
+    // eslint-disable-next-line jest/no-done-callback
+    it('should initialize the tracking map on construction', (done) => {
+      const hub = new EventEmitter() as TransactionControllerEventEmitter;
+      hub.on('tracking-map-init', () => {
+        done();
+      });
+      const controller = newController({
+        options: {
+          hub,
+        },
+      });
       expect(controller).toBeDefined();
     });
     it('should handle changes in networkController registry', () => {
