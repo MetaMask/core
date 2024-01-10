@@ -1,5 +1,7 @@
 import {
   type RestrictedControllerMessenger,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
   BaseController,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
@@ -55,19 +57,36 @@ export type TokenBalancesControllerState = {
   contractBalances: ContractBalances;
 };
 
+export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  TokenBalancesControllerState
+>;
+
+export type TokenBalancesControllerActions =
+  TokenBalancesControllerGetStateAction;
+
+export type TokenBalancesControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    TokenBalancesControllerState
+  >;
+
+export type TokenBalancesControllerEvents =
+  TokenBalancesControllerStateChangeEvent;
+
+export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  TokenBalancesControllerActions,
+  TokenBalancesControllerEvents,
+  never,
+  never
+>;
+
 const getDefaultState = (): TokenBalancesControllerState => {
   return {
     contractBalances: {},
   };
 };
-
-export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
-  typeof controllerName,
-  never,
-  never,
-  never,
-  never
->;
 
 /**
  * Controller that passively polls on a set interval token balances

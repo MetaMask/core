@@ -3,7 +3,15 @@ export * from './AssetsContractController';
 export * from './CurrencyRateController';
 export * from './NftController';
 export * from './NftDetectionController';
-export * from './TokenBalancesController';
+export type {
+  TokenBalancesControllerOptions,
+  TokenBalancesControllerMessenger,
+  TokenBalancesControllerActions,
+  TokenBalancesControllerGetStateAction,
+  TokenBalancesControllerEvents,
+  TokenBalancesControllerStateChangeEvent,
+} from './TokenBalancesController';
+export { TokenBalancesController } from './TokenBalancesController';
 export type {
   TokenDetectionControllerMessenger,
   TokenDetectionControllerActions,
