@@ -1182,6 +1182,7 @@ export class TransactionController extends BaseControllerV1<
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
+  // NOTE(JL): Should this be private?
   stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const trackers = this.trackingMap.get(networkClientId);
     if (trackers) {
@@ -1200,6 +1201,7 @@ export class TransactionController extends BaseControllerV1<
     this.trackingMap.delete(networkClientId);
   }
 
+  // NOTE(JL): Should this be private?
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
@@ -1399,10 +1401,12 @@ export class TransactionController extends BaseControllerV1<
     });
   }
 
+  // NOTE(JL): Where is this called?
   startIncomingTransactionProcessing() {
     this.incomingTransactionHelper.start();
   }
 
+  // NOTE(JL): Where is this called?
   stopIncomingTransactionProcessing() {
     this.incomingTransactionHelper.stop();
   }
@@ -1665,6 +1669,7 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
+    // TODO(JL): SmartTransactionController reaches into TransactionController.nonceTracker directly. Should probably change this.
     // TODO(JL): Revisit this method. It's a bit complicated and not obvious what it achieves.
     let nonceMutexForChainId: Mutex | undefined;
     let { nonceTracker } = this;
