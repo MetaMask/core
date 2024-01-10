@@ -1401,16 +1401,6 @@ export class TransactionController extends BaseControllerV1<
     });
   }
 
-  // NOTE(JL): Where is this called?
-  startIncomingTransactionProcessing() {
-    this.incomingTransactionHelper.start();
-  }
-
-  // NOTE(JL): Where is this called?
-  stopIncomingTransactionProcessing() {
-    this.incomingTransactionHelper.stop();
-  }
-
   /**
    * Adds external provided transaction to state as confirmed transaction.
    *
