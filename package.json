@@ -18,8 +18,8 @@
     "build:watch": "yarn run build --watch",
     "changelog:update": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
-    "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
-    "create-package": "ts-node scripts/create-package",
+    "child-workspace-package-names-as-json": "ts-node --swc scripts/child-workspace-package-names-as-json.ts",
+    "create-package": "ts-node --swc scripts/create-package",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints && yarn lint:dependencies",
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
@@ -35,7 +35,7 @@
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
-    "update-readme-content": "ts-node scripts/update-readme-content.ts"
+    "update-readme-content": "ts-node --swc scripts/update-readme-content.ts"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
@@ -53,6 +53,7 @@
     "@metamask/eth-json-rpc-provider": "^2.3.1",
     "@metamask/json-rpc-engine": "^7.3.1",
     "@metamask/utils": "^8.2.0",
+    "@swc/core": "^1.3.101",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
@@ -97,7 +98,8 @@
       "eth-sig-util>ethereumjs-util>secp256k1": true,
       "ethereumjs-util>ethereum-cryptography>keccak": true,
       "ethereumjs-util>ethereum-cryptography>secp256k1": true,
-      "simple-git-hooks": false
+      "simple-git-hooks": false,
+      "@swc/core": true
     }
   }
 }

@@ -19,6 +19,7 @@ ignores:
   - 'jest-silent-reporter'
   - 'prettier-plugin-packagejson'
   # Ignore plugins we explicitly use with tools
+  - '@swc/core'
   - 'babel-jest'
   # Ignore dependencies which plug into the NPM lifecycle
   - '@lavamoat/preinstall-always-fail'
