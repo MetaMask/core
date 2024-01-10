@@ -15,6 +15,7 @@ import { NameType } from './types';
 
 export const FALLBACK_VARIATION = '*';
 export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
+
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 const DEFAULT_VARIATION = '';
 
