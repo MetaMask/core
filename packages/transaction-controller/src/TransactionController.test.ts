@@ -23,6 +23,7 @@ import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
@@ -304,15 +305,6 @@ function waitForTransactionFinished(
       },
     );
   });
-}
-
-/**
- * Resolve all pending promises.
- * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
- */
-function flushPromises(): Promise<unknown> {
-  return new Promise(jest.requireActual('timers').setImmediate);
 }
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
@@ -2716,7 +2708,7 @@ describe('TransactionController', () => {
         externalBaseFeePerGas,
       );
 
-      await new Promise(jest.requireActual('timers').setImmediate);
+      await flushPromises();
 
       expect(mockPostTransactionBalanceUpdatedListener).toHaveBeenCalledTimes(
         1,

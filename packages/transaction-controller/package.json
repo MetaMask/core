@@ -43,7 +43,7 @@
     "@metamask/network-controller": "^17.1.0",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/selected-network-controller": "^6.0.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
