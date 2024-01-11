@@ -20,6 +20,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { EventEmitter } from 'events';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -31,6 +32,7 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
   TransactionState,
+  TransactionControllerEventEmitter,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type {
@@ -68,6 +70,17 @@ const mockFlags: { [key: string]: any } = {
   estimateGasError: null,
   estimateGasValue: null,
   getBlockByNumberValue: null,
+};
+
+const SEPOLIA = {
+  chainId: toHex(11155111),
+  type: NetworkType.sepolia,
+  ticker: NetworksTicker.sepolia,
+};
+const GOERLI = {
+  chainId: toHex(5),
+  type: NetworkType.goerli,
+  ticker: NetworksTicker.goerli,
 };
 
 const ethQueryMockResults = {
@@ -257,7 +270,21 @@ function buildMockMessenger({
     });
   }
 
+  const mockSubscribe = jest.fn();
+  mockSubscribe.mockImplementation((_type, handler) => {
+    setTimeout(() => {
+      handler({}, [
+        {
+          op: 'add',
+          path: ['networkConfigurations', 'foo', 'bar'],
+          value: 'foo',
+        },
+      ]);
+    }, 0);
+  });
+
   const messenger = {
+    subscribe: mockSubscribe,
     call: jest.fn().mockImplementation(() => {
       if (approved) {
         return Promise.resolve({ resultCallbacks });
@@ -557,6 +584,30 @@ describe('TransactionController', () => {
               blockTracker: finalNetwork.blockTracker,
               provider: finalNetwork.provider,
             };
+          case 'sepolia':
+            return {
+              configuration: {
+                chainId: SEPOLIA.chainId,
+              },
+              blockTracker: buildMockBlockTracker('0x1'),
+              provider: MAINNET_PROVIDER,
+            };
+          case 'goerli':
+            return {
+              configuration: {
+                chainId: GOERLI.chainId,
+              },
+              blockTracker: buildMockBlockTracker('0x1'),
+              provider: MAINNET_PROVIDER,
+            };
+          case 'customNetworkClientId-1':
+            return {
+              configuration: {
+                chainId: '0xa',
+              },
+              blockTracker: buildMockBlockTracker('0x1'),
+              provider: MAINNET_PROVIDER,
+            };
           case 'global':
             return {
               configuration: {
@@ -566,7 +617,7 @@ describe('TransactionController', () => {
               provider: finalNetwork.provider,
             };
           default:
-            throw new Error('Invalid network client id');
+            throw new Error(`Invalid network client id ${networkClientId}`);
         }
       });
 
@@ -589,6 +640,23 @@ describe('TransactionController', () => {
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
+        getNetworkClientRegistry: () => ({
+          sepolia: {
+            configuration: {
+              chainId: SEPOLIA.chainId,
+            },
+          },
+          goerli: {
+            configuration: {
+              chainId: GOERLI.chainId,
+            },
+          },
+          'customNetworkClientId-1': {
+            configuration: {
+              chainId: '0xa',
+            },
+          },
+        }),
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
@@ -733,7 +801,8 @@ describe('TransactionController', () => {
             ACCOUNT_MOCK,
           );
 
-        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
+        // gets called in constructor now
+        expect(nonceTrackerMock).toHaveBeenCalledTimes(4);
         expect(pendingTransactions).toStrictEqual([
           expect.any(Object),
           ...externalPendingTransactions,
@@ -4621,8 +4690,7 @@ describe('TransactionController', () => {
       Current tx status: ${TransactionStatus.submitted}`);
     });
   });
-
-  describe('startTrackinbByNetworkClientId', () => {
+  describe('startTrackingByNetworkClientId', () => {
     it('should start tracking in a tracking map', () => {
       const controller = newController();
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
@@ -4646,5 +4714,127 @@ describe('TransactionController', () => {
       controller.stopTrackingByNetworkClientId('mainnet');
       expect(stopSpy).toHaveBeenCalledTimes(1);
     });
+  });
+  describe('initTrackingMap', () => {
+    // eslint-disable-next-line jest/no-done-callback
+    it('should initialize the tracking map on construction', (done) => {
+      const hub = new EventEmitter() as TransactionControllerEventEmitter;
+      hub.on('tracking-map-init', (networkClientIds) => {
+        expect(networkClientIds).toStrictEqual([
+          'sepolia',
+          'goerli',
+          'customNetworkClientId-1',
+        ]);
+        done();
+      });
+      const controller = newController({
+        options: {
+          hub,
+        },
+      });
+      expect(controller).toBeDefined();
+    });
+    // eslint-disable-next-line jest/no-done-callback
+    it('should handle removals in the networkController registry', (done) => {
+      const hub = new EventEmitter() as TransactionControllerEventEmitter;
+      const mockGetNetworkClientRegistry = jest.fn();
+      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+        sepolia: {
+          configuration: {
+            chainId: SEPOLIA.chainId,
+          },
+        },
+        goerli: {
+          configuration: {
+            chainId: GOERLI.chainId,
+          },
+        },
+        'customNetworkClientId-1': {
+          configuration: {
+            chainId: '0xa',
+          },
+        },
+      }));
+      hub.on('tracking-map-init', () => {
+        mockGetNetworkClientRegistry.mockClear();
+        mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+          sepolia: {
+            configuration: {
+              chainId: SEPOLIA.chainId,
+            },
+          },
+          goerli: {
+            configuration: {
+              chainId: GOERLI.chainId,
+            },
+          },
+        }));
+      });
+      hub.on('tracking-map-remove', (networkClientIds) => {
+        expect(networkClientIds).toStrictEqual(['customNetworkClientId-1']);
+        done();
+      });
+      const controller = newController({
+        options: {
+          getNetworkClientRegistry: mockGetNetworkClientRegistry,
+          hub,
+        },
+      });
+      expect(controller).toBeDefined();
+    });
+  });
+  // eslint-disable-next-line jest/no-done-callback
+  it('should handle removals in the networkController registry', (done) => {
+    const hub = new EventEmitter() as TransactionControllerEventEmitter;
+    const mockGetNetworkClientRegistry = jest.fn();
+    mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+      sepolia: {
+        configuration: {
+          chainId: SEPOLIA.chainId,
+        },
+      },
+    }));
+    hub.on('tracking-map-init', () => {
+      mockGetNetworkClientRegistry.mockClear();
+      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+        sepolia: {
+          configuration: {
+            chainId: SEPOLIA.chainId,
+          },
+        },
+        goerli: {
+          configuration: {
+            chainId: GOERLI.chainId,
+          },
+        },
+      }));
+    });
+    hub.on('tracking-map-add', (networkClientIds) => {
+      expect(networkClientIds).toStrictEqual(['goerli']);
+      done();
+    });
+    const mockMessenger = buildMockMessenger({});
+    (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
+      (_type, handler) => {
+        setTimeout(() => {
+          handler({}, [
+            {
+              op: 'remove',
+              path: ['networkConfigurations', 'foo', 'bar'],
+              value: 'foo',
+            },
+          ]);
+        }, 0);
+      },
+    );
+
+    const controller = newController({
+      options: {
+        messenger: mockMessenger.messenger,
+        getNetworkClientRegistry: mockGetNetworkClientRegistry,
+        hub,
+      },
+    });
+    expect(controller).toBeDefined();
   });
 });

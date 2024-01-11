@@ -25,9 +25,11 @@ import type {
   BlockTracker,
   NetworkClientId,
   NetworkController,
+  NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
   NetworkClientConfiguration,
+  ProviderConfig,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
@@ -198,15 +200,17 @@ const controllerName = 'TransactionController';
  */
 type AllowedActions = AddApprovalRequest;
 
+type AllowedEvents = NetworkControllerStateChangeEvent;
+
 /**
  * The messenger of the {@link TransactionController}.
  */
 export type TransactionControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   AllowedActions,
-  never,
+  AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 // This interface was created before this ESLint rule was added.
@@ -305,6 +309,8 @@ export class TransactionController extends BaseControllerV1<
   private readonly findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
+  private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
   private readonly getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
 
@@ -405,6 +411,8 @@ export class TransactionController extends BaseControllerV1<
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
    * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
+   * @param options.hub - Use a different event emitter for the hub.
+   * @param options.getNetworkClientRegistry - Gets the network client registry.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -433,6 +441,8 @@ export class TransactionController extends BaseControllerV1<
       findNetworkClientIdByChainId,
       getNetworkClientById,
       getNetworkClientIdForDomain,
+      getNetworkClientRegistry,
+      hub,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -467,7 +477,9 @@ export class TransactionController extends BaseControllerV1<
       speedUpMultiplier?: number;
       findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
       getNetworkClientById: NetworkController['getNetworkClientById'];
+      getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
       getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
+      hub: TransactionControllerEventEmitter;
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -499,8 +511,10 @@ export class TransactionController extends BaseControllerV1<
     };
 
     this.initialize();
+    this.hub = hub ?? this.hub;
     this.findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.getNetworkClientById = getNetworkClientById;
+    this.getNetworkClientRegistry = getNetworkClientRegistry;
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
@@ -598,6 +612,20 @@ export class TransactionController extends BaseControllerV1<
 
     this.subscribe(this.#onStateChange);
 
+    this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      (_, patches) => {
+        const shouldRefresh = patches.some((patch) => {
+          const correctOp = patch.op === 'add' || patch.op === 'remove';
+          const correctPath = patch.path[0] === 'networkConfigurations';
+          return correctOp && correctPath;
+        });
+        if (shouldRefresh) {
+          this.#refreshTrackingMap();
+        }
+      },
+    );
+
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
@@ -607,7 +635,46 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.onBootCleanup();
+    this.#initTrackingMap();
   }
+
+  #refreshTrackingMap = () => {
+    const networkClients = this.getNetworkClientRegistry();
+    const networkClientIds = Object.keys(networkClients);
+
+    const existingNetworkClientIds = Array.from(this.trackingMap.keys());
+
+    // Remove tracking for NetworkClientIds that no longer exist
+    const networkClientIdsToRemove = existingNetworkClientIds.filter(
+      (id) => !networkClientIds.includes(id),
+    );
+    networkClientIdsToRemove.forEach((id) => {
+      this.stopTrackingByNetworkClientId(id);
+    });
+
+    if (networkClientIdsToRemove.length > 0) {
+      this.hub.emit('tracking-map-remove', networkClientIdsToRemove);
+    }
+
+    // Start tracking new NetworkClientIds from the registry
+    const networkClientIdsToAdd = networkClientIds.filter(
+      (id) => !existingNetworkClientIds.includes(id),
+    );
+    networkClientIdsToAdd.forEach((id) => {
+      this.startTrackingByNetworkClientId(id);
+    });
+
+    if (networkClientIdsToAdd.length > 0) {
+      this.hub.emit('tracking-map-add', networkClientIdsToAdd);
+    }
+  };
+
+  #initTrackingMap = () => {
+    const networkClients = this.getNetworkClientRegistry();
+    const networkClientIds = Object.keys(networkClients);
+    networkClientIds.map((id) => this.startTrackingByNetworkClientId(id));
+    this.hub.emit('tracking-map-init', networkClientIds);
+  };
 
   #onStateChange = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
@@ -1256,7 +1323,12 @@ export class TransactionController extends BaseControllerV1<
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getNetworkState: this.getNetworkState, // TODO: fake this via networkClient
+      // TODO(JL): Fix this type
+      getNetworkState: () => {
+        return {
+          providerConfig: { chainId } as ProviderConfig,
+        } as NetworkState;
+      },
       isEnabled: () => true,
       queryEntireHistory: true,
       remoteTransactionSource: this.etherscanRemoteTransactionSource,
