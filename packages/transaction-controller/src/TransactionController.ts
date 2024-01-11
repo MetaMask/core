@@ -1327,10 +1327,7 @@ export class TransactionController extends BaseControllerV1<
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getNetworkState: () => {
         return {
-          selectedNetworkClientId: 'mainnet',
-          networkConfigurations: {},
-          networksMetadata: {},
-          providerConfig: {} as ProviderConfig,
+          providerConfig: { chainId } as ProviderConfig,
         };
       },
       isEnabled: () => true,
