@@ -6,7 +6,6 @@ import {
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type { PreferencesState } from '@metamask/preferences-controller';
-import { BN } from 'ethereumjs-util';
 
 import type { AssetsContractController } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
@@ -21,8 +20,6 @@ const metadata = {
 };
 
 /**
- * @type TokenBalancesControllerOptions
- *
  * Token balances controller options
  * @property interval - Polling interval used to fetch new token balances.
  * @property tokens - List of tokens to track balances for.
@@ -31,7 +28,7 @@ const metadata = {
  * @property getSelectedAddress - Gets the current selected address.
  * @property getERC20BalanceOf - Gets the balance of the given account at the given contract address.
  */
-export type TokenBalancesControllerOptions = {
+type TokenBalancesControllerOptions = {
   interval?: number;
   tokens?: Token[];
   disabled?: boolean;
@@ -48,8 +45,6 @@ export type TokenBalancesControllerOptions = {
 type ContractBalances = Record<string, string>;
 
 /**
- * @type TokenBalancesControllerState
- *
  * Token balances controller state
  * @property contractBalances - Hash of token contract addresses to balances
  */
@@ -82,11 +77,16 @@ export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-const getDefaultState = (): TokenBalancesControllerState => {
+/**
+ * Get the default TokenBalancesController state.
+ *
+ * @returns The default TokenBalancesController state.
+ */
+function getDefaultState(): TokenBalancesControllerState {
   return {
     contractBalances: {},
   };
-};
+}
 
 /**
  * Controller that passively polls on a set interval token balances
@@ -176,13 +176,6 @@ export class TokenBalancesController extends BaseController<
     this.#disabled = true;
   }
 
-  /*
-   * Lists all tracked tokens.
-   */
-  getTokens() {
-    return this.#tokens;
-  }
-
   /**
    * Starts a new polling interval.
    *
@@ -221,7 +214,7 @@ export class TokenBalancesController extends BaseController<
         ).toString(16);
         token.balanceError = null;
       } catch (error) {
-        newContractBalances[address] = new BN(0).toString(16);
+        newContractBalances[address] = '0';
         token.balanceError = error;
       }
     }

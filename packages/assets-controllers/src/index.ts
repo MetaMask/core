@@ -4,7 +4,6 @@ export * from './CurrencyRateController';
 export * from './NftController';
 export * from './NftDetectionController';
 export type {
-  TokenBalancesControllerOptions,
   TokenBalancesControllerMessenger,
   TokenBalancesControllerActions,
   TokenBalancesControllerGetStateAction,

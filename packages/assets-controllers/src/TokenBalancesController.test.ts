@@ -3,6 +3,7 @@ import { BN } from 'ethereumjs-util';
 
 import { flushPromises } from '../../../tests/helpers';
 import { TokenBalancesController } from './TokenBalancesController';
+import type { Token } from './TokenRatesController';
 import { getDefaultTokensState, type TokensState } from './TokensController';
 
 const controllerName = 'TokenBalancesController';
@@ -22,17 +23,12 @@ function getMessenger() {
   });
 }
 
-const getToken = (controler: TokenBalancesController, address: string) => {
-  return controler.getTokens().find((token) => token.address === address);
-};
-
 describe('TokenBalancesController', () => {
   beforeEach(() => {
     jest.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
     jest.useRealTimers();
   });
 
@@ -89,7 +85,7 @@ describe('TokenBalancesController', () => {
 
   it('should update banlances if controller is manually enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    const tokenBalances = new TokenBalancesController({
+    const controller = new TokenBalancesController({
       disabled: true,
       tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
       interval: 10,
@@ -99,14 +95,14 @@ describe('TokenBalancesController', () => {
       messenger: getMessenger(),
     });
 
-    await tokenBalances.updateBalances();
+    await controller.updateBalances();
 
-    expect(tokenBalances.state.contractBalances).toStrictEqual({});
+    expect(controller.state.contractBalances).toStrictEqual({});
 
-    tokenBalances.enable();
-    await tokenBalances.updateBalances();
+    controller.enable();
+    await controller.updateBalances();
 
-    expect(tokenBalances.state.contractBalances).toStrictEqual({
+    expect(controller.state.contractBalances).toStrictEqual({
       '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
     });
   });
@@ -114,7 +110,7 @@ describe('TokenBalancesController', () => {
   it('should not update banlances if controller is manually disabled', async () => {
     const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    const tokenBalances = new TokenBalancesController({
+    const controller = new TokenBalancesController({
       disabled: false,
       tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
       interval: 10,
@@ -131,13 +127,13 @@ describe('TokenBalancesController', () => {
       }
     };
 
-    await tokenBalances.updateBalances();
+    await controller.updateBalances();
 
-    expect(tokenBalances.state.contractBalances).toStrictEqual({
+    expect(controller.state.contractBalances).toStrictEqual({
       '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
     });
 
-    tokenBalances.disable();
+    controller.disable();
     triggerTokensStateChange({
       ...getDefaultTokensState(),
       tokens: [
@@ -149,7 +145,7 @@ describe('TokenBalancesController', () => {
       ],
     });
 
-    expect(tokenBalances.state.contractBalances).toStrictEqual({
+    expect(controller.state.contractBalances).toStrictEqual({
       '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
     });
   });
@@ -175,9 +171,17 @@ describe('TokenBalancesController', () => {
   it('should update all balances', async () => {
     const selectedAddress = '0x0000000000000000000000000000000000000001';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const tokens: Token[] = [
+      {
+        address,
+        decimals: 18,
+        symbol: 'EOS',
+        aggregators: [],
+      },
+    ];
     const controller = new TokenBalancesController({
       interval: 1337,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      tokens,
       onTokensStateChange: jest.fn(),
       getSelectedAddress: () => selectedAddress,
       getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
@@ -188,11 +192,9 @@ describe('TokenBalancesController', () => {
 
     await controller.updateBalances();
 
-    const mytoken = getToken(controller, address);
-
-    expect(mytoken?.balanceError).toBeNull();
+    expect(tokens[0].balanceError).toBeNull();
     expect(Object.keys(controller.state.contractBalances)).toContain(address);
-    expect(controller.state.contractBalances[address].toString()).not.toBe('0');
+    expect(controller.state.contractBalances[address]).not.toBe('0');
   });
 
   it('should handle `getERC20BalanceOf` error case', async () => {
@@ -201,9 +203,17 @@ describe('TokenBalancesController', () => {
     const getERC20BalanceOfStub = jest
       .fn()
       .mockReturnValue(Promise.reject(new Error(errorMsg)));
+    const tokens: Token[] = [
+      {
+        address,
+        decimals: 18,
+        symbol: 'EOS',
+        aggregators: [],
+      },
+    ];
     const controller = new TokenBalancesController({
       interval: 1337,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      tokens,
       onTokensStateChange: jest.fn(),
       getSelectedAddress: jest.fn(),
       getERC20BalanceOf: getERC20BalanceOfStub,
@@ -214,18 +224,17 @@ describe('TokenBalancesController', () => {
 
     await controller.updateBalances();
 
-    const mytoken = getToken(controller, address);
-    expect(mytoken?.balanceError).toBeInstanceOf(Error);
-    expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
-    expect(controller.state.contractBalances[address].toString()).toBe('0');
+    expect(tokens[0].balanceError).toBeInstanceOf(Error);
+    expect(tokens[0].balanceError).toHaveProperty('message', errorMsg);
+    expect(controller.state.contractBalances[address]).toBe('0');
 
     getERC20BalanceOfStub.mockReturnValue(new BN(1));
 
     await controller.updateBalances();
 
-    expect(mytoken?.balanceError).toBeNull();
+    expect(tokens[0].balanceError).toBeNull();
     expect(Object.keys(controller.state.contractBalances)).toContain(address);
-    expect(controller.state.contractBalances[address].toString()).not.toBe(0);
+    expect(controller.state.contractBalances[address]).not.toBe(0);
   });
 
   it('should update balances when tokens change', async () => {
