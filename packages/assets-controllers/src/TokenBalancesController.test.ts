@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { toHex } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
 
 import { flushPromises } from '../../../tests/helpers';
@@ -81,7 +82,7 @@ describe('TokenBalancesController', () => {
     await controller.updateBalances();
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
     });
   });
 
@@ -122,7 +123,7 @@ describe('TokenBalancesController', () => {
     await controller.updateBalances();
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
     });
   });
 
@@ -141,14 +142,14 @@ describe('TokenBalancesController', () => {
     await controller.updateBalances();
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
     });
 
     controller.disable();
     await controller.updateBalances();
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
     });
   });
 
@@ -189,7 +190,7 @@ describe('TokenBalancesController', () => {
     });
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x00': '1',
+      '0x00': toHex(new BN(1)),
     });
   });
 
@@ -216,7 +217,7 @@ describe('TokenBalancesController', () => {
     await controller.updateBalances();
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
     });
 
     controller.disable();
@@ -232,7 +233,7 @@ describe('TokenBalancesController', () => {
     });
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
     });
   });
 
@@ -280,7 +281,7 @@ describe('TokenBalancesController', () => {
 
     expect(tokens[0].balanceError).toBeNull();
     expect(Object.keys(controller.state.contractBalances)).toContain(address);
-    expect(controller.state.contractBalances[address]).not.toBe('0');
+    expect(controller.state.contractBalances[address]).not.toBe(toHex(0));
   });
 
   it('should handle `getERC20BalanceOf` error case', async () => {
@@ -312,7 +313,7 @@ describe('TokenBalancesController', () => {
 
     expect(tokens[0].balanceError).toBeInstanceOf(Error);
     expect(tokens[0].balanceError).toHaveProperty('message', errorMsg);
-    expect(controller.state.contractBalances[address]).toBe('0');
+    expect(controller.state.contractBalances[address]).toBe(toHex(0));
 
     getERC20BalanceOfStub.mockReturnValue(new BN(1));
 
@@ -388,7 +389,7 @@ describe('TokenBalancesController', () => {
     });
 
     expect(controller.state.contractBalances).toStrictEqual({
-      '0x02': new BN(1).toString(16),
+      '0x02': toHex(new BN(1)),
     });
   });
 });

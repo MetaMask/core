@@ -4,7 +4,7 @@ import {
   type ControllerStateChangeEvent,
   BaseController,
 } from '@metamask/base-controller';
-import { safelyExecute } from '@metamask/controller-utils';
+import { safelyExecute, toHex } from '@metamask/controller-utils';
 import type { PreferencesState } from '@metamask/preferences-controller';
 
 import type { AssetsContractController } from './AssetsContractController';
@@ -209,12 +209,12 @@ export class TokenBalancesController extends BaseController<
     for (const token of this.#tokens) {
       const { address } = token;
       try {
-        newContractBalances[address] = (
-          await this.#getERC20BalanceOf(address, this.#getSelectedAddress())
-        ).toString(16);
+        newContractBalances[address] = toHex(
+          await this.#getERC20BalanceOf(address, this.#getSelectedAddress()),
+        );
         token.balanceError = null;
       } catch (error) {
-        newContractBalances[address] = '0';
+        newContractBalances[address] = toHex(0);
         token.balanceError = error;
       }
     }
