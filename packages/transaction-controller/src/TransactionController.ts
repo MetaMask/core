@@ -1323,10 +1323,11 @@ export class TransactionController extends BaseControllerV1<
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      // TODO(JL): Fix this type
       getNetworkState: () => {
         return {
           providerConfig: { chainId } as ProviderConfig,
-        };
+        } as NetworkState;
       },
       isEnabled: () => true,
       queryEntireHistory: true,
