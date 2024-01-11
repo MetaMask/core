@@ -179,12 +179,12 @@ export class NameController extends BaseController<
       variation,
     } = request;
     const sourceId = requestSourceId ?? null;
-    const origin = requestOrigin ?? null;
+    const origin = requestOrigin ?? NameOrigin.API;
 
     this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
       entry.sourceId = sourceId;
-      entry.origin = origin ?? NameOrigin.API;
+      entry.origin = origin;
     });
   }
 
