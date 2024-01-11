@@ -452,10 +452,25 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const tokenListUsed = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
       : tokenList;
+
+    const { tokens, detectedTokens } = this.#getTokensState();
     const tokensToDetect: string[] = [];
-    for (const address of Object.keys(tokenListUsed)) {
-      if (!tokensAddresses.includes(address)) {
-        tokensToDetect.push(address);
+
+    const findCaseInsensitiveMatch = (source: string[], target: string) =>
+      source.find((e: string) => e.toLowerCase() === target.toLowerCase());
+
+    for (const tokenAddress of Object.keys(tokenListUsed)) {
+      if (
+        !findCaseInsensitiveMatch(
+          tokens.map(({ address }) => address),
+          tokenAddress,
+        ) &&
+        !findCaseInsensitiveMatch(
+          detectedTokens.map(({ address }) => address),
+          tokenAddress,
+        )
+      ) {
+        tokensToDetect.push(tokenAddress);
       }
     }
     const sliceOfTokensToDetect = [];
@@ -493,8 +508,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
             );
           }
           const caseInsensitiveTokenKey =
-            Object.keys(tokenListUsed).find(
-              (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
+            findCaseInsensitiveMatch(
+              Object.keys(tokenListUsed),
+              tokenAddress,
             ) ?? '';
 
           if (ignored === undefined) {
