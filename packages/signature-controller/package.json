@@ -38,7 +38,7 @@
     "@metamask/logging-controller": "^2.0.1",
     "@metamask/message-manager": "^7.3.7",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/utils": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
     "lodash": "^4.17.21"
   },
