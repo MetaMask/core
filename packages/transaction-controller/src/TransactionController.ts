@@ -29,6 +29,7 @@ import type {
   NetworkState,
   Provider,
   NetworkClientConfiguration,
+  ProviderConfig,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
@@ -100,7 +101,6 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
-import { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 
 export const HARDFORK = Hardfork.London;
 
@@ -412,10 +412,9 @@ export class TransactionController extends BaseControllerV1<
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
    * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
    * @param options.hub - Use a different event emitter for the hub.
+   * @param options.getNetworkClientRegistry - Gets the network client registry.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
-   * @param options.getNetworkClientIdForDomain
-   * @param options.getNetworkClientRegistry - Gets the network client registry.
    */
   constructor(
     {
@@ -615,7 +614,7 @@ export class TransactionController extends BaseControllerV1<
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      (state, patches) => {
+      (_, patches) => {
         // TODO(SJ): Needs to check the patch for registry changes
         const refresh = patches.find((patch) => {
           const correctOp = patch.op === 'add' || patch.op === 'remove';
@@ -1331,7 +1330,7 @@ export class TransactionController extends BaseControllerV1<
           selectedNetworkClientId: 'mainnet',
           networkConfigurations: {},
           networksMetadata: {},
-          providerConfig: {} as any,
+          providerConfig: {} as ProviderConfig,
         };
       },
       isEnabled: () => true,

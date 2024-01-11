@@ -4737,9 +4737,9 @@ describe('TransactionController', () => {
       });
       expect(controller).toBeDefined();
     });
+    // eslint-disable-next-line jest/no-done-callback
     it('should handle removals in the networkController registry', (done) => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
-      let stateChangeFn: (state: any) => void;
       const mockGetNetworkClientRegistry = jest.fn();
       mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
         sepolia: {
@@ -4779,9 +4779,6 @@ describe('TransactionController', () => {
       const controller = newController({
         options: {
           getNetworkClientRegistry: mockGetNetworkClientRegistry,
-          onNetworkStateChange: (fn: (state: any) => void) => {
-            stateChangeFn = fn;
-          },
           hub,
         },
       });
@@ -4791,7 +4788,6 @@ describe('TransactionController', () => {
   // eslint-disable-next-line jest/no-done-callback
   it('should handle removals in the networkController registry', (done) => {
     const hub = new EventEmitter() as TransactionControllerEventEmitter;
-    let stateChangeFn: (state: any) => void;
     const mockGetNetworkClientRegistry = jest.fn();
     mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
       sepolia: {
@@ -4838,9 +4834,6 @@ describe('TransactionController', () => {
       options: {
         messenger: mockMessenger.messenger,
         getNetworkClientRegistry: mockGetNetworkClientRegistry,
-        onNetworkStateChange: (fn: (state: any) => void) => {
-          stateChangeFn = fn;
-        },
         hub,
       },
     });
