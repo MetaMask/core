@@ -9,6 +9,11 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
+import type {
   NetworkClientId,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
@@ -43,7 +48,8 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
-  | GetTokenListState;
+  | GetTokenListState
+  | KeyringControllerGetStateAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -55,7 +61,9 @@ export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange;
+  | TokenListStateChange
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent;
 
 export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -72,6 +80,7 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
  * @property selectedAddress - Vault selected address
  * @property networkClientId - The network client ID of the current selected network
  * @property disabled - Boolean to track if network requests are blocked
+ * @property isUnlocked - Boolean to track if the keyring state is unlocked
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
@@ -89,6 +98,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   #networkClientId: NetworkClientId;
 
   #disabled: boolean;
+
+  #isUnlocked?: boolean;
 
   #isDetectionEnabledFromPreferences: boolean;
 
@@ -231,6 +242,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         }
       },
     );
+
+    this.#registerKeyringListeners();
   }
 
   /**
@@ -245,6 +258,35 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    */
   disable() {
     this.#disabled = true;
+  }
+
+  /**
+   * Internal isActive state
+   *
+   * @type {object}
+   */
+  get isActive() {
+    return !this.#disabled && this.#isUnlocked;
+  }
+
+  /**
+   * Constructor helper for subscribing listeners
+   * to the keyring locked state changes
+   */
+  async #registerKeyringListeners() {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    this.#isUnlocked = isUnlocked;
+
+    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
+      this.#isUnlocked = true;
+      await this.#restartTokenDetection();
+    });
+
+    this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.#isUnlocked = false;
+    });
   }
 
   /**
@@ -273,7 +315,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * Starts a new polling interval.
    */
   async #startPolling(): Promise<void> {
-    if (this.#disabled) {
+    if (!this.isActive) {
       return;
     }
     this.#stopPolling();
@@ -296,7 +338,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    if (this.#disabled) {
+    if (!this.isActive) {
       return;
     }
     await this.detectTokens({
@@ -339,7 +381,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     accountAddress?: string;
   } = {}): Promise<void> {
     if (
-      this.#disabled ||
+      !this.isActive ||
       !this.#isDetectionEnabledForNetwork ||
       !this.#isDetectionEnabledFromPreferences
     ) {
