@@ -269,19 +269,21 @@ function buildMockMessenger({
     });
   }
 
+  const mockSubscribe = jest.fn();
+  mockSubscribe.mockImplementation((_type, handler) => {
+    setTimeout(() => {
+      handler({}, [
+        {
+          op: 'add',
+          path: ['networkConfigurations', 'foo', 'bar'],
+          value: 'foo',
+        },
+      ]);
+    }, 0);
+  });
+
   const messenger = {
-    subscribe: jest.fn().mockImplementation((_type, handler) => {
-      setTimeout(() => {
-        handler(
-          {},
-          {
-            op: 'add',
-            path: [],
-            value: "",
-          },
-        );
-      }, 0);
-    }),
+    subscribe: mockSubscribe,
     call: jest.fn().mockImplementation(() => {
       if (approved) {
         return Promise.resolve({ resultCallbacks });
@@ -4777,7 +4779,6 @@ describe('TransactionController', () => {
             },
           },
         }));
-        stateChangeFn({});
       });
       hub.on('tracking-map-remove', () => {
         done();
@@ -4825,8 +4826,24 @@ describe('TransactionController', () => {
       expect(trackedNetworkClientId).toBe('goerli');
       done();
     });
+    const mockMessenger = buildMockMessenger({});
+    (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
+      (_type, handler) => {
+        setTimeout(() => {
+          handler({}, [
+            {
+              op: 'remove',
+              path: ['networkConfigurations', 'foo', 'bar'],
+              value: 'foo',
+            },
+          ]);
+        }, 0);
+      },
+    );
+
     const controller = newController({
       options: {
+        messenger: mockMessenger.messenger,
         getNetworkClientRegistry: mockGetNetworkClientRegistry,
         onNetworkStateChange: (fn: (state: any) => void) => {
           stateChangeFn = fn;

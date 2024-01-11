@@ -603,10 +603,20 @@ export class TransactionController extends BaseControllerV1<
 
     this.subscribe(this.#onStateChange);
 
-    this.messagingSystem.subscribe('NetworkController:stateChange', () => {
-      // TODO(SJ): Needs to check the patch for registry changes
-      this.#refreshTrackingMap();
-    });
+    this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      (state, patches) => {
+        // TODO(SJ): Needs to check the patch for registry changes
+        const refresh = patches.find((patch) => {
+          const correctOp = patch.op === 'add' || patch.op === 'remove';
+          const correctPath = patch.path[0] === 'networkConfigurations';
+          return correctOp && correctPath;
+        });
+        if (refresh) {
+          this.#refreshTrackingMap();
+        }
+      },
+    );
 
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
@@ -634,7 +644,9 @@ export class TransactionController extends BaseControllerV1<
       this.stopTrackingByNetworkClientId(id);
     });
 
-    this.hub.emit('tracking-map-remove', networkClientIdsToRemove);
+    if (networkClientIdsToRemove.length > 0) {
+      this.hub.emit('tracking-map-remove', networkClientIdsToRemove);
+    }
 
     // Start tracking new NetworkClientIds from the registry
     const networkClientIdsToAdd = networkClientIds.filter(
@@ -643,7 +655,10 @@ export class TransactionController extends BaseControllerV1<
     networkClientIdsToAdd.forEach((id) => {
       this.startTrackingByNetworkClientId(id);
     });
-    this.hub.emit('tracking-map-add', networkClientIdsToAdd);
+
+    if (networkClientIdsToAdd.length > 0) {
+      this.hub.emit('tracking-map-add', networkClientIdsToAdd);
+    }
   };
 
   #initTrackingMap = () => {
