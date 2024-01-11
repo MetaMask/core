@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.3.0]
+### Added
+- Add `createDeferredPromise` ([#164](https://github.com/MetaMask/utils/pull/164))
+
 ## [8.2.1]
 ### Fixed
 - Fix issue with source maps where line numbers were incorrect for src/error.ts ([#156](https://github.com/MetaMask/utils/pull/156))
@@ -208,7 +212,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v8.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v8.3.0...HEAD
+[8.3.0]: https://github.com/MetaMask/utils/compare/v8.2.1...v8.3.0
 [8.2.1]: https://github.com/MetaMask/utils/compare/v8.2.0...v8.2.1
 [8.2.0]: https://github.com/MetaMask/utils/compare/v8.1.0...v8.2.0
 [8.1.0]: https://github.com/MetaMask/utils/compare/v8.0.0...v8.1.0
