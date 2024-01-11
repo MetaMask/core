@@ -615,7 +615,6 @@ export class TransactionController extends BaseControllerV1<
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (_, patches) => {
-        // TODO(SJ): Needs to check the patch for registry changes
         const refresh = patches.find((patch) => {
           const correctOp = patch.op === 'add' || patch.op === 'remove';
           const correctPath = patch.path[0] === 'networkConfigurations';
