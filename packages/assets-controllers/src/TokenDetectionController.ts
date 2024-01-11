@@ -170,7 +170,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         const hasTokens = Object.keys(tokenList).length;
 
         if (hasTokens) {
-          await this.detectTokens();
+          await this.#restartTokenDetection();
         }
       },
     );
@@ -189,7 +189,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           useTokenDetection &&
           (isSelectedAddressChanged || isDetectionChangedFromPreferences)
         ) {
-          await this.detectTokens();
+          await this.#restartTokenDetection({
+            selectedAddress: this.#selectedAddress,
+          });
+        }
+      },
+    );
         }
       },
     );
@@ -206,7 +211,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           isTokenDetectionSupportedForNetwork(newChainId);
 
         if (this.#isDetectionEnabledForNetwork && isChainIdChanged) {
-          await this.detectTokens();
+          await this.#restartTokenDetection({
+            chainId: this.#chainId,
+          });
         }
       },
     );
@@ -282,6 +289,25 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       networkClientId,
       accountAddress: options.address,
     });
+  }
+
+  /**
+   * Restart token detection polling period and call detectNewTokens
+   * in case of address change or user session initialization.
+   *
+   * @param options - Options for restart token detection.
+   * @param options.selectedAddress - the selectedAddress against which to detect for token balances
+   * @param options.chainId - the chainId against which to detect for token balances
+   */
+  async #restartTokenDetection({
+    selectedAddress,
+    chainId,
+  }: Partial<{ selectedAddress: string; chainId: Hex }> = {}) {
+    await this.detectTokens({
+      accountAddress: selectedAddress,
+      networkClientId: chainId,
+    });
+    this.setIntervalLength(DEFAULT_INTERVAL);
   }
 
   /**
