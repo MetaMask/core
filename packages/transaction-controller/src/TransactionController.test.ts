@@ -270,6 +270,18 @@ function buildMockMessenger({
   }
 
   const messenger = {
+    subscribe: jest.fn().mockImplementation((_type, handler) => {
+      setTimeout(() => {
+        handler(
+          {},
+          {
+            op: 'add',
+            path: [],
+            value: "",
+          },
+        );
+      }, 0);
+    }),
     call: jest.fn().mockImplementation(() => {
       if (approved) {
         return Promise.resolve({ resultCallbacks });
@@ -524,8 +536,6 @@ describe('TransactionController', () => {
     PendingTransactionTracker as jest.MockedClass<
       typeof PendingTransactionTracker
     >;
-
-
 
   /**
    * Create a new instance of the TransactionController.
@@ -4732,9 +4742,98 @@ describe('TransactionController', () => {
       });
       expect(controller).toBeDefined();
     });
-    it('should handle changes in networkController registry', () => {
-      const controller = newController();
+    it('should handle removals in the networkController registry', (done) => {
+      const hub = new EventEmitter() as TransactionControllerEventEmitter;
+      let stateChangeFn: (state: any) => void;
+      const mockGetNetworkClientRegistry = jest.fn();
+      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+        sepolia: {
+          configuration: {
+            chainId: SEPOLIA.chainId,
+          },
+        },
+        goerli: {
+          configuration: {
+            chainId: GOERLI.chainId,
+          },
+        },
+        'customNetworkClientId-1': {
+          configuration: {
+            chainId: '0xa',
+          },
+        },
+      }));
+      hub.on('tracking-map-init', () => {
+        mockGetNetworkClientRegistry.mockClear();
+        mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+          sepolia: {
+            configuration: {
+              chainId: SEPOLIA.chainId,
+            },
+          },
+          goerli: {
+            configuration: {
+              chainId: GOERLI.chainId,
+            },
+          },
+        }));
+        stateChangeFn({});
+      });
+      hub.on('tracking-map-remove', () => {
+        done();
+      });
+      const controller = newController({
+        options: {
+          getNetworkClientRegistry: mockGetNetworkClientRegistry,
+          onNetworkStateChange: (fn: (state: any) => void) => {
+            stateChangeFn = fn;
+          },
+          hub,
+        },
+      });
       expect(controller).toBeDefined();
     });
+  });
+  // eslint-disable-next-line jest/no-done-callback
+  it('should handle removals in the networkController registry', (done) => {
+    const hub = new EventEmitter() as TransactionControllerEventEmitter;
+    let stateChangeFn: (state: any) => void;
+    const mockGetNetworkClientRegistry = jest.fn();
+    mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+      sepolia: {
+        configuration: {
+          chainId: SEPOLIA.chainId,
+        },
+      },
+    }));
+    hub.on('tracking-map-init', () => {
+      mockGetNetworkClientRegistry.mockClear();
+      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+        sepolia: {
+          configuration: {
+            chainId: SEPOLIA.chainId,
+          },
+        },
+        goerli: {
+          configuration: {
+            chainId: GOERLI.chainId,
+          },
+        },
+      }));
+    });
+    hub.on('tracking-map-add', ([trackedNetworkClientId]) => {
+      expect(trackedNetworkClientId).toBe('goerli');
+      done();
+    });
+    const controller = newController({
+      options: {
+        getNetworkClientRegistry: mockGetNetworkClientRegistry,
+        onNetworkStateChange: (fn: (state: any) => void) => {
+          stateChangeFn = fn;
+        },
+        hub,
+      },
+    });
+    expect(controller).toBeDefined();
   });
 });

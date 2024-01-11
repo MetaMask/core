@@ -25,6 +25,7 @@ import type {
   BlockTracker,
   NetworkClientId,
   NetworkController,
+  NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
@@ -197,15 +198,17 @@ const controllerName = 'TransactionController';
  */
 type AllowedActions = AddApprovalRequest;
 
+type AllowedEvents = NetworkControllerStateChangeEvent;
+
 /**
  * The messenger of the {@link TransactionController}.
  */
 export type TransactionControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   AllowedActions,
-  never,
+  AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 // This interface was created before this ESLint rule was added.
@@ -600,15 +603,17 @@ export class TransactionController extends BaseControllerV1<
 
     this.subscribe(this.#onStateChange);
 
+    this.messagingSystem.subscribe('NetworkController:stateChange', () => {
+      // TODO(SJ): Needs to check the patch for registry changes
+      this.#refreshTrackingMap();
+    });
+
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
       // Verify if this is still necessary when the feature branch is being reviewed
       this.#onStateChange();
       this.onBootCleanup();
-
-      // TODO(SJ): Needs to check the patch for registry changes
-      this.#refreshTrackingMap();
     });
 
     this.onBootCleanup();
