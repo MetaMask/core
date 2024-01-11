@@ -66,7 +66,26 @@ describe('TokenBalancesController', () => {
     expect(updateBalancesSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('should not update banlances if disabled', async () => {
+  it('should update balances if enabled', async () => {
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const controller = new TokenBalancesController({
+      disabled: false,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      interval: 10,
+      onTokensStateChange: jest.fn(),
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
+      messenger: getMessenger(),
+    });
+
+    await controller.updateBalances();
+
+    expect(controller.state.contractBalances).toStrictEqual({
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+    });
+  });
+
+  it('should not update balances if disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const controller = new TokenBalancesController({
       disabled: true,
@@ -83,7 +102,7 @@ describe('TokenBalancesController', () => {
     expect(controller.state.contractBalances).toStrictEqual({});
   });
 
-  it('should update banlances if controller is manually enabled', async () => {
+  it('should update balances if controller is manually enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const controller = new TokenBalancesController({
       disabled: true,
@@ -107,7 +126,74 @@ describe('TokenBalancesController', () => {
     });
   });
 
-  it('should not update banlances if controller is manually disabled', async () => {
+  it('should not update balances if controller is manually disabled', async () => {
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const controller = new TokenBalancesController({
+      disabled: false,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      interval: 10,
+      onTokensStateChange: jest.fn(),
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
+      messenger: getMessenger(),
+    });
+
+    await controller.updateBalances();
+
+    expect(controller.state.contractBalances).toStrictEqual({
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+    });
+
+    controller.disable();
+    await controller.updateBalances();
+
+    expect(controller.state.contractBalances).toStrictEqual({
+      '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': '1',
+    });
+  });
+
+  it('should update balances if tokens change and controller is manually enabled', async () => {
+    const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const controller = new TokenBalancesController({
+      disabled: true,
+      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      interval: 10,
+      getSelectedAddress: () => '0x1234',
+      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
+      onTokensStateChange: (listener) => {
+        tokensStateChangeListeners.push(listener);
+      },
+      messenger: getMessenger(),
+    });
+    const triggerTokensStateChange = async (state: TokensState) => {
+      for (const listener of tokensStateChangeListeners) {
+        listener(state);
+      }
+    };
+
+    await controller.updateBalances();
+
+    expect(controller.state.contractBalances).toStrictEqual({});
+
+    controller.enable();
+    await triggerTokensStateChange({
+      ...getDefaultTokensState(),
+      tokens: [
+        {
+          address: '0x00',
+          symbol: 'FOO',
+          decimals: 18,
+        },
+      ],
+    });
+
+    expect(controller.state.contractBalances).toStrictEqual({
+      '0x00': '1',
+    });
+  });
+
+  it('should not update balances if tokens change and controller is manually disabled', async () => {
     const tokensStateChangeListeners: ((state: TokensState) => void)[] = [];
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const controller = new TokenBalancesController({
@@ -121,7 +207,7 @@ describe('TokenBalancesController', () => {
       },
       messenger: getMessenger(),
     });
-    const triggerTokensStateChange = (state: TokensState) => {
+    const triggerTokensStateChange = async (state: TokensState) => {
       for (const listener of tokensStateChangeListeners) {
         listener(state);
       }
@@ -134,7 +220,7 @@ describe('TokenBalancesController', () => {
     });
 
     controller.disable();
-    triggerTokensStateChange({
+    await triggerTokensStateChange({
       ...getDefaultTokensState(),
       tokens: [
         {
@@ -248,14 +334,14 @@ describe('TokenBalancesController', () => {
       interval: 1337,
       messenger: getMessenger(),
     });
-    const triggerTokensStateChange = (state: TokensState) => {
+    const triggerTokensStateChange = async (state: TokensState) => {
       for (const listener of tokensStateChangeListeners) {
         listener(state);
       }
     };
     const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
 
-    triggerTokensStateChange({
+    await triggerTokensStateChange({
       ...getDefaultTokensState(),
       tokens: [
         {
@@ -280,14 +366,14 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
       messenger: getMessenger(),
     });
-    const triggerTokensStateChange = (state: TokensState) => {
+    const triggerTokensStateChange = async (state: TokensState) => {
       for (const listener of tokensStateChangeListeners) {
         listener(state);
       }
     };
     expect(controller.state.contractBalances).toStrictEqual({});
 
-    triggerTokensStateChange({
+    await triggerTokensStateChange({
       ...getDefaultTokensState(),
       detectedTokens: [
         {
@@ -300,8 +386,6 @@ describe('TokenBalancesController', () => {
       ],
       tokens: [],
     });
-
-    await controller.updateBalances();
 
     expect(controller.state.contractBalances).toStrictEqual({
       '0x02': new BN(1).toString(16),
