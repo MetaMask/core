@@ -4719,7 +4719,12 @@ describe('TransactionController', () => {
     // eslint-disable-next-line jest/no-done-callback
     it('should initialize the tracking map on construction', (done) => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
-      hub.on('tracking-map-init', () => {
+      hub.on('tracking-map-init', (networkClientIds) => {
+        expect(networkClientIds).toStrictEqual([
+          'sepolia',
+          'goerli',
+          'customNetworkClientId-1',
+        ]);
         done();
       });
       const controller = newController({
@@ -4765,7 +4770,8 @@ describe('TransactionController', () => {
           },
         }));
       });
-      hub.on('tracking-map-remove', () => {
+      hub.on('tracking-map-remove', (networkClientIds) => {
+        expect(networkClientIds).toStrictEqual(['customNetworkClientId-1']);
         done();
       });
       const controller = newController({
@@ -4803,8 +4809,8 @@ describe('TransactionController', () => {
         },
       }));
     });
-    hub.on('tracking-map-add', ([trackedNetworkClientId]) => {
-      expect(trackedNetworkClientId).toBe('goerli');
+    hub.on('tracking-map-add', (networkClientIds) => {
+      expect(networkClientIds).toStrictEqual(['goerli']);
       done();
     });
     const mockMessenger = buildMockMessenger({});
