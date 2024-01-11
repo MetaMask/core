@@ -615,12 +615,12 @@ export class TransactionController extends BaseControllerV1<
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (_, patches) => {
-        const refresh = patches.find((patch) => {
+        const shouldRefresh = patches.some((patch) => {
           const correctOp = patch.op === 'add' || patch.op === 'remove';
           const correctPath = patch.path[0] === 'networkConfigurations';
           return correctOp && correctPath;
         });
-        if (refresh) {
+        if (shouldRefresh) {
           this.#refreshTrackingMap();
         }
       },
