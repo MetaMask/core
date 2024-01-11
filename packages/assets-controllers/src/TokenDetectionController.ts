@@ -4,7 +4,9 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import contractMap from '@metamask/contract-metadata';
 import {
+  ChainId,
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
@@ -28,11 +30,37 @@ import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type {
   GetTokenListState,
   TokenListStateChange,
+  TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
+
+type LegacyToken = Omit<
+  Token,
+  'aggregators' | 'image' | 'balanceError' | 'isERC721'
+> & {
+  name: string;
+  logo: string;
+  erc20?: boolean;
+  erc721?: boolean;
+};
+
+export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
+  contractMap,
+).reduce<Record<string, Partial<TokenListToken>>>((acc, [base, contract]) => {
+  const { logo, ...tokenMetadata } = contract;
+  return {
+    ...acc,
+    [base.toLowerCase()]: {
+      ...tokenMetadata,
+      address: base.toLowerCase(),
+      iconUrl: `images/contract/${logo}`,
+      aggregators: [],
+    },
+  };
+}, {});
 
 export const controllerName = 'TokenDetectionController';
 
@@ -390,11 +418,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }
 
   /**
-   * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
+   * For each token in the token list provided by the TokenListController, checks the token's balance for the selected account address on the active network.
+   * On mainnet, if token detection is disabled in preferences, ERC20 token auto detection will be triggered for each contract address in the legacy token list from the @metamask/contract-metadata repo.
    *
-   * @param options - Options to detect tokens.
+   * @param options - Options for token detection.
    * @param options.networkClientId - The ID of the network client to use.
-   * @param options.accountAddress - The account address to use.
+   * @param options.accountAddress - the selectedAddress against which to detect for token balances.
    */
   async detectTokens({
     networkClientId,
@@ -403,25 +432,28 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId?: NetworkClientId;
     accountAddress?: string;
   } = {}): Promise<void> {
-    if (
-      !this.isActive ||
-      !this.#isDetectionEnabledForNetwork ||
-      !this.#isDetectionEnabledFromPreferences
-    ) {
+    if (!this.isActive || !this.#isDetectionEnabledForNetwork) {
       return;
     }
-    const { tokens } = this.#getTokensState();
     const selectedAddress = accountAddress ?? this.#selectedAddress;
     const chainId = this.#getCorrectChainId(networkClientId);
 
-    const tokensAddresses = tokens.map(
-      /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
-    );
+    if (
+      !this.#isDetectionEnabledFromPreferences &&
+      chainId !== ChainId.mainnet
+    ) {
+      return;
+    }
+    const isTokenDetectionInactiveInMainnet =
+      !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
     const { tokenList } = this.messagingSystem.call(
       'TokenListController:getState',
     );
+    const tokenListUsed = isTokenDetectionInactiveInMainnet
+      ? STATIC_MAINNET_TOKEN_LIST
+      : tokenList;
     const tokensToDetect: string[] = [];
-    for (const address of Object.keys(tokenList)) {
+    for (const address of Object.keys(tokenListUsed)) {
       if (!tokensAddresses.includes(address)) {
         tokensToDetect.push(address);
       }
@@ -461,7 +493,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
             );
           }
           const caseInsensitiveTokenKey =
-            Object.keys(tokenList).find(
+            Object.keys(tokenListUsed).find(
               (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
             ) ?? '';
 
