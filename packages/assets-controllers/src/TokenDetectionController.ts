@@ -1,3 +1,4 @@
+import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
 import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
@@ -51,6 +52,7 @@ export type TokenDetectionControllerEvents =
   TokenDetectionControllerStateChangeEvent;
 
 export type AllowedEvents =
+  | AccountsControllerSelectedAccountChangeEvent
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange;
@@ -195,6 +197,18 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         }
       },
     );
+
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedAccountChange',
+      async (account) => {
+        if (
+          this.#selectedAddress !== account.address &&
+          this.#isDetectionEnabledFromPreferences
+        ) {
+          this.#selectedAddress = account.address;
+          await this.#restartTokenDetection({
+            selectedAddress: this.#selectedAddress,
+          });
         }
       },
     );
