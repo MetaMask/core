@@ -672,9 +672,7 @@ export class TransactionController extends BaseControllerV1<
   #initTrackingMap = () => {
     const networkClients = this.getNetworkClientRegistry();
     const networkClientIds = Object.keys(networkClients);
-    networkClientIds.map((id) =>
-      this.startTrackingByNetworkClientId(id),
-    );
+    networkClientIds.map((id) => this.startTrackingByNetworkClientId(id));
     this.hub.emit('tracking-map-init', networkClientIds);
   };
 
