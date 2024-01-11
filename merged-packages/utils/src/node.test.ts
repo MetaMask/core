@@ -71,6 +71,7 @@ describe('node', () => {
         "createBigInt",
         "createBytes",
         "createDataView",
+        "createDeferredPromise",
         "createHex",
         "createModuleLogger",
         "createNumber",

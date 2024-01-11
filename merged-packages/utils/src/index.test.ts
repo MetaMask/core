@@ -71,6 +71,7 @@ describe('index', () => {
         "createBigInt",
         "createBytes",
         "createDataView",
+        "createDeferredPromise",
         "createHex",
         "createModuleLogger",
         "createNumber",
