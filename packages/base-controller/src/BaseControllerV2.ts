@@ -154,6 +154,11 @@ export class BaseController<
       `${name}:getState`,
       () => this.state,
     );
+
+    this.messagingSystem.registerInitialEventPayload({
+      eventType: `${name}:stateChange`,
+      getPayload: () => [this.state, []],
+    });
   }
 
   /**

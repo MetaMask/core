@@ -35,7 +35,7 @@
     "@ethereumjs/tx": "^4.2.0",
     "@ethersproject/abi": "^5.7.0",
     "@metamask/approval-controller": "^5.1.1",
-    "@metamask/base-controller": "^4.0.1",
+    "@metamask/base-controller": "^4.1.0",
     "@metamask/controller-utils": "^8.0.1",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/gas-fee-controller": "^12.0.0",
