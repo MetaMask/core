@@ -289,7 +289,7 @@ export class IncomingTransactionHelper {
 
   #getBlockNumberKey(additionalKeys: string[]): string {
     const currentChainId = this.#getCurrentChainId();
-    const currentAccount = this.#getCurrentAccount().toLowerCase();
+    const currentAccount = this.#getCurrentAccount()?.toLowerCase();
 
     return [currentChainId, currentAccount, ...additionalKeys].join('#');
   }
