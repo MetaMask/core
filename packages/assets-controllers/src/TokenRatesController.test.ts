@@ -10,16 +10,19 @@ import { add0x } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
+import { advanceTime, flushPromises } from '../../../tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
-import type { TokenBalancesState } from './TokenBalancesController';
 import { TokenRatesController } from './TokenRatesController';
-import type { TokenRatesConfig, Token } from './TokenRatesController';
+import type {
+  TokenRatesConfig,
+  Token,
+  TokenRatesState,
+} from './TokenRatesController';
 import type { TokensState } from './TokensController';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
@@ -2228,7 +2231,7 @@ type WithControllerCallback<ReturnValue> = ({
 type PartialConstructorParameters = {
   options?: Partial<ConstructorParameters<typeof TokenRatesController>[0]>;
   config?: Partial<TokenRatesConfig>;
-  state?: Partial<TokenBalancesState>;
+  state?: Partial<TokenRatesState>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -2286,18 +2289,6 @@ async function withController<ReturnValue>(
     controller.stop();
     await flushPromises();
   }
-}
-
-/**
- * Resolve all pending promises.
- *
- * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
- *
- * TODO: migrate this to @metamask/utils
- */
-async function flushPromises(): Promise<void> {
-  await new Promise(jest.requireActual('timers').setImmediate);
 }
 
 /**

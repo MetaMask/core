@@ -31,7 +31,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.0.1",
+    "@metamask/base-controller": "^4.1.0",
     "@metamask/rpc-errors": "^6.1.0"
   },
   "devDependencies": {

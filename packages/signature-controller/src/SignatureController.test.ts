@@ -92,6 +92,7 @@ const requestMock = {
 const createMessengerMock = () =>
   ({
     registerActionHandler: jest.fn(),
+    registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     call: jest.fn(),
     // TODO: Replace `any` with type
