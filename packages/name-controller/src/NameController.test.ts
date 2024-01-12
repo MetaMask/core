@@ -118,7 +118,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
-              origin: NameOrigin.API,
+              origin: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],

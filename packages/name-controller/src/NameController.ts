@@ -448,7 +448,7 @@ export class NameController extends BaseController<
         proposedNames: {},
         name: null,
         sourceId: null,
-        origin: NameOrigin.API,
+        origin: null,
       };
       variationEntries[normalizedVariation] = entry;
 
