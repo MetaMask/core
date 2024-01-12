@@ -1,4 +1,5 @@
 import { ApprovalType } from '@metamask/controller-utils';
+import { errorCodes } from '@metamask/rpc-errors';
 import {
   determineTransactionType,
   TransactionType,
@@ -590,6 +591,26 @@ describe('UserOperationController', () => {
           status: UserOperationStatus.Failed,
         }),
       );
+    });
+
+    it('deletes user operation if rejected', async () => {
+      const controller = new UserOperationController(optionsMock);
+
+      const error = new Error(ERROR_MESSAGE_MOCK);
+      (error as unknown as Record<string, unknown>).code =
+        errorCodes.provider.userRejectedRequest;
+
+      approvalControllerAddRequestMock.mockClear();
+      approvalControllerAddRequestMock.mockRejectedValue(error);
+
+      const { hash } = await controller.addUserOperation(
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      await expect(hash()).rejects.toThrow(ERROR_MESSAGE_MOCK);
+
+      expect(Object.keys(controller.state.userOperations)).toHaveLength(0);
     });
 
     // eslint-disable-next-line jest/expect-expect

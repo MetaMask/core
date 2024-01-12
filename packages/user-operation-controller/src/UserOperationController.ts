@@ -17,6 +17,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   Provider,
 } from '@metamask/network-controller';
+import { errorCodes } from '@metamask/rpc-errors';
 import {
   determineTransactionType,
   type TransactionMeta,
@@ -620,6 +621,12 @@ export class UserOperationController extends BaseController<
     metadata.status = UserOperationStatus.Failed;
 
     this.#updateMetadata(metadata);
+
+    if (
+      String(rawError.code) === String(errorCodes.provider.userRejectedRequest)
+    ) {
+      this.#deleteMetadata(id);
+    }
   }
 
   #createEmptyUserOperation(transaction?: TransactionParams): UserOperation {
@@ -646,6 +653,12 @@ export class UserOperationController extends BaseController<
     });
 
     this.#updateTransaction(metadata);
+  }
+
+  #deleteMetadata(id: string) {
+    this.update((state) => {
+      delete state.userOperations[id];
+    });
   }
 
   #updateTransaction(metadata: UserOperationMetadata) {
