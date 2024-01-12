@@ -179,7 +179,9 @@ export class NameController extends BaseController<
       variation,
     } = request;
     const sourceId = requestSourceId ?? null;
-    const origin = requestOrigin ?? NameOrigin.API;
+    // If the name is being cleared, the fallback origin should be cleared as well.
+    const fallbackOrigin = name === null ? null : NameOrigin.API;
+    const origin = requestOrigin ?? fallbackOrigin;
 
     this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
