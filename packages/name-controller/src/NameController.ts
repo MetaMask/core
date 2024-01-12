@@ -624,7 +624,7 @@ export class NameController extends BaseController<
     const currentTime = this.#getCurrentTimeSeconds();
 
     if (
-      currentTime - this.state.lastProposedNameCleanupTime <
+      currentTime - this.state.lastProposedNameCleanupTime <=
       EXPIRED_PROPOSED_NAME_CLEANUP_INTERVAL
     ) {
       return;
