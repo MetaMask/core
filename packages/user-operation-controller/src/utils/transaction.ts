@@ -28,6 +28,7 @@ export function getTransactionMetadata(
     origin,
     transactionHash,
     id,
+    swapsMetadata,
     time,
     transactionParams,
     transactionType,
@@ -99,6 +100,19 @@ export function getTransactionMetadata(
   // User operations only support EIP-1559 gas fee properties.
   delete txParams.gasPrice;
 
+  const swaps = {
+    approvalTxId: swapsMetadata?.approvalTxId ?? undefined,
+    destinationTokenAddress:
+      swapsMetadata?.destinationTokenAddress ?? undefined,
+    destinationTokenDecimals:
+      swapsMetadata?.destinationTokenDecimals ?? undefined,
+    destinationTokenSymbol: swapsMetadata?.destinationTokenSymbol ?? undefined,
+    estimatedBaseFee: swapsMetadata?.estimatedBaseFee ?? undefined,
+    sourceTokenSymbol: swapsMetadata?.sourceTokenSymbol ?? undefined,
+    swapMetaData: swapsMetadata?.swapMetaData ?? undefined,
+    swapTokenValue: swapsMetadata?.swapTokenValue ?? undefined,
+  };
+
   return {
     baseFeePerGas: (baseFeePerGas as Hex) ?? undefined,
     chainId: chainId as Hex,
@@ -116,6 +130,7 @@ export function getTransactionMetadata(
     },
     type: transactionType ?? undefined,
     userFeeLevel: userFeeLevel as string,
+    ...swaps,
   };
 }
 

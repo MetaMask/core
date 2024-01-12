@@ -35,6 +35,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
     updateUserOperation: jest.fn(),
     signUserOperation: jest.fn(),
   },
+  swaps: {},
 };
 
 const PREPARE_USER_OPERATION_RESPONSE_MOCK: PrepareUserOperationResponse = {
@@ -257,6 +258,61 @@ describe('validation', () => {
         'wrong type',
         123,
         'Expected a function, but received: 123',
+      ],
+      ['swaps', 'wrong type', 123, 'Expected an object, but received: 123'],
+      [
+        'swaps.approvalTxId',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.destinationTokenAddress',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.destinationTokenDecimals',
+        'wrong type',
+        '123',
+        'Expected a number, but received: "123"',
+      ],
+      [
+        'swaps.destinationTokenSymbol',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.estimatedBaseFee',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.sourceTokenSymbol',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.swapMetaData',
+        'wrong type',
+        123,
+        'Expected an object, but received: 123',
+      ],
+      [
+        'swaps.swapTokenValue',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'type',
+        'wrong type',
+        123,
+        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_sign","eth_signTypedData","smart","swap","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall"`, but received: 123',
       ],
     ])(
       'throws if %s is %s',
