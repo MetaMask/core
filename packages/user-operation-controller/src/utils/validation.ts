@@ -1,10 +1,13 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import { isStrictHexString } from '@metamask/utils';
 import type { Struct, StructError } from 'superstruct';
 import {
   assert,
   boolean,
   define,
+  enums,
   func,
+  number,
   object,
   optional,
   refine,
@@ -59,6 +62,19 @@ export function validateAddUserOperationOptions(
       updateUserOperation: func(),
       signUserOperation: func(),
     }),
+    swaps: optional(
+      object({
+        approvalTxId: optional(string()),
+        destinationTokenAddress: optional(string()),
+        destinationTokenDecimals: optional(number()),
+        destinationTokenSymbol: optional(string()),
+        estimatedBaseFee: optional(string()),
+        sourceTokenSymbol: optional(string()),
+        swapMetaData: optional(object()),
+        swapTokenValue: optional(string()),
+      }),
+    ),
+    type: optional(enums(Object.values(TransactionType))),
   });
 
   validate(options, ValidOptions, 'Invalid options to add user operation');
