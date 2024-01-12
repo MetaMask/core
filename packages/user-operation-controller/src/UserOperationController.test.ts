@@ -9,6 +9,7 @@ import { EventEmitter } from 'stream';
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
 import * as BundlerHelper from './helpers/Bundler';
 import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
+import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
 import type { UserOperationMetadata } from './types';
 import {
   UserOperationStatus,
@@ -39,6 +40,7 @@ jest.mock('./utils/gas-fees');
 jest.mock('./utils/validation');
 jest.mock('./helpers/Bundler');
 jest.mock('./helpers/PendingUserOperationTracker');
+jest.mock('./helpers/SnapSmartContractAccount');
 
 const CHAIN_ID_MOCK = '0x5';
 const USER_OPERATION_HASH_MOCK = '0x123';
@@ -78,15 +80,16 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: SignUserOperationResponse = {
   signature: '0xB',
 };
 
-const ADD_USER_OPERATION_REQUEST_MOCK = {
+const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',
+  from: '0x12',
   to: '0x2',
   value: '0x3',
   maxFeePerGas: '0x4',
   maxPriorityFeePerGas: '0x5',
 };
 
-const ADD_USER_OPERATION_OPTIONS_MOCK = {
+const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
   networkClientId: NETWORK_CLIENT_ID_MOCK,
   origin: ORIGIN_MOCK,
 };
@@ -257,10 +260,10 @@ describe('UserOperationController', () => {
     updateGasFeesMock
       .mockImplementationOnce(async ({ metadata }) => {
         metadata.userOperation.maxFeePerGas =
-          ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas;
+          ADD_USER_OPERATION_REQUEST_MOCK.maxFeePerGas as string;
 
         metadata.userOperation.maxPriorityFeePerGas =
-          ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas;
+          ADD_USER_OPERATION_REQUEST_MOCK.maxPriorityFeePerGas as string;
       })
       .mockImplementationOnce(async ({ metadata }) => {
         metadata.userOperation.maxFeePerGas = '0x6';
@@ -782,6 +785,24 @@ describe('UserOperationController', () => {
       expect(resultCallbackSuccessMock).not.toHaveBeenCalled();
     });
 
+    it('uses snap smart contract account if no smart contract account provided', async () => {
+      const prepareMock = jest.spyOn(
+        SnapSmartContractAccount.prototype,
+        'prepareUserOperation',
+      );
+
+      const controller = new UserOperationController(optionsMock);
+
+      await addUserOperation(controller, ADD_USER_OPERATION_REQUEST_MOCK, {
+        ...ADD_USER_OPERATION_OPTIONS_MOCK,
+        smartContractAccount: undefined,
+      });
+
+      await flushPromises();
+
+      expect(prepareMock).toHaveBeenCalledTimes(1);
+    });
+
     describe('if approval request resolved with updated transaction', () => {
       it('updates gas fees without regeneration if paymaster data not set', async () => {
         const controller = new UserOperationController(optionsMock);
@@ -1078,27 +1099,25 @@ describe('UserOperationController', () => {
       });
     });
 
-    if (method === 'addUserOperation') {
-      it('validates arguments', async () => {
-        const controller = new UserOperationController(optionsMock);
+    it('validates arguments', async () => {
+      const controller = new UserOperationController(optionsMock);
 
-        await addUserOperation(controller, ADD_USER_OPERATION_REQUEST_MOCK, {
-          ...ADD_USER_OPERATION_OPTIONS_MOCK,
-          smartContractAccount,
-        });
-
-        expect(validateAddUserOperationRequestMock).toHaveBeenCalledTimes(1);
-        expect(validateAddUserOperationRequestMock).toHaveBeenCalledWith(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-        );
-
-        expect(validateAddUserOperationOptionsMock).toHaveBeenCalledTimes(1);
-        expect(validateAddUserOperationOptionsMock).toHaveBeenCalledWith({
-          ...ADD_USER_OPERATION_OPTIONS_MOCK,
-          smartContractAccount,
-        });
+      await addUserOperation(controller, ADD_USER_OPERATION_REQUEST_MOCK, {
+        ...ADD_USER_OPERATION_OPTIONS_MOCK,
+        smartContractAccount,
       });
-    }
+
+      expect(validateAddUserOperationRequestMock).toHaveBeenCalledTimes(1);
+      expect(validateAddUserOperationRequestMock).toHaveBeenCalledWith(
+        ADD_USER_OPERATION_REQUEST_MOCK,
+      );
+
+      expect(validateAddUserOperationOptionsMock).toHaveBeenCalledTimes(1);
+      expect(validateAddUserOperationOptionsMock).toHaveBeenCalledWith({
+        ...ADD_USER_OPERATION_OPTIONS_MOCK,
+        smartContractAccount,
+      });
+    });
 
     if (method === 'addUserOperationFromTransaction') {
       it('sets data as undefined if empty string', async () => {

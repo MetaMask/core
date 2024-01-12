@@ -9,6 +9,11 @@ import { ApprovalType } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
+  KeyringControllerPrepareUserOperationAction,
+  KeyringControllerPatchUserOperationAction,
+  KeyringControllerSignUserOperationAction,
+} from '@metamask/keyring-controller';
+import type {
   NetworkControllerGetNetworkClientByIdAction,
   Provider,
 } from '@metamask/network-controller';
@@ -27,6 +32,7 @@ import { v1 as random } from 'uuid';
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
 import { Bundler } from './helpers/Bundler';
 import { PendingUserOperationTracker } from './helpers/PendingUserOperationTracker';
+import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
 import { projectLogger as log } from './logger';
 import type {
   SmartContractAccount,
@@ -95,7 +101,10 @@ export type UserOperationStateChange = {
 export type UserOperationControllerActions =
   | GetUserOperationState
   | NetworkControllerGetNetworkClientByIdAction
-  | AddApprovalRequest;
+  | AddApprovalRequest
+  | KeyringControllerPrepareUserOperationAction
+  | KeyringControllerPatchUserOperationAction
+  | KeyringControllerSignUserOperationAction;
 
 export type UserOperationControllerEvents = UserOperationStateChange;
 
@@ -117,6 +126,7 @@ export type UserOperationControllerOptions = {
 
 export type AddUserOperationRequest = {
   data?: string;
+  from: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
   to?: string;
@@ -138,7 +148,7 @@ export type AddUserOperationOptions = {
   networkClientId: string;
   origin: string;
   requireApproval?: boolean;
-  smartContractAccount: SmartContractAccount;
+  smartContractAccount?: SmartContractAccount;
   swaps?: AddUserOperationSwapOptions;
   type?: TransactionType;
 };
@@ -157,7 +167,9 @@ export type AddUserOperationResponse = {
 type UserOperationCache = {
   chainId: string;
   metadata: UserOperationMetadata;
-  options: AddUserOperationOptions;
+  options: AddUserOperationOptions & {
+    smartContractAccount: SmartContractAccount;
+  };
   provider: Provider;
   request: AddUserOperationRequest;
   transaction?: TransactionParams;
@@ -228,7 +240,9 @@ export class UserOperationController extends BaseController<
    * @param options.networkClientId - ID of the network client used to query the chain.
    * @param options.origin - Origin of the user operation, such as the hostname of a dApp.
    * @param options.requireApproval - Whether to require user approval before submitting the user operation. Defaults to true.
-   * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce.
+   * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce. Defaults to the current snap account.
+   * @param options.swaps - Swap metadata to record with the user operation.
+   * @param options.type - Type of the transaction.
    */
   async addUserOperation(
     request: AddUserOperationRequest,
@@ -248,7 +262,7 @@ export class UserOperationController extends BaseController<
    * @param options.networkClientId - ID of the network client used to query the chain.
    * @param options.origin - Origin of the user operation, such as the hostname of a dApp.
    * @param options.requireApproval - Whether to require user approval before submitting the user operation. Defaults to true.
-   * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce.
+   * @param options.smartContractAccount - Smart contract abstraction to provide the contract specific values such as call data and nonce. Defaults to the current snap account.
    * @param options.swaps - Swap metadata to record with the user operation.
    * @param options.type - Type of the transaction.
    */
@@ -258,18 +272,21 @@ export class UserOperationController extends BaseController<
   ): Promise<AddUserOperationResponse> {
     validateAddUserOperationOptions(options);
 
-    const { data, maxFeePerGas, maxPriorityFeePerGas, to, value } = transaction;
+    const { data, from, maxFeePerGas, maxPriorityFeePerGas, to, value } =
+      transaction;
 
-    return await this.#addUserOperation(
-      {
-        data: data === '' ? undefined : data,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-        to,
-        value,
-      },
-      { ...options, transaction },
-    );
+    const request: AddUserOperationRequest = {
+      data: data === '' ? undefined : data,
+      from,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      to,
+      value,
+    };
+
+    validateAddUserOperationRequest(request);
+
+    return await this.#addUserOperation(request, { ...options, transaction });
   }
 
   startPollingByNetworkClientId(networkClientId: string): string {
@@ -284,7 +301,14 @@ export class UserOperationController extends BaseController<
   ): Promise<AddUserOperationResponse> {
     log('Adding user operation', { request, options });
 
-    const { networkClientId, origin, transaction, swaps } = options;
+    const {
+      networkClientId,
+      origin,
+      smartContractAccount: requestSmartContractAccount,
+      swaps,
+      transaction,
+    } = options;
+
     const { chainId, provider } = await this.#getProvider(networkClientId);
 
     const metadata = await this.#createMetadata(
@@ -294,10 +318,14 @@ export class UserOperationController extends BaseController<
       swaps,
     );
 
+    const smartContractAccount =
+      requestSmartContractAccount ??
+      new SnapSmartContractAccount(this.messagingSystem);
+
     const cache: UserOperationCache = {
       chainId,
       metadata,
-      options,
+      options: { ...options, smartContractAccount },
       provider,
       request,
       transaction,
@@ -435,7 +463,7 @@ export class UserOperationController extends BaseController<
     const { chainId, metadata, options, provider, request, transaction } =
       cache;
 
-    const { data, to, value } = request;
+    const { data, from, to, value } = request;
     const { id, transactionParams, userOperation } = metadata;
     const { smartContractAccount } = options;
 
@@ -462,6 +490,7 @@ export class UserOperationController extends BaseController<
     const response = await smartContractAccount.prepareUserOperation({
       chainId,
       data,
+      from,
       to,
       value,
     });
