@@ -133,10 +133,14 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
+      'KeyringController:getState',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'TokenListController:getState',
     ],
     allowedEvents: [
+      'AccountsController:selectedAccountChange',
+      'KeyringController:lock',
+      'KeyringController:unlock',
       'NetworkController:stateChange',
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
@@ -1298,6 +1302,12 @@ async function withController<ReturnValue>(
       return mockNetworkConfigurations[networkClientId];
     });
   controllerMessenger.registerActionHandler(
+    'KeyringController:getState',
+    jest.fn().mockReturnValue({
+      isActive: true,
+    }),
+  );
+  controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
     mockGetNetworkConfigurationByNetworkClientId,
   );
@@ -1323,6 +1333,7 @@ async function withController<ReturnValue>(
       ...getDefaultPreferencesState(),
       useTokenDetection: true,
     }),
+    trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     ...options,
   });
