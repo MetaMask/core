@@ -145,7 +145,7 @@ type TransactionMetaBase = {
   /**
    * The decimals of the token being received of swap transaction.
    */
-  destinationTokenDecimals?: string;
+  destinationTokenDecimals?: number;
 
   /**
    * The symbol of the token being received with swap.

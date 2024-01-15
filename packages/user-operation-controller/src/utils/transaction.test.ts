@@ -233,5 +233,36 @@ describe('transation', () => {
         getTransactionMetadata(USER_OPERATION_METADATA_MOCK)?.isUserOperation,
       ).toBe(true);
     });
+
+    it('includes swaps metadata', () => {
+      const metadata = {
+        ...USER_OPERATION_METADATA_MOCK,
+        swapsMetadata: {
+          approvalTxId: 'testTxId',
+          destinationTokenAddress: '0x2',
+          destinationTokenDecimals: '3',
+          destinationTokenSymbol: 'TEST',
+          estimatedBaseFee: '0x4',
+          sourceTokenSymbol: 'TEST2',
+          swapMetaData: { test: 'value' },
+          swapTokenValue: '0x6',
+        },
+      } as unknown as UserOperationMetadata;
+
+      const transactionMetadata = getTransactionMetadata(metadata);
+
+      expect(transactionMetadata).toStrictEqual(
+        expect.objectContaining({
+          approvalTxId: 'testTxId',
+          destinationTokenAddress: '0x2',
+          destinationTokenDecimals: '3',
+          destinationTokenSymbol: 'TEST',
+          estimatedBaseFee: '0x4',
+          sourceTokenSymbol: 'TEST2',
+          swapMetaData: { test: 'value' },
+          swapTokenValue: '0x6',
+        }),
+      );
+    });
   });
 });

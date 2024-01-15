@@ -1,4 +1,13 @@
-import { FALLBACK_VARIATION, NameController } from './NameController';
+import type {
+  SetNameRequest,
+  UpdateProposedNamesRequest,
+  NameControllerState,
+} from './NameController';
+import {
+  FALLBACK_VARIATION,
+  NameController,
+  NameOrigin,
+} from './NameController';
 import type { NameProvider } from './types';
 import { NameType } from './types';
 
@@ -83,12 +92,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: NameOrigin.API,
               proposedNames: {},
             },
           },
@@ -110,6 +122,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -130,12 +143,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -158,6 +174,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: SOURCE_ID_MOCK,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -177,12 +194,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: null,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -210,6 +230,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -229,12 +250,15 @@ describe('NameController', () => {
         variation: alternateChainId,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -246,6 +270,7 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: alternateName,
               sourceId: null,
+              origin: NameOrigin.API,
               proposedNames: {},
             },
           },
@@ -267,6 +292,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              origin: NameOrigin.API,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -286,12 +312,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -319,6 +348,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -339,12 +369,73 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: NameOrigin.API,
+              proposedNames: {
+                [SOURCE_ID_MOCK]: {
+                  proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                  lastRequestTime: null,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('stores origin', () => {
+      const provider1 = createMockProvider(1);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1],
+      });
+
+      controller.state.names = {
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              origin: null,
+              proposedNames: {
+                [SOURCE_ID_MOCK]: {
+                  proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                  lastRequestTime: null,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      controller.setName({
+        value: VALUE_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+        name: NAME_MOCK,
+        sourceId: `${SOURCE_ID_MOCK}1`,
+        origin: NameOrigin.ADDRESS_BOOK,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: NAME_MOCK,
+              sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: NameOrigin.ADDRESS_BOOK,
               proposedNames: {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
@@ -385,9 +476,7 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name: NAME_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow('Must specify a non-empty string for value.');
       });
 
@@ -405,9 +494,7 @@ describe('NameController', () => {
             type,
             name: NAME_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow(
           `Must specify one of the following types: ${Object.values(
             NameType,
@@ -428,9 +515,7 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow('Must specify a non-empty string or null for name.');
       });
 
@@ -447,9 +532,7 @@ describe('NameController', () => {
             name: NAME_MOCK,
             sourceId,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow('Must specify a non-empty string for sourceId.');
       });
 
@@ -467,9 +550,7 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name: NAME_MOCK,
             variation,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as SetNameRequest),
         ).toThrow(
           `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
         );
@@ -485,9 +566,7 @@ describe('NameController', () => {
             name: NAME_MOCK,
             sourceId: SOURCE_ID_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          }),
         ).toThrow(
           `Unknown source ID for type '${NameType.ETHEREUM_ADDRESS}': ${SOURCE_ID_MOCK}`,
         );
@@ -503,11 +582,39 @@ describe('NameController', () => {
             name: null,
             sourceId: SOURCE_ID_MOCK,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          }),
         ).toThrow(
           `Cannot specify a source ID when clearing the saved name: ${SOURCE_ID_MOCK}`,
+        );
+      });
+
+      it('origin is unrecognised', () => {
+        const controller = new NameController(CONTROLLER_ARGS_MOCK);
+
+        expect(() =>
+          controller.setName({
+            value: VALUE_MOCK,
+            type: NameType.ETHEREUM_ADDRESS,
+            name: NAME_MOCK,
+            origin: 'invalid origin' as NameOrigin,
+            variation: CHAIN_ID_MOCK,
+          }),
+        ).toThrow(/Must specify one of the following origins/u);
+      });
+
+      it('origin is set but name is being cleared', () => {
+        const controller = new NameController(CONTROLLER_ARGS_MOCK);
+
+        expect(() =>
+          controller.setName({
+            value: VALUE_MOCK,
+            type: NameType.ETHEREUM_ADDRESS,
+            name: null,
+            variation: CHAIN_ID_MOCK,
+            origin: NameOrigin.ADDRESS_BOOK,
+          }),
+        ).toThrow(
+          `Cannot specify an origin when clearing the saved name: ${NameOrigin.ADDRESS_BOOK}`,
         );
       });
     });
@@ -538,12 +645,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -603,6 +713,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldBeDeleted1'],
@@ -626,12 +737,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -690,6 +804,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}3`]: {
                   proposedNames: ['ShouldBeDeleted3'],
@@ -708,12 +823,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -762,12 +880,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [],
@@ -861,6 +982,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
@@ -889,12 +1011,15 @@ describe('NameController', () => {
         variation: alternateChainId,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
@@ -916,6 +1041,7 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -971,12 +1097,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1035,12 +1164,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              origin: null,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1083,6 +1215,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [],
@@ -1101,12 +1234,15 @@ describe('NameController', () => {
         variation: CHAIN_ID_MOCK,
       });
 
-      expect(controller.state.names).toStrictEqual({
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
         [NameType.ETHEREUM_ADDRESS]: {
           [VALUE_MOCK]: {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              origin: NameOrigin.API,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [
@@ -1149,6 +1285,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1172,12 +1309,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1219,6 +1359,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1237,12 +1378,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1279,6 +1423,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1297,12 +1442,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1336,12 +1484,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1400,12 +1551,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1467,12 +1621,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
@@ -1528,6 +1685,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeDeleted1'],
@@ -1557,12 +1715,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [`ShouldNotBeDeleted1`],
@@ -1675,12 +1836,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -1728,9 +1892,7 @@ describe('NameController', () => {
             value,
             type: NameType.ETHEREUM_ADDRESS,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as UpdateProposedNamesRequest),
         ).rejects.toThrow('Must specify a non-empty string for value.');
       });
 
@@ -1752,9 +1914,7 @@ describe('NameController', () => {
             value: VALUE_MOCK,
             type,
             variation: CHAIN_ID_MOCK,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as UpdateProposedNamesRequest),
         ).rejects.toThrow(
           `Must specify one of the following types: ${Object.values(
             NameType,
@@ -1847,6 +2007,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1871,12 +2032,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1914,6 +2078,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1938,12 +2103,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -1982,6 +2150,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2006,12 +2175,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2070,6 +2242,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
@@ -2094,12 +2267,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2163,12 +2339,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [VALUE_MOCK]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
