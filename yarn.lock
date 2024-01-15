@@ -1655,7 +1655,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@^4.0.0, @metamask/base-controller@^4.1.0, @metamask/base-controller@workspace:packages/base-controller":
+"@metamask/base-controller@^4.0.0, @metamask/base-controller@^4.0.1, @metamask/base-controller@^4.1.0, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -2966,7 +2966,39 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^19.0.1, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^19.0.1":
+  version: 19.0.1
+  resolution: "@metamask/transaction-controller@npm:19.0.1"
+  dependencies:
+    "@ethereumjs/common": ^3.2.0
+    "@ethereumjs/tx": ^4.2.0
+    "@ethersproject/abi": ^5.7.0
+    "@metamask/approval-controller": ^5.1.1
+    "@metamask/base-controller": ^4.0.1
+    "@metamask/controller-utils": ^8.0.1
+    "@metamask/eth-query": ^4.0.0
+    "@metamask/gas-fee-controller": ^12.0.0
+    "@metamask/metamask-eth-abis": ^3.0.0
+    "@metamask/network-controller": ^17.1.0
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/utils": ^8.2.0
+    async-mutex: ^0.2.6
+    eth-method-registry: ^3.0.0
+    ethereumjs-util: ^7.0.10
+    fast-json-patch: ^3.1.1
+    lodash: ^4.17.21
+    nonce-tracker: ^3.0.0
+    uuid: ^8.3.2
+  peerDependencies:
+    "@metamask/approval-controller": ^5.1.1
+    "@metamask/gas-fee-controller": ^12.0.0
+    "@metamask/network-controller": ^17.1.0
+    babel-runtime: ^6.26.0
+  checksum: 5b4684e952a9f4e83eac34477d3e5ba2ab9e4c05ecc48c034b95ae543096ec54930377e78f8dcb859ead557052600192333b9287ede295ed6776b8e0de270ef6
+  languageName: node
+  linkType: hard
+
+"@metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
