@@ -5,8 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- Support swaps using user operations ([#3749](https://github.com/MetaMask/core/pull/3749))
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
 
-[Unreleased]: https://github.com/MetaMask/core/
+## [1.0.0]
+### Added
+- **BREAKING:** Add required constructor option `entrypoint` to specify address of 4337 entrypoint smart contract ([#3749](https://github.com/MetaMask/core/pull/3749))
+- Add `type` and `swaps` properties to `AddUserOperationOptions` ([#3749](https://github.com/MetaMask/core/pull/3749))
+- Emit `user-operation-added` event ([#3749](https://github.com/MetaMask/core/pull/3749))
+
+### Changed
+- Use zero values when estimating gas with bundler ([#3749](https://github.com/MetaMask/core/pull/3749))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/user-operation-controller@1.0.0
