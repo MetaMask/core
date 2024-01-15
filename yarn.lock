@@ -2377,7 +2377,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/json-rpc-engine": ^7.3.1
     "@metamask/rpc-errors": ^6.1.0
-    "@metamask/swappable-obj-proxy": ^2.1.0
+    "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -2730,7 +2730,7 @@ __metadata:
     "@metamask/base-controller": ^4.1.0
     "@metamask/json-rpc-engine": ^7.3.1
     "@metamask/network-controller": ^17.1.0
-    "@metamask/swappable-obj-proxy": ^2.1.0
+    "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2963,6 +2963,13 @@ __metadata:
   version: 2.1.0
   resolution: "@metamask/swappable-obj-proxy@npm:2.1.0"
   checksum: b15cebee7fb189d1143d3a755a38a7d88f56f91e1277425a51f63c50c432dfb4e6e22650ef67474ae4ef2a97344231af00be6780f126c47d401a23c8a8fb3c9c
+  languageName: node
+  linkType: hard
+
+"@metamask/swappable-obj-proxy@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@metamask/swappable-obj-proxy@npm:2.2.0"
+  checksum: 343c95f72c96776980ef3e70600f7fa312be9a75683c132404a66ddd3c507abadee9c4deba1385246f73bded1938a7958e5a89fc407c19dfc352dd9b398e216f
   languageName: node
   linkType: hard
 
