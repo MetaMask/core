@@ -188,7 +188,7 @@ export class PendingTransactionTracker {
     log('Checking transactions');
 
     const pendingTransactions = this.#getPendingTransactions();
-
+    console.log('pendingTransactions', pendingTransactions);
     if (!pendingTransactions.length) {
       log('No pending transactions to check');
       return;

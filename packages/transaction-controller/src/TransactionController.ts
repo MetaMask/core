@@ -551,7 +551,6 @@ export class TransactionController extends BaseControllerV1<
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
 
-    console.log('base provider noncetracker', provider, blockTracker);
     this.nonceTracker = new NonceTracker({
       // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
       provider,
@@ -2272,7 +2271,6 @@ export class TransactionController extends BaseControllerV1<
             | undefined;
 
           const updatedTransaction = approvalValue?.txMeta;
-
           if (updatedTransaction) {
             log('Updating transaction with approval data', {
               customNonce: updatedTransaction.customNonceValue,
@@ -2319,7 +2317,6 @@ export class TransactionController extends BaseControllerV1<
     }
 
     const finalMeta = await finishedPromise;
-
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
@@ -2415,7 +2412,6 @@ export class TransactionController extends BaseControllerV1<
         : baseTxParams;
 
       const rawTx = await this.signTransaction(transactionMeta, txParams);
-
       if (!this.beforePublish(transactionMeta)) {
         log('Skipping publishing transaction based on hook');
         this.hub.emit(`${transactionMeta.id}:publish-skip`, transactionMeta);
@@ -3026,7 +3022,7 @@ export class TransactionController extends BaseControllerV1<
 
   private onConfirmedTransaction(transactionMeta: TransactionMeta) {
     log('Processing confirmed transaction', transactionMeta.id);
-
+    console.log('onConfirmedTransaction', transactionMeta);
     this.markNonceDuplicatesDropped(transactionMeta.id);
 
     this.hub.emit('transaction-confirmed', { transactionMeta });

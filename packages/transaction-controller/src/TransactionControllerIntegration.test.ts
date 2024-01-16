@@ -32,7 +32,8 @@ const newController = async (options: any) => {
     infuraProjectId: 'f53baaf686df429c9a3686b359dbaa96',
   });
   await networkController.initializeProvider();
-  const { provider, blockTracker } = networkController.getProviderAndBlockTracker();
+  const { provider, blockTracker } =
+    networkController.getProviderAndBlockTracker();
 
   const approvalController = new ApprovalController({
     messenger: messenger.getRestricted({
@@ -111,7 +112,9 @@ describe('TransactionController Integration', () => {
     //   transactionController.stopTrackingByNetworkClientId('mainnet');
     //   expect(transactionController).toBeDefined();
     // });
-    describe('multichain transaction lifecycle', () => {
+  });
+  describe('multichain transaction lifecycle', () => {
+    describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
       it('should add a new unapproved transaction', async () => {
         mockNetwork({
           networkClientConfiguration,
@@ -190,8 +193,7 @@ describe('TransactionController Integration', () => {
           'unapproved',
         );
       });
-      it.only('should be able to get to submitted state', async () => {
-        nock.recorder.rec();
+      it('should be able to get to submitted state', async () => {
         mockNetwork({
           networkClientConfiguration,
           mocks: [
@@ -211,15 +213,6 @@ describe('TransactionController Integration', () => {
               },
               response: {
                 result: '0x2',
-              },
-            },
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
               },
             },
             {
@@ -272,9 +265,18 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
+                method: 'eth_getTransactionCount',
+                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
                 method: 'eth_sendRawTransaction',
                 params: [
-                  '0x02ec01088506d364b40e8506d364b40e8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                  '0x02e001010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
                 ],
               },
               response: {
@@ -303,7 +305,7 @@ describe('TransactionController Integration', () => {
           'submitted',
         );
       });
-      it('should be able to get to completed state', async () => {
+      it('should be able to get to confirmed state', async () => {
         expect(true).toBe(true);
       });
       it('should be able to get to cancelled state', async () => {
