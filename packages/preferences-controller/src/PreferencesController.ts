@@ -104,6 +104,10 @@ export type PreferencesState = {
    * Controls whether token detection is enabled
    */
   useTokenDetection: boolean;
+  /**
+   * Controls whether smart transactions are enabled
+   */
+  smartTransactionsEnabled: boolean;
 };
 
 const metadata = {
@@ -121,6 +125,7 @@ const metadata = {
   showIncomingTransactions: { persist: true, anonymous: true },
   useNftDetection: { persist: true, anonymous: true },
   useTokenDetection: { persist: true, anonymous: true },
+  smartTransactionsEnabled: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -190,6 +195,7 @@ export function getDefaultPreferencesState() {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
+    smartTransactionsEnabled: false,
   };
 }
 
@@ -505,6 +511,17 @@ export class PreferencesController extends BaseController<
         };
       });
     }
+  }
+
+  /**
+   * A setter for the user to enable smart transactions
+   * 
+   * @param smartTransactionsEnabled - true to enable smart transactions
+   */
+  setSmartTransactionsEnabled(smartTransactionsEnabled: boolean) {
+    this.update((state) => {
+      state.smartTransactionsEnabled = smartTransactionsEnabled;
+    });
   }
 }
 
