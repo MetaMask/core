@@ -8,6 +8,7 @@ import {
 
 import { mockNetwork } from '../../../tests/mock-network';
 import { TransactionController } from './TransactionController';
+import nock from 'nock';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
@@ -16,7 +17,7 @@ const networkClientConfiguration = {
   type: NetworkClientType.Infura,
   network: NetworkType.mainnet,
   chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
-  infuraProjectId: 'foo',
+  infuraProjectId: 'f53baaf686df429c9a3686b359dbaa96',
   ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
 } as const;
 
@@ -28,10 +29,10 @@ const newController = async (options: any) => {
     trackMetaMetricsEvent: () => {
       // noop
     },
-    infuraProjectId: 'foo',
+    infuraProjectId: 'f53baaf686df429c9a3686b359dbaa96',
   });
   await networkController.initializeProvider();
-  const { provider } = networkController.getProviderAndBlockTracker();
+  const { provider, blockTracker } = networkController.getProviderAndBlockTracker();
 
   const approvalController = new ApprovalController({
     messenger: messenger.getRestricted({
@@ -43,6 +44,7 @@ const newController = async (options: any) => {
   const opts = {
     provider,
     messenger,
+    blockTracker,
     onNetworkStateChange: () => {
       // noop
     },
@@ -188,8 +190,118 @@ describe('TransactionController Integration', () => {
           'unapproved',
         );
       });
-      it('should be able to get to submitted state', async () => {
-        expect(true).toBe(true);
+      it.only('should be able to get to submitted state', async () => {
+        nock.recorder.rec();
+        mockNetwork({
+          networkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x42',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_estimateGas',
+                params: [
+                  {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x0',
+                  },
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02ec01088506d364b40e8506d364b40e8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+          ],
+        });
+        const { transactionController, approvalController } =
+          await newController({});
+        const { result, transactionMeta } =
+          await transactionController.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_2_MOCK,
+            },
+            { networkClientId: 'mainnet' },
+          );
+
+        await approvalController.accept(transactionMeta.id);
+
+        await result;
+
+        expect(transactionController.state.transactions).toHaveLength(1);
+        expect(transactionController.state.transactions[0].status).toBe(
+          'submitted',
+        );
       });
       it('should be able to get to completed state', async () => {
         expect(true).toBe(true);

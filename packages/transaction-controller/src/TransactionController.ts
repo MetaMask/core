@@ -551,6 +551,7 @@ export class TransactionController extends BaseControllerV1<
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
 
+    console.log('base provider noncetracker', provider, blockTracker);
     this.nonceTracker = new NonceTracker({
       // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
       provider,
@@ -670,15 +671,10 @@ export class TransactionController extends BaseControllerV1<
   };
 
   #initTrackingMap = () => {
-    console.log('init tracking map 1');
     const networkClients = this.getNetworkClientRegistry();
-    console.log('init tracking map 2');
     const networkClientIds = Object.keys(networkClients);
-    console.log('init tracking map 3');
     networkClientIds.map((id) => this.startTrackingByNetworkClientId(id));
-    console.log('init tracking map 4');
     this.hub.emit('tracking-map-init', networkClientIds);
-    console.log('init tracking map 5');
   };
 
   #onStateChange = () => {
@@ -2327,6 +2323,7 @@ export class TransactionController extends BaseControllerV1<
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
+        console.log('stoackeroni', finalMeta.error.stack);
         throw rpcErrors.internal(finalMeta.error.message);
 
       case TransactionStatus.submitted:
