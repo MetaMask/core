@@ -177,7 +177,7 @@ function getEtherscanApiUrl(
   chainId: Hex,
   urlParams: Record<string, string | undefined>,
 ): string {
-  const apiUrl = getEtherscanApiHost(chainId)
+  const apiUrl = getEtherscanApiHost(chainId);
   let url = `${apiUrl}/api?`;
 
   for (const paramKey of Object.keys(urlParams)) {

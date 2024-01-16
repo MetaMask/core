@@ -5,7 +5,6 @@ import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
 } from '../utils/etherscan';
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import {
   ID_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK,
@@ -16,8 +15,9 @@ import {
   ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK,
   EXPECTED_NORMALISED_TOKEN_TRANSACTION,
   ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK,
-  ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK
-} from "./EtherscanMocks"
+  ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK,
+} from './EtherscanMocks';
+import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 
 jest.mock('../utils/etherscan', () => ({
   fetchEtherscanTransactions: jest.fn(),

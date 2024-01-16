@@ -8,9 +8,9 @@ import {
 import nock from 'nock';
 
 import { mockNetwork } from '../../../tests/mock-network';
+import { ETHERSCAN_TRANSACTION_RESPONSE_MOCK } from './helpers/EtherscanMocks';
 import { TransactionController } from './TransactionController';
 import { getEtherscanApiHost } from './utils/etherscan';
-import { ETHERSCAN_TRANSACTION_RESPONSE_MOCK } from './helpers/EtherscanMocks';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
@@ -237,49 +237,59 @@ describe('TransactionController Integration', () => {
         ],
       });
 
-      const { networkController, transactionController } = await newController({})
+      const { networkController, transactionController } = await newController(
+        {},
+      );
 
-      const networkClients = networkController.getNetworkClientRegistry()
+      const networkClients = networkController.getNetworkClientRegistry();
 
       // TODO(JL): test more than just linea-mainnet
       // await Promise.all(Array.from( trackingMap.keys() ).map(async (networkClientId) => {
-      await Promise.all(['linea-mainnet'].map(async (networkClientId) => {
-        const config = networkClients[networkClientId].configuration
-        mockNetwork({
-          networkClientConfiguration: config,
-          mocks: [
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
+      await Promise.all(
+        ['linea-mainnet'].map(async (networkClientId) => {
+          const config = networkClients[networkClientId].configuration;
+          mockNetwork({
+            networkClientConfiguration: config,
+            mocks: [
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
               },
-              response: {
-                result: '0x1',
-              },
-            },
-          ]
-        })
-        nock(getEtherscanApiHost(config.chainId))
-          .get("/api?module=account&address=0xdeadbeef&offset=40&sort=desc&action=txlist&tag=latest&page=1")
-          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK );
+            ],
+          });
+          nock(getEtherscanApiHost(config.chainId))
+            .get(
+              '/api?module=account&address=0xdeadbeef&offset=40&sort=desc&action=txlist&tag=latest&page=1',
+            )
+            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-        const receivedIncomingTransaction = new Promise(resolve => {
-          transactionController.hub.once('incomingTransactionBlock', resolve)
-        })
+          const receivedIncomingTransaction = new Promise((resolve) => {
+            transactionController.hub.once('incomingTransactionBlock', resolve);
+          });
 
-        transactionController.startIncomingTransactionPolling([networkClientId])
+          transactionController.startIncomingTransactionPolling([
+            networkClientId,
+          ]);
 
-        await receivedIncomingTransaction
+          await receivedIncomingTransaction;
 
-        // TODO(JL): verify the contents of the transactions
-        expect(transactionController.state.transactions).toHaveLength(2)
-        expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual({
-          '0xe708#0xdeadbeef#normal': 4535105
-        })
-      }))
-    })
-  })
-  describe('stopIncomingTransactionPolling', () => {})
-  describe('stopAllIncomingTransactionPolling', () => {})
-  describe('updateIncomingTransactions', () => {})
+          // TODO(JL): verify the contents of the transactions
+          expect(transactionController.state.transactions).toHaveLength(2);
+          expect(
+            transactionController.state.lastFetchedBlockNumbers,
+          ).toStrictEqual({
+            '0xe708#0xdeadbeef#normal': 4535105,
+          });
+        }),
+      );
+    });
+  });
+  describe('stopIncomingTransactionPolling', () => {});
+  describe('stopAllIncomingTransactionPolling', () => {});
+  describe('updateIncomingTransactions', () => {});
 });
