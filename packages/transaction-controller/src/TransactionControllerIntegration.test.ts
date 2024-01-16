@@ -1,3 +1,4 @@
+import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import {
@@ -32,6 +33,13 @@ const newController = async (options: any) => {
   await networkController.initializeProvider();
   const { provider } = networkController.getProviderAndBlockTracker();
 
+  new ApprovalController({
+    messenger: messenger.getRestricted({
+      name: 'ApprovalController',
+    }),
+    showApprovalRequest: jest.fn(),
+  });
+
   const opts = {
     provider,
     messenger,
@@ -46,6 +54,7 @@ const newController = async (options: any) => {
       networkController.findNetworkClientIdByChainId.bind(networkController),
     getNetworkClientById:
       networkController.getNetworkClientById.bind(networkController),
+    getNetworkState: () => networkController.state,
     ...options,
   };
   return new TransactionController(opts);
@@ -122,6 +131,38 @@ describe('TransactionController Integration', () => {
                 result: '0x3',
               },
             },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x42',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
           ],
         });
         const transactionController = await newController({});
@@ -132,7 +173,7 @@ describe('TransactionController Integration', () => {
           },
           { networkClientId: 'mainnet' },
         );
-        expect(transactionController.state.transactions.length).toHaveLength(1);
+        expect(transactionController.state.transactions).toHaveLength(1);
       });
       it('should be able to get to submitted state', async () => {
         expect(true).toBe(true);
