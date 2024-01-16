@@ -517,8 +517,8 @@ describe('TransactionController', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let approveTransaction: (value?: any) => void;
   let getNonceLockSpy: jest.Mock;
-  let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
-  let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
+  let incomingTransactionHelperMocks: jest.Mocked<IncomingTransactionHelper>[];
+  let pendingTransactionTrackerMocks: jest.Mocked<PendingTransactionTracker>[];
   let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
@@ -718,30 +718,35 @@ describe('TransactionController', () => {
 
     NonceTrackerPackage.NonceTracker.prototype.getNonceLock = getNonceLockSpy;
 
-    incomingTransactionHelperMock = {
-      stop: jest.fn(),
-      hub: {
-        on: jest.fn(),
-      },
-    } as unknown as jest.Mocked<IncomingTransactionHelper>;
+    incomingTransactionHelperMocks = [];
+    incomingTransactionHelperClassMock.mockImplementation(() => {
+      const incomingTransactionHelperMock = {
+        start: jest.fn(),
+        stop: jest.fn(),
+        update: jest.fn(),
+        hub: {
+          on: jest.fn(),
+        },
+      } as unknown as jest.Mocked<IncomingTransactionHelper>;
+      incomingTransactionHelperMocks.push(incomingTransactionHelperMock);
+      return incomingTransactionHelperMock;
+    });
 
-    pendingTransactionTrackerMock = {
-      start: jest.fn(),
-      stop: jest.fn(),
-      hub: {
-        on: jest.fn(),
-        removeAllListeners: jest.fn(),
-      },
-      onStateChange: jest.fn(),
-    } as unknown as jest.Mocked<PendingTransactionTracker>;
+    pendingTransactionTrackerMocks = [];
+    pendingTransactionTrackerClassMock.mockImplementation(() => {
+      const pendingTransactionTrackerMock = {
+        start: jest.fn(),
+        stop: jest.fn(),
+        hub: {
+          on: jest.fn(),
+          removeAllListeners: jest.fn(),
+        },
+        onStateChange: jest.fn(),
+      } as unknown as jest.Mocked<PendingTransactionTracker>;
 
-    incomingTransactionHelperClassMock.mockReturnValue(
-      incomingTransactionHelperMock,
-    );
-
-    pendingTransactionTrackerClassMock.mockReturnValue(
-      pendingTransactionTrackerMock,
-    );
+      pendingTransactionTrackerMocks.push(pendingTransactionTrackerMock);
+      return pendingTransactionTrackerMock;
+    });
   });
 
   afterEach(() => {
@@ -3170,7 +3175,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[0][1]({
         added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
         updated: [],
       });
@@ -3196,7 +3201,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[0][1]({
         added: [],
         updated: [updatedTransaction],
       });
@@ -3212,7 +3217,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[0][1]({
         added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
         updated: [],
       });
@@ -3233,7 +3238,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
+      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[1][1]({
         lastFetchedBlockNumbers,
         blockNumber: 123,
       });
@@ -3252,7 +3257,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
+      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[1][1]({
         lastFetchedBlockNumbers: {
           key: 234,
         },
@@ -3471,7 +3476,7 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...args: any
     ) {
-      (pendingTransactionTrackerMock.hub.on as jest.Mock).mock.calls.find(
+      (pendingTransactionTrackerMocks[0].hub.on as jest.Mock).mock.calls.find(
         (call) => call[0] === eventName,
       )[1](...args);
     }
@@ -4889,5 +4894,96 @@ describe('TransactionController', () => {
       },
     });
     expect(controller).toBeDefined();
+  });
+
+  describe('startIncomingTransactionPolling', () => {
+    it('should start the incoming transaction helper for the specific networkClientIds provided', () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+      controller.startTrackingByNetworkClientId('sepolia');
+
+      controller.startIncomingTransactionPolling(['mainnet', 'sepolia']);
+
+      expect(
+        trackingMap.get('mainnet')?.incomingTransactionHelper.start,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        trackingMap.get('sepolia')?.incomingTransactionHelper.start,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('should start the global incoming transaction helper when no networkClientIds provided', () => {
+      const controller = newController();
+
+      controller.startIncomingTransactionPolling([]);
+
+      expect(incomingTransactionHelperMocks[0].start).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('stopIncomingTransactionPolling', () => {
+    it('should stop the incoming transaction helper for the specific networkClientIds provided', () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+      controller.startTrackingByNetworkClientId('sepolia');
+
+      controller.stopIncomingTransactionPolling(['mainnet', 'sepolia']);
+
+      expect(
+        trackingMap.get('mainnet')?.incomingTransactionHelper.stop,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        trackingMap.get('sepolia')?.incomingTransactionHelper.stop,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('should stop the global incoming transaction helper when no networkClientIds provided', () => {
+      const controller = newController();
+
+      controller.stopIncomingTransactionPolling([]);
+
+      expect(incomingTransactionHelperMocks[0].stop).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('stopAllIncomingTransactionPolling', () => {
+    it('should stop the global incoming transaction helper and each transaction helper in the tracking map', () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+
+      controller.stopAllIncomingTransactionPolling();
+
+      expect(incomingTransactionHelperMocks[0].stop).toHaveBeenCalledTimes(1);
+      expect(
+        trackingMap.get('mainnet')?.incomingTransactionHelper.stop,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        trackingMap.get('sepolia')?.incomingTransactionHelper.stop,
+      ).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('updateIncomingTransactions', () => {
+    it('should update the incoming transactions for the specific networkClientIds provided', async () => {
+      const controller = newController();
+      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
+
+      await controller.updateIncomingTransactions(['mainnet', 'sepolia']);
+
+      expect(
+        trackingMap.get('mainnet')?.incomingTransactionHelper.update,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        trackingMap.get('sepolia')?.incomingTransactionHelper.update,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('should update the global incoming transactions when no networkClientIds provided', async () => {
+      const controller = newController();
+
+      await controller.updateIncomingTransactions([]);
+
+      expect(incomingTransactionHelperMocks[0].update).toHaveBeenCalledTimes(1);
+    });
   });
 });
