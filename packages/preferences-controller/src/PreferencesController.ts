@@ -515,7 +515,7 @@ export class PreferencesController extends BaseController<
 
   /**
    * A setter for the user to enable smart transactions
-   * 
+   *
    * @param smartTransactionsEnabled - true to enable smart transactions
    */
   setSmartTransactionsEnabled(smartTransactionsEnabled: boolean) {
