@@ -670,10 +670,15 @@ export class TransactionController extends BaseControllerV1<
   };
 
   #initTrackingMap = () => {
+    console.log('init tracking map 1');
     const networkClients = this.getNetworkClientRegistry();
+    console.log('init tracking map 2');
     const networkClientIds = Object.keys(networkClients);
+    console.log('init tracking map 3');
     networkClientIds.map((id) => this.startTrackingByNetworkClientId(id));
+    console.log('init tracking map 4');
     this.hub.emit('tracking-map-init', networkClientIds);
+    console.log('init tracking map 5');
   };
 
   #onStateChange = () => {
@@ -2174,14 +2179,17 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
 
     const { networkClientId } = transactionMeta;
+    let chainId;
+    let isCustomNetwork;
 
-    const { providerConfig } = this.getNetworkState();
-    let { chainId } = providerConfig;
-    let isCustomNetwork = providerConfig.type === NetworkType.rpc;
     if (networkClientId) {
       const { configuration } = this.getNetworkClientById(networkClientId);
       chainId = configuration.chainId;
       isCustomNetwork = configuration.type === NetworkClientType.Custom;
+    } else {
+      const { providerConfig } = this.getNetworkState();
+      chainId = providerConfig.chainId;
+      isCustomNetwork = providerConfig.type === NetworkType.rpc;
     }
 
     await updateGas({
