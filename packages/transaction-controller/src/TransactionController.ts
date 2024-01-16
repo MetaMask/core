@@ -902,42 +902,44 @@ export class TransactionController extends BaseControllerV1<
     };
   }
 
-  startIncomingTransactionPolling(networkClientId?: NetworkClientId) {
-    if (networkClientId) {
-      this.trackingMap.get(networkClientId)?.incomingTransactionHelper.start();
+  startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
+    if (networkClientIds.length === 0) {
+      this.incomingTransactionHelper.start();
       return;
     }
-
-    this.incomingTransactionHelper.start();
-    for (const [, trackingMap] of this.trackingMap) {
-      trackingMap.incomingTransactionHelper.start();
-    }
+    networkClientIds.forEach((networkClientId) => {
+      this.trackingMap.get(networkClientId)?.incomingTransactionHelper.start();
+    });
   }
 
-  stopIncomingTransactionPolling(networkClientId?: NetworkClientId) {
-    if (networkClientId) {
-      this.trackingMap.get(networkClientId)?.incomingTransactionHelper.stop();
+  stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
+    if (networkClientIds.length === 0) {
+      this.incomingTransactionHelper.stop();
       return;
     }
+    networkClientIds.forEach((networkClientId) => {
+      this.trackingMap.get(networkClientId)?.incomingTransactionHelper.stop();
+    });
+  }
 
+  stopAllIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
     for (const [, trackingMap] of this.trackingMap) {
       trackingMap.incomingTransactionHelper.stop();
     }
   }
 
-  async updateIncomingTransactions(networkClientId?: NetworkClientId) {
-    if (networkClientId) {
-      await this.trackingMap
-        .get(networkClientId)
-        ?.incomingTransactionHelper.update();
+  async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
+    if (networkClientIds.length === 0) {
+      await this.incomingTransactionHelper.update();
       return;
     }
 
-    await this.incomingTransactionHelper.update();
     await Promise.allSettled(
-      Array.from(this.trackingMap).map(async ([_, trackingMap]) => {
-        return await trackingMap.incomingTransactionHelper.update();
+      networkClientIds.map(async (networkClientId) => {
+        return await this.trackingMap
+          .get(networkClientId)
+          ?.incomingTransactionHelper.update();
       }),
     );
   }
