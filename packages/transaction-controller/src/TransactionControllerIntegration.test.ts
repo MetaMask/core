@@ -33,7 +33,7 @@ const newController = async (options: any) => {
   await networkController.initializeProvider();
   const { provider } = networkController.getProviderAndBlockTracker();
 
-  new ApprovalController({
+  const approvalController = new ApprovalController({
     messenger: messenger.getRestricted({
       name: 'ApprovalController',
     }),
@@ -57,7 +57,17 @@ const newController = async (options: any) => {
     getNetworkState: () => networkController.state,
     ...options,
   };
-  return new TransactionController(opts);
+  const transactionController = new TransactionController(opts, {
+    // TODO(JL): fix this type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sign: async (transaction: any) => transaction,
+  });
+
+  return {
+    transactionController,
+    approvalController,
+    networkController,
+  };
 };
 
 describe('TransactionController Integration', () => {
@@ -165,7 +175,7 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
-        const transactionController = await newController({});
+        const { transactionController } = await newController({});
         await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
@@ -174,6 +184,9 @@ describe('TransactionController Integration', () => {
           { networkClientId: 'mainnet' },
         );
         expect(transactionController.state.transactions).toHaveLength(1);
+        expect(transactionController.state.transactions[0].status).toBe(
+          'unapproved',
+        );
       });
       it('should be able to get to submitted state', async () => {
         expect(true).toBe(true);
