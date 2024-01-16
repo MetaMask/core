@@ -289,7 +289,7 @@ describe('TransactionController Integration', () => {
       );
     });
   });
-  describe('stopIncomingTransactionPolling', () => {});
-  describe('stopAllIncomingTransactionPolling', () => {});
-  describe('updateIncomingTransactions', () => {});
+  // describe('stopIncomingTransactionPolling', () => {});
+  // describe('stopAllIncomingTransactionPolling', () => {});
+  // describe('updateIncomingTransactions', () => {});
 });
