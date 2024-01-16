@@ -1211,6 +1211,59 @@ describe('TransactionController', () => {
       );
     });
 
+    describe('multichain', () => {
+      it('adds unapproved transaction to state when using networkClientId', async () => {
+        const controller = newController();
+        const sepoliaTxParams: TransactionParams = {
+          chainId: SEPOLIA.chainId,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        };
+
+        await controller.addTransaction(sepoliaTxParams, {
+          origin: 'metamask',
+          actionId: ACTION_ID_MOCK,
+          networkClientId: 'sepolia',
+        });
+
+        const transactionMeta = controller.state.transactions[0];
+
+        expect(transactionMeta.txParams.from).toStrictEqual(
+          sepoliaTxParams.from,
+        );
+        expect(transactionMeta.chainId).toStrictEqual(sepoliaTxParams.chainId);
+        expect(transactionMeta.networkClientId).toBe('sepolia');
+        expect(transactionMeta.origin).toBe('metamask');
+      });
+      it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
+        const controller = newController({ approve: true });
+        const submittedEventListener = jest.fn();
+        controller.hub.on('transaction-submitted', submittedEventListener);
+
+        const sepoliaTxParams: TransactionParams = {
+          chainId: SEPOLIA.chainId,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        const { result } = await controller.addTransaction(sepoliaTxParams, {
+          origin: 'metamask',
+          actionId: ACTION_ID_MOCK,
+          networkClientId: 'sepolia',
+        });
+
+        await result;
+
+        const { txParams, status, networkClientId, chainId } =
+          controller.state.transactions[0];
+        expect(submittedEventListener).toHaveBeenCalledTimes(1);
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
+        expect(networkClientId).toBe('sepolia');
+        expect(chainId).toBe(SEPOLIA.chainId);
+        expect(status).toBe(TransactionStatus.submitted);
+      });
+    });
+
     it('generates initial history', async () => {
       const controller = newController();
 
