@@ -72,7 +72,7 @@ export function createNetworkClient(
 
   const blockTrackerOpts =
     // eslint-disable-next-line n/no-process-env
-    process.env.IN_TEST && networkConfig.type === 'custom'
+    process.env.IN_TEST
       ? { pollingInterval: SECOND }
       : {};
   const blockTracker = new PollingBlockTracker({
