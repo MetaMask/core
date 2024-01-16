@@ -2698,6 +2698,11 @@ export class TransactionController extends BaseControllerV1<
     };
     blockNumber: number;
   }) {
+    console.log(
+      'onUpdatedLastFetchedBlockNumbers',
+      lastFetchedBlockNumbers,
+      blockNumber,
+    );
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }

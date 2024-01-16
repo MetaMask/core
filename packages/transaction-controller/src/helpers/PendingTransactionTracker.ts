@@ -167,6 +167,7 @@ export class PendingTransactionTracker {
   async #onLatestBlock(latestBlockNumber: string) {
     const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
 
+    console.log('latestBlockNumber', latestBlockNumber);
     try {
       await this.#checkTransactions();
     } catch (error) {
