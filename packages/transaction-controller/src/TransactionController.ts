@@ -670,15 +670,10 @@ export class TransactionController extends BaseControllerV1<
   };
 
   #initTrackingMap = () => {
-    console.log('init tracking map 1');
     const networkClients = this.getNetworkClientRegistry();
-    console.log('init tracking map 2');
     const networkClientIds = Object.keys(networkClients);
-    console.log('init tracking map 3');
     networkClientIds.map((id) => this.startTrackingByNetworkClientId(id));
-    console.log('init tracking map 4');
     this.hub.emit('tracking-map-init', networkClientIds);
-    console.log('init tracking map 5');
   };
 
   #onStateChange = () => {
@@ -1304,6 +1299,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   // NOTE(JL): Should this be private?
+  // TODO(JL): This should be idempotent
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
@@ -2705,6 +2701,7 @@ export class TransactionController extends BaseControllerV1<
     };
     blockNumber: number;
   }) {
+    // TODO(JL): this needs to be keyed by chainId/networkClientId
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
