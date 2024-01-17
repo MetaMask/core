@@ -127,7 +127,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #disabled: boolean;
 
-  #isUnlocked?: boolean;
+  #isUnlocked: boolean;
 
   #isDetectionEnabledFromPreferences: boolean;
 
@@ -228,6 +228,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
 
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    this.#isUnlocked = isUnlocked;
+
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
       async ({ tokenList }) => {
@@ -325,11 +330,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * to the keyring locked state changes
    */
   async #registerKeyringListeners() {
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-    this.#isUnlocked = isUnlocked;
-
     this.messagingSystem.subscribe('KeyringController:unlock', async () => {
       this.#isUnlocked = true;
       await this.#restartTokenDetection();
