@@ -5,10 +5,11 @@ import {
   NetworkController,
   NetworkClientType,
 } from '@metamask/network-controller';
+import { useFakeTimers } from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import { TransactionController } from './TransactionController';
-import { flushPromises } from '../../../tests/helpers';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
@@ -425,7 +426,7 @@ describe('TransactionController Integration', () => {
         );
       });
       it('should be able to get to confirmed state', async () => {
-        jest.useFakeTimers();
+        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -587,11 +588,8 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
-        jest.advanceTimersByTime(1000);
         const { transactionController, approvalController } =
           await newController({});
-        jest.advanceTimersByTime(1000);
-        await flushPromises();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -605,16 +603,14 @@ describe('TransactionController Integration', () => {
 
         await result;
 
-        jest.advanceTimersByTime(20000);
-        console.log('advanced time');
-        await flushPromises();
-        console.log('flushed promises');
+        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: 0 });
 
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
           'confirmed',
         );
-        jest.useRealTimers();
+        clock.restore();
       });
       it('should be able to get to cancelled state', async () => {
         expect(true).toBe(true);
