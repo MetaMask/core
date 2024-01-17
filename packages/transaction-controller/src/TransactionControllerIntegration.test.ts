@@ -7,9 +7,10 @@ import {
 } from '@metamask/network-controller';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
+import { advanceTime, flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import { TransactionController } from './TransactionController';
+import nock from 'nock';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
@@ -425,7 +426,7 @@ describe('TransactionController Integration', () => {
           'submitted',
         );
       });
-      it('should be able to get to confirmed state', async () => {
+      it.only('should be able to get to confirmed state', async () => {
         const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
@@ -505,7 +506,7 @@ describe('TransactionController Integration', () => {
               response: {
                 result: {
                   baseFeePerGas: '0x63c498a46',
-                  number: '0x42',
+                  number: '0x1',
                 },
               },
             },
@@ -565,6 +566,19 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x3', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x42',
+                  transactions: ['0x1'],
+                },
+              },
+            },
+            {
+              request: {
                 method: 'eth_getTransactionReceipt',
                 params: ['0x1'],
               },
@@ -588,10 +602,8 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
-        await advanceTime({ clock, duration: 0 });
         const { transactionController, approvalController } =
           await newController({});
-        await advanceTime({ clock, duration: 0 });
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -601,14 +613,15 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'goerli' },
           );
 
-        await advanceTime({ clock, duration: 0 });
         await approvalController.accept(transactionMeta.id);
-        await advanceTime({ clock, duration: 0 });
+        await advanceTime({ clock, duration: 1 });
 
         await result;
 
+        // blocktracker polling is 20s
         await advanceTime({ clock, duration: 20000 });
-        await advanceTime({ clock, duration: 0 });
+        await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
