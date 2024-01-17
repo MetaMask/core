@@ -2409,6 +2409,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ExpiredName'],
@@ -2456,6 +2457,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['NotExpiredName'],
@@ -2469,6 +2471,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ExpiredName'],
@@ -2493,12 +2496,15 @@ describe('NameController', () => {
           variation: CHAIN_ID_MOCK,
         });
 
-        expect(controller.state.names).toStrictEqual({
+        expect(controller.state.names).toStrictEqual<
+          NameControllerState['names']
+        >({
           [NameType.ETHEREUM_ADDRESS]: {
             [`${VALUE_MOCK}1`]: {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['NotExpiredName'],
@@ -2512,6 +2518,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [
@@ -2553,6 +2560,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ExpiredName'],
@@ -2584,6 +2592,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ExpiredName'],
@@ -2619,6 +2628,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: 'A defined name',
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ExpiredName'],
@@ -2644,6 +2654,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: 'A defined name',
                 sourceId: null,
+                origin: null,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ExpiredName'],
