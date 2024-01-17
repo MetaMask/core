@@ -6,6 +6,7 @@ import {
   convertHexToDecimal,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
+import type { KeyringControllerState } from '@metamask/keyring-controller';
 import {
   defaultState as defaultNetworkState,
   type NetworkConfiguration,
@@ -1303,9 +1304,9 @@ async function withController<ReturnValue>(
     });
   controllerMessenger.registerActionHandler(
     'KeyringController:getState',
-    jest.fn().mockReturnValue({
-      isActive: true,
-    }),
+    jest.fn<KeyringControllerState, []>().mockReturnValue({
+      isUnlocked: true,
+    } as unknown as KeyringControllerState),
   );
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
