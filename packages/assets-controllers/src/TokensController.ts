@@ -24,7 +24,7 @@ import {
   ERC20,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
-import { TokenListToken } from './TokenListController';
+import { TokenListMap, TokenListToken } from './TokenListController';
 import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
@@ -34,6 +34,7 @@ import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
+import type { AssetsContractController } from './AssetsContractController';
 
 /**
  * @type TokensConfig
@@ -121,6 +122,8 @@ export class TokensController extends BaseController<
 
   private messagingSystem: TokensControllerMessenger;
 
+  private getERC20TokenName: AssetsContractController['getERC20TokenName'];
+
   /**
    * Fetch metadata for a token.
    *
@@ -189,6 +192,7 @@ export class TokensController extends BaseController<
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
     messenger: TokensControllerMessenger;
+    getERC20TokenName: AssetsContractController['getERC20TokenName'];
   }) {
     super(config, state);
 
@@ -575,7 +579,7 @@ export class TokensController extends BaseController<
    * This is a function that updates the tokens name for the tokens name if it is not defined
    * @param tokenList - Represents the fetched token list from service API
    */
-  async updateTokensName(tokenList) {
+  async updateTokensName(tokenList: TokenListMap) {
     const { tokens } = this.state;
 
     const newTokens = tokens.map((token) => {
@@ -666,16 +670,9 @@ export class TokensController extends BaseController<
 
     await this._requestApproval(suggestedAssetMeta);
 
-    await this.addToken(
-      asset.address,
-      asset.symbol,
-      asset.decimals,
-      asset.image,
-      suggestedAssetMeta.interactingAddress,
-    );
     let name;
     try {
-      name = await this.getERC20TokenName(address);
+      name = await this.getERC20TokenName(asset.address);
     } catch (error) {
       name = undefined;
     }

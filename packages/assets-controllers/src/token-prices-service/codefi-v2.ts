@@ -169,72 +169,70 @@ type SupportedCurrency =
  */
 export const SUPPORTED_CHAIN_IDS = [
   // Ethereum Mainnet
-  '1',
+  '0x1',
   // OP Mainnet
-  '10',
+  '0xa',
   // Cronos Mainnet
-  '25',
+  '0x19',
   // BNB Smart Chain Mainnet
-  '56',
+  '0x38',
   // Syscoin Mainnet
-  '57',
+  '0x39',
   // OKXChain Mainnet
-  '66',
+  '0x42',
   // Hoo Smart Chain
-  '70',
+  '0x46',
   // Meter Mainnet
-  '82',
+  '0x52',
   // TomoChain
-  '88',
+  '0x58',
   // Gnosis
-  '100',
+  '0x64',
   // Velas EVM Mainnet
-  '106',
+  '0x6a',
   // Fuse Mainnet
-  '122',
+  '0x7a',
   // Huobi ECO Chain Mainnet
-  '128',
+  '0x80',
   // Polygon Mainnet
-  '137',
+  '0x89',
   // Fantom Opera
-  '250',
+  '0xfa',
   // Boba Network
-  '288',
+  '0x120',
   // KCC Mainnet
-  '321',
+  '0x141',
   // zkSync Era Mainnet
-  '328',
+  '0x144',
   // Theta Mainnet
-  '361',
+  '0x169',
   // Metis Andromeda Mainnet
-  '1088',
+  '0x440',
   // Moonbeam
-  '1284',
+  '0x504',
   // Moonriver
-  '1285',
+  '0x505',
   // Base
-  '8453',
+  '0x2105',
   // Shiden
-  // NOTE: This is the wrong chain ID, this should be '336'
-  '336',
+  '0x150',
   // Smart Bitcoin Cash
-  '10000',
+  '0x2710',
   // Arbitrum One
-  '42161',
+  '0xa4b1',
   // Celo Mainnet
-  '42220',
+  '0xa4ec',
   // Oasis Emerald
-  '42294',
+  '0xa516',
   // Avalanche C-Chain
-  '43114',
+  '0xa86a',
   // Polis Mainnet
-  '535824',
+  '0x518af',
   // Aurora Mainnet
-  '1313161554',
+  '0x4e454152',
   // Harmony Mainnet Shard 0
-  '1666600000',
+  '0x63564c40',
 ] as const;
-
 /**
  * A chain ID that can be supplied in the URL for the `/spot-prices` endpoint,
  * but in hexadecimal form (for consistency with how we represent chain IDs in
@@ -313,7 +311,9 @@ export class CodefiTokenPricesServiceV2
     tokenAddresses: Hex[];
     currency: SupportedCurrency;
   }): Promise<TokenPricesByTokenAddress<Hex, SupportedCurrency>> {
-    const url = new URL(`${BASE_URL}/chains/${chainId}/spot-prices`);
+    const chainIdAsNumber = hexToNumber(chainId);
+
+    const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
     url.searchParams.append('tokenAddresses', tokenAddresses.join(','));
     url.searchParams.append('vsCurrency', currency);
 

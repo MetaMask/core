@@ -2,7 +2,7 @@ import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import EthQuery from 'eth-query';
 import {
-  BaseController,
+  BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { v4 as random } from 'uuid';
@@ -282,7 +282,7 @@ type NetworkConfigurationId = string;
 /**
  * Controller that creates and manages an Ethereum network provider.
  */
-export class NetworkController extends BaseController<
+export class NetworkController extends BaseControllerV2<
   typeof name,
   NetworkState,
   NetworkControllerMessenger

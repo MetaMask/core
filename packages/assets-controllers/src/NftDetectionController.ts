@@ -8,7 +8,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   OPENSEA_PROXY_URL,
-  OPENSEA_API_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
@@ -20,7 +19,12 @@ import {
   OpenSeaV2ChainIds,
   type OpenSeaV2GetNftResponse,
 } from './NftController';
-import type { NftController, NftState, NftMetadata } from './NftController';
+import type {
+  NftController,
+  NftState,
+  NftMetadata,
+  OpenSeaV2ListNftsResponse,
+} from './NftController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -148,7 +152,7 @@ export class NftDetectionController extends BaseController<
     next,
   }: {
     address: string;
-    next?: number;
+    next?: string;
   }) {
     return `${OPENSEA_PROXY_URL}/chain/${
       OpenSeaV2ChainIds.ethereum
@@ -156,7 +160,7 @@ export class NftDetectionController extends BaseController<
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: { assets: ApiNft[] };
+    let nftApiResponse: OpenSeaV2ListNftsResponse;
     let nfts: ApiNft[] = [];
     let next;
     do {

@@ -182,7 +182,7 @@ export class AssetsContractController extends BaseController<
    * @param address - ERC20 asset contract address.
    * @returns Promise resolving to the 'decimals'.
    */
-  async getERC20TokenName(address) {
+  async getERC20TokenName(address: string) {
     if (this.erc20Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }

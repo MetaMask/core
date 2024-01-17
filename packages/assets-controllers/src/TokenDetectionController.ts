@@ -14,7 +14,7 @@ import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
-import { TokenListMap, TokenListState } from './TokenListController';
+import { TokenListState } from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -53,6 +53,7 @@ export class TokenDetectionController extends BaseController<
   private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   private addDetectedTokens: TokensController['addDetectedTokens'];
+
   private updateTokensName: TokensController['updateTokensName'];
 
   private getTokensState: () => TokensState;

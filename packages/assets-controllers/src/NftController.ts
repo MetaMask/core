@@ -18,17 +18,20 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
-  OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
 } from '@metamask/controller-utils';
 import type {
-  ApiNft,
   ApiNftCreator,
   ApiNftContract,
   ApiNftLastSale,
 } from './NftDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import {
+  compareNftMetadata,
+  getFormattedIpfsUrl,
+  mapOpenSeaContractV2ToV1,
+  mapOpenSeaDetailedNftV2ToV1,
+} from './assetsUtil';
 
 /**
  * @type Nft
@@ -191,6 +194,8 @@ export interface NftMetadata {
   creator?: ApiNftCreator;
   lastSale?: ApiNftLastSale;
   transactionId?: string;
+  tokenURI?: string;
+  error?: string;
 }
 
 interface AccountParams {
@@ -208,7 +213,8 @@ export interface NftConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
   ipfsGateway: string;
-  openSeaEnabled: boolean;
+  isIpfsGatewayEnabled: boolean;
+  displayNftMedia: boolean;
   useIPFSSubdomains: boolean;
 }
 
@@ -236,16 +242,6 @@ const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
  */
 export class NftController extends BaseController<NftConfig, NftState> {
   private mutex = new Mutex();
-
-  private getNftApi({
-    contractAddress,
-    tokenId,
-  }: {
-    contractAddress: string;
-    tokenId: string;
-  }) {
-    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
-  }
 
   private getNftContractInformationApi({
     contractAddress,
@@ -310,12 +306,13 @@ export class NftController extends BaseController<NftConfig, NftState> {
   ): Promise<NftMetadata> {
     try {
       // Attempt to fetch the data with the proxy
-      const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
-        url: this.getNftApi({
-          contractAddress,
-          tokenId,
-        }),
-      });
+      const nftInformation: { nft: OpenSeaV2DetailedNft } | undefined =
+        await fetchWithErrorHandling({
+          url: this.getNftApi({
+            contractAddress,
+            tokenId,
+          }),
+        });
 
       // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
       if (!nftInformation?.nft) {
@@ -567,7 +564,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
   ): Promise<ApiNftContract> {
     /* istanbul ignore if */
-    const apiNftContractObject: ApiNftContract | undefined =
+    const apiNftContractObject: OpenSeaV2Contract | undefined =
       await fetchWithErrorHandling({
         url: this.getNftContractInformationApi({
           contractAddress,
@@ -964,6 +961,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string;
     standard: string | null;
     source: string;
+    tokenURI?: string;
   }) => void;
 
   /**
@@ -1129,6 +1127,16 @@ export class NftController extends BaseController<NftConfig, NftState> {
       throw new Error('This NFT is not owned by the user');
     }
     await this.addNft(address, tokenId);
+  }
+
+  getNftApi({
+    contractAddress,
+    tokenId,
+  }: {
+    contractAddress: string;
+    tokenId: string;
+  }) {
+    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
   /**

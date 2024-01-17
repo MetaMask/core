@@ -1,11 +1,10 @@
-import { BaseControllerV1 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
   toHex,
-  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -97,7 +96,7 @@ export interface TokenRatesState extends BaseState {
  * The maximum number of token addresses that should be sent to the Price API in
  * a single request.
  */
-const TOKEN_PRICES_BATCH_SIZE = 100;
+const TOKEN_PRICES_BATCH_SIZE = 30;
 
 /**
  * Uses the CryptoCompare API to fetch the exchange rate between one currency
@@ -142,7 +141,7 @@ async function getCurrencyConversionRate({
  */
 // This is using BaseController on BaseController v3, which relates to BaseController V1
 // When rebase this patch doesn't forget about change this to `BaseController` instead of `BaseControllerV1`
-export class TokenRatesController extends BaseControllerV1<
+export class TokenRatesController extends BaseController<
   TokenRatesConfig,
   TokenRatesState
 > {
@@ -360,10 +359,9 @@ export class TokenRatesController extends BaseControllerV1<
     this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
 
     try {
-      const decimalChainId = convertHexToDecimal(chainId).toString();
       const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
         tokenAddresses,
-        chainId: decimalChainId,
+        chainId,
         nativeCurrency,
       });
 
@@ -477,7 +475,7 @@ export class TokenRatesController extends BaseControllerV1<
       Hex,
       Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
     >({
-      values: tokenAddresses,
+      values: [...tokenAddresses].sort(),
       batchSize: TOKEN_PRICES_BATCH_SIZE,
       eachBatch: async (allTokenPricesByTokenAddress, batch) => {
         const tokenPricesByTokenAddressForBatch =
@@ -531,7 +529,7 @@ export class TokenRatesController extends BaseControllerV1<
     ] = await Promise.all([
       this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
         tokenAddresses,
-        chainId: convertHexToDecimal(this.config.chainId).toString(),
+        chainId: this.config.chainId,
         nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
       getCurrencyConversionRate({

@@ -1323,6 +1323,7 @@ __metadata:
     abort-controller: ^3.0.0
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
+    cockatiel: ^3.1.1
     deepmerge: ^4.2.2
     eth-query: ^2.1.2
     eth-rpc-errors: ^4.0.2
@@ -1447,7 +1448,7 @@ __metadata:
     "@metamask/eslint-config-nodejs": ^9.0.0
     "@metamask/eslint-config-typescript": ^9.0.1
     "@metamask/eth-json-rpc-provider": ^1.0.0
-    "@types/node": ^16.18.24
+    "@types/node": ^16.18.54
     "@typescript-eslint/eslint-plugin": ^4.33.0
     "@typescript-eslint/parser": ^4.33.0
     eslint: ^7.24.0
@@ -2485,6 +2486,13 @@ __metadata:
   version: 16.18.24
   resolution: "@types/node@npm:16.18.24"
   checksum: 0b221b7f56f3c4911e90dfcc217db3866eb13b7af9390b8f668377f1211b2b3ca808e0128a29d0cef8aa0944523852531e827b923b35e5fa9063db87af7b41a0
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^16.18.54":
+  version: 16.18.70
+  resolution: "@types/node@npm:16.18.70"
+  checksum: 0c8a1ee93f6c0940629fbf6245ff22e0c7423b7c7c74c47e7171dc6342d279c2f931d50894c3d1b9a66238469b2b3d2d3c7fcf21eb3af6a03fc588f9ab6db849
   languageName: node
   linkType: hard
 
@@ -3615,6 +3623,13 @@ __metadata:
   version: 4.6.0
   resolution: "co@npm:4.6.0"
   checksum: 5210d9223010eb95b29df06a91116f2cf7c8e0748a9013ed853b53f362ea0e822f1e5bb054fb3cefc645239a4cf966af1f6133a3b43f40d591f3b68ed6cf0510
+  languageName: node
+  linkType: hard
+
+"cockatiel@npm:^3.1.1":
+  version: 3.1.2
+  resolution: "cockatiel@npm:3.1.2"
+  checksum: 5ba2d9ffd738d38c5f1af66f4c36f302485f4ebf25b96e47aa9c9ea3fecd47ed770bfc9da52ac58bef3dfb330efd7e9be557691b4e620a1479d79009bff2b74e
   languageName: node
   linkType: hard
 
