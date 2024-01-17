@@ -26,7 +26,7 @@ export const ETHERSCAN_TRANSACTION_BASE_MOCK: EtherscanTransactionMetaBase = {
   to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
 };
 
-const ETHERSCAN_TRANSACTION_SUCCESS_MOCK: EtherscanTransactionMeta = {
+export const ETHERSCAN_TRANSACTION_SUCCESS_MOCK: EtherscanTransactionMeta = {
   ...ETHERSCAN_TRANSACTION_BASE_MOCK,
   functionName: 'testFunction',
   input: '0x',

@@ -13,6 +13,8 @@ import {
   ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
 } from './helpers/EtherscanMocks';
 import { TransactionController } from './TransactionController';
+import type { TransactionMeta } from './types';
+import { TransactionStatus, TransactionType } from './types';
 import { getEtherscanApiHost } from './utils/etherscan';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
@@ -212,6 +214,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('startIncomingTransactionPolling', () => {
+    // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId and networkClientId', async () => {
       // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
       mockNetwork({
@@ -247,6 +250,7 @@ describe('TransactionController Integration', () => {
       });
 
       const expectedLastFetchedBlockNumbers: Record<string, number> = {};
+      const expectedTransactions: Partial<TransactionMeta>[] = [];
 
       const networkClients = networkController.getNetworkClientRegistry();
       // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
@@ -300,12 +304,30 @@ describe('TransactionController Integration', () => {
         expectedLastFetchedBlockNumbers[
           `${config.chainId}#${selectedAddress}#normal`
         ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
+        expectedTransactions.push({
+          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+          chainId: config.chainId,
+          type: TransactionType.incoming,
+          verifiedOnBlockchain: false,
+          status: TransactionStatus.confirmed,
+        });
+        expectedTransactions.push({
+          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+          chainId: config.chainId,
+          type: TransactionType.incoming,
+          verifiedOnBlockchain: false,
+          status: TransactionStatus.failed,
+        });
       }
-      // TODO(JL): verify the contents of the transactions
+
       expect(transactionController.state.transactions).toHaveLength(
         2 * networkClientIds.length,
       );
-
+      expect(transactionController.state.transactions).toStrictEqual(
+        expect.arrayContaining(
+          expectedTransactions.map(expect.objectContaining),
+        ),
+      );
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         expectedLastFetchedBlockNumbers,
       );
