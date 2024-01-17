@@ -6,7 +6,9 @@ import {
   NetworkClientType,
 } from '@metamask/network-controller';
 import nock from 'nock';
+import { useFakeTimers } from 'sinon';
 
+import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
   ETHERSCAN_TRANSACTION_BASE_MOCK,
@@ -217,7 +219,8 @@ describe('TransactionController Integration', () => {
 
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
-    it('should add incoming transactions to state with the correct chainId and networkClientId', async () => {
+    it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
+      const clock = useFakeTimers();
       // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
       mockNetwork({
         networkClientConfiguration,
@@ -261,10 +264,10 @@ describe('TransactionController Integration', () => {
       );
       for (const networkClientId of networkClientIds) {
         const config = networkClients[networkClientId].configuration;
-        console.log(config);
         mockNetwork({
           networkClientConfiguration: config,
           mocks: [
+            //  blockTracker on instantiation
             {
               request: {
                 method: 'eth_blockNumber',
@@ -274,6 +277,293 @@ describe('TransactionController Integration', () => {
                 result: '0x1',
               },
             },
+            // blockTracker loop
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+          ],
+        });
+        nock(getEtherscanApiHost(config.chainId))
+          .get(
+            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+          )
+          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+
+        transactionController.startIncomingTransactionPolling([
+          networkClientId,
+        ]);
+
+        expectedLastFetchedBlockNumbers[
+          `${config.chainId}#${selectedAddress}#normal`
+        ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
+        expectedTransactions.push({
+          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+          chainId: config.chainId,
+          type: TransactionType.incoming,
+          verifiedOnBlockchain: false,
+          status: TransactionStatus.confirmed,
+        });
+        expectedTransactions.push({
+          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+          chainId: config.chainId,
+          type: TransactionType.incoming,
+          verifiedOnBlockchain: false,
+          status: TransactionStatus.failed,
+        });
+      }
+      await advanceTime({ clock, duration: 20000 });
+
+      expect(transactionController.state.transactions).toHaveLength(
+        2 * networkClientIds.length,
+      );
+      expect(transactionController.state.transactions).toStrictEqual(
+        expect.arrayContaining(
+          expectedTransactions.map(expect.objectContaining),
+        ),
+      );
+      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
+        expectedLastFetchedBlockNumbers,
+      );
+      clock.restore();
+    });
+  });
+
+  describe('stopIncomingTransactionPolling', () => {
+    it('should not poll for new incoming transactions for the given networkClientId', async () => {
+      const clock = useFakeTimers();
+      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
+      mockNetwork({
+        networkClientConfiguration,
+        mocks: [
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['0x1', false],
+            },
+            response: {
+              result: {
+                number: '0x42',
+              },
+            },
+          },
+        ],
+      });
+
+      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+      const { networkController, transactionController } = await newController({
+        getSelectedAddress: () => selectedAddress,
+      });
+
+      const networkClients = networkController.getNetworkClientRegistry();
+      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      const networkClientIds = Object.keys(networkClients).filter(
+        (v) => v !== networkClientConfiguration.network,
+      );
+      for (const networkClientId of networkClientIds) {
+        const config = networkClients[networkClientId].configuration;
+        mockNetwork({
+          networkClientConfiguration: config,
+          mocks: [
+            //  blockTracker on instantiation
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // blockTracker loop
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+          ],
+        });
+        nock(getEtherscanApiHost(config.chainId))
+          .get(
+            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+          )
+          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+
+        transactionController.startIncomingTransactionPolling([
+          networkClientId,
+        ]);
+
+        transactionController.stopIncomingTransactionPolling([networkClientId]);
+      }
+      await advanceTime({ clock, duration: 20000 });
+
+      expect(transactionController.state.transactions).toStrictEqual([]);
+      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
+        {},
+      );
+      clock.restore();
+    });
+  });
+
+  describe('stopAllIncomingTransactionPolling', () => {
+    it('should not poll for incoming transactions on any network client', async () => {
+      const clock = useFakeTimers();
+      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
+      mockNetwork({
+        networkClientConfiguration,
+        mocks: [
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['0x1', false],
+            },
+            response: {
+              result: {
+                number: '0x42',
+              },
+            },
+          },
+        ],
+      });
+
+      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+      const { networkController, transactionController } = await newController({
+        getSelectedAddress: () => selectedAddress,
+      });
+
+      const networkClients = networkController.getNetworkClientRegistry();
+      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      const networkClientIds = Object.keys(networkClients).filter(
+        (v) => v !== networkClientConfiguration.network,
+      );
+      for (const networkClientId of networkClientIds) {
+        const config = networkClients[networkClientId].configuration;
+        mockNetwork({
+          networkClientConfiguration: config,
+          mocks: [
+            //  blockTracker on instantiation
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // blockTracker loop
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+          ],
+        });
+        nock(getEtherscanApiHost(config.chainId))
+          .get(
+            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+          )
+          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+
+        transactionController.startIncomingTransactionPolling([
+          networkClientId,
+        ]);
+      }
+
+      transactionController.stopAllIncomingTransactionPolling();
+      await advanceTime({ clock, duration: 20000 });
+
+      expect(transactionController.state.transactions).toStrictEqual([]);
+      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
+        {},
+      );
+      clock.restore();
+    });
+  });
+
+  describe('updateIncomingTransactions', () => {
+    it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
+      const clock = useFakeTimers();
+      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
+      mockNetwork({
+        networkClientConfiguration,
+        mocks: [
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['0x1', false],
+            },
+            response: {
+              result: {
+                number: '0x42',
+              },
+            },
+          },
+        ],
+      });
+
+      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+      const { networkController, transactionController } = await newController({
+        getSelectedAddress: () => selectedAddress,
+      });
+
+      const expectedLastFetchedBlockNumbers: Record<string, number> = {};
+      const expectedTransactions: Partial<TransactionMeta>[] = [];
+
+      const networkClients = networkController.getNetworkClientRegistry();
+      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      const networkClientIds = Object.keys(networkClients).filter(
+        (v) => v !== networkClientConfiguration.network,
+      );
+      for (const networkClientId of networkClientIds) {
+        const config = networkClients[networkClientId].configuration;
+        mockNetwork({
+          networkClientConfiguration: config,
+          mocks: [
+            //  blockTracker on instantiation
             {
               request: {
                 method: 'eth_blockNumber',
@@ -291,17 +581,9 @@ describe('TransactionController Integration', () => {
           )
           .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-        const receivedIncomingTransaction = new Promise((resolve) => {
-          transactionController.hub.once('incomingTransactionBlock', resolve);
-        });
-
-        transactionController.startIncomingTransactionPolling([
+        await transactionController.updateIncomingTransactions([
           networkClientId,
         ]);
-
-        await receivedIncomingTransaction;
-
-        transactionController.stopIncomingTransactionPolling([networkClientId]);
 
         expectedLastFetchedBlockNumbers[
           `${config.chainId}#${selectedAddress}#normal`
@@ -333,9 +615,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         expectedLastFetchedBlockNumbers,
       );
+      clock.restore();
     });
   });
-  // describe('stopIncomingTransactionPolling', () => {});
-  // describe('stopAllIncomingTransactionPolling', () => {});
-  // describe('updateIncomingTransactions', () => {});
 });
