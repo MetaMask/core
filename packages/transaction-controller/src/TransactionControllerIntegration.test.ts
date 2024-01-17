@@ -588,8 +588,10 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
+        await advanceTime({ clock, duration: 0 });
         const { transactionController, approvalController } =
           await newController({});
+        await advanceTime({ clock, duration: 0 });
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -599,7 +601,9 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'goerli' },
           );
 
+        await advanceTime({ clock, duration: 0 });
         await approvalController.accept(transactionMeta.id);
+        await advanceTime({ clock, duration: 0 });
 
         await result;
 
