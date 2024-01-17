@@ -1293,7 +1293,7 @@ export class TransactionController extends BaseControllerV1<
       // trackers.nonceTracker
 
       // stop not exposed for pendingTransactionTracker
-      // trackers.pendingTransactionTracker.stop();
+      trackers.pendingTransactionTracker.stop();
     }
     this.trackingMap.delete(networkClientId);
   }
