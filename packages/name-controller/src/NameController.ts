@@ -14,6 +14,7 @@ import type {
 import { NameType } from './types';
 
 export const FALLBACK_VARIATION = '*';
+export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
 
 /**
  * Enumerates the possible origins responsible for setting a petname.
@@ -215,6 +216,7 @@ export class NameController extends BaseController<
 
     this.#updateProposedNameState(request, providerResponses);
     this.#updateSourceState(this.#providers);
+    this.#removeExpiredEntries();
 
     return this.#getUpdateProposedNamesResult(providerResponses);
   }
@@ -666,5 +668,47 @@ export class NameController extends BaseController<
     for (const dormantSourceId of dormantSourceIds) {
       delete proposedNames[dormantSourceId];
     }
+  }
+
+  #removeExpiredEntries(): void {
+    const currentTime = this.#getCurrentTimeSeconds();
+
+    this.update((state: NameControllerState) => {
+      const entries = this.#getEntriesList(state);
+      for (const { nameType, value, variation, entry } of entries) {
+        if (entry.name !== null) {
+          continue;
+        }
+
+        const proposedNames = Object.values(entry.proposedNames);
+        const allProposedNamesExpired = proposedNames.every(
+          (proposedName: ProposedNamesEntry) =>
+            currentTime - (proposedName.lastRequestTime ?? 0) >=
+            PROPOSED_NAME_EXPIRE_DURATION,
+        );
+
+        if (allProposedNamesExpired) {
+          delete state.names[nameType][value][variation];
+        }
+      }
+    });
+  }
+
+  #getEntriesList(state: NameControllerState): {
+    nameType: NameType;
+    value: string;
+    variation: string;
+    entry: NameEntry;
+  }[] {
+    return Object.entries(state.names).flatMap(([type, typeEntries]) =>
+      Object.entries(typeEntries).flatMap(([value, variationEntries]) =>
+        Object.entries(variationEntries).map(([variation, entry]) => ({
+          entry,
+          nameType: type as NameType,
+          value,
+          variation,
+        })),
+      ),
+    );
   }
 }
