@@ -133,6 +133,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #isDetectionEnabledForNetwork: boolean;
 
+  readonly #onPreferencesStateChange: (
+    listener: (preferencesState: PreferencesState) => Promise<void>,
+  ) => void;
+
   readonly #addDetectedTokens: TokensController['addDetectedTokens'];
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
@@ -158,11 +162,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.networkClientId - The selected network client ID of the current network
    * @param options.selectedAddress - Vault selected address
+   * @param options.getPreferencesState - Gets the state of the preferences controller.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
-   * @param options.getPreferencesState - Gets the state of the preferences controller.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    */
   constructor({
@@ -182,13 +186,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     selectedAddress?: string;
     interval?: number;
     disabled?: boolean;
+    getPreferencesState: () => PreferencesState;
     onPreferencesStateChange: (
-      listener: (preferencesState: PreferencesState) => void,
+      listener: (preferencesState: PreferencesState) => Promise<void>,
     ) => void;
     addDetectedTokens: TokensController['addDetectedTokens'];
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
     getTokensState: () => TokensState;
-    getPreferencesState: () => PreferencesState;
     trackMetaMetricsEvent: (options: {
       event: string;
       category: string;
@@ -222,6 +226,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       this.#chainId,
     );
 
+    this.#onPreferencesStateChange = onPreferencesStateChange;
     this.#addDetectedTokens = addDetectedTokens;
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
     this.#getTokensState = getTokensState;
@@ -232,6 +237,22 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       'KeyringController:getState',
     );
     this.#isUnlocked = isUnlocked;
+
+    this.#registerEventListeners();
+  }
+
+  /**
+   * Constructor helper for registering this controller's messaging system subscriptions to controller events.
+   */
+  #registerEventListeners() {
+    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
+      this.#isUnlocked = true;
+      await this.#restartTokenDetection();
+    });
+
+    this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.#isUnlocked = false;
+    });
 
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
@@ -244,7 +265,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       },
     );
 
-    onPreferencesStateChange(
+    this.#onPreferencesStateChange(
       async ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
         const isSelectedAddressChanged =
           this.#selectedAddress !== newSelectedAddress;
@@ -298,8 +319,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         }
       },
     );
-
-    this.#registerKeyringListeners();
   }
 
   /**
@@ -323,21 +342,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    */
   get isActive() {
     return !this.#disabled && this.#isUnlocked;
-  }
-
-  /**
-   * Constructor helper for subscribing listeners
-   * to the keyring locked state changes
-   */
-  async #registerKeyringListeners() {
-    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
-      this.#isUnlocked = true;
-      await this.#restartTokenDetection();
-    });
-
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.#isUnlocked = false;
-    });
   }
 
   /**
