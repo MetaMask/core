@@ -6,7 +6,7 @@ import {
 } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, ENTRYPOINT, VALUE_ZERO } from './constants';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
 import * as BundlerHelper from './helpers/Bundler';
 import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
 import type { UserOperationMetadata } from './types';
@@ -47,6 +47,7 @@ const ERROR_CODE_MOCK = '1234';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const TRANSACTION_HASH_MOCK = '0x456';
 const ORIGIN_MOCK = 'test.com';
+const ENTRYPOINT_MOCK = '0x789';
 
 const USER_OPERATION_METADATA_MOCK = {
   chainId: CHAIN_ID_MOCK,
@@ -99,6 +100,7 @@ function createMessengerMock() {
     call: jest.fn(),
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
+    registerInitialEventPayload: jest.fn(),
   } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }
 
@@ -160,6 +162,7 @@ describe('UserOperationController', () => {
   const updateGasFeesMock = jest.mocked(updateGasFees);
 
   const optionsMock = {
+    entrypoint: ENTRYPOINT_MOCK,
     getGasFeeEstimates,
     messenger,
   };
@@ -335,7 +338,29 @@ describe('UserOperationController', () => {
           verificationGasLimit:
             PREPARE_USER_OPERATION_RESPONSE_MOCK.gas?.verificationGasLimit,
         },
-        ENTRYPOINT,
+        ENTRYPOINT_MOCK,
+      );
+    });
+
+    it('emits added event', async () => {
+      const controller = new UserOperationController(optionsMock);
+
+      const listener = jest.fn();
+      controller.hub.on('user-operation-added', listener);
+
+      const { id, hash } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      await hash();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id,
+        }),
       );
     });
 
@@ -345,7 +370,10 @@ describe('UserOperationController', () => {
       const { id } = await addUserOperation(
         controller,
         ADD_USER_OPERATION_REQUEST_MOCK,
-        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+        {
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+        },
       );
 
       expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
@@ -361,6 +389,7 @@ describe('UserOperationController', () => {
           id,
           origin: ORIGIN_MOCK,
           status: UserOperationStatus.Unapproved,
+          swapsMetadata: null,
           time: expect.any(Number),
           transactionHash: null,
           userOperation: expect.objectContaining({
@@ -374,6 +403,75 @@ describe('UserOperationController', () => {
             signature: EMPTY_BYTES,
             verificationGasLimit: EMPTY_BYTES,
           }),
+        }),
+      );
+    });
+
+    it('includes swap metadata in metadata', async () => {
+      const controller = new UserOperationController(optionsMock);
+
+      const { id } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        {
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+          swaps: {
+            approvalTxId: 'testTxId',
+            destinationTokenAddress: '0x1',
+            destinationTokenDecimals: 3,
+            destinationTokenSymbol: 'TEST',
+            estimatedBaseFee: '0x2',
+            sourceTokenSymbol: 'ETH',
+            swapMetaData: { test: 'value' },
+            swapTokenValue: '0x3',
+          },
+        },
+      );
+
+      expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
+      expect(controller.state.userOperations[id]).toStrictEqual(
+        expect.objectContaining({
+          swapsMetadata: {
+            approvalTxId: 'testTxId',
+            destinationTokenAddress: '0x1',
+            destinationTokenDecimals: 3,
+            destinationTokenSymbol: 'TEST',
+            estimatedBaseFee: '0x2',
+            sourceTokenSymbol: 'ETH',
+            swapMetaData: { test: 'value' },
+            swapTokenValue: '0x3',
+          },
+        }),
+      );
+    });
+
+    it('defaults missing swap metadata to null', async () => {
+      const controller = new UserOperationController(optionsMock);
+
+      const { id } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        {
+          ...ADD_USER_OPERATION_OPTIONS_MOCK,
+          smartContractAccount,
+          swaps: {},
+        },
+      );
+
+      expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
+      expect(controller.state.userOperations[id]).toStrictEqual(
+        expect.objectContaining({
+          swapsMetadata: {
+            approvalTxId: null,
+            destinationTokenAddress: null,
+            destinationTokenDecimals: null,
+            destinationTokenSymbol: null,
+            estimatedBaseFee: null,
+            sourceTokenSymbol: null,
+            swapMetaData: null,
+            swapTokenValue: null,
+          },
         }),
       );
     });
@@ -456,7 +554,7 @@ describe('UserOperationController', () => {
           initCode: EMPTY_BYTES,
           paymasterAndData: EMPTY_BYTES,
         }),
-        ENTRYPOINT,
+        ENTRYPOINT_MOCK,
       );
     });
 
@@ -1027,7 +1125,29 @@ describe('UserOperationController', () => {
         );
       });
 
-      it('sets transaction type in metadata', async () => {
+      it('uses transaction type from request options', async () => {
+        const controller = new UserOperationController(optionsMock);
+
+        const { id } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+            type: TransactionType.swap,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.userOperations[id].transactionType).toBe(
+          TransactionType.swap,
+        );
+
+        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(0);
+      });
+
+      it('determines transaction type if not set', async () => {
         const controller = new UserOperationController(optionsMock);
 
         const { id } = await addUserOperation(

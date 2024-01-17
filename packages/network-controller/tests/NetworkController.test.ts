@@ -2907,7 +2907,7 @@ describe('NetworkController', () => {
       },
     });
 
-    describe('if the given ID does not match a network configuration in networkConfigurations', () => {
+    describe('if the given ID does not match a network configuration in networkConfigurations or a built-in network type', () => {
       it('throws', async () => {
         await withController(
           {
@@ -2931,7 +2931,7 @@ describe('NetworkController', () => {
               controller.setActiveNetwork('invalidNetworkConfigurationId'),
             ).rejects.toThrow(
               new Error(
-                'networkConfigurationId invalidNetworkConfigurationId does not match a configured networkConfiguration',
+                'networkConfigurationId invalidNetworkConfigurationId does not match a configured networkConfiguration or built-in network type',
               ),
             );
           },
@@ -3135,6 +3135,74 @@ describe('NetworkController', () => {
         },
       );
     });
+
+    for (const {
+      networkType,
+      chainId,
+      ticker,
+      blockExplorerUrl,
+    } of INFURA_NETWORKS) {
+      describe(`given a network type of "${networkType}"`, () => {
+        refreshNetworkTests({
+          expectedProviderConfig: buildProviderConfig({
+            type: networkType,
+          }),
+          operation: async (controller) => {
+            await controller.setActiveNetwork(networkType);
+          },
+        });
+      });
+
+      it(`overwrites the provider configuration using a predetermined chainId, ticker, and blockExplorerUrl for "${networkType}", clearing id, rpcUrl, and nickname`, async () => {
+        await withController(
+          {
+            state: {
+              providerConfig: {
+                type: 'rpc',
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '0x1337',
+                nickname: 'test-chain',
+                ticker: 'TEST',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer.com',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            await controller.setActiveNetwork(networkType);
+
+            expect(controller.state.providerConfig).toStrictEqual({
+              type: networkType,
+              rpcUrl: undefined,
+              chainId,
+              ticker,
+              nickname: undefined,
+              rpcPrefs: { blockExplorerUrl },
+              id: undefined,
+            });
+          },
+        );
+      });
+
+      it(`updates state.selectedNetworkClientId, setting it to ${networkType}`, async () => {
+        await withController({}, async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          await controller.setActiveNetwork(networkType);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            networkType,
+          );
+        });
+      });
+    }
 
     it('is able to be called via messenger action', async () => {
       const testNetworkClientId = 'testNetworkConfigurationId';

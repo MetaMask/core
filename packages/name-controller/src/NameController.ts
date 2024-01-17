@@ -16,6 +16,20 @@ import { NameType } from './types';
 export const FALLBACK_VARIATION = '*';
 export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
 
+/**
+ * Enumerates the possible origins responsible for setting a petname.
+ */
+export enum NameOrigin {
+  // Originated from an account identity.
+  ACCOUNT_IDENTITY = 'account-identity',
+  // Originated from an address book entry.
+  ADDRESS_BOOK = 'address-book',
+  // Originated from the API (NameController.setName). This is the default.
+  API = 'api',
+  // Originated from the user taking action in the UI.
+  UI = 'ui',
+}
+
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 const DEFAULT_VARIATION = '';
 
@@ -42,6 +56,7 @@ export type ProposedNamesEntry = {
 export type NameEntry = {
   name: string | null;
   sourceId: string | null;
+  origin: NameOrigin | null;
   proposedNames: Record<string, ProposedNamesEntry>;
 };
 
@@ -102,6 +117,7 @@ export type SetNameRequest = {
   name: string | null;
   sourceId?: string;
   variation?: string;
+  origin?: NameOrigin;
 };
 
 /**
@@ -155,12 +171,23 @@ export class NameController extends BaseController<
   setName(request: SetNameRequest) {
     this.#validateSetNameRequest(request);
 
-    const { value, type, name, sourceId: requestSourceId, variation } = request;
+    const {
+      value,
+      type,
+      name,
+      sourceId: requestSourceId,
+      origin: requestOrigin,
+      variation,
+    } = request;
     const sourceId = requestSourceId ?? null;
+    // If the name is being cleared, the fallback origin should be cleared as well.
+    const fallbackOrigin = name === null ? null : NameOrigin.API;
+    const origin = requestOrigin ?? fallbackOrigin;
 
     this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
       entry.sourceId = sourceId;
+      entry.origin = origin;
     });
   }
 
@@ -425,6 +452,7 @@ export class NameController extends BaseController<
         proposedNames: {},
         name: null,
         sourceId: null,
+        origin: null,
       };
       variationEntries[normalizedVariation] = entry;
 
@@ -437,7 +465,7 @@ export class NameController extends BaseController<
   }
 
   #validateSetNameRequest(request: SetNameRequest) {
-    const { name, value, type, sourceId, variation } = request;
+    const { name, value, type, sourceId, variation, origin } = request;
     const errorMessages: string[] = [];
 
     this.#validateValue(value, errorMessages);
@@ -445,6 +473,7 @@ export class NameController extends BaseController<
     this.#validateName(name, errorMessages);
     this.#validateSourceId(sourceId, type, name, errorMessages);
     this.#validateVariation(variation, type, errorMessages);
+    this.#validateOrigin(origin, name, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -580,6 +609,31 @@ export class NameController extends BaseController<
     ) {
       errorMessages.push(
         `Must specify a chain ID in hexidecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
+      );
+    }
+  }
+
+  #validateOrigin(
+    origin: NameOrigin | null | undefined,
+    name: string | null,
+    errorMessages: string[],
+  ) {
+    if (!origin) {
+      return;
+    }
+
+    if (name === null) {
+      errorMessages.push(
+        `Cannot specify an origin when clearing the saved name: ${origin}`,
+      );
+      return;
+    }
+
+    if (!Object.values(NameOrigin).includes(origin)) {
+      errorMessages.push(
+        `Must specify one of the following origins: ${Object.values(
+          NameOrigin,
+        ).join(', ')}`,
       );
     }
   }

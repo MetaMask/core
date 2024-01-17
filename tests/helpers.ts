@@ -27,3 +27,15 @@ export async function advanceTime({
     duration -= stepSize;
   } while (duration > 0);
 }
+
+/**
+ * Resolve all pending promises.
+ *
+ * This method is used for async tests that use fake timers.
+ * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ *
+ * TODO: migrate this to @metamask/utils
+ */
+export async function flushPromises(): Promise<void> {
+  await new Promise(jest.requireActual('timers').setImmediate);
+}
