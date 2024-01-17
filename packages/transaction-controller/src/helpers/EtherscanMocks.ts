@@ -8,7 +8,7 @@ import type {
 
 export const ID_MOCK = '6843ba00-f4bf-11e8-a715-5f2fff84549d';
 
-const ETHERSCAN_TRANSACTION_BASE_MOCK: EtherscanTransactionMetaBase = {
+export const ETHERSCAN_TRANSACTION_BASE_MOCK: EtherscanTransactionMetaBase = {
   blockNumber: '4535105',
   confirmations: '4',
   contractAddress: '',

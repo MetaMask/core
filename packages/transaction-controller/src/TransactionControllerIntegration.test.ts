@@ -8,7 +8,10 @@ import {
 import nock from 'nock';
 
 import { mockNetwork } from '../../../tests/mock-network';
-import { ETHERSCAN_TRANSACTION_RESPONSE_MOCK } from './helpers/EtherscanMocks';
+import {
+  ETHERSCAN_TRANSACTION_BASE_MOCK,
+  ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+} from './helpers/EtherscanMocks';
 import { TransactionController } from './TransactionController';
 import { getEtherscanApiHost } from './utils/etherscan';
 
@@ -210,7 +213,7 @@ describe('TransactionController Integration', () => {
 
   describe('startIncomingTransactionPolling', () => {
     it('should add incoming transactions to state with the correct chainId and networkClientId', async () => {
-      // this is needed or the globally selected mainnet PollingBlockTracker fails
+      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
       mockNetwork({
         networkClientConfiguration,
         mocks: [
@@ -237,55 +240,74 @@ describe('TransactionController Integration', () => {
         ],
       });
 
-      const { networkController, transactionController } = await newController(
-        {},
-      );
+      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+      const { networkController, transactionController } = await newController({
+        getSelectedAddress: () => selectedAddress,
+      });
+
+      const expectedLastFetchedBlockNumbers: Record<string, number> = {};
 
       const networkClients = networkController.getNetworkClientRegistry();
-
-      // TODO(JL): test more than just linea-mainnet
-      // await Promise.all(Array.from( trackingMap.keys() ).map(async (networkClientId) => {
-      await Promise.all(
-        ['linea-mainnet'].map(async (networkClientId) => {
-          const config = networkClients[networkClientId].configuration;
-          mockNetwork({
-            networkClientConfiguration: config,
-            mocks: [
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
+      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      const networkClientIds = Object.keys(networkClients).filter(
+        (v) => v !== networkClientConfiguration.network,
+      );
+      for (const networkClientId of networkClientIds) {
+        const config = networkClients[networkClientId].configuration;
+        console.log(config);
+        mockNetwork({
+          networkClientConfiguration: config,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
               },
-            ],
-          });
-          nock(getEtherscanApiHost(config.chainId))
-            .get(
-              '/api?module=account&address=0xdeadbeef&offset=40&sort=desc&action=txlist&tag=latest&page=1',
-            )
-            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+          ],
+        });
+        nock(getEtherscanApiHost(config.chainId))
+          .get(
+            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+          )
+          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-          const receivedIncomingTransaction = new Promise((resolve) => {
-            transactionController.hub.once('incomingTransactionBlock', resolve);
-          });
+        const receivedIncomingTransaction = new Promise((resolve) => {
+          transactionController.hub.once('incomingTransactionBlock', resolve);
+        });
 
-          transactionController.startIncomingTransactionPolling([
-            networkClientId,
-          ]);
+        transactionController.startIncomingTransactionPolling([
+          networkClientId,
+        ]);
 
-          await receivedIncomingTransaction;
+        await receivedIncomingTransaction;
 
-          // TODO(JL): verify the contents of the transactions
-          expect(transactionController.state.transactions).toHaveLength(2);
-          expect(
-            transactionController.state.lastFetchedBlockNumbers,
-          ).toStrictEqual({
-            '0xe708#0xdeadbeef#normal': 4535105,
-          });
-        }),
+        transactionController.stopIncomingTransactionPolling([networkClientId]);
+
+        expectedLastFetchedBlockNumbers[
+          `${config.chainId}#${selectedAddress}#normal`
+        ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
+      }
+      // TODO(JL): verify the contents of the transactions
+      expect(transactionController.state.transactions).toHaveLength(
+        2 * networkClientIds.length,
+      );
+
+      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
+        expectedLastFetchedBlockNumbers,
       );
     });
   });
