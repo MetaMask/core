@@ -426,7 +426,7 @@ describe('TransactionController Integration', () => {
           'submitted',
         );
       });
-      it.only('should be able to get to confirmed state', async () => {
+      it('should be able to get to confirmed state', async () => {
         const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
@@ -484,7 +484,18 @@ describe('TransactionController Integration', () => {
                 params: [],
               },
               response: {
-                result: '0x2',
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
               },
             },
             {
@@ -557,46 +568,14 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x3', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x42',
-                  transactions: ['0x1'],
-                },
-              },
-            },
-            {
-              request: {
                 method: 'eth_getTransactionReceipt',
                 params: ['0x1'],
               },
               response: {
                 result: {
                   blockHash: '0x1',
-                  blockNumber: '0x3',
-                  contractAddress: null,
-                  cumulativeGasUsed: '0x1',
-                  effectiveGasPrice: '0x1',
+                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
                   status: '0x1', // 0x1 = success
-                  transactionHash: '0x1',
-                  transactionIndex: '0x1',
-                  logsBloom: '0x0',
-                  logs: [],
-                  from: ACCOUNT_MOCK,
-                  to: ACCOUNT_2_MOCK,
-                  gasUsed: '0x5',
                 },
               },
             },
@@ -617,7 +596,6 @@ describe('TransactionController Integration', () => {
         await advanceTime({ clock, duration: 1 });
 
         await result;
-
         // blocktracker polling is 20s
         await advanceTime({ clock, duration: 20000 });
         await advanceTime({ clock, duration: 1 });

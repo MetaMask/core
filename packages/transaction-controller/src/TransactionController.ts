@@ -1341,7 +1341,7 @@ export class TransactionController extends BaseControllerV1<
       approveTransaction: this.approveTransaction.bind(this),
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      blockTracker: networkClient.provider as any,
+      blockTracker: networkClient.blockTracker as any,
       getChainId: () => networkClient.configuration.chainId,
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
