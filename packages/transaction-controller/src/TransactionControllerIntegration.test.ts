@@ -39,7 +39,8 @@ const newController = async (options: any) => {
     infuraProjectId: 'foo',
   });
   await networkController.initializeProvider();
-  const { provider } = networkController.getProviderAndBlockTracker();
+  const { provider, blockTracker } =
+    networkController.getProviderAndBlockTracker();
 
   const approvalController = new ApprovalController({
     messenger: messenger.getRestricted({
@@ -50,6 +51,7 @@ const newController = async (options: any) => {
 
   const opts = {
     provider,
+    blockTracker,
     messenger,
     onNetworkStateChange: () => {
       // noop
