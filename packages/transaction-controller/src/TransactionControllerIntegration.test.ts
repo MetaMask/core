@@ -8,6 +8,7 @@ import {
 
 import { mockNetwork } from '../../../tests/mock-network';
 import { TransactionController } from './TransactionController';
+import { flushPromises } from '../../../tests/helpers';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
@@ -423,7 +424,198 @@ describe('TransactionController Integration', () => {
           'submitted',
         );
       });
-      it('should be able to get to confirmed state', async () => {});
+      it('should be able to get to confirmed state', async () => {
+        jest.useFakeTimers();
+        mockNetwork({
+          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3b3301',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x3b3301'],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x3b3301',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: [
+                  '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                  '0x3b3301',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+          ],
+        });
+        mockNetwork({
+          networkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x42',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_estimateGas',
+                params: [
+                  {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x0',
+                  },
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x1'],
+              },
+              response: {
+                result: {
+                  blockHash: '0x1',
+                  blockNumber: '0x3',
+                  contractAddress: null,
+                  cumulativeGasUsed: '0x1',
+                  effectiveGasPrice: '0x1',
+                  status: '0x1', // 0x1 = success
+                  transactionHash: '0x1',
+                  transactionIndex: '0x1',
+                  logsBloom: '0x0',
+                  logs: [],
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                  gasUsed: '0x5',
+                },
+              },
+            },
+          ],
+        });
+        jest.advanceTimersByTime(1000);
+        const { transactionController, approvalController } =
+          await newController({});
+        jest.advanceTimersByTime(1000);
+        await flushPromises();
+        const { result, transactionMeta } =
+          await transactionController.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_2_MOCK,
+            },
+            { networkClientId: 'goerli' },
+          );
+
+        await approvalController.accept(transactionMeta.id);
+
+        await result;
+
+        jest.advanceTimersByTime(20000);
+        console.log('advanced time');
+        await flushPromises();
+        console.log('flushed promises');
+
+        expect(transactionController.state.transactions).toHaveLength(1);
+        expect(transactionController.state.transactions[0].status).toBe(
+          'confirmed',
+        );
+        jest.useRealTimers();
+      });
       it('should be able to get to cancelled state', async () => {
         expect(true).toBe(true);
       });
