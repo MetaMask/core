@@ -95,6 +95,11 @@ describe('SelectedNetworkController', () => {
         eventNames: jest.fn(),
         rawListeners: jest.fn(),
         removeAllListeners: jest.fn(),
+        on: jest.fn(),
+        prependListener: jest.fn(),
+        addListener: jest.fn(),
+        off: jest.fn(),
+        once: jest.fn(),
       };
       createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
       controller.setNetworkClientIdForDomain(
@@ -116,6 +121,11 @@ describe('SelectedNetworkController', () => {
         eventNames: jest.fn(),
         rawListeners: jest.fn(),
         removeAllListeners: jest.fn(),
+        on: jest.fn(),
+        prependListener: jest.fn(),
+        addListener: jest.fn(),
+        off: jest.fn(),
+        once: jest.fn(),
       };
       createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
       controller.setNetworkClientIdForDomain(
@@ -197,6 +207,11 @@ describe('SelectedNetworkController', () => {
         eventNames: jest.fn(),
         rawListeners: jest.fn(),
         removeAllListeners: jest.fn(),
+        on: jest.fn(),
+        prependListener: jest.fn(),
+        addListener: jest.fn(),
+        off: jest.fn(),
+        once: jest.fn(),
       };
       createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
       controller.setNetworkClientIdForDomain('example.com', 'network7');
