@@ -5,6 +5,8 @@ import type {
   BaseConfig,
   BaseState,
   RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
@@ -106,6 +108,13 @@ export type TokensState = BaseState &
  * The name of the {@link TokensController}.
  */
 const controllerName = 'TokensController';
+
+export type TokensControllerActions = TokensControllerGetStateAction;
+
+export type TokensControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  TokensState
+>;
 
 /**
  * The external actions available to the {@link TokensController}.
