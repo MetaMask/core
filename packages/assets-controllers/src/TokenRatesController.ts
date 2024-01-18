@@ -259,7 +259,7 @@ export class TokenRatesController extends BaseController<
         this.config.nativeCurrency !== ticker
       ) {
         this.update({ contractExchangeRates: {} });
-        this.configure({ chainId, nativeCurrency: ticker });
+        this.configure({ chainId, nativeCurrency: ticker || 'ETH' });
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
         }
