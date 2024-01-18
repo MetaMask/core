@@ -25,7 +25,6 @@ import {
   defaultState as defaultNetworkState,
   NetworkClientType,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -33,6 +32,7 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
@@ -92,38 +92,15 @@ const GOERLI = {
 const controllerName = 'TokensController' as const;
 
 describe('TokensController', () => {
-  let tokensController: TokensController;
   let triggerPreferencesStateChange: (state: PreferencesState) => void;
-  const messenger = new ControllerMessenger<
+  let tokensController: TokensController;
+  let approvalController: ApprovalController;
+  let messenger: ControllerMessenger<
     TokensControllerActions | AllowedActions,
     TokensControllerEvents | AllowedEvents | ApprovalControllerEvents
-  >();
-
-  const approvalControllerMessenger = messenger.getRestricted<
-    'ApprovalController',
-    never,
-    never
-  >({
-    name: 'ApprovalController',
-  });
-
-  const approvalController = new ApprovalController({
-    messenger: approvalControllerMessenger,
-    showApprovalRequest: jest.fn(),
-    typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
-  });
-
-  const tokensControllerMessenger = messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [
-      'ApprovalController:addRequest',
-      'NetworkController:getNetworkClientById',
-    ],
-    allowedEvents: [
-      'NetworkController:networkDidChange',
-      'TokenListController:stateChange',
-    ],
-  });
+  >;
+  let tokensControllerMessenger;
+  let approvalControllerMessenger;
 
   const changeNetwork = (providerConfig: ProviderConfig) => {
     messenger.publish(`NetworkController:networkDidChange`, {
@@ -136,11 +113,33 @@ describe('TokensController', () => {
     ReturnType<NetworkController['getNetworkClientById']>,
     Parameters<NetworkController['getNetworkClientById']>
   >();
+
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
     const preferencesStateChangeListeners: ((
       state: PreferencesState,
     ) => void)[] = [];
+    messenger = new ControllerMessenger();
+
+    approvalControllerMessenger = messenger.getRestricted<
+      'ApprovalController',
+      never,
+      never
+    >({
+      name: 'ApprovalController',
+    });
+
+    tokensControllerMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [
+        'ApprovalController:addRequest',
+        'NetworkController:getNetworkClientById',
+      ],
+      allowedEvents: [
+        'NetworkController:networkDidChange',
+        'TokenListController:stateChange',
+      ],
+    });
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => {
@@ -157,6 +156,12 @@ describe('TokensController', () => {
         listener(state);
       }
     };
+
+    approvalController = new ApprovalController({
+      messenger: approvalControllerMessenger,
+      showApprovalRequest: jest.fn(),
+      typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
+    });
 
     messenger.registerActionHandler(
       `NetworkController:getNetworkClientById`,
@@ -1243,6 +1248,7 @@ describe('TokensController', () => {
           .mockImplementationOnce(() => a.decimals?.toString());
       });
 
+    let addRequestHandler: jest.Mock;
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
       type = ERC20;
@@ -1253,6 +1259,7 @@ describe('TokensController', () => {
         image: 'image',
         name: undefined,
       };
+      addRequestHandler = jest.fn();
 
       isERC721 = false;
       isERC1155 = false;
@@ -1583,19 +1590,28 @@ describe('TokensController', () => {
       );
       messenger.registerActionHandler(
         `NetworkController:getNetworkClientById`,
-        getNetworkClientByIdHandler.mockReturnValue({
-          configuration: { chainId: '0x5' },
-          provider: new FakeProvider({ stubs: [] }),
-        } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+        getNetworkClientByIdHandler.mockImplementation((networkClientId) => {
+          expect(networkClientId).toBe('networkClientId1');
+          return {
+            configuration: { chainId: '0x5' },
+            provider: new FakeProvider({
+              stubs: [],
+            }),
+            blockTracker: new FakeBlockTracker(),
+            destroy: jest.fn(),
+          } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+        }),
+      );
+
+      messenger.unregisterActionHandler(`ApprovalController:addRequest`);
+      messenger.registerActionHandler(
+        `ApprovalController:addRequest`,
+        addRequestHandler,
       );
 
       const generateRandomIdStub = jest
         .spyOn(tokensController, '_generateRandomId')
         .mockReturnValue(requestId);
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockResolvedValue(undefined);
 
       await tokensController.watchAsset({
         asset,
@@ -1603,6 +1619,20 @@ describe('TokensController', () => {
         interactingAddress,
         networkClientId: 'networkClientId1',
       });
+
+      expect(addRequestHandler).toHaveBeenCalledWith(
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset,
+          },
+        },
+        true,
+      );
 
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
@@ -1618,24 +1648,6 @@ describe('TokensController', () => {
           ...asset,
         },
       ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress,
-            asset,
-          },
-        },
-        true,
-      );
-      expect(getNetworkClientByIdHandler).toHaveBeenCalledWith(
-        'networkClientId1',
-      );
       generateRandomIdStub.mockRestore();
     });
 
@@ -1674,7 +1686,7 @@ describe('TokensController', () => {
       generateRandomIdStub.mockRestore();
     });
 
-    it('stores multiple tokens from a batched watchAsset confirmation screen correctly when user confirms', async function () {
+    it('stores multiple tokens from a batched watchAsset confirmation screen correctly when user confirms', async () => {
       const generateRandomIdStub = jest
         .spyOn(tokensController, '_generateRandomId')
         .mockImplementationOnce(() => requestId)
@@ -1701,36 +1713,32 @@ describe('TokensController', () => {
 
       mockContract([asset, anotherAsset]);
 
+      const registerListeners = new Promise<void>((resolve) => {
+        const listener = (state: ApprovalControllerState) => {
+          if (state.pendingApprovalCount === 2) {
+            messenger.unsubscribe('ApprovalController:stateChange', listener);
+            resolve();
+          }
+        };
+        messenger.subscribe('ApprovalController:stateChange', listener);
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       tokensController.watchAsset({ asset, type, interactingAddress });
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       tokensController.watchAsset({
         asset: anotherAsset,
         type,
         interactingAddress,
       });
 
-      await new Promise<void>((resolve) => {
-        const listener = (state: ApprovalControllerState) => {
-          if (state.pendingApprovalCount === 2) {
-            approvalControllerMessenger.unsubscribe(
-              'ApprovalController:stateChange',
-              listener,
-            );
-            resolve();
-          }
-        };
-        approvalControllerMessenger.subscribe(
-          'ApprovalController:stateChange',
-          listener,
-        );
-      });
+      await registerListeners;
 
       await approvalController.accept(requestId);
       await approvalController.accept('67890');
       await acceptedRequest;
 
-      expect(
-        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
-      ).toHaveLength(2);
       expect(
         tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
       ).toStrictEqual([
