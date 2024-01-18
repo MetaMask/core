@@ -167,7 +167,6 @@ export class PendingTransactionTracker {
   async #onLatestBlock(latestBlockNumber: string) {
     const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
 
-    console.log('latestBlockNumber', latestBlockNumber);
     try {
       await this.#checkTransactions();
     } catch (error) {
@@ -189,7 +188,6 @@ export class PendingTransactionTracker {
     log('Checking transactions');
 
     const pendingTransactions = this.#getPendingTransactions();
-    console.log('pendingTransactions', pendingTransactions);
     if (!pendingTransactions.length) {
       log('No pending transactions to check');
       return;

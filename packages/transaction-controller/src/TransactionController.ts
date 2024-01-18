@@ -2320,7 +2320,6 @@ export class TransactionController extends BaseControllerV1<
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
-        console.log('stoackeroni', finalMeta.error.stack);
         throw rpcErrors.internal(finalMeta.error.message);
 
       case TransactionStatus.submitted:
@@ -2698,11 +2697,6 @@ export class TransactionController extends BaseControllerV1<
     };
     blockNumber: number;
   }) {
-    console.log(
-      'onUpdatedLastFetchedBlockNumbers',
-      lastFetchedBlockNumbers,
-      blockNumber,
-    );
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
@@ -3027,7 +3021,6 @@ export class TransactionController extends BaseControllerV1<
 
   private onConfirmedTransaction(transactionMeta: TransactionMeta) {
     log('Processing confirmed transaction', transactionMeta.id);
-    console.log('onConfirmedTransaction', transactionMeta);
     this.markNonceDuplicatesDropped(transactionMeta.id);
 
     this.hub.emit('transaction-confirmed', { transactionMeta });
