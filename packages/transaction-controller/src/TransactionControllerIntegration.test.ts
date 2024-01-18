@@ -963,11 +963,16 @@ describe('TransactionController Integration', () => {
                 params: ['0x1'],
               },
               response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
+                result: null,
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x1'],
+              },
+              response: {
+                result: null,
               },
             },
             {
@@ -1003,6 +1008,17 @@ describe('TransactionController Integration', () => {
                 },
               },
             },
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x2', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
+              },
+            },
           ],
         });
         const { transactionController, approvalController } =
@@ -1022,7 +1038,6 @@ describe('TransactionController Integration', () => {
         await result;
 
         await transactionController.stopTransaction(transactionMeta.id);
-        transactionController.stopTrackingByNetworkClientId('goerli');
 
         // blocktracker polling is 20s
         await advanceTime({ clock, duration: 20000 });
@@ -1036,6 +1051,7 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
+        transactionController.stopTrackingByNetworkClientId('goerli');
       });
       it('should be able to get to speedup state', async () => {
         expect(true).toBe(true);
