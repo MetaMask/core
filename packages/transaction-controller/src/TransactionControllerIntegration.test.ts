@@ -1063,7 +1063,249 @@ describe('TransactionController Integration', () => {
         transactionController.stopTrackingByNetworkClientId('goerli');
       });
       it('should be able to get to speedup state', async () => {
-        expect(true).toBe(true);
+        const clock = useFakeTimers();
+        mockNetwork({
+          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3b3301',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x3b3301'],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x3b3301',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: [
+                  '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                  '0x3b3301',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+          ],
+        });
+        mockNetwork({
+          networkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x1',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_estimateGas',
+                params: [
+                  {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x0',
+                  },
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x1'],
+              },
+              response: {
+                result: null,
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x1'],
+              },
+              response: {
+                result: null,
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                ],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x4',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x4',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x2'],
+              },
+              response: {
+                result: {
+                  blockHash: '0x2',
+                  blockNumber: '0x4', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
+                  status: '0x1', // 0x1 = success
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x2', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
+              },
+            },
+          ],
+        });
+        const { transactionController, approvalController } =
+          await newController({});
+        const { result, transactionMeta } =
+          await transactionController.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_2_MOCK,
+            },
+            { networkClientId: 'goerli' },
+          );
+
+        await approvalController.accept(transactionMeta.id);
+        await advanceTime({ clock, duration: 1 });
+
+        await result;
+
+        await transactionController.speedUpTransaction(transactionMeta.id);
+
+        // blocktracker polling is 20s
+        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 1 });
+
+        expect(transactionController.state.transactions).toHaveLength(2);
+        expect(transactionController.state.transactions[1].status).toBe(
+          'confirmed',
+        );
+        transactionController.stopTrackingByNetworkClientId('goerli');
       });
     });
   });
