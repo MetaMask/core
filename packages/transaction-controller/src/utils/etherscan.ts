@@ -177,15 +177,7 @@ function getEtherscanApiUrl(
   chainId: Hex,
   urlParams: Record<string, string | undefined>,
 ): string {
-  type SupportedChainId = keyof typeof ETHERSCAN_SUPPORTED_NETWORKS;
-
-  const networkInfo = ETHERSCAN_SUPPORTED_NETWORKS[chainId as SupportedChainId];
-
-  if (!networkInfo) {
-    throw new Error(`Etherscan does not support chain with ID: ${chainId}`);
-  }
-
-  const apiUrl = `https://${networkInfo.subdomain}.${networkInfo.domain}`;
+  const apiUrl = getEtherscanApiHost(chainId);
   let url = `${apiUrl}/api?`;
 
   for (const paramKey of Object.keys(urlParams)) {
@@ -201,4 +193,22 @@ function getEtherscanApiUrl(
   url += 'tag=latest&page=1';
 
   return url;
+}
+
+/**
+ * Return the host url used to fetch data from Etherscan.
+ *
+ * @param chainId - Current chain ID used to determine subdomain and domain.
+ * @returns host URL to access Etherscan data.
+ */
+export function getEtherscanApiHost(chainId: Hex) {
+  type SupportedChainId = keyof typeof ETHERSCAN_SUPPORTED_NETWORKS;
+
+  const networkInfo = ETHERSCAN_SUPPORTED_NETWORKS[chainId as SupportedChainId];
+
+  if (!networkInfo) {
+    throw new Error(`Etherscan does not support chain with ID: ${chainId}`);
+  }
+
+  return `https://${networkInfo.subdomain}.${networkInfo.domain}`;
 }

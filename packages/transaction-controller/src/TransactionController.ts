@@ -190,6 +190,13 @@ export const CANCEL_RATE = 1.5;
  */
 export const SPEED_UP_RATE = 1.1;
 
+type IncomingTransactionOptions = {
+  includeTokenTransfers?: boolean;
+  isEnabled?: () => boolean;
+  queryEntireHistory?: boolean;
+  updateTransactions?: boolean;
+};
+
 /**
  * The name of the {@link TransactionController}.
  */
@@ -287,6 +294,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly speedUpMultiplier: number;
 
+  private readonly incomingTransactionOptions: IncomingTransactionOptions;
+
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
@@ -313,8 +322,6 @@ export class TransactionController extends BaseControllerV1<
   private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
   private readonly getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
-
-  private readonly etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
 
   private failTransaction(
     transactionMeta: TransactionMeta,
@@ -461,12 +468,7 @@ export class TransactionController extends BaseControllerV1<
       getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
       getSelectedAddress: () => string;
-      incomingTransactions?: {
-        includeTokenTransfers?: boolean;
-        isEnabled?: () => boolean;
-        queryEntireHistory?: boolean;
-        updateTransactions?: boolean;
-      };
+      incomingTransactions?: IncomingTransactionOptions;
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       pendingTransactions?: {
@@ -538,6 +540,7 @@ export class TransactionController extends BaseControllerV1<
     this.securityProviderRequest = securityProviderRequest;
     this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
     this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
+    this.incomingTransactionOptions = incomingTransactions;
 
     this.getNetworkClientIdForDomain = getNetworkClientIdForDomain;
 
@@ -565,7 +568,7 @@ export class TransactionController extends BaseControllerV1<
       ),
     });
 
-    this.etherscanRemoteTransactionSource =
+    const etherscanRemoteTransactionSource =
       new EtherscanRemoteTransactionSource({
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       });
@@ -577,7 +580,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
-      remoteTransactionSource: this.etherscanRemoteTransactionSource,
+      remoteTransactionSource: etherscanRemoteTransactionSource,
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: incomingTransactions.updateTransactions,
     });
@@ -1298,6 +1301,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   // NOTE(JL): Should this be private?
+  // TODO(JL): This should be idempotent
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
@@ -1320,6 +1324,12 @@ export class TransactionController extends BaseControllerV1<
         TransactionStatus.confirmed,
       ),
     });
+
+    const etherscanRemoteTransactionSource =
+      new EtherscanRemoteTransactionSource({
+        includeTokenTransfers:
+          this.incomingTransactionOptions.includeTokenTransfers,
+      });
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
@@ -1330,11 +1340,11 @@ export class TransactionController extends BaseControllerV1<
           providerConfig: { chainId } as ProviderConfig,
         } as NetworkState;
       },
-      isEnabled: () => true,
-      queryEntireHistory: true,
-      remoteTransactionSource: this.etherscanRemoteTransactionSource,
+      isEnabled: this.incomingTransactionOptions.isEnabled,
+      queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
+      remoteTransactionSource: etherscanRemoteTransactionSource,
       transactionLimit: this.config.txHistoryLimit,
-      updateTransactions: true,
+      updateTransactions: this.incomingTransactionOptions.updateTransactions,
     });
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
@@ -2707,6 +2717,8 @@ export class TransactionController extends BaseControllerV1<
     };
     blockNumber: number;
   }) {
+    // TODO(JL): the way this object is updated in place from IncomingTransactionHelper
+    // is incorrect. Additionally there may be a state clobbering issue we need to investigate still.
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
