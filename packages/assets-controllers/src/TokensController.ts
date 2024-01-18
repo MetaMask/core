@@ -92,17 +92,15 @@ type SuggestedAssetMeta = {
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TokensState extends BaseState {
-  tokens: Token[];
-  ignoredTokens: string[];
-  detectedTokens: Token[];
-  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-  allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
-  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-}
+export type TokensState = BaseState &
+  Record<string, unknown> & {
+    tokens: Token[];
+    ignoredTokens: string[];
+    detectedTokens: Token[];
+    allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+    allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
+    allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  };
 
 /**
  * The name of the {@link TokensController}.
