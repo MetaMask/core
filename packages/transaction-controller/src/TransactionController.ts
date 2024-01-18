@@ -1295,8 +1295,7 @@ export class TransactionController extends BaseControllerV1<
       // doesn't seem like any cleanup is needed for nonceTracker
       // trackers.nonceTracker
 
-      // stop not exposed for pendingTransactionTracker
-      // trackers.pendingTransactionTracker.stop();
+      trackers.pendingTransactionTracker.stop();
     }
     this.trackingMap.delete(networkClientId);
   }
@@ -1349,9 +1348,7 @@ export class TransactionController extends BaseControllerV1<
     });
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      blockTracker: networkClient.provider as any,
+      blockTracker: networkClient.blockTracker,
       getChainId: () => networkClient.configuration.chainId,
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
