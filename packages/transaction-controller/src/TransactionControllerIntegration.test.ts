@@ -997,6 +997,15 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x4',
+              },
+            },
+            {
+              request: {
                 method: 'eth_getTransactionReceipt',
                 params: ['0x2'],
               },
