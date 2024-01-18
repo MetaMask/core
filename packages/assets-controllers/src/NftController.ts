@@ -243,12 +243,22 @@ const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
 export class NftController extends BaseController<NftConfig, NftState> {
   private mutex = new Mutex();
 
+  private getNftApi({
+    contractAddress,
+    tokenId,
+  }: {
+    contractAddress: string;
+    tokenId: string;
+  }) {
+    return `${OPENSEA_PROXY_URL}/chain/${OpenSeaV2ChainIds.ethereum}/contract/${contractAddress}/nfts/${tokenId}`;
+  }
+
   private getNftContractInformationApi({
     contractAddress,
   }: {
     contractAddress: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`;
+    return `${OPENSEA_PROXY_URL}/chain/${OpenSeaV2ChainIds.ethereum}/contract/${contractAddress}`;
   }
 
   private getNftCollectionInformationApi({
@@ -1127,16 +1137,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
       throw new Error('This NFT is not owned by the user');
     }
     await this.addNft(address, tokenId);
-  }
-
-  getNftApi({
-    contractAddress,
-    tokenId,
-  }: {
-    contractAddress: string;
-    tokenId: string;
-  }) {
-    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
   /**
