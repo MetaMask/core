@@ -1292,7 +1292,6 @@ export class TransactionController extends BaseControllerV1<
       // doesn't seem like any cleanup is needed for nonceTracker
       // trackers.nonceTracker
 
-      // stop not exposed for pendingTransactionTracker
       trackers.pendingTransactionTracker.stop();
     }
     this.trackingMap.delete(networkClientId);
@@ -1339,9 +1338,7 @@ export class TransactionController extends BaseControllerV1<
     });
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      blockTracker: networkClient.blockTracker as any,
+      blockTracker: networkClient.blockTracker,
       getChainId: () => networkClient.configuration.chainId,
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
@@ -2271,6 +2268,7 @@ export class TransactionController extends BaseControllerV1<
             | undefined;
 
           const updatedTransaction = approvalValue?.txMeta;
+
           if (updatedTransaction) {
             log('Updating transaction with approval data', {
               customNonce: updatedTransaction.customNonceValue,
@@ -2317,6 +2315,7 @@ export class TransactionController extends BaseControllerV1<
     }
 
     const finalMeta = await finishedPromise;
+
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
@@ -2421,6 +2420,7 @@ export class TransactionController extends BaseControllerV1<
         : baseTxParams;
 
       const rawTx = await this.signTransaction(transactionMeta, txParams);
+
       if (!this.beforePublish(transactionMeta)) {
         log('Skipping publishing transaction based on hook');
         this.hub.emit(`${transactionMeta.id}:publish-skip`, transactionMeta);
@@ -3031,6 +3031,7 @@ export class TransactionController extends BaseControllerV1<
 
   private onConfirmedTransaction(transactionMeta: TransactionMeta) {
     log('Processing confirmed transaction', transactionMeta.id);
+
     this.markNonceDuplicatesDropped(transactionMeta.id);
 
     this.hub.emit('transaction-confirmed', { transactionMeta });

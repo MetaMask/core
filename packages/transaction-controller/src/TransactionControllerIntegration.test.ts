@@ -10,8 +10,6 @@ import { useFakeTimers } from 'sinon';
 import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import { TransactionController } from './TransactionController';
-import nock from 'nock';
-import { Hex } from '@metamask/utils';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
@@ -1308,10 +1306,10 @@ describe('TransactionController Integration', () => {
           'confirmed',
         );
         const baseFee =
-          transactionController.state.transactions[0].txParams?.maxFeePerGas;
+          transactionController.state.transactions[0].txParams.maxFeePerGas;
         expect(
           Number(
-            transactionController.state.transactions[1].txParams?.maxFeePerGas,
+            transactionController.state.transactions[1].txParams.maxFeePerGas,
           ),
         ).toBeGreaterThan(Number(baseFee));
         transactionController.stopTrackingByNetworkClientId('goerli');
