@@ -1328,9 +1328,9 @@ describe('TransactionController Integration', () => {
       });
     });
 
-    describe.only('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
+    describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        const clock = useFakeTimers()
+        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -1484,18 +1484,23 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
-        const { approvalController, networkController, transactionController } = await newController({
-          getPermittedAccounts: () => [ACCOUNT_MOCK],
-          getSelectedAddress: () => ACCOUNT_MOCK
-        });
-        const otherNetworkClientIdOnGoerli = await networkController.upsertNetworkConfiguration({
-          rpcUrl: 'https://mock.rpc.url',
-          chainId: networkClientConfiguration.chainId,
-          ticker: networkClientConfiguration.ticker,
-        }, {
-          referrer: 'https://mock.referrer',
-          source: 'dapp'
-        })
+        const { approvalController, networkController, transactionController } =
+          await newController({
+            getPermittedAccounts: () => [ACCOUNT_MOCK],
+            getSelectedAddress: () => ACCOUNT_MOCK,
+          });
+        const otherNetworkClientIdOnGoerli =
+          await networkController.upsertNetworkConfiguration(
+            {
+              rpcUrl: 'https://mock.rpc.url',
+              chainId: networkClientConfiguration.chainId,
+              ticker: networkClientConfiguration.ticker,
+            },
+            {
+              referrer: 'https://mock.referrer',
+              source: 'dapp',
+            },
+          );
 
         mockNetwork({
           networkClientConfiguration: {
@@ -1632,28 +1637,247 @@ describe('TransactionController Integration', () => {
           },
           {
             origin: 'dapp.test',
-            networkClientId: otherNetworkClientIdOnGoerli
+            networkClientId: otherNetworkClientIdOnGoerli,
           },
         );
 
         await Promise.all([
           approvalController.accept(addTx1.transactionMeta.id),
           approvalController.accept(addTx2.transactionMeta.id),
-        ])
+        ]);
         await advanceTime({ clock, duration: 1 });
 
-        await Promise.all([
-          addTx1.result,
-          addTx2.result,
-        ])
+        await Promise.all([addTx1.result, addTx2.result]);
         transactionController.stopTrackingByNetworkClientId('goerli');
-        transactionController.stopTrackingByNetworkClientId(otherNetworkClientIdOnGoerli);
+        transactionController.stopTrackingByNetworkClientId(
+          otherNetworkClientIdOnGoerli,
+        );
 
-        const nonces = transactionController.state.transactions.map(tx => tx.txParams.nonce).sort()
-        expect(nonces).toEqual(['0x1', '0x2'])
-        clock.restore()
-      })
-    })
+        const nonces = transactionController.state.transactions
+          .map((tx) => tx.txParams.nonce)
+          .sort();
+        expect(nonces).toStrictEqual(['0x1', '0x2']);
+        clock.restore();
+      });
+    });
+
+    describe.only('when transactions are added concurrently with the same networkClientId', () => {
+      it('should add each transaction with consecutive nonces', async () => {
+        const clock = useFakeTimers();
+        mockNetwork({
+          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3b3301',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x3b3301'],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x3b3301',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: [
+                  '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                  '0x3b3301',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+          ],
+        });
+        mockNetwork({
+          networkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_3_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x1',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_estimateGas',
+                params: [
+                  {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x0',
+                  },
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x1'],
+              },
+              response: {
+                result: {
+                  blockHash: '0x1',
+                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
+                  status: '0x1', // 0x1 = success
+                },
+              },
+            },
+          ],
+        });
+        const { approvalController, transactionController } =
+          await newController({
+            getPermittedAccounts: () => [ACCOUNT_MOCK],
+            getSelectedAddress: () => ACCOUNT_MOCK,
+          });
+
+        const addTx1 = await transactionController.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+          { networkClientId: 'goerli' },
+        );
+
+        const addTx2 = await transactionController.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_3_MOCK,
+          },
+          {
+            origin: 'dapp.test',
+            networkClientId: 'goerli',
+          },
+        );
+
+        await Promise.all([
+          approvalController.accept(addTx1.transactionMeta.id),
+          approvalController.accept(addTx2.transactionMeta.id),
+        ]);
+        await advanceTime({ clock, duration: 1 });
+
+        await Promise.all([addTx1.result, addTx2.result]);
+        transactionController.stopTrackingByNetworkClientId('goerli');
+
+        const nonces = transactionController.state.transactions
+          .map((tx) => tx.txParams.nonce)
+          .sort();
+        expect(nonces).toStrictEqual(['0x1', '0x2']);
+        clock.restore();
+      });
+    });
   });
 
   describe('startIncomingTransactionPolling', () => {
