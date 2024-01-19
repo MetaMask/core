@@ -29,7 +29,7 @@ describe('PreferencesController', () => {
         acc[curr] = true;
         return acc;
       }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
-      smartTransactionsEnabled: false,
+      smartTransactionsOptInStatus: false,
     });
   });
 
@@ -262,10 +262,10 @@ describe('PreferencesController', () => {
     expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
   });
 
-  it('should set smartTransactionsEnabled', () => {
+  it('should set smartTransactionsOptInStatus', () => {
     const controller = setupPreferencesController();
-    controller.setSmartTransactionsEnabled(true);
-    expect(controller.state.smartTransactionsEnabled).toBe(true);
+    controller.setSmartTransactionsOptInStatus(true);
+    expect(controller.state.smartTransactionsOptInStatus).toBe(true);
   });
 });
 
