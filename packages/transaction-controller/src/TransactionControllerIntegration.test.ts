@@ -1721,4 +1721,259 @@ describe('TransactionController Integration', () => {
       clock.restore();
     });
   });
+
+  describe('getNonceLock', () => {
+    it('should get the nonce lock from the nonceTracker for the given networkClientId', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      const { networkController, transactionController } = await newController(
+        {},
+      );
+
+      const networkClients = networkController.getNetworkClientRegistry();
+      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      const networkClientIds = Object.keys(networkClients).filter(
+        (v) => v !== networkClientConfiguration.network,
+      );
+      for (const networkClientId of networkClientIds) {
+        const config = networkClients[networkClientId].configuration;
+        mockNetwork({
+          networkClientConfiguration: config,
+          mocks: [
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // NonceTracker
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: [ACCOUNT_MOCK, '0x1'],
+              },
+              response: {
+                result: '0xa',
+              },
+            },
+          ],
+        });
+
+        const nonceLock = await transactionController.getNonceLock(
+          ACCOUNT_MOCK,
+          networkClientId,
+        );
+        expect(nonceLock.nextNonce).toBe(10);
+      }
+    });
+
+    it('should block other attempts to get the nonce lock from the nonceTracker until the first one is released for the given networkClientId', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      const { networkController, transactionController } = await newController(
+        {},
+      );
+
+      const networkClients = networkController.getNetworkClientRegistry();
+      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      const networkClientIds = Object.keys(networkClients).filter(
+        (v) => v !== networkClientConfiguration.network,
+      );
+      for (const networkClientId of networkClientIds) {
+        const config = networkClients[networkClientId].configuration;
+        mockNetwork({
+          networkClientConfiguration: config,
+          mocks: [
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // NonceTracker
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: [ACCOUNT_MOCK, '0x1'],
+              },
+              response: {
+                result: '0xa',
+              },
+            },
+          ],
+        });
+
+        const firstNonceLock = await transactionController.getNonceLock(
+          ACCOUNT_MOCK,
+          networkClientId,
+        );
+
+        expect(firstNonceLock.nextNonce).toBe(10);
+
+        const secondNonceLock = transactionController.getNonceLock(
+          ACCOUNT_MOCK,
+          networkClientId,
+        );
+        const delay = () =>
+          new Promise<null>((resolve) => {
+            setTimeout(resolve, 100, null);
+          });
+
+        let secondNonceLockIfAcquired = await Promise.race([
+          secondNonceLock,
+          delay(),
+        ]);
+        expect(secondNonceLockIfAcquired).toBeNull();
+
+        await firstNonceLock.releaseLock();
+
+        secondNonceLockIfAcquired = await Promise.race([
+          secondNonceLock,
+          delay(),
+        ]);
+        expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
+      }
+    });
+
+    it('should get the nonce lock from the globally selected nonceTracker if no networkClientId is provided', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // NonceTracker
+          {
+            request: {
+              method: 'eth_getTransactionCount',
+              params: [ACCOUNT_MOCK, '0x1'],
+            },
+            response: {
+              result: '0xa',
+            },
+          },
+        ],
+      });
+
+      const { transactionController } = await newController({});
+
+      const nonceLock = await transactionController.getNonceLock(ACCOUNT_MOCK);
+      expect(nonceLock.nextNonce).toBe(10);
+    });
+
+    it('should block other attempts to get the nonce lock from the globally selected nonceTracker until the first one is released if no networkClientId is provided', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // NonceTracker
+          {
+            request: {
+              method: 'eth_getTransactionCount',
+              params: [ACCOUNT_MOCK, '0x1'],
+            },
+            response: {
+              result: '0xa',
+            },
+          },
+        ],
+      });
+
+      const { transactionController } = await newController({});
+
+      const firstNonceLock = await transactionController.getNonceLock(
+        ACCOUNT_MOCK,
+      );
+
+      expect(firstNonceLock.nextNonce).toBe(10);
+
+      const secondNonceLock = transactionController.getNonceLock(ACCOUNT_MOCK);
+      const delay = () =>
+        new Promise<null>((resolve) => {
+          setTimeout(resolve, 100, null);
+        });
+
+      let secondNonceLockIfAcquired = await Promise.race([
+        secondNonceLock,
+        delay(),
+      ]);
+      expect(secondNonceLockIfAcquired).toBeNull();
+
+      await firstNonceLock.releaseLock();
+
+      secondNonceLockIfAcquired = await Promise.race([
+        secondNonceLock,
+        delay(),
+      ]);
+      expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
+    });
+  });
 });
