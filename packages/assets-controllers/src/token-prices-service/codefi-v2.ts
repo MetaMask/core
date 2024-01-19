@@ -234,7 +234,7 @@ export const SUPPORTED_CHAIN_IDS = [
   // Harmony Mainnet Shard 0
   '0x63564c40',
   // Linea Mainnet
-  '0xe708'
+  '0xe708',
 ] as const;
 
 /**
