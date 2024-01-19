@@ -202,21 +202,31 @@ describe('PreferencesController', () => {
       expect(controller.state.identities).toStrictEqual(identitiesState);
     });
 
-    it('should not update selected address if it is still among identities', () => {
+    it('should not update selected address on account removal if it is still among identities', () => {
+      const identitiesState = {
+        '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
+        '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
+        '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
+      };
+      const messenger = getControllerMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
-            identities: {
-              '0x00': { address: '0x00', name: 'Account 1' },
-              '0x01': { address: '0x01', name: 'Account 2' },
-              '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
-            },
+            identities: cloneDeep(identitiesState),
             selectedAddress: '0x01',
           },
         },
+        messenger,
       });
 
-      controller.updateIdentities(['0x00', '0x01']);
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [{ accounts: ['0x00', '0x01'], type: 'CustomKeyring' }],
+        },
+        [],
+      );
 
       expect(controller.state.selectedAddress).toBe('0x01');
     });
