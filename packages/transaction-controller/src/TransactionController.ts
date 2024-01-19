@@ -190,6 +190,15 @@ export const CANCEL_RATE = 1.5;
  */
 export const SPEED_UP_RATE = 1.1;
 
+/**
+ * @type IncomingTransactionOptions
+ *
+ * Configuration options for incoming transaction support
+ * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
+ * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
+ * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
+ * @property updateTransactions - Whether to update local transactions using remote transaction data.
+ */
 type IncomingTransactionOptions = {
   includeTokenTransfers?: boolean;
   isEnabled?: () => boolean;
@@ -398,10 +407,6 @@ export class TransactionController extends BaseControllerV1<
    * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
-   * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
-   * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
-   * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
-   * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.pendingTransactions - Configuration options for pending transaction support.
