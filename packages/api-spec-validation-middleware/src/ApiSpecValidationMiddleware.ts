@@ -36,8 +36,8 @@ export const createApiSpecValidationMiddleware = async (): Promise<JsonRpcMiddle
           code: -32602,
           message: 'Invalid params',
           data: {
-            errors: JSON.stringify(validationErrors)
-          }
+            errors: JSON.stringify(validationErrors),
+          },
         };
         return;
       }

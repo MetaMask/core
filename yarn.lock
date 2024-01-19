@@ -1598,7 +1598,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/api-spec-validation-middleware@workspace:packages/api-spec-validation-middleware"
   dependencies:
-    "@metamask/api-specs": ^0.0.30
     "@metamask/approval-controller": ^5.1.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.0.1
@@ -1627,13 +1626,6 @@ __metadata:
     "@metamask/selected-network-controller": ^6.0.0
   languageName: unknown
   linkType: soft
-
-"@metamask/api-specs@npm:^0.0.30":
-  version: 0.0.30
-  resolution: "@metamask/api-specs@npm:0.0.30"
-  checksum: d9fb50b6e92059bc516d4d58031cc8aa183d631fd234ad0f3ac2aa7ded7c0a75f8e51b11232544f9f4ba2c5118672ca7640a92254b0d6b67f2cee855d65c7975
-  languageName: node
-  linkType: hard
 
 "@metamask/approval-controller@^5.1.1, @metamask/approval-controller@workspace:packages/approval-controller":
   version: 0.0.0-use.local
