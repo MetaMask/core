@@ -2520,7 +2520,7 @@ describe('TransactionController', () => {
   });
 
   describe('getNonceLock', () => {
-    it('gets the next nonce according to the nonce-tracker', async () => {
+    it('gets the next nonce from the globally selected nonceTracker when no networkClientId is provided', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
       });
@@ -2529,6 +2529,31 @@ describe('TransactionController', () => {
 
       expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
       expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(nextNonce).toBe(NONCE_MOCK);
+    });
+
+    it('gets the next nonce from the nonceTracker for the provided networkClientId', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const trackingMap = controller.startTrackingByNetworkClientId(
+        'customNetworkClientId-1',
+      );
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const { nonceTracker } = trackingMap.get('customNetworkClientId-1')!;
+      const nonceTrackerGetNonceLockSpy = jest.spyOn(
+        nonceTracker,
+        'getNonceLock',
+      );
+
+      const { nextNonce } = await controller.getNonceLock(
+        ACCOUNT_MOCK,
+        'customNetworkClientId-1',
+      );
+
+      expect(nonceTrackerGetNonceLockSpy).toHaveBeenCalledTimes(1);
+      expect(nonceTrackerGetNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
       expect(nextNonce).toBe(NONCE_MOCK);
     });
   });
