@@ -18,7 +18,6 @@ import type {
 import type {
   NetworkClientId,
   NetworkControllerNetworkDidChangeEvent,
-  NetworkControllerStateChangeEvent,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -87,7 +86,6 @@ export type TokenDetectionControllerEvents =
 
 export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
-  | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
   | KeyringControllerLockEvent
