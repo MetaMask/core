@@ -487,7 +487,7 @@ export class AccountsController extends BaseController<
     // check if there are any new accounts added
     // TODO: change when accountAdded event is added to the keyring controller
 
-    if (keyringState.isUnlocked) {
+    if (keyringState.isUnlocked && keyringState.keyrings.length > 0) {
       const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
