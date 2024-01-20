@@ -514,11 +514,6 @@ describe('TokenDetectionController', () => {
               addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              getPreferencesState: jest.fn().mockReturnValue({
-                ...getDefaultPreferencesState(),
-                selectedAddress,
-                useTokenDetection: false,
-              }),
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
@@ -538,6 +533,13 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress,
+              useTokenDetection: false,
+            });
+            await advanceTime({ clock, duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
@@ -706,11 +708,6 @@ describe('TokenDetectionController', () => {
               addDetectedTokens: mockAddDetectedTokens,
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              getPreferencesState: jest.fn().mockReturnValue({
-                ...getDefaultPreferencesState(),
-                selectedAddress,
-                useTokenDetection: false,
-              }),
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
@@ -730,6 +727,13 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress,
+              useTokenDetection: false,
+            });
+            await advanceTime({ clock, duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
