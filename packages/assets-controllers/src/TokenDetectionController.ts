@@ -278,12 +278,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      async (account) => {
+      async ({ address: newSelectedAddress }) => {
+        const isSelectedAddressChanged =
+          this.#selectedAddress !== newSelectedAddress;
         if (
-          this.#selectedAddress !== account.address &&
+          isSelectedAddressChanged &&
           this.#isDetectionEnabledFromPreferences
         ) {
-          this.#selectedAddress = account.address;
+          this.#selectedAddress = newSelectedAddress;
           await this.#restartTokenDetection({
             selectedAddress: this.#selectedAddress,
           });
@@ -297,12 +299,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         this.#networkClientId = selectedNetworkClientId;
         const newChainId = this.#getCorrectChainId(selectedNetworkClientId);
         const isChainIdChanged = this.#chainId !== newChainId;
-        this.#chainId = newChainId;
 
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
 
-        if (this.#isDetectionEnabledForNetwork && isChainIdChanged) {
+        if (isChainIdChanged && this.#isDetectionEnabledForNetwork) {
+          this.#chainId = newChainId;
           await this.#restartTokenDetection({
             chainId: this.#chainId,
           });
