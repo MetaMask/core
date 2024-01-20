@@ -137,14 +137,15 @@ function buildTokenDetectionControllerMessenger(
       'KeyringController:getState',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'TokenListController:getState',
+      'PreferencesController:getState',
     ],
     allowedEvents: [
       'AccountsController:selectedAccountChange',
       'KeyringController:lock',
       'KeyringController:unlock',
-      'NetworkController:stateChange',
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
+      'PreferencesController:stateChange',
     ],
   });
 }
