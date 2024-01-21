@@ -82,7 +82,7 @@ export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
  *
  * @returns The default TokenBalancesController state.
  */
-function getDefaultState(): TokenBalancesControllerState {
+export function getDefaultTokenBalancesState(): TokenBalancesControllerState {
   return {
     contractBalances: {},
   };
@@ -137,7 +137,7 @@ export class TokenBalancesController extends BaseController<
       metadata,
       messenger,
       state: {
-        ...getDefaultState(),
+        ...getDefaultTokenBalancesState(),
         ...state,
       },
     });
