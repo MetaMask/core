@@ -19,8 +19,24 @@ export type {
   TokenDetectionControllerStateChangeEvent,
 } from './TokenDetectionController';
 export { TokenDetectionController } from './TokenDetectionController';
-export * from './TokenListController';
-export * from './TokenRatesController';
+export type {
+  TokenListState,
+  TokenListToken,
+  TokenListMap,
+  TokenListStateChange,
+  TokenListControllerEvents,
+  GetTokenListState,
+  TokenListControllerActions,
+  TokenListControllerMessenger,
+} from './TokenListController';
+export { TokenListController } from './TokenListController';
+export type {
+  Token,
+  TokenRatesConfig,
+  ContractExchangeRates,
+  TokenRatesState,
+} from './TokenRatesController';
+export { TokenRatesController } from './TokenRatesController';
 export type {
   TokensConfig,
   TokensState,
