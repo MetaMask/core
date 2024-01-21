@@ -109,12 +109,19 @@ export type TokensState = BaseState &
  */
 const controllerName = 'TokensController';
 
-export type TokensControllerActions = TokensControllerGetStateAction;
+export type TokensControllerActions =
+  | TokensControllerGetStateAction
+  | TokensControllerAddDetectedTokensAction;
 
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokensState
 >;
+
+export type TokensControllerAddDetectedTokensAction = {
+  type: `${typeof controllerName}:addDetectedTokens`;
+  handler: TokensController['addDetectedTokens'];
+};
 
 /**
  * The external actions available to the {@link TokensController}.
@@ -245,6 +252,11 @@ export class TokensController extends BaseControllerV1<
     this.abortController = new AbortController();
 
     this.messagingSystem = messenger;
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addDetectedTokens` as const,
+      this.addDetectedTokens.bind(this),
+    );
 
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
