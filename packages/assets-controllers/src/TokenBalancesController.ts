@@ -5,11 +5,11 @@ import {
   BaseController,
 } from '@metamask/base-controller';
 import { safelyExecute, toHex } from '@metamask/controller-utils';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 
 import type { AssetsContractController } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
-import type { TokensState } from './TokensController';
+import type { TokensControllerStateChangeEvent } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -24,16 +24,12 @@ const metadata = {
  * @property interval - Polling interval used to fetch new token balances.
  * @property tokens - List of tokens to track balances for.
  * @property disabled - If set to true, all tracked tokens contract balances updates are blocked.
- * @property onTokensStateChange - Allows subscribing to assets controller state changes.
- * @property getSelectedAddress - Gets the current selected address.
  * @property getERC20BalanceOf - Gets the balance of the given account at the given contract address.
  */
 type TokenBalancesControllerOptions = {
   interval?: number;
   tokens?: Token[];
   disabled?: boolean;
-  onTokensStateChange: (listener: (tokenState: TokensState) => void) => void;
-  getSelectedAddress: () => PreferencesState['selectedAddress'];
   getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
   messenger: TokenBalancesControllerMessenger;
   state?: Partial<TokenBalancesControllerState>;
@@ -60,6 +56,8 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
 export type TokenBalancesControllerActions =
   TokenBalancesControllerGetStateAction;
 
+export type AllowedActions = PreferencesControllerGetStateAction;
+
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
@@ -69,12 +67,14 @@ export type TokenBalancesControllerStateChangeEvent =
 export type TokenBalancesControllerEvents =
   TokenBalancesControllerStateChangeEvent;
 
+export type AllowedEvents = TokensControllerStateChangeEvent;
+
 export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  TokenBalancesControllerActions,
-  TokenBalancesControllerEvents,
-  never,
-  never
+  TokenBalancesControllerActions | AllowedActions,
+  TokenBalancesControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
@@ -99,8 +99,6 @@ export class TokenBalancesController extends BaseController<
 > {
   #handle?: ReturnType<typeof setTimeout>;
 
-  #getSelectedAddress: () => PreferencesState['selectedAddress'];
-
   #getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
 
   #interval: number;
@@ -116,8 +114,6 @@ export class TokenBalancesController extends BaseController<
    * @param options.interval - Polling interval used to fetch new token balances.
    * @param options.tokens - List of tokens to track balances for.
    * @param options.disabled - If set to true, all tracked tokens contract balances updates are blocked.
-   * @param options.onTokensStateChange - Allows subscribing to assets controller state changes.
-   * @param options.getSelectedAddress - Gets the current selected address.
    * @param options.getERC20BalanceOf - Gets the balance of the given account at the given contract address.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller restricted messenger.
@@ -126,8 +122,6 @@ export class TokenBalancesController extends BaseController<
     interval = DEFAULT_INTERVAL,
     tokens = [],
     disabled = false,
-    onTokensStateChange,
-    getSelectedAddress,
     getERC20BalanceOf,
     messenger,
     state = {},
@@ -146,20 +140,17 @@ export class TokenBalancesController extends BaseController<
     this.#interval = interval;
     this.#tokens = tokens;
 
-    onTokensStateChange(this.#tokensStateChangeListener.bind(this));
+    this.messagingSystem.subscribe(
+      'TokensController:stateChange',
+      ({ tokens: newTokens, detectedTokens }) => {
+        this.#tokens = [...newTokens, ...detectedTokens];
+        this.updateBalances();
+      },
+    );
 
-    this.#getSelectedAddress = getSelectedAddress;
     this.#getERC20BalanceOf = getERC20BalanceOf;
 
     this.poll();
-  }
-
-  /*
-   * Tokens state changes listener.
-   */
-  #tokensStateChangeListener({ tokens, detectedTokens }: TokensState) {
-    this.#tokens = [...tokens, ...detectedTokens];
-    this.updateBalances();
   }
 
   /**
@@ -208,9 +199,12 @@ export class TokenBalancesController extends BaseController<
     const newContractBalances: ContractBalances = {};
     for (const token of this.#tokens) {
       const { address } = token;
+      const { selectedAddress } = this.messagingSystem.call(
+        'PreferencesController:getState',
+      );
       try {
         newContractBalances[address] = toHex(
-          await this.#getERC20BalanceOf(address, this.#getSelectedAddress()),
+          await this.#getERC20BalanceOf(address, selectedAddress),
         );
         token.balanceError = null;
       } catch (error) {
