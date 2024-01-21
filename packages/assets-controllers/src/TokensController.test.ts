@@ -40,12 +40,7 @@ import { TOKEN_END_POINT_API } from './token-service';
 import type { TokenListState } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  TokensControllerEvents,
-  TokensControllerActions,
-} from './TokensController';
+import type { AllowedActions, AllowedEvents } from './TokensController';
 
 jest.mock('uuid', () => {
   return {
@@ -92,12 +87,11 @@ const GOERLI = {
 const controllerName = 'TokensController' as const;
 
 describe('TokensController', () => {
-  let triggerPreferencesStateChange: (state: PreferencesState) => void;
   let tokensController: TokensController;
   let approvalController: ApprovalController;
   let messenger: ControllerMessenger<
-    TokensControllerActions | AllowedActions,
-    TokensControllerEvents | AllowedEvents | ApprovalControllerEvents
+    AllowedActions,
+    AllowedEvents | ApprovalControllerEvents
   >;
   let tokensControllerMessenger;
   let approvalControllerMessenger;
@@ -109,6 +103,10 @@ describe('TokensController', () => {
     });
   };
 
+  const triggerPreferencesStateChange = (state: PreferencesState) => {
+    messenger.publish('PreferencesController:stateChange', state, []);
+  };
+
   const getNetworkClientByIdHandler = jest.fn<
     ReturnType<NetworkController['getNetworkClientById']>,
     Parameters<NetworkController['getNetworkClientById']>
@@ -116,9 +114,6 @@ describe('TokensController', () => {
 
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
-    const preferencesStateChangeListeners: ((
-      state: PreferencesState,
-    ) => void)[] = [];
     messenger = new ControllerMessenger();
 
     approvalControllerMessenger = messenger.getRestricted<
@@ -137,25 +132,18 @@ describe('TokensController', () => {
       ],
       allowedEvents: [
         'NetworkController:networkDidChange',
+        'PreferencesController:stateChange',
         'TokenListController:stateChange',
       ],
     });
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
-      onPreferencesStateChange: (listener) => {
-        preferencesStateChangeListeners.push(listener);
-      },
       config: {
         selectedAddress: defaultSelectedAddress,
         provider: sinon.stub(),
       },
       messenger: tokensControllerMessenger,
     });
-    triggerPreferencesStateChange = (state: PreferencesState) => {
-      for (const listener of preferencesStateChangeListeners) {
-        listener(state);
-      }
-    };
 
     approvalController = new ApprovalController({
       messenger: approvalControllerMessenger,
@@ -166,7 +154,9 @@ describe('TokensController', () => {
     messenger.registerActionHandler(
       `NetworkController:getNetworkClientById`,
       getNetworkClientByIdHandler.mockReturnValue(
-        mockMainnetClient as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+        mockMainnetClient as unknown as ReturnType<
+          NetworkController['getNetworkClientById']
+        >,
       ),
     );
   });
@@ -438,7 +428,7 @@ describe('TokensController', () => {
       `NetworkController:getNetworkClientById`,
       getNetworkClientByIdHandler.mockReturnValue({
         configuration: { chainId: '0x5' },
-      } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+      } as unknown as ReturnType<NetworkController['getNetworkClientById']>),
     );
     await tokensController.addToken({
       address: '0x01',
@@ -1129,7 +1119,7 @@ describe('TokensController', () => {
         `NetworkController:getNetworkClientById`,
         getNetworkClientByIdHandler.mockReturnValue({
           configuration: { chainId: '0x5' },
-        } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+        } as unknown as ReturnType<NetworkController['getNetworkClientById']>),
       );
       const dummyTokens: Token[] = [
         {
@@ -1599,7 +1589,7 @@ describe('TokensController', () => {
             }),
             blockTracker: new FakeBlockTracker(),
             destroy: jest.fn(),
-          } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+          } as unknown as ReturnType<NetworkController['getNetworkClientById']>;
         }),
       );
 
