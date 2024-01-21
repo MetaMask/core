@@ -27,7 +27,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -132,6 +132,7 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
 export type AllowedEvents =
   | NetworkControllerNetworkDidChangeEvent
+  | PreferencesControllerStateChangeEvent
   | TokenListStateChange;
 
 /**
@@ -211,22 +212,17 @@ export class TokensController extends BaseControllerV1<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
    */
   constructor({
     chainId: initialChainId,
-    onPreferencesStateChange,
     config,
     state,
     messenger,
   }: {
     chainId: Hex;
-    onPreferencesStateChange: (
-      listener: (preferencesState: PreferencesState) => void,
-    ) => void;
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
     messenger: TokensControllerMessenger;
@@ -250,16 +246,19 @@ export class TokensController extends BaseControllerV1<
 
     this.messagingSystem = messenger;
 
-    onPreferencesStateChange(({ selectedAddress }) => {
-      const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-      const { chainId } = this.config;
-      this.configure({ selectedAddress });
-      this.update({
-        tokens: allTokens[chainId]?.[selectedAddress] || [],
-        ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
-        detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
-      });
-    });
+    this.messagingSystem.subscribe(
+      'PreferencesController:stateChange',
+      ({ selectedAddress }) => {
+        const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+        const { chainId } = this.config;
+        this.configure({ selectedAddress });
+        this.update({
+          tokens: allTokens[chainId]?.[selectedAddress] ?? [],
+          ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] ?? [],
+          detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] ?? [],
+        });
+      },
+    );
 
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
