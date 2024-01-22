@@ -1940,19 +1940,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-keyring-controller@npm:^17.0.0":
-  version: 17.0.0
-  resolution: "@metamask/eth-keyring-controller@npm:17.0.0"
+"@metamask/eth-keyring-controller@npm:^17.0.1":
+  version: 17.0.1
+  resolution: "@metamask/eth-keyring-controller@npm:17.0.1"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
     "@metamask/browser-passworder": ^4.3.0
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.0
     "@metamask/eth-simple-keyring": ^6.0.1
-    "@metamask/keyring-api": ^2.0.0
+    "@metamask/keyring-api": ^3.0.0
     "@metamask/obs-store": ^9.0.0
     "@metamask/utils": ^8.2.0
-  checksum: f78a879bab0a510125e92bf4e546f9bd86fd9583f141fbee7962ce0359fb622646e480dd32243dc9847d790c51a01730977bb41e7ec46556f735492ac586c3cd
+  checksum: ddaeeb15510fd1896bbe94ca3c47c5867730a1370ec19b7ba4206b1048e303a846c67592a64efbfed7f19d82eaa782f84e802d0d66e0d4764420684199e47c33
   languageName: node
   linkType: hard
 
@@ -2241,7 +2241,7 @@ __metadata:
     "@lavamoat/allow-scripts": ^2.3.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.0
-    "@metamask/eth-keyring-controller": ^17.0.0
+    "@metamask/eth-keyring-controller": ^17.0.1
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/keyring-api": ^3.0.0
     "@metamask/message-manager": ^7.3.7
