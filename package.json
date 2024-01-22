@@ -40,9 +40,6 @@
   "simple-git-hooks": {
     "pre-push": "yarn lint"
   },
-  "resolutions": {
-    "@metamask/providers": "^14.0.2"
-  },
   "devDependencies": {
     "@babel/core": "^7.23.5",
     "@babel/plugin-transform-modules-commonjs": "^7.23.3",
