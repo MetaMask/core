@@ -1804,15 +1804,6 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            {
-              request: {
                 method: 'eth_sendRawTransaction',
                 params: [
                   '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -1831,6 +1822,30 @@ describe('TransactionController Integration', () => {
                 result: {
                   blockHash: '0x1',
                   blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
+                  status: '0x1', // 0x1 = success
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+                ],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x2'],
+              },
+              response: {
+                result: {
+                  blockHash: '0x2',
+                  blockNumber: '0x4', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
                   status: '0x1', // 0x1 = success
                 },
               },
@@ -1862,10 +1877,13 @@ describe('TransactionController Integration', () => {
           },
         );
 
+        await advanceTime({ clock, duration: 1 });
+
         await Promise.all([
           approvalController.accept(addTx1.transactionMeta.id),
           approvalController.accept(addTx2.transactionMeta.id),
         ]);
+
         await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
