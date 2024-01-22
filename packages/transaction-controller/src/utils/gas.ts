@@ -25,7 +25,7 @@ export type UpdateGasRequest = {
 export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
-export const DEFAULT_GAS_MULTIPLIER = 1.5;
+export const DEFAULT_GAS_MULTIPLIER = 1;
 
 export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;

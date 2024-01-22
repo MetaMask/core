@@ -230,6 +230,22 @@ describe('SnapSmartContractAccount', () => {
         UPDATE_USER_OPERATION_REQUEST_MOCK.userOperation,
       );
     });
+
+    it('returns undefined paymaster data if set to empty bytes', async () => {
+      patchMock.mockResolvedValue({
+        paymasterAndData: EMPTY_BYTES,
+      });
+
+      const smartContractAccount = new SnapSmartContractAccount(messengerMock);
+
+      const response = await smartContractAccount.updateUserOperation(
+        UPDATE_USER_OPERATION_REQUEST_MOCK,
+      );
+
+      expect(response).toStrictEqual<UpdateUserOperationResponse>({
+        paymasterAndData: undefined,
+      });
+    });
   });
 
   describe('signUserOperation', () => {

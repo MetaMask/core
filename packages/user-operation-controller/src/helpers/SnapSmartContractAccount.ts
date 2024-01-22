@@ -65,11 +65,21 @@ export class SnapSmartContractAccount implements SmartContractAccount {
     const { userOperation } = request;
     const { sender } = userOperation;
 
-    return await this.#messenger.call(
-      'KeyringController:patchUserOperation',
-      sender,
-      userOperation,
-    );
+    const { paymasterAndData: responsePaymasterAndData } =
+      await this.#messenger.call(
+        'KeyringController:patchUserOperation',
+        sender,
+        userOperation,
+      );
+
+    const paymasterAndData =
+      responsePaymasterAndData === EMPTY_BYTES
+        ? undefined
+        : responsePaymasterAndData;
+
+    return {
+      paymasterAndData,
+    };
   }
 
   async signUserOperation(
