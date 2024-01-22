@@ -11,6 +11,7 @@ import {
   SignTypedDataVersion,
   encrypt,
 } from '@metamask/eth-sig-util';
+import type { EthKeyring } from '@metamask/keyring-api';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import {
   isValidHexAddress,
@@ -25,6 +26,7 @@ import * as uuid from 'uuid';
 import MockEncryptor, {
   MOCK_ENCRYPTION_KEY,
 } from '../tests/mocks/mockEncryptor';
+import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
@@ -1370,6 +1372,159 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('UserOperation methods', () => {
+    const addresses: Hex[] = ['0x660265edc169bab511a40c0e049cc1e33774443d'];
+
+    it('should prepare base user operation', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+        async ({ controller }) => {
+          const mockKeyring = (await controller.addNewKeyring(
+            MockErc4337Keyring.type,
+          )) as EthKeyring<Json>;
+
+          jest
+            .spyOn(mockKeyring, 'getAccounts')
+            .mockResolvedValueOnce(addresses);
+
+          const baseUserOp = {
+            callData: '0x7064',
+            initCode: '0x22ff',
+            nonce: '0x1',
+            gasLimits: {
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+            },
+            dummySignature: '0x',
+            dummyPaymasterAndData: '0x',
+            bundlerUrl: 'https://bundler.example.com/rpc',
+          };
+
+          const baseTxs = [
+            {
+              to: '',
+              value: '0x0',
+              data: '0x7064',
+            },
+          ];
+
+          jest
+            .spyOn(mockKeyring, 'prepareUserOperation')
+            .mockResolvedValueOnce(baseUserOp);
+
+          const result = await controller.prepareUserOperation(
+            addresses[0],
+            baseTxs,
+          );
+
+          expect(result).toStrictEqual(baseUserOp);
+          expect(mockKeyring.prepareUserOperation).toHaveBeenCalledTimes(1);
+          expect(mockKeyring.prepareUserOperation).toHaveBeenCalledWith(
+            addresses[0],
+            baseTxs,
+          );
+        },
+      );
+    });
+
+    it('should patch an user operation', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+        async ({ controller }) => {
+          const mockKeyring = (await controller.addNewKeyring(
+            MockErc4337Keyring.type,
+          )) as EthKeyring<Json>;
+
+          jest
+            .spyOn(mockKeyring, 'getAccounts')
+            .mockResolvedValueOnce(addresses);
+
+          const userOp = {
+            sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+            nonce: '0x1',
+            initCode: '0x',
+            callData: '0x7064',
+            callGasLimit: '0x58a83',
+            verificationGasLimit: '0xe8c4',
+            preVerificationGas: '0xc57c',
+            maxFeePerGas: '0x87f0878c0',
+            maxPriorityFeePerGas: '0x1dcd6500',
+            paymasterAndData: '0x',
+            signature: '0x',
+          };
+
+          const patch = {
+            paymasterAndData: '0x1234',
+          };
+
+          jest
+            .spyOn(mockKeyring, 'patchUserOperation')
+            .mockResolvedValueOnce(patch);
+
+          const result = await controller.patchUserOperation(
+            addresses[0],
+            userOp,
+          );
+
+          expect(result).toStrictEqual(patch);
+          expect(mockKeyring.patchUserOperation).toHaveBeenCalledTimes(1);
+          expect(mockKeyring.patchUserOperation).toHaveBeenCalledWith(
+            addresses[0],
+            userOp,
+          );
+        },
+      );
+    });
+
+    it('should sign an user operation', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+        async ({ controller }) => {
+          const mockKeyring = (await controller.addNewKeyring(
+            MockErc4337Keyring.type,
+          )) as EthKeyring<Json>;
+
+          jest
+            .spyOn(mockKeyring, 'getAccounts')
+            .mockResolvedValueOnce(addresses);
+
+          const userOp = {
+            sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+            nonce: '0x1',
+            initCode: '0x',
+            callData: '0x7064',
+            callGasLimit: '0x58a83',
+            verificationGasLimit: '0xe8c4',
+            preVerificationGas: '0xc57c',
+            maxFeePerGas: '0x87f0878c0',
+            maxPriorityFeePerGas: '0x1dcd6500',
+            paymasterAndData: '0x',
+            signature: '0x',
+          };
+
+          const signature = '0x1234';
+
+          jest
+            .spyOn(mockKeyring, 'signUserOperation')
+            .mockResolvedValueOnce(signature);
+
+          const result = await controller.signUserOperation(
+            addresses[0],
+            userOp,
+          );
+
+          expect(result).toStrictEqual(signature);
+          expect(mockKeyring.signUserOperation).toHaveBeenCalledTimes(1);
+          expect(mockKeyring.signUserOperation).toHaveBeenCalledWith(
+            addresses[0],
+            userOp,
+          );
+        },
+      );
+    });
+  });
+
   describe('submitPassword', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
@@ -2092,6 +2247,29 @@ describe('KeyringController', () => {
       jest
         .spyOn(KeyringController.prototype, 'getEncryptionPublicKey')
         .mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
+      jest
+        .spyOn(KeyringController.prototype, 'prepareUserOperation')
+        .mockResolvedValue({
+          callData: '0x706',
+          initCode: '0x22ff',
+          nonce: '0x1',
+          gasLimits: {
+            callGasLimit: '0x58a83',
+            verificationGasLimit: '0xe8c4',
+            preVerificationGas: '0xc57c',
+          },
+          dummySignature: '0x',
+          dummyPaymasterAndData: '0x',
+          bundlerUrl: 'https://bundler.example.com/rpc',
+        });
+      jest
+        .spyOn(KeyringController.prototype, 'patchUserOperation')
+        .mockResolvedValue({
+          paymasterAndData: '0x1234',
+        });
+      jest
+        .spyOn(KeyringController.prototype, 'signUserOperation')
+        .mockResolvedValue('0x1234');
     });
 
     describe('signMessage', () => {
@@ -2198,6 +2376,99 @@ describe('KeyringController', () => {
 
             expect(controller.decryptMessage).toHaveBeenCalledWith(
               messageParams,
+            );
+          },
+        );
+      });
+    });
+
+    describe('prepareUserOperation', () => {
+      it('should return a base UserOp', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const baseTxs = [
+              {
+                to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+                value: '0x0',
+                data: '0x0',
+              },
+            ];
+
+            await messenger.call(
+              'KeyringController:prepareUserOperation',
+              initialState.keyrings[0].accounts[0],
+              baseTxs,
+            );
+
+            expect(controller.prepareUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              baseTxs,
+            );
+          },
+        );
+      });
+    });
+
+    describe('patchUserOperation', () => {
+      it('should return an UserOp patch', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+
+            await messenger.call(
+              'KeyringController:patchUserOperation',
+              initialState.keyrings[0].accounts[0],
+              userOp,
+            );
+
+            expect(controller.patchUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              userOp,
+            );
+          },
+        );
+      });
+    });
+
+    describe('signUserOperation', () => {
+      it('should return an UserOp signature', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+
+            await messenger.call(
+              'KeyringController:signUserOperation',
+              initialState.keyrings[0].accounts[0],
+              userOp,
+            );
+
+            expect(controller.signUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              userOp,
             );
           },
         );
