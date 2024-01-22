@@ -1866,6 +1866,8 @@ describe('TransactionController Integration', () => {
           { networkClientId: 'goerli' },
         );
 
+        await advanceTime({ clock, duration: 1 });
+
         const addTx2 = await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
