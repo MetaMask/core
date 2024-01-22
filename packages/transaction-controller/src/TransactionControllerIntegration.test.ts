@@ -98,6 +98,7 @@ describe('TransactionController Integration', () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // BlockTracker start
           {
             request: {
               method: 'eth_blockNumber',
@@ -105,56 +106,6 @@ describe('TransactionController Integration', () => {
             },
             response: {
               result: '0x1',
-            },
-          },
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x3',
-            },
-          },
-        ],
-      });
-      mockNetwork({
-        networkClientConfiguration,
-        mocks: [
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x3',
             },
           },
         ],
