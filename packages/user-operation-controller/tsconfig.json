@@ -11,10 +11,16 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../gas-fee-controller"
+    },
+    {
       "path": "../network-controller"
     },
     {
       "path": "../polling-controller"
+    },
+    {
+      "path": "../transaction-controller"
     }
   ],
   "include": ["../../types", "./src"]

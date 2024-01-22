@@ -22,6 +22,8 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
  * @returns The mock instance.
  */
 function createNonceTrackerMock(): jest.Mocked<NonceTracker> {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { getNonceLock: jest.fn() } as any;
 }
 
@@ -78,6 +80,8 @@ describe('nonce', () => {
       nonceTracker.getNonceLock.mockResolvedValueOnce({
         nextNonce: 456,
         releaseLock,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       const [nonce, resultReleaseLock] = await getNextNonce(

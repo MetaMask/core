@@ -126,6 +126,8 @@ type NetworkConfigurations = Record<
  * itself.
  */
 export function knownKeysOf<K extends PropertyKey>(
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   object: Partial<Record<K, any>>,
 ) {
   return Object.keys(object) as K[];
@@ -158,6 +160,8 @@ function assertOfType<Type>(
  * @param keys - The keys to pick from the object.
  * @returns the portion of the object.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pick<Obj extends Record<any, any>, Keys extends keyof Obj>(
   object: Obj,
   keys: Keys[],
@@ -432,6 +436,12 @@ export type NetworkControllerFindNetworkClientIdByChainIdAction = {
   handler: NetworkController['findNetworkClientIdByChainId'];
 };
 
+/**
+ * Change the currently selected network to the given built-in network type.
+ *
+ * @deprecated This action has been replaced by `setActiveNetwork`, and will be
+ * removed in a future release.
+ */
 export type NetworkControllerSetProviderTypeAction = {
   type: `NetworkController:setProviderType`;
   handler: NetworkController['setProviderType'];
@@ -943,6 +953,8 @@ export class NetworkController extends BaseController<
    * Convenience method to update provider network type settings.
    *
    * @param type - Human readable network name.
+   * @deprecated This has been replaced by `setActiveNetwork`, and will be
+   * removed in a future release
    */
   async setProviderType(type: InfuraNetworkType) {
     assert.notStrictEqual(
@@ -980,30 +992,45 @@ export class NetworkController extends BaseController<
   /**
    * Convenience method to update provider RPC settings.
    *
-   * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
+   * @param networkConfigurationIdOrType - The unique id for the network configuration to set as the active provider,
+   * or the type of a built-in network.
    */
-  async setActiveNetwork(networkConfigurationId: string) {
+  async setActiveNetwork(networkConfigurationIdOrType: string) {
     this.#previousProviderConfig = this.state.providerConfig;
 
-    const targetNetwork =
-      this.state.networkConfigurations[networkConfigurationId];
+    let targetNetwork: ProviderConfig;
+    if (isInfuraNetworkType(networkConfigurationIdOrType)) {
+      const ticker = NetworksTicker[networkConfigurationIdOrType];
 
-    if (!targetNetwork) {
-      throw new Error(
-        `networkConfigurationId ${networkConfigurationId} does not match a configured networkConfiguration`,
-      );
+      targetNetwork = {
+        chainId: ChainId[networkConfigurationIdOrType],
+        id: undefined,
+        rpcPrefs: BUILT_IN_NETWORKS[networkConfigurationIdOrType].rpcPrefs,
+        rpcUrl: undefined,
+        nickname: undefined,
+        ticker,
+        type: networkConfigurationIdOrType,
+      };
+    } else {
+      if (
+        !Object.keys(this.state.networkConfigurations).includes(
+          networkConfigurationIdOrType,
+        )
+      ) {
+        throw new Error(
+          `networkConfigurationId ${networkConfigurationIdOrType} does not match a configured networkConfiguration or built-in network type`,
+        );
+      }
+      targetNetwork = {
+        ...this.state.networkConfigurations[networkConfigurationIdOrType],
+        type: NetworkType.rpc,
+      };
     }
 
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.update((state) => {
-      state.providerConfig.type = NetworkType.rpc;
-      state.providerConfig.rpcUrl = targetNetwork.rpcUrl;
-      state.providerConfig.chainId = targetNetwork.chainId;
-      state.providerConfig.ticker = targetNetwork.ticker;
-      state.providerConfig.nickname = targetNetwork.nickname;
-      state.providerConfig.rpcPrefs = targetNetwork.rpcPrefs;
-      state.providerConfig.id = targetNetwork.id;
+      state.providerConfig = targetNetwork;
     });
 
     await this.#refreshNetwork();
@@ -1204,6 +1231,8 @@ export class NetworkController extends BaseController<
     }
     try {
       new URL(rpcUrl);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       if (e.message.includes('Invalid URL')) {
         throw new Error('rpcUrl must be a valid URL');
@@ -1231,13 +1260,6 @@ export class NetworkController extends BaseController<
       upsertedNetworkConfigurationId,
     );
 
-    this.update((state) => {
-      state.networkConfigurations[upsertedNetworkConfigurationId] = {
-        id: upsertedNetworkConfigurationId,
-        ...sanitizedNetworkConfiguration,
-      };
-    });
-
     const customNetworkClientRegistry =
       autoManagedNetworkClientRegistry[NetworkClientType.Custom];
     const existingAutoManagedNetworkClient =
@@ -1260,6 +1282,13 @@ export class NetworkController extends BaseController<
           ticker,
         });
     }
+
+    this.update((state) => {
+      state.networkConfigurations[upsertedNetworkConfigurationId] = {
+        id: upsertedNetworkConfigurationId,
+        ...sanitizedNetworkConfiguration,
+      };
+    });
 
     if (!existingNetworkConfiguration) {
       this.#trackMetaMetricsEvent({

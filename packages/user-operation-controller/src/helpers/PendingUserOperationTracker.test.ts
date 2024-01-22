@@ -1,4 +1,5 @@
 import { query } from '@metamask/controller-utils';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
@@ -12,15 +13,15 @@ const USER_OPERATION_ID_MOCK = 'testUserOperationId';
 const BUNDLER_URL_MOCK = 'http://test.com';
 const BLOCK_NUMBER_MOCK = '0x456';
 
-const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
+const USER_OPERATION_METADATA_MOCK = {
   bundlerUrl: BUNDLER_URL_MOCK,
   chainId: CHAIN_ID_MOCK,
   hash: '0x123',
   id: USER_OPERATION_ID_MOCK,
   status: UserOperationStatus.Submitted,
-} as any;
+} as UserOperationMetadata;
 
-const USER_OPERATION_RECEIPT_MOCK: UserOperationReceipt = {
+const USER_OPERATION_RECEIPT_MOCK = {
   actualGasCost: '0x2A',
   actualGasUsed: '0x2B',
   success: true,
@@ -28,7 +29,7 @@ const USER_OPERATION_RECEIPT_MOCK: UserOperationReceipt = {
     blockHash: '0x2C',
     transactionHash: '0x2D',
   },
-} as any;
+} as UserOperationReceipt;
 
 const BLOCK_MOCK = {
   baseFeePerGas: '0x3A',
@@ -45,20 +46,21 @@ jest.mock('@metamask/controller-utils', () => ({
  * Creates a mock user operation messenger.
  * @returns The mock user operation messenger.
  */
-function createMessengerMock(): jest.Mocked<UserOperationControllerMessenger> {
+function createMessengerMock() {
   return {
     call: jest.fn(),
-  } as any;
+    registerInitialEventPayload: jest.fn(),
+  } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }
 
 /**
  * Creates a mock bundler.
  * @returns The mock bundler.
  */
-function createBundlerMock(): jest.Mocked<BundlerHelper.Bundler> {
+function createBundlerMock() {
   return {
     getUserOperationReceipt: jest.fn(),
-  } as any;
+  } as unknown as jest.Mocked<BundlerHelper.Bundler>;
 }
 
 describe('PendingUserOperationTracker', () => {
@@ -123,7 +125,7 @@ describe('PendingUserOperationTracker', () => {
       blockTracker: { getCurrentBlock: () => BLOCK_NUMBER_MOCK },
       configuration: { chainId: CHAIN_ID_MOCK },
       provider: {},
-    } as any);
+    } as unknown as ReturnType<NetworkControllerGetNetworkClientByIdAction['handler']>);
   });
 
   describe('_executePoll', () => {
@@ -215,6 +217,27 @@ describe('PendingUserOperationTracker', () => {
       await pendingUserOperationTracker._executePoll(
         NETWORK_CLIENT_ID_MOCK,
         {},
+      );
+    });
+
+    it('queries bundler using eth_getUserOperationReceipt RPC method', async () => {
+      const pendingUserOperationTracker = new PendingUserOperationTracker({
+        getUserOperations: () => [
+          {
+            ...USER_OPERATION_METADATA_MOCK,
+          },
+        ],
+        messenger: messengerMock,
+      });
+
+      await pendingUserOperationTracker._executePoll(
+        NETWORK_CLIENT_ID_MOCK,
+        {},
+      );
+
+      expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledTimes(1);
+      expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledWith(
+        USER_OPERATION_METADATA_MOCK.hash,
       );
     });
 

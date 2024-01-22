@@ -1,7 +1,10 @@
 import { query } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import type { ContactEntry } from '@metamask/preferences-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
+import {
+  getDefaultPreferencesState,
+  type Identity,
+  type PreferencesState,
+} from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
@@ -70,11 +73,15 @@ describe('AccountTrackerController', () => {
     );
   });
 
-  it('should subscribe to new sibling preference controllers', async () => {
-    const preferences = new PreferencesController();
+  it('should refresh when preferences state changes', async () => {
+    const preferencesStateChangeListeners: ((
+      state: PreferencesState,
+    ) => void)[] = [];
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+        onPreferencesStateChange: (listener) => {
+          preferencesStateChangeListeners.push(listener);
+        },
         getIdentities: () => ({}),
         getSelectedAddress: () => '0x0',
         getMultiAccountBalancesEnabled: () => true,
@@ -83,9 +90,17 @@ describe('AccountTrackerController', () => {
       },
       { provider },
     );
+    const triggerPreferencesStateChange = (state: PreferencesState) => {
+      for (const listener of preferencesStateChangeListeners) {
+        listener(state);
+      }
+    };
     controller.refresh = sinon.stub();
 
-    preferences.setFeatureFlag('foo', true);
+    triggerPreferencesStateChange(getDefaultPreferencesState());
+
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((controller.refresh as any).called).toBe(true);
   });
 
@@ -103,8 +118,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                bar: {} as ContactEntry,
-                baz: {} as ContactEntry,
+                bar: {} as Identity,
+                baz: {} as Identity,
               };
             },
             getSelectedAddress: () => '0x0',
@@ -156,7 +171,7 @@ describe('AccountTrackerController', () => {
           {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
-              return { [ADDRESS_1]: {} as ContactEntry };
+              return { [ADDRESS_1]: {} as Identity };
             },
             getSelectedAddress: () => ADDRESS_1,
             getMultiAccountBalancesEnabled: () => true,
@@ -194,8 +209,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                [ADDRESS_1]: {} as ContactEntry,
-                [ADDRESS_2]: {} as ContactEntry,
+                [ADDRESS_1]: {} as Identity,
+                [ADDRESS_2]: {} as Identity,
               };
             },
             getSelectedAddress: () => ADDRESS_1,
@@ -232,8 +247,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                [ADDRESS_1]: {} as ContactEntry,
-                [ADDRESS_2]: {} as ContactEntry,
+                [ADDRESS_1]: {} as Identity,
+                [ADDRESS_2]: {} as Identity,
               };
             },
             getSelectedAddress: () => ADDRESS_1,
@@ -268,8 +283,8 @@ describe('AccountTrackerController', () => {
             onPreferencesStateChange: sinon.stub(),
             getIdentities: () => {
               return {
-                bar: {} as ContactEntry,
-                baz: {} as ContactEntry,
+                bar: {} as Identity,
+                baz: {} as Identity,
               };
             },
             getSelectedAddress: () => '0x0',
@@ -329,7 +344,7 @@ describe('AccountTrackerController', () => {
         const controller = new AccountTrackerController({
           onPreferencesStateChange: sinon.stub(),
           getIdentities: () => {
-            return { [ADDRESS_1]: {} as ContactEntry };
+            return { [ADDRESS_1]: {} as Identity };
           },
           getSelectedAddress: () => ADDRESS_1,
           getMultiAccountBalancesEnabled: () => true,
@@ -374,8 +389,8 @@ describe('AccountTrackerController', () => {
           onPreferencesStateChange: sinon.stub(),
           getIdentities: () => {
             return {
-              [ADDRESS_1]: {} as ContactEntry,
-              [ADDRESS_2]: {} as ContactEntry,
+              [ADDRESS_1]: {} as Identity,
+              [ADDRESS_2]: {} as Identity,
             };
           },
           getSelectedAddress: () => ADDRESS_1,
@@ -418,8 +433,8 @@ describe('AccountTrackerController', () => {
           onPreferencesStateChange: sinon.stub(),
           getIdentities: () => {
             return {
-              [ADDRESS_1]: {} as ContactEntry,
-              [ADDRESS_2]: {} as ContactEntry,
+              [ADDRESS_1]: {} as Identity,
+              [ADDRESS_2]: {} as Identity,
             };
           },
           getSelectedAddress: () => ADDRESS_1,
@@ -483,11 +498,10 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every interval on legacy polling', async () => {
-    const preferences = new PreferencesController();
     const poll = sinon.spy(AccountTrackerController.prototype, 'poll');
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+        onPreferencesStateChange: jest.fn(),
         getIdentities: () => ({}),
         getSelectedAddress: () => '',
         getMultiAccountBalancesEnabled: () => true,
@@ -506,11 +520,10 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every interval for each networkClientId being polled', async () => {
-    const preferences = new PreferencesController();
     sinon.stub(AccountTrackerController.prototype, 'poll');
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+        onPreferencesStateChange: jest.fn(),
         getIdentities: () => ({}),
         getSelectedAddress: () => '',
         getMultiAccountBalancesEnabled: () => true,

@@ -3,8 +3,22 @@ export * from './AssetsContractController';
 export * from './CurrencyRateController';
 export * from './NftController';
 export * from './NftDetectionController';
-export * from './TokenBalancesController';
-export * from './TokenDetectionController';
+export type {
+  TokenBalancesControllerMessenger,
+  TokenBalancesControllerActions,
+  TokenBalancesControllerGetStateAction,
+  TokenBalancesControllerEvents,
+  TokenBalancesControllerStateChangeEvent,
+} from './TokenBalancesController';
+export { TokenBalancesController } from './TokenBalancesController';
+export type {
+  TokenDetectionControllerMessenger,
+  TokenDetectionControllerActions,
+  TokenDetectionControllerGetStateAction,
+  TokenDetectionControllerEvents,
+  TokenDetectionControllerStateChangeEvent,
+} from './TokenDetectionController';
+export { TokenDetectionController } from './TokenDetectionController';
 export * from './TokenListController';
 export * from './TokenRatesController';
 export * from './TokensController';
@@ -12,5 +26,6 @@ export {
   isTokenDetectionSupportedForNetwork,
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
+  fetchTokenContractExchangeRates,
 } from './assetsUtil';
-export { codefiTokenPricesServiceV2 } from './token-prices-service';
+export { CodefiTokenPricesServiceV2 } from './token-prices-service';

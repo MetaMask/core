@@ -2907,7 +2907,7 @@ describe('NetworkController', () => {
       },
     });
 
-    describe('if the given ID does not match a network configuration in networkConfigurations', () => {
+    describe('if the given ID does not match a network configuration in networkConfigurations or a built-in network type', () => {
       it('throws', async () => {
         await withController(
           {
@@ -2931,7 +2931,7 @@ describe('NetworkController', () => {
               controller.setActiveNetwork('invalidNetworkConfigurationId'),
             ).rejects.toThrow(
               new Error(
-                'networkConfigurationId invalidNetworkConfigurationId does not match a configured networkConfiguration',
+                'networkConfigurationId invalidNetworkConfigurationId does not match a configured networkConfiguration or built-in network type',
               ),
             );
           },
@@ -3135,6 +3135,74 @@ describe('NetworkController', () => {
         },
       );
     });
+
+    for (const {
+      networkType,
+      chainId,
+      ticker,
+      blockExplorerUrl,
+    } of INFURA_NETWORKS) {
+      describe(`given a network type of "${networkType}"`, () => {
+        refreshNetworkTests({
+          expectedProviderConfig: buildProviderConfig({
+            type: networkType,
+          }),
+          operation: async (controller) => {
+            await controller.setActiveNetwork(networkType);
+          },
+        });
+      });
+
+      it(`overwrites the provider configuration using a predetermined chainId, ticker, and blockExplorerUrl for "${networkType}", clearing id, rpcUrl, and nickname`, async () => {
+        await withController(
+          {
+            state: {
+              providerConfig: {
+                type: 'rpc',
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '0x1337',
+                nickname: 'test-chain',
+                ticker: 'TEST',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer.com',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            await controller.setActiveNetwork(networkType);
+
+            expect(controller.state.providerConfig).toStrictEqual({
+              type: networkType,
+              rpcUrl: undefined,
+              chainId,
+              ticker,
+              nickname: undefined,
+              rpcPrefs: { blockExplorerUrl },
+              id: undefined,
+            });
+          },
+        );
+      });
+
+      it(`updates state.selectedNetworkClientId, setting it to ${networkType}`, async () => {
+        await withController({}, async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          await controller.setActiveNetwork(networkType);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            networkType,
+          );
+        });
+      });
+    }
 
     it('is able to be called via messenger action', async () => {
       const testNetworkClientId = 'testNetworkConfigurationId';
@@ -3916,6 +3984,50 @@ describe('NetworkController', () => {
                   ticker: 'TICKER',
                 },
               }),
+            });
+          },
+        );
+      });
+
+      it('updates state only after creating the new network client', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller, messenger }) => {
+            uuidV4Mock.mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+            const newCustomNetworkClient = buildFakeClient();
+            mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
+              infuraProjectId: 'some-infura-project-id',
+            })
+              .calledWith({
+                chainId: toHex(111),
+                rpcUrl: 'https://test.network',
+                type: NetworkClientType.Custom,
+                ticker: 'TICKER',
+              })
+              .mockReturnValue(newCustomNetworkClient);
+
+            await waitForStateChanges({
+              messenger,
+              count: 1,
+              operation: async () => {
+                await controller.upsertNetworkConfiguration(
+                  {
+                    rpcUrl: 'https://test.network',
+                    chainId: toHex(111),
+                    ticker: 'TICKER',
+                  },
+                  {
+                    referrer: 'https://test-dapp.com',
+                    source: 'dapp',
+                  },
+                );
+              },
+              beforeResolving: () => {
+                const newNetworkClient = controller.getNetworkClientById(
+                  'AAAA-AAAA-AAAA-AAAA',
+                );
+                expect(newNetworkClient).toBeDefined();
+              },
             });
           },
         );
@@ -7460,6 +7572,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       // the signature of `subscribe` and the way that we're using it. Try
       // changing `any` to either `((...args: E['payload']) => void)` or
       // `ExtractEventHandler<E, E['type']>` to see the issue.
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eventListener: any = (...payload: E['payload']) => {
         allEventPayloads.push(payload);
 

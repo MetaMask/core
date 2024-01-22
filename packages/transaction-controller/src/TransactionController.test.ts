@@ -23,6 +23,7 @@ import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
@@ -61,6 +62,8 @@ jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/swaps');
 
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockFlags: { [key: string]: any } = {
   estimateGasError: null,
   estimateGasValue: null,
@@ -72,12 +75,16 @@ const ethQueryMockResults = {
 };
 const mockSendRawTransaction = jest
   .fn()
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .mockImplementation((_transaction: any, callback: any) => {
     callback(undefined, ethQueryMockResults.sendRawTransaction);
   });
 jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       estimateGas: (_transaction: any, callback: any) => {
         if (mockFlags.estimateGasError) {
           callback(new Error(mockFlags.estimateGasError));
@@ -90,12 +97,18 @@ jest.mock('@metamask/eth-query', () =>
         }
         callback(undefined, '0x0');
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       gasPrice: (callback: any) => {
         callback(undefined, '0x0');
       },
       getBlockByNumber: (
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         _blocknumber: any,
         _fetchTxs: boolean,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         callback: any,
       ) => {
         if (mockFlags.getBlockByNumberValue) {
@@ -104,22 +117,36 @@ jest.mock('@metamask/eth-query', () =>
         }
         callback(undefined, { gasLimit: '0x0' });
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getCode: (_to: any, callback: any) => {
         callback(undefined, '0x0');
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getTransactionByHash: (_hash: string, callback: any) => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const txs: any = [
           { blockNumber: '0x1', hash: '1337' },
           { blockNumber: null, hash: '1338' },
         ];
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tx: any = txs.find((element: any) => element.hash === _hash);
         callback(undefined, tx);
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getTransactionCount: (_from: any, _to: any, callback: any) => {
         callback(undefined, '0x0');
       },
       sendRawTransaction: mockSendRawTransaction,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getTransactionReceipt: (_hash: any, callback: any) => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const txs: any = [
           {
             blockHash: '1337',
@@ -135,10 +162,16 @@ jest.mock('@metamask/eth-query', () =>
             transactionIndex: 1111,
           },
         ];
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tx: any = txs.find((element: any) => element.hash === _hash);
         callback(undefined, tx);
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getBlockByHash: (_blockHash: any, callback: any) => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const blocks: any = [
           {
             baseFeePerGas: '0x14',
@@ -148,7 +181,11 @@ jest.mock('@metamask/eth-query', () =>
           },
           { hash: '1338', number: '0x2' },
         ];
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const block: any = blocks.find(
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (element: any) => element.hash === _blockHash,
         );
         callback(undefined, block);
@@ -213,6 +250,8 @@ function buildMockMessenger({
 
   if (delay) {
     promise = new Promise((res, rej) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       approve = (value?: any) => res({ resultCallbacks, value });
       reject = rej;
     });
@@ -237,6 +276,8 @@ function buildMockMessenger({
 
   return {
     messenger,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     approve: approve as unknown as (value?: any) => void,
     reject: reject as unknown as (reason: unknown) => void,
   };
@@ -264,15 +305,6 @@ function waitForTransactionFinished(
       },
     );
   });
-}
-
-/**
- * Resolve all pending promises.
- * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
- */
-function flushPromises(): Promise<unknown> {
-  return new Promise(jest.requireActual('timers').setImmediate);
 }
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
@@ -454,6 +486,8 @@ describe('TransactionController', () => {
   let messengerMock: TransactionControllerMessenger;
   let rejectMessengerMock: TransactionControllerMessenger;
   let delayMessengerMock: TransactionControllerMessenger;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let approveTransaction: (value?: any) => void;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
@@ -490,6 +524,8 @@ describe('TransactionController', () => {
     reject,
     state,
   }: {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     options?: any;
     config?: Partial<TransactionConfig>;
     network?: MockNetwork;
@@ -524,6 +560,8 @@ describe('TransactionController', () => {
         ...options,
       },
       {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sign: async (transaction: any) => transaction,
         ...config,
       },
@@ -696,6 +734,8 @@ describe('TransactionController', () => {
         };
 
         const controller = newController({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           state: mockedControllerState as any,
         });
 
@@ -721,6 +761,8 @@ describe('TransactionController', () => {
       estimateGasMock.mockResolvedValue({
         estimatedGas: gasMock,
         simulationFails: simulationFailsMock,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       const { gas, simulationFails } = await controller.estimateGas({
@@ -1473,9 +1515,10 @@ describe('TransactionController', () => {
         it('if unexpected status', async () => {
           const controller = newController();
 
-          (
-            delayMessengerMock.call as jest.MockedFunction<any>
-          ).mockImplementationOnce(() => {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const callMock = delayMessengerMock.call as jest.MockedFunction<any>;
+          callMock.mockImplementationOnce(() => {
             throw new Error('Unknown problem');
           });
 
@@ -1493,9 +1536,10 @@ describe('TransactionController', () => {
         it('if unrecognised error', async () => {
           const controller = newController();
 
-          (
-            delayMessengerMock.call as jest.MockedFunction<any>
-          ).mockImplementationOnce(() => {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const callMock = delayMessengerMock.call as jest.MockedFunction<any>;
+          callMock.mockImplementationOnce(() => {
             throw new Error('TestError');
           });
 
@@ -1513,9 +1557,10 @@ describe('TransactionController', () => {
         it('if transaction removed', async () => {
           const controller = newController();
 
-          (
-            delayMessengerMock.call as jest.MockedFunction<any>
-          ).mockImplementationOnce(() => {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const callMock = delayMessengerMock.call as jest.MockedFunction<any>;
+          callMock.mockImplementationOnce(() => {
             controller.state.transactions = [];
             throw new Error('Unknown problem');
           });
@@ -2082,6 +2127,8 @@ describe('TransactionController', () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
         config: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           sign: async (transaction: any) => {
             transaction.r = '1b';
             transaction.s = 'abc';
@@ -2107,6 +2154,39 @@ describe('TransactionController', () => {
       expect(speedUpTransaction.r).toBe('0x1b');
       expect(speedUpTransaction.s).toBe('0xabc');
       expect(speedUpTransaction.v).toBe('0x123');
+    });
+
+    it('verifies s,r and v values are correctly populated if values are zero', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        config: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          sign: async (transaction: any) => {
+            transaction.r = 0;
+            transaction.s = 0;
+            transaction.v = 0;
+            return transaction;
+          },
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.r).toBe('0x0');
+      expect(speedUpTransaction.s).toBe('0x0');
+      expect(speedUpTransaction.v).toBe('0x0');
     });
 
     it('creates additional transaction specifying the gasPrice', async () => {
@@ -2502,6 +2582,8 @@ describe('TransactionController', () => {
         id: '2',
       };
       updatePostTransactionBalanceMock.mockImplementationOnce(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (transactionMeta: TransactionMeta, _request: any) => {
           return Promise.resolve({
             updatedTransactionMeta: {
@@ -2535,6 +2617,8 @@ describe('TransactionController', () => {
         preTxBalance: '8b11',
         // Default token address
         destinationTokenAddress: '0x0000000000000000000000000000000000000000',
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
 
       const externalTransactionReceipt = {
@@ -2548,7 +2632,7 @@ describe('TransactionController', () => {
         externalBaseFeePerGas,
       );
 
-      await new Promise(jest.requireActual('timers').setImmediate);
+      await flushPromises();
 
       expect(mockPostTransactionBalanceUpdatedListener).toHaveBeenCalledTimes(
         1,
@@ -2583,6 +2667,8 @@ describe('TransactionController', () => {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
@@ -2835,6 +2921,8 @@ describe('TransactionController', () => {
     it('adds new transactions to state', async () => {
       const controller = newController();
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
         added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
         updated: [],
@@ -2859,6 +2947,8 @@ describe('TransactionController', () => {
         status: 'failed',
       };
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
         added: [],
         updated: [updatedTransaction],
@@ -2873,6 +2963,8 @@ describe('TransactionController', () => {
     it('limits max transactions when adding to state', async () => {
       const controller = newController({ config: { txHistoryLimit: 1 } });
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
         added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
         updated: [],
@@ -2892,6 +2984,8 @@ describe('TransactionController', () => {
         key: 234,
       };
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
         lastFetchedBlockNumbers,
         blockNumber: 123,
@@ -2909,6 +3003,8 @@ describe('TransactionController', () => {
       const controller = newController();
       controller.hub.on('incomingTransactionBlock', listener);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
         lastFetchedBlockNumbers: {
           key: 234,
@@ -3067,6 +3163,8 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: transactionId,
         status,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(() =>
         controller.updatePreviousGasParams(transactionId, {
@@ -3093,6 +3191,8 @@ describe('TransactionController', () => {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       controller.updatePreviousGasParams(transactionId, {
@@ -3120,6 +3220,8 @@ describe('TransactionController', () => {
      */
     function firePendingTransactionTrackerEvent(
       eventName: string,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...args: any
     ) {
       (pendingTransactionTrackerMock.hub.on as jest.Mock).mock.calls.find(
@@ -3199,15 +3301,23 @@ describe('TransactionController', () => {
           txParams: { ...duplicate_1.txParams, from: '0x2' },
         };
 
+        const wrongType = {
+          ...duplicate_1,
+          id: 'testId8',
+          status: TransactionStatus.confirmed,
+          type: TransactionType.incoming,
+        };
+
         controller.state.transactions = [
           confirmed,
           wrongChain,
           wrongNonce,
           wrongFrom,
+          wrongType,
           duplicate_1,
           duplicate_2,
           duplicate_3,
-        ] as any;
+        ] as TransactionMeta[];
 
         firePendingTransactionTrackerEvent('transaction-confirmed', confirmed);
 
@@ -3218,6 +3328,7 @@ describe('TransactionController', () => {
           TransactionStatus.submitted,
           TransactionStatus.submitted,
           TransactionStatus.submitted,
+          TransactionStatus.confirmed,
           TransactionStatus.dropped,
           TransactionStatus.dropped,
           TransactionStatus.failed,
@@ -3230,6 +3341,7 @@ describe('TransactionController', () => {
           undefined,
           undefined,
           undefined,
+          undefined,
           confirmed.hash,
           confirmed.hash,
           confirmed.hash,
@@ -3238,6 +3350,7 @@ describe('TransactionController', () => {
         expect(
           controller.state.transactions.map((tx) => tx.replacedById),
         ).toStrictEqual([
+          undefined,
           undefined,
           undefined,
           undefined,
@@ -3477,6 +3590,8 @@ describe('TransactionController', () => {
           },
         },
       });
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const signSpy = jest.spyOn(controller, 'sign' as any);
       const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
 
@@ -3521,6 +3636,8 @@ describe('TransactionController', () => {
         },
         config: { sign: async () => undefined },
       });
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const signSpy = jest.spyOn(controller, 'sign' as any);
       const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
 
@@ -3546,6 +3663,8 @@ describe('TransactionController', () => {
           },
         },
       });
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const signSpy = jest.spyOn(controller, 'sign' as any);
       const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
 
@@ -3596,6 +3715,8 @@ describe('TransactionController', () => {
           to: ACCOUNT_2_MOCK,
         },
         history: mockSendFlowHistory,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
       controller.updateSecurityAlertResponse(transactionMetaId, {
@@ -3615,10 +3736,14 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: transactionMetaId,
         status,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
 
       expect(() =>
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         controller.updateSecurityAlertResponse(undefined as any, {
           reason: 'NA',
           result_type: 'Benign',
@@ -3635,12 +3760,16 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: transactionMetaId,
         status,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
 
       expect(() =>
         controller.updateSecurityAlertResponse(
           transactionMetaId,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           undefined as any,
         ),
       ).toThrow(
@@ -3660,6 +3789,8 @@ describe('TransactionController', () => {
           to: ACCOUNT_2_MOCK,
         },
         history: mockSendFlowHistory,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       expect(controller.state.transactions[0]).toBeDefined();
 
@@ -3804,6 +3935,12 @@ describe('TransactionController', () => {
             ...mockTransactionMeta,
             history: [{ ...mockTransactionMeta, id: '1234' }],
           },
+          {
+            id: '12345',
+            ...mockTransactionMeta,
+            history: [{ ...mockTransactionMeta, id: '12345' }],
+            isUserOperation: true,
+          },
         ];
 
         const mockedControllerState = {
@@ -3813,6 +3950,8 @@ describe('TransactionController', () => {
         };
 
         const controller = newController({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           state: mockedControllerState as any,
         });
 
@@ -3877,6 +4016,8 @@ describe('TransactionController', () => {
         const mockedErrorMessage = 'mocked error';
 
         // Expect both calls to throw error, one with code property to check if it is handled
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (delayMessengerMock.call as jest.MockedFunction<any>)
           .mockImplementationOnce(() => {
             // eslint-disable-next-line @typescript-eslint/no-throw-literal
@@ -3892,6 +4033,8 @@ describe('TransactionController', () => {
         const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
         const controller = newController({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           state: mockedControllerState as any,
         });
 
@@ -4058,6 +4201,8 @@ describe('TransactionController', () => {
 
         expect(
           controller.getTransactions({
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             searchCriteria: { time: (v: any) => v === 1 },
             filterToCurrentNetwork: false,
           }),

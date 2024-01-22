@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "10.0.0",
+  "version": "12.0.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/keyring-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -31,11 +32,12 @@
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
-    "@metamask/base-controller": "^4.0.0",
+    "@metamask/base-controller": "^4.1.0",
     "@metamask/eth-keyring-controller": "^17.0.0",
-    "@metamask/message-manager": "^7.3.6",
-    "@metamask/preferences-controller": "^5.0.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/keyring-api": "^2.0.0",
+    "@metamask/message-manager": "^7.3.7",
+    "@metamask/preferences-controller": "^6.0.0",
+    "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
@@ -45,7 +47,8 @@
     "@ethereumjs/common": "^3.2.0",
     "@ethereumjs/tx": "^4.2.0",
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
-    "@metamask/auto-changelog": "^3.4.3",
+    "@lavamoat/allow-scripts": "^2.3.1",
+    "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-sig-util": "^7.0.1",
     "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
@@ -60,7 +63,7 @@
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
-    "@metamask/preferences-controller": "^5.0.0"
+    "@metamask/preferences-controller": "^6.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -68,5 +71,11 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "ethereumjs-util>ethereum-cryptography>keccak": false,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": false
+    }
   }
 }

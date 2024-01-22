@@ -2,12 +2,29 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
   GANACHE_CHAIN_ID,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { CID } from 'multiformats/cid';
 
-import type { Nft, NftMetadata } from './NftController';
+import type {
+  Nft,
+  NftMetadata,
+  OpenSeaV2Collection,
+  OpenSeaV2Contract,
+  OpenSeaV2DetailedNft,
+  OpenSeaV2Nft,
+} from './NftController';
+import type { ApiNft, ApiNftContract } from './NftDetectionController';
+import type { AbstractTokenPricesService } from './token-prices-service';
+import { type ContractExchangeRates } from './TokenRatesController';
+
+/**
+ * The maximum number of token addresses that should be sent to the Price API in
+ * a single request.
+ */
+export const TOKEN_PRICES_BATCH_SIZE = 30;
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -291,4 +308,155 @@ export async function reduceInBatchesSerially<
   // matches the intended type.
   const finalResult = workingResult as Result;
   return finalResult;
+}
+
+/**
+ * Maps an OpenSea V2 NFT to the V1 schema.
+ * @param nft - The V2 NFT to map.
+ * @returns The NFT in the V1 schema.
+ */
+export function mapOpenSeaNftV2ToV1(nft: OpenSeaV2Nft): ApiNft {
+  return {
+    token_id: nft.identifier,
+    num_sales: null,
+    background_color: null,
+    image_url: nft.image_url ?? null,
+    image_preview_url: null,
+    image_thumbnail_url: null,
+    image_original_url: null,
+    animation_url: null,
+    animation_original_url: null,
+    name: nft.name,
+    description: nft.description,
+    external_link: null,
+    asset_contract: {
+      address: nft.contract,
+      asset_contract_type: null,
+      created_date: null,
+      schema_name: nft.token_standard.toUpperCase(),
+      symbol: null,
+      total_supply: null,
+      description: nft.description,
+      external_link: null,
+      collection: {
+        name: nft.collection,
+        image_url: null,
+      },
+    },
+    creator: {
+      user: { username: '' },
+      profile_img_url: '',
+      address: '',
+    },
+    last_sale: null,
+  };
+}
+
+/**
+ * Maps an OpenSea V2 detailed NFT to the V1 schema.
+ * @param nft - The V2 detailed NFT to map.
+ * @returns The NFT in the V1 schema.
+ */
+export function mapOpenSeaDetailedNftV2ToV1(nft: OpenSeaV2DetailedNft): ApiNft {
+  const mapped = mapOpenSeaNftV2ToV1(nft);
+  return {
+    ...mapped,
+    animation_url: nft.animation_url ?? null,
+    creator: {
+      ...mapped.creator,
+      address: nft.creator,
+    },
+  };
+}
+
+/**
+ * Maps an OpenSea V2 contract to the V1 schema.
+ * @param contract - The v2 contract data.
+ * @param collection - The v2 collection data.
+ * @returns The contract in the v1 schema.
+ */
+export function mapOpenSeaContractV2ToV1(
+  contract: OpenSeaV2Contract,
+  collection?: OpenSeaV2Collection,
+): ApiNftContract {
+  return {
+    address: contract.address,
+    asset_contract_type: null,
+    created_date: null,
+    schema_name: contract.contract_standard.toUpperCase(),
+    symbol: null,
+    total_supply:
+      collection?.total_supply?.toString() ??
+      contract.total_supply?.toString() ??
+      null,
+    description: collection?.description ?? null,
+    external_link: collection?.project_url ?? null,
+    collection: {
+      name: collection?.name ?? contract.name,
+      image_url: collection?.image_url,
+    },
+  };
+}
+
+/**
+ * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
+ *
+ * @param args - The arguments to function.
+ * @param args.tokenPricesService - An object in charge of retrieving token prices.
+ * @param args.nativeCurrency - The native currency to request price in.
+ * @param args.tokenAddresses - The list of contract addresses.
+ * @param args.chainId - The chainId of the tokens.
+ * @returns The prices for the requested tokens.
+ */
+export async function fetchTokenContractExchangeRates({
+  tokenPricesService,
+  nativeCurrency,
+  tokenAddresses,
+  chainId,
+}: {
+  tokenPricesService: AbstractTokenPricesService;
+  nativeCurrency: string;
+  tokenAddresses: Hex[];
+  chainId: Hex;
+}): Promise<ContractExchangeRates> {
+  const isChainIdSupported =
+    tokenPricesService.validateChainIdSupported(chainId);
+  const isCurrencySupported =
+    tokenPricesService.validateCurrencySupported(nativeCurrency);
+
+  if (!isChainIdSupported || !isCurrencySupported) {
+    return {};
+  }
+
+  const tokenPricesByTokenAddress = await reduceInBatchesSerially<
+    Hex,
+    Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+  >({
+    values: [...tokenAddresses].sort(),
+    batchSize: TOKEN_PRICES_BATCH_SIZE,
+    eachBatch: async (allTokenPricesByTokenAddress, batch) => {
+      const tokenPricesByTokenAddressForBatch =
+        await tokenPricesService.fetchTokenPrices({
+          tokenAddresses: batch,
+          chainId,
+          currency: nativeCurrency,
+        });
+
+      return {
+        ...allTokenPricesByTokenAddress,
+        ...tokenPricesByTokenAddressForBatch,
+      };
+    },
+    initialResult: {},
+  });
+
+  return Object.entries(tokenPricesByTokenAddress).reduce(
+    (obj, [tokenAddress, tokenPrice]) => {
+      return {
+        ...obj,
+        [toChecksumHexAddress(tokenAddress)]: tokenPrice?.value,
+      };
+    },
+    {},
+  );
 }

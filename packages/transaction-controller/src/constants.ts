@@ -40,7 +40,7 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   },
   [CHAIN_IDS.LINEA_GOERLI]: {
     domain: 'lineascan.build',
-    subdomain: 'goerli',
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli`,
   },
   [CHAIN_IDS.LINEA_MAINNET]: {
     domain: 'lineascan.build',

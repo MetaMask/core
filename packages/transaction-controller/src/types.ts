@@ -141,7 +141,7 @@ type TransactionMetaBase = {
   /**
    * The decimals of the token being received of swap transaction.
    */
-  destinationTokenDecimals?: string;
+  destinationTokenDecimals?: number;
 
   /**
    * The symbol of the token being received with swap.
@@ -194,6 +194,11 @@ type TransactionMetaBase = {
    * Whether the transaction is a transfer.
    */
   isTransfer?: boolean;
+
+  /**
+   * Whether the transaction entry is generated from a user operation.
+   */
+  isUserOperation?: boolean;
 
   /**
    * Network code as per EIP-155 for this transaction
@@ -292,6 +297,8 @@ type TransactionMetaBase = {
   /**
    * Response from security provider.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   securityProviderResponse?: Record<string, any>;
 
   /**
@@ -325,6 +332,8 @@ type TransactionMetaBase = {
   /**
    * The metadata of the swap transaction.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   swapMetaData?: Record<string, any>;
 
   /**
@@ -841,6 +850,8 @@ export type InferTransactionTypeResult = {
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
 /**

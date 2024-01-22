@@ -21,7 +21,10 @@ import type {
   ProviderConfig,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
+import {
+  getDefaultPreferencesState,
+  type PreferencesState,
+} from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -43,6 +46,8 @@ const stubCreateEthers = (ctrl: TokensController, res: () => boolean) => {
   return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
     return {
       supportsInterface: sinon.stub().returns(res()),
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
   });
 };
@@ -64,7 +69,7 @@ type ApprovalActions = AddApprovalRequest;
 
 describe('TokensController', () => {
   let tokensController: TokensController;
-  let preferences: PreferencesController;
+  let triggerPreferencesStateChange: (state: PreferencesState) => void;
   const messenger = new ControllerMessenger<
     ApprovalActions,
     ApprovalControllerEvents
@@ -97,6 +102,8 @@ describe('TokensController', () => {
     });
   };
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tokenListStateChangeListener: (state: any) => void;
   const onTokenListStateChange = sinon.stub().callsFake((listener) => {
     tokenListStateChangeListener = listener;
@@ -104,19 +111,30 @@ describe('TokensController', () => {
 
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
-    preferences = new PreferencesController();
+    const preferencesStateChangeListeners: ((
+      state: PreferencesState,
+    ) => void)[] = [];
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onPreferencesStateChange: (listener) => {
+        preferencesStateChangeListeners.push(listener);
+      },
       onNetworkDidChange: (listener) => (onNetworkDidChangeListener = listener),
       onTokenListStateChange,
       config: {
         selectedAddress: defaultSelectedAddress,
         provider: sinon.stub(),
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientById: sinon.stub() as any,
       messenger: tokensControllerMessenger,
     });
+    triggerPreferencesStateChange = (state: PreferencesState) => {
+      for (const listener of preferencesStateChangeListeners) {
+        listener(state);
+      }
+    };
   });
 
   afterEach(() => {
@@ -319,15 +337,24 @@ describe('TokensController', () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
 
-    preferences.update({ selectedAddress: firstAddress });
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      selectedAddress: firstAddress,
+    });
     await tokensController.addToken({
       address: '0x01',
       symbol: 'bar',
       decimals: 2,
     });
-    preferences.update({ selectedAddress: secondAddress });
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      selectedAddress: secondAddress,
+    });
     expect(tokensController.state.tokens).toHaveLength(0);
-    preferences.update({ selectedAddress: firstAddress });
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      selectedAddress: firstAddress,
+    });
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
@@ -372,6 +399,8 @@ describe('TokensController', () => {
   it('should add token to the correct chainId when passed a networkClientId', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
     const getNetworkClientByIdStub = jest
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .spyOn(tokensController as any, 'getNetworkClientById')
       .mockReturnValue({ configuration: { chainId: '0x5' } });
     await tokensController.addToken({
@@ -419,17 +448,37 @@ describe('TokensController', () => {
     stub.restore();
   });
 
+  it('should remove detected token', async () => {
+    const stub = stubCreateEthers(tokensController, () => false);
+    await tokensController.addDetectedTokens([
+      {
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      },
+    ]);
+    tokensController.ignoreTokens(['0x01']);
+    expect(tokensController.state.detectedTokens).toHaveLength(0);
+    stub.restore();
+  });
+
   it('should remove token by selected address', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
     const firstAddress = '0x123';
     const secondAddress = '0x321';
-    preferences.update({ selectedAddress: firstAddress });
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      selectedAddress: firstAddress,
+    });
     await tokensController.addToken({
       address: '0x02',
       symbol: 'baz',
       decimals: 2,
     });
-    preferences.update({ selectedAddress: secondAddress });
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      selectedAddress: secondAddress,
+    });
     await tokensController.addToken({
       address: '0x01',
       symbol: 'bar',
@@ -437,7 +486,10 @@ describe('TokensController', () => {
     });
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
-    preferences.update({ selectedAddress: firstAddress });
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      selectedAddress: firstAddress,
+    });
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
       decimals: 2,
@@ -482,19 +534,15 @@ describe('TokensController', () => {
     stub.restore();
   });
 
-  it('should subscribe to new sibling preference controllers', async () => {
-    const address = '0x123';
-    preferences.update({ selectedAddress: address });
-    changeNetwork(SEPOLIA);
-    expect(preferences.state.selectedAddress).toStrictEqual(address);
-  });
-
   describe('ignoredTokens', () => {
     const defaultSelectedAddress = '0x0001';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(() => {
-      preferences.setSelectedAddress(defaultSelectedAddress);
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: defaultSelectedAddress,
+      });
       changeNetwork(SEPOLIA);
 
       createEthersStub = stubCreateEthers(tokensController, () => false);
@@ -531,7 +579,10 @@ describe('TokensController', () => {
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
       const selectedAddress = '0x0001';
-      preferences.setSelectedAddress(selectedAddress);
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress,
+      });
       changeNetwork(SEPOLIA);
       await tokensController.addToken({
         address: '0x01',
@@ -588,7 +639,10 @@ describe('TokensController', () => {
       const selectedAddress1 = '0x0001';
       const selectedAddress2 = '0x0002';
 
-      preferences.setSelectedAddress(selectedAddress1);
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: selectedAddress1,
+      });
       changeNetwork(SEPOLIA);
 
       await tokensController.addToken({
@@ -612,7 +666,10 @@ describe('TokensController', () => {
       tokensController.ignoreTokens(['0x02']);
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x02']);
 
-      preferences.setSelectedAddress(selectedAddress2);
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: selectedAddress2,
+      });
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       await tokensController.addToken({
         address: '0x03',
@@ -913,7 +970,10 @@ describe('TokensController', () => {
       const CONFIGURED_CHAIN = SEPOLIA;
       const CONFIGURED_ADDRESS = '0xConfiguredAddress';
       changeNetwork(CONFIGURED_CHAIN);
-      preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: CONFIGURED_ADDRESS,
+      });
 
       // A different chain + address
       const OTHER_CHAIN = '0xOtherChainId';
@@ -1024,6 +1084,8 @@ describe('TokensController', () => {
 
     it('should add tokens to the correct chainId when passed a networkClientId', async () => {
       const getNetworkClientByIdStub = jest
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .spyOn(tokensController as any, 'getNetworkClientById')
         .mockReturnValue({ configuration: { chainId: '0x5' } });
 
@@ -1114,20 +1176,30 @@ describe('TokensController', () => {
   });
 
   describe('watchAsset', function () {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let asset: any, type: any;
     const interactingAddress = '0x2';
     const requestId = '12345';
     let isERC721: boolean, isERC1155: boolean;
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockContract = (mockAssets: any[]) =>
       mockAssets.forEach((a) => {
         jest
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .spyOn(ERC20Standard.prototype as any, 'getTokenName')
           .mockImplementationOnce(() => a.name);
         jest
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .spyOn(ERC20Standard.prototype as any, 'getTokenSymbol')
           .mockImplementationOnce(() => a.symbol);
         jest
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .spyOn(ERC20Standard.prototype as any, 'getTokenDecimals')
           .mockImplementationOnce(() => a.decimals?.toString());
       });
@@ -1148,6 +1220,8 @@ describe('TokensController', () => {
       createEthersStub = stubCreateEthers(tokensController, () => isERC721);
       jest
         .spyOn(
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ERC1155Standard.prototype as any,
           'contractSupportsBase1155Interface',
         )
@@ -1293,6 +1367,8 @@ describe('TokensController', () => {
       mockContract([asset]);
 
       jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reqAsset: any = {
         ...asset,
         symbol: undefined,
@@ -1310,6 +1386,8 @@ describe('TokensController', () => {
 
     it('should use symbols/decimals from request, and allow them to be optional in the contract', async function () {
       jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reqAsset: any = { ...asset, symbol: 'MYSYMBOL', decimals: 13 };
       await tokensController.watchAsset({ asset: reqAsset, type });
       expect(tokensController.state.tokens).toStrictEqual([
@@ -1462,6 +1540,8 @@ describe('TokensController', () => {
 
     it('stores token correctly when passed a networkClientId', async function () {
       const getNetworkClientByIdStub = jest
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .spyOn(tokensController as any, 'getNetworkClientById')
         .mockReturnValue({
           configuration: { chainId: '0x5' },
@@ -1628,7 +1708,10 @@ describe('TokensController', () => {
   describe('onPreferencesStateChange', function () {
     it('should update tokens list when set address changes', async function () {
       const stub = stubCreateEthers(tokensController, () => false);
-      preferences.setSelectedAddress('0x1');
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: '0x1',
+      });
       await tokensController.addToken({
         address: '0x01',
         symbol: 'A',
@@ -1639,14 +1722,20 @@ describe('TokensController', () => {
         symbol: 'B',
         decimals: 5,
       });
-      preferences.setSelectedAddress('0x2');
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: '0x2',
+      });
       expect(tokensController.state.tokens).toStrictEqual([]);
       await tokensController.addToken({
         address: '0x03',
         symbol: 'C',
         decimals: 6,
       });
-      preferences.setSelectedAddress('0x1');
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: '0x1',
+      });
       expect(tokensController.state.tokens).toStrictEqual([
         {
           address: '0x01',
@@ -1669,7 +1758,10 @@ describe('TokensController', () => {
           name: undefined,
         },
       ]);
-      preferences.setSelectedAddress('0x2');
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: '0x2',
+      });
       expect(tokensController.state.tokens).toStrictEqual([
         {
           address: '0x03',

@@ -1,7 +1,7 @@
 import { query } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type { Provider } from '@metamask/network-controller';
-import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
+import type { NetworkClient, Provider } from '@metamask/network-controller';
+import { BlockTrackerPollingControllerOnly } from '@metamask/polling-controller';
 import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -34,7 +34,11 @@ export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
-export class PendingUserOperationTracker extends StaticIntervalPollingControllerOnly {
+/**
+ * A helper class to periodically query the bundlers
+ * and update the status of any submitted user operations.
+ */
+export class PendingUserOperationTracker extends BlockTrackerPollingControllerOnly {
   hub: PendingUserOperationTrackerEventEmitter;
 
   #getUserOperations: () => UserOperationMetadata[];
@@ -58,15 +62,12 @@ export class PendingUserOperationTracker extends StaticIntervalPollingController
 
   async _executePoll(networkClientId: string, _options: Json) {
     try {
-      const { blockTracker, configuration, provider } = this.#messenger.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
+      const { blockTracker, configuration, provider } =
+        this._getNetworkClientById(networkClientId) as NetworkClient;
 
       log('Polling', {
         blockNumber: blockTracker.getCurrentBlock(),
         chainId: configuration.chainId,
-        rpcUrl: configuration.rpcUrl,
       });
 
       await this.#checkUserOperations(configuration.chainId, provider);
@@ -74,6 +75,13 @@ export class PendingUserOperationTracker extends StaticIntervalPollingController
       /* istanbul ignore next */
       log('Failed to check user operations', error);
     }
+  }
+
+  _getNetworkClientById(networkClientId: string): NetworkClient | undefined {
+    return this.#messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
   }
 
   async #checkUserOperations(chainId: string, provider: Provider) {
@@ -124,7 +132,7 @@ export class PendingUserOperationTracker extends StaticIntervalPollingController
       }
 
       log('No receipt found for user operation', { id, hash });
-    } catch (error: any) {
+    } catch (error) {
       log('Failed to check user operation', id, error);
     }
   }
@@ -145,7 +153,7 @@ export class PendingUserOperationTracker extends StaticIntervalPollingController
     log('User operation confirmed', id, transactionHash);
 
     const { baseFeePerGas } = await query(
-      new EthQuery(provider as any),
+      new EthQuery(provider),
       'getBlockByHash',
       [blockHash, false],
     );

@@ -69,6 +69,8 @@ export async function estimateGas(
 
   try {
     estimatedGas = await query(ethQuery, 'estimateGas', [request]);
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     simulationFails = {
       reason: error.message,
@@ -165,17 +167,13 @@ async function requiresFixedGas({
     txParams: { to, data },
   } = txMeta;
 
-  if (isCustomNetwork) {
+  if (isCustomNetwork || !to || data) {
     return false;
-  }
-
-  if (!to) {
-    return true;
   }
 
   const code = await getCode(ethQuery, to);
 
-  return !data && (!code || code === '0x');
+  return !code || code === '0x';
 }
 
 async function getCode(

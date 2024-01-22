@@ -30,7 +30,7 @@ import type {
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import MethodRegistry from 'eth-method-registry';
+import { MethodRegistry } from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { mapValues, merge, pickBy, sortBy } from 'lodash';
@@ -136,6 +136,8 @@ export interface FeeMarketEIP1559Values {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionConfig extends BaseConfig {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sign?: (txParams: TransactionParams, from: string) => Promise<any>;
   txHistoryLimit: number;
 }
@@ -221,7 +223,7 @@ export class TransactionController extends BaseControllerV1<
   TransactionConfig,
   TransactionState
 > {
-  private ethQuery: EthQuery;
+  private readonly ethQuery: EthQuery;
 
   private readonly isHistoryDisabled: boolean;
 
@@ -233,7 +235,9 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly nonceTracker: NonceTracker;
 
-  private registry: any;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly registry: any;
 
   private readonly provider: Provider;
 
@@ -466,6 +470,7 @@ export class TransactionController extends BaseControllerV1<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
+    // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
     this.registry = new MethodRegistry({ provider });
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
@@ -536,7 +541,11 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       nonceTracker: this.nonceTracker,
-      onStateChange: this.subscribe.bind(this),
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+        onNetworkStateChange(listener);
+        listener();
+      },
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -548,8 +557,7 @@ export class TransactionController extends BaseControllerV1<
     this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
-      this.ethQuery = new EthQuery(this.provider);
-      this.registry = new MethodRegistry({ provider: this.provider });
+      log('Detected network change', this.getChainId());
       this.onBootCleanup();
     });
 
@@ -699,6 +707,8 @@ export class TransactionController extends BaseControllerV1<
       await updateSwapsTransaction(transactionMeta, transactionType, swaps, {
         isSwapsDisabled: this.isSwapsDisabled,
         cancelTransaction: this.cancelTransaction.bind(this),
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         controllerHubEmitter: this.hub.emit.bind(this.hub) as any,
       });
 
@@ -1349,6 +1359,8 @@ export class TransactionController extends BaseControllerV1<
       originalGasEstimate,
       userEditedGasLimit,
       userFeeLevel,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
     // only update what is defined
@@ -1404,6 +1416,8 @@ export class TransactionController extends BaseControllerV1<
         maxFeePerGas,
         maxPriorityFeePerGas,
       },
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
     // only update what is defined
@@ -1636,7 +1650,8 @@ export class TransactionController extends BaseControllerV1<
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId &&
+        !transaction.isUserOperation,
     );
 
     for (const txMeta of unapprovedTxs) {
@@ -1667,6 +1682,8 @@ export class TransactionController extends BaseControllerV1<
     filterToCurrentNetwork = true,
     limit,
   }: {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     searchCriteria?: any;
     initialList?: TransactionMeta[];
     filterToCurrentNetwork?: boolean;
@@ -1682,7 +1699,9 @@ export class TransactionController extends BaseControllerV1<
     const predicateMethods = mapValues(searchCriteria, (predicate) => {
       return typeof predicate === 'function'
         ? predicate
-        : (v: any) => v === predicate;
+        : // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (v: any) => v === predicate;
     });
 
     const transactionsToFilter = initialList ?? this.state.transactions;
@@ -1703,9 +1722,13 @@ export class TransactionController extends BaseControllerV1<
           // are not fully satisfied. We check both txParams and the base
           // object as predicate keys can be either.
           if (key in transaction.txParams) {
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (predicate((transaction.txParams as any)[key]) === false) {
               return false;
             }
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } else if (predicate((transaction as any)[key]) === false) {
             return false;
           }
@@ -1828,27 +1851,6 @@ export class TransactionController extends BaseControllerV1<
   }
 
   /**
-   * Create approvals for all unapproved transactions on current chain.
-   */
-  private createApprovalsForUnapprovedTransactions() {
-    const unapprovedTransactions = this.getCurrentChainTransactionsByStatus(
-      TransactionStatus.unapproved,
-    );
-
-    for (const transactionMeta of unapprovedTransactions) {
-      this.processApproval(transactionMeta, {
-        shouldShowRequest: false,
-      }).catch((error) => {
-        if (error?.code === errorCodes.provider.userRejectedRequest) {
-          return;
-        }
-        /* istanbul ignore next */
-        console.error('Error during persisted transaction approval', error);
-      });
-    }
-  }
-
-  /**
    * Force to submit approved transactions on current chain.
    */
   private submitApprovedTransactions() {
@@ -1938,6 +1940,8 @@ export class TransactionController extends BaseControllerV1<
             actionId,
           });
         }
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         const { isCompleted: isTxCompleted } =
           this.isTransactionCompleted(transactionId);
@@ -2095,6 +2099,8 @@ export class TransactionController extends BaseControllerV1<
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 
       this.onTransactionStatusChange(transactionMeta);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
@@ -2428,11 +2434,14 @@ export class TransactionController extends BaseControllerV1<
     const transactionMeta = this.getTransaction(transactionId);
     const nonce = transactionMeta?.txParams?.nonce;
     const from = transactionMeta?.txParams?.from;
+
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
+        transaction.id !== transactionId &&
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId,
+        transaction.chainId === chainId &&
+        transaction.type !== TransactionType.incoming,
     );
 
     if (!sameNonceTxs.length) {
@@ -2441,9 +2450,6 @@ export class TransactionController extends BaseControllerV1<
 
     // Mark all same nonce transactions as dropped and give it a replacedBy hash
     for (const transaction of sameNonceTxs) {
-      if (transaction.id === transactionId) {
-        continue;
-      }
       transaction.replacedBy = transactionMeta?.hash;
       transaction.replacedById = transactionMeta?.id;
       // Drop any transaction that wasn't previously failed (off chain failure)
@@ -2503,16 +2509,14 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
   ): Promise<void> {
-    if (signedTx.r) {
-      transactionMeta.r = addHexPrefix(signedTx.r.toString(16));
-    }
+    for (const key of ['r', 's', 'v'] as const) {
+      const value = signedTx[key];
 
-    if (signedTx.s) {
-      transactionMeta.s = addHexPrefix(signedTx.s.toString(16));
-    }
+      if (value === undefined || value === null) {
+        continue;
+      }
 
-    if (signedTx.v) {
-      transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
+      transactionMeta[key] = addHexPrefix(value.toString(16));
     }
   }
 

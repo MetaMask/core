@@ -1,3 +1,9 @@
+import type {
+  TransactionParams,
+  TransactionType,
+  UserFeeLevel,
+} from '@metamask/transaction-controller';
+
 /**
  * A complete user operation to be submitted to a bundler.
  * Defined in EIP-4337.
@@ -117,14 +123,29 @@ export type UserOperationMetadata = {
   /** A unique ID used to identify a user operation in the client. */
   id: string;
 
+  /** The origin of the user operation, such as the hostname of a dApp. */
+  origin: string;
+
   /** Current status of the user operation. */
   status: UserOperationStatus;
+
+  /** Metadata specific to swap transactions. */
+  swapsMetadata: SwapsMetadata | null;
 
   /** Timestamp of when the user operation was created. */
   time: number;
 
   /** Hash of the transaction that submitted the user operation to the entrypoint. */
   transactionHash: string | null;
+
+  /** The initial transaction parameters that the user operation was created from. */
+  transactionParams: Required<TransactionParams> | null;
+
+  /** The type of transaction that the user operation will create. */
+  transactionType: TransactionType | null;
+
+  /** The origin of the gas fee values. */
+  userFeeLevel: UserFeeLevel | null;
 
   /** Resulting user operation object to be submitted to the bundler. */
   userOperation: UserOperation;
@@ -295,4 +316,31 @@ export type UserOperationReceipt = {
     /** Hash of the confirmed transaction. */
     transactionHash: string;
   };
+};
+
+/** Information specific to user operations created from swap transactions. */
+export type SwapsMetadata = {
+  /** ID of the associated approval transaction. */
+  approvalTxId: string | null;
+
+  /** Address of the destination token. */
+  destinationTokenAddress: string | null;
+
+  /** Number of decimals of the destination token. */
+  destinationTokenDecimals: number | null;
+
+  /** Symbol of the destination token. */
+  destinationTokenSymbol: string | null;
+
+  /** Estimated base fee of the swap. */
+  estimatedBaseFee: string | null;
+
+  /** Symbol of the source token. */
+  sourceTokenSymbol: string | null;
+
+  /** Untyped raw metadata values. */
+  swapMetaData: Record<string, never> | null;
+
+  /** Value of the token being swapped. */
+  swapTokenValue: string | null;
 };

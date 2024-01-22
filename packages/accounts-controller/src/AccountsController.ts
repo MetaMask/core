@@ -19,7 +19,8 @@ import type {
   SnapControllerEvents,
   SnapControllerState,
 } from '@metamask/snaps-controllers';
-import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
+import type { SnapId } from '@metamask/snaps-sdk';
+import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
 import type { Draft } from 'immer';
@@ -70,6 +71,12 @@ export type AccountsControllerGetAccountByAddressAction = {
   type: `${typeof controllerName}:getAccountByAddress`;
   handler: AccountsController['getAccountByAddress'];
 };
+
+export type AccountsControllerGetAccountAction = {
+  type: `${typeof controllerName}:getAccount`;
+  handler: AccountsController['getAccount'];
+};
+
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
@@ -78,6 +85,7 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetAccountAction
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetAccountsAction;
@@ -632,7 +640,7 @@ export class AccountsController extends BaseController<
           currentState.internalAccounts.accounts[account.id];
         if (currentAccount.metadata.snap) {
           const snapId = currentAccount.metadata.snap.id;
-          const storedSnap: Snap = snaps[snapId as ValidatedSnapId];
+          const storedSnap: Snap = snaps[snapId as SnapId];
           if (storedSnap) {
             currentAccount.metadata.snap.enabled =
               storedSnap.enabled && !storedSnap.blocked;
@@ -782,6 +790,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountByAddress`,
       this.getAccountByAddress.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `AccountsController:getAccount`,
+      this.getAccount.bind(this),
     );
   }
 }

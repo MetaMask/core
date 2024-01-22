@@ -10,15 +10,19 @@ import { add0x } from '@metamask/utils';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
+import { advanceTime, flushPromises } from '../../../tests/helpers';
+import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
   AbstractTokenPricesService,
   TokenPrice,
-  TokenPricesByTokenContractAddress,
+  TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
-import type { TokenBalancesState } from './TokenBalancesController';
 import { TokenRatesController } from './TokenRatesController';
-import type { TokenRatesConfig, Token } from './TokenRatesController';
+import type {
+  TokenRatesConfig,
+  Token,
+  TokenRatesState,
+} from './TokenRatesController';
 import type { TokensState } from './TokensController';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
@@ -734,6 +738,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is active', () => {
       it('should update exchange rates when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -765,6 +771,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should update exchange rates when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -796,6 +804,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -825,6 +835,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -854,6 +866,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates when network state changes without a ticker/chain id change', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -887,6 +901,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is inactive', () => {
       it('should not update exchange rates when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -917,6 +933,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -947,6 +965,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when ticker changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -975,6 +995,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should clear contractExchangeRates state when chain ID changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let networkStateChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = jest
           .fn()
@@ -1017,6 +1039,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is active', () => {
       it('should update exchange rates when selected address changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = jest
           .fn()
@@ -1062,6 +1086,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates when preferences state changes without selected address changing', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = jest
           .fn()
@@ -1108,6 +1134,8 @@ describe('TokenRatesController', () => {
 
     describe('when polling is inactive', () => {
       it('should not update exchange rates when selected address changes', async () => {
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = jest
           .fn()
@@ -1687,7 +1715,7 @@ describe('TokenRatesController', () => {
       );
     });
 
-    it('fetches rates for all tokens in batches of 100', async () => {
+    it('fetches rates for all tokens in batches', async () => {
       const chainId = toHex(1);
       const ticker = 'ETH';
       const tokenAddresses = [...new Array(200).keys()]
@@ -1724,17 +1752,21 @@ describe('TokenRatesController', () => {
             nativeCurrency: ticker,
           });
 
-          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
-            chainId,
-            tokenContractAddresses: tokenAddresses.slice(0, 100),
-            currency: ticker,
-          });
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
-            chainId,
-            tokenContractAddresses: tokenAddresses.slice(100),
-            currency: ticker,
-          });
+          const numBatches = Math.ceil(
+            tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+          );
+          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+          for (let i = 1; i <= numBatches; i++) {
+            expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+              chainId,
+              tokenAddresses: tokenAddresses.slice(
+                (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+                i * TOKEN_PRICES_BATCH_SIZE,
+              ),
+              currency: ticker,
+            });
+          }
         },
       );
     });
@@ -1748,12 +1780,12 @@ describe('TokenRatesController', () => {
         fetchTokenPrices: jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[0],
+            tokenAddress: tokenAddresses[0],
             value: 0.001,
           },
           [tokenAddresses[1]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[1],
+            tokenAddress: tokenAddresses[1],
             value: 0.002,
           },
         }),
@@ -1817,12 +1849,12 @@ describe('TokenRatesController', () => {
           fetchTokenPrices: jest.fn().mockResolvedValue({
             [tokenAddresses[0]]: {
               currency: 'ETH',
-              tokenContractAddress: tokenAddresses[0],
+              tokenAddress: tokenAddresses[0],
               value: 0.001,
             },
             [tokenAddresses[1]]: {
               currency: 'ETH',
-              tokenContractAddress: tokenAddresses[1],
+              tokenAddress: tokenAddresses[1],
               value: 0.002,
             },
           }),
@@ -1884,12 +1916,12 @@ describe('TokenRatesController', () => {
         fetchTokenPrices: jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[0],
+            tokenAddress: tokenAddresses[0],
             value: 0.001,
           },
           [tokenAddresses[1]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[1],
+            tokenAddress: tokenAddresses[1],
             value: 0.002,
           },
         }),
@@ -1957,7 +1989,7 @@ describe('TokenRatesController', () => {
       );
     });
 
-    it('fetches rates for all tokens in batches of 100 when native currency is not supported by the Price API', async () => {
+    it('fetches rates for all tokens in batches when native currency is not supported by the Price API', async () => {
       const chainId = toHex(1);
       const ticker = 'UNSUPPORTED';
       const tokenAddresses = [...new Array(200).keys()]
@@ -2004,17 +2036,21 @@ describe('TokenRatesController', () => {
             nativeCurrency: ticker,
           });
 
-          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(2);
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(1, {
-            chainId,
-            tokenContractAddresses: tokenAddresses.slice(0, 100),
-            currency: 'ETH',
-          });
-          expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(2, {
-            chainId,
-            tokenContractAddresses: tokenAddresses.slice(100),
-            currency: 'ETH',
-          });
+          const numBatches = Math.ceil(
+            tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+          );
+          expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+          for (let i = 1; i <= numBatches; i++) {
+            expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+              chainId,
+              tokenAddresses: tokenAddresses.slice(
+                (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+                i * TOKEN_PRICES_BATCH_SIZE,
+              ),
+              currency: 'ETH',
+            });
+          }
         },
       );
     });
@@ -2028,12 +2064,12 @@ describe('TokenRatesController', () => {
         fetchTokenPrices: jest.fn().mockResolvedValue({
           [tokenAddresses[0]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[0],
+            tokenAddress: tokenAddresses[0],
             value: 0.001,
           },
           [tokenAddresses[1]]: {
             currency: 'ETH',
-            tokenContractAddress: tokenAddresses[1],
+            tokenAddress: tokenAddresses[1],
             value: 0.002,
           },
         }),
@@ -2100,12 +2136,12 @@ describe('TokenRatesController', () => {
       const fetchTokenPricesMock = jest.fn().mockResolvedValue({
         [tokenAddresses[0]]: {
           currency: 'ETH',
-          tokenContractAddress: tokenAddresses[0],
+          tokenAddress: tokenAddresses[0],
           value: 0.001,
         },
         [tokenAddresses[1]]: {
           currency: 'ETH',
-          tokenContractAddress: tokenAddresses[1],
+          tokenAddress: tokenAddresses[1],
           value: 0.002,
         },
       });
@@ -2195,7 +2231,7 @@ type WithControllerCallback<ReturnValue> = ({
 type PartialConstructorParameters = {
   options?: Partial<ConstructorParameters<typeof TokenRatesController>[0]>;
   config?: Partial<TokenRatesConfig>;
-  state?: Partial<TokenBalancesState>;
+  state?: Partial<TokenRatesState>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -2253,18 +2289,6 @@ async function withController<ReturnValue>(
     controller.stop();
     await flushPromises();
   }
-}
-
-/**
- * Resolve all pending promises.
- *
- * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
- *
- * TODO: migrate this to @metamask/utils
- */
-async function flushPromises(): Promise<void> {
-  await new Promise(jest.requireActual('timers').setImmediate);
 }
 
 /**
@@ -2375,7 +2399,7 @@ function buildMockTokenPricesService(
  * price of each given token is incremented by one.
  *
  * @param args - The arguments to this function.
- * @param args.tokenContractAddresses - The token contract addresses.
+ * @param args.tokenAddresses - The token addresses.
  * @param args.currency - The currency.
  * @returns The token prices.
  */
@@ -2383,25 +2407,25 @@ async function fetchTokenPricesWithIncreasingPriceForEachToken<
   TokenAddress extends Hex,
   Currency extends string,
 >({
-  tokenContractAddresses,
+  tokenAddresses,
   currency,
 }: {
-  tokenContractAddresses: TokenAddress[];
+  tokenAddresses: TokenAddress[];
   currency: Currency;
 }) {
-  return tokenContractAddresses.reduce<
-    Partial<TokenPricesByTokenContractAddress<TokenAddress, Currency>>
-  >((obj, tokenContractAddress, i) => {
+  return tokenAddresses.reduce<
+    Partial<TokenPricesByTokenAddress<TokenAddress, Currency>>
+  >((obj, tokenAddress, i) => {
     const tokenPrice: TokenPrice<TokenAddress, Currency> = {
-      tokenContractAddress,
+      tokenAddress,
       value: (i + 1) / 1000,
       currency,
     };
     return {
       ...obj,
-      [tokenContractAddress]: tokenPrice,
+      [tokenAddress]: tokenPrice,
     };
-  }, {}) as TokenPricesByTokenContractAddress<TokenAddress, Currency>;
+  }, {}) as TokenPricesByTokenAddress<TokenAddress, Currency>;
 }
 
 /**

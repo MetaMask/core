@@ -5,7 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [8.0.1]
 ### Changed
+- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
+
+## [8.0.0]
+### Changed
+- **BREAKING**: `OPENSEA_PROXY_URL` now points to OpenSea's v2 API. `OPENSEA_API_URL` + `OPENSEA_TEST_API_URL` have been removed ([#3654](https://github.com/MetaMask/core/pull/3654))
+
+## [7.0.0]
+### Changed
+- **BREAKING:** Make `safelyExecute` generic so they preserve types ([#3629](https://github.com/MetaMask/core/pull/3629))
 - Update `successfulFetch` so that a URL instance can now be passed to it ([#3600](https://github.com/MetaMask/core/pull/3600))
 - Update `handleFetch` so that a URL instance can now be passed to it ([#3600](https://github.com/MetaMask/core/pull/3600))
 
@@ -189,7 +200,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@7.0.0...@metamask/controller-utils@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.1.0...@metamask/controller-utils@7.0.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.0.0...@metamask/controller-utils@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.2...@metamask/controller-utils@6.0.0
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.1...@metamask/controller-utils@5.0.2

@@ -28,11 +28,20 @@ const mockGetKeyringForAccount = jest.fn();
 const mockGetKeyringByType = jest.fn();
 const mockGetAccounts = jest.fn();
 
+const EOA_METHODS = [
+  EthMethod.PersonalSign,
+  EthMethod.Sign,
+  EthMethod.SignTransaction,
+  EthMethod.SignTypedDataV1,
+  EthMethod.SignTypedDataV3,
+  EthMethod.SignTypedDataV4,
+] as const;
+
 const mockAccount: InternalAccount = {
   id: 'mock-id',
   address: '0x123',
   options: {},
-  methods: [...Object.values(EthMethod)],
+  methods: [...EOA_METHODS],
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 1',
@@ -45,7 +54,7 @@ const mockAccount2: InternalAccount = {
   id: 'mock-id2',
   address: '0x1234',
   options: {},
-  methods: [...Object.values(EthMethod)],
+  methods: [...EOA_METHODS],
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 2',
@@ -58,7 +67,7 @@ const mockAccount3: InternalAccount = {
   id: 'mock-id3',
   address: '0x3333',
   options: {},
-  methods: [...Object.values(EthMethod)],
+  methods: [...EOA_METHODS],
   type: EthAccountType.Eoa,
   metadata: {
     name: '',
@@ -76,7 +85,7 @@ const mockAccount4: InternalAccount = {
   id: 'mock-id4',
   address: '0x4444',
   options: {},
-  methods: [...Object.values(EthMethod)],
+  methods: [...EOA_METHODS],
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Custom Name',
@@ -121,7 +130,7 @@ function createExpectedInternalAccount({
     id,
     address,
     options: {},
-    methods: [...Object.values(EthMethod)],
+    methods: [...EOA_METHODS],
     type: EthAccountType.Eoa,
     metadata: {
       name,
@@ -251,6 +260,8 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
@@ -291,6 +302,8 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
@@ -331,6 +344,8 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
@@ -1835,6 +1850,7 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'updateAccounts');
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
       jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
+      jest.spyOn(AccountsController.prototype, 'getAccount');
     });
 
     describe('setSelectedAccount', () => {
@@ -1972,6 +1988,31 @@ describe('AccountsController', () => {
 
         const account = messenger.call('AccountsController:getSelectedAccount');
         expect(accountsController.getSelectedAccount).toHaveBeenCalledWith();
+        expect(account).toStrictEqual(mockAccount);
+      });
+    });
+
+    describe('getAccount', () => {
+      it('should get account by id', async () => {
+        const messenger = buildMessenger();
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const account = messenger.call(
+          'AccountsController:getAccount',
+          mockAccount.id,
+        );
+        expect(accountsController.getAccount).toHaveBeenCalledWith(
+          mockAccount.id,
+        );
         expect(account).toStrictEqual(mockAccount);
       });
     });

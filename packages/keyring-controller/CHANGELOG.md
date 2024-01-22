@@ -5,8 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [12.0.0]
 ### Changed
+- **BREAKING:** Bump `@metamask/preferences-controller` to ^6.0.0
+
+## [11.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^5.0.0` to `^5.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - Bump `@metamask/eth-keyring-controller` to `^15.1.0` ([#3617](https://github.com/MetaMask/core/pull/3617))
+- Bump `@metamask/eth-sig-util` to `^7.0.1` ([#3614](https://github.com/MetaMask/core/pull/3614))
+- Bump `@metamask/message-manager` to `^7.3.7` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Update `forgetQRDevice` to return an object containing `removedAccounts` and `remainingAccounts` ([#3641](https://github.com/MetaMask/core/pull/3641))
+
+### Fixed
+- Remove `@metamask/preferences-controller` dependency ([#3607](https://github.com/MetaMask/core/pull/3607))
 
 ## [10.0.0]
 ### Changed
@@ -242,7 +256,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@11.0.0...@metamask/keyring-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@10.0.0...@metamask/keyring-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@9.0.0...@metamask/keyring-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.1.0...@metamask/keyring-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.3...@metamask/keyring-controller@8.1.0

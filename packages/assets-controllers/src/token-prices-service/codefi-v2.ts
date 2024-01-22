@@ -1,20 +1,30 @@
 import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
+import {
+  circuitBreaker,
+  ConsecutiveBreaker,
+  ExponentialBackoff,
+  handleAll,
+  type IPolicy,
+  retry,
+  wrap,
+  CircuitState,
+} from 'cockatiel';
 
 import type {
   AbstractTokenPricesService,
   TokenPrice,
-  TokenPricesByTokenContractAddress,
+  TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
 
 /**
  * The shape of the data that the /spot-prices endpoint returns.
  */
 type SpotPricesEndpointData<
-  TokenContractAddress extends Hex,
+  TokenAddress extends Hex,
   Currency extends string,
-> = Record<TokenContractAddress, Record<Currency, number>>;
+> = Record<TokenAddress, Record<Currency, number>>;
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -206,8 +216,7 @@ export const SUPPORTED_CHAIN_IDS = [
   // Base
   '0x2105',
   // Shiden
-  // NOTE: This is the wrong chain ID, this should be 0x150
-  '0x2107',
+  '0x150',
   // Smart Bitcoin Cash
   '0x2710',
   // Arbitrum One
@@ -224,6 +233,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x4e454152',
   // Harmony Mainnet Shard 0
   '0x63564c40',
+  // Linea Mainnet
+  '0xe708',
 ] as const;
 
 /**
@@ -238,82 +249,155 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
  */
 const BASE_URL = 'https://price-api.metafi.codefi.network/v2';
 
+const DEFAULT_TOKEN_PRICE_RETRIES = 3;
+// Each update attempt will result (1 + retries) calls if the server is down
+const DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES =
+  (1 + DEFAULT_TOKEN_PRICE_RETRIES) * 3;
+
+const DEFAULT_DEGRADED_THRESHOLD = 5_000;
+
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
-export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
-  SupportedChainId,
-  Hex,
-  SupportedCurrency
-> = {
+export class CodefiTokenPricesServiceV2
+  implements
+    AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
+{
+  #tokenPricePolicy: IPolicy;
+
+  /**
+   * Construct a Codefi Token Price Service.
+   *
+   * @param options - Constructor options
+   * @param options.degradedThreshold - The threshold between "normal" and "degrated" service,
+   * in milliseconds.
+   * @param options.retries - Number of retry attempts for each token price update.
+   * @param options.maximumConsecutiveFailures - The maximum number of consecutive failures
+   * allowed before breaking the circuit and pausing further updates.
+   * @param options.onBreak - An event handler for when the circuit breaks, useful for capturing
+   * metrics about network failures.
+   * @param options.onDegraded - An event handler for when the circuit remains closed, but requests
+   * are failing or resolving too slowly (i.e. resolving more slowly than the `degradedThreshold).
+   * @param options.circuitBreakDuration - The amount of time to wait when the circuit breaks
+   * from too many consecutive failures.
+   */
+  constructor({
+    degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
+    retries = DEFAULT_TOKEN_PRICE_RETRIES,
+    maximumConsecutiveFailures = DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES,
+    onBreak,
+    onDegraded,
+    circuitBreakDuration = 30 * 60 * 1000,
+  }: {
+    degradedThreshold?: number;
+    retries?: number;
+    maximumConsecutiveFailures?: number;
+    onBreak?: () => void;
+    onDegraded?: () => void;
+    circuitBreakDuration?: number;
+  } = {}) {
+    // Construct a policy that will retry each update, and halt further updates
+    // for a certain period after too many consecutive failures.
+    const retryPolicy = retry(handleAll, {
+      maxAttempts: retries,
+      backoff: new ExponentialBackoff(),
+    });
+    const circuitBreakerPolicy = circuitBreaker(handleAll, {
+      halfOpenAfter: circuitBreakDuration,
+      breaker: new ConsecutiveBreaker(maximumConsecutiveFailures),
+    });
+    if (onBreak) {
+      circuitBreakerPolicy.onBreak(onBreak);
+    }
+    if (onDegraded) {
+      retryPolicy.onGiveUp(() => {
+        if (circuitBreakerPolicy.state === CircuitState.Closed) {
+          onDegraded();
+        }
+      });
+      retryPolicy.onSuccess(({ duration }) => {
+        if (
+          circuitBreakerPolicy.state === CircuitState.Closed &&
+          duration > degradedThreshold
+        ) {
+          onDegraded();
+        }
+      });
+    }
+    this.#tokenPricePolicy = wrap(retryPolicy, circuitBreakerPolicy);
+  }
+
   /**
    * Retrieves prices in the given currency for the tokens identified by the
-   * given contract addresses which are expected to live on the given chain.
+   * given addresses which are expected to live on the given chain.
    *
    * @param args - The arguments to function.
    * @param args.chainId - An EIP-155 chain ID.
-   * @param args.tokenContractAddresses - Contract addresses for tokens that
-   * live on the chain.
+   * @param args.tokenAddresses - Addresses for tokens that live on the chain.
    * @param args.currency - The desired currency of the token prices.
    * @returns The prices for the requested tokens.
    */
   async fetchTokenPrices({
     chainId,
-    tokenContractAddresses,
+    tokenAddresses,
     currency,
   }: {
     chainId: SupportedChainId;
-    tokenContractAddresses: Hex[];
+    tokenAddresses: Hex[];
     currency: SupportedCurrency;
-  }): Promise<TokenPricesByTokenContractAddress<Hex, SupportedCurrency>> {
+  }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
     const chainIdAsNumber = hexToNumber(chainId);
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
-    url.searchParams.append('tokenAddresses', tokenContractAddresses.join(','));
+    url.searchParams.append('tokenAddresses', tokenAddresses.join(','));
     url.searchParams.append('vsCurrency', currency);
 
-    const pricesByCurrencyByTokenContractAddress: SpotPricesEndpointData<
+    const pricesByCurrencyByTokenAddress: SpotPricesEndpointData<
       Lowercase<Hex>,
       Lowercase<SupportedCurrency>
-    > = await handleFetch(url);
+    > = await this.#tokenPricePolicy.execute(() => handleFetch(url));
 
-    return tokenContractAddresses.reduce(
+    return tokenAddresses.reduce(
       (
-        obj: Partial<TokenPricesByTokenContractAddress<Hex, SupportedCurrency>>,
-        tokenContractAddress,
+        obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
+        tokenAddress,
       ) => {
         // The Price API lowercases both currency and token addresses, so we have
         // to keep track of them and make sure we return the original versions.
-        const lowercasedTokenContractAddress =
-          tokenContractAddress.toLowerCase() as Lowercase<Hex>;
+        const lowercasedTokenAddress =
+          tokenAddress.toLowerCase() as Lowercase<Hex>;
         const lowercasedCurrency =
           currency.toLowerCase() as Lowercase<SupportedCurrency>;
 
         const price =
-          pricesByCurrencyByTokenContractAddress[
-            lowercasedTokenContractAddress
-          ]?.[lowercasedCurrency];
+          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.[
+            lowercasedCurrency
+          ];
 
         if (!price) {
-          throw new Error(
-            `Could not find price for "${tokenContractAddress}" in "${currency}"`,
+          // console error instead of throwing to not interrupt the fetching of other tokens in case just one fails
+          console.error(
+            `Could not find price for "${tokenAddress}" in "${currency}"`,
           );
         }
 
         const tokenPrice: TokenPrice<Hex, SupportedCurrency> = {
-          tokenContractAddress,
+          tokenAddress,
           value: price,
           currency,
         };
+
         return {
           ...obj,
-          [tokenContractAddress]: tokenPrice,
+          ...(tokenPrice.value !== undefined
+            ? { [tokenAddress]: tokenPrice }
+            : {}),
         };
       },
       {},
-    ) as TokenPricesByTokenContractAddress<Hex, SupportedCurrency>;
-  },
+    ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
+  }
 
   /**
    * Type guard for whether the API can return token prices for the given chain
@@ -325,7 +409,7 @@ export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
   validateChainIdSupported(chainId: unknown): chainId is SupportedChainId {
     const supportedChainIds: readonly string[] = SUPPORTED_CHAIN_IDS;
     return typeof chainId === 'string' && supportedChainIds.includes(chainId);
-  },
+  }
 
   /**
    * Type guard for whether the API can return token prices in the given
@@ -341,5 +425,5 @@ export const codefiTokenPricesServiceV2: AbstractTokenPricesService<
       typeof currency === 'string' &&
       supportedCurrencies.includes(currency.toLowerCase())
     );
-  },
-};
+  }
+}

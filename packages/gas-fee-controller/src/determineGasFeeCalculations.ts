@@ -54,6 +54,8 @@ export default async function determineGasFeeCalculations({
   ) => Promise<GasFeeEstimates>;
   fetchGasEstimatesUrl: string;
   fetchGasEstimatesViaEthFeeHistory: (
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ethQuery: any,
   ) => Promise<GasFeeEstimates>;
   fetchLegacyGasPriceEstimates: (
@@ -61,6 +63,8 @@ export default async function determineGasFeeCalculations({
     clientId?: string,
   ) => Promise<LegacyGasPriceEstimate>;
   fetchLegacyGasPriceEstimatesUrl: string;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fetchEthGasPriceEstimate: (ethQuery: any) => Promise<EthGasPriceEstimate>;
   calculateTimeEstimate: (
     maxPriorityFeePerGas: string,
@@ -68,6 +72,8 @@ export default async function determineGasFeeCalculations({
     gasFeeEstimates: GasFeeEstimates,
   ) => EstimatedGasFeeTimeBounds;
   clientId: string | undefined;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ethQuery: any;
 }): Promise<GasFeeCalculations> {
   try {
