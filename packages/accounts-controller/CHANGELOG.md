@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** `@metamask/keyring-api` to ^3.0.0, `@metamask/keyring-controller` to ^12.0.0, `@metamask/snaps-controllers` to ^4.0.0  ([#3747](https://github.com/MetaMask/core/pull/3747))
 - Add methods to support ERC-4337 accounts ([#3602](https://github.com/MetaMask/core/pull/3602))
 - Add getAccount action to AccountsController ([#1892](https://github.com/MetaMask/core/pull/1892))
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/utils` to `^8.3.0`([#3769](https://github.com/MetaMask/core/pull/3769))
 
 ### Fixed
 - Fix quick succession of submit password causing Accounts Controller state to be cleared ([#3802](https://github.com/MetaMask/core/pull/3802))
