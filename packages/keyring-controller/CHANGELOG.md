@@ -7,14 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [13.0.0]
-
-## [12.1.0]
-### Uncategorized
-- fix: custody keyring name ([#3803](https://github.com/MetaMask/core/pull/3803))
-- chore: update dependencies for `@metamask/accounts-controller` ([#3747](https://github.com/MetaMask/core/pull/3747))
+### Changed
+- **BREAKING** updates `@metamask/keyring-api` to ^3.0.0 ([#3747](https://github.com/MetaMask/core/pull/3747))
 - feat: add methods to support ERC-4337 accounts ([#3602](https://github.com/MetaMask/core/pull/3602))
 - refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+### Fixed
+- Fixes custody keyring name ([#3803](https://github.com/MetaMask/core/pull/3803))
 
 ## [12.0.0]
 ### Changed
