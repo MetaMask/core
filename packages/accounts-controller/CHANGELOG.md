@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- chore: update dependencies for `@metamask/accounts-controller` ([#3747](https://github.com/MetaMask/core/pull/3747))
+- fix: quick succession of submit password causing Accounts Controller state to be cleared ([#3802](https://github.com/MetaMask/core/pull/3802))
+- feat: add methods to support ERC-4337 accounts ([#3602](https://github.com/MetaMask/core/pull/3602))
+- feat: add getAccount action to AccountsController ([#1892](https://github.com/MetaMask/core/pull/1892))
+- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [8.0.0]
 ### Changed
