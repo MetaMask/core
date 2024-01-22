@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.0.0]
 ### Changed
+- **BREAKING:** Bump `@metamask/keyring-api` to ^3.0.0 ([#3747](https://github.com/MetaMask/core/pull/3747))
 - Bump @metamask/eth-keyring-controller from 17.0.0 to 17.0.1 ([#3805](https://github.com/MetaMask/core/pull/3805))
-- **BREAKING** Bump `@metamask/keyring-api` to ^3.0.0 ([#3747](https://github.com/MetaMask/core/pull/3747))
 - Add methods to support ERC-4337 accounts ([#3602](https://github.com/MetaMask/core/pull/3602))
 - Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
 
