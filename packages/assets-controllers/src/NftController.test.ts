@@ -491,7 +491,7 @@ describe('NftController', () => {
       expect(callActionSpy).toHaveBeenCalledTimes(0);
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the display nft media disabled and IPFS gateway enabled', async function () {
+    it('should handle ERC721 type and add pending request to ApprovalController with display nft media disabled and IPFS gateway enabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
