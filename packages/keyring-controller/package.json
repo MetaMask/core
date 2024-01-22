@@ -33,7 +33,7 @@
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
     "@metamask/base-controller": "^4.1.0",
-    "@metamask/eth-keyring-controller": "^15.1.0",
+    "@metamask/eth-keyring-controller": "^17.0.0",
     "@metamask/keyring-api": "^2.0.0",
     "@metamask/message-manager": "^7.3.7",
     "@metamask/preferences-controller": "^5.0.0",
