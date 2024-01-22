@@ -817,7 +817,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should  handle ERC1155 type and add to suggestedNfts with the display nft media enabled', async function () {
+    it('should handle ERC1155 type and add to suggestedNfts with display nft media enabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
