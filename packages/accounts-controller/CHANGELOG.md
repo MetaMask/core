@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [9.0.0]
-### Uncategorized
-- chore: update dependencies for `@metamask/accounts-controller` ([#3747](https://github.com/MetaMask/core/pull/3747))
-- fix: quick succession of submit password causing Accounts Controller state to be cleared ([#3802](https://github.com/MetaMask/core/pull/3802))
-- feat: add methods to support ERC-4337 accounts ([#3602](https://github.com/MetaMask/core/pull/3602))
-- feat: add getAccount action to AccountsController ([#1892](https://github.com/MetaMask/core/pull/1892))
+### Changed
+- **BREAKING** update `@metamask/keyring-controller` to ^13.0.0
+- **BREAKING** `@metamask/keyring-api` to ^3.0.0, `@metamask/keyring-controller` to ^12.0.0, `@metamask/snaps-controllers` to ^4.0.0  ([#3747](https://github.com/MetaMask/core/pull/3747))
+- Add methods to support ERC-4337 accounts ([#3602](https://github.com/MetaMask/core/pull/3602))
+- Add getAccount action to AccountsController ([#1892](https://github.com/MetaMask/core/pull/1892))
 - refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+### Fixed
+- Fix quick succession of submit password causing Accounts Controller state to be cleared ([#3802](https://github.com/MetaMask/core/pull/3802))
 
 ## [8.0.0]
 ### Changed

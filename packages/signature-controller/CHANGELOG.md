@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [11.0.0]
-### Uncategorized
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
-- fix(base-controller): Fix `stateChange` subscriptions with selectors ([#3702](https://github.com/MetaMask/core/pull/3702))
+### Changed
+- **BREAKING** Bump `@metamask/keyring-controller` to ^13.0.0
+- Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
+
+### Fixed
+- Fix `stateChange` subscriptions with selectors ([#3702](https://github.com/MetaMask/core/pull/3702))
 
 ## [10.0.0]
 ### Changed
