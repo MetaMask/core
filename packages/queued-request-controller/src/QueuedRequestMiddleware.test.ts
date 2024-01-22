@@ -85,12 +85,6 @@ const buildMocks = (
     mockAddRequest,
   );
 
-  const mockSetProviderType = jest.fn().mockResolvedValue(true);
-  messenger.registerActionHandler(
-    'NetworkController:setProviderType',
-    mockSetProviderType,
-  );
-
   const mockSetActiveNetwork = jest.fn().mockResolvedValue(true);
   messenger.registerActionHandler(
     'NetworkController:setActiveNetwork',
@@ -111,7 +105,6 @@ const buildMocks = (
     enqueueRequest: mockEnqueueRequest,
     addRequest: mockAddRequest,
     setActiveNetwork: mockSetActiveNetwork,
-    setProviderType: mockSetProviderType,
     setNetworkClientIdForDomain: mockSetNetworkClientIdForDomain,
   };
 };
@@ -379,37 +372,7 @@ describe('createQueuedRequestMiddleware', () => {
         expect(res.error).toStrictEqual(serializeError(rejected));
       });
 
-      it('uses setProviderType when the network is an infura one', async () => {
-        const messenger = buildMessenger();
-        const middleware = createQueuedRequestMiddleware({
-          messenger,
-          useRequestQueue: () => true,
-        });
-        const mocks = buildMocks(messenger, {
-          getProviderConfig: jest.fn().mockReturnValue({
-            chainId: '0x5',
-          }),
-        });
-
-        const req = {
-          ...requestDefaults,
-          method: 'eth_sendTransaction',
-        };
-
-        await new Promise((resolve, reject) =>
-          middleware(
-            req,
-            {} as PendingJsonRpcResponse<typeof req>,
-            resolve,
-            reject,
-          ),
-        );
-
-        expect(mocks.setProviderType).toHaveBeenCalled();
-        expect(mocks.setActiveNetwork).not.toHaveBeenCalled();
-      });
-
-      it('uses setActiveNetwork when the network is a custom one', async () => {
+      it('switches the current active network', async () => {
         const messenger = buildMessenger();
         const middleware = createQueuedRequestMiddleware({
           messenger,
@@ -451,7 +414,6 @@ describe('createQueuedRequestMiddleware', () => {
           ),
         );
 
-        expect(mocks.setProviderType).not.toHaveBeenCalled();
         expect(mocks.setActiveNetwork).toHaveBeenCalled();
       });
     });
