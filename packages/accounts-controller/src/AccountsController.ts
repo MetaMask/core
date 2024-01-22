@@ -1,5 +1,9 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
@@ -15,10 +19,11 @@ import type {
   SnapControllerEvents,
   SnapControllerState,
 } from '@metamask/snaps-controllers';
-import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
+import type { SnapId } from '@metamask/snaps-sdk';
+import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
-import type { Patch, Draft } from 'immer';
+import type { Draft } from 'immer';
 import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
@@ -32,10 +37,10 @@ export type AccountsControllerState = {
   };
 };
 
-export type AccountsControllerGetStateAction = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => AccountsControllerState;
-};
+export type AccountsControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AccountsControllerState
+>;
 
 export type AccountsControllerSetSelectedAccountAction = {
   type: `${typeof controllerName}:setSelectedAccount`;
@@ -85,10 +90,10 @@ export type AccountsControllerActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetAccountsAction;
 
-export type AccountsControllerChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [AccountsControllerState, Patch[]];
-};
+export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AccountsControllerState
+>;
 
 export type AccountsControllerSelectedAccountChangeEvent = {
   type: `${typeof controllerName}:selectedAccountChange`;
@@ -136,7 +141,7 @@ const defaultState: AccountsControllerState = {
  * The accounts controller also listens for snap state changes and updates the internal accounts accordingly.
  *
  */
-export class AccountsController extends BaseControllerV2<
+export class AccountsController extends BaseController<
   typeof controllerName,
   AccountsControllerState,
   AccountsControllerMessenger
@@ -635,7 +640,7 @@ export class AccountsController extends BaseControllerV2<
           currentState.internalAccounts.accounts[account.id];
         if (currentAccount.metadata.snap) {
           const snapId = currentAccount.metadata.snap.id;
-          const storedSnap: Snap = snaps[snapId as ValidatedSnapId];
+          const storedSnap: Snap = snaps[snapId as SnapId];
           if (storedSnap) {
             currentAccount.metadata.snap.enabled =
               storedSnap.enabled && !storedSnap.blocked;

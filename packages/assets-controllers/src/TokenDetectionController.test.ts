@@ -1,40 +1,43 @@
+import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
-  NetworksTicker,
   convertHexToDecimal,
-  toHex,
+  BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
-import type {
-  NetworkControllerStateChangeEvent,
-  NetworkState,
-  ProviderConfig,
+import {
+  defaultState as defaultNetworkState,
+  type NetworkConfiguration,
+  type NetworkController,
 } from '@metamask/network-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
+import {
+  getDefaultPreferencesState,
+  type PreferencesState,
+} from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
-import type { AssetsContractController } from './AssetsContractController';
-import {
-  formatAggregatorNames,
-  isTokenDetectionSupportedForNetwork,
-  SupportedTokenDetectionNetworks,
-} from './assetsUtil';
+import { formatAggregatorNames } from './assetsUtil';
 import { TOKEN_END_POINT_API } from './token-service';
-import { TokenDetectionController } from './TokenDetectionController';
-import { TokenListController } from './TokenListController';
 import type {
-  GetTokenListState,
-  TokenListStateChange,
-  TokenListToken,
+  AllowedActions,
+  AllowedEvents,
+  TokenDetectionControllerMessenger,
+} from './TokenDetectionController';
+import {
+  TokenDetectionController,
+  controllerName,
+} from './TokenDetectionController';
+import {
+  getDefaultTokenListState,
+  type TokenListState,
+  type TokenListToken,
 } from './TokenListController';
-import type { Token } from './TokenRatesController';
-import { TokensController } from './TokensController';
-import type { TokensControllerMessenger } from './TokensController';
+import { getDefaultTokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -73,7 +76,7 @@ const sampleTokenList: TokenListToken[] = [
   },
 ];
 const [tokenAFromList, tokenBFromList] = sampleTokenList;
-const sampleTokenA: Token = {
+const sampleTokenA = {
   address: tokenAFromList.address,
   symbol: tokenAFromList.symbol,
   decimals: tokenAFromList.decimals,
@@ -83,7 +86,7 @@ const sampleTokenA: Token = {
   aggregators: formattedSampleAggregators,
   name: 'Chainlink',
 };
-const sampleTokenB: Token = {
+const sampleTokenB = {
   address: tokenBFromList.address,
   symbol: tokenBFromList.symbol,
   decimals: tokenBFromList.decimals,
@@ -94,65 +97,57 @@ const sampleTokenB: Token = {
   name: 'Bancor',
 };
 
+const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
+  [NetworkType.mainnet]: {
+    ...BUILT_IN_NETWORKS[NetworkType.mainnet],
+    rpcUrl: 'https://mainnet.infura.io/v3/fakekey',
+  },
+  [NetworkType.goerli]: {
+    ...BUILT_IN_NETWORKS[NetworkType.goerli],
+    rpcUrl: 'https://goerli.infura.io/v3/fakekey',
+  },
+  polygon: {
+    chainId: '0x89',
+    nickname: 'Polygon Mainnet',
+    rpcUrl: `https://polygon-mainnet.infura.io/v3/fakekey`,
+    ticker: 'MATIC',
+    rpcPrefs: {
+      blockExplorerUrl: 'https://polygonscan.com/',
+    },
+  },
+};
+
 type MainControllerMessenger = ControllerMessenger<
-  GetTokenListState,
-  TokenListStateChange | NetworkControllerStateChangeEvent
+  AllowedActions | AddApprovalRequest,
+  AllowedEvents
 >;
 
-const getControllerMessenger = (): MainControllerMessenger => {
-  return new ControllerMessenger();
-};
-
-const setupTokenListController = (
-  controllerMessenger: MainControllerMessenger,
-) => {
-  const tokenListMessenger = controllerMessenger.getRestricted({
-    name: 'TokenListController',
-    allowedActions: [],
+/**
+ * Builds a messenger that `TokenDetectionController` can use to communicate with other controllers.
+ * @param controllerMessenger - The main controller messenger.
+ * @returns The restricted messenger.
+ */
+function buildTokenDetectionControllerMessenger(
+  controllerMessenger: MainControllerMessenger = new ControllerMessenger(),
+): TokenDetectionControllerMessenger {
+  return controllerMessenger.getRestricted({
+    name: controllerName,
+    allowedActions: [
+      'NetworkController:getNetworkConfigurationByNetworkClientId',
+      'TokenListController:getState',
+    ],
     allowedEvents: [
-      'TokenListController:stateChange',
       'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
+      'TokenListController:stateChange',
     ],
   });
-
-  const tokenList = new TokenListController({
-    chainId: ChainId.mainnet,
-    preventPollingOnNetworkRestart: false,
-    messenger: tokenListMessenger,
-  });
-
-  return { tokenList, tokenListMessenger };
-};
+}
 
 describe('TokenDetectionController', () => {
-  let tokenDetection: TokenDetectionController;
-  let preferences: PreferencesController;
-  let tokensController: TokensController;
-  let tokenList: TokenListController;
-  let controllerMessenger: MainControllerMessenger;
-  let getBalancesInSingleCall: sinon.SinonStub<
-    Parameters<AssetsContractController['getBalancesInSingleCall']>,
-    ReturnType<AssetsContractController['getBalancesInSingleCall']>
-  >;
-
-  const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
-  const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkStateChangeListeners.forEach((listener) => {
-      listener({
-        ...defaultNetworkState,
-        providerConfig,
-      });
-    });
-  };
-  const mainnet = {
-    chainId: ChainId.mainnet,
-    type: NetworkType.mainnet,
-    ticker: NetworksTicker.mainnet,
-  };
-
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
@@ -167,430 +162,947 @@ describe('TokenDetectionController', () => {
       )
       .reply(200, tokenBFromList)
       .persist();
-
-    preferences = new PreferencesController({}, { useTokenDetection: true });
-    controllerMessenger = getControllerMessenger();
-    sinon
-      .stub(TokensController.prototype, '_createEthersContract')
-      .callsFake(() => null as any);
-
-    tokensController = new TokensController({
-      chainId: ChainId.mainnet,
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
-      onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
-      getNetworkClientById: sinon.stub() as any,
-      messenger: undefined as unknown as TokensControllerMessenger,
-    });
-
-    const tokenListSetup = setupTokenListController(controllerMessenger);
-    tokenList = tokenListSetup.tokenList;
-    await tokenList.start();
-
-    getBalancesInSingleCall = sinon.stub();
-    tokenDetection = new TokenDetectionController({
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        onNetworkStateChangeListeners.push(listener),
-      onTokenListStateChange: (listener) =>
-        tokenListSetup.tokenListMessenger.subscribe(
-          `TokenListController:stateChange`,
-          listener,
-        ),
-      getBalancesInSingleCall:
-        getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
-      addDetectedTokens:
-        tokensController.addDetectedTokens.bind(tokensController),
-      getTokensState: () => tokensController.state,
-      getTokenListState: () => tokenList.state,
-      getNetworkState: () => defaultNetworkState,
-      getPreferencesState: () => preferences.state,
-      getNetworkClientById: jest.fn().mockReturnValueOnce({
-        configuration: {
-          chainId: ChainId.mainnet,
-        },
-        provider: {},
-        blockTracker: {},
-        destroy: jest.fn(),
-      }),
-    });
-
-    sinon
-      .stub(tokensController, '_detectIsERC721')
-      .callsFake(() => Promise.resolve(false));
   });
 
   afterEach(() => {
     sinon.restore();
-    tokenDetection.stop();
-    tokenList.destroy();
-    controllerMessenger.clearEventSubscriptions(
-      'NetworkController:stateChange',
-    );
   });
 
-  it('should set default config', () => {
-    expect(tokenDetection.config).toStrictEqual({
-      interval: DEFAULT_INTERVAL,
-      selectedAddress: '',
-      disabled: true,
-      chainId: ChainId.mainnet,
-      isDetectionEnabledForNetwork: true,
-      isDetectionEnabledFromPreferences: true,
+  describe('start', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
     });
-  });
 
-  it('should poll and detect tokens on interval while on supported networks', async () => {
-    await new Promise(async (resolve) => {
-      const mockTokens = sinon.stub(tokenDetection, 'detectTokens');
-      tokenDetection.configure({
-        interval: 10,
-      });
-      await tokenDetection.start();
+    afterEach(() => {
+      clock.restore();
+    });
 
-      expect(mockTokens.calledOnce).toBe(true);
-      setTimeout(() => {
+    it('should poll and detect tokens on interval while on supported networks', async () => {
+      await withController(async ({ controller }) => {
+        const mockTokens = sinon.stub(controller, 'detectTokens');
+        controller.setIntervalLength(10);
+
+        await controller.start();
+
+        expect(mockTokens.calledOnce).toBe(true);
+        await advanceTime({ clock, duration: 15 });
         expect(mockTokens.calledTwice).toBe(true);
-        resolve('');
-      }, 15);
+      });
+    });
+
+    it('should not autodetect while not on supported networks', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      await withController(
+        {
+          options: {
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: NetworkType.goerli,
+          },
+        },
+        async ({ controller }) => {
+          await controller.start();
+
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should detect tokens correctly on supported networks', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const mockAddDetectedTokens = jest.fn();
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      await withController(
+        {
+          options: {
+            addDetectedTokens: mockAddDetectedTokens,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress,
+          },
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState.mockReturnValue({
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name as string,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          });
+
+          await controller.start();
+
+          expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
+            chainId: ChainId.mainnet,
+            selectedAddress,
+          });
+        },
+      );
+    });
+
+    it('should detect tokens correctly on the Polygon network', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const mockAddDetectedTokens = jest.fn();
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      await withController(
+        {
+          options: {
+            addDetectedTokens: mockAddDetectedTokens,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: 'polygon',
+            selectedAddress,
+          },
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState.mockReturnValue({
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name as string,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          });
+
+          await controller.start();
+
+          expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
+            chainId: '0x89',
+            selectedAddress,
+          });
+        },
+      );
+    });
+
+    it('should update detectedTokens when new tokens are detected', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+        [sampleTokenB.address]: new BN(1),
+      });
+      const mockAddDetectedTokens = jest.fn();
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const interval = 100;
+      await withController(
+        {
+          options: {
+            addDetectedTokens: mockAddDetectedTokens,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            interval,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress,
+          },
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          const tokenListState = {
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name as string,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          };
+          mockTokenListGetState.mockReturnValue(tokenListState);
+          await controller.start();
+          mockAddDetectedTokens.mockReset();
+
+          tokenListState.tokenList[sampleTokenB.address] = {
+            name: sampleTokenB.name as string,
+            symbol: sampleTokenB.symbol,
+            decimals: sampleTokenB.decimals,
+            address: sampleTokenB.address,
+            occurrences: 1,
+            aggregators: sampleTokenB.aggregators,
+            iconUrl: sampleTokenB.image,
+          };
+          mockTokenListGetState.mockReturnValue(tokenListState);
+          await advanceTime({ clock, duration: interval });
+
+          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            [sampleTokenA, sampleTokenB],
+            {
+              chainId: ChainId.mainnet,
+              selectedAddress,
+            },
+          );
+        },
+      );
+    });
+
+    it('should not add ignoredTokens to the tokens list if detected with balance', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const mockAddDetectedTokens = jest.fn();
+      const mockGetTokensState = jest.fn().mockReturnValue({
+        ...getDefaultTokensState(),
+        ignoredTokens: [sampleTokenA.address],
+      });
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      await withController(
+        {
+          options: {
+            addDetectedTokens: mockAddDetectedTokens,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            getTokensState: mockGetTokensState,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress,
+          },
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState.mockReturnValue({
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name as string,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          });
+
+          await controller.start();
+
+          expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should not detect tokens if there is no selectedAddress set', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const mockAddDetectedTokens = jest.fn();
+      await withController(
+        {
+          options: {
+            addDetectedTokens: mockAddDetectedTokens,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress: '',
+          },
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState.mockReturnValue({
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name as string,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          });
+
+          await controller.start();
+
+          expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
-  it('should detect supported networks correctly', () => {
-    tokenDetection.configure({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+  describe('PreferencesController:stateChange', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
     });
 
-    expect(
-      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toBe(true);
-    tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
-    expect(
-      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toBe(true);
-    tokenDetection.configure({ chainId: ChainId.goerli });
-    expect(
-      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toBe(false);
+    afterEach(() => {
+      clock.restore();
+    });
+
+    describe('when "disabled" is "false"', () => {
+      it('should detect new tokens after switching between accounts', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const firstSelectedAddress =
+          '0x0000000000000000000000000000000000000001';
+        const secondSelectedAddress =
+          '0x0000000000000000000000000000000000000002';
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress: firstSelectedAddress,
+            },
+          },
+          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress: secondSelectedAddress,
+              useTokenDetection: true,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
+              chainId: ChainId.mainnet,
+              selectedAddress: secondSelectedAddress,
+            });
+          },
+        );
+      });
+
+      it('should detect new tokens after enabling token detection', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getPreferencesState: jest.fn().mockReturnValue({
+                ...getDefaultPreferencesState(),
+                selectedAddress,
+                useTokenDetection: false,
+              }),
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+          },
+          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress,
+              useTokenDetection: true,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
+              chainId: ChainId.mainnet,
+              selectedAddress,
+            });
+          },
+        );
+      });
+
+      it('should not detect new tokens after switching between account if token detection is disabled', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const firstSelectedAddress =
+          '0x0000000000000000000000000000000000000001';
+        const secondSelectedAddress =
+          '0x0000000000000000000000000000000000000002';
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress: firstSelectedAddress,
+            },
+          },
+          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress: secondSelectedAddress,
+              useTokenDetection: false,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not detect new tokens if the account is unchanged', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+          },
+          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress,
+              useTokenDetection: true,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('when "disabled" is "true"', () => {
+      it('should not detect new tokens after switching between accounts', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const firstSelectedAddress =
+          '0x0000000000000000000000000000000000000001';
+        const secondSelectedAddress =
+          '0x0000000000000000000000000000000000000002';
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: true,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress: firstSelectedAddress,
+            },
+          },
+          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress: secondSelectedAddress,
+              useTokenDetection: true,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not detect new tokens after enabling token detection', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: true,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              getPreferencesState: jest.fn().mockReturnValue({
+                ...getDefaultPreferencesState(),
+                selectedAddress,
+                useTokenDetection: false,
+              }),
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+          },
+          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress,
+              useTokenDetection: true,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
   });
 
-  it('should not autodetect while not on supported networks', async () => {
-    tokenDetection.configure({
-      selectedAddress: '0x1',
-      chainId: ChainId.goerli,
-      isDetectionEnabledForNetwork: false,
+  describe('NetworkController:networkDidChange', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
     });
 
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
+    afterEach(() => {
+      clock.restore();
     });
-    await tokenDetection.start();
-    expect(tokensController.state.detectedTokens).toStrictEqual([]);
+
+    describe('when "disabled" is "false"', () => {
+      it('should detect new tokens after switching chains', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const messenger = new ControllerMessenger<
+          AllowedActions,
+          AllowedEvents
+        >();
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+            messenger,
+          },
+          async ({ mockTokenListGetState }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            messenger.publish('NetworkController:networkDidChange', {
+              ...defaultNetworkState,
+              selectedNetworkClientId: 'polygon',
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
+              chainId: '0x89',
+              selectedAddress,
+            });
+          },
+        );
+      });
+
+      it('should not detect new tokens after switching to a chain that does not support token detection', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const messenger = new ControllerMessenger<
+          AllowedActions,
+          AllowedEvents
+        >();
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+            messenger,
+          },
+          async ({ mockTokenListGetState }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            messenger.publish('NetworkController:networkDidChange', {
+              ...defaultNetworkState,
+              selectedNetworkClientId: 'goerli',
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not detect new tokens if the chain has not changed', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const messenger = new ControllerMessenger<
+          AllowedActions,
+          AllowedEvents
+        >();
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+            messenger,
+          },
+          async ({ mockTokenListGetState }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            messenger.publish('NetworkController:networkDidChange', {
+              ...defaultNetworkState,
+              selectedNetworkClientId: 'mainnnet',
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('when "disabled" is "true"', () => {
+      it('should not detect new tokens after switching chains', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const messenger = new ControllerMessenger<
+          AllowedActions,
+          AllowedEvents
+        >();
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: true,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+            messenger,
+          },
+          async ({ mockTokenListGetState }) => {
+            mockTokenListGetState.mockReturnValue({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            messenger.publish('NetworkController:networkDidChange', {
+              ...defaultNetworkState,
+              selectedNetworkClientId: 'polygon',
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
   });
 
-  it('should detect tokens correctly on supported networks', async () => {
-    preferences.update({ selectedAddress: '0x1' });
-    changeNetwork(mainnet);
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.start();
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-  });
-
-  it('should detect tokens correctly on the Aurora network', async () => {
-    const auroraMainnet = {
-      chainId: ChainId.aurora,
-      type: NetworkType.mainnet,
-      ticker: 'Aurora ETH',
-    };
-    preferences.update({ selectedAddress: '0x1' });
-    changeNetwork(auroraMainnet);
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.start();
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-  });
-
-  it('should update detectedTokens when new tokens are detected', async () => {
-    preferences.update({ selectedAddress: '0x1' });
-    changeNetwork(mainnet);
-
-    await tokenDetection.start();
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenB.address]: new BN(1),
-    });
-    await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([
-      sampleTokenA,
-      sampleTokenB,
-    ]);
-  });
-
-  it('should not add ignoredTokens to the tokens list if detected with balance', async () => {
-    preferences.setSelectedAddress('0x0001');
-
-    changeNetwork(mainnet);
-
-    await tokenDetection.start();
-
-    await tokensController.addToken({
-      address: sampleTokenA.address,
-      symbol: sampleTokenA.symbol,
-      decimals: sampleTokenA.decimals,
+  describe('TokenListController:stateChange', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
     });
 
-    await tokensController.addToken({
-      address: sampleTokenB.address,
-      symbol: sampleTokenB.symbol,
-      decimals: sampleTokenB.decimals,
-      name: sampleTokenB.name,
+    afterEach(() => {
+      clock.restore();
     });
 
-    tokensController.ignoreTokens([sampleTokenA.address]);
+    describe('when "disabled" is "false"', () => {
+      it('should detect tokens if the token list is non-empty', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const messenger = new ControllerMessenger<
+          AllowedActions,
+          AllowedEvents
+        >();
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+            messenger,
+          },
+          async ({ mockTokenListGetState }) => {
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            };
+            mockTokenListGetState.mockReturnValue(tokenListState);
 
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.detectTokens();
-    expect(tokensController.state.tokens).toStrictEqual([sampleTokenB]);
+            messenger.publish(
+              'TokenListController:stateChange',
+              tokenListState,
+              [],
+            );
+            await advanceTime({ clock, duration: 1 });
 
-    expect(tokensController.state.ignoredTokens).toStrictEqual([
-      sampleTokenA.address,
-    ]);
-  });
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
+              chainId: ChainId.mainnet,
+              selectedAddress,
+            });
+          },
+        );
+      });
 
-  it('should add a token when detected with a balance even if it is ignored on another account', async () => {
-    preferences.setSelectedAddress('0x0001');
-    changeNetwork(mainnet);
+      it('should not detect tokens if the token list is empty', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const messenger = new ControllerMessenger<
+          AllowedActions,
+          AllowedEvents
+        >();
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+            messenger,
+          },
+          async ({ mockTokenListGetState }) => {
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokenList: {},
+            };
+            mockTokenListGetState.mockReturnValue(tokenListState);
 
-    await tokenDetection.start();
+            messenger.publish(
+              'TokenListController:stateChange',
+              tokenListState,
+              [],
+            );
+            await advanceTime({ clock, duration: 1 });
 
-    await tokensController.addToken({
-      address: sampleTokenA.address,
-      symbol: sampleTokenA.symbol,
-      decimals: sampleTokenA.decimals,
-    });
-
-    tokensController.ignoreTokens([sampleTokenA.address]);
-
-    preferences.setSelectedAddress('0x0002');
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-  });
-
-  it('should not autodetect tokens that exist in the ignoreList', async () => {
-    preferences.update({ selectedAddress: '0x1' });
-    changeNetwork(mainnet);
-
-    await tokenDetection.start();
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.detectTokens();
-
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-
-    tokensController.ignoreTokens([sampleTokenA.address]);
-    await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([]);
-  });
-
-  it('should not detect tokens if there is no selectedAddress set', async () => {
-    await tokenDetection.start();
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([]);
-  });
-
-  it('should detect new tokens after switching between accounts', async () => {
-    preferences.setSelectedAddress('0x0001');
-    changeNetwork(mainnet);
-
-    getBalancesInSingleCall.resolves({
-      [sampleTokenA.address]: new BN(1),
-    });
-    await tokenDetection.start();
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-
-    preferences.setSelectedAddress('0x0002');
-    await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
-  });
-
-  it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
-    const polygonDecimalChainId = '137';
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${polygonDecimalChainId}`)
-      .reply(200, sampleTokenList);
-
-    const stub = sinon.stub();
-    const getBalancesInSingleCallMock = sinon.stub();
-    let networkStateChangeListener: (state: any) => void;
-    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
-      networkStateChangeListener = listener;
-    });
-
-    tokenDetection = new TokenDetectionController(
-      {
-        onTokenListStateChange: stub,
-        onPreferencesStateChange: stub,
-        onNetworkStateChange,
-        getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: () => tokensController.state,
-        getTokenListState: () => tokenList.state,
-        getNetworkState: () => defaultNetworkState,
-        getPreferencesState: () => preferences.state,
-        getNetworkClientById: jest.fn(),
-      },
-      {
-        disabled: false,
-        isDetectionEnabledForNetwork: true,
-        isDetectionEnabledFromPreferences: true,
-        selectedAddress: '0x1',
-        chainId: ChainId.mainnet,
-      },
-    );
-
-    await tokenDetection.start();
-
-    expect(getBalancesInSingleCallMock.called).toBe(true);
-    getBalancesInSingleCallMock.reset();
-
-    tokenDetection.stop();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
-      providerConfig: { chainId: toHex(polygonDecimalChainId) },
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
     });
 
-    expect(getBalancesInSingleCallMock.called).toBe(false);
-  });
+    describe('when "disabled" is "true"', () => {
+      it('should not detect tokens', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const mockAddDetectedTokens = jest.fn();
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const messenger = new ControllerMessenger<
+          AllowedActions,
+          AllowedEvents
+        >();
+        await withController(
+          {
+            options: {
+              addDetectedTokens: mockAddDetectedTokens,
+              disabled: true,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+            messenger,
+          },
+          async ({ mockTokenListGetState }) => {
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name as string,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            };
+            mockTokenListGetState.mockReturnValue(tokenListState);
 
-  it('should not call getBalancesInSingleCall if onTokenListStateChange is called with an empty token list', async () => {
-    const stub = sinon.stub();
-    const getBalancesInSingleCallMock = sinon.stub();
-    let tokenListStateChangeListener: (state: any) => void;
-    const onTokenListStateChange = sinon.stub().callsFake((listener) => {
-      tokenListStateChangeListener = listener;
+            messenger.publish(
+              'TokenListController:stateChange',
+              tokenListState,
+              [],
+            );
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          },
+        );
+      });
     });
-    tokenDetection = new TokenDetectionController(
-      {
-        onTokenListStateChange,
-        onPreferencesStateChange: stub,
-        onNetworkStateChange: stub,
-        getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: stub,
-        getTokenListState: stub,
-        getNetworkState: () => defaultNetworkState,
-        getPreferencesState: () => preferences.state,
-        getNetworkClientById: jest.fn(),
-      },
-      {
-        disabled: false,
-        isDetectionEnabledForNetwork: true,
-        isDetectionEnabledFromPreferences: true,
-      },
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenListStateChangeListener!({ tokenList: {} });
-
-    expect(getBalancesInSingleCallMock.called).toBe(false);
-  });
-
-  it('should call getBalancesInSingleCall if onPreferencesStateChange is called with useTokenDetection being true and is changed', async () => {
-    const stub = sinon.stub();
-    const getBalancesInSingleCallMock = sinon.stub();
-    let preferencesStateChangeListener: (state: any) => void;
-    const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
-      preferencesStateChangeListener = listener;
-    });
-    tokenDetection = new TokenDetectionController(
-      {
-        onPreferencesStateChange,
-        onTokenListStateChange: stub,
-        onNetworkStateChange: stub,
-        getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: () => tokensController.state,
-        getTokenListState: () => tokenList.state,
-        getNetworkState: () => defaultNetworkState,
-        getPreferencesState: () => preferences.state,
-        getNetworkClientById: jest.fn(),
-      },
-      {
-        disabled: false,
-        isDetectionEnabledForNetwork: true,
-        isDetectionEnabledFromPreferences: false,
-        selectedAddress: '0x1',
-      },
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await preferencesStateChangeListener!({
-      selectedAddress: '0x1',
-      useTokenDetection: true,
-    });
-
-    expect(getBalancesInSingleCallMock.called).toBe(true);
-  });
-
-  it('should call getBalancesInSingleCall if onNetworkStateChange is called with a chainId that supports token detection and is changed', async () => {
-    const stub = sinon.stub();
-    const getBalancesInSingleCallMock = sinon.stub();
-    let networkStateChangeListener: (state: any) => void;
-    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
-      networkStateChangeListener = listener;
-    });
-    tokenDetection = new TokenDetectionController(
-      {
-        onNetworkStateChange,
-        onTokenListStateChange: stub,
-        onPreferencesStateChange: stub,
-        getBalancesInSingleCall: getBalancesInSingleCallMock,
-        addDetectedTokens: stub,
-        getTokensState: () => tokensController.state,
-        getTokenListState: () => tokenList.state,
-        getNetworkState: () => defaultNetworkState,
-        getPreferencesState: () => preferences.state,
-        getNetworkClientById: jest.fn(),
-      },
-      {
-        disabled: false,
-        isDetectionEnabledFromPreferences: true,
-        chainId: SupportedTokenDetectionNetworks.polygon,
-        isDetectionEnabledForNetwork: true,
-        selectedAddress: '0x1',
-      },
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
-      providerConfig: { chainId: ChainId.mainnet },
-    });
-
-    expect(getBalancesInSingleCallMock.called).toBe(true);
   });
 
   describe('startPollingByNetworkClientId', () => {
@@ -604,59 +1116,228 @@ describe('TokenDetectionController', () => {
     });
 
     it('should call detect tokens with networkClientId and address params', async () => {
-      const spy = jest
-        .spyOn(tokenDetection, 'detectTokens')
-        .mockImplementation(() => {
-          return Promise.resolve();
-        });
-      tokenDetection.startPollingByNetworkClientId('mainnet', {
-        address: '0x1',
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
       });
-      tokenDetection.startPollingByNetworkClientId('sepolia', {
-        address: '0xdeadbeef',
-      });
-      tokenDetection.startPollingByNetworkClientId('goerli', {
-        address: '0x3',
-      });
+      const mockAddDetectedTokens = jest.fn();
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const messenger = new ControllerMessenger<
+        AllowedActions,
+        AllowedEvents
+      >();
+      await withController(
+        {
+          options: {
+            addDetectedTokens: mockAddDetectedTokens,
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress,
+          },
+          messenger,
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState.mockReturnValue({
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name as string,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          });
+          const spy = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation(() => {
+              return Promise.resolve();
+            });
 
-      await advanceTime({ clock, duration: 0 });
-      expect(spy.mock.calls).toMatchObject([
-        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
-      ]);
-      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
-      expect(spy.mock.calls).toMatchObject([
-        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
-        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
-      ]);
-      tokenDetection.stopAllPolling();
-      spy.mockRestore();
+          controller.startPollingByNetworkClientId('mainnet', {
+            address: '0x1',
+          });
+          controller.startPollingByNetworkClientId('sepolia', {
+            address: '0xdeadbeef',
+          });
+          controller.startPollingByNetworkClientId('goerli', {
+            address: '0x3',
+          });
+          await advanceTime({ clock, duration: 0 });
+
+          expect(spy.mock.calls).toMatchObject([
+            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+          ]);
+
+          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+          expect(spy.mock.calls).toMatchObject([
+            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+          ]);
+        },
+      );
     });
   });
 
   describe('detectTokens', () => {
     it('should detect and add tokens by networkClientId correctly', async () => {
-      const selectedAddress = '0x1';
-      tokenDetection.configure({
-        disabled: false,
-      });
-      getBalancesInSingleCall.resolves({
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      await tokenDetection.detectTokens({
-        networkClientId: 'mainnet',
-        accountAddress: selectedAddress,
-      });
-      const tokens =
-        tokensController.state.allDetectedTokens[ChainId.mainnet][
-          selectedAddress
-        ];
-      expect(tokens).toStrictEqual([sampleTokenA]);
+      const mockAddDetectedTokens = jest.fn();
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const messenger = new ControllerMessenger<
+        AllowedActions,
+        AllowedEvents
+      >();
+      await withController(
+        {
+          options: {
+            addDetectedTokens: mockAddDetectedTokens,
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress,
+          },
+          messenger,
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState.mockReturnValue({
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name as string,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          });
+
+          await controller.detectTokens({
+            networkClientId: NetworkType.mainnet,
+            accountAddress: selectedAddress,
+          });
+
+          expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
+            chainId: ChainId.mainnet,
+            selectedAddress,
+          });
+        },
+      );
     });
   });
 });
+
+/**
+ * Construct the path used to fetch tokens that we can pass to `nock`.
+ *
+ * @param chainId - The chain ID.
+ * @returns The constructed path.
+ */
+function getTokensPath(chainId: Hex) {
+  return `/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+}
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+  mockTokenListGetState,
+  triggerPreferencesStateChange,
+}: {
+  controller: TokenDetectionController;
+  mockTokenListGetState: jest.Mock<TokenListState, []>;
+  triggerPreferencesStateChange: (state: PreferencesState) => void;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = {
+  options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
+  messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
+};
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Builds a controller based on the given options, and calls the given function
+ * with that controller.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the controller options; the function will be called
+ * with the built controller.
+ * @returns Whatever the callback returns.
+ */
+async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const { options, messenger } = rest;
+  const controllerMessenger =
+    messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
+
+  const mockGetNetworkConfigurationByNetworkClientId = jest
+    .fn<
+      ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
+      Parameters<NetworkController['getNetworkConfigurationByNetworkClientId']>
+    >()
+    .mockImplementation((networkClientId: string) => {
+      return mockNetworkConfigurations[networkClientId];
+    });
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getNetworkConfigurationByNetworkClientId',
+    mockGetNetworkConfigurationByNetworkClientId,
+  );
+  const mockTokenListGetState = jest
+    .fn<TokenListState, []>()
+    .mockReturnValue({ ...getDefaultTokenListState() });
+  controllerMessenger.registerActionHandler(
+    'TokenListController:getState',
+    mockTokenListGetState,
+  );
+
+  const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
+    [];
+  const controller = new TokenDetectionController({
+    networkClientId: NetworkType.mainnet,
+    onPreferencesStateChange: (listener) => {
+      preferencesStateChangeListeners.push(listener);
+    },
+    getBalancesInSingleCall: jest.fn(),
+    addDetectedTokens: jest.fn(),
+    getTokensState: jest.fn().mockReturnValue(getDefaultTokensState()),
+    getPreferencesState: jest.fn().mockReturnValue({
+      ...getDefaultPreferencesState(),
+      useTokenDetection: true,
+    }),
+    messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
+    ...options,
+  });
+  try {
+    return await fn({
+      controller,
+      mockTokenListGetState,
+      triggerPreferencesStateChange: (state: PreferencesState) => {
+        for (const listener of preferencesStateChangeListeners) {
+          listener(state);
+        }
+      },
+    });
+  } finally {
+    controller.stop();
+    controller.stopAllPolling();
+  }
+}

@@ -13,6 +13,7 @@ import type {
   ProviderConfig,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -104,91 +105,6 @@ const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
   },
   {} as TokenListMap,
 );
-
-const sampleWithDuplicateSymbols = [
-  {
-    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-    symbol: 'BNT',
-    decimals: 18,
-    occurrences: 11,
-    name: 'Bancor',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
-    aggregators: [
-      'Bancor',
-      'CMC',
-      'CoinGecko',
-      '1inch',
-      'Paraswap',
-      'PMM',
-      'Zapper',
-      'Zerion',
-      '0x',
-    ],
-  },
-];
-
-const sampleWithDuplicateSymbolsTokensChainsCache =
-  sampleWithDuplicateSymbols.reduce((output, current) => {
-    output[current.address] = current;
-    return output;
-  }, {} as TokenListMap);
-
-const sampleWithLessThan3OccurencesResponse = [
-  {
-    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-    symbol: 'SNX',
-    decimals: 18,
-    occurrences: 2,
-    name: 'Synthetix',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
-    aggregators: [
-      'Aave',
-      'Bancor',
-      'CMC',
-      'Crypto.com',
-      'CoinGecko',
-      '1inch',
-      'Paraswap',
-      'PMM',
-      'Synthetix',
-      'Zapper',
-      'Zerion',
-      '0x',
-    ],
-  },
-  {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-    symbol: 'LINK',
-    decimals: 18,
-    occurrences: 11,
-    name: 'Chainlink',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
-    aggregators: [
-      'Aave',
-      'Bancor',
-      'CMC',
-      'Crypto.com',
-      'CoinGecko',
-      '1inch',
-      'Paraswap',
-      'PMM',
-      'Zapper',
-      'Zerion',
-      '0x',
-    ],
-  },
-];
-
-const sampleWith3OrMoreOccurrences =
-  sampleWithLessThan3OccurencesResponse.reduce((output, token) => {
-    if (token.occurrences >= 3) {
-      output[token.address] = token;
-    }
-    return output;
-  }, {} as TokenListMap);
 
 const sampleBinanceTokenList = [
   {
@@ -591,10 +507,7 @@ const getRestrictedMessenger = (
   const messenger = controllerMessenger.getRestricted({
     name,
     allowedActions: ['NetworkController:getNetworkClientById'],
-    allowedEvents: [
-      'TokenListController:stateChange',
-      'NetworkController:stateChange',
-    ],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   return messenger;
@@ -737,7 +650,7 @@ describe('TokenListController', () => {
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -900,7 +813,7 @@ describe('TokenListController', () => {
 
   it('should update token list from api', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -938,12 +851,12 @@ describe('TokenListController', () => {
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .once()
       .reply(200, undefined);
 
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -991,76 +904,9 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should update token list after removing data with duplicate symbols', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
-      .reply(200, sampleWithDuplicateSymbols)
-      .persist();
-
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      messenger,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual({
-      '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c': {
-        address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-        symbol: 'BNT',
-        decimals: 18,
-        occurrences: 11,
-        name: 'Bancor',
-        iconUrl:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
-        aggregators: [
-          'Bancor',
-          'CMC',
-          'CoinGecko',
-          '1inch',
-          'Paraswap',
-          'PMM',
-          'Zapper',
-          'Zerion',
-          '0x',
-        ],
-      },
-    });
-
-    expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
-    ).toStrictEqual(sampleWithDuplicateSymbolsTokensChainsCache);
-    controller.destroy();
-  });
-
-  it('should update token list after removing data less than 3 occurrences', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
-      .reply(200, sampleWithLessThan3OccurencesResponse)
-      .persist();
-
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      messenger,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleWith3OrMoreOccurrences,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
-    ).toStrictEqual(sampleWith3OrMoreOccurrences);
-    controller.destroy();
-  });
-
   it('should update token list when the token property changes', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -1088,7 +934,7 @@ describe('TokenListController', () => {
 
   it('should update the cache when the timestamp expires', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -1118,11 +964,11 @@ describe('TokenListController', () => {
 
   it('should update token list when the chainId change', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
+      .get(getTokensPath(ChainId.goerli))
       .reply(200, { error: 'ChainId 5 is not supported' })
-      .get(`/tokens/56`)
+      .get(getTokensPath(toHex(56)))
       .reply(200, sampleBinanceTokenList)
       .persist();
 
@@ -1215,11 +1061,11 @@ describe('TokenListController', () => {
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
+      .get(getTokensPath(ChainId.goerli))
       .reply(200, { error: 'ChainId 5 is not supported' })
-      .get(`/tokens/56`)
+      .get(getTokensPath(toHex(56)))
       .reply(200, sampleBinanceTokenList)
       .persist();
 
@@ -1254,6 +1100,8 @@ describe('TokenListController', () => {
       preventPollingOnNetworkRestart: false,
     });
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await new Promise((resolve: any) => {
       messenger.subscribe('TokenListController:stateChange', (_, patch) => {
         const tokenListChanged = patch.find(
@@ -1304,7 +1152,7 @@ describe('TokenListController', () => {
 
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
       nock(tokenService.TOKEN_END_POINT_API)
-        .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
+        .get(getTokensPath(ChainId.sepolia))
         .reply(200, sampleSepoliaTokenList)
         .persist();
 
@@ -1485,3 +1333,15 @@ describe('TokenListController', () => {
     });
   });
 });
+
+/**
+ * Construct the path used to fetch tokens that we can pass to `nock`.
+ *
+ * @param chainId - The chain ID.
+ * @returns The constructed path.
+ */
+function getTokensPath(chainId: Hex) {
+  return `/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+}

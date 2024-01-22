@@ -6,6 +6,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.1.0]
+### Added
+- Add `getNetworkConfigurationByNetworkClientId` method which can be used to retrieve details for both custom and built-in networks (using the network configuration object shape) ([#2055](https://github.com/MetaMask/core/pull/2055))
+- Add `NetworkController:getNetworkConfigurationByNetworkClientId` messenger action for the previous method ([#2055](https://github.com/MetaMask/core/pull/2055))
+
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+- Bump `@metamask/eth-json-rpc-provider` to `^2.3.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/json-rpc-engine` to `^7.3.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Create new network clients before updating `networkConfigurations` state ([#3679](https://github.com/MetaMask/core/pull/3679))
+  - This primarily affects subscribers to the `NetworkController:stateChange` event. It's now safe to use a network client for any network that appears in the `networkConfigurations` state, whereas previously it was possible that synchronous attempts to access a network client in response to this event would fail.
+- Add `NetworkState` payload to `NetworkController:networkWillChange` and `NetworkController:networkDidChange` ([#3598](https://github.com/MetaMask/core/pull/3598))
+  - Both of these events now include `NetworkState` as the first and only item in the payload
+
+## [17.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [16.0.0]
+### Changed
+- **BREAKING:** Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+  - This is breaking because it changes the type of the EthQuery instance this controller creates internally and exports under the `getEthQuery` action. Please consult the [changelog for `@metamask/eth-query` 4.0.0](https://github.com/MetaMask/eth-query/blob/main/CHANGELOG.md#400) for more.
+
+## [15.2.0]
+### Changed
+- Update @metamask/eth-json-rpc-middleware in network controller ([#1988](https://github.com/MetaMask/core/pull/1988))
+- Bump dependency on `@metamask/json-rpc-engine` to ^7.2.0 ([#1895](https://github.com/MetaMask/core/pull/1895))
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
 ## [15.1.0]
 ### Added
 - Add new action handlers and associated types ([#1806](https://github.com/MetaMask/core/pull/1806))
@@ -298,7 +330,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...HEAD
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...@metamask/network-controller@17.1.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@16.0.0...@metamask/network-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.2.0...@metamask/network-controller@16.0.0
+[15.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.1.0...@metamask/network-controller@15.2.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.0.0...@metamask/network-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@14.0.0...@metamask/network-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.1...@metamask/network-controller@14.0.0

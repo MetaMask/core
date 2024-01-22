@@ -83,6 +83,8 @@ export function createAsyncMiddleware<
       } else {
         end(null);
       }
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (returnHandlerCallback) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);

@@ -1,239 +1,284 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import type {
+  RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkController,
-  NetworkState,
+  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerStateChangeEvent,
+  NetworkControllerGetNetworkConfigurationByNetworkClientId,
 } from '@metamask/network-controller';
-import { PollingControllerV1 } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import type { TokenListState } from './TokenListController';
+import type {
+  GetTokenListState,
+  TokenListStateChange,
+} from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
-/**
- * @type TokenDetectionConfig
- *
- * TokenDetection configuration
- * @property interval - Polling interval used to fetch new token rates
- * @property selectedAddress - Vault selected address
- * @property chainId - The chain ID of the current network
- * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
- * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
- */
-export interface TokenDetectionConfig extends BaseConfig {
-  interval: number;
-  selectedAddress: string;
-  chainId: Hex;
-  isDetectionEnabledFromPreferences: boolean;
-  isDetectionEnabledForNetwork: boolean;
-}
+export const controllerName = 'TokenDetectionController';
+
+export type TokenDetectionState = Record<never, never>;
+
+export type TokenDetectionControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  TokenDetectionState
+>;
+
+export type TokenDetectionControllerActions =
+  TokenDetectionControllerGetStateAction;
+
+export type AllowedActions =
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | GetTokenListState;
+
+export type TokenDetectionControllerStateChangeEvent =
+  ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
+
+export type TokenDetectionControllerEvents =
+  TokenDetectionControllerStateChangeEvent;
+
+export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent
+  | TokenListStateChange;
+
+export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  TokenDetectionControllerActions | AllowedActions,
+  TokenDetectionControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
+ * @property intervalId - Polling interval used to fetch new token rates
+ * @property chainId - The chain ID of the current network
+ * @property selectedAddress - Vault selected address
+ * @property networkClientId - The network client ID of the current selected network
+ * @property disabled - Boolean to track if network requests are blocked
+ * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
+ * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
-export class TokenDetectionController extends PollingControllerV1<
-  TokenDetectionConfig,
-  BaseState
+export class TokenDetectionController extends StaticIntervalPollingController<
+  typeof controllerName,
+  TokenDetectionState,
+  TokenDetectionControllerMessenger
 > {
-  private intervalId?: ReturnType<typeof setTimeout>;
+  #intervalId?: ReturnType<typeof setTimeout>;
 
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'TokenDetectionController';
+  #chainId: Hex;
 
-  private readonly getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  #selectedAddress: string;
 
-  private readonly addDetectedTokens: TokensController['addDetectedTokens'];
+  #networkClientId: NetworkClientId;
 
-  private readonly getTokensState: () => TokensState;
+  #disabled: boolean;
 
-  private readonly getTokenListState: () => TokenListState;
+  #isDetectionEnabledFromPreferences: boolean;
 
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+  #isDetectionEnabledForNetwork: boolean;
+
+  readonly #addDetectedTokens: TokensController['addDetectedTokens'];
+
+  readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+
+  readonly #getTokensState: () => TokensState;
 
   /**
    * Creates a TokenDetectionController instance.
    *
    * @param options - The controller options.
+   * @param options.messenger - The controller messaging system.
+   * @param options.disabled - If set to true, all network requests are blocked.
+   * @param options.interval - Polling interval used to fetch new token rates
+   * @param options.networkClientId - The selected network client ID of the current network
+   * @param options.selectedAddress - Vault selected address
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-   * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
-   * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.addDetectedTokens - Add a list of detected tokens.
-   * @param options.getTokenListState - Gets the current state of the TokenList controller.
+   * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
-   * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPreferencesState - Gets the state of the preferences controller.
-   * @param options.getNetworkClientById - Gets the network client by ID.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
    */
-  constructor(
-    {
-      onPreferencesStateChange,
-      onNetworkStateChange,
-      onTokenListStateChange,
-      getBalancesInSingleCall,
-      addDetectedTokens,
-      getTokenListState,
-      getTokensState,
-      getNetworkState,
-      getPreferencesState,
-      getNetworkClientById,
-    }: {
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      onTokenListStateChange: (
-        listener: (tokenListState: TokenListState) => void,
-      ) => void;
-      getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-      addDetectedTokens: TokensController['addDetectedTokens'];
-      getTokenListState: () => TokenListState;
-      getTokensState: () => TokensState;
-      getNetworkState: () => NetworkState;
-      getPreferencesState: () => PreferencesState;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
-    },
-    config?: Partial<TokenDetectionConfig>,
-    state?: Partial<BaseState>,
-  ) {
-    const {
-      providerConfig: { chainId: defaultChainId },
-    } = getNetworkState();
+  constructor({
+    networkClientId,
+    selectedAddress = '',
+    interval = DEFAULT_INTERVAL,
+    disabled = true,
+    onPreferencesStateChange,
+    getBalancesInSingleCall,
+    addDetectedTokens,
+    getPreferencesState,
+    getTokensState,
+    messenger,
+  }: {
+    networkClientId: NetworkClientId;
+    selectedAddress?: string;
+    interval?: number;
+    disabled?: boolean;
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
+    ) => void;
+    addDetectedTokens: TokensController['addDetectedTokens'];
+    getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+    getTokensState: () => TokensState;
+    getPreferencesState: () => PreferencesState;
+    messenger: TokenDetectionControllerMessenger;
+  }) {
     const { useTokenDetection: defaultUseTokenDetection } =
       getPreferencesState();
 
-    super(config, state);
-    this.defaultConfig = {
-      interval: DEFAULT_INTERVAL,
-      selectedAddress: '',
-      disabled: true,
-      chainId: defaultChainId,
-      isDetectionEnabledFromPreferences: defaultUseTokenDetection,
-      isDetectionEnabledForNetwork:
-        isTokenDetectionSupportedForNetwork(defaultChainId),
-      ...config,
-    };
-
-    this.initialize();
-    this.setIntervalLength(this.config.interval);
-    this.getTokensState = getTokensState;
-    this.getTokenListState = getTokenListState;
-    this.addDetectedTokens = addDetectedTokens;
-    this.getBalancesInSingleCall = getBalancesInSingleCall;
-    this.getNetworkClientById = getNetworkClientById;
-
-    onTokenListStateChange(({ tokenList }) => {
-      const hasTokens = Object.keys(tokenList).length;
-
-      if (hasTokens) {
-        this.detectTokens();
-      }
+    super({
+      name: controllerName,
+      messenger,
+      state: {},
+      metadata: {},
     });
 
-    onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
-      const {
-        selectedAddress: currentSelectedAddress,
-        isDetectionEnabledFromPreferences,
-      } = this.config;
-      const isSelectedAddressChanged =
-        selectedAddress !== currentSelectedAddress;
-      const isDetectionChangedFromPreferences =
-        isDetectionEnabledFromPreferences !== useTokenDetection;
+    this.#disabled = disabled;
+    this.setIntervalLength(interval);
 
-      this.configure({
-        isDetectionEnabledFromPreferences: useTokenDetection,
-        selectedAddress,
-      });
+    this.#networkClientId = networkClientId;
+    this.#selectedAddress = selectedAddress;
+    this.#chainId = this.#getCorrectChainId(networkClientId);
 
-      if (
-        useTokenDetection &&
-        (isSelectedAddressChanged || isDetectionChangedFromPreferences)
-      ) {
-        this.detectTokens();
-      }
-    });
+    this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
+    this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
+      this.#chainId,
+    );
 
-    onNetworkStateChange(({ providerConfig: { chainId } }) => {
-      const { chainId: currentChainId } = this.config;
-      const isDetectionEnabledForNetwork =
-        isTokenDetectionSupportedForNetwork(chainId);
-      const isChainIdChanged = currentChainId !== chainId;
+    this.#addDetectedTokens = addDetectedTokens;
+    this.#getBalancesInSingleCall = getBalancesInSingleCall;
+    this.#getTokensState = getTokensState;
 
-      this.configure({
-        chainId,
-        isDetectionEnabledForNetwork,
-      });
+    this.messagingSystem.subscribe(
+      'TokenListController:stateChange',
+      async ({ tokenList }) => {
+        const hasTokens = Object.keys(tokenList).length;
 
-      if (isDetectionEnabledForNetwork && isChainIdChanged) {
-        this.detectTokens();
-      }
-    });
+        if (hasTokens) {
+          await this.detectTokens();
+        }
+      },
+    );
+
+    onPreferencesStateChange(
+      async ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
+        const isSelectedAddressChanged =
+          this.#selectedAddress !== newSelectedAddress;
+        const isDetectionChangedFromPreferences =
+          this.#isDetectionEnabledFromPreferences !== useTokenDetection;
+
+        this.#selectedAddress = newSelectedAddress;
+        this.#isDetectionEnabledFromPreferences = useTokenDetection;
+
+        if (
+          useTokenDetection &&
+          (isSelectedAddressChanged || isDetectionChangedFromPreferences)
+        ) {
+          await this.detectTokens();
+        }
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'NetworkController:networkDidChange',
+      async ({ selectedNetworkClientId }) => {
+        this.#networkClientId = selectedNetworkClientId;
+        const newChainId = this.#getCorrectChainId(selectedNetworkClientId);
+        const isChainIdChanged = this.#chainId !== newChainId;
+        this.#chainId = newChainId;
+
+        this.#isDetectionEnabledForNetwork =
+          isTokenDetectionSupportedForNetwork(newChainId);
+
+        if (this.#isDetectionEnabledForNetwork && isChainIdChanged) {
+          await this.detectTokens();
+        }
+      },
+    );
+  }
+
+  /**
+   * Allows controller to make active and passive polling requests
+   */
+  enable() {
+    this.#disabled = false;
+  }
+
+  /**
+   * Blocks controller from making network calls
+   */
+  disable() {
+    this.#disabled = true;
   }
 
   /**
    * Start polling for detected tokens.
    */
   async start() {
-    this.configure({ disabled: false });
-    await this.startPolling();
+    this.enable();
+    await this.#startPolling();
   }
 
   /**
    * Stop polling for detected tokens.
    */
   stop() {
-    this.configure({ disabled: true });
-    this.stopPolling();
+    this.disable();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
   /**
    * Starts a new polling interval.
-   *
-   * @param interval - An interval on which to poll.
    */
-  private async startPolling(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.stopPolling();
-    await this.detectTokens();
-    this.intervalId = setInterval(async () => {
-      await this.detectTokens();
-    }, this.config.interval);
-  }
-
-  private getCorrectChainId(networkClientId?: NetworkClientId) {
-    if (networkClientId) {
-      return this.getNetworkClientById(networkClientId).configuration.chainId;
+  async #startPolling(): Promise<void> {
+    if (this.#disabled) {
+      return;
     }
-    return this.config.chainId;
+    this.#stopPolling();
+    await this.detectTokens();
+    this.#intervalId = setInterval(async () => {
+      await this.detectTokens();
+    }, this.getIntervalLength());
   }
 
-  _executePoll(
+  #getCorrectChainId(networkClientId?: NetworkClientId) {
+    const { chainId } =
+      this.messagingSystem.call(
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        networkClientId ?? this.#networkClientId,
+      ) ?? {};
+    return chainId ?? this.#chainId;
+  }
+
+  async _executePoll(
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    return this.detectTokens({
+    if (this.#disabled) {
+      return;
+    }
+    await this.detectTokens({
       networkClientId,
       accountAddress: options.address,
     });
@@ -246,31 +291,30 @@ export class TokenDetectionController extends PollingControllerV1<
    * @param options.networkClientId - The ID of the network client to use.
    * @param options.accountAddress - The account address to use.
    */
-  async detectTokens(options?: {
+  async detectTokens({
+    networkClientId,
+    accountAddress,
+  }: {
     networkClientId?: NetworkClientId;
     accountAddress?: string;
-  }) {
-    const { networkClientId, accountAddress } = options || {};
-    const {
-      disabled,
-      isDetectionEnabledForNetwork,
-      isDetectionEnabledFromPreferences,
-    } = this.config;
+  } = {}): Promise<void> {
     if (
-      disabled ||
-      !isDetectionEnabledForNetwork ||
-      !isDetectionEnabledFromPreferences
+      this.#disabled ||
+      !this.#isDetectionEnabledForNetwork ||
+      !this.#isDetectionEnabledFromPreferences
     ) {
       return;
     }
-    const { tokens } = this.getTokensState();
-    const selectedAddress = accountAddress || this.config.selectedAddress;
-    const chainId = this.getCorrectChainId(networkClientId);
+    const { tokens } = this.#getTokensState();
+    const selectedAddress = accountAddress || this.#selectedAddress;
+    const chainId = this.#getCorrectChainId(networkClientId);
 
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
-    const { tokenList } = this.getTokenListState();
+    const { tokenList } = this.messagingSystem.call(
+      'TokenListController:getState',
+    );
     const tokensToDetect: string[] = [];
     for (const address of Object.keys(tokenList)) {
       if (!tokensAddresses.includes(address)) {
@@ -295,7 +339,7 @@ export class TokenDetectionController extends PollingControllerV1<
       }
 
       await safelyExecute(async () => {
-        const balances = await this.getBalancesInSingleCall(
+        const balances = await this.#getBalancesInSingleCall(
           selectedAddress,
           tokensSlice,
         );
@@ -303,7 +347,7 @@ export class TokenDetectionController extends PollingControllerV1<
         for (const tokenAddress of Object.keys(balances)) {
           let ignored;
           /* istanbul ignore else */
-          const { ignoredTokens } = this.getTokensState();
+          const { ignoredTokens } = this.#getTokensState();
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -313,7 +357,7 @@ export class TokenDetectionController extends PollingControllerV1<
           const caseInsensitiveTokenKey =
             Object.keys(tokenList).find(
               (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
-            ) || '';
+            ) ?? '';
 
           if (ignored === undefined) {
             const { decimals, symbol, aggregators, iconUrl, name } =
@@ -331,7 +375,7 @@ export class TokenDetectionController extends PollingControllerV1<
         }
 
         if (tokensToAdd.length) {
-          await this.addDetectedTokens(tokensToAdd, {
+          await this.#addDetectedTokens(tokensToAdd, {
             selectedAddress,
             chainId,
           });

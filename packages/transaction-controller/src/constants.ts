@@ -1,5 +1,3 @@
-import { TransactionType } from './types';
-
 export const CHAIN_IDS = {
   MAINNET: '0x1',
   GOERLI: '0x5',
@@ -20,6 +18,8 @@ export const CHAIN_IDS = {
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
   GNOSIS: '0x64',
+  ARBITRUM: '0xa4b1',
+  ZKSYNC_ERA: '0x144',
 } as const;
 
 export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';
@@ -40,7 +40,7 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   },
   [CHAIN_IDS.LINEA_GOERLI]: {
     domain: 'lineascan.build',
-    subdomain: 'goerli',
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli`,
   },
   [CHAIN_IDS.LINEA_MAINNET]: {
     domain: 'lineascan.build',
@@ -104,17 +104,7 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   },
 };
 
-export const SWAP_TRANSACTION_TYPES = [
-  TransactionType.swap,
-  TransactionType.swapApproval,
-];
-
-// Only certain types of transactions should be allowed to be specified when
-// adding a new unapproved transaction.
-export const VALID_UNAPPROVED_TRANSACTION_TYPES = [
-  ...SWAP_TRANSACTION_TYPES,
-  TransactionType.simpleSend,
-  TransactionType.tokenMethodTransfer,
-  TransactionType.tokenMethodTransferFrom,
-  TransactionType.contractInteraction,
-];
+export const GAS_BUFFER_CHAIN_OVERRIDES = {
+  [CHAIN_IDS.OPTIMISM]: 1,
+  [CHAIN_IDS.OPTIMISM_TESTNET]: 1,
+};

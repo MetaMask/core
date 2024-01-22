@@ -4,6 +4,9 @@ import type { Hex } from '@metamask/utils';
 import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
 import { incomingTransactionsLogger as log } from '../logger';
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EtherscanTransactionMetaBase {
   blockNumber: string;
   blockHash: string;
@@ -22,6 +25,9 @@ export interface EtherscanTransactionMetaBase {
   value: string;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EtherscanTransactionMeta extends EtherscanTransactionMetaBase {
   functionName: string;
   input: string;
@@ -30,6 +36,9 @@ export interface EtherscanTransactionMeta extends EtherscanTransactionMetaBase {
   txreceipt_status: string;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EtherscanTokenTransactionMeta
   extends EtherscanTransactionMetaBase {
   tokenDecimal: string;
@@ -37,6 +46,9 @@ export interface EtherscanTokenTransactionMeta
   tokenSymbol: string;
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EtherscanTransactionResponse<
   T extends EtherscanTransactionMetaBase,
 > {
@@ -45,6 +57,9 @@ export interface EtherscanTransactionResponse<
   result: string | T[];
 }
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EtherscanTransactionRequest {
   address: string;
   chainId: Hex;

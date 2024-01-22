@@ -12,6 +12,7 @@ import type { ProviderConfig } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
+import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionParams } from '../types';
 
@@ -24,6 +25,7 @@ export type UpdateGasRequest = {
 export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
+export const DEFAULT_GAS_MULTIPLIER = 1.5;
 
 export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
@@ -67,6 +69,8 @@ export async function estimateGas(
 
   try {
     estimatedGas = await query(ethQuery, 'estimateGas', [request]);
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     simulationFails = {
       reason: error.message,
@@ -85,6 +89,32 @@ export async function estimateGas(
     estimatedGas,
     simulationFails,
   };
+}
+
+export function addGasBuffer(
+  estimatedGas: string,
+  blockGasLimit: string,
+  multiplier: number,
+) {
+  const estimatedGasBN = hexToBN(estimatedGas);
+  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
+  const paddedGasBN = estimatedGasBN.muln(multiplier);
+
+  if (estimatedGasBN.gt(maxGasBN)) {
+    const estimatedGasHex = addHexPrefix(estimatedGas);
+    log('Using estimated value', estimatedGasHex);
+    return estimatedGasHex;
+  }
+
+  if (paddedGasBN.lt(maxGasBN)) {
+    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
+    log('Using padded estimate', paddedHex, multiplier);
+    return paddedHex;
+  }
+
+  const maxHex = addHexPrefix(BNToHex(maxGasBN));
+  log('Using 90% of block gas limit', maxHex);
+  return maxHex;
 }
 
 async function getGas(
@@ -107,26 +137,23 @@ async function getGas(
     request.ethQuery,
   );
 
-  const estimatedGasBN = hexToBN(estimatedGas);
-  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
-  const paddedGasBN = estimatedGasBN.muln(1.5);
-  const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-
-  if (estimatedGasBN.gt(maxGasBN) || isCustomNetwork) {
-    const estimatedGasHex = addHexPrefix(estimatedGas);
-    log('Using estimated value', estimatedGasHex);
-    return [estimatedGasHex, simulationFails];
+  if (providerConfig.type === NetworkType.rpc) {
+    log('Using original estimate as custom network');
+    return [estimatedGas, simulationFails];
   }
 
-  if (paddedGasBN.lt(maxGasBN)) {
-    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
-    log('Using 150% of estimated value', paddedHex);
-    return [paddedHex, simulationFails];
-  }
+  const bufferMultiplier =
+    GAS_BUFFER_CHAIN_OVERRIDES[
+      providerConfig.chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
+    ] ?? DEFAULT_GAS_MULTIPLIER;
 
-  const maxHex = addHexPrefix(BNToHex(maxGasBN));
-  log('Using 90% of block gas limit', maxHex);
-  return [maxHex, simulationFails];
+  const bufferedGas = addGasBuffer(
+    estimatedGas,
+    blockGasLimit,
+    bufferMultiplier,
+  );
+
+  return [bufferedGas, simulationFails];
 }
 
 async function requiresFixedGas({
@@ -140,17 +167,13 @@ async function requiresFixedGas({
     txParams: { to, data },
   } = txMeta;
 
-  if (isCustomNetwork) {
+  if (isCustomNetwork || !to || data) {
     return false;
-  }
-
-  if (!to) {
-    return true;
   }
 
   const code = await getCode(ethQuery, to);
 
-  return !data && (!code || code === '0x');
+  return !code || code === '0x';
 }
 
 async function getCode(

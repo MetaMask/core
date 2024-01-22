@@ -3,10 +3,14 @@ import {
   ChainId,
   convertHexToDecimal,
   toHex,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { add0x, type Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil';
+import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
+import type { AbstractTokenPricesService } from './token-prices-service';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -128,120 +132,6 @@ describe('assetsUtil', () => {
         ChainId.mainnet,
       )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
-    });
-  });
-
-  describe('validateTokenToWatch', () => {
-    it('should throw if undefined token atrributes', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: undefined,
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0x1',
-          decimals: 0,
-          symbol: undefined,
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0x1',
-          decimals: undefined,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-    });
-
-    it('should throw if symbol is not a string', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: { foo: 'bar' },
-        } as any),
-      ).toThrow('Invalid symbol: not a string.');
-    });
-
-    it('should throw if symbol is an empty string', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: '',
-        } as any),
-      ).toThrow('Must specify address, symbol, and decimals.');
-    });
-
-    it('should not throw if symbol is exactly 1 character long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'T',
-        } as any),
-      ).not.toThrow();
-    });
-
-    it('should not throw if symbol is exactly 11 characters long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKNTKNTKNTK',
-        } as any),
-      ).not.toThrow();
-    });
-
-    it('should throw if symbol is more than 11 characters long', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKNTKNTKNTKN',
-        } as any),
-      ).toThrow('Invalid symbol "TKNTKNTKNTKN": longer than 11 characters.');
-    });
-
-    it('should throw if invalid decimals', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).not.toThrow();
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 38,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid decimals "38": must be 0 <= 36.');
-
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: -1,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid decimals "-1": must be 0 <= 36.');
-    });
-
-    it('should throw if invalid address', () => {
-      expect(() =>
-        assetsUtil.validateTokenToWatch({
-          address: '0xe9',
-          decimals: 0,
-          symbol: 'TKN',
-        } as any),
-      ).toThrow('Invalid address "0xe9".');
     });
   });
 
@@ -436,4 +326,293 @@ describe('assetsUtil', () => {
       expect(assetsUtil.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
     });
   });
+
+  describe('divideIntoBatches', () => {
+    describe('given a non-empty list of values', () => {
+      it('partitions the values into max-N-sized groups', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5, 6], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]);
+      });
+
+      it('does not fill every group completely if the number of values does not divide evenly', () => {
+        const batches = assetsUtil.divideIntoBatches([1, 2, 3, 4, 5], {
+          batchSize: 4,
+        });
+        expect(batches).toStrictEqual([[1, 2, 3, 4], [5]]);
+      });
+    });
+
+    describe('given a empty list of values', () => {
+      it('returns an empty array', () => {
+        const batches = assetsUtil.divideIntoBatches([], {
+          batchSize: 2,
+        });
+        expect(batches).toStrictEqual([]);
+      });
+    });
+  });
+
+  describe('reduceInBatchesSerially', () => {
+    it('can build an object from running the given async function for each batch of the given values', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: (workingResult, batch) => {
+          const newBatch = batch.reduce<Partial<Record<string, number>>>(
+            (obj, value) => {
+              // We can assume that the first character is present.
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const codePoint = value.codePointAt(0)!;
+              return {
+                ...obj,
+                [value]: codePoint,
+              };
+            },
+            {},
+          );
+          return { ...workingResult, ...newBatch };
+        },
+        initialResult: {},
+      });
+
+      expect(results).toStrictEqual({
+        a: 97,
+        b: 98,
+        c: 99,
+        d: 100,
+        e: 101,
+        f: 102,
+      });
+    });
+
+    it('processes each batch one after another, not in parallel, even if the given callback is async', async () => {
+      const timestampsByIndex = await assetsUtil.reduceInBatchesSerially<
+        string,
+        Record<string, number>
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: async (workingResult, _batch, index) => {
+          const timestamp = new Date().getTime();
+          await new Promise<number[]>((resolve) => {
+            let duration: number;
+            switch (index) {
+              case 0:
+                duration = 2;
+                break;
+              case 1:
+                duration = 10;
+                break;
+              case 2:
+                duration = 4;
+                break;
+              default:
+                throw new Error(`invalid index ${index}`);
+            }
+            setTimeout(resolve, duration);
+          });
+          const newBatch = { [index]: timestamp };
+          return { ...workingResult, ...newBatch };
+        },
+        initialResult: {},
+      });
+
+      let previousTimestamp = 0;
+      let timestampsIncreasing = true;
+      for (const timestamp of Object.values(timestampsByIndex)) {
+        if (timestamp <= previousTimestamp) {
+          timestampsIncreasing = false;
+          break;
+        }
+        previousTimestamp = timestamp;
+      }
+
+      expect(Object.keys(timestampsByIndex)).toHaveLength(3);
+      expect(timestampsIncreasing).toBe(true);
+    });
+  });
+
+  describe('fetchAndMapExchangeRates', () => {
+    it('should return empty object when chainId not supported', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
+
+      jest
+        .spyOn(mockPriceService, 'validateChainIdSupported')
+        .mockReturnValue(false);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: 'ETH',
+        tokenAddresses: [testTokenAddress],
+        chainId: '0x0',
+      });
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return empty object when nativeCurrency not supported', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const mockPriceService = createMockPriceService();
+      jest
+        .spyOn(mockPriceService, 'validateCurrencySupported')
+        .mockReturnValue(false);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: 'X',
+        tokenAddresses: [testTokenAddress],
+        chainId: '0x1',
+      });
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return successfully with a number of tokens less than the batch size', async () => {
+      const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+      const mockPriceService = createMockPriceService();
+
+      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
+        [testTokenAddress]: {
+          tokenAddress: testTokenAddress,
+          value: 0.0004588648479937523,
+          currency: testNativeCurrency,
+        },
+      });
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: [testTokenAddress],
+        chainId: testChainId,
+      });
+
+      expect(result).toMatchObject({
+        [testTokenAddress]: 0.0004588648479937523,
+      });
+    });
+
+    it('should fetch successfully in batches', async () => {
+      const mockPriceService = createMockPriceService();
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort();
+
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+
+      const fetchTokenPricesSpy = jest.spyOn(
+        mockPriceService,
+        'fetchTokenPrices',
+      );
+
+      await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: tokenAddresses as Hex[],
+        chainId: testChainId,
+      });
+
+      const numBatches = Math.ceil(
+        tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+      );
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+      for (let i = 1; i <= numBatches; i++) {
+        expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+          chainId: testChainId,
+          tokenAddresses: tokenAddresses.slice(
+            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+            i * TOKEN_PRICES_BATCH_SIZE,
+          ),
+          currency: testNativeCurrency,
+        });
+      }
+    });
+
+    it('should sort token addresses when batching', async () => {
+      const mockPriceService = createMockPriceService();
+
+      // Mock addresses in descending order
+      const tokenAddresses = [...new Array(200).keys()]
+        .map(buildAddress)
+        .sort()
+        .reverse();
+
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+
+      const fetchTokenPricesSpy = jest.spyOn(
+        mockPriceService,
+        'fetchTokenPrices',
+      );
+
+      await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: tokenAddresses as Hex[],
+        chainId: testChainId,
+      });
+
+      // Expect batches in ascending order
+      tokenAddresses.sort();
+
+      const numBatches = Math.ceil(
+        tokenAddresses.length / TOKEN_PRICES_BATCH_SIZE,
+      );
+      expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
+
+      for (let i = 1; i <= numBatches; i++) {
+        expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
+          chainId: testChainId,
+          tokenAddresses: tokenAddresses.slice(
+            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+            i * TOKEN_PRICES_BATCH_SIZE,
+          ),
+          currency: testNativeCurrency,
+        });
+      }
+    });
+  });
 });
+
+/**
+ * Constructs a checksum Ethereum address.
+ *
+ * @param number - The address as a decimal number.
+ * @returns The address as an 0x-prefixed ERC-55 mixed-case checksum address in
+ * hexadecimal format.
+ */
+function buildAddress(number: number) {
+  return toChecksumHexAddress(add0x(number.toString(16).padStart(40, '0')));
+}
+
+/**
+ * Creates a mock for token prices service.
+ *
+ * @returns The mocked functions of token prices service.
+ */
+function createMockPriceService(): AbstractTokenPricesService {
+  return {
+    validateChainIdSupported(_chainId: unknown): _chainId is Hex {
+      return true;
+    },
+    validateCurrencySupported(_currency: unknown): _currency is string {
+      return true;
+    },
+    async fetchTokenPrices() {
+      return {};
+    },
+  };
+}

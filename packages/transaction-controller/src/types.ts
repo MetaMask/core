@@ -1,5 +1,43 @@
+import type { AccessList } from '@ethereumjs/tx';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
+
+export type Events = {
+  ['incomingTransactionBlock']: [blockNumber: number];
+  ['post-transaction-balance-updated']: [
+    {
+      transactionMeta: TransactionMeta;
+      approvalTransactionMeta?: TransactionMeta;
+    },
+  ];
+  ['transaction-approved']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
+
+  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-failed']: [
+    {
+      actionId?: string;
+      error: string;
+      transactionMeta: TransactionMeta;
+    },
+  ];
+  ['transaction-new-swap']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-new-swap-approval']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-rejected']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['transaction-status-update']: [{ transactionMeta: TransactionMeta }];
+  ['transaction-submitted']: [
+    { transactionMeta: TransactionMeta; actionId?: string },
+  ];
+  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
+  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:publish-skip`]: [tansactionMeta: TransactionMeta];
+  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
+};
 
 /**
  * Representation of transaction metadata.
@@ -7,13 +45,21 @@ import type { Operation } from 'fast-json-patch';
 export type TransactionMeta = TransactionMetaBase &
   (
     | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
-    | { status: TransactionStatus.failed; error: Error }
+    | {
+        status: TransactionStatus.failed;
+        error: TransactionError;
+      }
   );
 
 /**
  * Information about a single transaction such as status and block number.
  */
 type TransactionMetaBase = {
+  /**
+   * ID of the transaction that approved the swap token transfer.
+   */
+  approvalTxId?: string;
+
   /**
    * Unique ID to prevent duplicate requests.
    */
@@ -40,6 +86,39 @@ type TransactionMetaBase = {
   chainId: Hex;
 
   /**
+   * A string representing a name of transaction contract method.
+   */
+  contractMethodName?: string;
+
+  /**
+   * The balance of the token that is being sent.
+   */
+  currentTokenBalance?: string;
+
+  /**
+   * Unique ID for custodian transaction.
+   */
+  custodyId?: string;
+
+  /**
+   * Custodian transaction status.
+   */
+  custodyStatus?: string;
+
+  /** The optional custom nonce override as a decimal string. */
+  customNonceValue?: string;
+
+  /**
+   * The custom token amount is the amount set by the user.
+   */
+  customTokenAmount?: string;
+
+  /**
+   * The dapp proposed token amount.
+   */
+  dappProposedTokenAmount?: string;
+
+  /**
    * Gas values provided by the dApp.
    */
   dappSuggestedGasFees?: DappSuggestedGasFees;
@@ -55,6 +134,21 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
+   * The address of the token being received of swap transaction.
+   */
+  destinationTokenAddress?: string;
+
+  /**
+   * The decimals of the token being received of swap transaction.
+   */
+  destinationTokenDecimals?: number;
+
+  /**
+   * The symbol of the token being received with swap.
+   */
+  destinationTokenSymbol?: string;
+
+  /**
    * The estimated base fee of the transaction.
    */
   estimatedBaseFee?: string;
@@ -68,6 +162,13 @@ type TransactionMetaBase = {
    * Which estimate level was used
    */
   estimateUsed?: string;
+
+  /**
+   * The chosen amount which will be the same as the originally proposed token
+   * amount if the user does not edit the  amount or will be a custom token
+   * amount set by the user.
+   */
+  finalApprovalAmount?: string;
 
   /**
    * The number of the latest block when the transaction submit was first retried.
@@ -95,6 +196,11 @@ type TransactionMetaBase = {
   isTransfer?: boolean;
 
   /**
+   * Whether the transaction entry is generated from a user operation.
+   */
+  isUserOperation?: boolean;
+
+  /**
    * Network code as per EIP-155 for this transaction
    *
    * @deprecated Use `chainId` instead.
@@ -107,9 +213,31 @@ type TransactionMetaBase = {
   origin?: string;
 
   /**
+   * The original dapp proposed token approval amount before edit by user.
+   */
+  originalApprovalAmount?: string;
+
+  /**
    * The original gas estimation of the transaction.
    */
   originalGasEstimate?: string;
+
+  /**
+   * When we speed up a transaction, we set the type as Retry and we lose
+   * information about type of transaction that is being set up, so we use
+   * original type to track that information.
+   */
+  originalType?: TransactionType;
+
+  /**
+   * Account transaction balance after swap.
+   */
+  postTxBalance?: string;
+
+  /**
+   * Account transaction balance before swap.
+   */
+  preTxBalance?: string;
 
   /**
    * The previous gas properties before they were updated.
@@ -164,11 +292,13 @@ type TransactionMetaBase = {
   /**
    * Response from security validator.
    */
-  securityAlertResponse?: Record<string, unknown>;
+  securityAlertResponse?: SecurityAlertResponse;
 
   /**
    * Response from security provider.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   securityProviderResponse?: Record<string, any>;
 
   /**
@@ -193,6 +323,23 @@ type TransactionMetaBase = {
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
+
+  /**
+   * The symbol of the token being swapped.
+   */
+  sourceTokenSymbol?: string;
+
+  /**
+   * The metadata of the swap transaction.
+   */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  swapMetaData?: Record<string, any>;
+
+  /**
+   * The value of the token being swapped.
+   */
+  swapTokenValue?: string;
 
   /**
    * Timestamp associated with this transaction.
@@ -276,6 +423,7 @@ export type SendFlowHistoryEntry = {
  */
 export enum TransactionStatus {
   approved = 'approved',
+  /** @deprecated Determined by the clients using the transaction type. No longer used. */
   cancelled = 'cancelled',
   confirmed = 'confirmed',
   dropped = 'dropped',
@@ -414,7 +562,15 @@ export enum TransactionType {
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionParams {
+  /**
+   * A list of addresses and storage keys that the transaction plans to access.
+   */
+  accessList?: AccessList;
+
   /**
    * Network ID as per EIP-155.
    */
@@ -434,6 +590,16 @@ export interface TransactionParams {
    * Estimated base fee for this transaction.
    */
   estimatedBaseFee?: string;
+
+  /**
+   * Which estimate level that the API suggested.
+   */
+  estimateSuggested?: string;
+
+  /**
+   * Which estimate level was used
+   */
+  estimateUsed?: string;
 
   /**
    * Address to send this transaction from.
@@ -496,6 +662,9 @@ export interface TransactionParams {
 /**
  * Standard data concerning a transaction processed by the blockchain.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TransactionReceipt {
   /**
    * The block hash of the block that this transaction was included in.
@@ -533,14 +702,17 @@ export interface TransactionReceipt {
   status?: string;
 
   /**
-   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
+   * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
-  transactionIndex?: number;
+  transactionIndex?: string;
 }
 
 /**
  * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Log {
   /**
    * Address of the contract that generated log.
@@ -555,6 +727,9 @@ export interface Log {
 /**
  * The configuration required to fetch transaction data from a RemoteTransactionSource.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface RemoteTransactionSourceRequest {
   /**
    * The address of the account to fetch transactions for.
@@ -581,6 +756,9 @@ export interface RemoteTransactionSourceRequest {
  * An object capable of fetching transaction data from a remote source.
  * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface RemoteTransactionSource {
   /**
    * @param chainId - The chainId of the current network.
@@ -605,11 +783,24 @@ export interface RemoteTransactionSource {
 /**
  * Gas values initially suggested by the dApp.
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface DappSuggestedGasFees {
   gas?: string;
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+}
+
+/**
+ * Gas values saved by the user for a specific chain.
+ */
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+export interface SavedGasFees {
+  maxBaseFee: string;
+  priorityFee: string;
 }
 
 /**
@@ -654,11 +845,13 @@ export type InferTransactionTypeResult = {
 };
 
 /**
- * A function for verifying a transaction, whether it is malicious or not
+ * A function for verifying a transaction, whether it is malicious or not.
  */
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
 /**
@@ -726,4 +919,44 @@ export type DefaultGasEstimates = {
    * Maximum amount per gas to give to validator as incentive.
    */
   maxPriorityFeePerGas?: string;
+};
+
+/**
+ * Data concerning an error while processing a transaction.
+ */
+export type TransactionError = {
+  /**
+   * A descriptive error name.
+   */
+  name: string;
+
+  /**
+   * A descriptive error message providing details about the encountered error.
+   */
+  message: string;
+
+  /**
+   * The stack trace associated with the error, if available.
+   */
+  stack?: string;
+
+  /**
+   * An optional error code associated with the error.
+   */
+  code?: string;
+
+  /**
+   * The rpc property holds additional information related to the error.
+   */
+  rpc?: unknown;
+};
+
+/**
+ * Type for security alert response from transaction validator.
+ */
+export type SecurityAlertResponse = {
+  reason: string;
+  features?: string[];
+  result_type: string;
+  providerRequestsCount?: Record<string, number>;
 };

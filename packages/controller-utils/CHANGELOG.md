@@ -6,6 +6,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+### Changed
+- There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
+
+## [8.0.0]
+### Changed
+- **BREAKING**: `OPENSEA_PROXY_URL` now points to OpenSea's v2 API. `OPENSEA_API_URL` + `OPENSEA_TEST_API_URL` have been removed ([#3654](https://github.com/MetaMask/core/pull/3654))
+
+## [7.0.0]
+### Changed
+- **BREAKING:** Make `safelyExecute` generic so they preserve types ([#3629](https://github.com/MetaMask/core/pull/3629))
+- Update `successfulFetch` so that a URL instance can now be passed to it ([#3600](https://github.com/MetaMask/core/pull/3600))
+- Update `handleFetch` so that a URL instance can now be passed to it ([#3600](https://github.com/MetaMask/core/pull/3600))
+
+## [6.1.0]
+### Added
+- Add `isInfuraNetworkType` type guard for `InfuraNetworkType` ([#2055](https://github.com/MetaMask/core/pull/2055))
+
+### Fixed
+- Restore missing dependency `eth-query`([#3578](https://github.com/MetaMask/core/pull/3578))
+  - This was mistakenly recategorized as a devDependency in v6.0.0
+
+## [6.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/eth-query` to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
+  - This affects `query`: the `sendAsync` method on the given EthQuery must now have a narrower type
+- Bump `@metamask/utils` from ^8.1.0 to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Change `BUILT_IN_NETWORKS` so that `rpc` entry now has a dummy `ticker` ([#1794](https://github.com/MetaMask/core/pull/1794))
+- Replace `ethjs-unit` ^0.1.6 with `@metamask/ethjs-unit` ^0.2.1 ([#2064](https://github.com/MetaMask/core/pull/2064))
+
+### Fixed
+- Move `@metamask/eth-query` from a development dependency to a runtime dependency ([#1815](https://github.com/MetaMask/core/pull/1815))
+
 ## [5.0.2]
 ### Changed
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
@@ -167,7 +200,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@7.0.0...@metamask/controller-utils@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.1.0...@metamask/controller-utils@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.0.0...@metamask/controller-utils@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.2...@metamask/controller-utils@6.0.0
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.1...@metamask/controller-utils@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.0...@metamask/controller-utils@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.2...@metamask/controller-utils@5.0.0
