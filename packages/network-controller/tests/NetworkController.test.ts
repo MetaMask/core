@@ -192,10 +192,19 @@ describe('NetworkController', () => {
       await withController(
         {
           state: {
+            networkConfigurations: {
+              testNetworkConfigurationId: {
+                id: 'testNetworkConfigurationId',
+                chainId: '0x9999',
+                nickname: 'Test initial state',
+                rpcUrl: 'http://example-custom-rpc.metamask.io',
+                ticker: 'TEST',
+              },
+            },
             providerConfig: {
               type: 'rpc',
               rpcUrl: 'http://example-custom-rpc.metamask.io',
-              chainId: '0x9999' as const,
+              chainId: '0x9999',
               nickname: 'Test initial state',
               ticker: 'TEST',
             },
@@ -205,12 +214,21 @@ describe('NetworkController', () => {
                 status: NetworkStatus.Unknown,
               },
             },
+            selectedNetworkClientId: 'testNetworkConfigurationId',
           },
         },
         ({ controller }) => {
           expect(controller.state).toMatchInlineSnapshot(`
             Object {
-              "networkConfigurations": Object {},
+              "networkConfigurations": Object {
+                "testNetworkConfigurationId": Object {
+                  "chainId": "0x9999",
+                  "id": "testNetworkConfigurationId",
+                  "nickname": "Test initial state",
+                  "rpcUrl": "http://example-custom-rpc.metamask.io",
+                  "ticker": "TEST",
+                },
+              },
               "networksMetadata": Object {
                 "mainnet": Object {
                   "EIPS": Object {
@@ -226,7 +244,7 @@ describe('NetworkController', () => {
                 "ticker": "TEST",
                 "type": "rpc",
               },
-              "selectedNetworkClientId": "mainnet",
+              "selectedNetworkClientId": "testNetworkConfigurationId",
             }
           `);
         },
@@ -291,6 +309,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: networkType,
                 }),
+                selectedNetworkClientId: networkType,
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -319,6 +338,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: networkType,
                 }),
+                selectedNetworkClientId: networkType,
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -359,6 +379,7 @@ describe('NetworkController', () => {
           expectedProviderConfig: buildProviderConfig({ type: networkType }),
           initialState: {
             providerConfig: buildProviderConfig({ type: networkType }),
+            selectedNetworkClientId: networkType,
           },
           operation: async (controller: NetworkController) => {
             await controller.initializeProvider();
@@ -388,6 +409,7 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               },
             },
             async ({ controller }) => {
@@ -437,6 +459,7 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               },
             },
             async ({ controller }) => {
@@ -492,6 +515,7 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               },
             },
             async ({ controller }) => {
@@ -540,6 +564,7 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               },
             },
             async ({ controller }) => {
@@ -595,6 +620,7 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               },
             },
             async ({ controller }) => {
@@ -643,6 +669,7 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               },
             },
             async ({ controller }) => {
@@ -685,12 +712,21 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
+                  networkConfigurations: {
+                    testNetworkConfigurationId: {
+                      chainId: toHex(1337),
+                      id: 'testNetworkConfigurationId',
+                      rpcUrl: 'http://example.com',
+                      ticker: 'TEST',
+                    },
+                  },
                   providerConfig: {
                     type: NetworkType.rpc,
                     chainId: toHex(1337),
                     rpcUrl: 'http://example.com',
                     ticker: 'TEST',
                   },
+                  selectedNetworkClientId: 'testNetworkConfigurationId',
                 },
               },
               async ({ controller }) => {
@@ -725,12 +761,21 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
+                  networkConfigurations: {
+                    testNetworkConfigurationId: {
+                      chainId: toHex(1337),
+                      id: 'testNetworkConfigurationId',
+                      rpcUrl: 'http://example.com',
+                      ticker: 'TEST',
+                    },
+                  },
                   providerConfig: {
                     type: NetworkType.rpc,
                     chainId: toHex(1337),
                     rpcUrl: 'http://example.com',
                     ticker: 'TEST',
                   },
+                  selectedNetworkClientId: 'testNetworkConfigurationId',
                 },
               },
               async ({ controller }) => {
@@ -771,9 +816,15 @@ describe('NetworkController', () => {
               type: NetworkType.rpc,
             }),
             initialState: {
+              networkConfigurations: {
+                testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                  id: 'testNetworkConfigurationId',
+                }),
+              },
               providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
               }),
+              selectedNetworkClientId: 'testNetworkConfigurationId',
             },
             operation: async (controller: NetworkController) => {
               await controller.initializeProvider();
@@ -786,10 +837,19 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
+                  networkConfigurations: {
+                    testNetworkConfigurationId: buildNetworkConfigurationWithId(
+                      {
+                        id: 'testNetworkConfigurationId',
+                        chainId: undefined,
+                      },
+                    ),
+                  },
                   providerConfig: buildProviderConfig({
                     type: NetworkType.rpc,
                     chainId: undefined,
                   }),
+                  selectedNetworkClientId: 'testNetworkConfigurationId',
                 },
               },
               async ({ controller }) => {
@@ -810,10 +870,19 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
+                  networkConfigurations: {
+                    testNetworkConfigurationId: buildNetworkConfigurationWithId(
+                      {
+                        id: 'testNetworkConfigurationId',
+                        chainId: undefined,
+                      },
+                    ),
+                  },
                   providerConfig: buildProviderConfig({
                     type: NetworkType.rpc,
                     chainId: undefined,
                   }),
+                  selectedNetworkClientId: 'testNetworkConfigurationId',
                 },
               },
               async ({ controller }) => {
@@ -842,10 +911,19 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
+                  networkConfigurations: {
+                    testNetworkConfigurationId: buildNetworkConfigurationWithId(
+                      {
+                        id: 'testNetworkConfigurationId',
+                        rpcUrl: undefined,
+                      },
+                    ),
+                  },
                   providerConfig: buildProviderConfig({
                     type: NetworkType.rpc,
                     rpcUrl: undefined,
                   }),
+                  selectedNetworkClientId: 'testNetworkConfigurationId',
                 },
               },
               async ({ controller }) => {
@@ -866,10 +944,19 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
+                  networkConfigurations: {
+                    testNetworkConfigurationId: buildNetworkConfigurationWithId(
+                      {
+                        id: 'testNetworkConfigurationId',
+                        rpcUrl: undefined,
+                      },
+                    ),
+                  },
                   providerConfig: buildProviderConfig({
                     type: NetworkType.rpc,
                     rpcUrl: undefined,
                   }),
+                  selectedNetworkClientId: 'testNetworkConfigurationId',
                 },
               },
               async ({ controller }) => {
@@ -928,12 +1015,21 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: {
+                    chainId: '0x1337',
+                    id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
+                    ticker: 'TEST',
+                  },
+                },
                 providerConfig: {
                   type: 'rpc',
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: '0x1337',
                   ticker: 'TEST',
                 },
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -1030,6 +1126,7 @@ describe('NetworkController', () => {
                   id: 'testNetworkConfigurationId',
                 },
               },
+              selectedNetworkClientId: NetworkType.goerli,
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -1479,6 +1576,7 @@ describe('NetworkController', () => {
                 chainId: ChainId.mainnet,
                 ticker: 'TEST',
               },
+              selectedNetworkClientId: NetworkType.mainnet,
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -1586,6 +1684,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -1716,6 +1815,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -1837,6 +1937,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -1960,6 +2061,7 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -2108,6 +2210,7 @@ describe('NetworkController', () => {
                         ticker: 'ABC',
                       },
                     },
+                    selectedNetworkClientId: networkType,
                   },
                   infuraProjectId: 'some-infura-project-id',
                 },
@@ -2203,6 +2306,7 @@ describe('NetworkController', () => {
                         ticker: 'ABC',
                       },
                     },
+                    selectedNetworkClientId: networkType,
                   },
                   infuraProjectId: 'some-infura-project-id',
                 },
@@ -2303,6 +2407,7 @@ describe('NetworkController', () => {
                         ticker: 'ABC',
                       },
                     },
+                    selectedNetworkClientId: networkType,
                   },
                   infuraProjectId: 'some-infura-project-id',
                 },
@@ -2399,6 +2504,7 @@ describe('NetworkController', () => {
             expectedProviderConfig: buildProviderConfig({ type: networkType }),
             initialState: {
               providerConfig: buildProviderConfig({ type: networkType }),
+              selectedNetworkClientId: networkType,
             },
             operation: async (controller) => {
               await controller.lookupNetwork();
@@ -2414,11 +2520,20 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: {
+                    chainId: toHex(1337),
+                    id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
+                    ticker: 'TEST',
+                  },
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -2502,11 +2617,20 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: {
+                    chainId: toHex(1337),
+                    id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
+                    ticker: 'TEST',
+                  },
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -2597,11 +2721,20 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: {
+                    chainId: toHex(1337),
+                    id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
+                    ticker: 'TEST',
+                  },
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -2690,7 +2823,13 @@ describe('NetworkController', () => {
       lookupNetworkTests({
         expectedProviderConfig: buildProviderConfig({ type: NetworkType.rpc }),
         initialState: {
+          networkConfigurations: {
+            testNetworkConfigurationId: buildNetworkConfigurationWithId({
+              id: 'testNetworkConfigurationId',
+            }),
+          },
           providerConfig: buildProviderConfig({ type: NetworkType.rpc }),
+          selectedNetworkClientId: 'testNetworkConfigurationId',
         },
         operation: async (controller) => {
           await controller.lookupNetwork();
@@ -2721,6 +2860,15 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  chainId: '0x1337',
+                  id: 'testNetworkConfigurationId',
+                  nickname: 'test-chain',
+                  rpcUrl: 'https://mock-rpc-url',
+                  ticker: 'TEST',
+                },
+              },
               providerConfig: {
                 type: 'rpc',
                 rpcUrl: 'https://mock-rpc-url',
@@ -2731,6 +2879,7 @@ describe('NetworkController', () => {
                   blockExplorerUrl: 'https://test-block-explorer.com',
                 },
               },
+              selectedNetworkClientId: 'testNetworkConfigurationId',
             },
           },
           async ({ controller }) => {
@@ -2773,6 +2922,15 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  chainId: toHex(99999),
+                  id: 'testNetworkConfigurationId',
+                  nickname: 'something existing',
+                  rpcUrl: 'http://somethingexisting.com',
+                  ticker: 'something existing',
+                },
+              },
               providerConfig: {
                 type: NetworkType.rpc,
                 rpcUrl: 'http://somethingexisting.com',
@@ -2780,6 +2938,7 @@ describe('NetworkController', () => {
                 ticker: 'something existing',
                 nickname: 'something existing',
               },
+              selectedNetworkClientId: 'testNetworkConfigurationId',
             },
           },
           async ({ controller }) => {
@@ -2971,6 +3130,7 @@ describe('NetworkController', () => {
                   rpcPrefs: undefined,
                 },
               },
+              selectedNetworkClientId: 'testNetworkConfigurationId1',
             },
           },
           async ({ controller }) => {
@@ -3026,6 +3186,7 @@ describe('NetworkController', () => {
                   rpcPrefs: undefined,
                 },
               },
+              selectedNetworkClientId: 'testNetworkConfigurationId1',
             },
           },
           async ({ controller }) => {
@@ -3157,6 +3318,15 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  chainId: '0x1337',
+                  id: 'testNetworkConfigurationId',
+                  nickname: 'test-chain',
+                  rpcUrl: 'https://mock-rpc-url',
+                  ticker: 'TEST',
+                },
+              },
               providerConfig: {
                 type: 'rpc',
                 rpcUrl: 'https://mock-rpc-url',
@@ -3167,6 +3337,7 @@ describe('NetworkController', () => {
                   blockExplorerUrl: 'https://test-block-explorer.com',
                 },
               },
+              selectedNetworkClientId: 'testNetworkConfigurationId',
             },
           },
           async ({ controller }) => {
@@ -3609,6 +3780,7 @@ describe('NetworkController', () => {
             expectedProviderConfig: buildProviderConfig({ type: networkType }),
             initialState: {
               providerConfig: buildProviderConfig({ type: networkType }),
+              selectedNetworkClientId: networkType,
             },
             operation: async (controller) => {
               await controller.resetConnection();
@@ -3622,7 +3794,13 @@ describe('NetworkController', () => {
       refreshNetworkTests({
         expectedProviderConfig: buildProviderConfig({ type: NetworkType.rpc }),
         initialState: {
+          networkConfigurations: {
+            testNetworkConfigurationId: buildNetworkConfigurationWithId({
+              id: 'testNetworkConfigurationId',
+            }),
+          },
           providerConfig: buildProviderConfig({ type: NetworkType.rpc }),
+          selectedNetworkClientId: 'testNetworkConfigurationId',
         },
         operation: async (controller) => {
           await controller.resetConnection();
@@ -3640,6 +3818,7 @@ describe('NetworkController', () => {
               type: NetworkType.mainnet,
               ...BUILT_IN_NETWORKS.mainnet,
             },
+            selectedNetworkClientId: NetworkType.mainnet,
           },
         },
         async ({ messenger }) => {
@@ -4046,7 +4225,11 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: originalProvider,
+                },
                 providerConfig: originalProvider,
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
             },
             async ({ controller }) => {
@@ -4160,7 +4343,11 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: originalProvider,
+                },
                 providerConfig: originalProvider,
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
             },
             async ({ controller }) => {
@@ -5075,6 +5262,7 @@ describe('NetworkController', () => {
               }),
               initialState: {
                 providerConfig: buildProviderConfig({ type: networkType }),
+                selectedNetworkClientId: networkType,
               },
               operation: async (controller) => {
                 await controller.rollbackToPreviousProvider();
@@ -5090,7 +5278,13 @@ describe('NetworkController', () => {
             type: NetworkType.rpc,
           }),
           initialState: {
+            networkConfigurations: {
+              testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                id: 'testNetworkConfigurationId',
+              }),
+            },
             providerConfig: buildProviderConfig({ type: NetworkType.rpc }),
+            selectedNetworkClientId: 'testNetworkConfigurationId',
           },
           operation: async (controller) => {
             await controller.rollbackToPreviousProvider();
@@ -5121,6 +5315,7 @@ describe('NetworkController', () => {
                       },
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
               },
               async ({ controller, messenger }) => {
@@ -5164,6 +5359,7 @@ describe('NetworkController', () => {
                       },
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
               },
               async ({ controller, messenger }) => {
@@ -5207,6 +5403,7 @@ describe('NetworkController', () => {
                       },
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -5274,6 +5471,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -5354,6 +5552,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -5425,6 +5624,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -5481,6 +5681,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -5553,6 +5754,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -5633,6 +5835,7 @@ describe('NetworkController', () => {
                       ticker: 'TEST',
                     },
                   },
+                  selectedNetworkClientId: networkType,
                 },
                 infuraProjectId: 'some-infura-project-id',
               },
@@ -5710,9 +5913,15 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkClientId: buildNetworkConfigurationWithId({
+                    id: 'testNetworkClientId',
+                  }),
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                 }),
+                selectedNetworkClientId: 'testNetworkClientId',
               },
             },
             async ({ controller, messenger }) => {
@@ -5741,9 +5950,15 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkClientId: buildNetworkConfigurationWithId({
+                    id: 'testNetworkClientId',
+                  }),
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                 }),
+                selectedNetworkClientId: 'testNetworkClientId',
               },
             },
             async ({ controller, messenger }) => {
@@ -5772,6 +5987,15 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: {
+                    chainId: toHex(1337),
+                    id: 'testNetworkConfigurationId',
+                    nickname: 'network',
+                    rpcUrl: 'https://mock-rpc-url',
+                    ticker: 'TEST',
+                  },
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
@@ -5782,6 +6006,7 @@ describe('NetworkController', () => {
                     blockExplorerUrl: 'https://test-block-explorer.com',
                   },
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -5841,11 +6066,17 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    id: 'testNetworkConfigurationId',
+                  }),
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -5919,11 +6150,17 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    id: 'testNetworkConfigurationId',
+                  }),
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -5984,11 +6221,17 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    id: 'testNetworkConfigurationId',
+                  }),
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -6031,11 +6274,17 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    id: 'testNetworkConfigurationId',
+                  }),
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -6080,11 +6329,17 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    id: 'testNetworkConfigurationId',
+                  }),
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -6148,11 +6403,21 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
+                networkConfigurations: {
+                  testNetworkConfigurationId: {
+                    id: 'testNetworkConfigurationId',
+                    chainId: toHex(1337),
+                    rpcUrl: 'https://mock-rpc-url',
+                    ticker: 'TEST',
+                  },
+                },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: toHex(1337),
+                  ticker: 'TEST',
                 }),
+                selectedNetworkClientId: 'testNetworkConfigurationId',
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -7414,6 +7679,25 @@ function buildProviderConfig(
   return {
     type: NetworkType.rpc,
     chainId: toHex(1337),
+    rpcUrl: 'http://doesntmatter.com',
+    ticker: 'TEST',
+    ...config,
+  };
+}
+
+/**
+ * Builds a complete NetworkConfiguration object plus an ID, filling in values
+ * that are not provided with defaults.
+ *
+ * @param config - An incomplete NetworkConfiguration object.
+ * @returns The complete NetworkConfiguration object with an id.
+ */
+function buildNetworkConfigurationWithId(
+  config: Partial<NetworkConfiguration & { id: string }> = {},
+): NetworkConfiguration & { id: string } {
+  return {
+    chainId: toHex(1337),
+    id: 'AAAA-AAAA-AAAA-AAAA',
     rpcUrl: 'http://doesntmatter.com',
     ticker: 'TEST',
     ...config,

@@ -1010,6 +1010,13 @@ export class NetworkController extends BaseController<
 
     this.update((state) => {
       state.providerConfig = targetNetwork;
+      state.selectedNetworkClientId = networkConfigurationIdOrType;
+      if (state.networksMetadata[networkConfigurationIdOrType] === undefined) {
+        state.networksMetadata[networkConfigurationIdOrType] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
+      }
     });
 
     await this.#refreshNetwork();
@@ -1562,51 +1569,25 @@ export class NetworkController extends BaseController<
       );
     }
 
-    const { providerConfig } = this.state;
+    const { selectedNetworkClientId } = this.state;
 
     let autoManagedNetworkClient: AutoManagedNetworkClient<NetworkClientConfiguration>;
-
-    let networkClientId: NetworkClientId;
-    if (isInfuraProviderConfig(providerConfig)) {
-      const networkClientType = NetworkClientType.Infura;
-      networkClientId = buildInfuraNetworkClientId(providerConfig);
+    if (isInfuraNetworkType(selectedNetworkClientId)) {
       const builtInNetworkClientRegistry =
-        this.#autoManagedNetworkClientRegistry[networkClientType];
+        this.#autoManagedNetworkClientRegistry[NetworkClientType.Infura];
       autoManagedNetworkClient =
-        builtInNetworkClientRegistry[networkClientId as BuiltInNetworkClientId];
-      if (!autoManagedNetworkClient) {
-        throw new Error(
-          `Could not find custom network matching ${networkClientId}`,
-        );
-      }
-    } else if (isCustomProviderConfig(providerConfig)) {
-      validateCustomProviderConfig(providerConfig);
-      const networkClientType = NetworkClientType.Custom;
-      networkClientId = buildCustomNetworkClientId(
-        providerConfig,
-        this.state.networkConfigurations,
-      );
-      const customNetworkClientRegistry =
-        this.#autoManagedNetworkClientRegistry[networkClientType];
-      autoManagedNetworkClient = customNetworkClientRegistry[networkClientId];
-      if (!autoManagedNetworkClient) {
-        throw new Error(
-          `Could not find built-in network matching ${networkClientId}`,
-        );
-      }
+        builtInNetworkClientRegistry[selectedNetworkClientId];
     } else {
-      throw new Error('Could not determine type of provider config');
-    }
-
-    this.update((state) => {
-      state.selectedNetworkClientId = networkClientId;
-      if (state.networksMetadata[networkClientId] === undefined) {
-        state.networksMetadata[networkClientId] = {
-          status: NetworkStatus.Unknown,
-          EIPS: {},
-        };
+      const customNetworkClientRegistry =
+        this.#autoManagedNetworkClientRegistry[NetworkClientType.Custom];
+      autoManagedNetworkClient =
+        customNetworkClientRegistry[selectedNetworkClientId];
+      if (!autoManagedNetworkClient) {
+        throw new Error(
+          `Could not find built-in network matching ${selectedNetworkClientId}`,
+        );
       }
-    });
+    }
 
     const { provider, blockTracker } = autoManagedNetworkClient;
 
