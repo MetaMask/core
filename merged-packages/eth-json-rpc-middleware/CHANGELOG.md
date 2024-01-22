@@ -6,10 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [12.1.0]
-### Added
-- Add `signatureMethod` property to `MessageParams` ([#273](https://github.com/MetaMask/eth-json-rpc-middleware/pull/273))
-
 ## [12.0.1]
 ### Changed
 - Bump @metamask/json-rpc-engine from 7.1.1 to 7.2.0 ([#256](https://github.com/MetaMask/eth-json-rpc-middleware/pull/256))
@@ -160,8 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.1.0...HEAD
-[12.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.0.1...v12.1.0
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.0.1...HEAD
 [12.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.0.0...v12.0.1
 [12.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v11.0.2...v12.0.0
 [11.0.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v11.0.1...v11.0.2
