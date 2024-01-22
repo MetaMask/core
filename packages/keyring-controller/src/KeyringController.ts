@@ -444,45 +444,31 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Effectively the same as creating a new keychain then populating it
-   * using the given seed phrase.
+   * Create a new primary keyring and wipe any previous keyrings.
    *
-   * @param password - Password to unlock keychain.
-   * @param seed - A BIP39-compliant seed phrase as Uint8Array,
-   * either as a string or an array of UTF-8 bytes that represent the string.
-   * @returns Promise resolving to the restored keychain object.
+   * @param password - Password to unlock the new vault.
+   * @param keyring - A object containing the params to instantiate a new keyring.
+   * @param keyring.type - The keyring type.
+   * @param keyring.opts - Optional parameters required to instantiate the keyring.
+   * @returns The state of the keyring-controller.
    */
-  async createNewVaultAndRestore(
+  async createNewVaultWithKeyring(
     password: string,
-    seed: Uint8Array,
-  ): Promise<KeyringControllerMemState> {
-    const releaseLock = await this.mutex.acquire();
+    keyring: {
+      type: string;
+      opts?: unknown;
+    },
+  ) {
     if (!password || !password.length) {
       throw new Error('Invalid password');
     }
 
-    try {
-      this.updateIdentities([]);
-      await this.#keyring.createNewVaultAndRestore(password, seed);
-      this.updateIdentities(await this.#keyring.getAccounts());
-      return this.#getMemState();
-    } finally {
-      releaseLock();
-    }
-  }
-
-  /**
-   * Create a new primary keychain and wipe any previous keychains.
-   *
-   * @param password - Password to unlock the new vault.
-   * @returns Newly-created keychain object.
-   */
-  async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.mutex.acquire();
     try {
+      this.updateIdentities([]);
       const accounts = await this.getAccounts();
       if (!accounts.length) {
-        await this.#keyring.createNewVaultAndKeychain(password);
+        await this.#keyring.createNewVaultWithKeyring(password, keyring);
         this.updateIdentities(await this.getAccounts());
       }
       return this.#getMemState();
