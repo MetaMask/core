@@ -32,10 +32,11 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^4.1.0",
-    "@metamask/eth-snap-keyring": "^2.0.0",
-    "@metamask/keyring-api": "^1.1.0",
-    "@metamask/snaps-sdk": "^1.3.1",
-    "@metamask/snaps-utils": "^5.1.1",
+    "@metamask/eth-snap-keyring": "^2.1.1",
+    "@metamask/keyring-api": "^3.0.0",
+    "@metamask/keyring-controller": "^12.0.0",
+    "@metamask/snaps-sdk": "^1.3.2",
+    "@metamask/snaps-utils": "^5.1.2",
     "@metamask/utils": "^8.3.0",
     "deepmerge": "^4.2.2",
     "ethereumjs-util": "^7.0.10",
@@ -44,8 +45,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^12.0.0",
-    "@metamask/snaps-controllers": "^3.6.0",
+    "@metamask/snaps-controllers": "^4.0.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
@@ -56,7 +56,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^12.0.0",
-    "@metamask/snaps-controllers": "^3.6.0"
+    "@metamask/snaps-controllers": "^4.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

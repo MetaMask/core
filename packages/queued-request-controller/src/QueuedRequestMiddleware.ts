@@ -9,7 +9,6 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
-  NetworkControllerSetProviderTypeAction,
 } from '@metamask/network-controller';
 import { serializeError } from '@metamask/rpc-errors';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
@@ -22,7 +21,6 @@ import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
 export type MiddlewareAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
-  | NetworkControllerSetProviderTypeAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | SelectedNetworkControllerSetNetworkClientIdForDomainAction
@@ -155,10 +153,8 @@ export const createQueuedRequestMiddleware = ({
               true,
             );
 
-            const method = isBuiltIn ? 'setProviderType' : 'setActiveNetwork';
-
             await messenger.call(
-              `NetworkController:${method}`,
+              `NetworkController:setActiveNetwork`,
               networkClientIdForRequest,
             );
 

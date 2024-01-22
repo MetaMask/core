@@ -917,7 +917,7 @@ describe('AssetsContractController', () => {
     );
     expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
 
-    await network.setProviderType(NetworkType.sepolia);
+    await network.setActiveNetwork(NetworkType.sepolia);
 
     const noBalances = await assetsContract.getBalancesInSingleCall(
       ERC20_SAI_ADDRESS,

@@ -552,8 +552,6 @@ export class NetworkController extends BaseController<
 
   #providerProxy: ProviderProxy | undefined;
 
-  #provider: ProxyWithAccessibleTarget<Provider> | undefined;
-
   #blockTrackerProxy: BlockTrackerProxy | undefined;
 
   #autoManagedNetworkClientRegistry?: AutoManagedNetworkClientRegistry;
@@ -1636,7 +1634,6 @@ export class NetworkController extends BaseController<
     } else {
       this.#providerProxy = createEventEmitterProxy(provider);
     }
-    this.#provider = provider;
 
     if (this.#blockTrackerProxy) {
       this.#blockTrackerProxy.setTarget(blockTracker);
