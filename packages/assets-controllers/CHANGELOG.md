@@ -8,8 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
-  - Adds `@metamask/keyring-api` as a devDependency.
-  - Fixes `@metamask/providers` version to ^14.0.2 in the `resolutions` field in the root package.json file.
+- Adds `@metamask/keyring-api` ^3.0.0 as a devDependency. ([#3775](https://github.com/MetaMask/core/pull/3775/))
 
 ### Changed
 - **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo. ([#3775](https://github.com/MetaMask/core/pull/3775/))
