@@ -2,7 +2,7 @@ import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import pify from 'pify';
 
-import type { TransactionParams, MessageParams } from '.';
+import type { TransactionParams, MessageParams, TypedMessageV1Params } from '.';
 import { createWalletMiddleware } from '.';
 
 const testAddresses = [
@@ -237,8 +237,8 @@ describe('wallet', () => {
     it('should sign with a valid address', async () => {
       const { engine } = createTestSetup();
       const getAccounts = async () => testAddresses.slice();
-      const witnessedMsgParams: MessageParams[] = [];
-      const processTypedMessage = async (msgParams: MessageParams) => {
+      const witnessedMsgParams: TypedMessageV1Params[] = [];
+      const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -266,14 +266,15 @@ describe('wallet', () => {
         from: testAddresses[0],
         data: message,
         signatureMethod: 'eth_signTypedData',
+        version: 'V1',
       });
     });
 
     it('should throw with invalid address', async () => {
       const { engine } = createTestSetup();
       const getAccounts = async () => testAddresses.slice();
-      const witnessedMsgParams: MessageParams[] = [];
-      const processTypedMessage = async (msgParams: MessageParams) => {
+      const witnessedMsgParams: TypedMessageV1Params[] = [];
+      const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };
@@ -299,8 +300,8 @@ describe('wallet', () => {
     it('should throw with unknown address', async () => {
       const { engine } = createTestSetup();
       const getAccounts = async () => testAddresses.slice();
-      const witnessedMsgParams: MessageParams[] = [];
-      const processTypedMessage = async (msgParams: MessageParams) => {
+      const witnessedMsgParams: TypedMessageV1Params[] = [];
+      const processTypedMessage = async (msgParams: TypedMessageV1Params) => {
         witnessedMsgParams.push(msgParams);
         return testMsgSig;
       };

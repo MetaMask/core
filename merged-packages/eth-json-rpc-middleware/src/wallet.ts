@@ -39,6 +39,10 @@ export type TypedMessageParams = MessageParams & {
   version: string;
 };
 
+export type TypedMessageV1Params = Omit<TypedMessageParams, 'data'> & {
+  data: Record<string, unknown>[];
+};
+
 export interface WalletMiddlewareOptions {
   getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
   processDecryptMessage?: (
@@ -66,7 +70,7 @@ export interface WalletMiddlewareOptions {
     req: JsonRpcRequest,
   ) => Promise<string>;
   processTypedMessage?: (
-    msgParams: MessageParams,
+    msgParams: TypedMessageV1Params,
     req: JsonRpcRequest,
     version: string,
   ) => Promise<string>;
@@ -234,16 +238,21 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
       throw rpcErrors.invalidInput();
     }
 
-    const params = req.params as [string, string, Record<string, string>?];
+    const params = req.params as [
+      Record<string, unknown>[],
+      string,
+      Record<string, string>?,
+    ];
     const message = params[0];
     const address = await validateAndNormalizeKeyholder(params[1], req);
     const version = 'V1';
     const extraParams = params[2] || {};
-    const msgParams: MessageParams = {
+    const msgParams: TypedMessageV1Params = {
       ...extraParams,
       from: address,
       data: message,
       signatureMethod: 'eth_signTypedData',
+      version,
     };
 
     res.result = await processTypedMessage(msgParams, req, version);
