@@ -3138,7 +3138,7 @@ describe('NftController', () => {
         tokenURI: 'ipfs://*',
       });
     });
-    it('should add NFT with  metadata if the ipfs gateway is enabled and display NFT is disabled', async () => {
+    it('should add NFT with metadata if the ipfs gateway is enabled and display NFT is disabled', async () => {
       const { assetsContract, nftController, preferences } = setupController();
 
       preferences.update({
