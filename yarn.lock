@@ -2243,7 +2243,7 @@ __metadata:
     "@metamask/base-controller": ^4.1.0
     "@metamask/eth-keyring-controller": ^17.0.0
     "@metamask/eth-sig-util": ^7.0.1
-    "@metamask/keyring-api": ^2.0.0
+    "@metamask/keyring-api": ^3.0.0
     "@metamask/message-manager": ^7.3.7
     "@metamask/preferences-controller": ^6.0.0
     "@metamask/scure-bip39": ^2.1.1
