@@ -1663,7 +1663,7 @@ describe('TransactionController Integration', () => {
       });
     });
 
-    describe.only('when transactions are added concurrently with the same networkClientId', () => {
+    describe('when transactions are added concurrently with the same networkClientId', () => {
       it('should add each transaction with consecutive nonces', async () => {
         const clock = useFakeTimers();
         mockNetwork({
