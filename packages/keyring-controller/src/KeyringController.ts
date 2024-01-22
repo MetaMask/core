@@ -52,7 +52,7 @@ export enum KeyringTypes {
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
-  custody = 'Custody',
+  custody = 'Custody - JSONRPC',
 }
 
 /**
