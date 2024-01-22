@@ -5,7 +5,10 @@ import type {
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import {
+  KeyringController as EthKeyringController,
+  KeyringType,
+} from '@metamask/eth-keyring-controller';
 import type {
   ExportableKeyEncryptor,
   GenericEncryptor,
@@ -488,7 +491,13 @@ export class KeyringController extends BaseController<
 
     try {
       this.updateIdentities([]);
-      await this.#keyring.createNewVaultAndRestore(password, seed);
+      await this.#keyring.createNewVaultWithKeyring(password, {
+        type: KeyringType.HD,
+        opts: {
+          mnemonic: seed,
+          numberOfAccounts: 1,
+        },
+      });
       this.updateIdentities(await this.#keyring.getAccounts());
       return this.#getMemState();
     } finally {
@@ -507,7 +516,9 @@ export class KeyringController extends BaseController<
     try {
       const accounts = await this.getAccounts();
       if (!accounts.length) {
-        await this.#keyring.createNewVaultAndKeychain(password);
+        await this.#keyring.createNewVaultWithKeyring(password, {
+          type: KeyringType.HD,
+        });
         this.updateIdentities(await this.getAccounts());
       }
       return this.#getMemState();
