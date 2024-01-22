@@ -330,6 +330,8 @@ describe('TransactionController Integration', () => {
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
+            // NetworkController
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -339,35 +341,13 @@ describe('TransactionController Integration', () => {
                 result: '0x3b3301',
               },
             },
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x3b3301'],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x3b3301',
-                },
-              },
-            },
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: [
-                  '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                  '0x3b3301',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
           ],
         });
         mockNetwork({
           networkClientConfiguration,
           mocks: [
+            // NetworkController
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -377,37 +357,7 @@ describe('TransactionController Integration', () => {
                 result: '0x1',
               },
             },
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result:
-                  // what should this be?
-                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
-              },
-            },
+            // NetworkController
             {
               request: {
                 method: 'eth_getBlockByNumber',
@@ -420,15 +370,19 @@ describe('TransactionController Integration', () => {
                 },
               },
             },
+            // readAddressAsContract
+            // requiresFixedGas (cached)
             {
               request: {
-                method: 'eth_gasPrice',
-                params: [],
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result: '0x1',
+                result:
+                  '0x' // non contract
               },
             },
+            // estimateGas
             {
               request: {
                 method: 'eth_estimateGas',
@@ -445,6 +399,17 @@ describe('TransactionController Integration', () => {
                 result: '0x1',
               },
             },
+            // getSuggestedGasFees
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // NonceTracker
             {
               request: {
                 method: 'eth_getTransactionCount',
@@ -454,17 +419,29 @@ describe('TransactionController Integration', () => {
                 result: '0x1',
               },
             },
+            // publishTransaction
             {
               request: {
                 method: 'eth_sendRawTransaction',
                 params: [
-                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
                 ],
               },
               response: {
                 result: '0x1',
               },
             },
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            // PendingTransactionTracker.#checkTransaction
             {
               request: {
                 method: 'eth_getTransactionReceipt',
@@ -475,6 +452,18 @@ describe('TransactionController Integration', () => {
                   blockHash: '0x1',
                   blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
                   status: '0x1', // 0x1 = success
+                },
+              },
+            },
+            // PendingTransactionTracker.#onTransactionConfirmed
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
                 },
               },
             },
