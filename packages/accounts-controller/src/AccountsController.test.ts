@@ -373,7 +373,30 @@ describe('AccountsController', () => {
     afterEach(() => {
       jest.clearAllMocks();
     });
-    it('should only update if the keyring is unlocked', async () => {
+    it('should not update state when only keyring is unlocked without any keyrings', async () => {
+      const messenger = buildMessenger();
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        { isUnlocked: true, keyrings: [] },
+        [],
+      );
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([]);
+    });
+
+    it('should only update if the keyring is unlocked and when there are keyrings', async () => {
       const messenger = buildMessenger();
 
       const mockNewKeyringState = {

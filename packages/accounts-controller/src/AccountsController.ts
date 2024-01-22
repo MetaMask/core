@@ -494,7 +494,10 @@ export class AccountsController extends BaseController<
     // check if there are any new accounts added
     // TODO: change when accountAdded event is added to the keyring controller
 
-    if (keyringState.isUnlocked) {
+    // We check for keyrings length to be greater than 0 because the extension client may try execute
+    // submit password twice and clear the keyring state.
+    // https://github.com/MetaMask/KeyringController/blob/2d73a4deed8d013913f6ef0c9f5c0bb7c614f7d3/src/KeyringController.ts#L910
+    if (keyringState.isUnlocked && keyringState.keyrings.length > 0) {
       const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
