@@ -1,6 +1,6 @@
 import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
+import { ApprovalType, BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkClientType,
@@ -59,6 +59,9 @@ const newController = async (options: any) => {
       name: 'ApprovalController',
     }),
     showApprovalRequest: jest.fn(),
+    typesExcludedFromRateLimiting: [
+      ApprovalType.Transaction,
+    ]
   });
 
   const opts = {
@@ -1636,7 +1639,6 @@ describe('TransactionController Integration', () => {
             to: ACCOUNT_3_MOCK,
           },
           {
-            origin: 'dapp.test',
             networkClientId: otherNetworkClientIdOnGoerli,
           },
         );
@@ -1874,7 +1876,6 @@ describe('TransactionController Integration', () => {
             to: ACCOUNT_3_MOCK,
           },
           {
-            origin: 'dapp.test',
             networkClientId: 'goerli',
           },
         );
