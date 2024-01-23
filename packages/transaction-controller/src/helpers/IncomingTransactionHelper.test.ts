@@ -138,6 +138,26 @@ describe('IncomingTransactionHelper', () => {
     });
 
     describe('fetches remote transactions', () => {
+      it('does not attempt to fetch new transactions if the latest block number is the same as (or less than) the last fetched block number', async () => {
+        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          remoteTransactionSource,
+          getLastFetchedBlockNumbers: () => ({
+            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
+              FROM_BLOCK_DECIMAL_MOCK,
+          }),
+        });
+
+        // emit blockTracker 'latest' event with block number already in state (FROM_BLOCK_DECIMAL_MOCK)
+        await emitBlockTrackerLatestEvent(helper);
+
+        expect(
+          remoteTransactionSource.fetchTransactions,
+        ).not.toHaveBeenCalled();
+      });
+
       it('using remote transaction source', async () => {
         const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
@@ -211,7 +231,7 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource,
           getLastFetchedBlockNumbers: () => ({
             [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
-              FROM_BLOCK_DECIMAL_MOCK,
+              FROM_BLOCK_DECIMAL_MOCK - 1,
           }),
         });
 
@@ -223,7 +243,7 @@ describe('IncomingTransactionHelper', () => {
 
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith(
           expect.objectContaining({
-            fromBlock: FROM_BLOCK_DECIMAL_MOCK + 1,
+            fromBlock: FROM_BLOCK_DECIMAL_MOCK,
           }),
         );
       });
