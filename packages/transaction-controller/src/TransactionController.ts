@@ -590,15 +590,7 @@ export class TransactionController extends BaseControllerV1<
       updateTransactions: incomingTransactions.updateTransactions,
     });
 
-    this.incomingTransactionHelper.hub.on(
-      'transactions',
-      this.onIncomingTransactions.bind(this),
-    );
-
-    this.incomingTransactionHelper.hub.on(
-      'updatedLastFetchedBlockNumbers',
-      this.onUpdatedLastFetchedBlockNumbers.bind(this),
-    );
+    this.addIncomingTransactionHelperListeners();
 
     this.pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
@@ -1296,6 +1288,9 @@ export class TransactionController extends BaseControllerV1<
         trackers.pendingTransactionTracker,
       );
       trackers.incomingTransactionHelper.stop();
+      this.removeIncomingTransactionHelperListeners(
+        trackers.incomingTransactionHelper,
+      );
 
       // doesn't seem like any cleanup is needed for nonceTracker
       // trackers.nonceTracker
@@ -1351,6 +1346,9 @@ export class TransactionController extends BaseControllerV1<
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: this.incomingTransactionOptions.updateTransactions,
     });
+
+    this.addIncomingTransactionHelperListeners(incomingTransactionHelper);
+
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
       blockTracker: networkClient.blockTracker,
@@ -1366,16 +1364,7 @@ export class TransactionController extends BaseControllerV1<
         beforePublish: this.beforePublish.bind(this),
       },
     });
-    // subscribe to trackers
-    incomingTransactionHelper.hub.on(
-      'transactions',
-      this.onIncomingTransactions.bind(this),
-    );
 
-    incomingTransactionHelper.hub.on(
-      'updatedLastFetchedBlockNumbers',
-      this.onUpdatedLastFetchedBlockNumbers.bind(this),
-    );
     this.addPendingTransactionTrackerListeners(pendingTransactionTracker);
 
     // add to tracking map
@@ -2916,6 +2905,28 @@ export class TransactionController extends BaseControllerV1<
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
+  }
+
+  private removeIncomingTransactionHelperListeners(
+    incomingTransactionHelper = this.incomingTransactionHelper,
+  ) {
+    incomingTransactionHelper.hub.removeAllListeners('transactions');
+    incomingTransactionHelper.hub.removeAllListeners(
+      'updatedLastFetchedBlockNumbers',
+    );
+  }
+
+  private addIncomingTransactionHelperListeners(
+    incomingTransactionHelper = this.incomingTransactionHelper,
+  ) {
+    incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+    incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
     );
   }
 
