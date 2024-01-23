@@ -793,7 +793,7 @@ describe('TransactionController Integration', () => {
         });
         const { transactionController, approvalController } =
           await newController({});
-        const { result, transactionMeta } =
+        const firstTransaction =
           await transactionController.addTransaction(
             {
               from: ACCOUNT_MOCK,
@@ -809,18 +809,21 @@ describe('TransactionController Integration', () => {
           { networkClientId: 'sepolia', origin: 'test' },
         );
 
-        await approvalController.accept(transactionMeta.id);
-        await approvalController.accept(secondTransaction.transactionMeta.id);
-
+        await Promise.all([
+          approvalController.accept(firstTransaction.transactionMeta.id),
+          approvalController.accept(secondTransaction.transactionMeta.id),
+        ]);
+        await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
-        await result;
+        await Promise.all([firstTransaction.result, secondTransaction.result]);
+
         // blocktracker polling is 20s
         await advanceTime({ clock, duration: 20000 });
         await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
-        expect(transactionController.state.transactions).toHaveLength(1);
+        expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[0].status).toBe(
           'confirmed',
         );
