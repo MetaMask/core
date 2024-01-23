@@ -50,7 +50,7 @@ import type {
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 
-export const MISSING_PROVIDER_ERROR =
+const MISSING_PROVIDER_ERROR =
   'TokensController failed to set the provider correctly. A provider must be set for this method to be available';
 
 /**
