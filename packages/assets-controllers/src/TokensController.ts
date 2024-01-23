@@ -1,4 +1,8 @@
 import { Contract } from '@ethersproject/contracts';
+import type {
+  ExternalProvider,
+  JsonRpcFetchFunc,
+} from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
@@ -46,6 +50,9 @@ import type {
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 
+export const MISSING_PROVIDER_ERROR =
+  'TokensController failed to set the provider correctly. A provider must be set for this method to be available';
+
 /**
  * @type TokensConfig
  *
@@ -58,9 +65,7 @@ import type { Token } from './TokenRatesController';
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  provider: any;
+  provider: ExternalProvider | JsonRpcFetchFunc | undefined;
 }
 
 /**
@@ -681,9 +686,7 @@ export class TokensController extends BaseControllerV1<
     );
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error) {
       // currently we see a variety of errors across different networks when
       // token contracts are not ERC721 compatible. We need to figure out a better
       // way of differentiating token interface types but for now if we get an error
@@ -693,11 +696,17 @@ export class TokensController extends BaseControllerV1<
   }
 
   _getProvider(networkClientId?: NetworkClientId): Web3Provider {
-    return new Web3Provider(
-      networkClientId
-        ? this.getNetworkClientById(networkClientId).provider
-        : this.config?.provider,
-    );
+    const provider = networkClientId
+      ? (this.getNetworkClientById(networkClientId).provider as unknown as
+          | ExternalProvider
+          | JsonRpcFetchFunc)
+      : this.config?.provider;
+
+    if (provider === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
+
+    return new Web3Provider(provider);
   }
 
   _createEthersContract(

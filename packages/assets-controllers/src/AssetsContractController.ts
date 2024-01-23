@@ -1,4 +1,8 @@
 import { Contract } from '@ethersproject/contracts';
+import type {
+  ExternalProvider,
+  JsonRpcFetchFunc,
+} from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
@@ -62,9 +66,7 @@ export const MISSING_PROVIDER_ERROR =
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AssetsContractConfig extends BaseConfig {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  provider: any;
+  provider: ExternalProvider | JsonRpcFetchFunc | undefined;
   ipfsGateway: string;
   chainId: Hex;
 }
@@ -89,9 +91,7 @@ export class AssetsContractController extends BaseControllerV1<
   AssetsContractConfig,
   BaseState
 > {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _provider?: any;
+  private _provider?: ExternalProvider | JsonRpcFetchFunc;
 
   /**
    * Name of this controller used during composition
@@ -159,9 +159,7 @@ export class AssetsContractController extends BaseControllerV1<
    *
    * @property provider - Provider used to create a new underlying Web3 instance
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  set provider(provider: any) {
+  set provider(provider: ExternalProvider | JsonRpcFetchFunc) {
     this._provider = provider;
   }
 
@@ -177,7 +175,9 @@ export class AssetsContractController extends BaseControllerV1<
    */
   getProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
-      ? this.getNetworkClientById(networkClientId).provider
+      ? (this.getNetworkClientById(networkClientId).provider as unknown as
+          | ExternalProvider
+          | JsonRpcFetchFunc)
       : this._provider;
 
     if (provider === undefined) {
