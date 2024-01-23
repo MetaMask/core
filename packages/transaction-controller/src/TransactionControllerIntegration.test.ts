@@ -128,7 +128,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController).toBeDefined();
     });
 
-    it.only('should resubmit all approved transactions', async () => {
+    it('should resubmit all approved transactions', async () => {
       const clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
