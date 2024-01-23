@@ -129,7 +129,7 @@ describe('TransactionController Integration', () => {
     });
 
     it.only('should resubmit all approved transactions', async () => {
-      const clock = useFakeTimers()
+      const clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -147,91 +147,243 @@ describe('TransactionController Integration', () => {
         ],
       });
 
-      const { transactionController } = await newController({state: {
-        transactions: [
+      mockNetwork({
+        networkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
           {
-            actionId: undefined,
-            chainId: '0x5',
-            dappSuggestedGasFees: undefined,
-            deviceConfirmedOn: undefined,
-            id: '13814001-1dd2-11b2-bb5c-237648d9e586',
-            origin: undefined,
-            securityAlertResponse: undefined,
-            status: 'approved',
-            time: 0,
-            txParams: {
-              from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-              gas: '0x1',
-              nonce: '0x1',
-              to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-              value: '0x0',
-              maxFeePerGas: '0x1',
-              maxPriorityFeePerGas: '0x1'
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
             },
-            userEditedGasLimit: false,
-            verifiedOnBlockchain: false,
-            type: 'contractInteraction',
-            networkClientId: 'goerli',
-            simulationFails: undefined,
-            originalGasEstimate: '0x1',
-            defaultGasEstimates: {
-              gas: '0x1',
-              maxFeePerGas: '0x1',
-              maxPriorityFeePerGas: '0x1',
-              gasPrice: undefined,
-              estimateType: 'dappSuggested'
+            response: {
+              result: '0x1',
             },
-            userFeeLevel: 'dappSuggested',
-            sendFlowHistory: [],
-            history: [],
-            rawTx: '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080'
           },
+          // publishTransaction
           {
-            actionId: undefined,
-            chainId: '0xaa36a7',
-            dappSuggestedGasFees: undefined,
-            deviceConfirmedOn: undefined,
-            id: '13814002-1dd2-11b2-bb5c-237648d9e586',
-            origin: 'test',
-            securityAlertResponse: undefined,
-            status: 'signed',
-            time: 0,
-            txParams: {
-              from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-              gas: '0x1',
-              nonce: '0x1',
-              to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-              value: '0x0',
-              maxFeePerGas: '0x1',
-              maxPriorityFeePerGas: '0x1'
+            request: {
+              method: 'eth_sendRawTransaction',
+              params: [
+                '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              ],
             },
-            userEditedGasLimit: false,
-            verifiedOnBlockchain: false,
-            type: 'contractInteraction',
-            networkClientId: 'sepolia',
-            simulationFails: undefined,
-            originalGasEstimate: '0x1',
-            defaultGasEstimates: {
-              gas: '0x1',
-              maxFeePerGas: '0x1',
-              maxPriorityFeePerGas: '0x1',
-              gasPrice: undefined,
-              estimateType: 'dappSuggested'
+            response: {
+              result: '0x1',
             },
-            userFeeLevel: 'dappSuggested',
-            sendFlowHistory: [],
-            history: [],
-            rawTx: '0x02e383aa36a7010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080'
-          }
+          },
         ],
-      }});
-      await advanceTime({clock, duration: 1})
-      await advanceTime({clock, duration: 1})
-      await advanceTime({clock, duration: 1})
+      });
 
-      expect(transactionController.state.transactions.length).toBe(2)
-      expect(transactionController.state.transactions[0].status).toBe('submitted')
-      expect(transactionController.state.transactions[1].status).toBe('submitted')
+      // TODO(JL): Update this to sepolia config when merged from Shane's branch
+      mockNetwork({
+        networkClientConfiguration: {
+          type: NetworkClientType.Infura,
+          network: NetworkType.sepolia,
+          chainId: BUILT_IN_NETWORKS[NetworkType.sepolia].chainId,
+          infuraProjectId,
+          ticker: BUILT_IN_NETWORKS[NetworkType.sepolia].ticker,
+        },
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // publishTransaction
+          {
+            request: {
+              method: 'eth_sendRawTransaction',
+              params: [
+                '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              ],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      const { transactionController } = await newController({
+        state: {
+          transactions: [
+            {
+              actionId: undefined,
+              chainId: '0x5',
+              dappSuggestedGasFees: undefined,
+              deviceConfirmedOn: undefined,
+              id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
+              origin: undefined,
+              securityAlertResponse: undefined,
+              status: 'approved',
+              time: 1706039113766,
+              txParams: {
+                from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                gas: '0x5208',
+                nonce: '0x1',
+                to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                value: '0x0',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+              },
+              userEditedGasLimit: false,
+              verifiedOnBlockchain: false,
+              type: 'simpleSend',
+              networkClientId: 'goerli',
+              simulationFails: undefined,
+              originalGasEstimate: '0x5208',
+              defaultGasEstimates: {
+                gas: '0x5208',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+                gasPrice: undefined,
+                estimateType: 'dappSuggested',
+              },
+              userFeeLevel: 'dappSuggested',
+              sendFlowHistory: [],
+              history: [
+                {
+                  chainId: '0x5',
+                  id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
+                  status: 'unapproved',
+                  time: 1706039113766,
+                  txParams: {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                  },
+                  userEditedGasLimit: false,
+                  verifiedOnBlockchain: false,
+                  type: 'simpleSend',
+                  networkClientId: 'goerli',
+                  originalGasEstimate: '0x5208',
+                  defaultGasEstimates: {
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                    estimateType: 'dappSuggested',
+                  },
+                  userFeeLevel: 'dappSuggested',
+                  sendFlowHistory: [],
+                },
+                [
+                  {
+                    op: 'add',
+                    path: '/txParams/nonce',
+                    value: '0x1',
+                    note: 'TransactionController#approveTransaction - Transaction approved',
+                    timestamp: 1706039113767,
+                  },
+                  {
+                    op: 'replace',
+                    path: '/status',
+                    value: 'approved',
+                  },
+                ],
+              ],
+            },
+            {
+              actionId: undefined,
+              chainId: '0xaa36a7',
+              dappSuggestedGasFees: undefined,
+              deviceConfirmedOn: undefined,
+              id: 'c4cc0ff0-ba28-11ee-926f-55a7f9c2c2c6',
+              origin: undefined,
+              securityAlertResponse: undefined,
+              status: 'approved',
+              time: 1706039113766,
+              txParams: {
+                from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                gas: '0x5208',
+                nonce: '0x1',
+                to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                value: '0x0',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+              },
+              userEditedGasLimit: false,
+              verifiedOnBlockchain: false,
+              type: 'simpleSend',
+              networkClientId: 'sepolia',
+              simulationFails: undefined,
+              originalGasEstimate: '0x5208',
+              defaultGasEstimates: {
+                gas: '0x5208',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+                gasPrice: undefined,
+                estimateType: 'dappSuggested',
+              },
+              userFeeLevel: 'dappSuggested',
+              sendFlowHistory: [],
+              history: [
+                {
+                  chainId: '0xaa36a7',
+                  id: 'c4cc0ff0-ba28-11ee-926f-55a7f9c2c2c6',
+                  status: 'unapproved',
+                  time: 1706039113766,
+                  txParams: {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                  },
+                  userEditedGasLimit: false,
+                  verifiedOnBlockchain: false,
+                  type: 'simpleSend',
+                  networkClientId: 'sepolia',
+                  originalGasEstimate: '0x5208',
+                  defaultGasEstimates: {
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                    estimateType: 'dappSuggested',
+                  },
+                  userFeeLevel: 'dappSuggested',
+                  sendFlowHistory: [],
+                },
+                [
+                  {
+                    op: 'add',
+                    path: '/txParams/nonce',
+                    value: '0x1',
+                    note: 'TransactionController#approveTransaction - Transaction approved',
+                    timestamp: 1706039113767,
+                  },
+                  {
+                    op: 'replace',
+                    path: '/status',
+                    value: 'approved',
+                  },
+                ],
+              ],
+            },
+          ],
+        },
+      });
+      await advanceTime({ clock, duration: 1 });
+
+      expect(transactionController.state.transactions).toHaveLength(2);
+      expect(transactionController.state.transactions[0].status).toBe(
+        'submitted',
+      );
+      expect(transactionController.state.transactions[1].status).toBe(
+        'submitted',
+      );
+      clock.restore();
     });
   });
   describe('multichain transaction lifecycle', () => {
