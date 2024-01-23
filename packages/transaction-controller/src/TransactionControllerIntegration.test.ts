@@ -53,7 +53,7 @@ const mainnetNetworkClientConfiguration = {
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const newController = async (options: any) => {
+const newController = async (options: any = {}) => {
   const messenger = new ControllerMessenger();
   const networkController = new NetworkController({
     messenger: messenger.getRestricted({ name: 'NetworkController' }),
@@ -74,31 +74,37 @@ const newController = async (options: any) => {
     typesExcludedFromRateLimiting: [ApprovalType.Transaction],
   });
 
-  const opts = {
-    provider,
-    blockTracker,
-    messenger,
-    onNetworkStateChange: () => {
-      // noop
+  const { state, config, ...opts } = options;
+
+  const transactionController = new TransactionController(
+    {
+      provider,
+      blockTracker,
+      messenger,
+      onNetworkStateChange: () => {
+        // noop
+      },
+      getCurrentNetworkEIP1559Compatibility:
+        networkController.getEIP1559Compatibility.bind(networkController),
+      getNetworkClientRegistry:
+        networkController.getNetworkClientRegistry.bind(networkController),
+      findNetworkClientIdByChainId:
+        networkController.findNetworkClientIdByChainId.bind(networkController),
+      getNetworkClientById:
+        networkController.getNetworkClientById.bind(networkController),
+      getNetworkState: () => networkController.state,
+      getSelectedAddress: () => '0xdeadbeef',
+      getPermittedAccounts: () => [ACCOUNT_MOCK],
+      ...opts,
     },
-    getCurrentNetworkEIP1559Compatibility:
-      networkController.getEIP1559Compatibility.bind(networkController),
-    getNetworkClientRegistry:
-      networkController.getNetworkClientRegistry.bind(networkController),
-    findNetworkClientIdByChainId:
-      networkController.findNetworkClientIdByChainId.bind(networkController),
-    getNetworkClientById:
-      networkController.getNetworkClientById.bind(networkController),
-    getNetworkState: () => networkController.state,
-    getSelectedAddress: () => '0xdeadbeef',
-    getPermittedAccounts: () => [ACCOUNT_MOCK],
-    ...options,
-  };
-  const transactionController = new TransactionController(opts, {
-    // TODO(JL): fix this type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sign: async (transaction: any) => transaction,
-  });
+    {
+      // TODO(JL): fix this type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sign: async (transaction: any) => transaction,
+      ...config,
+    },
+    state,
+  );
 
   return {
     transactionController,
@@ -129,6 +135,257 @@ describe('TransactionController Integration', () => {
       const { transactionController } = await newController({});
       transactionController.stopTrackingByNetworkClientId('goerli');
       expect(transactionController).toBeDefined();
+    });
+
+    it('should submit all approved transactions in state when the controller is constructed', async () => {
+      const clock = useFakeTimers();
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      mockNetwork({
+        networkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // publishTransaction
+          {
+            request: {
+              method: 'eth_sendRawTransaction',
+              params: [
+                '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              ],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      mockNetwork({
+        networkClientConfiguration: sepoliaNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // publishTransaction
+          {
+            request: {
+              method: 'eth_sendRawTransaction',
+              params: [
+                '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              ],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      const { transactionController } = await newController({
+        state: {
+          transactions: [
+            {
+              actionId: undefined,
+              chainId: '0x5',
+              dappSuggestedGasFees: undefined,
+              deviceConfirmedOn: undefined,
+              id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
+              origin: undefined,
+              securityAlertResponse: undefined,
+              status: 'approved',
+              time: 1706039113766,
+              txParams: {
+                from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                gas: '0x5208',
+                nonce: '0x1',
+                to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                value: '0x0',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+              },
+              userEditedGasLimit: false,
+              verifiedOnBlockchain: false,
+              type: 'simpleSend',
+              networkClientId: 'goerli',
+              simulationFails: undefined,
+              originalGasEstimate: '0x5208',
+              defaultGasEstimates: {
+                gas: '0x5208',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+                gasPrice: undefined,
+                estimateType: 'dappSuggested',
+              },
+              userFeeLevel: 'dappSuggested',
+              sendFlowHistory: [],
+              history: [
+                {
+                  chainId: '0x5',
+                  id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
+                  status: 'unapproved',
+                  time: 1706039113766,
+                  txParams: {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                  },
+                  userEditedGasLimit: false,
+                  verifiedOnBlockchain: false,
+                  type: 'simpleSend',
+                  networkClientId: 'goerli',
+                  originalGasEstimate: '0x5208',
+                  defaultGasEstimates: {
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                    estimateType: 'dappSuggested',
+                  },
+                  userFeeLevel: 'dappSuggested',
+                  sendFlowHistory: [],
+                },
+                [
+                  {
+                    op: 'add',
+                    path: '/txParams/nonce',
+                    value: '0x1',
+                    note: 'TransactionController#approveTransaction - Transaction approved',
+                    timestamp: 1706039113767,
+                  },
+                  {
+                    op: 'replace',
+                    path: '/status',
+                    value: 'approved',
+                  },
+                ],
+              ],
+            },
+            {
+              actionId: undefined,
+              chainId: '0xaa36a7',
+              dappSuggestedGasFees: undefined,
+              deviceConfirmedOn: undefined,
+              id: 'c4cc0ff0-ba28-11ee-926f-55a7f9c2c2c6',
+              origin: undefined,
+              securityAlertResponse: undefined,
+              status: 'approved',
+              time: 1706039113766,
+              txParams: {
+                from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                gas: '0x5208',
+                nonce: '0x1',
+                to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                value: '0x0',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+              },
+              userEditedGasLimit: false,
+              verifiedOnBlockchain: false,
+              type: 'simpleSend',
+              networkClientId: 'sepolia',
+              simulationFails: undefined,
+              originalGasEstimate: '0x5208',
+              defaultGasEstimates: {
+                gas: '0x5208',
+                maxFeePerGas: '0x1',
+                maxPriorityFeePerGas: '0x1',
+                gasPrice: undefined,
+                estimateType: 'dappSuggested',
+              },
+              userFeeLevel: 'dappSuggested',
+              sendFlowHistory: [],
+              history: [
+                {
+                  chainId: '0xaa36a7',
+                  id: 'c4cc0ff0-ba28-11ee-926f-55a7f9c2c2c6',
+                  status: 'unapproved',
+                  time: 1706039113766,
+                  txParams: {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                  },
+                  userEditedGasLimit: false,
+                  verifiedOnBlockchain: false,
+                  type: 'simpleSend',
+                  networkClientId: 'sepolia',
+                  originalGasEstimate: '0x5208',
+                  defaultGasEstimates: {
+                    gas: '0x5208',
+                    maxFeePerGas: '0x1',
+                    maxPriorityFeePerGas: '0x1',
+                    estimateType: 'dappSuggested',
+                  },
+                  userFeeLevel: 'dappSuggested',
+                  sendFlowHistory: [],
+                },
+                [
+                  {
+                    op: 'add',
+                    path: '/txParams/nonce',
+                    value: '0x1',
+                    note: 'TransactionController#approveTransaction - Transaction approved',
+                    timestamp: 1706039113767,
+                  },
+                  {
+                    op: 'replace',
+                    path: '/status',
+                    value: 'approved',
+                  },
+                ],
+              ],
+            },
+          ],
+        },
+      });
+      await advanceTime({ clock, duration: 1 });
+
+      expect(transactionController.state.transactions).toHaveLength(2);
+      expect(transactionController.state.transactions[0].status).toBe(
+        'submitted',
+      );
+      expect(transactionController.state.transactions[1].status).toBe(
+        'submitted',
+      );
+      clock.restore();
     });
   });
   describe('multichain transaction lifecycle', () => {
@@ -1643,6 +1900,15 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
                 method: 'eth_sendRawTransaction',
                 params: [
                   '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -1667,23 +1933,6 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
-        const { approvalController, networkController, transactionController } =
-          await newController({
-            getPermittedAccounts: () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
-          });
-        const otherNetworkClientIdOnGoerli =
-          await networkController.upsertNetworkConfiguration(
-            {
-              rpcUrl: 'https://mock.rpc.url',
-              chainId: networkClientConfiguration.chainId,
-              ticker: networkClientConfiguration.ticker,
-            },
-            {
-              referrer: 'https://mock.referrer',
-              source: 'dapp',
-            },
-          );
 
         mockNetwork({
           networkClientConfiguration: {
@@ -1780,6 +2029,15 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
                 method: 'eth_sendRawTransaction',
                 params: [
                   '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
@@ -1804,6 +2062,24 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
+
+        const { approvalController, networkController, transactionController } =
+          await newController({
+            getPermittedAccounts: () => [ACCOUNT_MOCK],
+            getSelectedAddress: () => ACCOUNT_MOCK,
+          });
+        const otherNetworkClientIdOnGoerli =
+          await networkController.upsertNetworkConfiguration(
+            {
+              rpcUrl: 'https://mock.rpc.url',
+              chainId: networkClientConfiguration.chainId,
+              ticker: networkClientConfiguration.ticker,
+            },
+            {
+              referrer: 'https://mock.referrer',
+              source: 'dapp',
+            },
+          );
 
         const addTx1 = await transactionController.addTransaction(
           {
