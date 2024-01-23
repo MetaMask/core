@@ -2945,7 +2945,6 @@ __metadata:
     "@metamask/approval-controller": ^5.1.1
     "@metamask/gas-fee-controller": ^12.0.0
     "@metamask/network-controller": ^17.1.0
-    "@metamask/polling-controller": ^4.0.0
     "@metamask/transaction-controller": ^20.0.0
   languageName: unknown
   linkType: soft
