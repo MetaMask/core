@@ -157,8 +157,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  '0x', // non contract
+                result: '0x', // non contract
               },
             },
             // getSuggestedGasFees
@@ -249,8 +248,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  '0x' // non contract
+                result: '0x', // non contract
               },
             },
             // estimateGas
@@ -378,8 +376,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  '0x' // non contract
+                result: '0x', // non contract
               },
             },
             // estimateGas
@@ -547,8 +544,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  '0x' // non contract
+                result: '0x', // non contract
               },
             },
             // estimateGas
@@ -750,8 +746,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  '0x' // non contract
+                result: '0x', // non contract
               },
             },
             // estimateGas
@@ -979,8 +974,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  '0x' // non contract
+                result: '0x', // non contract
               },
             },
             // estimateGas
