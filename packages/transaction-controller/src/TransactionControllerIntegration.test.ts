@@ -1,6 +1,10 @@
 import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { ApprovalType, BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  BUILT_IN_NETWORKS,
+  NetworkType,
+} from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkClientType,
@@ -41,7 +45,7 @@ const mainnetNetworkClientConfiguration = {
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const newController = async (options: any) => {
+const newController = async (options: any = {}) => {
   const messenger = new ControllerMessenger();
   const networkController = new NetworkController({
     messenger: messenger.getRestricted({ name: 'NetworkController' }),
@@ -59,35 +63,39 @@ const newController = async (options: any) => {
       name: 'ApprovalController',
     }),
     showApprovalRequest: jest.fn(),
-    typesExcludedFromRateLimiting: [
-      ApprovalType.Transaction,
-    ]
+    typesExcludedFromRateLimiting: [ApprovalType.Transaction],
   });
 
-  const opts = {
-    provider,
-    blockTracker,
-    messenger,
-    onNetworkStateChange: () => {
-      // noop
+  const { state, config, ...opts } = options;
+
+  const transactionController = new TransactionController(
+    {
+      provider,
+      blockTracker,
+      messenger,
+      onNetworkStateChange: () => {
+        // noop
+      },
+      getCurrentNetworkEIP1559Compatibility:
+        networkController.getEIP1559Compatibility.bind(networkController),
+      getNetworkClientRegistry:
+        networkController.getNetworkClientRegistry.bind(networkController),
+      findNetworkClientIdByChainId:
+        networkController.findNetworkClientIdByChainId.bind(networkController),
+      getNetworkClientById:
+        networkController.getNetworkClientById.bind(networkController),
+      getNetworkState: () => networkController.state,
+      getSelectedAddress: () => '0xdeadbeef',
+      ...opts,
     },
-    getCurrentNetworkEIP1559Compatibility:
-      networkController.getEIP1559Compatibility.bind(networkController),
-    getNetworkClientRegistry:
-      networkController.getNetworkClientRegistry.bind(networkController),
-    findNetworkClientIdByChainId:
-      networkController.findNetworkClientIdByChainId.bind(networkController),
-    getNetworkClientById:
-      networkController.getNetworkClientById.bind(networkController),
-    getNetworkState: () => networkController.state,
-    getSelectedAddress: () => '0xdeadbeef',
-    ...options,
-  };
-  const transactionController = new TransactionController(opts, {
-    // TODO(JL): fix this type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sign: async (transaction: any) => transaction,
-  });
+    {
+      // TODO(JL): fix this type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sign: async (transaction: any) => transaction,
+      ...config,
+    },
+    state,
+  );
 
   return {
     transactionController,
