@@ -185,15 +185,8 @@ describe('TransactionController Integration', () => {
         ],
       });
 
-      // TODO(JL): Update this to sepolia config when merged from Shane's branch
       mockNetwork({
-        networkClientConfiguration: {
-          type: NetworkClientType.Infura,
-          network: NetworkType.sepolia,
-          chainId: BUILT_IN_NETWORKS[NetworkType.sepolia].chainId,
-          infuraProjectId,
-          ticker: BUILT_IN_NETWORKS[NetworkType.sepolia].ticker,
-        },
+        networkClientConfiguration: sepoliaNetworkClientConfiguration,
         mocks: [
           // NetworkController
           // BlockTracker
