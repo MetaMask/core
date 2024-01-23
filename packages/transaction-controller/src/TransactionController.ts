@@ -638,6 +638,13 @@ export class TransactionController extends BaseControllerV1<
     this.#initTrackingMap();
   }
 
+  /**
+   * Stops polling and removes listeners to prepare the controller for garbage collection.
+   */
+  destroy() {
+    this.#stopAllTracking();
+  }
+
   #refreshTrackingMap = () => {
     const networkClients = this.getNetworkClientRegistry();
     const networkClientIds = Object.keys(networkClients);
@@ -1298,6 +1305,18 @@ export class TransactionController extends BaseControllerV1<
       trackers.pendingTransactionTracker.stop();
     }
     this.trackingMap.delete(networkClientId);
+  }
+
+  #stopAllTracking() {
+    this.pendingTransactionTracker.stop();
+    this.removePendingTransactionTrackerListeners();
+    this.incomingTransactionHelper.stop();
+    this.removeIncomingTransactionHelperListeners();
+    this.pendingTransactionTracker.stop();
+
+    for (const [networkClientId] of this.trackingMap) {
+      this.stopTrackingByNetworkClientId(networkClientId);
+    }
   }
 
   // NOTE(JL): Should this be private?
