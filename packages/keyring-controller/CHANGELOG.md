@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.2.0]
+### Added
+- Add `getDefaultKeyringState` function ([#3799](https://github.com/MetaMask/core/pull/3799))
+
+### Changed
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/message-manager` to `^7.3.8` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+### Removed
+- Remove `peerDependency` and `devDependency` upon `@metamask/preferences-controller` ([#3799](https://github.com/MetaMask/core/pull/3799))
+  - This dependency was just used to access the types of four methods. Those types are now inlined instead.
+
 ## [12.1.0]
 ### Added
 - Add methods to support ERC-4337 accounts ([#3602](https://github.com/MetaMask/core/pull/3602))
@@ -268,7 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.1.0...@metamask/keyring-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.0.0...@metamask/keyring-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@11.0.0...@metamask/keyring-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@10.0.0...@metamask/keyring-controller@11.0.0

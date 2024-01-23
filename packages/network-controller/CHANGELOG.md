@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.2.0]
+### Changed
+- The `setActiveNetwork` method and action now supports built-in network types ([#3764](https://github.com/MetaMask/core/pull/3764))
+  - Previously this would only accept a network configuration ID. Now it will accept the type of a built-in network as well, using it like an ID. This lets you switch to a built-in or custom network with a single method/action.
+- Deprecate the `setProviderType` method and action ([#3764](https://github.com/MetaMask/core/pull/3764))
+  - Use `setActiveNetwork` instead
+- Bump `@metamask/swappable-obj-proxy` to `^2.2.0` ([#3784](https://github.com/MetaMask/core/pull/3784))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/eth-json-rpc-provider` to `^2.3.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/json-rpc-engine` to `^7.3.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
 ## [17.1.0]
 ### Added
 - Add `getNetworkConfigurationByNetworkClientId` method which can be used to retrieve details for both custom and built-in networks (using the network configuration object shape) ([#2055](https://github.com/MetaMask/core/pull/2055))
@@ -330,7 +343,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.0...HEAD
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...@metamask/network-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...@metamask/network-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@16.0.0...@metamask/network-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.2.0...@metamask/network-controller@16.0.0

@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/approval-controller` peer dependency to `^5.1.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/json-rpc-engine` to `^7.3.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
 ## [7.1.0]
 ### Added
 - Add `SubjectMetadataController:addSubjectMetadata` action ([#3733](https://github.com/MetaMask/core/pull/3733))
@@ -127,7 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...@metamask/permission-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.0.0...@metamask/permission-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@6.0.0...@metamask/permission-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@5.0.1...@metamask/permission-controller@6.0.0
