@@ -127,8 +127,8 @@ describe('TransactionController Integration', () => {
         ],
       });
       const { transactionController } = await newController({});
-      transactionController.stopTrackingByNetworkClientId('goerli');
       expect(transactionController).toBeDefined();
+      transactionController.destroy();
     });
   });
   describe('multichain transaction lifecycle', () => {
@@ -195,11 +195,11 @@ describe('TransactionController Integration', () => {
           },
           { networkClientId: 'goerli' },
         );
-        transactionController.stopTrackingByNetworkClientId('goerli');
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
           'unapproved',
         );
+        transactionController.destroy();
       });
       it('should be able to get to submitted state', async () => {
         mockNetwork({
@@ -332,11 +332,11 @@ describe('TransactionController Integration', () => {
 
         await result;
 
-        transactionController.stopTrackingByNetworkClientId('goerli');
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
           'submitted',
         );
+        transactionController.destroy();
       });
       it('should be able to get to confirmed state', async () => {
         const clock = useFakeTimers();
@@ -505,7 +505,7 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[0].status).toBe(
           'confirmed',
         );
-        transactionController.stopTrackingByNetworkClientId('goerli');
+        transactionController.destroy();
         clock.restore();
       });
       it('should be able to send and confirm transactions on different chains', async () => {
@@ -840,8 +840,7 @@ describe('TransactionController Integration', () => {
         expect(
           transactionController.state.transactions[1].networkClientId,
         ).toBe('goerli');
-        transactionController.stopTrackingByNetworkClientId('goerli');
-        transactionController.stopTrackingByNetworkClientId('sepolia');
+        transactionController.destroy();
         clock.restore();
       });
       it('should be able to cancel a transaction', async () => {
@@ -1038,12 +1037,12 @@ describe('TransactionController Integration', () => {
         await result;
 
         await transactionController.stopTransaction(transactionMeta.id);
-        transactionController.stopTrackingByNetworkClientId('goerli');
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[1].status).toBe(
           'submitted',
         );
+        transactionController.destroy();
       });
       it('should be able to confirm a cancelled transaction', async () => {
         const clock = useFakeTimers();
@@ -1270,7 +1269,7 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
-        transactionController.stopTrackingByNetworkClientId('goerli');
+        transactionController.destroy();
         clock.restore();
       });
       it('should be able to get to speedup state', async () => {
@@ -1506,7 +1505,7 @@ describe('TransactionController Integration', () => {
             transactionController.state.transactions[1].txParams.maxFeePerGas,
           ),
         ).toBeGreaterThan(Number(baseFee));
-        transactionController.stopTrackingByNetworkClientId('goerli');
+        transactionController.destroy();
         clock.restore();
       });
     });
@@ -1830,15 +1829,12 @@ describe('TransactionController Integration', () => {
         await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
-        transactionController.stopTrackingByNetworkClientId('goerli');
-        transactionController.stopTrackingByNetworkClientId(
-          otherNetworkClientIdOnGoerli,
-        );
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)
           .sort();
         expect(nonces).toStrictEqual(['0x1', '0x2']);
+        transactionController.destroy();
         clock.restore();
       });
     });
@@ -2070,12 +2066,12 @@ describe('TransactionController Integration', () => {
         await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
-        transactionController.stopTrackingByNetworkClientId('goerli');
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)
           .sort();
         expect(nonces).toStrictEqual(['0x1', '0x2']);
+        transactionController.destroy();
         clock.restore();
       });
     });
@@ -2194,6 +2190,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         expectedLastFetchedBlockNumbers,
       );
+      transactionController.destroy();
       clock.restore();
     });
   });
@@ -2284,6 +2281,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         {},
       );
+      transactionController.destroy();
       clock.restore();
     });
   });
@@ -2374,6 +2372,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         {},
       );
+      transactionController.destroy();
       clock.restore();
     });
   });
@@ -2479,6 +2478,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         expectedLastFetchedBlockNumbers,
       );
+      transactionController.destroy();
       clock.restore();
     });
   });
@@ -2555,6 +2555,7 @@ describe('TransactionController Integration', () => {
         );
         expect(nonceLock.nextNonce).toBe(10);
       }
+      transactionController.destroy();
     });
 
     it('should block other attempts to get the nonce lock from the nonceTracker until the first one is released for the given networkClientId', async () => {
@@ -2652,6 +2653,7 @@ describe('TransactionController Integration', () => {
         ]);
         expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
       }
+      transactionController.destroy();
     });
 
     it('should get the nonce lock from the globally selected nonceTracker if no networkClientId is provided', async () => {
@@ -2686,6 +2688,7 @@ describe('TransactionController Integration', () => {
 
       const nonceLock = await transactionController.getNonceLock(ACCOUNT_MOCK);
       expect(nonceLock.nextNonce).toBe(10);
+      transactionController.destroy();
     });
 
     it('should block other attempts to get the nonce lock from the globally selected nonceTracker until the first one is released if no networkClientId is provided', async () => {
@@ -2743,6 +2746,7 @@ describe('TransactionController Integration', () => {
         delay(),
       ]);
       expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
+      transactionController.destroy();
     });
   });
 });
