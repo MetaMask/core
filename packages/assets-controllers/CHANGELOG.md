@@ -5,12 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Remove usage of deprecated `setProviderType` ([#3807](https://github.com/MetaMask/core/pull/3807))
+
+## [25.0.0]
+### Added
 - Add Linea to price api supported chains ([#3797](https://github.com/MetaMask/core/pull/3797))
-- feat: migrate token balances controller to base controller v2 ([#3750](https://github.com/MetaMask/core/pull/3750))
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+### Changed
+- **BREAKING:** Convert `TokenBalancesController` to `BaseControllerV2` ([#3750](https://github.com/MetaMask/core/pull/3750))
+  - The constructor parameters have changed; rather than accepting a "config" parameter for interval and tokens we now pass both values as controller options, and a "state" parameter, there is now just a single object for all constructor arguments. This object has a mandatory `messenger` and an optional `state`, `tokens`, `interval`  properties a disabled property has also been added.
+  - State now saves tokens  balances as strings and not as a BNs.
+  - Additional BN export has been removed as it was intended to be removed in the next major release.
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [24.0.0]
 ### Added
@@ -537,7 +543,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...@metamask/assets-controllers@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.0.0...@metamask/assets-controllers@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@22.0.0...@metamask/assets-controllers@23.0.0

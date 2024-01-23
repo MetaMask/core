@@ -5,9 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+## [7.1.1]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [7.1.0]
 ### Added
@@ -130,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.1...HEAD
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...@metamask/permission-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.0.0...@metamask/permission-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@6.0.0...@metamask/permission-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@5.0.1...@metamask/permission-controller@6.0.0

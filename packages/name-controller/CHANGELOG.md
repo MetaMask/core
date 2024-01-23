@@ -5,8 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- Add expire limit for proposed names ([#3748](https://github.com/MetaMask/core/pull/3748))
+
+## [5.0.0]
+### Changed
+- **BREAKING:** Add expire limit for proposed names ([#3748](https://github.com/MetaMask/core/pull/3748))
+  - Expired names now get removed on every call to `updateProposedNames`
 
 ## [4.2.0]
 ### Added
@@ -57,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.2.0...@metamask/name-controller@5.0.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.1.0...@metamask/name-controller@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.0.1...@metamask/name-controller@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.0.0...@metamask/name-controller@4.0.1

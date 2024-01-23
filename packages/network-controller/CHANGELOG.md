@@ -5,13 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Remove duplicated code in `setProviderType` ([#3813](https://github.com/MetaMask/core/pull/3813))
-- chore(network-controller): Remove unused internal variable ([#3811](https://github.com/MetaMask/core/pull/3811))
-- update swappable-obj-proxy to 2.2.0 ([#3784](https://github.com/MetaMask/core/pull/3784))
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- refactor(network-controller): Consolidate `setActiveNetwork` and `setProviderType` ([#3764](https://github.com/MetaMask/core/pull/3764))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+## [17.2.0]
+### Changed
+- The `setActiveNetwork` method and action now supports built-in network types ([#3764](https://github.com/MetaMask/core/pull/3764))
+  - Previously this would only accept a network configuration ID. Now it will accept the type of a built-in network as well, using it like an ID. This lets you switch to a built-in or custom network with a single method/action.
+- Deprecate the `setProviderType` method and action ([#3764](https://github.com/MetaMask/core/pull/3764))
+  - Use `setActiveNetwork` instead
+- Bump `@metamask/swappable-obj-proxy` to `^2.2.0` ([#3784](https://github.com/MetaMask/core/pull/3784))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [17.1.0]
 ### Added
@@ -337,7 +340,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.0...HEAD
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...@metamask/network-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...@metamask/network-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@16.0.0...@metamask/network-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.2.0...@metamask/network-controller@16.0.0

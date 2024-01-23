@@ -5,9 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+## [12.0.1]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
+
 
 ## [12.0.0]
 ### Changed
@@ -147,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@12.0.0...@metamask/gas-fee-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@11.0.0...@metamask/gas-fee-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@10.0.1...@metamask/gas-fee-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@10.0.0...@metamask/gas-fee-controller@10.0.1

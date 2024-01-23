@@ -5,9 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- feat: Keep `PreferencesController` in sync with keyring state ([#3799](https://github.com/MetaMask/core/pull/3799))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+## [7.0.0]
+### Changed
+- **BREAKING:** Keep `PreferencesController` state synchronized with `KeyringController` state ([#3799](https://github.com/MetaMask/core/pull/3799))
+  - The `KeyringController:stateChange` event is now required by the `PreferencesController` messenger, which is a breaking change.
+  - The package `@metamask/keyring-controller` has been added as a `peerDependency` and as a `devDependency`, which is a breaking change.
+  - Previously the state was synchronized manually by calling `syncIdentities` or  `updateIdentities`. Calling these methods is no longer required.
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [6.0.0]
 ### Added
@@ -109,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@6.0.0...@metamask/preferences-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.1...@metamask/preferences-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.0...@metamask/preferences-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.3...@metamask/preferences-controller@5.0.0

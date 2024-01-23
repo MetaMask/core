@@ -5,9 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+## [7.3.8]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [7.3.7]
 ### Changed
@@ -142,7 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.8...HEAD
+[7.3.8]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.7...@metamask/message-manager@7.3.8
 [7.3.7]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.6...@metamask/message-manager@7.3.7
 [7.3.6]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.5...@metamask/message-manager@7.3.6
 [7.3.5]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.4...@metamask/message-manager@7.3.5

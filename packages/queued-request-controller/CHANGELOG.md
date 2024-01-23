@@ -5,11 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Remove usage of deprecated `setProviderType` ([#3807](https://github.com/MetaMask/core/pull/3807))
-- update swappable-obj-proxy to 2.2.0 ([#3784](https://github.com/MetaMask/core/pull/3784))
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+## [0.3.1]
+### Changed
+- The action `NetworkController:setProviderType` is no longer used, so it's no longer required by the `QueuedRequestController` messenger ([#3807](https://github.com/MetaMask/core/pull/3807))
+- Bump `@metamask/swappable-obj-proxy` to `^2.2.0` ([#3784](https://github.com/MetaMask/core/pull/3784))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [0.3.0]
 ### Added
@@ -61,7 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.3.1...HEAD
+[0.3.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.3.0...@metamask/queued-request-controller@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.2.0...@metamask/queued-request-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.4...@metamask/queued-request-controller@0.2.0
 [0.1.4]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.3...@metamask/queued-request-controller@0.1.4

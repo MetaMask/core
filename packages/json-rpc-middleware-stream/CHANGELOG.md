@@ -5,8 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
+
+## [6.0.2]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
 
 ## [6.0.1]
 ### Changed
@@ -68,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.2...HEAD
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.1...@metamask/json-rpc-middleware-stream@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.0...@metamask/json-rpc-middleware-stream@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@5.0.1...@metamask/json-rpc-middleware-stream@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@5.0.0...@metamask/json-rpc-middleware-stream@5.0.1

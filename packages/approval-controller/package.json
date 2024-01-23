@@ -1,6 +1,6 @@
 {
   "name": "@metamask/approval-controller",
-  "version": "5.1.1",
+  "version": "5.1.2",
   "description": "Manages requests that require user approval",
   "keywords": [
     "MetaMask",

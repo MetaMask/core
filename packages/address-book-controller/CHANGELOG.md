@@ -5,9 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
+
+## [3.1.7]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [3.1.6]
 ### Changed
@@ -76,7 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.7...HEAD
+[3.1.7]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.6...@metamask/address-book-controller@3.1.7
 [3.1.6]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.5...@metamask/address-book-controller@3.1.6
 [3.1.5]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.4...@metamask/address-book-controller@3.1.5
 [3.1.4]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.3...@metamask/address-book-controller@3.1.4
