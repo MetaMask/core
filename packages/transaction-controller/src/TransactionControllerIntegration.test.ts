@@ -503,7 +503,7 @@ describe('TransactionController Integration', () => {
         );
         clock.restore();
       });
-      it.only('should be able to send and confirm transactions on different chains', async () => {
+      it('should be able to send and confirm transactions on different chains', async () => {
         const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
