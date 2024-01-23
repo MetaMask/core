@@ -1561,6 +1561,15 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
                 method: 'eth_sendRawTransaction',
                 params: [
                   '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -1585,23 +1594,6 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
-        const { approvalController, networkController, transactionController } =
-          await newController({
-            getPermittedAccounts: () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
-          });
-        const otherNetworkClientIdOnGoerli =
-          await networkController.upsertNetworkConfiguration(
-            {
-              rpcUrl: 'https://mock.rpc.url',
-              chainId: networkClientConfiguration.chainId,
-              ticker: networkClientConfiguration.ticker,
-            },
-            {
-              referrer: 'https://mock.referrer',
-              source: 'dapp',
-            },
-          );
 
         mockNetwork({
           networkClientConfiguration: {
@@ -1698,6 +1690,15 @@ describe('TransactionController Integration', () => {
             },
             {
               request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
                 method: 'eth_sendRawTransaction',
                 params: [
                   '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
@@ -1722,6 +1723,24 @@ describe('TransactionController Integration', () => {
             },
           ],
         });
+
+        const { approvalController, networkController, transactionController } =
+          await newController({
+            getPermittedAccounts: () => [ACCOUNT_MOCK],
+            getSelectedAddress: () => ACCOUNT_MOCK,
+          });
+        const otherNetworkClientIdOnGoerli =
+          await networkController.upsertNetworkConfiguration(
+            {
+              rpcUrl: 'https://mock.rpc.url',
+              chainId: networkClientConfiguration.chainId,
+              ticker: networkClientConfiguration.ticker,
+            },
+            {
+              referrer: 'https://mock.referrer',
+              source: 'dapp',
+            },
+          );
 
         const addTx1 = await transactionController.addTransaction(
           {
