@@ -2332,7 +2332,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@^17.1.0, @metamask/network-controller@^17.2.0, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@^17.2.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -2690,21 +2690,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/selected-network-controller@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "@metamask/selected-network-controller@npm:6.0.0"
-  dependencies:
-    "@metamask/base-controller": ^4.0.1
-    "@metamask/json-rpc-engine": ^7.3.1
-    "@metamask/network-controller": ^17.1.0
-    "@metamask/swappable-obj-proxy": ^2.1.0
-    "@metamask/utils": ^8.2.0
-  peerDependencies:
-    "@metamask/network-controller": ^17.1.0
-  checksum: c16124402f86495aac2a9d3078820b3bb1f71f972fbecb280a2d9f12f3e55caee867acb6ab0c9815ca76e31b1945f3c8a09acb8da77f5e1545163e48ce6e1880
-  languageName: node
-  linkType: hard
-
 "@metamask/signature-controller@workspace:packages/signature-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
@@ -2901,7 +2886,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/swappable-obj-proxy@npm:^2.1.0, @metamask/swappable-obj-proxy@npm:^2.2.0":
+"@metamask/swappable-obj-proxy@npm:^2.2.0":
   version: 2.2.0
   resolution: "@metamask/swappable-obj-proxy@npm:2.2.0"
   checksum: 343c95f72c96776980ef3e70600f7fa312be9a75683c132404a66ddd3c507abadee9c4deba1385246f73bded1938a7958e5a89fc407c19dfc352dd9b398e216f
@@ -2925,7 +2910,7 @@ __metadata:
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^17.2.0
     "@metamask/rpc-errors": ^6.1.0
-    "@metamask/selected-network-controller": ^6.0.0
+    "@metamask/selected-network-controller": ^7.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.54
@@ -2949,7 +2934,7 @@ __metadata:
     "@metamask/approval-controller": ^5.1.2
     "@metamask/gas-fee-controller": ^13.0.0
     "@metamask/network-controller": ^17.2.0
-    "@metamask/selected-network-controller": ^6.0.0
+    "@metamask/selected-network-controller": ^7.0.0
     babel-runtime: ^6.26.0
   languageName: unknown
   linkType: soft
