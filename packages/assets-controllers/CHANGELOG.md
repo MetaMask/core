@@ -15,8 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The constructor parameters have changed; rather than accepting a "config" parameter for interval and tokens we now pass both values as controller options, and a "state" parameter, there is now just a single object for all constructor arguments. This object has a mandatory `messenger` and an optional `state`, `tokens`, `interval`  properties a disabled property has also been added.
   - State now saves tokens  balances as strings and not as a BNs.
   - Additional BN export has been removed as it was intended to be removed in the next major release.
+- **BREAKING:** Bump `@metamask/approval-controller` peer dependency to `^5.1.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^17.2.0` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency to `^7.0.0` ([#3821](https://github.com/MetaMask/core/pull/3821))
 - Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
-- Bump `@metamask/base-controller` to `^4.1.0` ([#3760](https://github.com/MetaMask/core/pull/3760))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2`
 
 ## [24.0.0]
 ### Added

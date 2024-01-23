@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add `getDefaultKeyringState` function ([#3799](https://github.com/MetaMask/core/pull/3799))
 
+### Changed
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/message-manager` to `^7.3.8` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
 ### Removed
 - Remove `peerDependency` and `devDependency` upon `@metamask/preferences-controller` ([#3799](https://github.com/MetaMask/core/pull/3799))
   - This dependency was just used to access the types of four methods. Those types are now inlined instead.
