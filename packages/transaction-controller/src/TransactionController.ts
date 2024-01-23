@@ -18,6 +18,7 @@ import {
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  ChainId,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
@@ -378,6 +379,11 @@ export class TransactionController extends BaseControllerV1<
       pendingTransactionTracker: PendingTransactionTracker;
       incomingTransactionHelper: IncomingTransactionHelper;
     }
+  > = new Map();
+
+  private readonly etherscanRemoteTransactionSourcesMap: Map<
+    Hex,
+    EtherscanRemoteTransactionSource
   > = new Map();
 
   /**
@@ -1318,6 +1324,22 @@ export class TransactionController extends BaseControllerV1<
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
+    if (!chainId) {
+      throw new Error('NetworkClient must have a chainId');
+    }
+
+    if (!this.etherscanRemoteTransactionSourcesMap.has(chainId)) {
+      const etherscanRemoteTransactionSource =
+        new EtherscanRemoteTransactionSource({
+          includeTokenTransfers:
+            this.incomingTransactionOptions.includeTokenTransfers,
+        });
+      this.etherscanRemoteTransactionSourcesMap.set(
+        chainId,
+        etherscanRemoteTransactionSource,
+      );
+    }
+
     if (!this.nonceMutexByChainId.get(chainId)) {
       this.nonceMutexByChainId.set(chainId, new Mutex());
     }
@@ -1338,11 +1360,6 @@ export class TransactionController extends BaseControllerV1<
       ),
     });
 
-    const etherscanRemoteTransactionSource =
-      new EtherscanRemoteTransactionSource({
-        includeTokenTransfers:
-          this.incomingTransactionOptions.includeTokenTransfers,
-      });
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
@@ -1355,7 +1372,10 @@ export class TransactionController extends BaseControllerV1<
       },
       isEnabled: this.incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
-      remoteTransactionSource: etherscanRemoteTransactionSource,
+      remoteTransactionSource:
+        // we know that the map has a value for this chainId because we just set it above
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        this.etherscanRemoteTransactionSourcesMap.get(chainId)!,
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: this.incomingTransactionOptions.updateTransactions,
     });
