@@ -43,7 +43,7 @@
     "@metamask/eth-query": "^4.0.0",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/network-controller": "^17.2.0",
-    "@metamask/polling-controller": "^4.0.1",
+    "@metamask/polling-controller": "^5.0.0",
     "@metamask/preferences-controller": "^7.0.0",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.3.0",
