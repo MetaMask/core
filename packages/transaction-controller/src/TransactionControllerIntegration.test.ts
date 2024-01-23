@@ -505,6 +505,7 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[0].status).toBe(
           'confirmed',
         );
+        transactionController.stopTrackingByNetworkClientId('goerli');
         clock.restore();
       });
       it('should be able to send and confirm transactions on different chains', async () => {
@@ -839,6 +840,8 @@ describe('TransactionController Integration', () => {
         expect(
           transactionController.state.transactions[1].networkClientId,
         ).toBe('sepolia');
+        transactionController.stopTrackingByNetworkClientId('goerli');
+        transactionController.stopTrackingByNetworkClientId('sepolia');
         clock.restore();
       });
       it('should be able to cancel a transaction', async () => {
