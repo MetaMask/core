@@ -1573,6 +1573,8 @@ describe('TransactionController Integration', () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1582,6 +1584,7 @@ describe('TransactionController Integration', () => {
               result: '0x1',
             },
           },
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1643,6 +1646,8 @@ describe('TransactionController Integration', () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1652,6 +1657,7 @@ describe('TransactionController Integration', () => {
               result: '0x1',
             },
           },
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1737,6 +1743,7 @@ describe('TransactionController Integration', () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
           // BlockTracker
           {
             request: {
@@ -1770,6 +1777,7 @@ describe('TransactionController Integration', () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
           // BlockTracker
           {
             request: {
