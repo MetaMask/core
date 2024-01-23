@@ -44,6 +44,8 @@ export class IncomingTransactionHelper {
 
   #updateTransactions: boolean;
 
+  #networkClientId?: string;
+
   constructor({
     blockTracker,
     getCurrentAccount,
@@ -55,6 +57,7 @@ export class IncomingTransactionHelper {
     remoteTransactionSource,
     transactionLimit,
     updateTransactions,
+    networkClientId,
   }: {
     blockTracker: BlockTracker;
     getCurrentAccount: () => string;
@@ -66,6 +69,7 @@ export class IncomingTransactionHelper {
     remoteTransactionSource: RemoteTransactionSource;
     transactionLimit?: number;
     updateTransactions?: boolean;
+    networkClientId?: string;
   }) {
     this.hub = new EventEmitter();
 
@@ -74,6 +78,7 @@ export class IncomingTransactionHelper {
     this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
     this.#getLocalTransactions = getLocalTransactions || (() => []);
     this.#getNetworkState = getNetworkState;
+    this.#networkClientId = networkClientId;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
     this.#queryEntireHistory = queryEntireHistory ?? true;
@@ -101,6 +106,7 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    console.log('start', this.#networkClientId);
     this.#blockTracker.addListener('latest', this.#onLatestBlock);
     this.#isRunning = true;
   }
@@ -111,21 +117,38 @@ export class IncomingTransactionHelper {
   }
 
   async update(latestBlockNumberHex?: Hex): Promise<void> {
-    console.log('latestBlockNumberHex', latestBlockNumberHex);
+    const releaseLock = await this.#mutex.acquire();
+    console.log(
+      'latestBlockNumberHex',
+      latestBlockNumberHex,
+      'this.#networkClientId',
+      this.#networkClientId,
+    );
 
     if (latestBlockNumberHex) {
+      // NOTE: ALD this may not work since we will not update the last fetched block number on the transactionController
+      // in time if there are two concurrent updates fired across two different incomingTransactionHelpers
+
       // check if this latestBlockNumber being processed is higher than last fetched block number
       // if not, return out
       const currentBlockNumberUpdateDec = parseInt(latestBlockNumberHex, 16);
       const lastFetchedBlockNumberDec = this.#getLastFetchedBlockNumberDec();
-      console.log('currentBlockNumberUpdateDec', currentBlockNumberUpdateDec);
-      console.log('lastFetchedBlockNumberDec', lastFetchedBlockNumberDec);
+      console.log(
+        'lastFetchedBlockNumberDec',
+        lastFetchedBlockNumberDec,
+        'this.#networkClientId',
+        this.#networkClientId,
+      );
+      console.log(
+        'currentBlockNumberUpdateDec',
+        currentBlockNumberUpdateDec,
+        'this.#networkClientId',
+        this.#networkClientId,
+      );
       if (lastFetchedBlockNumberDec >= currentBlockNumberUpdateDec) {
         return;
       }
     }
-
-    const releaseLock = await this.#mutex.acquire();
 
     log('Checking for incoming transactions');
 
@@ -146,6 +169,7 @@ export class IncomingTransactionHelper {
 
       let remoteTransactions = [];
 
+      console.log('here');
       try {
         remoteTransactions =
           await this.#remoteTransactionSource.fetchTransactions({
@@ -286,7 +310,10 @@ export class IncomingTransactionHelper {
     }
 
     lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
-
+    console.log(
+      'are we updating lastFetchedBlockNumbers?',
+      lastFetchedBlockNumbers,
+    );
     this.hub.emit('updatedLastFetchedBlockNumbers', {
       lastFetchedBlockNumbers,
       blockNumber: lastFetchedBlockNumber,

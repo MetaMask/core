@@ -380,7 +380,7 @@ export class TransactionController extends BaseControllerV1<
     }
   > = new Map();
 
-  private readonly etherscanRemoteTransactionSourcesMap: Map<
+  readonly etherscanRemoteTransactionSourcesMap: Map<
     Hex,
     EtherscanRemoteTransactionSource
   > = new Map();
@@ -1370,6 +1370,7 @@ export class TransactionController extends BaseControllerV1<
           providerConfig: { chainId } as ProviderConfig,
         } as NetworkState;
       },
+      networkClientId,
       isEnabled: this.incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource:

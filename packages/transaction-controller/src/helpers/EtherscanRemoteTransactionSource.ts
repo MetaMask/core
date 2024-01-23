@@ -63,11 +63,18 @@ export class EtherscanRemoteTransactionSource
       ...request,
       chainId: request.currentChainId,
     };
-
+    console.log(
+      'acquiredTime',
+      acquiredTime,
+      'etherscanRequest',
+      etherscanRequest,
+    );
     try {
       const transactions = this.#isTokenRequestPending
         ? await this.#fetchTokenTransactions(request, etherscanRequest)
         : await this.#fetchNormalTransactions(request, etherscanRequest);
+
+      console.log('transactions:', transactions);
 
       if (this.#includeTokenTransfers) {
         this.#isTokenRequestPending = !this.#isTokenRequestPending;
