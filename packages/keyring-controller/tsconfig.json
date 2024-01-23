@@ -9,9 +9,6 @@
     },
     {
       "path": "../message-manager"
-    },
-    {
-      "path": "../preferences-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]
