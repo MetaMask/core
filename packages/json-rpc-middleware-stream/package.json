@@ -41,7 +41,7 @@
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
-    "extension-port-stream": "^2.0.1",
+    "extension-port-stream": "^3.0.0",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",
