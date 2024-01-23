@@ -827,9 +827,15 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[0].status).toBe(
           'confirmed',
         );
+        expect(
+          transactionController.state.transactions[0].networkClientId,
+        ).toBe('goerli');
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
+        expect(
+          transactionController.state.transactions[1].networkClientId,
+        ).toBe('sepolia');
         clock.restore();
       });
       it('should be able to cancel a transaction', async () => {
