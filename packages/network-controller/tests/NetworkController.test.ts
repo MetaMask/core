@@ -2618,12 +2618,11 @@ describe('NetworkController', () => {
             {
               state: {
                 networkConfigurations: {
-                  testNetworkConfigurationId: {
+                  testNetworkConfigurationId: buildNetworkConfigurationWithId({
                     chainId: toHex(1337),
                     id: 'testNetworkConfigurationId',
                     rpcUrl: 'https://mock-rpc-url',
-                    ticker: 'TEST',
-                  },
+                  }),
                 },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
@@ -2722,12 +2721,11 @@ describe('NetworkController', () => {
             {
               state: {
                 networkConfigurations: {
-                  testNetworkConfigurationId: {
+                  testNetworkConfigurationId: buildNetworkConfigurationWithId({
                     chainId: toHex(1337),
                     id: 'testNetworkConfigurationId',
                     rpcUrl: 'https://mock-rpc-url',
-                    ticker: 'TEST',
-                  },
+                  }),
                 },
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
@@ -5994,6 +5992,9 @@ describe('NetworkController', () => {
                     nickname: 'network',
                     rpcUrl: 'https://mock-rpc-url',
                     ticker: 'TEST',
+                    rpcPrefs: {
+                      blockExplorerUrl: 'https://test-block-explorer.com',
+                    },
                   },
                 },
                 providerConfig: buildProviderConfig({
@@ -6068,7 +6069,9 @@ describe('NetworkController', () => {
               state: {
                 networkConfigurations: {
                   testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    chainId: toHex(1337),
                     id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
                   }),
                 },
                 providerConfig: buildProviderConfig({
@@ -6123,7 +6126,7 @@ describe('NetworkController', () => {
                 messenger,
                 propertyPath: [
                   'networksMetadata',
-                  'https://mock-rpc-url',
+                  'testNetworkConfigurationId',
                   'status',
                 ],
                 // We only care about the first state change, because it
@@ -6152,7 +6155,9 @@ describe('NetworkController', () => {
               state: {
                 networkConfigurations: {
                   testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    chainId: toHex(1337),
                     id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
                   }),
                 },
                 providerConfig: buildProviderConfig({
@@ -6223,7 +6228,9 @@ describe('NetworkController', () => {
               state: {
                 networkConfigurations: {
                   testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    chainId: toHex(1337),
                     id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
                   }),
                 },
                 providerConfig: buildProviderConfig({
@@ -6276,7 +6283,9 @@ describe('NetworkController', () => {
               state: {
                 networkConfigurations: {
                   testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    chainId: toHex(1337),
                     id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
                   }),
                 },
                 providerConfig: buildProviderConfig({
@@ -6331,7 +6340,9 @@ describe('NetworkController', () => {
               state: {
                 networkConfigurations: {
                   testNetworkConfigurationId: buildNetworkConfigurationWithId({
+                    chainId: toHex(1337),
                     id: 'testNetworkConfigurationId',
+                    rpcUrl: 'https://mock-rpc-url',
                   }),
                 },
                 providerConfig: buildProviderConfig({
