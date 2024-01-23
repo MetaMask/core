@@ -833,13 +833,13 @@ describe('TransactionController Integration', () => {
         );
         expect(
           transactionController.state.transactions[0].networkClientId,
-        ).toBe('goerli');
+        ).toBe('sepolia');
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
         expect(
           transactionController.state.transactions[1].networkClientId,
-        ).toBe('sepolia');
+        ).toBe('goerli');
         transactionController.stopTrackingByNetworkClientId('goerli');
         transactionController.stopTrackingByNetworkClientId('sepolia');
         clock.restore();
