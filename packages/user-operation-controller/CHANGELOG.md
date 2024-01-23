@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/message-manager` to `^7.3.8` ([#3821](https://github.com/MetaMask/core/pull/3821))
 - Bump `@metamask/polling-controller` to `^5.0.0` ([#3821](https://github.com/MetaMask/core/pull/3821))
 
+### Removed
+- Remove `@metamask/polling-controller` peer dependency ([#3823](https://github.com/MetaMask/core/pull/3823))
+  - This was mistakenly added as a peer dependency in v1. Now it's a regular dependency.
+
 ## [1.0.0]
 ### Added
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
