@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- refactor: Remove duplicated code in `setProviderType` ([#3813](https://github.com/MetaMask/core/pull/3813))
+- chore(network-controller): Remove unused internal variable ([#3811](https://github.com/MetaMask/core/pull/3811))
+- update swappable-obj-proxy to 2.2.0 ([#3784](https://github.com/MetaMask/core/pull/3784))
+- refactor: Update `@metamask/utils` and use `createDeferredPromise` from utils ([#3769](https://github.com/MetaMask/core/pull/3769))
+- refactor(network-controller): Consolidate `setActiveNetwork` and `setProviderType` ([#3764](https://github.com/MetaMask/core/pull/3764))
+- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [17.1.0]
 ### Added

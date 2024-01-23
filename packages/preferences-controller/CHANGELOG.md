@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- feat: Keep `PreferencesController` in sync with keyring state ([#3799](https://github.com/MetaMask/core/pull/3799))
+- Release 108.0.0 ([#3760](https://github.com/MetaMask/core/pull/3760))
 
 ## [6.0.0]
 ### Added
