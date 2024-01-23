@@ -1170,10 +1170,11 @@ describe('TransactionController Integration', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
       const clock = useFakeTimers();
-      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1183,6 +1184,7 @@ describe('TransactionController Integration', () => {
               result: '0x1',
             },
           },
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1214,7 +1216,7 @@ describe('TransactionController Integration', () => {
         mockNetwork({
           networkClientConfiguration: config,
           mocks: [
-            //  blockTracker on instantiation
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -1224,7 +1226,7 @@ describe('TransactionController Integration', () => {
                 result: '0x1',
               },
             },
-            // blockTracker loop
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -1284,10 +1286,11 @@ describe('TransactionController Integration', () => {
   describe('stopIncomingTransactionPolling', () => {
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
       const clock = useFakeTimers();
-      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1297,13 +1300,14 @@ describe('TransactionController Integration', () => {
               result: '0x1',
             },
           },
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
               params: [],
             },
             response: {
-              result: '0x1',
+              result: '0x2',
             },
           },
         ],
@@ -1325,7 +1329,7 @@ describe('TransactionController Integration', () => {
         mockNetwork({
           networkClientConfiguration: config,
           mocks: [
-            //  blockTracker on instantiation
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -1335,7 +1339,7 @@ describe('TransactionController Integration', () => {
                 result: '0x1',
               },
             },
-            // blockTracker loop
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -1372,10 +1376,11 @@ describe('TransactionController Integration', () => {
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
       const clock = useFakeTimers();
-      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1385,6 +1390,7 @@ describe('TransactionController Integration', () => {
               result: '0x1',
             },
           },
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1413,7 +1419,7 @@ describe('TransactionController Integration', () => {
         mockNetwork({
           networkClientConfiguration: config,
           mocks: [
-            //  blockTracker on instantiation
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -1423,7 +1429,7 @@ describe('TransactionController Integration', () => {
                 result: '0x1',
               },
             },
-            // blockTracker loop
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
@@ -1460,10 +1466,11 @@ describe('TransactionController Integration', () => {
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       const clock = useFakeTimers();
-      // this is needed or the globally selected mainnet PollingBlockTracker makes this test fail
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
+          // NetworkController
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1473,6 +1480,7 @@ describe('TransactionController Integration', () => {
               result: '0x1',
             },
           },
+          // BlockTracker
           {
             request: {
               method: 'eth_blockNumber',
@@ -1504,7 +1512,7 @@ describe('TransactionController Integration', () => {
         mockNetwork({
           networkClientConfiguration: config,
           mocks: [
-            //  blockTracker on instantiation
+            // BlockTracker
             {
               request: {
                 method: 'eth_blockNumber',
