@@ -10,6 +10,7 @@ import {
   NetworkClientType,
 } from '@metamask/network-controller';
 import nock from 'nock';
+import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
@@ -108,6 +109,13 @@ const newController = async (options: any) => {
 };
 
 describe('TransactionController Integration', () => {
+  let clock: SinonFakeTimers | undefined;
+
+  afterEach(() => {
+    clock?.restore();
+    clock = undefined;
+  });
+
   describe('constructor', () => {
     it('should create a new instance of TransactionController', async () => {
       mockNetwork({
@@ -339,7 +347,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to get to confirmed state', async () => {
-        const clock = useFakeTimers();
+        clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -506,10 +514,9 @@ describe('TransactionController Integration', () => {
           'confirmed',
         );
         transactionController.destroy();
-        clock.restore();
       });
       it('should be able to send and confirm transactions on different chains', async () => {
-        const clock = useFakeTimers();
+        clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -841,7 +848,6 @@ describe('TransactionController Integration', () => {
           transactionController.state.transactions[1].networkClientId,
         ).toBe('goerli');
         transactionController.destroy();
-        clock.restore();
       });
       it('should be able to cancel a transaction', async () => {
         mockNetwork({
@@ -1045,7 +1051,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to confirm a cancelled transaction', async () => {
-        const clock = useFakeTimers();
+        clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -1270,10 +1276,9 @@ describe('TransactionController Integration', () => {
           'confirmed',
         );
         transactionController.destroy();
-        clock.restore();
       });
       it('should be able to get to speedup state', async () => {
-        const clock = useFakeTimers();
+        clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -1506,13 +1511,12 @@ describe('TransactionController Integration', () => {
           ),
         ).toBeGreaterThan(Number(baseFee));
         transactionController.destroy();
-        clock.restore();
       });
     });
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        const clock = useFakeTimers();
+        clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -1835,13 +1839,12 @@ describe('TransactionController Integration', () => {
           .sort();
         expect(nonces).toStrictEqual(['0x1', '0x2']);
         transactionController.destroy();
-        clock.restore();
       });
     });
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        const clock = useFakeTimers();
+        clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -2072,7 +2075,6 @@ describe('TransactionController Integration', () => {
           .sort();
         expect(nonces).toStrictEqual(['0x1', '0x2']);
         transactionController.destroy();
-        clock.restore();
       });
     });
   });
@@ -2080,7 +2082,7 @@ describe('TransactionController Integration', () => {
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
-      const clock = useFakeTimers();
+      clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2191,13 +2193,12 @@ describe('TransactionController Integration', () => {
         expectedLastFetchedBlockNumbers,
       );
       transactionController.destroy();
-      clock.restore();
     });
   });
 
   describe('stopIncomingTransactionPolling', () => {
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
-      const clock = useFakeTimers();
+      clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2282,13 +2283,12 @@ describe('TransactionController Integration', () => {
         {},
       );
       transactionController.destroy();
-      clock.restore();
     });
   });
 
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
-      const clock = useFakeTimers();
+      clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2373,13 +2373,12 @@ describe('TransactionController Integration', () => {
         {},
       );
       transactionController.destroy();
-      clock.restore();
     });
   });
 
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
-      const clock = useFakeTimers();
+      clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2479,7 +2478,6 @@ describe('TransactionController Integration', () => {
         expectedLastFetchedBlockNumbers,
       );
       transactionController.destroy();
-      clock.restore();
     });
   });
 
