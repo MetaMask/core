@@ -18,7 +18,6 @@ import {
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
-  ChainId,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';

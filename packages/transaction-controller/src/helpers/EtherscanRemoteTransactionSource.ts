@@ -1,5 +1,6 @@
 import { BNToHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 import { BN } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
 
@@ -33,6 +34,10 @@ export class EtherscanRemoteTransactionSource
 
   #isTokenRequestPending: boolean;
 
+  #mutex = new Mutex();
+
+  API_FETCH_INTERVAL = 5000;
+
   constructor({
     includeTokenTransfers,
   }: { includeTokenTransfers?: boolean } = {}) {
@@ -51,20 +56,35 @@ export class EtherscanRemoteTransactionSource
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
+    const releaseLock = await this.#mutex.acquire();
+    const acquiredTime = Date.now();
+
     const etherscanRequest: EtherscanTransactionRequest = {
       ...request,
       chainId: request.currentChainId,
     };
 
-    const transactions = this.#isTokenRequestPending
-      ? await this.#fetchTokenTransactions(request, etherscanRequest)
-      : await this.#fetchNormalTransactions(request, etherscanRequest);
+    try {
+      const transactions = this.#isTokenRequestPending
+        ? await this.#fetchTokenTransactions(request, etherscanRequest)
+        : await this.#fetchNormalTransactions(request, etherscanRequest);
 
-    if (this.#includeTokenTransfers) {
-      this.#isTokenRequestPending = !this.#isTokenRequestPending;
+      if (this.#includeTokenTransfers) {
+        this.#isTokenRequestPending = !this.#isTokenRequestPending;
+      }
+
+      return transactions;
+    } finally {
+      const elapsedTime = Date.now() - acquiredTime;
+      const remainingTime = Math.max(0, this.API_FETCH_INTERVAL - elapsedTime);
+
+      // Wait for the remaining time if it hasn't been 5 seconds yet
+      if (remainingTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingTime));
+      }
+
+      releaseLock();
     }
-
-    return transactions;
   }
 
   #fetchNormalTransactions = async (
