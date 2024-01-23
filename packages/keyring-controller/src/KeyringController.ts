@@ -24,7 +24,6 @@ import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
-import type { PreferencesController } from '@metamask/preferences-controller';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -200,10 +199,10 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type KeyringControllerOptions = {
-  syncIdentities: PreferencesController['syncIdentities'];
-  updateIdentities: PreferencesController['updateIdentities'];
-  setSelectedAddress: PreferencesController['setSelectedAddress'];
-  setAccountLabel?: PreferencesController['setAccountLabel'];
+  syncIdentities: (addresses: string[]) => string;
+  updateIdentities: (addresses: string[]) => void;
+  setSelectedAddress: (selectedAddress: string) => void;
+  setAccountLabel?: (address: string, label: string) => void;
   keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
@@ -249,9 +248,11 @@ export enum SignTypedDataVersion {
   V4 = 'V4',
 }
 
-const defaultState: KeyringControllerState = {
-  isUnlocked: false,
-  keyrings: [],
+export const getDefaultKeyringState = (): KeyringControllerState => {
+  return {
+    isUnlocked: false,
+    keyrings: [],
+  };
 };
 
 /**
@@ -289,13 +290,13 @@ export class KeyringController extends BaseController<
 > {
   private readonly mutex = new Mutex();
 
-  private readonly syncIdentities: PreferencesController['syncIdentities'];
+  private readonly syncIdentities: (addresses: string[]) => string;
 
-  private readonly updateIdentities: PreferencesController['updateIdentities'];
+  private readonly updateIdentities: (addresses: string[]) => void;
 
-  private readonly setSelectedAddress: PreferencesController['setSelectedAddress'];
+  private readonly setSelectedAddress: (selectedAddress: string) => void;
 
-  private readonly setAccountLabel?: PreferencesController['setAccountLabel'];
+  private readonly setAccountLabel?: (address: string, label: string) => void;
 
   #keyring: EthKeyringController;
 
@@ -339,7 +340,7 @@ export class KeyringController extends BaseController<
       },
       messenger,
       state: {
-        ...defaultState,
+        ...getDefaultKeyringState(),
         ...state,
       },
     });

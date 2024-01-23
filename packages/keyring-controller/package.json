@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "12.0.0",
+  "version": "12.1.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -36,7 +36,6 @@
     "@metamask/eth-keyring-controller": "^17.0.1",
     "@metamask/keyring-api": "^3.0.0",
     "@metamask/message-manager": "^7.3.7",
-    "@metamask/preferences-controller": "^6.0.0",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
@@ -61,9 +60,6 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.8.4",
     "uuid": "^8.3.2"
-  },
-  "peerDependencies": {
-    "@metamask/preferences-controller": "^6.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
