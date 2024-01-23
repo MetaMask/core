@@ -1,6 +1,10 @@
 import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { ApprovalType, BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  BUILT_IN_NETWORKS,
+  NetworkType,
+} from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkClientType,
@@ -32,6 +36,14 @@ const networkClientConfiguration = {
   ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
 } as const;
 
+const sepoliaNetworkClientConfiguration = {
+  type: NetworkClientType.Infura,
+  network: NetworkType.sepolia,
+  chainId: BUILT_IN_NETWORKS[NetworkType.sepolia].chainId,
+  infuraProjectId,
+  ticker: BUILT_IN_NETWORKS[NetworkType.sepolia].ticker,
+} as const;
+
 const mainnetNetworkClientConfiguration = {
   type: NetworkClientType.Infura,
   network: NetworkType.mainnet,
@@ -59,9 +71,7 @@ const newController = async (options: any) => {
       name: 'ApprovalController',
     }),
     showApprovalRequest: jest.fn(),
-    typesExcludedFromRateLimiting: [
-      ApprovalType.Transaction,
-    ]
+    typesExcludedFromRateLimiting: [ApprovalType.Transaction],
   });
 
   const opts = {
@@ -81,6 +91,7 @@ const newController = async (options: any) => {
       networkController.getNetworkClientById.bind(networkController),
     getNetworkState: () => networkController.state,
     getSelectedAddress: () => '0xdeadbeef',
+    getPermittedAccounts: () => [ACCOUNT_MOCK],
     ...options,
   };
   const transactionController = new TransactionController(opts, {
@@ -494,6 +505,343 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[0].status).toBe(
           'confirmed',
         );
+        transactionController.stopTrackingByNetworkClientId('goerli');
+        clock.restore();
+      });
+      it('should be able to send and confirm transactions on different chains', async () => {
+        const clock = useFakeTimers();
+        mockNetwork({
+          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3b3301',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x3b3301'],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x3b3301',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: [
+                  '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                  '0x3b3301',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+          ],
+        });
+        mockNetwork({
+          networkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x1',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_estimateGas',
+                params: [
+                  {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x0',
+                  },
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x1'],
+              },
+              response: {
+                result: {
+                  blockHash: '0x1',
+                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
+                  status: '0x1', // 0x1 = success
+                },
+              },
+            },
+          ],
+        });
+        mockNetwork({
+          networkClientConfiguration: sepoliaNetworkClientConfiguration,
+          mocks: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_getCode',
+                params: [ACCOUNT_2_MOCK, '0x1'],
+              },
+              response: {
+                result:
+                  // what should this be?
+                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x63c498a46',
+                  number: '0x1',
+                },
+              },
+            },
+            {
+              request: {
+                method: 'eth_gasPrice',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_estimateGas',
+                params: [
+                  {
+                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
+                    value: '0x0',
+                    gas: '0x0',
+                  },
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionCount',
+                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_sendRawTransaction',
+                params: [
+                  '0x02e383aa36a7010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                ],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_getTransactionReceipt',
+                params: ['0x1'],
+              },
+              response: {
+                result: {
+                  blockHash: '0x1',
+                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
+                  status: '0x1', // 0x1 = success
+                },
+              },
+            },
+          ],
+        });
+        const { transactionController, approvalController } =
+          await newController({});
+        const firstTransaction = await transactionController.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+          { networkClientId: 'goerli' },
+        );
+        const secondTransaction = await transactionController.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+          { networkClientId: 'sepolia', origin: 'test' },
+        );
+
+        await Promise.all([
+          approvalController.accept(firstTransaction.transactionMeta.id),
+          approvalController.accept(secondTransaction.transactionMeta.id),
+        ]);
+        await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 1 });
+
+        await Promise.all([firstTransaction.result, secondTransaction.result]);
+
+        // blocktracker polling is 20s
+        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 1 });
+
+        expect(transactionController.state.transactions).toHaveLength(2);
+        expect(transactionController.state.transactions[0].status).toBe(
+          'confirmed',
+        );
+        expect(
+          transactionController.state.transactions[0].networkClientId,
+        ).toBe('sepolia');
+        expect(transactionController.state.transactions[1].status).toBe(
+          'confirmed',
+        );
+        expect(
+          transactionController.state.transactions[1].networkClientId,
+        ).toBe('goerli');
+        transactionController.stopTrackingByNetworkClientId('goerli');
+        transactionController.stopTrackingByNetworkClientId('sepolia');
         clock.restore();
       });
       it('should be able to cancel a transaction', async () => {
