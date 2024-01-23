@@ -1,6 +1,10 @@
 import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { ApprovalType, BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  BUILT_IN_NETWORKS,
+  NetworkType,
+} from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkClientType,
@@ -793,14 +797,13 @@ describe('TransactionController Integration', () => {
         });
         const { transactionController, approvalController } =
           await newController({});
-        const firstTransaction =
-          await transactionController.addTransaction(
-            {
-              from: ACCOUNT_MOCK,
-              to: ACCOUNT_2_MOCK,
-            },
-            { networkClientId: 'goerli' },
-          );
+        const firstTransaction = await transactionController.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+          { networkClientId: 'goerli' },
+        );
         const secondTransaction = await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
