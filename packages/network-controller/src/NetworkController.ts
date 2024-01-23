@@ -965,26 +965,7 @@ export class NetworkController extends BaseController<
       `Unknown Infura provider type "${type}".`,
     );
 
-    this.#previousProviderConfig = this.state.providerConfig;
-
-    // If testnet the ticker symbol should use a testnet prefix
-    const ticker =
-      type in NetworksTicker && NetworksTicker[type].length > 0
-        ? NetworksTicker[type]
-        : 'ETH';
-
-    this.#ensureAutoManagedNetworkClientRegistryPopulated();
-
-    this.update((state) => {
-      state.providerConfig.type = type;
-      state.providerConfig.ticker = ticker;
-      state.providerConfig.chainId = ChainId[type];
-      state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
-      state.providerConfig.rpcUrl = undefined;
-      state.providerConfig.nickname = undefined;
-      state.providerConfig.id = undefined;
-    });
-    await this.#refreshNetwork();
+    await this.setActiveNetwork(type);
   }
 
   /**
