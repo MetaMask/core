@@ -127,6 +127,34 @@ describe('TransactionController Integration', () => {
       transactionController.stopTrackingByNetworkClientId('goerli');
       expect(transactionController).toBeDefined();
     });
+
+    it.skip('should resubmit all approved transactions', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      const { transactionController } = await newController({state: {
+        transactions: [
+          {
+
+          }
+        ],
+      }});
+
+    });
   });
   describe('multichain transaction lifecycle', () => {
     describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
