@@ -31,6 +31,7 @@ import {
   hasProperty,
   isObject,
   isValidHexAddress,
+  isValidJson,
   remove0x,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -442,7 +443,7 @@ function isSerializedKeyringsArray(
   return (
     typeof array === 'object' &&
     Array.isArray(array) &&
-    array.every((value) => value.type && value.data)
+    array.every((value) => value.type && isValidJson(value.data))
   );
 }
 
