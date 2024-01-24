@@ -586,38 +586,6 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Create new vault And with a specific keyring
-   *
-   * Destroys any old encrypted storage,
-   * creates a new encrypted store with the given password,
-   * creates a new wallet with 1 account.
-   *
-   * @fires KeyringController#unlock
-   * @param password - The password to encrypt the vault with.
-   * @param keyring - A object containing the params to instantiate a new keyring.
-   * @param keyring.type - The keyring type.
-   * @param keyring.opts - Optional parameters required to instantiate the keyring.
-   * @returns A promise that resolves to the state.
-   */
-  async createNewVaultWithKeyring(
-    password: string,
-    keyring: {
-      type: string;
-      opts?: unknown;
-    },
-  ): Promise<KeyringControllerMemState> {
-    if (typeof password !== 'string') {
-      throw new TypeError(KeyringControllerError.WrongPasswordType);
-    }
-    this.#password = password;
-
-    await this.#clearKeyrings();
-    await this.#createKeyring(keyring.type, keyring.opts);
-    this.#setUnlocked();
-    return this.#getMemState();
-  }
-
-  /**
    * Effectively the same as creating a new keychain then populating it
    * using the given seed phrase.
    *
@@ -958,9 +926,9 @@ export class KeyringController extends BaseController<
 
     // The keyring updates need to be announced before updating the encryptionKey
     // so that the updated keyring gets propagated to the extension first.
-    // Not calling {@link updateMemStoreKeyrings} results in the wrong account being selected
+    // Not calling {@link updateKeyringsInState} results in the wrong account being selected
     // in the extension.
-    await this.#updateMemStoreKeyrings();
+    await this.#updateKeyringsInState();
     if (newEncryptionKey) {
       this.update((state) => {
         state.encryptionKey = newEncryptionKey;
@@ -1653,11 +1621,41 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Update memStore Keyrings
+   * Create new vault And with a specific keyring
    *
-   * Updates the in-memory keyrings, without persisting.
+   * Destroys any old encrypted storage,
+   * creates a new encrypted store with the given password,
+   * creates a new wallet with 1 account.
+   *
+   * @fires KeyringController#unlock
+   * @param password - The password to encrypt the vault with.
+   * @param keyring - A object containing the params to instantiate a new keyring.
+   * @param keyring.type - The keyring type.
+   * @param keyring.opts - Optional parameters required to instantiate the keyring.
+   * @returns A promise that resolves to the state.
    */
-  async #updateMemStoreKeyrings(): Promise<void> {
+  async createNewVaultWithKeyring(
+    password: string,
+    keyring: {
+      type: string;
+      opts?: unknown;
+    },
+  ): Promise<KeyringControllerMemState> {
+    if (typeof password !== 'string') {
+      throw new TypeError(KeyringControllerError.WrongPasswordType);
+    }
+    this.#password = password;
+
+    await this.#clearKeyrings();
+    await this.#createKeyring(keyring.type, keyring.opts);
+    this.#setUnlocked();
+    return this.#getMemState();
+  }
+
+  /**
+   * Update the controller state with its current keyrings.
+   */
+  async #updateKeyringsInState(): Promise<void> {
     const keyrings = await Promise.all(this.#keyrings.map(displayForKeyring));
     this.update((state) => {
       state.keyrings = keyrings;
@@ -1742,7 +1740,7 @@ export class KeyringController extends BaseController<
     }
 
     await Promise.all(vault.map(this.#restoreKeyring.bind(this)));
-    await this.#updateMemStoreKeyrings();
+    await this.#updateKeyringsInState();
 
     if (
       this.#password &&
