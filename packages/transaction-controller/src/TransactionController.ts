@@ -1364,7 +1364,9 @@ export class TransactionController extends BaseControllerV1<
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       // TODO(JL): Fix this type
-      // This is a hack until we remove the base IncomingTransactionHelper class and only ever
+      // TODO (AD):
+      // This is a hack until we remove the base IncomingTransactionHelper class
+      // and should be replaced with a plain chainId parameter
       getNetworkState: () => {
         return {
           providerConfig: { chainId } as ProviderConfig,

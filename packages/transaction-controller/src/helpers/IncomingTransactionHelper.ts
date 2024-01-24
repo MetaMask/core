@@ -200,9 +200,14 @@ export class IncomingTransactionHelper {
           updated: updatedTransactions,
         });
       }
-
-      console.log('remoteTransactions', remoteTransactions);
-
+      console.log(
+        'networkClientId',
+        this.#networkClientId,
+        'time',
+        Date.now(),
+        'remoteTxs in updateLastFetched',
+        remoteTransactions,
+      );
       this.#updateLastFetchedBlockNumber(remoteTransactions);
     } finally {
       releaseLock();
@@ -285,6 +290,7 @@ export class IncomingTransactionHelper {
     const additionalLastFetchedKeys =
       this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
     const lastFetchedKey = this.#getBlockNumberKey(additionalLastFetchedKeys);
+    console.log('lastFetchedKey', lastFetchedKey);
     const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
     const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 

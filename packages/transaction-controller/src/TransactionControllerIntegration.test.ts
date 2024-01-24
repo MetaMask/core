@@ -2437,7 +2437,7 @@ describe('TransactionController Integration', () => {
           ]);
 
           expectedLastFetchedBlockNumbers[
-            `${config.chainId}#${selectedAddress}#normal`
+            `${config.chainId}#${selectedAddress}#token`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({
             blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
