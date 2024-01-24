@@ -2006,7 +2006,6 @@ describe('TransactionController', () => {
         gasPrice: '0x1',
         to: ACCOUNT_MOCK,
         value: '0x0',
-        type: TransactionType.simpleSend,
       });
 
       controller.hub.on(
