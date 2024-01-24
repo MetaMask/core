@@ -201,6 +201,8 @@ export class IncomingTransactionHelper {
         });
       }
 
+      console.log('remoteTransactions', remoteTransactions);
+
       this.#updateLastFetchedBlockNumber(remoteTransactions);
     } finally {
       releaseLock();

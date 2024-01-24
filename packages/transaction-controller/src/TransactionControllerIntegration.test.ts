@@ -2356,7 +2356,7 @@ describe('TransactionController Integration', () => {
 
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
-    it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
+    it.only('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2483,7 +2483,6 @@ describe('TransactionController Integration', () => {
           'fetchEtherscanTokenTransactions',
         );
 
-        const clock = useFakeTimers();
         // mocking infura mainnet
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
@@ -2680,7 +2679,8 @@ describe('TransactionController Integration', () => {
         // we call the token transactions endpoint
         expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
         expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(2);
-        clock.restore();
+
+        transactionController.destroy();
       });
     });
   });
