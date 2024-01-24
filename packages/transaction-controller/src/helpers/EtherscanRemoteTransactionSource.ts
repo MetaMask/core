@@ -36,7 +36,7 @@ export class EtherscanRemoteTransactionSource
 
   #mutex = new Mutex();
 
-  API_FETCH_INTERVAL = 5000;
+  ETHERSCAN_RATE_LIMIT_INTERVAL = 5000;
 
   constructor({
     includeTokenTransfers,
@@ -76,7 +76,10 @@ export class EtherscanRemoteTransactionSource
       return transactions;
     } finally {
       const elapsedTime = Date.now() - acquiredTime;
-      const remainingTime = Math.max(0, this.API_FETCH_INTERVAL - elapsedTime);
+      const remainingTime = Math.max(
+        0,
+        this.ETHERSCAN_RATE_LIMIT_INTERVAL - elapsedTime,
+      );
       // Wait for the remaining time if it hasn't been 5 seconds yet
       if (remainingTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, remainingTime));

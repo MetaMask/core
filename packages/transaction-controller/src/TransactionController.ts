@@ -1303,8 +1303,31 @@ export class TransactionController extends BaseControllerV1<
       this.removeIncomingTransactionHelperListeners(
         trackers.incomingTransactionHelper,
       );
+      this.trackingMap.delete(networkClientId);
     }
-    this.trackingMap.delete(networkClientId);
+    // this will be prettier when we have consolidated network clients with a single chainId:
+    // check if there are still other network clients using the same chainId
+    // if not remove the etherscanRemoteTransaction source from the map
+    const networkClients = this.getNetworkClientRegistry();
+    const chainIdOfNetworkClientToStop =
+      networkClients[networkClientId].configuration.chainId;
+    const otherNetworkClientsUsingSameChainId = Object.keys(
+      networkClients,
+    ).filter(
+      (id) =>
+        networkClients[id].configuration.chainId ===
+          chainIdOfNetworkClientToStop && id !== networkClientId,
+    );
+    if (
+      otherNetworkClientsUsingSameChainId.length === 0 &&
+      this.etherscanRemoteTransactionSourcesMap.has(
+        chainIdOfNetworkClientToStop,
+      )
+    ) {
+      this.etherscanRemoteTransactionSourcesMap.delete(
+        chainIdOfNetworkClientToStop,
+      );
+    }
   }
 
   #stopAllTracking() {
@@ -1323,16 +1346,14 @@ export class TransactionController extends BaseControllerV1<
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
-    if (!chainId) {
-      throw new Error('NetworkClient must have a chainId');
-    }
 
-    if (!this.etherscanRemoteTransactionSourcesMap.has(chainId)) {
-      const etherscanRemoteTransactionSource =
-        new EtherscanRemoteTransactionSource({
-          includeTokenTransfers:
-            this.incomingTransactionOptions.includeTokenTransfers,
-        });
+    let etherscanRemoteTransactionSource =
+      this.etherscanRemoteTransactionSourcesMap.get(chainId);
+    if (!etherscanRemoteTransactionSource) {
+      etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
+        includeTokenTransfers:
+          this.incomingTransactionOptions.includeTokenTransfers,
+      });
       this.etherscanRemoteTransactionSourcesMap.set(
         chainId,
         etherscanRemoteTransactionSource,
@@ -1374,10 +1395,7 @@ export class TransactionController extends BaseControllerV1<
       },
       isEnabled: this.incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
-      remoteTransactionSource:
-        // we know that the map has a value for this chainId because we just set it above
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        this.etherscanRemoteTransactionSourcesMap.get(chainId)!,
+      remoteTransactionSource: etherscanRemoteTransactionSource,
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: this.incomingTransactionOptions.updateTransactions,
     });
