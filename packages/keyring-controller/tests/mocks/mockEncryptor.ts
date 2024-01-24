@@ -1,5 +1,6 @@
-import type { ExportableKeyEncryptor } from '@metamask/eth-keyring-controller/dist/types';
 import type { Json } from '@metamask/utils';
+
+import type { ExportableKeyEncryptor } from '../../src/KeyringController';
 
 export const PASSWORD = 'password123';
 export const MOCK_ENCRYPTION_KEY = JSON.stringify({

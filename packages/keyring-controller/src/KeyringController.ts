@@ -7,11 +7,6 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import HDKeyring from '@metamask/eth-hd-keyring';
-import { KeyringType } from '@metamask/eth-keyring-controller';
-import type {
-  ExportableKeyEncryptor,
-  GenericEncryptor,
-} from '@metamask/eth-keyring-controller/dist/types';
 import { normalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type {
@@ -266,6 +261,102 @@ export enum SignTypedDataVersion {
 export type SerializedKeyring = {
   type: string;
   data: Json;
+};
+
+/**
+ * A generic encryptor interface that supports encrypting and decrypting
+ * serializable data with a password.
+ */
+export type GenericEncryptor = {
+  /**
+   * Encrypts the given object with the given password.
+   *
+   * @param password - The password to encrypt with.
+   * @param object - The object to encrypt.
+   * @returns The encrypted string.
+   */
+  encrypt: (password: string, object: Json) => Promise<string>;
+  /**
+   * Decrypts the given encrypted string with the given password.
+   *
+   * @param password - The password to decrypt with.
+   * @param encryptedString - The encrypted string to decrypt.
+   * @returns The decrypted object.
+   */
+  decrypt: (password: string, encryptedString: string) => Promise<unknown>;
+  /**
+   * Optional vault migration helper. Checks if the provided vault is up to date
+   * with the desired encryption algorithm.
+   *
+   * @param vault - The encrypted string to check.
+   * @param targetDerivationParams - The desired target derivation params.
+   * @returns The updated encrypted string.
+   */
+  isVaultUpdated?: (
+    vault: string,
+    targetDerivationParams?: encryptorUtils.KeyDerivationOptions,
+  ) => boolean;
+};
+
+/**
+ * An encryptor interface that supports encrypting and decrypting
+ * serializable data with a password, and exporting and importing keys.
+ */
+export type ExportableKeyEncryptor = GenericEncryptor & {
+  /**
+   * Encrypts the given object with the given encryption key.
+   *
+   * @param key - The encryption key to encrypt with.
+   * @param object - The object to encrypt.
+   * @returns The encryption result.
+   */
+  encryptWithKey: (
+    key: unknown,
+    object: Json,
+  ) => Promise<encryptorUtils.EncryptionResult>;
+  /**
+   * Encrypts the given object with the given password, and returns the
+   * encryption result and the exported key string.
+   *
+   * @param password - The password to encrypt with.
+   * @param object - The object to encrypt.
+   * @param salt - The optional salt to use for encryption.
+   * @returns The encrypted string and the exported key string.
+   */
+  encryptWithDetail: (
+    password: string,
+    object: Json,
+    salt?: string,
+  ) => Promise<encryptorUtils.DetailedEncryptionResult>;
+  /**
+   * Decrypts the given encrypted string with the given encryption key.
+   *
+   * @param key - The encryption key to decrypt with.
+   * @param encryptedString - The encrypted string to decrypt.
+   * @returns The decrypted object.
+   */
+  decryptWithKey: (key: unknown, encryptedString: string) => Promise<unknown>;
+  /**
+   * Decrypts the given encrypted string with the given password, and returns
+   * the decrypted object and the salt and exported key string used for
+   * encryption.
+   *
+   * @param password - The password to decrypt with.
+   * @param encryptedString - The encrypted string to decrypt.
+   * @returns The decrypted object and the salt and exported key string used for
+   * encryption.
+   */
+  decryptWithDetail: (
+    password: string,
+    encryptedString: string,
+  ) => Promise<encryptorUtils.DetailedDecryptResult>;
+  /**
+   * Generates an encryption key from exported key string.
+   *
+   * @param key - The exported key string.
+   * @returns The encryption key.
+   */
+  importKey: (key: string) => Promise<unknown>;
 };
 
 /**
@@ -606,7 +697,7 @@ export class KeyringController extends BaseController<
     try {
       this.updateIdentities([]);
       await this.#createNewVaultWithKeyring(password, {
-        type: KeyringType.HD,
+        type: KeyringTypes.hd,
         opts: {
           mnemonic: seed,
           numberOfAccounts: 1,
@@ -631,7 +722,7 @@ export class KeyringController extends BaseController<
       const accounts = await this.getAccounts();
       if (!accounts.length) {
         await this.#createNewVaultWithKeyring(password, {
-          type: KeyringType.HD,
+          type: KeyringTypes.hd,
         });
         this.updateIdentities(await this.getAccounts());
       }
@@ -663,7 +754,7 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.NoKeyring);
     }
 
-    if (type === KeyringType.HD && (!isObject(opts) || !opts.mnemonic)) {
+    if (type === KeyringTypes.hd && (!isObject(opts) || !opts.mnemonic)) {
       if (!keyring.generateRandomMnemonic) {
         throw new Error(
           KeyringControllerError.UnsupportedGenerateRandomMnemonic,
@@ -1918,7 +2009,7 @@ export class KeyringController extends BaseController<
     const accounts = await this.getAccounts();
 
     switch (type) {
-      case KeyringType.Simple: {
+      case KeyringTypes.simple: {
         const isIncluded = Boolean(
           accounts.find(
             (key) =>

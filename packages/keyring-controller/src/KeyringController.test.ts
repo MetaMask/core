@@ -4,10 +4,6 @@ import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
-  KeyringControllerError,
-  keyringBuilderFactory,
-} from '@metamask/eth-keyring-controller';
-import {
   normalize,
   recoverPersonalSignature,
   recoverTypedSignature,
@@ -34,6 +30,7 @@ import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import { MockKeyring } from '../tests/mocks/mockKeyring';
 import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import { buildMockTransaction } from '../tests/mocks/mockTransaction';
+import { KeyringControllerError } from './constants';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -45,6 +42,7 @@ import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
+  keyringBuilderFactory,
 } from './KeyringController';
 
 jest.mock('uuid', () => {

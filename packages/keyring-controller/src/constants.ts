@@ -1,8 +1,3 @@
-export enum KeyringType {
-  HD = 'HD Key Tree',
-  Simple = 'Simple Key Pair',
-}
-
 export enum KeyringControllerError {
   NoKeyring = 'KeyringController - No keyring found',
   WrongPasswordType = 'KeyringController - Password must be of type string.',
