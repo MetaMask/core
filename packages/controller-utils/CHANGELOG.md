@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.2]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+
 ## [8.0.1]
 ### Changed
 - There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
@@ -200,7 +204,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.2...HEAD
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...@metamask/controller-utils@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@7.0.0...@metamask/controller-utils@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.1.0...@metamask/controller-utils@7.0.0

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.2]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+
 ## [7.3.1]
 ### Changed
 - There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
@@ -96,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.2...HEAD
+[7.3.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.1...@metamask/json-rpc-engine@7.3.2
 [7.3.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.3.0...@metamask/json-rpc-engine@7.3.1
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.2.0...@metamask/json-rpc-engine@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
