@@ -145,6 +145,10 @@ export class IncomingTransactionHelper {
         16,
       );
 
+      console.log('latestBlockNumber', latestBlockNumber);
+      const additionalLastFetchedKeys =
+        this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
+
       const fromBlock = this.#getFromBlock(latestBlockNumber);
       const address = this.#getCurrentAccount();
       const currentChainId = this.#getCurrentChainId();
@@ -165,6 +169,7 @@ export class IncomingTransactionHelper {
         log('Error while fetching remote transactions', error);
         return;
       }
+      console.log('remoteTransactions', remoteTransactions);
 
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
@@ -200,16 +205,12 @@ export class IncomingTransactionHelper {
           updated: updatedTransactions,
         });
       }
-      console.log(
-        'networkClientId',
-        this.#networkClientId,
-        'time',
-        Date.now(),
-        'remoteTxs in updateLastFetched',
+      this.#updateLastFetchedBlockNumber(
         remoteTransactions,
+        additionalLastFetchedKeys,
       );
-      this.#updateLastFetchedBlockNumber(remoteTransactions);
     } finally {
+      console.log('releaseLock?');
       releaseLock();
     }
   }
@@ -269,7 +270,10 @@ export class IncomingTransactionHelper {
       : latestBlockNumber - RECENT_HISTORY_BLOCK_RANGE;
   }
 
-  #updateLastFetchedBlockNumber(remoteTxs: TransactionMeta[]) {
+  #updateLastFetchedBlockNumber(
+    remoteTxs: TransactionMeta[],
+    additionalKeys: string[],
+  ) {
     let lastFetchedBlockNumber = -1;
 
     for (const tx of remoteTxs) {
@@ -287,10 +291,7 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    const additionalLastFetchedKeys =
-      this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
-    const lastFetchedKey = this.#getBlockNumberKey(additionalLastFetchedKeys);
-    console.log('lastFetchedKey', lastFetchedKey);
+    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
     const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
     const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 

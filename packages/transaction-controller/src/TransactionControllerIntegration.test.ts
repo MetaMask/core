@@ -2356,7 +2356,7 @@ describe('TransactionController Integration', () => {
 
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
-    it.only('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
+    it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2437,7 +2437,7 @@ describe('TransactionController Integration', () => {
           ]);
 
           expectedLastFetchedBlockNumbers[
-            `${config.chainId}#${selectedAddress}#token`
+            `${config.chainId}#${selectedAddress}#normal`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({
             blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
@@ -2870,7 +2870,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('updateIncomingTransactions', () => {
-    it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
+    it.only('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2928,6 +2928,24 @@ describe('TransactionController Integration', () => {
                   result: '0x1',
                 },
               },
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x2',
+                },
+              },
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x3',
+                },
+              },
             ],
           });
           nock(getEtherscanApiHost(config.chainId))
@@ -2936,6 +2954,7 @@ describe('TransactionController Integration', () => {
             )
             .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
+          await advanceTime({ clock, duration: 1 });
           await transactionController.updateIncomingTransactions([
             networkClientId,
           ]);
@@ -2959,6 +2978,10 @@ describe('TransactionController Integration', () => {
           });
         }),
       );
+
+      await advanceTime({ clock, duration: 5000 });
+      await advanceTime({ clock, duration: 1 });
+      await advanceTime({ clock, duration: 1 });
 
       expect(transactionController.state.transactions).toHaveLength(
         2 * networkClientIds.length,
