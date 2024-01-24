@@ -726,6 +726,7 @@ describe('TransactionController', () => {
         update: jest.fn(),
         hub: {
           on: jest.fn(),
+          removeAllListeners: jest.fn(),
         },
       } as unknown as jest.Mocked<IncomingTransactionHelper>;
       incomingTransactionHelperMocks.push(incomingTransactionHelperMock);
@@ -4817,7 +4818,7 @@ describe('TransactionController', () => {
       expect(controller).toBeDefined();
     });
     // eslint-disable-next-line jest/no-done-callback
-    it('should handle removals in the networkController registry', (done) => {
+    it('should handle removals from the networkController registry', (done) => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
       const mockGetNetworkClientRegistry = jest.fn();
       mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
@@ -4866,7 +4867,7 @@ describe('TransactionController', () => {
     });
   });
   // eslint-disable-next-line jest/no-done-callback
-  it('should handle removals in the networkController registry', (done) => {
+  it('should handle additions to the networkController registry', (done) => {
     const hub = new EventEmitter() as TransactionControllerEventEmitter;
     const mockGetNetworkClientRegistry = jest.fn();
     mockGetNetworkClientRegistry.mockImplementationOnce(() => ({

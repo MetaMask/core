@@ -10,6 +10,7 @@ import {
   NetworkClientType,
 } from '@metamask/network-controller';
 import nock from 'nock';
+import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
@@ -114,6 +115,15 @@ const newController = async (options: any = {}) => {
 };
 
 describe('TransactionController Integration', () => {
+  let clock: SinonFakeTimers;
+  beforeEach(() => {
+    clock = useFakeTimers();
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
+
   describe('constructor', () => {
     it('should create a new instance of TransactionController', async () => {
       mockNetwork({
@@ -133,12 +143,11 @@ describe('TransactionController Integration', () => {
         ],
       });
       const { transactionController } = await newController({});
-      transactionController.stopTrackingByNetworkClientId('goerli');
       expect(transactionController).toBeDefined();
+      transactionController.destroy();
     });
 
     it('should submit all approved transactions in state when the controller is constructed', async () => {
-      const clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -385,7 +394,6 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.transactions[1].status).toBe(
         'submitted',
       );
-      clock.restore();
     });
   });
   describe('multichain transaction lifecycle', () => {
@@ -452,11 +460,11 @@ describe('TransactionController Integration', () => {
           },
           { networkClientId: 'goerli' },
         );
-        transactionController.stopTrackingByNetworkClientId('goerli');
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
           'unapproved',
         );
+        transactionController.destroy();
       });
       it('should be able to get to submitted state', async () => {
         mockNetwork({
@@ -586,17 +594,17 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.accept(transactionMeta.id);
+        await advanceTime({ clock, duration: 1 });
 
         await result;
 
-        transactionController.stopTrackingByNetworkClientId('goerli');
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
           'submitted',
         );
+        transactionController.destroy();
       });
       it('should be able to get to confirmed state', async () => {
-        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -762,11 +770,9 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[0].status).toBe(
           'confirmed',
         );
-        transactionController.stopTrackingByNetworkClientId('goerli');
-        clock.restore();
+        transactionController.destroy();
       });
       it('should be able to send and confirm transactions on different chains', async () => {
-        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -1097,9 +1103,7 @@ describe('TransactionController Integration', () => {
         expect(
           transactionController.state.transactions[1].networkClientId,
         ).toBe('goerli');
-        transactionController.stopTrackingByNetworkClientId('goerli');
-        transactionController.stopTrackingByNetworkClientId('sepolia');
-        clock.restore();
+        transactionController.destroy();
       });
       it('should be able to cancel a transaction', async () => {
         mockNetwork({
@@ -1291,19 +1295,19 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.accept(transactionMeta.id);
+        await advanceTime({ clock, duration: 1 });
 
         await result;
 
         await transactionController.stopTransaction(transactionMeta.id);
-        transactionController.stopTrackingByNetworkClientId('goerli');
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[1].status).toBe(
           'submitted',
         );
+        transactionController.destroy();
       });
       it('should be able to confirm a cancelled transaction', async () => {
-        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -1527,11 +1531,9 @@ describe('TransactionController Integration', () => {
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
-        transactionController.stopTrackingByNetworkClientId('goerli');
-        clock.restore();
+        transactionController.destroy();
       });
       it('should be able to get to speedup state', async () => {
-        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -1763,14 +1765,12 @@ describe('TransactionController Integration', () => {
             transactionController.state.transactions[1].txParams.maxFeePerGas,
           ),
         ).toBeGreaterThan(Number(baseFee));
-        transactionController.stopTrackingByNetworkClientId('goerli');
-        clock.restore();
+        transactionController.destroy();
       });
     });
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -2106,22 +2106,17 @@ describe('TransactionController Integration', () => {
         await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
-        transactionController.stopTrackingByNetworkClientId('goerli');
-        transactionController.stopTrackingByNetworkClientId(
-          otherNetworkClientIdOnGoerli,
-        );
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)
           .sort();
         expect(nonces).toStrictEqual(['0x1', '0x2']);
-        clock.restore();
+        transactionController.destroy();
       });
     });
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        const clock = useFakeTimers();
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -2346,13 +2341,12 @@ describe('TransactionController Integration', () => {
         await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
-        transactionController.stopTrackingByNetworkClientId('goerli');
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)
           .sort();
         expect(nonces).toStrictEqual(['0x1', '0x2']);
-        clock.restore();
+        transactionController.destroy();
       });
     });
   });
@@ -2360,7 +2354,6 @@ describe('TransactionController Integration', () => {
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
-      const clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2402,61 +2395,63 @@ describe('TransactionController Integration', () => {
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
-      for (const networkClientId of networkClientIds) {
-        const config = networkClients[networkClientId].configuration;
-        mockNetwork({
-          networkClientConfiguration: config,
-          mocks: [
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
+      await Promise.all(
+        networkClientIds.map(async (networkClientId) => {
+          const config = networkClients[networkClientId].configuration;
+          mockNetwork({
+            networkClientConfiguration: config,
+            mocks: [
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
               },
-              response: {
-                result: '0x1',
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x2',
+                },
               },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-          ],
-        });
-        nock(getEtherscanApiHost(config.chainId))
-          .get(
-            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-          )
-          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+            ],
+          });
+          nock(getEtherscanApiHost(config.chainId))
+            .get(
+              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+            )
+            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-        transactionController.startIncomingTransactionPolling([
-          networkClientId,
-        ]);
+          transactionController.startIncomingTransactionPolling([
+            networkClientId,
+          ]);
 
-        expectedLastFetchedBlockNumbers[
-          `${config.chainId}#${selectedAddress}#normal`
-        ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
-        expectedTransactions.push({
-          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-          chainId: config.chainId,
-          type: TransactionType.incoming,
-          verifiedOnBlockchain: false,
-          status: TransactionStatus.confirmed,
-        });
-        expectedTransactions.push({
-          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-          chainId: config.chainId,
-          type: TransactionType.incoming,
-          verifiedOnBlockchain: false,
-          status: TransactionStatus.failed,
-        });
-      }
+          expectedLastFetchedBlockNumbers[
+            `${config.chainId}#${selectedAddress}#normal`
+          ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
+          expectedTransactions.push({
+            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            chainId: config.chainId,
+            type: TransactionType.incoming,
+            verifiedOnBlockchain: false,
+            status: TransactionStatus.confirmed,
+          });
+          expectedTransactions.push({
+            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            chainId: config.chainId,
+            type: TransactionType.incoming,
+            verifiedOnBlockchain: false,
+            status: TransactionStatus.failed,
+          });
+        }),
+      );
       await advanceTime({ clock, duration: 20000 });
 
       expect(transactionController.state.transactions).toHaveLength(
@@ -2470,13 +2465,12 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         expectedLastFetchedBlockNumbers,
       );
-      clock.restore();
+      transactionController.destroy();
     });
   });
 
   describe('stopIncomingTransactionPolling', () => {
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
-      const clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2515,58 +2509,61 @@ describe('TransactionController Integration', () => {
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
-      for (const networkClientId of networkClientIds) {
-        const config = networkClients[networkClientId].configuration;
-        mockNetwork({
-          networkClientConfiguration: config,
-          mocks: [
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
+      await Promise.all(
+        networkClientIds.map(async (networkClientId) => {
+          const config = networkClients[networkClientId].configuration;
+          mockNetwork({
+            networkClientConfiguration: config,
+            mocks: [
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
               },
-              response: {
-                result: '0x1',
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x2',
+                },
               },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-          ],
-        });
-        nock(getEtherscanApiHost(config.chainId))
-          .get(
-            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-          )
-          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+            ],
+          });
+          nock(getEtherscanApiHost(config.chainId))
+            .get(
+              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+            )
+            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-        transactionController.startIncomingTransactionPolling([
-          networkClientId,
-        ]);
+          transactionController.startIncomingTransactionPolling([
+            networkClientId,
+          ]);
 
-        transactionController.stopIncomingTransactionPolling([networkClientId]);
-      }
+          transactionController.stopIncomingTransactionPolling([
+            networkClientId,
+          ]);
+        }),
+      );
       await advanceTime({ clock, duration: 20000 });
 
       expect(transactionController.state.transactions).toStrictEqual([]);
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         {},
       );
-      clock.restore();
+      transactionController.destroy();
     });
   });
 
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
-      const clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2605,43 +2602,45 @@ describe('TransactionController Integration', () => {
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
-      for (const networkClientId of networkClientIds) {
-        const config = networkClients[networkClientId].configuration;
-        mockNetwork({
-          networkClientConfiguration: config,
-          mocks: [
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
+      await Promise.all(
+        networkClientIds.map(async (networkClientId) => {
+          const config = networkClients[networkClientId].configuration;
+          mockNetwork({
+            networkClientConfiguration: config,
+            mocks: [
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
               },
-              response: {
-                result: '0x1',
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x2',
+                },
               },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-          ],
-        });
-        nock(getEtherscanApiHost(config.chainId))
-          .get(
-            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-          )
-          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+            ],
+          });
+          nock(getEtherscanApiHost(config.chainId))
+            .get(
+              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+            )
+            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-        transactionController.startIncomingTransactionPolling([
-          networkClientId,
-        ]);
-      }
+          transactionController.startIncomingTransactionPolling([
+            networkClientId,
+          ]);
+        }),
+      );
 
       transactionController.stopAllIncomingTransactionPolling();
       await advanceTime({ clock, duration: 20000 });
@@ -2650,13 +2649,12 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         {},
       );
-      clock.restore();
+      transactionController.destroy();
     });
   });
 
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
-      const clock = useFakeTimers();
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2698,51 +2696,53 @@ describe('TransactionController Integration', () => {
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
-      for (const networkClientId of networkClientIds) {
-        const config = networkClients[networkClientId].configuration;
-        mockNetwork({
-          networkClientConfiguration: config,
-          mocks: [
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
+      await Promise.all(
+        networkClientIds.map(async (networkClientId) => {
+          const config = networkClients[networkClientId].configuration;
+          mockNetwork({
+            networkClientConfiguration: config,
+            mocks: [
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
               },
-              response: {
-                result: '0x1',
-              },
-            },
-          ],
-        });
-        nock(getEtherscanApiHost(config.chainId))
-          .get(
-            `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-          )
-          .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+            ],
+          });
+          nock(getEtherscanApiHost(config.chainId))
+            .get(
+              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+            )
+            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-        await transactionController.updateIncomingTransactions([
-          networkClientId,
-        ]);
+          await transactionController.updateIncomingTransactions([
+            networkClientId,
+          ]);
 
-        expectedLastFetchedBlockNumbers[
-          `${config.chainId}#${selectedAddress}#normal`
-        ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
-        expectedTransactions.push({
-          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-          chainId: config.chainId,
-          type: TransactionType.incoming,
-          verifiedOnBlockchain: false,
-          status: TransactionStatus.confirmed,
-        });
-        expectedTransactions.push({
-          blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-          chainId: config.chainId,
-          type: TransactionType.incoming,
-          verifiedOnBlockchain: false,
-          status: TransactionStatus.failed,
-        });
-      }
+          expectedLastFetchedBlockNumbers[
+            `${config.chainId}#${selectedAddress}#normal`
+          ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
+          expectedTransactions.push({
+            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            chainId: config.chainId,
+            type: TransactionType.incoming,
+            verifiedOnBlockchain: false,
+            status: TransactionStatus.confirmed,
+          });
+          expectedTransactions.push({
+            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            chainId: config.chainId,
+            type: TransactionType.incoming,
+            verifiedOnBlockchain: false,
+            status: TransactionStatus.failed,
+          });
+        }),
+      );
 
       expect(transactionController.state.transactions).toHaveLength(
         2 * networkClientIds.length,
@@ -2755,7 +2755,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
         expectedLastFetchedBlockNumbers,
       );
-      clock.restore();
+      transactionController.destroy();
     });
   });
 
@@ -2797,40 +2797,47 @@ describe('TransactionController Integration', () => {
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
-      for (const networkClientId of networkClientIds) {
-        const config = networkClients[networkClientId].configuration;
-        mockNetwork({
-          networkClientConfiguration: config,
-          mocks: [
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
+      await Promise.all(
+        networkClientIds.map(async (networkClientId) => {
+          const config = networkClients[networkClientId].configuration;
+          mockNetwork({
+            networkClientConfiguration: config,
+            mocks: [
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
               },
-              response: {
-                result: '0x1',
+              // NonceTracker
+              {
+                request: {
+                  method: 'eth_getTransactionCount',
+                  params: [ACCOUNT_MOCK, '0x1'],
+                },
+                response: {
+                  result: '0xa',
+                },
               },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: [ACCOUNT_MOCK, '0x1'],
-              },
-              response: {
-                result: '0xa',
-              },
-            },
-          ],
-        });
+            ],
+          });
 
-        const nonceLock = await transactionController.getNonceLock(
-          ACCOUNT_MOCK,
-          networkClientId,
-        );
-        expect(nonceLock.nextNonce).toBe(10);
-      }
+          const nonceLockPromise = transactionController.getNonceLock(
+            ACCOUNT_MOCK,
+            networkClientId,
+          );
+          await advanceTime({ clock, duration: 1 });
+
+          const nonceLock = await nonceLockPromise;
+
+          expect(nonceLock.nextNonce).toBe(10);
+        }),
+      );
+      transactionController.destroy();
     });
 
     it('should block other attempts to get the nonce lock from the nonceTracker until the first one is released for the given networkClientId', async () => {
@@ -2870,64 +2877,72 @@ describe('TransactionController Integration', () => {
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
-      for (const networkClientId of networkClientIds) {
-        const config = networkClients[networkClientId].configuration;
-        mockNetwork({
-          networkClientConfiguration: config,
-          mocks: [
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
+      await Promise.all(
+        networkClientIds.map(async (networkClientId) => {
+          const config = networkClients[networkClientId].configuration;
+          mockNetwork({
+            networkClientConfiguration: config,
+            mocks: [
+              // BlockTracker
+              {
+                request: {
+                  method: 'eth_blockNumber',
+                  params: [],
+                },
+                response: {
+                  result: '0x1',
+                },
               },
-              response: {
-                result: '0x1',
+              // NonceTracker
+              {
+                request: {
+                  method: 'eth_getTransactionCount',
+                  params: [ACCOUNT_MOCK, '0x1'],
+                },
+                response: {
+                  result: '0xa',
+                },
               },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: [ACCOUNT_MOCK, '0x1'],
-              },
-              response: {
-                result: '0xa',
-              },
-            },
-          ],
-        });
-
-        const firstNonceLock = await transactionController.getNonceLock(
-          ACCOUNT_MOCK,
-          networkClientId,
-        );
-
-        expect(firstNonceLock.nextNonce).toBe(10);
-
-        const secondNonceLock = transactionController.getNonceLock(
-          ACCOUNT_MOCK,
-          networkClientId,
-        );
-        const delay = () =>
-          new Promise<null>((resolve) => {
-            setTimeout(resolve, 100, null);
+            ],
           });
 
-        let secondNonceLockIfAcquired = await Promise.race([
-          secondNonceLock,
-          delay(),
-        ]);
-        expect(secondNonceLockIfAcquired).toBeNull();
+          const firstNonceLockPromise = transactionController.getNonceLock(
+            ACCOUNT_MOCK,
+            networkClientId,
+          );
+          await advanceTime({ clock, duration: 1 });
 
-        await firstNonceLock.releaseLock();
+          const firstNonceLock = await firstNonceLockPromise;
 
-        secondNonceLockIfAcquired = await Promise.race([
-          secondNonceLock,
-          delay(),
-        ]);
-        expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
-      }
+          expect(firstNonceLock.nextNonce).toBe(10);
+
+          const secondNonceLockPromise = transactionController.getNonceLock(
+            ACCOUNT_MOCK,
+            networkClientId,
+          );
+          const delay = () =>
+            new Promise<null>(async (resolve) => {
+              await advanceTime({ clock, duration: 100 });
+              resolve(null);
+            });
+
+          let secondNonceLockIfAcquired = await Promise.race([
+            secondNonceLockPromise,
+            delay(),
+          ]);
+          expect(secondNonceLockIfAcquired).toBeNull();
+
+          await firstNonceLock.releaseLock();
+          await advanceTime({ clock, duration: 1 });
+
+          secondNonceLockIfAcquired = await Promise.race([
+            secondNonceLockPromise,
+            delay(),
+          ]);
+          expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
+        }),
+      );
+      transactionController.destroy();
     });
 
     it('should get the nonce lock from the globally selected nonceTracker if no networkClientId is provided', async () => {
@@ -2960,8 +2975,13 @@ describe('TransactionController Integration', () => {
 
       const { transactionController } = await newController({});
 
-      const nonceLock = await transactionController.getNonceLock(ACCOUNT_MOCK);
+      const nonceLockPromise = transactionController.getNonceLock(ACCOUNT_MOCK);
+      await advanceTime({ clock, duration: 1 });
+
+      const nonceLock = await nonceLockPromise;
+
       expect(nonceLock.nextNonce).toBe(10);
+      transactionController.destroy();
     });
 
     it('should block other attempts to get the nonce lock from the globally selected nonceTracker until the first one is released if no networkClientId is provided', async () => {
@@ -2994,20 +3014,24 @@ describe('TransactionController Integration', () => {
 
       const { transactionController } = await newController({});
 
-      const firstNonceLock = await transactionController.getNonceLock(
-        ACCOUNT_MOCK,
-      );
+      const firstNonceLockPromise =
+        transactionController.getNonceLock(ACCOUNT_MOCK);
+      await advanceTime({ clock, duration: 1 });
+
+      const firstNonceLock = await firstNonceLockPromise;
 
       expect(firstNonceLock.nextNonce).toBe(10);
 
-      const secondNonceLock = transactionController.getNonceLock(ACCOUNT_MOCK);
+      const secondNonceLockPromise =
+        transactionController.getNonceLock(ACCOUNT_MOCK);
       const delay = () =>
-        new Promise<null>((resolve) => {
-          setTimeout(resolve, 100, null);
+        new Promise<null>(async (resolve) => {
+          await advanceTime({ clock, duration: 100 });
+          resolve(null);
         });
 
       let secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLock,
+        secondNonceLockPromise,
         delay(),
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
@@ -3015,10 +3039,11 @@ describe('TransactionController Integration', () => {
       await firstNonceLock.releaseLock();
 
       secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLock,
+        secondNonceLockPromise,
         delay(),
       ]);
       expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
+      transactionController.destroy();
     });
   });
 });
