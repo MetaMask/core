@@ -40,7 +40,7 @@ const ETHERSCAN_TRANSACTION_ERROR_MOCK: EtherscanTransactionMeta = {
   isError: '1',
 };
 
-const ETHERSCAN_TOKEN_TRANSACTION_MOCK: EtherscanTokenTransactionMeta = {
+export const ETHERSCAN_TOKEN_TRANSACTION_MOCK: EtherscanTokenTransactionMeta = {
   ...ETHERSCAN_TRANSACTION_BASE_MOCK,
   tokenDecimal: '456',
   tokenName: 'TestToken',

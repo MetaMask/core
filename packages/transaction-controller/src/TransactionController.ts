@@ -380,6 +380,11 @@ export class TransactionController extends BaseControllerV1<
     }
   > = new Map();
 
+  readonly etherscanRemoteTransactionSourcesMap: Map<
+    Hex,
+    EtherscanRemoteTransactionSource
+  > = new Map();
+
   /**
    * Method used to sign transactions
    */
@@ -622,6 +627,7 @@ export class TransactionController extends BaseControllerV1<
         });
         if (shouldRefresh) {
           this.#refreshTrackingMap();
+          this.#refreshEtherscanRemoteTransactionSources();
         }
       },
     );
@@ -645,10 +651,30 @@ export class TransactionController extends BaseControllerV1<
     this.#stopAllTracking();
   }
 
+  #refreshEtherscanRemoteTransactionSources = () => {
+    // this will be prettier when we have consolidated network clients with a single chainId:
+    // check if there are still other network clients using the same chainId
+    // if not remove the etherscanRemoteTransaction source from the map
+    const networkClients = this.getNetworkClientRegistry();
+    const chainIdsInRegistry = new Set();
+    Object.values(networkClients).forEach((networkClient) =>
+      chainIdsInRegistry.add(networkClient.configuration.chainId),
+    );
+    const existingChainIds = Array.from(
+      this.etherscanRemoteTransactionSourcesMap.keys(),
+    );
+    const chainIdsToRemove = existingChainIds.filter(
+      (chainId) => !chainIdsInRegistry.has(chainId),
+    );
+
+    chainIdsToRemove.forEach((chainId) => {
+      this.etherscanRemoteTransactionSourcesMap.delete(chainId);
+    });
+  };
+
   #refreshTrackingMap = () => {
     const networkClients = this.getNetworkClientRegistry();
     const networkClientIds = Object.keys(networkClients);
-
     const existingNetworkClientIds = Array.from(this.trackingMap.keys());
 
     // Remove tracking for NetworkClientIds that no longer exist
@@ -1298,8 +1324,8 @@ export class TransactionController extends BaseControllerV1<
       this.removeIncomingTransactionHelperListeners(
         trackers.incomingTransactionHelper,
       );
+      this.trackingMap.delete(networkClientId);
     }
-    this.trackingMap.delete(networkClientId);
   }
 
   #stopAllTracking() {
@@ -1318,6 +1344,20 @@ export class TransactionController extends BaseControllerV1<
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
+
+    let etherscanRemoteTransactionSource =
+      this.etherscanRemoteTransactionSourcesMap.get(chainId);
+    if (!etherscanRemoteTransactionSource) {
+      etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
+        includeTokenTransfers:
+          this.incomingTransactionOptions.includeTokenTransfers,
+      });
+      this.etherscanRemoteTransactionSourcesMap.set(
+        chainId,
+        etherscanRemoteTransactionSource,
+      );
+    }
+
     if (!this.nonceMutexByChainId.get(chainId)) {
       this.nonceMutexByChainId.set(chainId, new Mutex());
     }
@@ -1338,16 +1378,14 @@ export class TransactionController extends BaseControllerV1<
       ),
     });
 
-    const etherscanRemoteTransactionSource =
-      new EtherscanRemoteTransactionSource({
-        includeTokenTransfers:
-          this.incomingTransactionOptions.includeTokenTransfers,
-      });
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       // TODO(JL): Fix this type
+      // TODO (AD):
+      // This is a hack until we remove the base IncomingTransactionHelper class
+      // and should be replaced with a plain chainId parameter
       getNetworkState: () => {
         return {
           providerConfig: { chainId } as ProviderConfig,
