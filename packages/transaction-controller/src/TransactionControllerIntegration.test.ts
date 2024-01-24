@@ -2475,10 +2475,10 @@ describe('TransactionController Integration', () => {
         'fetchEtherscanTransactions',
       );
 
-      // const fetchEtherscanTokenTxFetchSpy = jest.spyOn(
-      //   etherscanUtils,
-      //   'fetchEtherscanTokenTransactions',
-      // );
+      const fetchEtherscanTokenTxFetchSpy = jest.spyOn(
+        etherscanUtils,
+        'fetchEtherscanTokenTransactions',
+      );
 
       const clock = useFakeTimers();
       mockNetwork({
@@ -2604,74 +2604,38 @@ describe('TransactionController Integration', () => {
       });
 
       // Now mock the etherscan API
+
+      // Non-token transactions
       nock(getEtherscanApiHost(networkClientConfiguration.chainId))
         .get(
           `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
         )
         .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-      // // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      // const networkClientIds = Object.keys(networkClients).filter(
-      //   (v) => v !== networkClientConfiguration.network,
-      // );
-      // for (const networkClientId of networkClientIds) {
-      //   const config = networkClients[networkClientId].configuration;
-      //   mockNetwork({
-      //     networkClientConfiguration: config,
-      //     mocks: [
-      //       // BlockTracker
-      //       {
-      //         request: {
-      //           method: 'eth_blockNumber',
-      //           params: [],
-      //         },
-      //         response: {
-      //           result: '0x1',
-      //         },
-      //       },
-      //       // BlockTracker
-      //       {
-      //         request: {
-      //           method: 'eth_blockNumber',
-      //           params: [],
-      //         },
-      //         response: {
-      //           result: '0x2',
-      //         },
-      //       },
-      //     ],
-      //   });
-      //   nock(getEtherscanApiHost(config.chainId))
-      //     .get(
-      //       `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-      //     )
-      //     .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+      // token transactions
+      nock(getEtherscanApiHost(networkClientConfiguration.chainId))
+        .get(
+          `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
+        )
+        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-      // }
-
-      // const etherscanRemoteTransactionSourceGoerli =
-      //   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      //   transactionController.etherscanRemoteTransactionSourcesMap.get(
-      //     networkClientConfiguration.chainId,
-      //   )!;
-
-      // const fetchTransactionsSpy = jest.spyOn(
-      //   etherscanRemoteTransactionSourceGoerli,
-      //   'fetchTransactions',
-      // );
+      // start polling with two clients which share the same chainId
       transactionController.startIncomingTransactionPolling([
         networkClientConfiguration.network, // 'goerli'
         otherGoerliClientNetworkClientId,
       ]);
       await advanceTime({ clock, duration: 4000 });
       expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(0);
       await advanceTime({ clock, duration: 1000 });
-      // should this be called again? Seems like it should be hitting the blockNumber not high enough check
       expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: 6000 });
-      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(3);
-      await advanceTime({ clock, duration: 1 });
-      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(3);
+      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
+      // block tracker time is 20 seconds
+      // await advanceTime({ clock, duration: 16000 });
+      // expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
+
+      // await advanceTime({ clock, duration: 1 });
+      // expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(3);
 
       // expect(transactionController.state.transactions).toHaveLength(
       //   2 * networkClientIds.length,

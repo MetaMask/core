@@ -99,6 +99,7 @@ export class EtherscanRemoteTransactionSource
     etherscanRequest: EtherscanTransactionRequest,
   ) => {
     const { currentChainId } = request;
+    console.log('fetchingNormalTransactions', etherscanRequest);
 
     const etherscanTransactions = await fetchEtherscanTransactions(
       etherscanRequest,
@@ -115,6 +116,7 @@ export class EtherscanRemoteTransactionSource
   ) => {
     const { currentChainId } = request;
 
+    console.log('fetchingTokenTransactions', etherscanRequest);
     const etherscanTransactions = await fetchEtherscanTokenTransactions(
       etherscanRequest,
     );

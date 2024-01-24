@@ -125,30 +125,20 @@ export class IncomingTransactionHelper {
       this.#networkClientId,
     );
 
-    if (latestBlockNumberHex) {
-      // NOTE: ALD this may not work since we will not update the last fetched block number on the transactionController
-      // in time if there are two concurrent updates fired across two different incomingTransactionHelpers
+    // if (latestBlockNumberHex) {
+    //   // NOTE: ALD this won't work since we will not update the last fetched block number on the transactionController
+    //   // in time if there are two concurrent updates fired across two different incomingTransactionHelpers
+    //   // this is because the last fetched block number is updated after the transactions are fetched
+    //   // not worth updating since we will be mapping this helper to only one networkClient in the near future
 
-      // check if this latestBlockNumber being processed is higher than last fetched block number
-      // if not, return out
-      const currentBlockNumberUpdateDec = parseInt(latestBlockNumberHex, 16);
-      const lastFetchedBlockNumberDec = this.#getLastFetchedBlockNumberDec();
-      console.log(
-        'lastFetchedBlockNumberDec',
-        lastFetchedBlockNumberDec,
-        'this.#networkClientId',
-        this.#networkClientId,
-      );
-      console.log(
-        'currentBlockNumberUpdateDec',
-        currentBlockNumberUpdateDec,
-        'this.#networkClientId',
-        this.#networkClientId,
-      );
-      if (lastFetchedBlockNumberDec >= currentBlockNumberUpdateDec) {
-        return;
-      }
-    }
+    //   // check if this latestBlockNumber being processed is higher than last fetched block number
+    //   // if not, return out
+    //   const currentBlockNumberUpdateDec = parseInt(latestBlockNumberHex, 16);
+    //   const lastFetchedBlockNumberDec = this.#getLastFetchedBlockNumberDec();
+    //   if (lastFetchedBlockNumberDec >= currentBlockNumberUpdateDec) {
+    //     return;
+    //   }
+    // }
 
     log('Checking for incoming transactions');
 
