@@ -605,7 +605,7 @@ export class KeyringController extends BaseController<
 
     try {
       this.updateIdentities([]);
-      await this.createNewVaultWithKeyring(password, {
+      await this.#createNewVaultWithKeyring(password, {
         type: KeyringType.HD,
         opts: {
           mnemonic: seed,
@@ -630,7 +630,7 @@ export class KeyringController extends BaseController<
     try {
       const accounts = await this.getAccounts();
       if (!accounts.length) {
-        await this.createNewVaultWithKeyring(password, {
+        await this.#createNewVaultWithKeyring(password, {
           type: KeyringType.HD,
         });
         this.updateIdentities(await this.getAccounts());
@@ -1627,14 +1627,14 @@ export class KeyringController extends BaseController<
    * creates a new encrypted store with the given password,
    * creates a new wallet with 1 account.
    *
-   * @fires KeyringController#unlock
+   * @fires KeyringController:unlock
    * @param password - The password to encrypt the vault with.
    * @param keyring - A object containing the params to instantiate a new keyring.
    * @param keyring.type - The keyring type.
    * @param keyring.opts - Optional parameters required to instantiate the keyring.
    * @returns A promise that resolves to the state.
    */
-  async createNewVaultWithKeyring(
+  async #createNewVaultWithKeyring(
     password: string,
     keyring: {
       type: string;
