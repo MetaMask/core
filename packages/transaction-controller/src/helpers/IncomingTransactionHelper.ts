@@ -44,8 +44,6 @@ export class IncomingTransactionHelper {
 
   #updateTransactions: boolean;
 
-  #networkClientId?: string;
-
   constructor({
     blockTracker,
     getCurrentAccount,
@@ -57,7 +55,6 @@ export class IncomingTransactionHelper {
     remoteTransactionSource,
     transactionLimit,
     updateTransactions,
-    networkClientId,
   }: {
     blockTracker: BlockTracker;
     getCurrentAccount: () => string;
@@ -69,7 +66,6 @@ export class IncomingTransactionHelper {
     remoteTransactionSource: RemoteTransactionSource;
     transactionLimit?: number;
     updateTransactions?: boolean;
-    networkClientId?: string;
   }) {
     this.hub = new EventEmitter();
 
@@ -78,7 +74,6 @@ export class IncomingTransactionHelper {
     this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
     this.#getLocalTransactions = getLocalTransactions || (() => []);
     this.#getNetworkState = getNetworkState;
-    this.#networkClientId = networkClientId;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
     this.#queryEntireHistory = queryEntireHistory ?? true;

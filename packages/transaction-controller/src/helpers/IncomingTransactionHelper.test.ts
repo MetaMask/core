@@ -211,7 +211,7 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource,
           getLastFetchedBlockNumbers: () => ({
             [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
-              FROM_BLOCK_DECIMAL_MOCK - 1,
+              FROM_BLOCK_DECIMAL_MOCK,
           }),
         });
 
@@ -223,7 +223,7 @@ describe('IncomingTransactionHelper', () => {
 
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith(
           expect.objectContaining({
-            fromBlock: FROM_BLOCK_DECIMAL_MOCK,
+            fromBlock: FROM_BLOCK_DECIMAL_MOCK + 1,
           }),
         );
       });

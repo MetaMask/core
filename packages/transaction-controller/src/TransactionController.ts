@@ -1372,7 +1372,6 @@ export class TransactionController extends BaseControllerV1<
           providerConfig: { chainId } as ProviderConfig,
         } as NetworkState;
       },
-      networkClientId,
       isEnabled: this.incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource:
