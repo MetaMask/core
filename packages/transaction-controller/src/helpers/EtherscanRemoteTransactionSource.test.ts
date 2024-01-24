@@ -100,7 +100,7 @@ describe('EtherscanRemoteTransactionSource', () => {
     });
   });
 
-  describe.only('fetchTransactions', () => {
+  describe('fetchTransactions', () => {
     it('returns normalized transactions fetched from Etherscan', async () => {
       fetchEtherscanTransactionsMock.mockResolvedValueOnce(
         ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
