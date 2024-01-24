@@ -1214,7 +1214,7 @@ describe('KeyringController', () => {
               data: '',
               from: initialState.keyrings[0].accounts[0],
             }),
-          ).toThrow("Can't sign an empty message");
+          ).rejects.toThrow("Can't sign an empty message");
         });
       });
 

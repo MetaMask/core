@@ -33,7 +33,11 @@
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
     "@metamask/base-controller": "^4.1.1",
+    "@metamask/browser-passworder": "^4.3.0",
+    "@metamask/eth-hd-keyring": "^7.0.1",
     "@metamask/eth-keyring-controller": "^17.0.1",
+    "@metamask/eth-sig-util": "^7.0.0",
+    "@metamask/eth-simple-keyring": "^6.0.1",
     "@metamask/keyring-api": "^3.0.0",
     "@metamask/message-manager": "^7.3.8",
     "@metamask/utils": "^8.3.0",
