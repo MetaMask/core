@@ -18,13 +18,14 @@ import { mockNetwork } from '../../../tests/mock-network';
 import {
   ETHERSCAN_TRANSACTION_BASE_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+  ETHERSCAN_TOKEN_TRANSACTION_MOCK,
+  ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
 } from './helpers/EtherscanMocks';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { TransactionStatus, TransactionType } from './types';
 import { getEtherscanApiHost } from './utils/etherscan';
 import * as etherscanUtils from './utils/etherscan';
-import exp from 'constants';
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
@@ -2469,6 +2470,8 @@ describe('TransactionController Integration', () => {
       );
       transactionController.destroy();
     });
+
+    // TODO rephrase this to give a better idea of what we're proving
     it.only('should only call the etherscan API max every 5 seconds when startIncomingTransactionPolling is called with multiple networkClients which share the same chainId', async () => {
       const fetchEtherscanNativeTxFetchSpy = jest.spyOn(
         etherscanUtils,
@@ -2481,6 +2484,7 @@ describe('TransactionController Integration', () => {
       );
 
       const clock = useFakeTimers();
+      // mocking infura mainnet
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2508,6 +2512,7 @@ describe('TransactionController Integration', () => {
         ],
       });
 
+      // mocking infura goerli
       mockNetwork({
         networkClientConfiguration,
         mocks: [
@@ -2535,26 +2540,7 @@ describe('TransactionController Integration', () => {
         ],
       });
 
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { networkController, transactionController } = await newController({
-        getSelectedAddress: () => selectedAddress,
-      });
-
-      const otherGoerliClientNetworkClientId =
-        await networkController.upsertNetworkConfiguration(
-          {
-            rpcUrl: 'https://mock.rpc.url',
-            chainId: networkClientConfiguration.chainId,
-            ticker: networkClientConfiguration.ticker,
-          },
-          {
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
-
-      // mock the other goerli network client network reqs
+      // mock the other goerli network client node requests
       mockNetwork({
         networkClientConfiguration: {
           ...networkClientConfiguration,
@@ -2603,21 +2589,63 @@ describe('TransactionController Integration', () => {
         ],
       });
 
-      // Now mock the etherscan API
+      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+      const { networkController, transactionController } = await newController({
+        getSelectedAddress: () => selectedAddress,
+      });
+
+      const otherGoerliClientNetworkClientId =
+        await networkController.upsertNetworkConfiguration(
+          {
+            rpcUrl: 'https://mock.rpc.url',
+            chainId: networkClientConfiguration.chainId,
+            ticker: networkClientConfiguration.ticker,
+          },
+          {
+            referrer: 'https://mock.referrer',
+            source: 'dapp',
+          },
+        );
+
+      // Etherscan API Mocks
 
       // Non-token transactions
       nock(getEtherscanApiHost(networkClientConfiguration.chainId))
         .get(
           `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
         )
-        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+        .reply(200, {
+          status: '1',
+          result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 1 }],
+        })
+        // block 2
+        .get(
+          `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+        )
+        .reply(200, {
+          status: '1',
+          result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 2 }],
+        })
+        .persist();
 
       // token transactions
       nock(getEtherscanApiHost(networkClientConfiguration.chainId))
         .get(
           `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
         )
-        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+        .reply(200, {
+          status: '1',
+          result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 1 }],
+        })
+        .get(
+          `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
+        )
+        .reply(200, {
+          status: '1',
+          result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 2 }],
+        })
+        .persist();
 
       // start polling with two clients which share the same chainId
       transactionController.startIncomingTransactionPolling([
@@ -2630,19 +2658,15 @@ describe('TransactionController Integration', () => {
       await advanceTime({ clock, duration: 1000 });
       expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
       expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
-      // block tracker time is 20 seconds
-      // await advanceTime({ clock, duration: 16000 });
-      // expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
-
-      // await advanceTime({ clock, duration: 1 });
-      // expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(3);
-
-      // expect(transactionController.state.transactions).toHaveLength(
-      //   2 * networkClientIds.length,
-      // );
-      // expect(
-      //   transactionController.state.lastFetchedBlockNumbers,
-      // ).toStrictEqual({});
+      // next block arrives at 20 seconds
+      await advanceTime({ clock, duration: 15000 });
+      await advanceTime({ clock, duration: 1 }); // flushes extra promises/setTimeouts
+      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
+      await advanceTime({ clock, duration: 5000 });
+      await advanceTime({ clock, duration: 1 }); // flushes extra promises/setTimeouts
+      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(2);
       clock.restore();
     });
   });

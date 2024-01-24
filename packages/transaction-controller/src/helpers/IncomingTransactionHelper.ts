@@ -121,8 +121,8 @@ export class IncomingTransactionHelper {
     console.log(
       'latestBlockNumberHex',
       latestBlockNumberHex,
-      'this.#networkClientId',
-      this.#networkClientId,
+      'date.now',
+      Date.now(),
     );
 
     // if (latestBlockNumberHex) {
@@ -153,13 +153,12 @@ export class IncomingTransactionHelper {
       );
 
       const fromBlock = this.#getFromBlock(latestBlockNumber);
-
+      console.log('fromBlock', fromBlock);
       const address = this.#getCurrentAccount();
       const currentChainId = this.#getCurrentChainId();
 
       let remoteTransactions = [];
 
-      console.log('here');
       try {
         remoteTransactions =
           await this.#remoteTransactionSource.fetchTransactions({
@@ -274,6 +273,7 @@ export class IncomingTransactionHelper {
   #updateLastFetchedBlockNumber(remoteTxs: TransactionMeta[]) {
     let lastFetchedBlockNumber = -1;
 
+    console.log('remoteTxs', remoteTxs);
     for (const tx of remoteTxs) {
       const currentBlockNumberValue = tx.blockNumber
         ? parseInt(tx.blockNumber, 10)
@@ -300,10 +300,6 @@ export class IncomingTransactionHelper {
     }
 
     lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
-    console.log(
-      'are we updating lastFetchedBlockNumbers?',
-      lastFetchedBlockNumbers,
-    );
     this.hub.emit('updatedLastFetchedBlockNumbers', {
       lastFetchedBlockNumbers,
       blockNumber: lastFetchedBlockNumber,
