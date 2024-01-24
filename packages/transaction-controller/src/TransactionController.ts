@@ -1298,11 +1298,6 @@ export class TransactionController extends BaseControllerV1<
       this.removeIncomingTransactionHelperListeners(
         trackers.incomingTransactionHelper,
       );
-
-      // doesn't seem like any cleanup is needed for nonceTracker
-      // trackers.nonceTracker
-
-      trackers.pendingTransactionTracker.stop();
     }
     this.trackingMap.delete(networkClientId);
   }
@@ -1312,7 +1307,6 @@ export class TransactionController extends BaseControllerV1<
     this.removePendingTransactionTrackerListeners();
     this.incomingTransactionHelper.stop();
     this.removeIncomingTransactionHelperListeners();
-    this.pendingTransactionTracker.stop();
 
     for (const [networkClientId] of this.trackingMap) {
       this.stopTrackingByNetworkClientId(networkClientId);
