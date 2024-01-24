@@ -2471,203 +2471,217 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    // TODO rephrase this to give a better idea of what we're proving
-    it.only('should only call the etherscan API max every 5 seconds when startIncomingTransactionPolling is called with multiple networkClients which share the same chainId', async () => {
-      const fetchEtherscanNativeTxFetchSpy = jest.spyOn(
-        etherscanUtils,
-        'fetchEtherscanTransactions',
-      );
-
-      const fetchEtherscanTokenTxFetchSpy = jest.spyOn(
-        etherscanUtils,
-        'fetchEtherscanTokenTransactions',
-      );
-
-      const clock = useFakeTimers();
-      // mocking infura mainnet
-      mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-        ],
-      });
-
-      // mocking infura goerli
-      mockNetwork({
-        networkClientConfiguration,
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-        ],
-      });
-
-      // mock the other goerli network client node requests
-      mockNetwork({
-        networkClientConfiguration: {
-          ...networkClientConfiguration,
-          type: NetworkClientType.Custom,
-          rpcUrl: 'https://mock.rpc.url',
-        },
-        mocks: [
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x3',
-            },
-          },
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x4',
-            },
-          },
-        ],
-      });
-
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { networkController, transactionController } = await newController({
-        getSelectedAddress: () => selectedAddress,
-      });
-
-      const otherGoerliClientNetworkClientId =
-        await networkController.upsertNetworkConfiguration(
-          {
-            rpcUrl: 'https://mock.rpc.url',
-            chainId: networkClientConfiguration.chainId,
-            ticker: networkClientConfiguration.ticker,
-          },
-          {
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
+    describe('when called with multiple networkClients which share the same chainId', () => {
+      it('should only call the etherscan API max every 5 seconds, alternating between the token and txlist endpoints', async () => {
+        const fetchEtherscanNativeTxFetchSpy = jest.spyOn(
+          etherscanUtils,
+          'fetchEtherscanTransactions',
         );
 
-      // Etherscan API Mocks
+        const fetchEtherscanTokenTxFetchSpy = jest.spyOn(
+          etherscanUtils,
+          'fetchEtherscanTokenTransactions',
+        );
 
-      // Non-token transactions
-      nock(getEtherscanApiHost(networkClientConfiguration.chainId))
-        .get(
-          `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-        )
-        .reply(200, {
-          status: '1',
-          result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 1 }],
-        })
-        // block 2
-        .get(
-          `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-        )
-        .reply(200, {
-          status: '1',
-          result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 2 }],
-        })
-        .persist();
+        const clock = useFakeTimers();
+        // mocking infura mainnet
+        mockNetwork({
+          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          mocks: [
+            // NetworkController
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+          ],
+        });
 
-      // token transactions
-      nock(getEtherscanApiHost(networkClientConfiguration.chainId))
-        .get(
-          `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
-        )
-        .reply(200, {
-          status: '1',
-          result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 1 }],
-        })
-        .get(
-          `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
-        )
-        .reply(200, {
-          status: '1',
-          result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 2 }],
-        })
-        .persist();
+        // mocking infura goerli
+        mockNetwork({
+          networkClientConfiguration,
+          mocks: [
+            // NetworkController
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+          ],
+        });
 
-      // start polling with two clients which share the same chainId
-      transactionController.startIncomingTransactionPolling([
-        networkClientConfiguration.network, // 'goerli'
-        otherGoerliClientNetworkClientId,
-      ]);
-      await advanceTime({ clock, duration: 4000 });
-      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(0);
-      await advanceTime({ clock, duration: 1000 });
-      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
-      // next block arrives at 20 seconds
-      await advanceTime({ clock, duration: 15000 });
-      await advanceTime({ clock, duration: 1 }); // flushes extra promises/setTimeouts
-      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
-      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: 5000 });
-      await advanceTime({ clock, duration: 1 }); // flushes extra promises/setTimeouts
-      expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
-      expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(2);
-      clock.restore();
+        // mock the other goerli network client node requests
+        mockNetwork({
+          networkClientConfiguration: {
+            ...networkClientConfiguration,
+            type: NetworkClientType.Custom,
+            rpcUrl: 'https://mock.rpc.url',
+          },
+          mocks: [
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x2',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x4',
+              },
+            },
+          ],
+        });
+
+        const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+        const { networkController, transactionController } =
+          await newController({
+            getSelectedAddress: () => selectedAddress,
+          });
+
+        const otherGoerliClientNetworkClientId =
+          await networkController.upsertNetworkConfiguration(
+            {
+              rpcUrl: 'https://mock.rpc.url',
+              chainId: networkClientConfiguration.chainId,
+              ticker: networkClientConfiguration.ticker,
+            },
+            {
+              referrer: 'https://mock.referrer',
+              source: 'dapp',
+            },
+          );
+
+        // Etherscan API Mocks
+
+        // Non-token transactions
+        nock(getEtherscanApiHost(networkClientConfiguration.chainId))
+          .get(
+            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+          )
+          .reply(200, {
+            status: '1',
+            result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 1 }],
+          })
+          // block 2
+          .get(
+            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+          )
+          .reply(200, {
+            status: '1',
+            result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 2 }],
+          })
+          .persist();
+
+        // token transactions
+        nock(getEtherscanApiHost(networkClientConfiguration.chainId))
+          .get(
+            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
+          )
+          .reply(200, {
+            status: '1',
+            result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 1 }],
+          })
+          .get(
+            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
+          )
+          .reply(200, {
+            status: '1',
+            result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 2 }],
+          })
+          .persist();
+
+        // start polling with two clients which share the same chainId
+        transactionController.startIncomingTransactionPolling([
+          networkClientConfiguration.network, // 'goerli'
+          otherGoerliClientNetworkClientId,
+        ]);
+        await advanceTime({ clock, duration: 1 });
+        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
+        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(0);
+        await advanceTime({ clock, duration: 4999 });
+        // after 5 seconds we can call to the etherscan API again, this time to the token transactions endpoint
+        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
+        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
+        await advanceTime({ clock, duration: 5000 });
+        // after another 5 seconds there should be no new calls to the etherscan API
+        // since no new blocks events have occurred
+        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
+        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
+        // next block arrives after 20 seconds elapsed from first call
+        await advanceTime({ clock, duration: 10000 });
+        await advanceTime({ clock, duration: 1 }); // flushes extra promises/setTimeouts
+        // first the native transactions are fetched
+        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
+        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
+        await advanceTime({ clock, duration: 4000 });
+        // no new calls to the etherscan API since 5 seconds have not passed
+        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
+        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
+        await advanceTime({ clock, duration: 1000 }); // flushes extra promises/setTimeouts
+        // then once 5 seconds have passed since the previous call to the etherscan API
+        // we call the token transactions endpoint
+        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
+        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(2);
+        clock.restore();
+      });
     });
   });
 
