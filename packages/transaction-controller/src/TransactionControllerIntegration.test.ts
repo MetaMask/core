@@ -2354,6 +2354,48 @@ describe('TransactionController Integration', () => {
     });
   });
 
+  describe('when changing rpcUrl of networkClient', () => {
+    it('should update the trackingMap', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x2',
+            },
+          },
+        ],
+      });
+      const { networkController, transactionController } =
+        await newController();
+      await networkController.upsertNetworkConfiguration(
+        {
+          ...networkClientConfiguration,
+          rpcUrl: 'https://mock.rpc.url',
+        },
+        { setActive: false, referrer: 'https://mock.referrer', source: 'dapp' },
+      );
+
+      expect(transactionController).toBeDefined();
+    });
+  });
+
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
