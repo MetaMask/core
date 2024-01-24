@@ -4833,10 +4833,10 @@ describe('TransactionController', () => {
       expect(controller).toBeDefined();
     });
     // eslint-disable-next-line jest/no-done-callback
-    it('should handle removals from the networkController registry', (done) => {
+    it.only('should handle removals from the networkController registry', (done) => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
       const mockGetNetworkClientRegistry = jest.fn();
-      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+      mockGetNetworkClientRegistry.mockImplementation(() => ({
         sepolia: {
           configuration: {
             chainId: SEPOLIA.chainId,
@@ -4855,7 +4855,7 @@ describe('TransactionController', () => {
       }));
       hub.on('tracking-map-init', () => {
         mockGetNetworkClientRegistry.mockClear();
-        mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+        mockGetNetworkClientRegistry.mockImplementation(() => ({
           sepolia: {
             configuration: {
               chainId: SEPOLIA.chainId,

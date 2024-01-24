@@ -625,6 +625,7 @@ export class TransactionController extends BaseControllerV1<
           const correctPath = patch.path[0] === 'networkConfigurations';
           return correctOp && correctPath;
         });
+        // TODO (AD): figure out if we can get the chainId to remove from the patches
         if (shouldRefresh) {
           this.#refreshTrackingMap();
         }
