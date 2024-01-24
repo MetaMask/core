@@ -70,7 +70,7 @@ type TransactionMetaBase = {
   estimateUsed?: string;
 
   /**
-   * Description of the link clicked associated with this transac
+   * Description of the link clicked associated with the transaction
    */
   externalLinkClicked?: string;
 
