@@ -2870,7 +2870,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('updateIncomingTransactions', () => {
-    it.only('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
+    it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
