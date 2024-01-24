@@ -77,24 +77,10 @@ export class EtherscanRemoteTransactionSource
     } finally {
       const elapsedTime = Date.now() - acquiredTime;
       const remainingTime = Math.max(0, this.API_FETCH_INTERVAL - elapsedTime);
-      console.log(
-        'in finally, elapsedTime',
-        elapsedTime,
-        'remainingTime',
-        remainingTime,
-        'Date.now()',
-        Date.now(),
-        'acquiredTime',
-        acquiredTime,
-        'API_FETCH_INTERVAL',
-        this.API_FETCH_INTERVAL,
-      );
-
       // Wait for the remaining time if it hasn't been 5 seconds yet
       if (remainingTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, remainingTime));
       }
-      console.log('going to release lock in fetchTransactions', Date.now());
       releaseLock();
     }
   }

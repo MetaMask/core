@@ -118,21 +118,6 @@ export class IncomingTransactionHelper {
   async update(latestBlockNumberHex?: Hex): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
 
-    // if (latestBlockNumberHex) {
-    //   // NOTE: ALD this won't work since we will not update the last fetched block number on the transactionController
-    //   // in time if there are two concurrent updates fired across two different incomingTransactionHelpers
-    //   // this is because the last fetched block number is updated after the transactions are fetched
-    //   // not worth updating since we will be mapping this helper to only one networkClient in the near future
-
-    //   // check if this latestBlockNumber being processed is higher than last fetched block number
-    //   // if not, return out
-    //   const currentBlockNumberUpdateDec = parseInt(latestBlockNumberHex, 16);
-    //   const lastFetchedBlockNumberDec = this.#getLastFetchedBlockNumberDec();
-    //   if (lastFetchedBlockNumberDec >= currentBlockNumberUpdateDec) {
-    //     return;
-    //   }
-    // }
-
     log('Checking for incoming transactions');
 
     try {
@@ -145,7 +130,6 @@ export class IncomingTransactionHelper {
         16,
       );
 
-      console.log('latestBlockNumber', latestBlockNumber);
       const additionalLastFetchedKeys =
         this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
 
@@ -169,8 +153,6 @@ export class IncomingTransactionHelper {
         log('Error while fetching remote transactions', error);
         return;
       }
-      console.log('remoteTransactions', remoteTransactions);
-
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
           (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
@@ -210,7 +192,6 @@ export class IncomingTransactionHelper {
         additionalLastFetchedKeys,
       );
     } finally {
-      console.log('releaseLock?');
       releaseLock();
     }
   }

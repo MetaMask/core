@@ -2954,10 +2954,7 @@ describe('TransactionController Integration', () => {
             )
             .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-          await advanceTime({ clock, duration: 1 });
-          await transactionController.updateIncomingTransactions([
-            networkClientId,
-          ]);
+          transactionController.updateIncomingTransactions([networkClientId]);
 
           expectedLastFetchedBlockNumbers[
             `${config.chainId}#${selectedAddress}#normal`
@@ -2979,9 +2976,8 @@ describe('TransactionController Integration', () => {
         }),
       );
 
+      // we have to wait for the mutex is released after the 5 second gap between API calls finishes
       await advanceTime({ clock, duration: 5000 });
-      await advanceTime({ clock, duration: 1 });
-      await advanceTime({ clock, duration: 1 });
 
       expect(transactionController.state.transactions).toHaveLength(
         2 * networkClientIds.length,
