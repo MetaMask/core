@@ -625,9 +625,9 @@ export class TransactionController extends BaseControllerV1<
           const correctPath = patch.path[0] === 'networkConfigurations';
           return correctOp && correctPath;
         });
-        // TODO (AD): figure out if we can get the chainId to remove from the patches
         if (shouldRefresh) {
           this.#refreshTrackingMap();
+          this.#refreshEtherscanRemoteTransactionSources();
         }
       },
     );
@@ -651,10 +651,30 @@ export class TransactionController extends BaseControllerV1<
     this.#stopAllTracking();
   }
 
+  #refreshEtherscanRemoteTransactionSources = () => {
+    // this will be prettier when we have consolidated network clients with a single chainId:
+    // check if there are still other network clients using the same chainId
+    // if not remove the etherscanRemoteTransaction source from the map
+    const networkClients = this.getNetworkClientRegistry();
+    const chainIdsInRegistry = new Set();
+    Object.values(networkClients).forEach((networkClient) =>
+      chainIdsInRegistry.add(networkClient.configuration.chainId),
+    );
+    const existingChainIds = Array.from(
+      this.etherscanRemoteTransactionSourcesMap.keys(),
+    );
+    const chainIdsToRemove = existingChainIds.filter(
+      (chainId) => !chainIdsInRegistry.has(chainId),
+    );
+
+    chainIdsToRemove.forEach((chainId) => {
+      this.etherscanRemoteTransactionSourcesMap.delete(chainId);
+    });
+  };
+
   #refreshTrackingMap = () => {
     const networkClients = this.getNetworkClientRegistry();
     const networkClientIds = Object.keys(networkClients);
-
     const existingNetworkClientIds = Array.from(this.trackingMap.keys());
 
     // Remove tracking for NetworkClientIds that no longer exist
@@ -1305,29 +1325,6 @@ export class TransactionController extends BaseControllerV1<
         trackers.incomingTransactionHelper,
       );
       this.trackingMap.delete(networkClientId);
-    }
-    // this will be prettier when we have consolidated network clients with a single chainId:
-    // check if there are still other network clients using the same chainId
-    // if not remove the etherscanRemoteTransaction source from the map
-    const networkClients = this.getNetworkClientRegistry();
-    const chainIdOfNetworkClientToStop =
-      networkClients[networkClientId].configuration.chainId;
-    const otherNetworkClientsUsingSameChainId = Object.keys(
-      networkClients,
-    ).filter(
-      (id) =>
-        networkClients[id].configuration.chainId ===
-          chainIdOfNetworkClientToStop && id !== networkClientId,
-    );
-    if (
-      otherNetworkClientsUsingSameChainId.length === 0 &&
-      this.etherscanRemoteTransactionSourcesMap.has(
-        chainIdOfNetworkClientToStop,
-      )
-    ) {
-      this.etherscanRemoteTransactionSourcesMap.delete(
-        chainIdOfNetworkClientToStop,
-      );
     }
   }
 
