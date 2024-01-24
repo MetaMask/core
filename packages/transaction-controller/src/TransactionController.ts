@@ -2187,19 +2187,12 @@ export class TransactionController extends BaseControllerV1<
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId)) &&
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
 
-    const { networkClientId } = transactionMeta;
-    let chainId;
-    let isCustomNetwork;
+    const { networkClientId, chainId } = transactionMeta;
 
-    if (networkClientId) {
-      const { configuration } = this.getNetworkClientById(networkClientId);
-      chainId = configuration.chainId;
-      isCustomNetwork = configuration.type === NetworkClientType.Custom;
-    } else {
-      const { providerConfig } = this.getNetworkState();
-      chainId = providerConfig.chainId;
-      isCustomNetwork = providerConfig.type === NetworkType.rpc;
-    }
+    const isCustomNetwork = networkClientId
+      ? this.getNetworkClientById(networkClientId).configuration.type ===
+        NetworkClientType.Custom
+      : this.getNetworkState().providerConfig.type === NetworkType.rpc;
 
     await updateGas({
       ethQuery: this.#getEthQuery({ networkClientId, chainId }),
