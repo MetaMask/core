@@ -1,4 +1,9 @@
-import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
+import {
+  NetworkType,
+  NetworksTicker,
+  ChainId,
+  BuiltInNetworkName,
+} from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
@@ -73,7 +78,7 @@ export const BUILT_IN_NETWORKS = {
     chainId: ChainId['linea-goerli'],
     ticker: NetworksTicker['linea-goerli'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://explorer.goerli.linea.build',
+      blockExplorerUrl: 'https://goerli.lineascan.build',
     },
   },
   [NetworkType['linea-mainnet']]: {
@@ -86,15 +91,14 @@ export const BUILT_IN_NETWORKS = {
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
+    ticker: undefined,
     rpcPrefs: undefined,
   },
 } as const;
 
 // APIs
 export const OPENSEA_PROXY_URL =
-  'https://proxy.metafi.codefi.network/opensea/v1/api/v1';
-export const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
-export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
+  'https://proxy.metafi.codefi.network/opensea/v1/api/v2';
 
 // Default origin for controllers
 export const ORIGIN_METAMASK = 'metamask';
@@ -125,13 +129,14 @@ export enum ApprovalType {
   WatchAsset = 'wallet_watchAsset',
 }
 
-export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-  NetworkId,
-  NetworkType
+export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
+  ChainId,
+  BuiltInNetworkName
 > = {
-  [NetworkId.goerli]: NetworkType.goerli,
-  [NetworkId.sepolia]: NetworkType.sepolia,
-  [NetworkId.mainnet]: NetworkType.mainnet,
-  [NetworkId['linea-goerli']]: NetworkType['linea-goerli'],
-  [NetworkId['linea-mainnet']]: NetworkType['linea-mainnet'],
+  [ChainId.goerli]: BuiltInNetworkName.Goerli,
+  [ChainId.sepolia]: BuiltInNetworkName.Sepolia,
+  [ChainId.mainnet]: BuiltInNetworkName.Mainnet,
+  [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
+  [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
+  [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };

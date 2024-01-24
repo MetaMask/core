@@ -14,7 +14,9 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: Hex) {
-  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(chainId)}`;
+  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
+    chainId,
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
 }
 
 /**
@@ -46,7 +48,7 @@ const defaultTimeout = tenSecondsInMilliseconds;
  * @param options.timeout - The fetch timeout.
  * @returns The token list, or `undefined` if the request was cancelled.
  */
-export async function fetchTokenList(
+export async function fetchTokenListByChainId(
   chainId: Hex,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},

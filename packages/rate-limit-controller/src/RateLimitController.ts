@@ -1,7 +1,11 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
-import { ethErrors } from 'eth-rpc-errors';
-import type { Patch } from 'immer';
+import type {
+  ActionConstraint,
+  RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import { rpcErrors } from '@metamask/rpc-errors';
 
 /**
  * @type RateLimitedApi
@@ -10,7 +14,7 @@ import type { Patch } from 'immer';
  * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
  */
 export type RateLimitedApi = {
-  method: (...args: any[]) => any;
+  method: ActionConstraint['handler'];
   rateLimitTimeout?: number;
   rateLimitCount?: number;
 };
@@ -29,17 +33,11 @@ const name = 'RateLimitController';
 
 export type RateLimitStateChange<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = {
-  type: `${typeof name}:stateChange`;
-  payload: [RateLimitState<RateLimitedApis>, Patch[]];
-};
+> = ControllerStateChangeEvent<typeof name, RateLimitedApis>;
 
 export type GetRateLimitState<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = {
-  type: `${typeof name}:getState`;
-  handler: () => RateLimitState<RateLimitedApis>;
-};
+> = ControllerGetStateAction<typeof name, RateLimitedApis>;
 
 export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
   type: `${typeof name}:call`;
@@ -50,12 +48,16 @@ export type RateLimitControllerActions<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>;
 
+export type RateLimitControllerEvents<
+  RateLimitedApis extends Record<string, RateLimitedApi>,
+> = RateLimitStateChange<RateLimitedApis>;
+
 export type RateLimitMessenger<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = RestrictedControllerMessenger<
   typeof name,
   RateLimitControllerActions<RateLimitedApis>,
-  RateLimitStateChange<RateLimitedApis>,
+  RateLimitControllerEvents<RateLimitedApis>,
   never,
   never
 >;
@@ -121,11 +123,11 @@ export class RateLimitController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:call` as const,
-      ((
+      (
         origin: string,
         type: keyof RateLimitedApis,
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
-      ) => this.call(origin, type, ...args)) as any,
+      ) => this.call(origin, type, ...args),
     );
   }
 
@@ -135,7 +137,6 @@ export class RateLimitController<
    * @param origin - The requesting origin.
    * @param type - The type of API call to make.
    * @param args - Arguments for the API call.
-   * @returns `false` if rate-limited, and `true` otherwise.
    */
   async call<ApiType extends keyof RateLimitedApis>(
     origin: string,
@@ -143,7 +144,7 @@ export class RateLimitController<
     ...args: Parameters<RateLimitedApis[ApiType]['method']>
   ): Promise<ReturnType<RateLimitedApis[ApiType]['method']>> {
     if (this.isRateLimited(type, origin)) {
-      throw ethErrors.rpc.limitExceeded({
+      throw rpcErrors.limitExceeded({
         message: `"${type.toString()}" is currently rate-limited. Please try again later.`,
       });
     }
@@ -155,7 +156,9 @@ export class RateLimitController<
       throw new Error('Invalid api type');
     }
 
-    return implementation(...args);
+    return implementation(...args) as ReturnType<
+      RateLimitedApis[ApiType]['method']
+    >;
   }
 
   /**
@@ -181,7 +184,11 @@ export class RateLimitController<
     const rateLimitTimeout =
       this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const previous = (state as any).requests[api][origin] ?? 0;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (state as any).requests[api][origin] = previous + 1;
 
       if (previous === 0) {
@@ -198,6 +205,8 @@ export class RateLimitController<
    */
   private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (state as any).requests[api][origin] = 0;
     });
   }

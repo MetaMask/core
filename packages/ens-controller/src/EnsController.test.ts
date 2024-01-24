@@ -107,7 +107,7 @@ describe('EnsController', () => {
     expect(controller.state.ensResolutionsByAddress).toStrictEqual({});
   });
 
-  it('should clear ensResolutionsByAddress state propery on networkStateChange', async () => {
+  it('should clear ensResolutionsByAddress state propery on networkDidChange', async () => {
     const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
@@ -117,9 +117,8 @@ describe('EnsController', () => {
         },
       },
       provider: getProvider(),
-      onNetworkStateChange: (listener) => {
+      onNetworkDidChange: (listener) => {
         listener({
-          networkId: '1',
           providerConfig: {
             chainId: toHex(1),
             type: NetworkType.mainnet,
@@ -443,9 +442,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: null,
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -462,11 +460,10 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1544',
             providerConfig: {
-              chainId: toHex(1),
+              chainId: toHex(0),
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -488,9 +485,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -512,9 +508,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -535,9 +530,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -561,9 +555,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -587,9 +580,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -615,9 +607,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -642,9 +633,8 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
-            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,

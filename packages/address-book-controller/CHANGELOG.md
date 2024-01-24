@@ -6,6 +6,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.7]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [3.1.6]
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+
+## [3.1.5]
+### Changed
+- Bump `@metamask/utils` to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is not a breaking change because this controller still inherits from BaseController v1.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [3.1.4]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+
+## [3.1.3]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [3.1.2]
+### Changed
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+
 ## [3.1.1]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -32,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Add optional `addressType` property to address book entries ([#828](https://github.com/MetaMask/controllers/pull/828), [#1068](https://github.com/MetaMask/core/pull/1068))
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [1.0.1]
 ### Changed
@@ -47,7 +79,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.7...HEAD
+[3.1.7]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.6...@metamask/address-book-controller@3.1.7
+[3.1.6]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.5...@metamask/address-book-controller@3.1.6
+[3.1.5]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.4...@metamask/address-book-controller@3.1.5
+[3.1.4]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.3...@metamask/address-book-controller@3.1.4
+[3.1.3]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.2...@metamask/address-book-controller@3.1.3
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.1...@metamask/address-book-controller@3.1.2
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.0...@metamask/address-book-controller@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.0.0...@metamask/address-book-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@2.0.0...@metamask/address-book-controller@3.0.0

@@ -6,6 +6,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.2]
+### Changed
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [8.0.1]
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+
+## [8.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [7.0.1]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2 ([#1747](https://github.com/MetaMask/core/pull/1747))
+
+## [7.0.0]
+### Changed
+- **BREAKING:** Migrate `PhishingController` to BaseControllerV2 ([#1705](https://github.com/MetaMask/core/pull/1705))
+  - `PhishingController` now expects a `messenger` option (and corresponding type `PhishingControllerMessenger` is now available)
+  - The constructor takes a single argument, an options bag, instead of three arguments
+  - The `disabled` configuration is no longer supported
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [6.0.2]
+### Changed
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+
 ## [6.0.1]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -61,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.1]
 ### Changed
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [1.1.0]
 ### Added
@@ -80,7 +113,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@8.0.2...HEAD
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@8.0.1...@metamask/phishing-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@8.0.0...@metamask/phishing-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@7.0.1...@metamask/phishing-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@7.0.0...@metamask/phishing-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.2...@metamask/phishing-controller@7.0.0
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.1...@metamask/phishing-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.0...@metamask/phishing-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@5.0.0...@metamask/phishing-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@4.0.0...@metamask/phishing-controller@5.0.0

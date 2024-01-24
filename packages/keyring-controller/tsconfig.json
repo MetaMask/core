@@ -8,13 +8,7 @@
       "path": "../base-controller"
     },
     {
-      "path": "../controller-utils"
-    },
-    {
       "path": "../message-manager"
-    },
-    {
-      "path": "../preferences-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

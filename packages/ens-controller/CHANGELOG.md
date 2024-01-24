@@ -6,6 +6,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^17.2.0` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+
+## [8.0.0]
+### Changed
+- **BREAKING:** Replace constructor parameter `onNetworkStateChange` with `onNetworkDidChange` ([#3610](https://github.com/MetaMask/core/pull/3610))
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^17.0.0` to `^17.1.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+
+### Fixed
+- Remove `@metamask/network-controller` dependency ([#3607](https://github.com/MetaMask/core/pull/3607))
+
+## [7.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+- Bump `@metamask/network-controller` to ^17.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [6.0.1]
+### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^16.0.0
+- Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+
+## [6.0.0]
+### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
+
+## [5.0.2]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+
+## [5.0.1]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [5.0.0]
+### Changed
+- **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Use `providerConfig.chainId` instead of `providerConfig.networkId` to determine ENS compatability ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+
 ## [4.1.1]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -60,7 +111,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@8.0.0...@metamask/ens-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@7.0.0...@metamask/ens-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@6.0.1...@metamask/ens-controller@7.0.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@6.0.0...@metamask/ens-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.2...@metamask/ens-controller@6.0.0
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.1...@metamask/ens-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.0...@metamask/ens-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.1...@metamask/ens-controller@5.0.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.0...@metamask/ens-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.0.0...@metamask/ens-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.1.0...@metamask/ens-controller@4.0.0

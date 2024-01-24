@@ -1,4 +1,4 @@
-import { JsonRpcEngine } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 import { getPermissionsHandler } from './getPermissions';
 
@@ -11,11 +11,15 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       implementation(req as any, res as any, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,
       }),
     );
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
@@ -33,11 +37,15 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       implementation(req as any, res as any, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,
       }),
     );
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = await engine.handle({
       jsonrpc: '2.0',
       id: 1,

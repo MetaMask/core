@@ -6,6 +6,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.8]
+### Changed
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [7.3.7]
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+- Bump `@metamask/eth-sig-util` to `^7.0.1` ([#3614](https://github.com/MetaMask/core/pull/3614))
+
+## [7.3.6]
+### Changed
+- Bump `@metamask/utils` to ^8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
+- Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is not breaking because the message managers still inherit from BaseController v1.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [7.3.5]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `metamask/controller-utils` to ^5.0.2
+
+### Fixed
+- Fix `prepMessageForSigning` in all message managers to handle frozen `messageParams` ([#1733](https://github.com/MetaMask/core/pull/1733))
+
+## [7.3.4]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [7.3.3]
+### Changed
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+
+## [7.3.2]
+### Changed
+- Bump @metamask/eth-sig-util from 6.0.0 to 7.0.0 ([#1669](https://github.com/MetaMask/core/pull/1669))
+
 ## [7.3.1]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -105,7 +145,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.8...HEAD
+[7.3.8]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.7...@metamask/message-manager@7.3.8
+[7.3.7]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.6...@metamask/message-manager@7.3.7
+[7.3.6]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.5...@metamask/message-manager@7.3.6
+[7.3.5]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.4...@metamask/message-manager@7.3.5
+[7.3.4]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.3...@metamask/message-manager@7.3.4
+[7.3.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.2...@metamask/message-manager@7.3.3
+[7.3.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.1...@metamask/message-manager@7.3.2
 [7.3.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.0...@metamask/message-manager@7.3.1
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.2.0...@metamask/message-manager@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.1.0...@metamask/message-manager@7.2.0

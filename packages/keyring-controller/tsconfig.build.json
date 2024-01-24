@@ -10,13 +10,7 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
-      "path": "../controller-utils/tsconfig.build.json"
-    },
-    {
       "path": "../message-manager/tsconfig.build.json"
-    },
-    {
-      "path": "../preferences-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

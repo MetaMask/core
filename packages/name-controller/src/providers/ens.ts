@@ -1,3 +1,4 @@
+import { projectLogger, createModuleLogger } from '../logger';
 import type {
   NameProvider,
   NameProviderMetadata,
@@ -14,10 +15,21 @@ export type ReverseLookupCallback = (
 const ID = 'ens';
 const LABEL = 'Ethereum Name Service (ENS)';
 
+const log = createModuleLogger(projectLogger, 'ens');
+
 export class ENSNameProvider implements NameProvider {
+  #isEnabled: () => boolean;
+
   #reverseLookup: ReverseLookupCallback;
 
-  constructor({ reverseLookup }: { reverseLookup: ReverseLookupCallback }) {
+  constructor({
+    isEnabled,
+    reverseLookup,
+  }: {
+    isEnabled?: () => boolean;
+    reverseLookup: ReverseLookupCallback;
+  }) {
+    this.#isEnabled = isEnabled || (() => true);
     this.#reverseLookup = reverseLookup;
   }
 
@@ -31,13 +43,36 @@ export class ENSNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
-    const { value, chainId } = request;
-    const proposedName = await this.#reverseLookup(value, chainId);
+    if (!this.#isEnabled()) {
+      log('Skipping request as disabled');
 
-    return {
-      results: {
-        [ID]: { proposedNames: [proposedName] },
-      },
-    };
+      return {
+        results: {
+          [ID]: {
+            proposedNames: [],
+          },
+        },
+      };
+    }
+
+    const { value, variation: chainId } = request;
+
+    log('Invoking callback', { value, chainId });
+
+    try {
+      const proposedName = await this.#reverseLookup(value, chainId);
+      const proposedNames = proposedName ? [proposedName] : [];
+
+      log('New proposed names', proposedNames);
+
+      return {
+        results: {
+          [ID]: { proposedNames },
+        },
+      };
+    } catch (error) {
+      log('Request failed', error);
+      throw error;
+    }
   }
 }

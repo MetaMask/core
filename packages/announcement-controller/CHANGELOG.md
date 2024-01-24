@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.2]
+### Changed
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [5.0.1]
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+
+## [5.0.0]
+### Changed
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+
+## [4.0.3]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+
+## [4.0.2]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
 ## [4.0.1]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -57,7 +78,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.2...HEAD
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.1...@metamask/announcement-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.0...@metamask/announcement-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.3...@metamask/announcement-controller@5.0.0
+[4.0.3]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.2...@metamask/announcement-controller@4.0.3
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.1...@metamask/announcement-controller@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.0...@metamask/announcement-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@3.0.0...@metamask/announcement-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@2.0.1...@metamask/announcement-controller@3.0.0

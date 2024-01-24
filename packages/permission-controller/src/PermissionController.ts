@@ -10,20 +10,21 @@ import type {
   RestrictedControllerMessenger,
   ActionConstraint,
   EventConstraint,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { NonEmptyArray } from '@metamask/controller-utils';
 import {
   isNonEmptyArray,
   isPlainObject,
   isValidJson,
 } from '@metamask/controller-utils';
+import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
-import { EthereumRpcError } from 'eth-rpc-errors';
-import { castDraft } from 'immer';
-import type { Draft, Patch } from 'immer';
+import { castDraft, type Draft } from 'immer';
 import { nanoid } from 'nanoid';
 
 import type {
@@ -118,7 +119,11 @@ export type PermissionsRequest = {
 };
 
 export type SideEffects = {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   permittedHandlers: Record<string, SideEffectHandler<any, any>>;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   failureHandlers: Record<string, SideEffectHandler<any, any>>;
 };
 
@@ -194,10 +199,10 @@ function getDefaultState<Permission extends PermissionConstraint>() {
 /**
  * Gets the state of the {@link PermissionController}.
  */
-export type GetPermissionControllerState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => PermissionControllerState<PermissionConstraint>;
-};
+export type GetPermissionControllerState = ControllerGetStateAction<
+  typeof controllerName,
+  PermissionControllerState<PermissionConstraint>
+>;
 
 /**
  * Gets the names of all subjects from the {@link PermissionController}.
@@ -317,10 +322,10 @@ export type PermissionControllerActions =
 /**
  * The generic state change event of the {@link PermissionController}.
  */
-export type PermissionControllerStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [PermissionControllerState<PermissionConstraint>, Patch[]];
-};
+export type PermissionControllerStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  PermissionControllerState<PermissionConstraint>
+>;
 
 /**
  * The {@link ControllerMessenger} events of the {@link PermissionController}.
@@ -510,7 +515,7 @@ export type PermissionControllerOptions<
 export class PermissionController<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
   ControllerCaveatSpecification extends CaveatSpecificationConstraint,
-> extends BaseControllerV2<
+> extends BaseController<
   typeof controllerName,
   PermissionControllerState<
     ExtractPermission<
@@ -564,7 +569,7 @@ export class PermissionController<
    * @param options.unrestrictedMethods - The callable names of all JSON-RPC
    * methods ignored by the new controller.
    * @param options.messenger - The controller messenger. See
-   * {@link BaseControllerV2} for more information.
+   * {@link BaseController} for more information.
    * @param options.state - Existing state to hydrate the controller with at
    * initialization.
    */
@@ -1291,6 +1296,8 @@ export class PermissionController<
         // is allowed to have caveats, but it should be impossible to call
         // this method for a permission that may not have any caveats.
         // If all else fails, the permission validator is also called.
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         permission.caveats = [caveat] as any;
       }
 
@@ -1384,6 +1391,8 @@ export class PermissionController<
               const _exhaustiveCheck: never = mutatorResult;
               throw new Error(
                 `Unrecognized mutation result: "${
+                  // TODO: Replace `any` with type
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   (_exhaustiveCheck as any).operation
                 }"`,
               );
@@ -1802,6 +1811,7 @@ export class PermissionController<
     target: string,
   ): void {
     if (!isPlainObject(caveat)) {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal
       throw new InvalidCaveatError(caveat, origin, target);
     }
 
@@ -2149,7 +2159,7 @@ export class PermissionController<
     try {
       this.validateRequestedPermissions(origin, permissions);
     } catch (error) {
-      if (error instanceof EthereumRpcError) {
+      if (error instanceof JsonRpcError) {
         // Re-throw as an internal error; we should never receive invalid approved
         // permissions.
         throw internalError(
@@ -2228,6 +2238,8 @@ export class PermissionController<
       // Typecast: For some reason, the type here expects all of the possible
       // HasApprovalRequest options to be specified, when they're actually all
       // optional. Passing just the id is definitely valid, so we just cast it.
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       options as any,
     );
   }

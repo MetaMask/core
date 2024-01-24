@@ -1,13 +1,16 @@
 /* eslint-disable jest/expect-expect */
 
 import { ControllerMessenger } from '@metamask/base-controller';
-import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
+import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 
 import type {
+  AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
+  ErrorOptions,
   StartFlowOptions,
+  SuccessOptions,
 } from './ApprovalController';
 import {
   APPROVAL_TYPE_RESULT_ERROR,
@@ -37,19 +40,28 @@ const ERROR_MOCK = new Error('TestError');
 const FLOW_ID_MOCK = 'TestFlowId';
 const MESSAGE_MOCK = 'TestMessage';
 const ERROR_MESSAGE_MOCK = 'TestErrorMessage';
+const TITLE_MOCK = 'TestTitle';
+const ICON_MOCK = 'TestIcon';
+
 const RESULT_COMPONENT_MOCK = {
   key: 'testKey',
   name: 'TestComponentName',
   properties: { testProp: 'testPropValue' },
   children: ['testChild1', 'testChild2'],
 };
+
 const SUCCESS_OPTIONS_MOCK = {
   message: MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
+  title: TITLE_MOCK,
+  icon: ICON_MOCK,
 };
+
 const ERROR_OPTIONS_MOCK = {
   error: ERROR_MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
+  title: TITLE_MOCK,
+  icon: ICON_MOCK,
 };
 
 const controllerName = 'ApprovalController';
@@ -197,13 +209,15 @@ function getApprovalCountParamsError() {
  * @returns An Error.
  */
 function getError(message: string, code?: number) {
-  const err: any = {
+  const err = {
     name: 'Error',
     message,
-  };
+  } as { name: string; message: string; code?: number };
+
   if (code !== undefined) {
     err.code = code;
   }
+
   return err;
 }
 
@@ -232,7 +246,10 @@ describe('approval controller', () => {
   let showApprovalRequest: jest.Mock;
 
   beforeEach(() => {
+    jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
+
     showApprovalRequest = jest.fn();
+
     approvalController = new ApprovalController({
       messenger: getRestrictedMessenger(),
       showApprovalRequest,
@@ -242,15 +259,21 @@ describe('approval controller', () => {
   describe('add', () => {
     it('validates input', () => {
       expect(() =>
-        approvalController.add({ id: null, origin: 'bar.baz' } as any),
+        approvalController.add({
+          id: null,
+          origin: 'bar.baz',
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidIdError());
 
-      expect(() => approvalController.add({ id: 'foo' } as any)).toThrow(
-        getInvalidOriginError(),
-      );
+      expect(() =>
+        approvalController.add({ id: 'foo' } as unknown as AddApprovalOptions),
+      ).toThrow(getInvalidOriginError());
 
       expect(() =>
-        approvalController.add({ id: 'foo', origin: true } as any),
+        approvalController.add({
+          id: 'foo',
+          origin: true,
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidOriginError());
 
       expect(() =>
@@ -258,7 +281,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: {},
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -266,7 +289,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: '',
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -275,7 +298,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestData: 'foo',
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidRequestDataError());
 
       expect(() =>
@@ -284,7 +307,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestState: 'foo',
-        } as any),
+        } as unknown as AddApprovalOptions),
       ).toThrow(getInvalidRequestStateError());
     });
 
@@ -462,6 +485,8 @@ describe('approval controller', () => {
 
   describe('get', () => {
     it('gets entry', () => {
+      // We only want to test the stored entity in the controller state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
@@ -481,22 +506,27 @@ describe('approval controller', () => {
     });
 
     it('returns undefined for non-existing entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+      // We only want to test the stored entity in the controller state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type',
+      });
 
       expect(approvalController.get('fizz')).toBeUndefined();
 
-      expect((approvalController as any).get()).toBeUndefined();
-
-      expect(approvalController.get({} as any)).toBeUndefined();
+      expect(approvalController.get({} as never)).toBeUndefined();
     });
   });
 
   describe('getApprovalCount', () => {
-    let addWithCatch: (args: any) => void;
+    let addWithCatch: (args: AddApprovalOptions) => void;
 
     beforeEach(() => {
-      addWithCatch = (args: any) =>
+      addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
+      };
     });
 
     it('validates input', () => {
@@ -509,11 +539,11 @@ describe('approval controller', () => {
       );
 
       expect(() =>
-        approvalController.getApprovalCount({ origin: null } as any),
+        approvalController.getApprovalCount({ origin: null } as never),
       ).toThrow(getApprovalCountParamsError());
 
       expect(() =>
-        approvalController.getApprovalCount({ type: false } as any),
+        approvalController.getApprovalCount({ type: false } as never),
       ).toThrow(getApprovalCountParamsError());
     });
 
@@ -627,8 +657,9 @@ describe('approval controller', () => {
     it('gets the total approval count', () => {
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: any) =>
+      const addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
+      };
 
       addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
       expect(approvalController.getTotalApprovalCount()).toBe(1);
@@ -642,7 +673,7 @@ describe('approval controller', () => {
       approvalController.reject('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toBe(2);
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toBe(0);
     });
 
@@ -654,8 +685,9 @@ describe('approval controller', () => {
       });
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: any) =>
+      const addWithCatch = (args: AddApprovalOptions) => {
         approvalController.add(args).catch(() => undefined);
+      };
 
       addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
       expect(approvalController.getTotalApprovalCount()).toBe(1);
@@ -666,7 +698,7 @@ describe('approval controller', () => {
       approvalController.reject('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toBe(1);
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toBe(0);
     });
   });
@@ -681,25 +713,31 @@ describe('approval controller', () => {
         getInvalidHasParamsError(),
       );
 
-      expect(() => approvalController.has({ id: true } as any)).toThrow(
+      expect(() => approvalController.has({ id: true } as never)).toThrow(
         getInvalidHasIdError(),
       );
 
-      expect(() => approvalController.has({ origin: true } as any)).toThrow(
+      expect(() => approvalController.has({ origin: true } as never)).toThrow(
         getInvalidHasOriginError(),
       );
 
-      expect(() => approvalController.has({ type: true } as any)).toThrow(
+      expect(() => approvalController.has({ type: true } as never)).toThrow(
         getInvalidHasTypeError(),
       );
 
       expect(() =>
-        approvalController.has({ origin: 'foo', type: true } as any),
+        approvalController.has({ origin: 'foo', type: true } as never),
       ).toThrow(getInvalidHasTypeError());
     });
 
-    it('returns true for existing entry by id', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+    it('returns true for existing entry by id', async () => {
+      // We only want to check the stored entity is exist in the state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
 
       expect(approvalController.has({ id: 'foo' })).toBe(true);
     });
@@ -1025,7 +1063,7 @@ describe('approval controller', () => {
   describe('clear', () => {
     it('does nothing if state is already empty', () => {
       expect(() =>
-        approvalController.clear(new EthereumRpcError(1, 'clear')),
+        approvalController.clear(new JsonRpcError(1, 'clear')),
       ).not.toThrow();
     });
 
@@ -1040,7 +1078,7 @@ describe('approval controller', () => {
         .add({ id: 'foo3', origin: 'fizz.buzz', type: 'myType' })
         .catch((_error) => undefined);
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
 
       expect(
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1055,16 +1093,16 @@ describe('approval controller', () => {
         type: 'myType',
       });
 
-      approvalController.clear(new EthereumRpcError(1000, 'foo'));
+      approvalController.clear(new JsonRpcError(1000, 'foo'));
       await expect(rejectPromise).rejects.toThrow(
-        new EthereumRpcError(1000, 'foo'),
+        new JsonRpcError(1000, 'foo'),
       );
     });
 
     it('does not clear approval flows', async () => {
       approvalController.startFlow();
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
 
       expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
         1,
@@ -1190,6 +1228,8 @@ describe('approval controller', () => {
         const result = approvalController.startFlow(opts);
 
         const expectedFlow = {
+          // We're not making an assertion conditionally, we're using a helper.
+          // eslint-disable-next-line jest/no-conditional-expect
           id: opts?.id ?? expect.any(String),
           loadingText: opts?.loadingText ?? null,
         };
@@ -1203,6 +1243,23 @@ describe('approval controller', () => {
         ).toStrictEqual(expectedFlow);
       },
     );
+
+    it('does not call showApprovalRequest if show is false', () => {
+      const result = approvalController.startFlow({ show: false });
+
+      const expectedFlow = {
+        id: expect.any(String),
+        loadingText: null,
+      };
+      expect(result).toStrictEqual(expectedFlow);
+      expect(showApprovalRequest).toHaveBeenCalledTimes(0);
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        1,
+      );
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY][0],
+      ).toStrictEqual(expectedFlow);
+    });
   });
 
   describe('endFlow', () => {
@@ -1305,7 +1362,7 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function endsSpecifiedFlowTemplate(
-      methodCallback: (flowId: string) => Promise<any>,
+      methodCallback: (flowId: string) => Promise<unknown>,
     ) {
       approvalController.startFlow({ id: FLOW_ID_MOCK });
 
@@ -1329,10 +1386,8 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfAddingRequestFails(
-      methodCallback: () => Promise<any>,
+      methodCallback: () => Promise<unknown>,
     ) {
-      jest.spyOn(global.console, 'info');
-
       methodCallback();
 
       // Second call will fail as mocked nanoid will generate the same ID.
@@ -1353,10 +1408,8 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfEndFlowFails(
-      methodCallback: () => Promise<any>,
+      methodCallback: () => Promise<unknown>,
     ) {
-      jest.spyOn(global.console, 'info');
-
       const promise = methodCallback();
 
       const resultRequestId = Object.values(
@@ -1385,14 +1438,16 @@ describe('approval controller', () => {
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
           message: undefined,
           header: undefined,
+          title: undefined,
+          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        (approvalController as any).success({
+        approvalController.success({
           ...SUCCESS_OPTIONS_MOCK,
           extra: 'testValue',
-        });
+        } as SuccessOptions);
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1443,14 +1498,16 @@ describe('approval controller', () => {
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
           error: undefined,
           header: undefined,
+          title: undefined,
+          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        (approvalController as any).error({
+        approvalController.error({
           ...ERROR_OPTIONS_MOCK,
           extra: 'testValue',
-        });
+        } as ErrorOptions);
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],

@@ -11,6 +11,7 @@ import {
   SignTypedDataVersion,
   encrypt,
 } from '@metamask/eth-sig-util';
+import type { EthKeyring } from '@metamask/keyring-api';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import {
   isValidHexAddress,
@@ -22,6 +23,11 @@ import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
+import MockEncryptor, {
+  MOCK_ENCRYPTION_KEY,
+} from '../tests/mocks/mockEncryptor';
+import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
+import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -34,7 +40,6 @@ import {
   KeyringController,
   KeyringTypes,
 } from './KeyringController';
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 
 jest.mock('uuid', () => {
   return {
@@ -173,6 +178,37 @@ describe('KeyringController', () => {
               preferences.updateIdentities.calledWith(
                 controller.state.keyrings[0].accounts,
               ),
+            ).toBe(true);
+            expect(preferences.setSelectedAddress.called).toBe(false);
+          },
+        );
+      });
+
+      it('should not throw when `keyring.getAccounts()` returns a shallow copy', async () => {
+        await withController(
+          {
+            keyringBuilders: [
+              keyringBuilderFactory(MockShallowGetAccountsKeyring),
+            ],
+          },
+          async ({ controller, initialState, preferences }) => {
+            const mockKeyring = (await controller.addNewKeyring(
+              MockShallowGetAccountsKeyring.type,
+            )) as Keyring<Json>;
+
+            const addedAccountAddress =
+              await controller.addNewAccountForKeyring(mockKeyring);
+
+            expect(controller.state.keyrings).toHaveLength(2);
+            expect(controller.state.keyrings[1].accounts).toHaveLength(1);
+            expect(addedAccountAddress).toBe(
+              controller.state.keyrings[1].accounts[0],
+            );
+            expect(
+              preferences.updateIdentities.calledWith([
+                ...initialState.keyrings[0].accounts,
+                addedAccountAddress,
+              ]),
             ).toBe(true);
             expect(preferences.setSelectedAddress.called).toBe(false);
           },
@@ -1336,6 +1372,159 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('UserOperation methods', () => {
+    const addresses: Hex[] = ['0x660265edc169bab511a40c0e049cc1e33774443d'];
+
+    it('should prepare base user operation', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+        async ({ controller }) => {
+          const mockKeyring = (await controller.addNewKeyring(
+            MockErc4337Keyring.type,
+          )) as EthKeyring<Json>;
+
+          jest
+            .spyOn(mockKeyring, 'getAccounts')
+            .mockResolvedValueOnce(addresses);
+
+          const baseUserOp = {
+            callData: '0x7064',
+            initCode: '0x22ff',
+            nonce: '0x1',
+            gasLimits: {
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+            },
+            dummySignature: '0x',
+            dummyPaymasterAndData: '0x',
+            bundlerUrl: 'https://bundler.example.com/rpc',
+          };
+
+          const baseTxs = [
+            {
+              to: '',
+              value: '0x0',
+              data: '0x7064',
+            },
+          ];
+
+          jest
+            .spyOn(mockKeyring, 'prepareUserOperation')
+            .mockResolvedValueOnce(baseUserOp);
+
+          const result = await controller.prepareUserOperation(
+            addresses[0],
+            baseTxs,
+          );
+
+          expect(result).toStrictEqual(baseUserOp);
+          expect(mockKeyring.prepareUserOperation).toHaveBeenCalledTimes(1);
+          expect(mockKeyring.prepareUserOperation).toHaveBeenCalledWith(
+            addresses[0],
+            baseTxs,
+          );
+        },
+      );
+    });
+
+    it('should patch an user operation', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+        async ({ controller }) => {
+          const mockKeyring = (await controller.addNewKeyring(
+            MockErc4337Keyring.type,
+          )) as EthKeyring<Json>;
+
+          jest
+            .spyOn(mockKeyring, 'getAccounts')
+            .mockResolvedValueOnce(addresses);
+
+          const userOp = {
+            sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+            nonce: '0x1',
+            initCode: '0x',
+            callData: '0x7064',
+            callGasLimit: '0x58a83',
+            verificationGasLimit: '0xe8c4',
+            preVerificationGas: '0xc57c',
+            maxFeePerGas: '0x87f0878c0',
+            maxPriorityFeePerGas: '0x1dcd6500',
+            paymasterAndData: '0x',
+            signature: '0x',
+          };
+
+          const patch = {
+            paymasterAndData: '0x1234',
+          };
+
+          jest
+            .spyOn(mockKeyring, 'patchUserOperation')
+            .mockResolvedValueOnce(patch);
+
+          const result = await controller.patchUserOperation(
+            addresses[0],
+            userOp,
+          );
+
+          expect(result).toStrictEqual(patch);
+          expect(mockKeyring.patchUserOperation).toHaveBeenCalledTimes(1);
+          expect(mockKeyring.patchUserOperation).toHaveBeenCalledWith(
+            addresses[0],
+            userOp,
+          );
+        },
+      );
+    });
+
+    it('should sign an user operation', async () => {
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+        async ({ controller }) => {
+          const mockKeyring = (await controller.addNewKeyring(
+            MockErc4337Keyring.type,
+          )) as EthKeyring<Json>;
+
+          jest
+            .spyOn(mockKeyring, 'getAccounts')
+            .mockResolvedValueOnce(addresses);
+
+          const userOp = {
+            sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+            nonce: '0x1',
+            initCode: '0x',
+            callData: '0x7064',
+            callGasLimit: '0x58a83',
+            verificationGasLimit: '0xe8c4',
+            preVerificationGas: '0xc57c',
+            maxFeePerGas: '0x87f0878c0',
+            maxPriorityFeePerGas: '0x1dcd6500',
+            paymasterAndData: '0x',
+            signature: '0x',
+          };
+
+          const signature = '0x1234';
+
+          jest
+            .spyOn(mockKeyring, 'signUserOperation')
+            .mockResolvedValueOnce(signature);
+
+          const result = await controller.signUserOperation(
+            addresses[0],
+            userOp,
+          );
+
+          expect(result).toStrictEqual(signature);
+          expect(mockKeyring.signUserOperation).toHaveBeenCalledTimes(1);
+          expect(mockKeyring.signUserOperation).toHaveBeenCalledWith(
+            addresses[0],
+            userOp,
+          );
+        },
+      );
+    });
+  });
+
   describe('submitPassword', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
@@ -1379,7 +1568,7 @@ describe('KeyringController', () => {
         { cacheEncryptionKey: true },
         async ({ controller, initialState }) => {
           await controller.submitEncryptionKey(
-            mockKey.toString('hex'),
+            MOCK_ENCRYPTION_KEY,
             initialState.encryptionSalt as string,
           );
           expect(controller.state).toStrictEqual(initialState);
@@ -1458,6 +1647,7 @@ describe('KeyringController', () => {
     };
 
     let signProcessKeyringController: KeyringController;
+    let signProcessKeyringControllerMessenger: KeyringControllerMessenger;
 
     let requestSignatureStub: sinon.SinonStub;
     let readAccountSub: sinon.SinonStub;
@@ -1478,11 +1668,18 @@ describe('KeyringController', () => {
     };
 
     beforeEach(async () => {
-      signProcessKeyringController = await withController(
-        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
-        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
-        ({ controller }) => controller,
+      const { controller, messenger } = await withController(
+        {
+          // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
+          keyringBuilders: [keyringBuilderFactory(QRKeyring)],
+          cacheEncryptionKey: true,
+        },
+        (args) => args,
       );
+
+      signProcessKeyringController = controller;
+      signProcessKeyringControllerMessenger = messenger;
+
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
       qrkeyring.forgetDevice();
 
@@ -1495,6 +1692,21 @@ describe('KeyringController', () => {
         qrkeyring.getInteraction(),
         'readCryptoHDKeyOrCryptoAccount',
       );
+    });
+
+    describe('getQRKeyring', () => {
+      it('should return QR keyring', async () => {
+        const qrKeyring = signProcessKeyringController.getQRKeyring();
+        expect(qrKeyring).toBeDefined();
+        expect(qrKeyring).toBeInstanceOf(QRKeyring);
+      });
+
+      it('should return undefined if QR keyring is not present', async () => {
+        await withController(async ({ controller }) => {
+          const qrKeyring = controller.getQRKeyring();
+          expect(qrKeyring).toBeUndefined();
+        });
+      });
     });
 
     describe('connectQRHardware', () => {
@@ -1768,10 +1980,17 @@ describe('KeyringController', () => {
         expect(
           signProcessKeyringController.state.keyrings[1].accounts,
         ).toHaveLength(3);
-        await signProcessKeyringController.forgetQRDevice();
+        const accountsToBeRemoved =
+          signProcessKeyringController.state.keyrings[1].accounts;
+        const { removedAccounts, remainingAccounts } =
+          await signProcessKeyringController.forgetQRDevice();
         expect(
           signProcessKeyringController.state.keyrings[1].accounts,
         ).toHaveLength(0);
+        expect(accountsToBeRemoved).toStrictEqual(removedAccounts);
+        expect(await signProcessKeyringController.getAccounts()).toStrictEqual(
+          remainingAccounts,
+        );
       });
     });
 
@@ -1903,6 +2122,112 @@ describe('KeyringController', () => {
         expect(cancelSyncRequestStub.called).toBe(true);
       });
     });
+
+    describe('QRKeyring store events', () => {
+      describe('KeyringController:qrKeyringStateChange', () => {
+        it('should emit KeyringController:qrKeyringStateChange event after `getOrAddQRKeyring()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const qrKeyring =
+            await signProcessKeyringController.getOrAddQRKeyring();
+
+          qrKeyring.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `submitPassword()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          // We ensure there is a QRKeyring before locking
+          await signProcessKeyringController.getOrAddQRKeyring();
+          // Locking the keyring will dereference the QRKeyring
+          await signProcessKeyringController.setLocked();
+          // ..and unlocking it should add a new instance of QRKeyring
+          await signProcessKeyringController.submitPassword(password);
+          // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
+          // we are able to test if the subscription to the internal QR keyring
+          // was made while unlocking the keyring.
+          const qrKeyring = signProcessKeyringController.getQRKeyring();
+
+          // As we added a QR keyring before lock/unlock, this must be defined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          qrKeyring!.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          // Only one call ensures that the first subscription made by
+          // QR keyring before locking was removed
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `submitEncryptionKey()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const salt = signProcessKeyringController.state
+            .encryptionSalt as string;
+          // We ensure there is a QRKeyring before locking
+          await signProcessKeyringController.getOrAddQRKeyring();
+          // Locking the keyring will dereference the QRKeyring
+          await signProcessKeyringController.setLocked();
+          // ..and unlocking it should add a new instance of QRKeyring
+          await signProcessKeyringController.submitEncryptionKey(
+            MOCK_ENCRYPTION_KEY,
+            salt,
+          );
+          // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
+          // we are able to test if the subscription to the internal QR keyring
+          // was made while unlocking the keyring.
+          const qrKeyring = signProcessKeyringController.getQRKeyring();
+
+          // As we added a QR keyring before lock/unlock, this must be defined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          qrKeyring!.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          // Only one call ensures that the first subscription made by
+          // QR keyring before locking was removed
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `addNewKeyring()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const qrKeyring = (await signProcessKeyringController.addNewKeyring(
+            KeyringTypes.qr,
+          )) as QRKeyring;
+
+          qrKeyring.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
   });
 
   describe('actions', () => {
@@ -1922,6 +2247,29 @@ describe('KeyringController', () => {
       jest
         .spyOn(KeyringController.prototype, 'getEncryptionPublicKey')
         .mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
+      jest
+        .spyOn(KeyringController.prototype, 'prepareUserOperation')
+        .mockResolvedValue({
+          callData: '0x706',
+          initCode: '0x22ff',
+          nonce: '0x1',
+          gasLimits: {
+            callGasLimit: '0x58a83',
+            verificationGasLimit: '0xe8c4',
+            preVerificationGas: '0xc57c',
+          },
+          dummySignature: '0x',
+          dummyPaymasterAndData: '0x',
+          bundlerUrl: 'https://bundler.example.com/rpc',
+        });
+      jest
+        .spyOn(KeyringController.prototype, 'patchUserOperation')
+        .mockResolvedValue({
+          paymasterAndData: '0x1234',
+        });
+      jest
+        .spyOn(KeyringController.prototype, 'signUserOperation')
+        .mockResolvedValue('0x1234');
     });
 
     describe('signMessage', () => {
@@ -2033,6 +2381,161 @@ describe('KeyringController', () => {
         );
       });
     });
+
+    describe('prepareUserOperation', () => {
+      it('should return a base UserOp', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const baseTxs = [
+              {
+                to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+                value: '0x0',
+                data: '0x0',
+              },
+            ];
+
+            await messenger.call(
+              'KeyringController:prepareUserOperation',
+              initialState.keyrings[0].accounts[0],
+              baseTxs,
+            );
+
+            expect(controller.prepareUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              baseTxs,
+            );
+          },
+        );
+      });
+    });
+
+    describe('patchUserOperation', () => {
+      it('should return an UserOp patch', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+
+            await messenger.call(
+              'KeyringController:patchUserOperation',
+              initialState.keyrings[0].accounts[0],
+              userOp,
+            );
+
+            expect(controller.patchUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              userOp,
+            );
+          },
+        );
+      });
+    });
+
+    describe('signUserOperation', () => {
+      it('should return an UserOp signature', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+
+            await messenger.call(
+              'KeyringController:signUserOperation',
+              initialState.keyrings[0].accounts[0],
+              userOp,
+            );
+
+            expect(controller.signUserOperation).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+              userOp,
+            );
+          },
+        );
+      });
+    });
+
+    describe('getKeyringsByType', () => {
+      it('should return correct keyring by type', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringsByType')
+          .mockReturnValue([
+            {
+              type: 'HD Key Tree',
+              accounts: ['0x1234'],
+            },
+          ]);
+        await withController(async ({ controller, messenger }) => {
+          messenger.call('KeyringController:getKeyringsByType', 'HD Key Tree');
+
+          expect(controller.getKeyringsByType).toHaveBeenCalledWith(
+            'HD Key Tree',
+          );
+        });
+      });
+    });
+
+    describe('getKeyringForAccount', () => {
+      it('should return the keyring for the account', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringForAccount')
+          .mockResolvedValue({
+            type: 'HD Key Tree',
+            accounts: ['0x1234'],
+          });
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getKeyringForAccount', '0x0');
+
+          expect(controller.getKeyringForAccount).toHaveBeenCalledWith('0x0');
+        });
+      });
+    });
+
+    describe('getAccounts', () => {
+      it('should return all accounts', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getAccounts')
+          .mockResolvedValue(['0x1234']);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getAccounts');
+
+          expect(controller.getAccounts).toHaveBeenCalledWith();
+        });
+      });
+    });
+
+    describe('persistAllKeyrings', () => {
+      it('should call persistAllKeyrings', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'persistAllKeyrings')
+          .mockResolvedValue(true);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:persistAllKeyrings');
+
+          expect(controller.persistAllKeyrings).toHaveBeenCalledWith();
+        });
+      });
+    });
   });
 });
 
@@ -2046,7 +2549,6 @@ type WithControllerCallback<ReturnValue> = ({
   controller: KeyringController;
   preferences: {
     setAccountLabel: sinon.SinonStub;
-    removeIdentity: sinon.SinonStub;
     syncIdentities: sinon.SinonStub;
     updateIdentities: sinon.SinonStub;
     setSelectedAddress: sinon.SinonStub;
@@ -2084,20 +2586,6 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
-    allowedActions: [
-      'KeyringController:getState',
-      'KeyringController:signMessage',
-      'KeyringController:signPersonalMessage',
-      'KeyringController:signTypedMessage',
-      'KeyringController:decryptMessage',
-      'KeyringController:getEncryptionPublicKey',
-    ],
-    allowedEvents: [
-      'KeyringController:stateChange',
-      'KeyringController:lock',
-      'KeyringController:unlock',
-      'KeyringController:accountRemoved',
-    ],
   });
 }
 
@@ -2118,7 +2606,6 @@ async function withController<ReturnValue>(
   const encryptor = new MockEncryptor();
   const preferences = {
     setAccountLabel: sinon.stub(),
-    removeIdentity: sinon.stub(),
     syncIdentities: sinon.stub(),
     updateIdentities: sinon.stub(),
     setSelectedAddress: sinon.stub(),

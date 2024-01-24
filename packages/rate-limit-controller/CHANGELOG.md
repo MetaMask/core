@@ -6,6 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.2]
+### Changed
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [4.0.1]
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+
+## [4.0.0]
+### Changed
+- **BREAKING:** Enforce that `RateLimitedApi['method']` matches action handler type instead of using `any` ([#1890](https://github.com/MetaMask/core/pull/1890))
+- **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
+
+## [3.0.3]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Move from `eth-rpc-errors` ^4.0.2 to `@metamask/rpc-errors` ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+
+## [3.0.2]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
 ## [3.0.1]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -42,7 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@4.0.2...HEAD
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@4.0.1...@metamask/rate-limit-controller@4.0.2
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@4.0.0...@metamask/rate-limit-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.3...@metamask/rate-limit-controller@4.0.0
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.2...@metamask/rate-limit-controller@3.0.3
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.1...@metamask/rate-limit-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.0...@metamask/rate-limit-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@2.0.1...@metamask/rate-limit-controller@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@2.0.0...@metamask/rate-limit-controller@2.0.1

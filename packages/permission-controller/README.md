@@ -1,6 +1,6 @@
 # `@metamask/permission-controller`
 
-Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for `json-rpc-engine`.
+Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for `@metamask/json-rpc-engine`.
 
 ## Installation
 

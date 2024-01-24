@@ -21,9 +21,6 @@ export type NameProviderMetadata = {
 
 /** The request data to get proposed names from a name provider. */
 export type NameProviderRequest = {
-  /** The current chain ID of the client. */
-  chainId: string;
-
   /** The optional list of source IDs to get proposed names from. */
   sourceIds?: string[];
 
@@ -32,6 +29,12 @@ export type NameProviderRequest = {
 
   /** The raw value to get proposed names for. */
   value: string;
+
+  /**
+   * The variation of the raw value to get proposed names for.
+   * For example, the chain ID if the raw value is an Ethereum address.
+   */
+  variation: string;
 };
 
 /** The resulting data after requesting proposed names from a name provider, for a single source. */
@@ -41,6 +44,12 @@ export type NameProviderSourceResult = {
    * Undefined if there is an error.
    */
   proposedNames?: string[];
+
+  /**
+   * The delay in seconds before the next request to the source should be made.
+   * Can be used to avoid rate limiting for example.
+   */
+  updateDelay?: number;
 
   /**
    * An error that occurred while fetching the proposed names from the source.

@@ -1,13 +1,13 @@
 import type {
+  JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+} from '@metamask/json-rpc-engine';
+import type {
   Json,
   JsonRpcParams,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import type {
-  JsonRpcEngineEndCallback,
-  JsonRpcEngineNextCallback,
-} from 'json-rpc-engine';
 
 import type {
   CaveatSpecificationConstraint,
@@ -21,6 +21,7 @@ import type {
 export enum MethodNames {
   requestPermissions = 'wallet_requestPermissions',
   getPermissions = 'wallet_getPermissions',
+  revokePermissions = 'wallet_revokePermissions',
 }
 
 /**

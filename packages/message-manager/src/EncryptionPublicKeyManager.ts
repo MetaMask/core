@@ -20,6 +20,9 @@ import { validateEncryptionPublicKeyMessageData } from './utils';
  * A 'Message' which always has a 'eth_getEncryptionPublicKey' type
  * @property rawSig - Encryption public key
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EncryptionPublicKey extends AbstractMessage {
   messageParams: EncryptionPublicKeyParams;
 }
@@ -43,6 +46,9 @@ export type EncryptionPublicKeyParams = AbstractMessageParams;
  * @property from - Address from which to extract the encryption public key
  * @property origin? - Added for request origin identification
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EncryptionPublicKeyParamsMetamask
   extends AbstractMessageParamsMetamask {
   data: string;

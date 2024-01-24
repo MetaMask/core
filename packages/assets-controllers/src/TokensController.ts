@@ -6,7 +6,7 @@ import type {
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV1 } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
 import {
   toChecksumHexAddress,
@@ -14,22 +14,27 @@ import {
   ORIGIN_METAMASK,
   ApprovalType,
   ERC20,
+  ERC721,
+  ERC1155,
+  isValidHexAddress,
+  safelyExecute,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkController,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
 import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
 import { v1 as random } from 'uuid';
 
-import type { AssetsContractController } from './AssetsContractController';
-import {
-  formatAggregatorNames,
-  formatIconUrlWithProxy,
-  validateTokenToWatch,
-} from './assetsUtil';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
+import { ERC20Standard } from './Standards/ERC20Standard';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -47,9 +52,14 @@ import type { Token } from './TokenRatesController';
  * Tokens controller configuration
  * @property selectedAddress - Vault selected address
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any;
 }
 
@@ -82,6 +92,9 @@ type SuggestedAssetMeta = {
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokensState extends BaseState {
   tokens: Token[];
   ignoredTokens: string[];
@@ -112,18 +125,27 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
+export const getDefaultTokensState = (): TokensState => {
+  return {
+    tokens: [],
+    ignoredTokens: [],
+    detectedTokens: [],
+    allTokens: {},
+    allIgnoredTokens: {},
+    allDetectedTokens: {},
+  };
+};
+
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class TokensController extends BaseController<
+export class TokensController extends BaseControllerV1<
   TokensConfig,
   TokensState
 > {
   private readonly mutex = new Mutex();
 
-  private ethersProvider: any;
-
-  private abortController: WhatwgAbortController;
+  private abortController: AbortController;
 
   private readonly messagingSystem: TokensControllerMessenger;
 
@@ -164,7 +186,7 @@ export class TokensController extends BaseController<
    */
   override name = 'TokensController';
 
-  private readonly getERC20TokenName: AssetsContractController['getERC20TokenName'];
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
   /**
    * Creates a TokensController instance.
@@ -172,9 +194,9 @@ export class TokensController extends BaseController<
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
-   * @param options.getERC20TokenName - Gets the ERC-20 token name.
+   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
@@ -182,9 +204,9 @@ export class TokensController extends BaseController<
   constructor({
     chainId: initialChainId,
     onPreferencesStateChange,
-    onNetworkStateChange,
+    onNetworkDidChange,
     onTokenListStateChange,
-    getERC20TokenName,
+    getNetworkClientById,
     config,
     state,
     messenger,
@@ -193,13 +215,13 @@ export class TokensController extends BaseController<
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
-    onNetworkStateChange: (
+    onNetworkDidChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
     onTokenListStateChange: (
       listener: (tokenListState: TokenListState) => void,
     ) => void;
-    getERC20TokenName: AssetsContractController['getERC20TokenName'];
+    getNetworkClientById: NetworkController['getNetworkClientById'];
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
     messenger: TokensControllerMessenger;
@@ -214,18 +236,13 @@ export class TokensController extends BaseController<
     };
 
     this.defaultState = {
-      tokens: [],
-      ignoredTokens: [],
-      detectedTokens: [],
-      allTokens: {},
-      allIgnoredTokens: {},
-      allDetectedTokens: {},
+      ...getDefaultTokensState(),
       ...state,
     };
 
     this.initialize();
-    this.abortController = new WhatwgAbortController();
-    this.getERC20TokenName = getERC20TokenName;
+    this.abortController = new AbortController();
+    this.getNetworkClientById = getNetworkClientById;
 
     this.messagingSystem = messenger;
 
@@ -240,14 +257,13 @@ export class TokensController extends BaseController<
       });
     });
 
-    onNetworkStateChange(({ providerConfig }) => {
+    onNetworkDidChange(({ providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = providerConfig;
       this.abortController.abort();
-      this.abortController = new WhatwgAbortController();
+      this.abortController = new AbortController();
       this.configure({ chainId });
-      this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
         ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
@@ -263,37 +279,47 @@ export class TokensController extends BaseController<
     });
   }
 
-  _instantiateNewEthersProvider(): any {
-    return new Web3Provider(this.config?.provider);
-  }
-
   /**
    * Adds a token to the stored token list.
    *
-   * @param address - Hex address of the token contract.
-   * @param symbol - Symbol of the token.
-   * @param decimals - Number of decimals the token uses.
-   * @param options - Object containing name and image of the token
-   * @param options.name - Name of the token
-   * @param options.image - Image of the token
+   * @param options - The method argument object.
+   * @param options.address - Hex address of the token contract.
+   * @param options.symbol - Symbol of the token.
+   * @param options.decimals - Number of decimals the token uses.
+   * @param options.name - Name of the token.
+   * @param options.image - Image of the token.
    * @param options.interactingAddress - The address of the account to add a token to.
+   * @param options.networkClientId - Network Client ID.
    * @returns Current token list.
    */
-  async addToken(
-    address: string,
-    symbol: string,
-    decimals: number,
-    {
-      name,
-      image,
-      interactingAddress,
-    }: { name?: string; image?: string; interactingAddress?: string } = {},
-  ): Promise<Token[]> {
+  async addToken({
+    address,
+    symbol,
+    decimals,
+    name,
+    image,
+    interactingAddress,
+    networkClientId,
+  }: {
+    address: string;
+    symbol: string;
+    decimals: number;
+    name?: string;
+    image?: string;
+    interactingAddress?: string;
+    networkClientId?: NetworkClientId;
+  }): Promise<Token[]> {
+    const { chainId, selectedAddress } = this.config;
+    const releaseLock = await this.mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const { chainId: currentChainId, selectedAddress } = this.config;
+    let currentChainId = chainId;
+    if (networkClientId) {
+      currentChainId =
+        this.getNetworkClientById(networkClientId).configuration.chainId;
+    }
+
     const accountAddress = interactingAddress || selectedAddress;
     const isInteractingWithWalletAccount = accountAddress === selectedAddress;
-    const releaseLock = await this.mutex.acquire();
 
     try {
       address = toChecksumHexAddress(address);
@@ -304,10 +330,12 @@ export class TokensController extends BaseController<
         allDetectedTokens[currentChainId]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
-        this._detectIsERC721(address),
+        this._detectIsERC721(address, networkClientId),
+        // TODO parameterize the token metadata fetch by networkClientId
         this.fetchTokenMetadata(address),
       ]);
-      if (currentChainId !== this.config.chainId) {
+      // TODO remove this once this method is fully parameterized by networkClientId
+      if (!networkClientId && currentChainId !== this.config.chainId) {
         throw new Error(
           'TokensController Error: Switched networks while adding token',
         );
@@ -319,18 +347,17 @@ export class TokensController extends BaseController<
         image:
           image ||
           formatIconUrlWithProxy({
-            chainId: this.config.chainId,
+            chainId: currentChainId,
             tokenAddress: address,
           }),
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
         name,
       };
-      const previousEntry = newTokens.find(
+      const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
-      if (previousEntry) {
-        const previousIndex = newTokens.indexOf(previousEntry);
+      if (previousIndex !== -1) {
         newTokens[previousIndex] = newEntry;
       } else {
         newTokens.push(newEntry);
@@ -349,6 +376,7 @@ export class TokensController extends BaseController<
           newIgnoredTokens,
           newDetectedTokens,
           interactingAddress: accountAddress,
+          interactingChainId: currentChainId,
         });
 
       let newState: Partial<TokensState> = {
@@ -378,8 +406,9 @@ export class TokensController extends BaseController<
    * Add a batch of tokens.
    *
    * @param tokensToImport - Array of tokens to import.
+   * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
-  async addTokens(tokensToImport: Token[]) {
+  async addTokens(tokensToImport: Token[], networkClientId?: NetworkClientId) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
@@ -414,11 +443,18 @@ export class TokensController extends BaseController<
         (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
 
+      let interactingChainId;
+      if (networkClientId) {
+        interactingChainId =
+          this.getNetworkClientById(networkClientId).configuration.chainId;
+      }
+
       const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
         this._getNewAllTokensState({
           newTokens,
           newDetectedTokens,
           newIgnoredTokens,
+          interactingChainId,
         });
 
       this.update({
@@ -487,9 +523,17 @@ export class TokensController extends BaseController<
     detectionDetails?: { selectedAddress: string; chainId: Hex },
   ) {
     const releaseLock = await this.mutex.acquire();
-    const { tokens, detectedTokens, ignoredTokens } = this.state;
-    const newTokens: Token[] = [...tokens];
-    let newDetectedTokens: Token[] = [...detectedTokens];
+
+    // Get existing tokens for the chain + account
+    const chainId = detectionDetails?.chainId ?? this.config.chainId;
+    const accountAddress =
+      detectionDetails?.selectedAddress ?? this.config.selectedAddress;
+
+    const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
+    let newTokens = [...(allTokens?.[chainId]?.[accountAddress] ?? [])];
+    let newDetectedTokens = [
+      ...(allDetectedTokens?.[chainId]?.[accountAddress] ?? []),
+    ];
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
@@ -512,28 +556,25 @@ export class TokensController extends BaseController<
           aggregators,
           name,
         };
-        const previousImportedEntry = newTokens.find(
+        const previousImportedIndex = newTokens.findIndex(
           (token) =>
             token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
-        if (previousImportedEntry) {
+        if (previousImportedIndex !== -1) {
           // Update existing data of imported token
-          const previousImportedIndex = newTokens.indexOf(
-            previousImportedEntry,
-          );
           newTokens[previousImportedIndex] = newEntry;
         } else {
-          const ignoredTokenIndex = ignoredTokens.indexOf(address);
+          const ignoredTokenIndex =
+            allIgnoredTokens?.[chainId]?.[accountAddress]?.indexOf(address) ??
+            -1;
+
           if (ignoredTokenIndex === -1) {
             // Add detected token
-            const previousDetectedEntry = newDetectedTokens.find(
+            const previousDetectedIndex = newDetectedTokens.findIndex(
               (token) =>
                 token.address.toLowerCase() === checksumAddress.toLowerCase(),
             );
-            if (previousDetectedEntry) {
-              const previousDetectedIndex = newDetectedTokens.indexOf(
-                previousDetectedEntry,
-              );
+            if (previousDetectedIndex !== -1) {
               newDetectedTokens[previousDetectedIndex] = newEntry;
             } else {
               newDetectedTokens.push(newEntry);
@@ -542,26 +583,23 @@ export class TokensController extends BaseController<
         }
       });
 
-      const {
-        selectedAddress: interactingAddress,
-        chainId: interactingChainId,
-      } = detectionDetails || {};
-
       const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
         {
           newTokens,
           newDetectedTokens,
-          interactingAddress,
-          interactingChainId,
+          interactingAddress: accountAddress,
+          interactingChainId: chainId,
         },
       );
 
-      const { chainId, selectedAddress } = this.config;
-      // if the newly added detectedTokens were detected on (and therefore added to) a different chainId/selectedAddress than the currently configured combo
-      // the newDetectedTokens (which should contain the detectedTokens on the current chainId/address combo) needs to be repointed to the current chainId/address pair
-      // if the detectedTokens were detected on the current chainId/address then this won't change anything.
+      // We may be detecting tokens on a different chain/account pair than are currently configured.
+      // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
+      const { chainId: currentChain, selectedAddress: currentAddress } =
+        this.config;
+
+      newTokens = newAllTokens?.[currentChain]?.[currentAddress] || [];
       newDetectedTokens =
-        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[currentChain]?.[currentAddress] || [];
 
       this.update({
         tokens: newTokens,
@@ -619,10 +657,14 @@ export class TokensController extends BaseController<
    * Detects whether or not a token is ERC-721 compatible.
    *
    * @param tokenAddress - The token contract address.
+   * @param networkClientId - Optional network client ID to fetch contract info with.
    * @returns A boolean indicating whether the token address passed in supports the EIP-721
    * interface.
    */
-  async _detectIsERC721(tokenAddress: string) {
+  async _detectIsERC721(
+    tokenAddress: string,
+    networkClientId?: NetworkClientId,
+  ) {
     const checksumAddress = toChecksumHexAddress(tokenAddress);
     // if this token is already in our contract metadata map we don't need
     // to check against the contract
@@ -635,10 +677,12 @@ export class TokensController extends BaseController<
     const tokenContract = this._createEthersContract(
       tokenAddress,
       abiERC721,
-      this.ethersProvider,
+      networkClientId,
     );
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // currently we see a variety of errors across different networks when
       // token contracts are not ERC721 compatible. We need to figure out a better
@@ -648,12 +692,21 @@ export class TokensController extends BaseController<
     }
   }
 
+  _getProvider(networkClientId?: NetworkClientId): Web3Provider {
+    return new Web3Provider(
+      networkClientId
+        ? this.getNetworkClientById(networkClientId).provider
+        : this.config?.provider,
+    );
+  }
+
   _createEthersContract(
     tokenAddress: string,
     abi: string,
-    ethersProvider: any,
+    networkClientId?: NetworkClientId,
   ): Contract {
-    const tokenContract = new Contract(tokenAddress, abi, ethersProvider);
+    const web3provider = this._getProvider(networkClientId);
+    const tokenContract = new Contract(tokenAddress, abi, web3provider);
     return tokenContract;
   }
 
@@ -665,45 +718,140 @@ export class TokensController extends BaseController<
    * Adds a new suggestedAsset to the list of watched assets.
    * Parameters will be validated according to the asset type being watched.
    *
-   * @param asset - The asset to be watched. For now only ERC20 tokens are accepted.
-   * @param type - The asset type.
-   * @param interactingAddress - The address of the account that is requesting to watch the asset.
-   * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
+   * @param options - The method options.
+   * @param options.asset - The asset to be watched. For now only ERC20 tokens are accepted.
+   * @param options.type - The asset type.
+   * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
+   * @param options.networkClientId - Network Client ID.
+   * @returns A promise that resolves if the asset was watched successfully, and rejects otherwise.
    */
-  async watchAsset(
-    asset: Token,
-    type: string,
-    interactingAddress?: string,
-  ): Promise<void> {
+  async watchAsset({
+    asset,
+    type,
+    interactingAddress,
+    networkClientId,
+  }: {
+    asset: Token;
+    type: string;
+    interactingAddress?: string;
+    networkClientId?: NetworkClientId;
+  }): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
     }
 
-    const { selectedAddress } = this.config;
+    if (!asset.address) {
+      throw rpcErrors.invalidParams('Address must be specified');
+    }
+
+    if (!isValidHexAddress(asset.address)) {
+      throw rpcErrors.invalidParams(`Invalid address "${asset.address}"`);
+    }
+
+    // Validate contract
+
+    if (await this._detectIsERC721(asset.address, networkClientId)) {
+      throw rpcErrors.invalidParams(
+        `Contract ${asset.address} must match type ${type}, but was detected as ${ERC721}`,
+      );
+    }
+
+    const provider = this._getProvider(networkClientId);
+    const isErc1155 = await safelyExecute(() =>
+      new ERC1155Standard(provider).contractSupportsBase1155Interface(
+        asset.address,
+      ),
+    );
+    if (isErc1155) {
+      throw rpcErrors.invalidParams(
+        `Contract ${asset.address} must match type ${type}, but was detected as ${ERC1155}`,
+      );
+    }
+
+    const erc20 = new ERC20Standard(provider);
+    const [contractName, contractSymbol, contractDecimals] = await Promise.all([
+      safelyExecute(() => erc20.getTokenName(asset.address)),
+      safelyExecute(() => erc20.getTokenSymbol(asset.address)),
+      safelyExecute(async () => erc20.getTokenDecimals(asset.address)),
+    ]);
+
+    asset.name = contractName;
+
+    // Validate symbol
+
+    if (!asset.symbol && !contractSymbol) {
+      throw rpcErrors.invalidParams(
+        'A symbol is required, but was not found in either the request or contract',
+      );
+    }
+
+    if (
+      contractSymbol !== undefined &&
+      asset.symbol !== undefined &&
+      asset.symbol.toUpperCase() !== contractSymbol.toUpperCase()
+    ) {
+      throw rpcErrors.invalidParams(
+        `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
+      );
+    }
+
+    asset.symbol = contractSymbol ?? asset.symbol;
+    if (typeof asset.symbol !== 'string') {
+      throw rpcErrors.invalidParams(`Invalid symbol: not a string`);
+    }
+
+    if (asset.symbol.length > 11) {
+      throw rpcErrors.invalidParams(
+        `Invalid symbol "${asset.symbol}": longer than 11 characters`,
+      );
+    }
+
+    // Validate decimals
+
+    if (asset.decimals === undefined && contractDecimals === undefined) {
+      throw rpcErrors.invalidParams(
+        'Decimals are required, but were not found in either the request or contract',
+      );
+    }
+
+    if (
+      contractDecimals !== undefined &&
+      asset.decimals !== undefined &&
+      String(asset.decimals) !== contractDecimals
+    ) {
+      throw rpcErrors.invalidParams(
+        `The decimals in the request (${asset.decimals}) do not match the decimals in the contract (${contractDecimals})`,
+      );
+    }
+
+    const decimalsStr = contractDecimals ?? asset.decimals;
+    const decimalsNum = parseInt(decimalsStr as unknown as string, 10);
+    if (!Number.isInteger(decimalsNum) || decimalsNum > 36 || decimalsNum < 0) {
+      throw rpcErrors.invalidParams(
+        `Invalid decimals "${decimalsStr}": must be an integer 0 <= 36`,
+      );
+    }
+    asset.decimals = decimalsNum;
 
     const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
       time: Date.now(),
       type,
-      interactingAddress: interactingAddress || selectedAddress,
+      interactingAddress: interactingAddress || this.config.selectedAddress,
     };
-
-    validateTokenToWatch(asset);
 
     await this._requestApproval(suggestedAssetMeta);
 
-    let name;
-    try {
-      name = await this.getERC20TokenName(asset.address);
-    } catch (error) {
-      name = undefined;
-    }
-
-    await this.addToken(asset.address, asset.symbol, asset.decimals, {
+    const { address, symbol, decimals, name, image } = asset;
+    await this.addToken({
+      address,
+      symbol,
+      decimals,
       name,
-      image: asset.image,
+      image,
       interactingAddress: suggestedAssetMeta.interactingAddress,
+      networkClientId,
     });
   }
 

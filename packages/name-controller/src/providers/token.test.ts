@@ -1,6 +1,6 @@
-import { TokenNameProvider } from './token';
 import { NameType } from '../types';
 import { handleFetch } from '../util';
+import { TokenNameProvider } from './token';
 
 jest.mock('../util');
 
@@ -39,7 +39,7 @@ describe('TokenNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -53,6 +53,56 @@ describe('TokenNameProvider', () => {
       expect(handleFetchMock).toHaveBeenCalledWith(
         `https://token-api.metaswap.codefi.network/token/${CHAIN_ID_MOCK}?address=${VALUE_MOCK}`,
       );
+    });
+
+    it('returns empty array if no token name in infura response', async () => {
+      const provider = new TokenNameProvider();
+
+      handleFetchMock.mockResolvedValueOnce({ name: undefined });
+
+      const response = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        variation: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(response).toStrictEqual({
+        results: {
+          [SOURCE_ID]: { proposedNames: [] },
+        },
+      });
+    });
+
+    it('returns empty result if disabled', async () => {
+      const provider = new TokenNameProvider({
+        isEnabled: () => false,
+      });
+
+      const response = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        variation: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(response).toStrictEqual({
+        results: { [SOURCE_ID]: { proposedNames: [] } },
+      });
+    });
+
+    it('throws if request fails', async () => {
+      handleFetchMock.mockImplementation(() => {
+        throw new Error('TestError');
+      });
+
+      const provider = new TokenNameProvider();
+
+      await expect(
+        provider.getProposedNames({
+          value: VALUE_MOCK,
+          variation: CHAIN_ID_MOCK,
+          type: NameType.ETHEREUM_ADDRESS,
+        }),
+      ).rejects.toThrow('TestError');
     });
   });
 });

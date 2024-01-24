@@ -22,6 +22,9 @@ import { normalizeMessageData, validateSignMessageData } from './utils';
  * A 'Message' which always has a 'personal_sign' type
  * @property rawSig - Raw data of the signature request
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PersonalMessage extends AbstractMessage {
   messageParams: PersonalMessageParams;
 }
@@ -34,6 +37,9 @@ export interface PersonalMessage extends AbstractMessage {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PersonalMessageParams extends AbstractMessageParams {
   data: string;
   siwe?: SIWEMessage;
@@ -49,6 +55,9 @@ export interface PersonalMessageParams extends AbstractMessageParams {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PersonalMessageParamsMetamask
   extends AbstractMessageParamsMetamask {
   data: string;
@@ -117,8 +126,10 @@ export class PersonalMessageManager extends AbstractMessageManager<
   prepMessageForSigning(
     messageParams: PersonalMessageParamsMetamask,
   ): Promise<PersonalMessageParams> {
-    delete messageParams.metamaskId;
-    return Promise.resolve(messageParams);
+    // Using delete operation will throw an error on frozen messageParams
+    const { metamaskId: _metamaskId, ...messageParamsWithoutId } =
+      messageParams;
+    return Promise.resolve(messageParamsWithoutId);
   }
 }
 

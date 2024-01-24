@@ -28,8 +28,24 @@ export type NetworkType = (typeof NetworkType)[keyof typeof NetworkType];
  * @param val - the value to check whether it is NetworkType or not.
  * @returns boolean indicating whether or not the argument is NetworkType.
  */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isNetworkType(val: any): val is NetworkType {
   return Object.values(NetworkType).includes(val);
+}
+
+/**
+ * A type guard to determine whether the input is an InfuraNetworkType.
+ *
+ * @param value - The value to check.
+ * @returns True if the given value is within the InfuraNetworkType enum,
+ * false otherwise.
+ */
+export function isInfuraNetworkType(
+  value: unknown,
+): value is InfuraNetworkType {
+  const infuraNetworkTypes: unknown[] = Object.keys(InfuraNetworkType);
+  return infuraNetworkTypes.includes(value);
 }
 
 /**
@@ -60,18 +76,6 @@ export const ChainId = {
   [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
-
-/**
- * Decimal string network IDs of built-in Infura networks, by name.
- */
-export const NetworkId = {
-  [InfuraNetworkType.mainnet]: '1',
-  [InfuraNetworkType.goerli]: '5',
-  [InfuraNetworkType.sepolia]: '11155111',
-  [InfuraNetworkType['linea-goerli']]: '59140',
-  [InfuraNetworkType['linea-mainnet']]: '59144',
-} as const;
-export type NetworkId = (typeof NetworkId)[keyof typeof NetworkId];
 
 export enum NetworksTicker {
   mainnet = 'ETH',

@@ -1,6 +1,6 @@
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { JsonRpcEngine } from 'json-rpc-engine';
 
 /**
  * Acts like a PollingBlockTracker, but doesn't start the polling loop or
@@ -13,10 +13,10 @@ export class FakeBlockTracker extends PollingBlockTracker {
     super({
       provider: new SafeEventEmitterProvider({ engine: new JsonRpcEngine() }),
     });
-  }
-
-  override async _start() {
     // Don't start the polling loop
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-explicit-any
+    (this as any).start = () => {};
   }
 
   /**

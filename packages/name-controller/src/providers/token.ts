@@ -1,3 +1,4 @@
+import { createModuleLogger, projectLogger } from '../logger';
 import type {
   NameProvider,
   NameProviderMetadata,
@@ -10,7 +11,15 @@ import { handleFetch } from '../util';
 const ID = 'token';
 const LABEL = 'Blockchain (Token Name)';
 
+const log = createModuleLogger(projectLogger, 'token');
+
 export class TokenNameProvider implements NameProvider {
+  #isEnabled: () => boolean;
+
+  constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
+    this.#isEnabled = isEnabled || (() => true);
+  }
+
   getMetadata(): NameProviderMetadata {
     return {
       sourceIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
@@ -21,17 +30,40 @@ export class TokenNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
-    const { value, chainId } = request;
-    const url = `https://token-api.metaswap.codefi.network/token/${chainId}?address=${value}`;
-    const responseData = await handleFetch(url);
-    const proposedName = responseData.name;
+    if (!this.#isEnabled()) {
+      log('Skipping request as disabled');
 
-    return {
-      results: {
-        [ID]: {
-          proposedNames: [proposedName],
+      return {
+        results: {
+          [ID]: {
+            proposedNames: [],
+          },
         },
-      },
-    };
+      };
+    }
+
+    const { value, variation: chainId } = request;
+    const url = `https://token-api.metaswap.codefi.network/token/${chainId}?address=${value}`;
+
+    log('Sending request', url);
+
+    try {
+      const responseData = await handleFetch(url);
+      const proposedName = responseData.name;
+      const proposedNames = proposedName ? [proposedName] : [];
+
+      log('New proposed names', proposedNames);
+
+      return {
+        results: {
+          [ID]: {
+            proposedNames,
+          },
+        },
+      };
+    } catch (error) {
+      log('Request failed', error);
+      throw error;
+    }
   }
 }

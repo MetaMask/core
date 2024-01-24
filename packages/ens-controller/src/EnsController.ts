@@ -4,36 +4,22 @@ import type {
 } from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
-  NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
+  CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import { createProjectLogger, hasProperty } from '@metamask/utils';
+import { createProjectLogger } from '@metamask/utils';
 import ensNetworkMap from 'ethereum-ens-network-map';
 import { toASCII } from 'punycode/';
 
 const log = createProjectLogger('ens-controller');
-
-/**
- * Checks whether the given string is a known network ID.
- *
- * @param networkId - Network id.
- * @returns Boolean indicating if the network ID is recognized.
- */
-function isKnownNetworkId(
-  networkId: string | null,
-): networkId is keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP {
-  return (
-    networkId !== null &&
-    hasProperty(NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP, networkId)
-  );
-}
 
 const name = 'EnsController';
 
@@ -91,7 +77,7 @@ const ZERO_X_ERROR_ADDRESS = '0x';
  * Controller that manages a list ENS names and their resolved addresses
  * by chainId. A null address indicates an unresolved ENS name.
  */
-export class EnsController extends BaseControllerV2<
+export class EnsController extends BaseController<
   typeof name,
   EnsControllerState,
   EnsControllerMessenger
@@ -105,22 +91,19 @@ export class EnsController extends BaseControllerV2<
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.provider - Provider instance.
-   * @param options.onNetworkStateChange - Allows registering an event handler for
-   * when the network controller state updated.
+   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    */
   constructor({
     messenger,
     state = {},
     provider,
-    onNetworkStateChange,
+    onNetworkDidChange,
   }: {
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
-    onNetworkStateChange?: (
-      listener: (
-        networkState: Pick<NetworkState, 'networkId' | 'providerConfig'>,
-      ) => void,
+    onNetworkDidChange?: (
+      listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
     ) => void;
   }) {
     super({
@@ -133,18 +116,17 @@ export class EnsController extends BaseControllerV2<
       },
     });
 
-    if (provider && onNetworkStateChange) {
-      onNetworkStateChange((networkState) => {
+    if (provider && onNetworkDidChange) {
+      onNetworkDidChange((networkState) => {
         this.resetState();
-        const currentNetwork = networkState.networkId;
-        if (
-          isKnownNetworkId(currentNetwork) &&
-          this.#getNetworkEnsSupport(currentNetwork)
-        ) {
+        const currentChainId = networkState.providerConfig.chainId;
+        if (this.#getChainEnsSupport(currentChainId)) {
           this.#ethProvider = new Web3Provider(provider, {
-            chainId: convertHexToDecimal(networkState.providerConfig.chainId),
-            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],
-            ensAddress: ensNetworkMap[currentNetwork],
+            chainId: convertHexToDecimal(currentChainId),
+            name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
+              currentChainId as ChainId
+            ],
+            ensAddress: ensNetworkMap[parseInt(currentChainId, 16)],
           });
         } else {
           this.#ethProvider = null;
@@ -269,13 +251,13 @@ export class EnsController extends BaseControllerV2<
   }
 
   /**
-   * Check if network supports ENS.
+   * Check if the chain supports ENS.
    *
-   * @param networkId - Network id.
-   * @returns Boolean indicating if the network supports ENS.
+   * @param chainId - chain id.
+   * @returns Boolean indicating if the chain supports ENS.
    */
-  #getNetworkEnsSupport(networkId: string) {
-    return Boolean(ensNetworkMap[networkId]);
+  #getChainEnsSupport(chainId: string) {
+    return Boolean(ensNetworkMap[parseInt(chainId, 16)]);
   }
 
   /**

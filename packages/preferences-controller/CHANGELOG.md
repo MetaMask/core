@@ -6,6 +6,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+### Changed
+- **BREAKING:** Keep `PreferencesController` state synchronized with `KeyringController` state ([#3799](https://github.com/MetaMask/core/pull/3799))
+  - The `KeyringController:stateChange` event is now required by the `PreferencesController` messenger, which is a breaking change.
+  - The package `@metamask/keyring-controller` has been added as a `peerDependency` and as a `devDependency`, which is a breaking change.
+  - Previously the state was synchronized manually by calling `syncIdentities` or  `updateIdentities`. Calling these methods is no longer required.
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [6.0.0]
+### Added
+- Added `getDefaultPreferencesState` function ([#3736](https://github.com/MetaMask/core/pull/3736))
+
+### Changed
+- **BREAKING** Clean up types ([#3712](https://github.com/MetaMask/core/pull/3712))
+  - Replace `ContactEntry` interface with `Identity` type
+  - Convert `PreferencesState` from an interface to a type
+- **BREAKING:** Convert to `BaseControllerV2` ([#3713](https://github.com/MetaMask/core/pull/3713))
+  - The constructor parameters have changed; rather than accepting an empty "config" parameter and a "state" parameter, there is now just a single object for all constructor arguments. This object has a mandatory `messenger` and an optional `state` property.
+  - Additional type exports have been added for the controller messenger and associated types
+
+## [5.0.1]
+### Changed
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+
+## [5.0.0]
+### Added
+- **BREAKING** Add required property `showIncomingTransactions` to `PreferencesState` ([#1659](https://github.com/MetaMask/core/pull/1659))
+- Add types `EtherscanSupportedChains`, `EtherscanSupportedHexChainId` ([#1659](https://github.com/MetaMask/core/pull/1659))
+- Add constant `ETHERSCAN_SUPPORTED_CHAIN_IDS` ([#1659](https://github.com/MetaMask/core/pull/1659))
+- Add `setEnabledNetworkIncomingTransactions` method ([#1659](https://github.com/MetaMask/core/pull/1659))
+  - This can be used to set the `showIncomingTransactions` preference for the given chain ID.
+
+### Changed
+- Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+  - This is not breaking because this controller still inherits from BaseController v1.
+- Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
+
+## [4.4.3]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.3 ([#1747](https://github.com/MetaMask/core/pull/1747))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2 ([#1747](https://github.com/MetaMask/core/pull/1747))
+
+## [4.4.2]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [4.4.1]
+### Changed
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+
 ## [4.4.0]
 ### Added
 - Add `isIpfsGatewayEnabled` property to PreferencesController state ([#1577](https://github.com/MetaMask/core/pull/1577))
@@ -48,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.2]
 ### Changed
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [1.0.1]
 ### Changed
@@ -63,7 +115,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@6.0.0...@metamask/preferences-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.1...@metamask/preferences-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.0...@metamask/preferences-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.3...@metamask/preferences-controller@5.0.0
+[4.4.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.2...@metamask/preferences-controller@4.4.3
+[4.4.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.1...@metamask/preferences-controller@4.4.2
+[4.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.0...@metamask/preferences-controller@4.4.1
 [4.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.3.0...@metamask/preferences-controller@4.4.0
 [4.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.2.0...@metamask/preferences-controller@4.3.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.1.0...@metamask/preferences-controller@4.2.0

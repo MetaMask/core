@@ -20,6 +20,9 @@
     },
     {
       "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../logging-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
