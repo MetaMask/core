@@ -70,6 +70,11 @@ type TransactionMetaBase = {
   estimateUsed?: string;
 
   /**
+   * Description of the link clicked associated with this transac
+   */
+  externalLinkClicked?: string;
+
+  /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
