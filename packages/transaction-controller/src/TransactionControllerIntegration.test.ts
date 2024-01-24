@@ -2928,24 +2928,6 @@ describe('TransactionController Integration', () => {
                   result: '0x1',
                 },
               },
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x2',
-                },
-              },
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x3',
-                },
-              },
             ],
           });
           nock(getEtherscanApiHost(config.chainId))
