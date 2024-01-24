@@ -142,6 +142,14 @@ export class SelectedNetworkController extends BaseController<
 
   setNetworkClientIdForMetamask(networkClientId: NetworkClientId) {
     this.setNetworkClientIdForDomain(METAMASK_DOMAIN, networkClientId);
+
+    if (!this.state.perDomainNetwork) {
+      Object.entries(this.state.domains).filter(([domain]) => domain !== 'metamask').map(([domain, networkClientIdForDomain]) => {
+        if (networkClientIdForDomain !== networkClientId) {
+          this.setNetworkClientIdForDomain(domain, networkClientId);
+        }
+      });
+    }
   }
 
   setNetworkClientIdForDomain(
