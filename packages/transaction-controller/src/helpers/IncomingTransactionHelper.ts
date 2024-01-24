@@ -106,7 +106,6 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    console.log('start', this.#networkClientId);
     this.#blockTracker.addListener('latest', this.#onLatestBlock);
     this.#isRunning = true;
   }
@@ -118,12 +117,6 @@ export class IncomingTransactionHelper {
 
   async update(latestBlockNumberHex?: Hex): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
-    console.log(
-      'latestBlockNumberHex',
-      latestBlockNumberHex,
-      'date.now',
-      Date.now(),
-    );
 
     // if (latestBlockNumberHex) {
     //   // NOTE: ALD this won't work since we will not update the last fetched block number on the transactionController
@@ -153,7 +146,6 @@ export class IncomingTransactionHelper {
       );
 
       const fromBlock = this.#getFromBlock(latestBlockNumber);
-      console.log('fromBlock', fromBlock);
       const address = this.#getCurrentAccount();
       const currentChainId = this.#getCurrentChainId();
 
@@ -273,7 +265,6 @@ export class IncomingTransactionHelper {
   #updateLastFetchedBlockNumber(remoteTxs: TransactionMeta[]) {
     let lastFetchedBlockNumber = -1;
 
-    console.log('remoteTxs', remoteTxs);
     for (const tx of remoteTxs) {
       const currentBlockNumberValue = tx.blockNumber
         ? parseInt(tx.blockNumber, 10)

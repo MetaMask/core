@@ -156,7 +156,6 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     ...urlParams,
     action,
   });
-  console.log('etherscanTxUrl', etherscanTxUrl);
 
   log('Sending Etherscan request', etherscanTxUrl);
 

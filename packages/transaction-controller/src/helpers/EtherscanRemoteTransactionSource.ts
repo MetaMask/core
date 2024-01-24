@@ -63,27 +63,14 @@ export class EtherscanRemoteTransactionSource
       ...request,
       chainId: request.currentChainId,
     };
-    console.log(
-      'acquiredTime',
-      acquiredTime,
-      'etherscanRequest',
-      etherscanRequest,
-      'this.#isTokenRequestPending:',
-      this.#isTokenRequestPending,
-    );
+
     try {
       const transactions = this.#isTokenRequestPending
         ? await this.#fetchTokenTransactions(request, etherscanRequest)
         : await this.#fetchNormalTransactions(request, etherscanRequest);
 
-      console.log('transactions:', transactions);
-
       if (this.#includeTokenTransfers) {
         this.#isTokenRequestPending = !this.#isTokenRequestPending;
-        console.log(
-          'inverting isTokenRequestPending',
-          this.#isTokenRequestPending,
-        );
       }
 
       return transactions;
@@ -95,7 +82,6 @@ export class EtherscanRemoteTransactionSource
       if (remainingTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, remainingTime));
       }
-      console.log('releaseLock time:', Date.now());
       releaseLock();
     }
   }
@@ -105,7 +91,6 @@ export class EtherscanRemoteTransactionSource
     etherscanRequest: EtherscanTransactionRequest,
   ) => {
     const { currentChainId } = request;
-    // console.log('fetchingNormalTransactions', etherscanRequest);
 
     const etherscanTransactions = await fetchEtherscanTransactions(
       etherscanRequest,
@@ -122,7 +107,6 @@ export class EtherscanRemoteTransactionSource
   ) => {
     const { currentChainId } = request;
 
-    // console.log('fetchingTokenTransactions', etherscanRequest);
     const etherscanTransactions = await fetchEtherscanTokenTransactions(
       etherscanRequest,
     );
