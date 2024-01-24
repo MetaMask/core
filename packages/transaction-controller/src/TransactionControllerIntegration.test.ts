@@ -594,6 +594,7 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.accept(transactionMeta.id);
+        await advanceTime({ clock, duration: 1 });
 
         await result;
 
@@ -1294,6 +1295,7 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.accept(transactionMeta.id);
+        await advanceTime({clock, duration: 1})
 
         await result;
 
@@ -2813,10 +2815,14 @@ describe('TransactionController Integration', () => {
           ],
         });
 
-        const nonceLock = await transactionController.getNonceLock(
+        const nonceLockPromise = transactionController.getNonceLock(
           ACCOUNT_MOCK,
           networkClientId,
         );
+        await advanceTime({clock, duration: 1})
+
+        const nonceLock = await nonceLockPromise
+
         expect(nonceLock.nextNonce).toBe(10);
       }
       transactionController.destroy();
@@ -2887,32 +2893,37 @@ describe('TransactionController Integration', () => {
           ],
         });
 
-        const firstNonceLock = await transactionController.getNonceLock(
+        const firstNonceLockPromise = transactionController.getNonceLock(
           ACCOUNT_MOCK,
           networkClientId,
         );
+        await advanceTime({clock, duration: 1})
+
+        const firstNonceLock = await firstNonceLockPromise
 
         expect(firstNonceLock.nextNonce).toBe(10);
 
-        const secondNonceLock = transactionController.getNonceLock(
+        const secondNonceLockPromise = transactionController.getNonceLock(
           ACCOUNT_MOCK,
           networkClientId,
         );
         const delay = () =>
-          new Promise<null>((resolve) => {
-            setTimeout(resolve, 100, null);
+          new Promise<null>(async (resolve) => {
+            await advanceTime({clock, duration: 100})
+            resolve(null)
           });
 
         let secondNonceLockIfAcquired = await Promise.race([
-          secondNonceLock,
+          secondNonceLockPromise,
           delay(),
         ]);
         expect(secondNonceLockIfAcquired).toBeNull();
 
         await firstNonceLock.releaseLock();
+        await advanceTime({clock, duration: 1})
 
         secondNonceLockIfAcquired = await Promise.race([
-          secondNonceLock,
+          secondNonceLockPromise,
           delay(),
         ]);
         expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
@@ -2950,7 +2961,11 @@ describe('TransactionController Integration', () => {
 
       const { transactionController } = await newController({});
 
-      const nonceLock = await transactionController.getNonceLock(ACCOUNT_MOCK);
+      const nonceLockPromise = transactionController.getNonceLock(ACCOUNT_MOCK);
+      await advanceTime({clock, duration: 1})
+
+      const nonceLock = await nonceLockPromise;
+
       expect(nonceLock.nextNonce).toBe(10);
       transactionController.destroy();
     });
@@ -2985,20 +3000,24 @@ describe('TransactionController Integration', () => {
 
       const { transactionController } = await newController({});
 
-      const firstNonceLock = await transactionController.getNonceLock(
+      const firstNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
       );
+      await advanceTime({clock, duration: 1})
+
+      const firstNonceLock = await firstNonceLockPromise
 
       expect(firstNonceLock.nextNonce).toBe(10);
 
-      const secondNonceLock = transactionController.getNonceLock(ACCOUNT_MOCK);
+      const secondNonceLockPromise = transactionController.getNonceLock(ACCOUNT_MOCK);
       const delay = () =>
-        new Promise<null>((resolve) => {
-          setTimeout(resolve, 100, null);
+        new Promise<null>(async (resolve) => {
+          await advanceTime({clock, duration: 100})
+          resolve(null)
         });
 
       let secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLock,
+        secondNonceLockPromise,
         delay(),
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
@@ -3006,7 +3025,7 @@ describe('TransactionController Integration', () => {
       await firstNonceLock.releaseLock();
 
       secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLock,
+        secondNonceLockPromise,
         delay(),
       ]);
       expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
