@@ -168,6 +168,7 @@ type TransactionMetaBase = {
    */
   externalLinkClicked?: string;
 
+  /**
    * The chosen amount which will be the same as the originally proposed token
    * amount if the user does not edit the  amount or will be a custom token
    * amount set by the user.
