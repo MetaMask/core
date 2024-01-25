@@ -1661,7 +1661,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/browser-passworder@npm:^4.2.0":
+"@metamask/browser-passworder@npm:^4.3.0":
   version: 4.3.0
   resolution: "@metamask/browser-passworder@npm:4.3.0"
   dependencies:
@@ -1942,19 +1942,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-keyring-controller@github:MetaMask/KeyringController#42f5e97426468ede2df588ea6f5c62e309c1d25d":
-  version: 15.0.0
-  resolution: "@metamask/eth-keyring-controller@https://github.com/MetaMask/KeyringController.git#commit=42f5e97426468ede2df588ea6f5c62e309c1d25d"
+"@metamask/eth-keyring-controller@npm:^17.0.1":
+  version: 17.0.1
+  resolution: "@metamask/eth-keyring-controller@npm:17.0.1"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
-    "@metamask/browser-passworder": ^4.2.0
+    "@metamask/browser-passworder": ^4.3.0
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.0
     "@metamask/eth-simple-keyring": ^6.0.1
-    "@metamask/keyring-api": ^1.1.0
+    "@metamask/keyring-api": ^3.0.0
     "@metamask/obs-store": ^9.0.0
     "@metamask/utils": ^8.2.0
-  checksum: 8f69a8656b3dda485be7a00d84c34b31189ee6a17c468bb84532e757404d1cb55f43e3458eef0ac3f449766557348d57a7d9e4ff226dc66ce83b196635ac2069
+  checksum: ddaeeb15510fd1896bbe94ca3c47c5867730a1370ec19b7ba4206b1048e303a846c67592a64efbfed7f19d82eaa782f84e802d0d66e0d4764420684199e47c33
   languageName: node
   linkType: hard
 
@@ -2215,6 +2215,20 @@ __metadata:
     superstruct: ^1.0.3
     uuid: ^9.0.0
   checksum: ea7e02a6b6d37ec6983b00b5032f5bd12b55eae3a979ac8a3abaa84bb870fc5ae3702e09955a90ac6e683691c3fe1d2c13bc5720c491fdc2017acfcfac4a9250
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-api@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@metamask/keyring-api@npm:3.0.0"
+  dependencies:
+    "@metamask/providers": ^14.0.1
+    "@metamask/snaps-sdk": ^1.3.2
+    "@metamask/utils": ^8.1.0
+    "@types/uuid": ^9.0.1
+    superstruct: ^1.0.3
+    uuid: ^9.0.0
+  checksum: 5e3fdc122789d605681070aa6ed6c656d5c9bb1f037fd4bf1ed2ec5fa453a0fc8b9663ddfd2106c122889682e2ae1c8ddd16913798f24821b22899f743ce1a31
   languageName: node
   linkType: hard
 
