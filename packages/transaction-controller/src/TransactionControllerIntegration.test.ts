@@ -77,35 +77,30 @@ const newController = async (options: any = {}) => {
 
   const { state, config, ...opts } = options;
 
-  const transactionController = new TransactionController(
-    {
-      provider,
-      blockTracker,
-      messenger,
-      onNetworkStateChange: () => {
-        // noop
-      },
-      getCurrentNetworkEIP1559Compatibility:
-        networkController.getEIP1559Compatibility.bind(networkController),
-      getNetworkClientRegistry:
-        networkController.getNetworkClientRegistry.bind(networkController),
-      findNetworkClientIdByChainId:
-        networkController.findNetworkClientIdByChainId.bind(networkController),
-      getNetworkClientById:
-        networkController.getNetworkClientById.bind(networkController),
-      getNetworkState: () => networkController.state,
-      getSelectedAddress: () => '0xdeadbeef',
-      getPermittedAccounts: () => [ACCOUNT_MOCK],
-      ...opts,
+  const transactionController = new TransactionController({
+    provider,
+    blockTracker,
+    messenger,
+    onNetworkStateChange: () => {
+      // noop
     },
-    {
-      // TODO(JL): fix this type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sign: async (transaction: any) => transaction,
-      ...config,
-    },
+    getCurrentNetworkEIP1559Compatibility:
+      networkController.getEIP1559Compatibility.bind(networkController),
+    getNetworkClientRegistry:
+      networkController.getNetworkClientRegistry.bind(networkController),
+    findNetworkClientIdByChainId:
+      networkController.findNetworkClientIdByChainId.bind(networkController),
+    getNetworkClientById:
+      networkController.getNetworkClientById.bind(networkController),
+    getNetworkState: () => networkController.state,
+    getSelectedAddress: () => '0xdeadbeef',
+    getPermittedAccounts: () => [ACCOUNT_MOCK],
+    // TODO(JL): fix this type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sign: async (transaction: any) => transaction,
     state,
-  );
+    ...opts,
+  });
 
   return {
     transactionController,
@@ -2654,7 +2649,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('updateIncomingTransactions', () => {
-    it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
+    it.only('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
