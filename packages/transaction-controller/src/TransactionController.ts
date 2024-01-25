@@ -876,7 +876,18 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransaction(rawTx);
+    let hash;
+    try {
+      hash = await this.publishTransaction(rawTx);
+    } catch (error: any) {
+      if (error?.code === errorCodes.rpc.invalidInput) {
+        await this.pendingTransactionTracker.isTransactionConfirmed(
+          transactionMeta,
+        );
+        throw new Error('Transaction already confirmed.');
+      }
+      return;
+    }
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
@@ -1028,7 +1039,18 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+    let hash;
+    try {
+      hash = await this.publishTransaction(rawTx);
+    } catch (error: any) {
+      if (error?.code === errorCodes.rpc.invalidInput) {
+        await this.pendingTransactionTracker.isTransactionConfirmed(
+          transactionMeta,
+        );
+        throw new Error('Transaction already confirmed.');
+      }
+      return;
+    }
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
