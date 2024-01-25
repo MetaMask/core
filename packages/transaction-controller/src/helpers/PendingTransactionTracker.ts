@@ -9,6 +9,7 @@ import EventEmitter from 'events';
 import type { NonceTracker } from 'nonce-tracker';
 
 import { projectLogger } from '../logger';
+import type { ApprovalState } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
@@ -60,7 +61,7 @@ export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #approveTransaction: (transactionId: string) => Promise<void>;
+  #approveTransaction: (transactionId: string) => Promise<ApprovalState>;
 
   #blockTracker: BlockTracker;
 
@@ -99,7 +100,7 @@ export class PendingTransactionTracker {
     publishTransaction,
     hooks,
   }: {
-    approveTransaction: (transactionId: string) => Promise<void>;
+    approveTransaction: (transactionId: string) => Promise<ApprovalState>;
     blockTracker: BlockTracker;
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;

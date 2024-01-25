@@ -1,54 +1,33 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
-export type Events = {
-  ['tracking-map-init']: [networkClientIds: NetworkClientId[]];
-  ['tracking-map-add']: [networkClientIds: NetworkClientId[]];
-  ['tracking-map-remove']: [networkClientIds: NetworkClientId[]];
-  ['incomingTransactionBlock']: [blockNumber: number];
-  ['post-transaction-balance-updated']: [
-    {
-      transactionMeta: TransactionMeta;
-      approvalTransactionMeta?: TransactionMeta;
-    },
-  ];
-  ['transaction-approved']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
+/**
+ * Given a record, ensures that each property matches the `Json` type.
+ */
+type MakeJsonCompatible<T> = T extends Json
+  ? T
+  : {
+      [K in keyof T]: T[K] extends Json ? T[K] : never;
+    };
 
-  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-failed']: [
-    {
-      actionId?: string;
-      error: string;
-      transactionMeta: TransactionMeta;
-    },
-  ];
-  ['transaction-new-swap']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-new-swap-approval']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-rejected']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-status-update']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-submitted']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:publish-skip`]: [tansactionMeta: TransactionMeta];
-  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
-};
+/**
+ * `Json` from `@metamask/utils` is defined as a recursive type alias, but
+ * `Operation` is defined as an interface, and the two are not compatible with
+ * each other. Therefore, this is a variant of Operation from `fast-json-patch`
+ * which is guaranteed to be type-compatible with `Json`.
+ */
+type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
  * Representation of transaction metadata.
  */
 export type TransactionMeta = TransactionMetaBase &
   (
-    | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
+    | {
+        status: Exclude<TransactionStatus, TransactionStatus.failed>;
+      }
     | {
         status: TransactionStatus.failed;
         error: TransactionError;
@@ -571,10 +550,7 @@ export enum TransactionType {
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TransactionParams {
+export type TransactionParams = {
   /**
    * A list of addresses and storage keys that the transaction plans to access.
    */
@@ -666,15 +642,12 @@ export interface TransactionParams {
    * 0x0 indicates a legacy transaction.
    */
   type?: string;
-}
+};
 
 /**
  * Standard data concerning a transaction processed by the blockchain.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TransactionReceipt {
+export type TransactionReceipt = {
   /**
    * The block hash of the block that this transaction was included in.
    */
@@ -714,15 +687,12 @@ export interface TransactionReceipt {
    * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
   transactionIndex?: string;
-}
+};
 
 /**
  * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface Log {
+export type Log = {
   /**
    * Address of the contract that generated log.
    */
@@ -731,7 +701,7 @@ export interface Log {
    * List of topics for log.
    */
   topics?: string;
-}
+};
 
 /**
  * The configuration required to fetch transaction data from a RemoteTransactionSource.
@@ -792,15 +762,12 @@ export interface RemoteTransactionSource {
 /**
  * Gas values initially suggested by the dApp.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DappSuggestedGasFees {
+export type DappSuggestedGasFees = {
   gas?: string;
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
-}
+};
 
 /**
  * Gas values saved by the user for a specific chain.
@@ -815,7 +782,7 @@ export interface SavedGasFees {
 /**
  * A transaction history operation that includes a note and timestamp.
  */
-type ExtendedHistoryOperation = Operation & {
+type ExtendedHistoryOperation = JsonCompatibleOperation & {
   note?: string;
   timestamp?: number;
 };
@@ -825,7 +792,7 @@ type ExtendedHistoryOperation = Operation & {
  */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
-  ...Operation[],
+  ...JsonCompatibleOperation[],
 ];
 
 /**
@@ -957,7 +924,12 @@ export type TransactionError = {
   /**
    * The rpc property holds additional information related to the error.
    */
-  rpc?: unknown;
+  // We are intentionally using `any` here instead of `Json` because it causes
+  // `WritableDraft<TransactionMeta>` from Immer to cause TypeScript to error
+  // with "Type instantiation is excessively deep and possibly infinite". See:
+  // <https://github.com/immerjs/immer/issues/839>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rpc?: any;
 };
 
 /**
