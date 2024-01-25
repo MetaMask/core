@@ -1769,6 +1769,58 @@ describe('TransactionController Integration', () => {
       });
     });
 
+    describe('when a transaction is added with a networkClientId that is removed during the lifecycle', () => {
+      it('should not advanced to unapproved if there is no fallback provider on the same chainId', () => {
+
+      })
+
+      it('should advanced to unapproved if there is a fallback provider on the same chainId', () => {
+
+      })
+
+      it('should not advanced to approved if there is no fallback provider on the same chainId', () => {
+
+      })
+
+      it('should advanced to approved if there is a fallback provider on the same chainId', () => {
+
+      })
+
+      it('should advanced to signed', () => {
+
+      })
+
+      it('should not advanced to submitted even if there is a fallback provider on the same chainId', () => {
+
+      })
+
+      it('should not advanced to confirmed if there is no fallback provider on the same chainId', () => {
+        // i mean duh, there is no provider listening on chain anymore. do we need this?
+      })
+
+      it('should advanced to confirmed if there is a fallback provider on the same chainId', () => {
+
+      })
+
+      it('should not stop a transaction if there is no fallback provider on the same chainId', () => {
+
+      })
+
+      it('should stop a transaction if there is a fallback provider on the same chainId', () => {
+        // ?
+      })
+
+      it('should not speed up a transaction if there is no fallback provider on the same chainId', () => {
+
+      })
+
+      it('should speed up a transaction if there is a fallback provider on the same chainId', () => {
+        // ?
+      })
+
+
+    })
+
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
