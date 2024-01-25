@@ -1640,9 +1640,11 @@ export class TransactionController extends BaseControllerV1<
       updatedTransactionMeta,
       `TransactionController:updateCustodialTransaction - Custodial transaction updated`,
     );
+
     if (
-      status &&
-      [TransactionStatus.submitted, TransactionStatus.failed].includes(status)
+      [TransactionStatus.submitted, TransactionStatus.failed].includes(
+        status as TransactionStatus,
+      )
     ) {
       this.hub.emit(`${transactionMeta.id}:finished`, updatedTransactionMeta);
     }

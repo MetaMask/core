@@ -3821,6 +3821,7 @@ describe('TransactionController', () => {
         custodyId: '123',
         history: [{ ...baseTransaction }],
       };
+
       it.each([
         {
           newStatus: TransactionStatus.signed,
