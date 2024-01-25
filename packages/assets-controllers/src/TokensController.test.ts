@@ -1703,6 +1703,19 @@ describe('TokensController', () => {
       ]);
       generateRandomIdStub.mockRestore();
     });
+
+    it('should error if provider is missing', async function () {
+      const MISSING_PROVIDER_ERROR =
+        'TokensController failed to set the provider correctly. A provider must be set for this method to be available';
+
+      tokensController.configure({
+        provider: undefined,
+      });
+
+      await expect(
+        tokensController.watchAsset({ asset, type }),
+      ).rejects.toThrow(MISSING_PROVIDER_ERROR);
+    });
   });
 
   describe('onPreferencesStateChange', function () {
