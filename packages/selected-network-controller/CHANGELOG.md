@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.1]
 
-### Uncategorized
+### Changed
 
-- Selected network controller should update all domains when feature flag is off ([#3834](https://github.com/MetaMask/controllers/pull/3834))
+- Selected network controller should update all domains when perDomainNetwork feature flag is off ([#3834](https://github.com/MetaMask/controllers/pull/3834))
 
 ## [7.0.0]
 
