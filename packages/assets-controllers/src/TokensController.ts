@@ -31,7 +31,7 @@ import type {
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
 import { v1 as random } from 'uuid';
@@ -696,11 +696,30 @@ export class TokensController extends BaseControllerV1<
   }
 
   _getProvider(networkClientId?: NetworkClientId): Web3Provider {
-    const provider = networkClientId
-      ? (this.getNetworkClientById(networkClientId).provider as unknown as
-          | ExternalProvider
-          | JsonRpcFetchFunc)
-      : this.config?.provider;
+    let provider = this.config?.provider;
+    if (networkClientId) {
+      const networkClientProvider =
+        this.getNetworkClientById(networkClientId).provider;
+      provider = {
+        ...networkClientProvider,
+        send: (
+          _req: { method: string; params?: Json[] },
+          _callback: (error: unknown, response: unknown) => void,
+        ) =>
+          networkClientProvider.send.bind(provider)(
+            { ..._req, id: '', jsonrpc: '2.0' },
+            _callback,
+          ),
+        sendAsync: (
+          _req: { method: string; params?: Json[] },
+          _callback: (error: unknown, response: unknown) => void,
+        ) =>
+          networkClientProvider.sendAsync.bind(provider)(
+            { ..._req, id: '', jsonrpc: '2.0' },
+            _callback,
+          ),
+      };
+    }
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);

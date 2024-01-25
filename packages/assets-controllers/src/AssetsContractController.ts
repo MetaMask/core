@@ -13,7 +13,7 @@ import type {
   NetworkController,
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import type { BN } from 'ethereumjs-util';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
@@ -174,11 +174,30 @@ export class AssetsContractController extends BaseControllerV1<
    * @returns Web3Provider instance.
    */
   getProvider(networkClientId?: NetworkClientId): Web3Provider {
-    const provider = networkClientId
-      ? (this.getNetworkClientById(networkClientId).provider as unknown as
-          | ExternalProvider
-          | JsonRpcFetchFunc)
-      : this._provider;
+    let provider = this._provider;
+    if (networkClientId) {
+      const networkClientProvider =
+        this.getNetworkClientById(networkClientId).provider;
+      provider = {
+        ...networkClientProvider,
+        send: (
+          _req: { method: string; params?: Json[] },
+          _callback: (error: unknown, response: unknown) => void,
+        ) =>
+          networkClientProvider.send.bind(provider)(
+            { ..._req, id: '', jsonrpc: '2.0' },
+            _callback,
+          ),
+        sendAsync: (
+          _req: { method: string; params?: Json[] },
+          _callback: (error: unknown, response: unknown) => void,
+        ) =>
+          networkClientProvider.sendAsync.bind(provider)(
+            { ..._req, id: '', jsonrpc: '2.0' },
+            _callback,
+          ),
+      };
+    }
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
