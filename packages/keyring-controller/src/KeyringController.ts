@@ -1920,38 +1920,28 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Restore Keyring Helper
-   *
-   * Attempts to initialize a new keyring from the provided serialized payload.
+   * Restore a Keyring from a provided serialized payload.
    * On success, returns the resulting keyring instance.
    *
    * @param serialized - The serialized keyring.
-   * @param serialized.type - Keyring type.
-   * @param serialized.data - Keyring data.
    * @returns The deserialized keyring or undefined if the keyring type is unsupported.
    */
   async #restoreKeyring(
     serialized: SerializedKeyring,
   ): Promise<EthKeyring<Json> | undefined> {
-    const { type, data } = serialized;
-
-    let keyring: EthKeyring<Json> | undefined;
     try {
-      keyring = await this.#newKeyring(type, data);
-    } catch (error) {
-      // Ignore error.
-      console.error(error);
-    }
+      const { type, data } = serialized;
+      const keyring = await this.#newKeyring(type, data);
 
-    if (!keyring) {
+      // getAccounts also validates the accounts for some keyrings
+      await keyring.getAccounts();
+      this.#keyrings.push(keyring);
+
+      return keyring;
+    } catch (_) {
       this.#unsupportedKeyrings.push(serialized);
       return undefined;
     }
-
-    // getAccounts also validates the accounts for some keyrings
-    await keyring.getAccounts();
-    this.#keyrings.push(keyring);
-    return keyring;
   }
 
   /**
