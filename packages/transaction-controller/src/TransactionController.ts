@@ -303,6 +303,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly speedUpMultiplier: number;
 
+  private readonly enableMultichain: boolean;
+
   private readonly incomingTransactionOptions: IncomingTransactionOptions;
 
   private readonly afterSign: (
@@ -430,6 +432,7 @@ export class TransactionController extends BaseControllerV1<
    * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
    * @param options.hub - Use a different event emitter for the hub.
    * @param options.getNetworkClientRegistry - Gets the network client registry.
+   * @param options.enableMultichain - Enable multichain support.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -460,6 +463,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkClientIdForDomain,
       getNetworkClientRegistry,
       hub,
+      enableMultichain = false,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -492,6 +496,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
       getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
       hub: TransactionControllerEventEmitter;
+      enableMultichain: boolean;
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -524,6 +529,7 @@ export class TransactionController extends BaseControllerV1<
 
     this.initialize();
     this.hub = hub ?? this.hub;
+    this.enableMultichain = enableMultichain;
     this.findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.getNetworkClientById = getNetworkClientById;
     this.getNetworkClientRegistry = getNetworkClientRegistry;
@@ -641,7 +647,10 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.onBootCleanup();
-    this.#initTrackingMap();
+
+    if (this.enableMultichain) {
+      this.#initTrackingMap();
+    }
   }
 
   /**

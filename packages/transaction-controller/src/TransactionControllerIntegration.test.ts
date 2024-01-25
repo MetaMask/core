@@ -99,6 +99,7 @@ const newController = async (options: any = {}) => {
       getNetworkState: () => networkController.state,
       getSelectedAddress: () => '0xdeadbeef',
       getPermittedAccounts: () => [ACCOUNT_MOCK],
+      enableMultichain: true,
       ...opts,
     },
     {
