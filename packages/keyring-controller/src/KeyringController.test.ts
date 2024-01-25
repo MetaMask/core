@@ -78,6 +78,38 @@ describe('KeyringController', () => {
     sinon.restore();
   });
 
+  describe('constructor', () => {
+    it('should use the default encryptor if none is provided', async () => {
+      expect(
+        () =>
+          new KeyringController({
+            messenger: buildKeyringControllerMessenger(),
+            cacheEncryptionKey: true,
+            updateIdentities: jest.fn(),
+            setAccountLabel: jest.fn(),
+            syncIdentities: jest.fn(),
+            setSelectedAddress: jest.fn(),
+          }),
+      ).not.toThrow();
+    });
+
+    it('should throw error if cacheEncryptionKey is true and encryptor does not support key export', () => {
+      expect(
+        () =>
+          // @ts-expect-error testing an invalid encryptor
+          new KeyringController({
+            messenger: buildKeyringControllerMessenger(),
+            cacheEncryptionKey: true,
+            encryptor: { encrypt: jest.fn(), decrypt: jest.fn() },
+            updateIdentities: jest.fn(),
+            setAccountLabel: jest.fn(),
+            syncIdentities: jest.fn(),
+            setSelectedAddress: jest.fn(),
+          }),
+      ).toThrow(KeyringControllerError.UnsupportedEncryptionKeyExport);
+    });
+  });
+
   describe('addNewAccount', () => {
     describe('when accountCount is not provided', () => {
       it('should add new account', async () => {
@@ -459,6 +491,24 @@ describe('KeyringController', () => {
               expect(controller.state.vault).toBeDefined();
             });
           });
+
+          it('should throw error if password is of wrong type', async () => {
+            const controller = new KeyringController({
+              messenger: buildKeyringControllerMessenger(),
+              encryptor: new MockEncryptor(),
+              updateIdentities: jest.fn(),
+              setAccountLabel: jest.fn(),
+              syncIdentities: jest.fn(),
+              setSelectedAddress: jest.fn(),
+            });
+
+            await expect(
+              controller.createNewVaultAndKeychain(
+                // @ts-expect-error invalid password
+                123,
+              ),
+            ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+          });
         });
 
         describe('when there is an existing vault', () => {
@@ -784,6 +834,25 @@ describe('KeyringController', () => {
           );
         });
       });
+
+      it('should throw an error if there are no keyrings', async () => {
+        const controller = new KeyringController({
+          messenger: buildKeyringControllerMessenger(),
+          encryptor: new MockEncryptor(),
+          updateIdentities: jest.fn(),
+          setAccountLabel: jest.fn(),
+          syncIdentities: jest.fn(),
+          setSelectedAddress: jest.fn(),
+        });
+
+        await expect(
+          controller.getKeyringForAccount(
+            '0x51253087e6f8358b5f10c0a94315d69db3357859',
+          ),
+        ).rejects.toThrow(
+          'KeyringController - No keyring found. Error info: There are no keyrings',
+        );
+      });
     });
   });
 
@@ -824,6 +893,16 @@ describe('KeyringController', () => {
         await controller.persistAllKeyrings();
 
         expect(controller.state.keyrings[0].accounts[1]).toBe(addedAccount);
+      });
+    });
+
+    it('should throw error when locked', async () => {
+      await withController(async ({ controller }) => {
+        await controller.setLocked();
+
+        await expect(controller.persistAllKeyrings()).rejects.toThrow(
+          KeyringControllerError.MissingCredentials,
+        );
       });
     });
   });
@@ -934,6 +1013,23 @@ describe('KeyringController', () => {
               [input, somePassword],
             );
             expect(preferences.setSelectedAddress.called).toBe(false);
+          });
+        });
+
+        it('should throw error when importing a duplicate account', async () => {
+          await withController(async ({ controller }) => {
+            const somePassword = 'holachao123';
+            await controller.importAccountWithStrategy(
+              AccountImportStrategy.json,
+              [input, somePassword],
+            );
+
+            await expect(
+              controller.importAccountWithStrategy(AccountImportStrategy.json, [
+                input,
+                somePassword,
+              ]),
+            ).rejects.toThrow(KeyringControllerError.DuplicatedAccount);
           });
         });
       });
@@ -1824,6 +1920,72 @@ describe('KeyringController', () => {
           );
         });
 
+        it('should unlock also with unsupported keyrings', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, encryptor }) => {
+              await controller.setLocked();
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: 'UnsupportedKeyring',
+                  data: '0x1234',
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.isUnlocked).toBe(true);
+            },
+          );
+        });
+
+        it('should throw error if vault unlocked has an unexpected shape', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, encryptor }) => {
+              await controller.setLocked();
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  foo: 'bar',
+                },
+              ]);
+
+              await expect(controller.submitPassword(password)).rejects.toThrow(
+                KeyringControllerError.VaultDataError,
+              );
+            },
+          );
+        });
+
+        it('should throw error if vault is missing', async () => {
+          const controller = new KeyringController({
+            messenger: buildKeyringControllerMessenger(),
+            encryptor: new MockEncryptor(),
+            updateIdentities: jest.fn(),
+            setAccountLabel: jest.fn(),
+            syncIdentities: jest.fn(),
+            setSelectedAddress: jest.fn(),
+          });
+
+          await expect(controller.submitPassword(password)).rejects.toThrow(
+            KeyringControllerError.VaultError,
+          );
+        });
+
+        !cacheEncryptionKey &&
+          it('should throw error if password is of wrong type', async () => {
+            await withController(
+              { cacheEncryptionKey },
+              async ({ controller }) => {
+                await expect(
+                  // @ts-expect-error we are testing the case of a user using
+                  // the wrong password type
+                  controller.submitPassword(12341234),
+                ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+              },
+            );
+          });
+
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
             withController({ cacheEncryptionKey }, async ({ controller }) => {
@@ -1846,6 +2008,75 @@ describe('KeyringController', () => {
             initialState.encryptionSalt as string,
           );
           expect(controller.state).toStrictEqual(initialState);
+        },
+      );
+    });
+
+    it('should unlock also with unsupported keyrings', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller, initialState, encryptor }) => {
+          await controller.setLocked();
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+            {
+              type: 'UnsupportedKeyring',
+              data: '0x1234',
+            },
+          ]);
+
+          await controller.submitEncryptionKey(
+            MOCK_ENCRYPTION_KEY,
+            initialState.encryptionSalt as string,
+          );
+
+          expect(controller.state.isUnlocked).toBe(true);
+        },
+      );
+    });
+
+    it('should throw error if vault unlocked has an unexpected shape', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller, initialState, encryptor }) => {
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+            {
+              foo: 'bar',
+            },
+          ]);
+
+          await expect(
+            controller.submitEncryptionKey(
+              MOCK_ENCRYPTION_KEY,
+              initialState.encryptionSalt as string,
+            ),
+          ).rejects.toThrow(KeyringControllerError.VaultDataError);
+        },
+      );
+    });
+
+    it('should throw error if encryptionSalt is different from the one in the vault', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller }) => {
+          await expect(
+            controller.submitEncryptionKey(MOCK_ENCRYPTION_KEY, '0x1234'),
+          ).rejects.toThrow(KeyringControllerError.ExpiredCredentials);
+        },
+      );
+    });
+
+    it('should throw error if encryptionKey is of an unexpected type', async () => {
+      await withController(
+        { cacheEncryptionKey: true },
+        async ({ controller, initialState }) => {
+          await expect(
+            controller.submitEncryptionKey(
+              // @ts-expect-error we are testing the case of a user using
+              // the wrong encryptionKey type
+              12341234,
+              initialState.encryptionSalt as string,
+            ),
+          ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
         },
       );
     });
@@ -1890,6 +2121,21 @@ describe('KeyringController', () => {
           }).not.toThrow();
         });
       });
+
+      it('should throw error if vault is missing', async () => {
+        const controller = new KeyringController({
+          messenger: buildKeyringControllerMessenger(),
+          encryptor: new MockEncryptor(),
+          updateIdentities: jest.fn(),
+          setAccountLabel: jest.fn(),
+          syncIdentities: jest.fn(),
+          setSelectedAddress: jest.fn(),
+        });
+
+        await expect(controller.verifyPassword(password)).rejects.toThrow(
+          KeyringControllerError.VaultError,
+        );
+      });
     });
 
     describe('when wrong password is provided', () => {
@@ -1903,6 +2149,21 @@ describe('KeyringController', () => {
             'Incorrect password',
           );
         });
+      });
+
+      it('should throw error if vault is missing', async () => {
+        const controller = new KeyringController({
+          messenger: buildKeyringControllerMessenger(),
+          encryptor: new MockEncryptor(),
+          updateIdentities: jest.fn(),
+          setAccountLabel: jest.fn(),
+          syncIdentities: jest.fn(),
+          setSelectedAddress: jest.fn(),
+        });
+
+        await expect(controller.verifyPassword('123')).rejects.toThrow(
+          KeyringControllerError.VaultError,
+        );
       });
     });
   });
