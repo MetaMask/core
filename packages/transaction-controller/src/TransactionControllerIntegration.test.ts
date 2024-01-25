@@ -2384,6 +2384,11 @@ describe('TransactionController Integration', () => {
       });
       const { networkController, transactionController } =
         await newController();
+      const startTrackinSpy = jest.spyOn(
+        transactionController,
+        'startTrackingByNetworkClientId',
+      );
+
       await networkController.upsertNetworkConfiguration(
         {
           ...networkClientConfiguration,
@@ -2392,6 +2397,7 @@ describe('TransactionController Integration', () => {
         { setActive: false, referrer: 'https://mock.referrer', source: 'dapp' },
       );
 
+      expect(startTrackinSpy).toHaveBeenCalledTimes(1);
       expect(transactionController).toBeDefined();
     });
   });
