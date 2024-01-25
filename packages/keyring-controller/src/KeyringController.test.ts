@@ -493,21 +493,17 @@ describe('KeyringController', () => {
           });
 
           it('should throw error if password is of wrong type', async () => {
-            const controller = new KeyringController({
-              messenger: buildKeyringControllerMessenger(),
-              encryptor: new MockEncryptor(),
-              updateIdentities: jest.fn(),
-              setAccountLabel: jest.fn(),
-              syncIdentities: jest.fn(),
-              setSelectedAddress: jest.fn(),
-            });
-
-            await expect(
-              controller.createNewVaultAndKeychain(
-                // @ts-expect-error invalid password
-                123,
-              ),
-            ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+            await withController(
+              { skipVaultCreation: true },
+              async ({ controller }) => {
+                await expect(
+                  controller.createNewVaultAndKeychain(
+                    // @ts-expect-error invalid password
+                    123,
+                  ),
+                ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+              },
+            );
           });
         });
 
@@ -836,21 +832,17 @@ describe('KeyringController', () => {
       });
 
       it('should throw an error if there are no keyrings', async () => {
-        const controller = new KeyringController({
-          messenger: buildKeyringControllerMessenger(),
-          encryptor: new MockEncryptor(),
-          updateIdentities: jest.fn(),
-          setAccountLabel: jest.fn(),
-          syncIdentities: jest.fn(),
-          setSelectedAddress: jest.fn(),
-        });
-
-        await expect(
-          controller.getKeyringForAccount(
-            '0x51253087e6f8358b5f10c0a94315d69db3357859',
-          ),
-        ).rejects.toThrow(
-          'KeyringController - No keyring found. Error info: There are no keyrings',
+        await withController(
+          { skipVaultCreation: true },
+          async ({ controller }) => {
+            await expect(
+              controller.getKeyringForAccount(
+                '0x51253087e6f8358b5f10c0a94315d69db3357859',
+              ),
+            ).rejects.toThrow(
+              'KeyringController - No keyring found. Error info: There are no keyrings',
+            );
+          },
         );
       });
     });
@@ -1958,17 +1950,13 @@ describe('KeyringController', () => {
         });
 
         it('should throw error if vault is missing', async () => {
-          const controller = new KeyringController({
-            messenger: buildKeyringControllerMessenger(),
-            encryptor: new MockEncryptor(),
-            updateIdentities: jest.fn(),
-            setAccountLabel: jest.fn(),
-            syncIdentities: jest.fn(),
-            setSelectedAddress: jest.fn(),
-          });
-
-          await expect(controller.submitPassword(password)).rejects.toThrow(
-            KeyringControllerError.VaultError,
+          await withController(
+            { skipVaultCreation: true },
+            async ({ controller }) => {
+              await expect(controller.submitPassword(password)).rejects.toThrow(
+                KeyringControllerError.VaultError,
+              );
+            },
           );
         });
 
@@ -2123,17 +2111,13 @@ describe('KeyringController', () => {
       });
 
       it('should throw error if vault is missing', async () => {
-        const controller = new KeyringController({
-          messenger: buildKeyringControllerMessenger(),
-          encryptor: new MockEncryptor(),
-          updateIdentities: jest.fn(),
-          setAccountLabel: jest.fn(),
-          syncIdentities: jest.fn(),
-          setSelectedAddress: jest.fn(),
-        });
-
-        await expect(controller.verifyPassword(password)).rejects.toThrow(
-          KeyringControllerError.VaultError,
+        await withController(
+          { skipVaultCreation: true },
+          async ({ controller }) => {
+            await expect(controller.verifyPassword(password)).rejects.toThrow(
+              KeyringControllerError.VaultError,
+            );
+          },
         );
       });
     });
@@ -2152,17 +2136,13 @@ describe('KeyringController', () => {
       });
 
       it('should throw error if vault is missing', async () => {
-        const controller = new KeyringController({
-          messenger: buildKeyringControllerMessenger(),
-          encryptor: new MockEncryptor(),
-          updateIdentities: jest.fn(),
-          setAccountLabel: jest.fn(),
-          syncIdentities: jest.fn(),
-          setSelectedAddress: jest.fn(),
-        });
-
-        await expect(controller.verifyPassword('123')).rejects.toThrow(
-          KeyringControllerError.VaultError,
+        await withController(
+          { skipVaultCreation: true },
+          async ({ controller }) => {
+            await expect(controller.verifyPassword('123')).rejects.toThrow(
+              KeyringControllerError.VaultError,
+            );
+          },
         );
       });
     });
@@ -3093,7 +3073,9 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: KeyringControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<KeyringControllerOptions>;
+type WithControllerOptions = Partial<KeyringControllerOptions> & {
+  skipVaultCreation?: boolean;
+};
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
@@ -3171,7 +3153,9 @@ async function withController<ReturnValue>(
     ...preferences,
     ...rest,
   });
-  await controller.createNewVaultAndKeychain(password);
+  if (!rest.skipVaultCreation) {
+    await controller.createNewVaultAndKeychain(password);
+  }
   return await fn({
     controller,
     preferences,
