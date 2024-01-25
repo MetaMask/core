@@ -876,18 +876,7 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    let hash;
-    try {
-      hash = await this.publishTransaction(rawTx);
-    } catch (error: any) {
-      if (error?.code === errorCodes.rpc.invalidInput) {
-        await this.pendingTransactionTracker.isTransactionConfirmed(
-          transactionMeta,
-        );
-        throw new Error('Transaction already confirmed.');
-      }
-      return;
-    }
+    const hash = await this.publishTransactionWithValidation(rawTx, transactionMeta);
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
@@ -1039,18 +1028,7 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    let hash;
-    try {
-      hash = await this.publishTransaction(rawTx);
-    } catch (error: any) {
-      if (error?.code === errorCodes.rpc.invalidInput) {
-        await this.pendingTransactionTracker.isTransactionConfirmed(
-          transactionMeta,
-        );
-        throw new Error('Transaction already confirmed.');
-      }
-      return;
-    }
+    const hash = await this.publishTransactionWithValidation(rawTx, transactionMeta);
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
@@ -2768,5 +2746,24 @@ export class TransactionController extends BaseControllerV1<
       /* istanbul ignore next */
       log('Error while updating post transaction balance', error);
     }
+  }
+
+  private async publishTransactionWithValidation(
+    rawTx: string,
+    transactionMeta: TransactionMeta,
+  ): Promise<string> {
+    let hash;
+    try {
+      hash = await this.publishTransaction(rawTx);
+    } catch (error: any) {
+      if (error?.code === errorCodes.rpc.invalidInput) {
+        await this.pendingTransactionTracker.isTransactionConfirmed(
+          transactionMeta,
+        );
+        throw new Error('Transaction already confirmed.');
+      }
+      throw new Error('Failed to publish transaction.');
+    }
+    return hash;
   }
 }
