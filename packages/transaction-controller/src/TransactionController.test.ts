@@ -4785,8 +4785,22 @@ describe('TransactionController', () => {
         trackingMap.get('mainnet')?.pendingTransactionTracker,
       ).toBeDefined();
     });
+  });
+  describe('stopTrackingByNetworkClientId', () => {
     it('should stop tracking in a tracking map', () => {
-      const controller = newController();
+      const mockGetNetworkClientRegistry = jest.fn();
+      mockGetNetworkClientRegistry.mockImplementation(() => ({
+        mainnet: {
+          configuration: {
+            chainId: '0x1',
+          },
+        },
+      }));
+      const controller = newController({
+        options: {
+          getNetworkClientRegistry: mockGetNetworkClientRegistry,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
       const incomingTransactionHelper =
         trackingMap.get('mainnet')?.incomingTransactionHelper;
@@ -4798,6 +4812,7 @@ describe('TransactionController', () => {
       expect(stopSpy).toHaveBeenCalledTimes(1);
     });
   });
+
   describe('initTrackingMap', () => {
     // eslint-disable-next-line jest/no-done-callback
     it('should initialize the tracking map on construction', (done) => {
@@ -4821,7 +4836,7 @@ describe('TransactionController', () => {
     it('should handle removals from the networkController registry', (done) => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
       const mockGetNetworkClientRegistry = jest.fn();
-      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+      mockGetNetworkClientRegistry.mockImplementation(() => ({
         sepolia: {
           configuration: {
             chainId: SEPOLIA.chainId,
@@ -4840,7 +4855,7 @@ describe('TransactionController', () => {
       }));
       hub.on('tracking-map-init', () => {
         mockGetNetworkClientRegistry.mockClear();
-        mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+        mockGetNetworkClientRegistry.mockImplementation(() => ({
           sepolia: {
             configuration: {
               chainId: SEPOLIA.chainId,
@@ -4879,7 +4894,7 @@ describe('TransactionController', () => {
     }));
     hub.on('tracking-map-init', () => {
       mockGetNetworkClientRegistry.mockClear();
-      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+      mockGetNetworkClientRegistry.mockImplementation(() => ({
         sepolia: {
           configuration: {
             chainId: SEPOLIA.chainId,

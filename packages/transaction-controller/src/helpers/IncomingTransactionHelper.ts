@@ -128,11 +128,7 @@ export class IncomingTransactionHelper {
       const additionalLastFetchedKeys =
         this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
 
-      const fromBlock = this.#getFromBlock(
-        latestBlockNumber,
-        additionalLastFetchedKeys,
-      );
-
+      const fromBlock = this.#getFromBlock(latestBlockNumber);
       const address = this.#getCurrentAccount();
       const currentChainId = this.#getCurrentChainId();
 
@@ -152,7 +148,6 @@ export class IncomingTransactionHelper {
         log('Error while fetching remote transactions', error);
         return;
       }
-
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
           (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
@@ -187,7 +182,6 @@ export class IncomingTransactionHelper {
           updated: updatedTransactions,
         });
       }
-
       this.#updateLastFetchedBlockNumber(
         remoteTransactions,
         additionalLastFetchedKeys,
@@ -232,14 +226,16 @@ export class IncomingTransactionHelper {
     );
   }
 
-  #getFromBlock(
-    latestBlockNumber: number,
-    additionalKeys: string[],
-  ): number | undefined {
-    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
+  #getLastFetchedBlockNumberDec(): number {
+    const additionalLastFetchedKeys =
+      this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
+    const lastFetchedKey = this.#getBlockNumberKey(additionalLastFetchedKeys);
+    const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
+    return lastFetchedBlockNumbers[lastFetchedKey];
+  }
 
-    const lastFetchedBlockNumber =
-      this.#getLastFetchedBlockNumbers()[lastFetchedKey];
+  #getFromBlock(latestBlockNumber: number): number | undefined {
+    const lastFetchedBlockNumber = this.#getLastFetchedBlockNumberDec();
 
     if (lastFetchedBlockNumber) {
       return lastFetchedBlockNumber + 1;
@@ -280,7 +276,6 @@ export class IncomingTransactionHelper {
     }
 
     lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
-
     this.hub.emit('updatedLastFetchedBlockNumbers', {
       lastFetchedBlockNumbers,
       blockNumber: lastFetchedBlockNumber,
