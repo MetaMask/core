@@ -13,7 +13,7 @@ import nock from 'nock';
 import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
+import { advanceTime, flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
   ETHERSCAN_TRANSACTION_BASE_MOCK,
@@ -2355,7 +2355,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('when changing rpcUrl of networkClient', () => {
-    it('should update the trackingMap', async () => {
+    it('should start tracking when a new network is added', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2398,6 +2398,62 @@ describe('TransactionController Integration', () => {
       );
 
       expect(startTrackinSpy).toHaveBeenCalledTimes(1);
+      expect(transactionController).toBeDefined();
+    });
+    it.only('should stop tracking when a network is removed', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x2',
+            },
+          },
+        ],
+      });
+      const { networkController, transactionController } =
+        await newController();
+      const stopTrackinSpy = jest.spyOn(
+        transactionController,
+        'stopTrackingByNetworkClientId',
+      );
+
+      const configurationId =
+        await networkController.upsertNetworkConfiguration(
+          {
+            ...networkClientConfiguration,
+            rpcUrl: 'https://mock.rpc.url',
+          },
+          {
+            setActive: false,
+            referrer: 'https://mock.referrer',
+            source: 'dapp',
+          },
+        );
+
+      networkController.removeNetworkConfiguration(configurationId);
+
+      // advance time to trigger events
+      await advanceTime({ clock, duration: 1000 });
+
+      console.log('stopTrackingByNetworkClientId', stopTrackinSpy.mock.calls);
+      expect(stopTrackinSpy).toHaveBeenCalledTimes(1);
       expect(transactionController).toBeDefined();
     });
   });

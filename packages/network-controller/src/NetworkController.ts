@@ -1302,6 +1302,7 @@ export class NetworkController extends BaseController<
    * configuration.
    */
   removeNetworkConfiguration(networkConfigurationId: string) {
+    console.log(this.state.networkConfigurations);
     if (!this.state.networkConfigurations[networkConfigurationId]) {
       throw new Error(
         `networkConfigurationId ${networkConfigurationId} does not match a configured networkConfiguration`,

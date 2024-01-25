@@ -687,6 +687,7 @@ export class TransactionController extends BaseControllerV1<
       (id) => !networkClientIds.includes(id),
     );
     networkClientIdsToRemove.forEach((id) => {
+      console.log('about to call stopTrackingByNetworkClientId', id);
       this.stopTrackingByNetworkClientId(id);
     });
 
