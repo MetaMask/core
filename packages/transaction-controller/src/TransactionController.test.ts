@@ -3835,22 +3835,70 @@ describe('TransactionController', () => {
       ])(
         'updates transaction status to $newStatus',
         async ({ newStatus, errorMessage }) => {
-          const newHash = '1234';
           const controller = newController();
           controller.state.transactions.push(transactionMeta);
 
           controller.updateCustodialTransaction(transactionId, {
             status: newStatus,
-            hash: newHash,
             errorMessage,
           });
 
           const updatedTransaction = controller.state.transactions[0];
 
           expect(updatedTransaction?.status).toStrictEqual(newStatus);
-          expect(updatedTransaction?.hash).toStrictEqual(newHash);
         },
       );
+
+      it.each([
+        {
+          newStatus: TransactionStatus.submitted,
+        },
+        {
+          newStatus: TransactionStatus.failed,
+          errorMessage: 'Error mock',
+        },
+      ])(
+        'emits txId:finished when update transaction status to $newStatus',
+        async ({ newStatus, errorMessage }) => {
+          const controller = newController();
+          const hubEmitSpy = jest
+            .spyOn(controller.hub, 'emit')
+            .mockImplementation();
+          controller.state.transactions.push(transactionMeta);
+
+          controller.updateCustodialTransaction(transactionId, {
+            status: newStatus,
+            errorMessage,
+          });
+
+          const updatedTransaction = controller.state.transactions[0];
+
+          expect(hubEmitSpy).toHaveBeenCalledTimes(1);
+          expect(hubEmitSpy).toHaveBeenCalledWith(
+            `${transactionId}:finished`,
+            updatedTransaction,
+          );
+          expect(updatedTransaction?.status).toStrictEqual(newStatus);
+        },
+      );
+
+      it('updates transaction hash', async () => {
+        const newHash = '1234';
+        const controller = newController();
+        const hubEmitSpy = jest
+          .spyOn(controller.hub, 'emit')
+          .mockImplementation();
+        controller.state.transactions.push(transactionMeta);
+
+        controller.updateCustodialTransaction(transactionId, {
+          hash: newHash,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+
+        expect(hubEmitSpy).toHaveBeenCalledTimes(0);
+        expect(updatedTransaction?.hash).toStrictEqual(newHash);
+      });
 
       it('throws if custodial transaction does not exists', async () => {
         const nonExistentId = 'nonExistentId';
