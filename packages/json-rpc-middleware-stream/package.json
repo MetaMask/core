@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-middleware-stream",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "description": "A small toolset for streaming JSON-RPC data and matching requests and responses",
   "keywords": [
     "MetaMask",
@@ -31,7 +31,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/json-rpc-engine": "^7.3.1",
+    "@metamask/json-rpc-engine": "^7.3.2",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^8.3.0",
     "readable-stream": "^3.6.2"
@@ -41,7 +41,7 @@
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
-    "extension-port-stream": "^2.0.1",
+    "extension-port-stream": "^3.0.0",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",

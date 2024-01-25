@@ -12,9 +12,6 @@
     },
     {
       "path": "../message-manager/tsconfig.build.json"
-    },
-    {
-      "path": "../preferences-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

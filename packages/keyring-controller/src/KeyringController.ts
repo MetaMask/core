@@ -5,7 +5,10 @@ import type {
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import {
+  KeyringController as EthKeyringController,
+  KeyringType,
+} from '@metamask/eth-keyring-controller';
 import type {
   ExportableKeyEncryptor,
   GenericEncryptor,
@@ -21,7 +24,6 @@ import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
-import type { PreferencesController } from '@metamask/preferences-controller';
 import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -49,7 +51,7 @@ export enum KeyringTypes {
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
-  custody = 'Custody',
+  custody = 'Custody - JSONRPC',
 }
 
 /**
@@ -197,10 +199,10 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type KeyringControllerOptions = {
-  syncIdentities: PreferencesController['syncIdentities'];
-  updateIdentities: PreferencesController['updateIdentities'];
-  setSelectedAddress: PreferencesController['setSelectedAddress'];
-  setAccountLabel?: PreferencesController['setAccountLabel'];
+  syncIdentities: (addresses: string[]) => string;
+  updateIdentities: (addresses: string[]) => void;
+  setSelectedAddress: (selectedAddress: string) => void;
+  setAccountLabel?: (address: string, label: string) => void;
   keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
@@ -246,9 +248,11 @@ export enum SignTypedDataVersion {
   V4 = 'V4',
 }
 
-const defaultState: KeyringControllerState = {
-  isUnlocked: false,
-  keyrings: [],
+export const getDefaultKeyringState = (): KeyringControllerState => {
+  return {
+    isUnlocked: false,
+    keyrings: [],
+  };
 };
 
 /**
@@ -286,13 +290,13 @@ export class KeyringController extends BaseController<
 > {
   private readonly mutex = new Mutex();
 
-  private readonly syncIdentities: PreferencesController['syncIdentities'];
+  private readonly syncIdentities: (addresses: string[]) => string;
 
-  private readonly updateIdentities: PreferencesController['updateIdentities'];
+  private readonly updateIdentities: (addresses: string[]) => void;
 
-  private readonly setSelectedAddress: PreferencesController['setSelectedAddress'];
+  private readonly setSelectedAddress: (selectedAddress: string) => void;
 
-  private readonly setAccountLabel?: PreferencesController['setAccountLabel'];
+  private readonly setAccountLabel?: (address: string, label: string) => void;
 
   #keyring: EthKeyringController;
 
@@ -336,7 +340,7 @@ export class KeyringController extends BaseController<
       },
       messenger,
       state: {
-        ...defaultState,
+        ...getDefaultKeyringState(),
         ...state,
       },
     });
@@ -488,7 +492,13 @@ export class KeyringController extends BaseController<
 
     try {
       this.updateIdentities([]);
-      await this.#keyring.createNewVaultAndRestore(password, seed);
+      await this.#keyring.createNewVaultWithKeyring(password, {
+        type: KeyringType.HD,
+        opts: {
+          mnemonic: seed,
+          numberOfAccounts: 1,
+        },
+      });
       this.updateIdentities(await this.#keyring.getAccounts());
       return this.#getMemState();
     } finally {
@@ -507,7 +517,9 @@ export class KeyringController extends BaseController<
     try {
       const accounts = await this.getAccounts();
       if (!accounts.length) {
-        await this.#keyring.createNewVaultAndKeychain(password);
+        await this.#keyring.createNewVaultWithKeyring(password, {
+          type: KeyringType.HD,
+        });
         this.updateIdentities(await this.getAccounts());
       }
       return this.#getMemState();
