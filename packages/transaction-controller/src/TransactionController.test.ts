@@ -4708,9 +4708,23 @@ describe('TransactionController', () => {
         trackingMap.get('mainnet')?.pendingTransactionTracker,
       ).toBeDefined();
     });
+  });
 
+  describe('stopTrackingByNetworkClientId', () => {
     it('should stop tracking in a tracking map', () => {
-      const { controller } = setupController();
+      const mockGetNetworkClientRegistry = jest.fn();
+      mockGetNetworkClientRegistry.mockImplementation(() => ({
+        mainnet: {
+          configuration: {
+            chainId: '0x1',
+          },
+        },
+      }));
+      const { controller } = setupController({
+        options: {
+          getNetworkClientRegistry: mockGetNetworkClientRegistry,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
       const incomingTransactionHelper =
         trackingMap.get('mainnet')?.incomingTransactionHelper;
@@ -4748,7 +4762,7 @@ describe('TransactionController', () => {
     it('should handle removals from the networkController registry', (done) => {
       const hub = new EventEmitter();
       const mockGetNetworkClientRegistry = jest.fn();
-      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+      mockGetNetworkClientRegistry.mockImplementation(() => ({
         sepolia: {
           configuration: {
             chainId: ChainId.sepolia,
@@ -4767,7 +4781,7 @@ describe('TransactionController', () => {
       }));
       hub.on('tracking-map-init', () => {
         mockGetNetworkClientRegistry.mockClear();
-        mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+        mockGetNetworkClientRegistry.mockImplementation(() => ({
           sepolia: {
             configuration: {
               chainId: ChainId.sepolia,
@@ -4815,7 +4829,7 @@ describe('TransactionController', () => {
     }));
     hub.on('tracking-map-init', () => {
       mockGetNetworkClientRegistry.mockClear();
-      mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
+      mockGetNetworkClientRegistry.mockImplementation(() => ({
         sepolia: {
           configuration: {
             chainId: ChainId.sepolia,

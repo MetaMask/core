@@ -21,7 +21,7 @@ import {
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type {
+import {
   BlockTracker,
   NetworkClientId,
   NetworkController,
@@ -30,6 +30,7 @@ import type {
   Provider,
   NetworkClientConfiguration,
   ProviderConfig,
+  NetworkClientType,
 } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
@@ -605,6 +606,11 @@ export class TransactionController extends BaseController<
     }
   > = new Map();
 
+  readonly etherscanRemoteTransactionSourcesMap: Map<
+    Hex,
+    EtherscanRemoteTransactionSource
+  > = new Map();
+
   /**
    * Method used to sign transactions
    */
@@ -864,6 +870,7 @@ export class TransactionController extends BaseController<
         });
         if (shouldRefresh) {
           this.#refreshTrackingMap();
+          this.#refreshEtherscanRemoteTransactionSources();
         }
       },
     );
@@ -887,10 +894,30 @@ export class TransactionController extends BaseController<
     this.#stopAllTracking();
   }
 
+  #refreshEtherscanRemoteTransactionSources = () => {
+    // this will be prettier when we have consolidated network clients with a single chainId:
+    // check if there are still other network clients using the same chainId
+    // if not remove the etherscanRemoteTransaction source from the map
+    const networkClients = this.getNetworkClientRegistry();
+    const chainIdsInRegistry = new Set();
+    Object.values(networkClients).forEach((networkClient) =>
+      chainIdsInRegistry.add(networkClient.configuration.chainId),
+    );
+    const existingChainIds = Array.from(
+      this.etherscanRemoteTransactionSourcesMap.keys(),
+    );
+    const chainIdsToRemove = existingChainIds.filter(
+      (chainId) => !chainIdsInRegistry.has(chainId),
+    );
+
+    chainIdsToRemove.forEach((chainId) => {
+      this.etherscanRemoteTransactionSourcesMap.delete(chainId);
+    });
+  };
+
   #refreshTrackingMap = () => {
     const networkClients = this.getNetworkClientRegistry();
     const networkClientIds = Object.keys(networkClients);
-
     const existingNetworkClientIds = Array.from(this.trackingMap.keys());
 
     // Remove tracking for NetworkClientIds that no longer exist
@@ -1569,8 +1596,8 @@ export class TransactionController extends BaseController<
       this.removeIncomingTransactionHelperListeners(
         trackers.incomingTransactionHelper,
       );
+      this.trackingMap.delete(networkClientId);
     }
-    this.trackingMap.delete(networkClientId);
   }
 
   #stopAllTracking() {
@@ -1589,6 +1616,20 @@ export class TransactionController extends BaseController<
   startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
+
+    let etherscanRemoteTransactionSource =
+      this.etherscanRemoteTransactionSourcesMap.get(chainId);
+    if (!etherscanRemoteTransactionSource) {
+      etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
+        includeTokenTransfers:
+          this.incomingTransactionOptions.includeTokenTransfers,
+      });
+      this.etherscanRemoteTransactionSourcesMap.set(
+        chainId,
+        etherscanRemoteTransactionSource,
+      );
+    }
+
     if (!this.nonceMutexByChainId.get(chainId)) {
       this.nonceMutexByChainId.set(chainId, new Mutex());
     }
@@ -1609,16 +1650,14 @@ export class TransactionController extends BaseController<
       ),
     });
 
-    const etherscanRemoteTransactionSource =
-      new EtherscanRemoteTransactionSource({
-        includeTokenTransfers:
-          this.incomingTransactionOptions.includeTokenTransfers,
-      });
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       // TODO(JL): Fix this type
+      // TODO (AD):
+      // This is a hack until we remove the base IncomingTransactionHelper class
+      // and should be replaced with a plain chainId parameter
       getNetworkState: () => {
         return {
           providerConfig: { chainId } as ProviderConfig,
@@ -2485,19 +2524,12 @@ export class TransactionController extends BaseController<
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId)) &&
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
 
-    const { networkClientId } = transactionMeta;
-    let chainId;
-    let isCustomNetwork;
+    const { networkClientId, chainId } = transactionMeta;
 
-    if (networkClientId) {
-      const { configuration } = this.getNetworkClientById(networkClientId);
-      chainId = configuration.chainId;
-      isCustomNetwork = false;
-    } else {
-      const { providerConfig } = this.getNetworkState();
-      chainId = providerConfig.chainId;
-      isCustomNetwork = providerConfig.type === NetworkType.rpc;
-    }
+    const isCustomNetwork = networkClientId
+      ? this.getNetworkClientById(networkClientId).configuration.type ===
+        NetworkClientType.Custom
+      : this.getNetworkState().providerConfig.type === NetworkType.rpc;
 
     await updateGas({
       ethQuery: this.#getEthQuery({ networkClientId, chainId }),
