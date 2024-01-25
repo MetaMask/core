@@ -189,6 +189,17 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    it('should throw error with no HD keyring', async () => {
+      await withController(
+        { skipVaultCreation: true },
+        async ({ controller }) => {
+          await expect(controller.addNewAccount()).rejects.toThrow(
+            'No HD keyring found',
+          );
+        },
+      );
+    });
   });
 
   describe('addNewAccountForKeyring', () => {
@@ -338,6 +349,17 @@ describe('KeyringController', () => {
           // during this test
           expect(preferences.updateIdentities.callCount).toBe(
             initialUpdateIdentitiesCallCount,
+          );
+        },
+      );
+    });
+
+    it('should throw error with no HD keyring', async () => {
+      await withController(
+        { skipVaultCreation: true },
+        async ({ controller }) => {
+          await expect(controller.addNewAccountWithoutUpdate()).rejects.toThrow(
+            'No HD keyring found',
           );
         },
       );
@@ -2097,6 +2119,17 @@ describe('KeyringController', () => {
           "Can't get mnemonic bytes from keyring",
         );
       });
+    });
+
+    it('should throw error with no HD keyring', async () => {
+      await withController(
+        { skipVaultCreation: true },
+        async ({ controller }) => {
+          await expect(controller.verifySeedPhrase()).rejects.toThrow(
+            'No HD keyring found',
+          );
+        },
+      );
     });
   });
 
