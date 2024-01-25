@@ -335,7 +335,7 @@ describe('KeyringController', () => {
     });
   });
 
-  describe('createNewVaultAndRestore', () => {
+  describe('createNewVaultWithKeyring', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
         it('should create new vault and restore', async () => {
@@ -343,10 +343,13 @@ describe('KeyringController', () => {
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
               const initialVault = controller.state.vault;
-              await controller.createNewVaultAndRestore(
-                password,
-                uint8ArraySeed,
-              );
+              await controller.createNewVaultWithKeyring(password, {
+                type: KeyringTypes.hd,
+                opts: {
+                  mnemonic: uint8ArraySeed,
+                  numberOfAccounts: 1,
+                },
+              });
               expect(controller.state).not.toBe(initialState);
               expect(controller.state.vault).toBeDefined();
               expect(controller.state.vault).toStrictEqual(initialVault);
@@ -362,10 +365,13 @@ describe('KeyringController', () => {
                 password,
               );
 
-              await controller.createNewVaultAndRestore(
-                password,
-                currentSeedWord,
-              );
+              await controller.createNewVaultWithKeyring(password, {
+                type: KeyringTypes.hd,
+                opts: {
+                  mnemonic: currentSeedWord,
+                  numberOfAccounts: 1,
+                },
+              });
               expect(initialState).toStrictEqual(controller.state);
             },
           );
@@ -376,7 +382,13 @@ describe('KeyringController', () => {
             { cacheEncryptionKey },
             async ({ controller }) => {
               await expect(
-                controller.createNewVaultAndRestore('', uint8ArraySeed),
+                controller.createNewVaultWithKeyring('', {
+                  type: KeyringTypes.hd,
+                  opts: {
+                    mnemonic: uint8ArraySeed,
+                    numberOfAccounts: 1,
+                  },
+                }),
               ).rejects.toThrow('Invalid password');
             },
           );
@@ -387,11 +399,13 @@ describe('KeyringController', () => {
             { cacheEncryptionKey },
             async ({ controller }) => {
               await expect(
-                controller.createNewVaultAndRestore(
-                  password,
-                  // @ts-expect-error invalid seed phrase
-                  '',
-                ),
+                controller.createNewVaultWithKeyring(password, {
+                  type: KeyringTypes.hd,
+                  opts: {
+                    mnemonic: '',
+                    numberOfAccounts: 1,
+                  },
+                }),
               ).rejects.toThrow(
                 'Eth-Hd-Keyring: Deserialize method cannot be called with an opts value for numberOfAccounts and no menmonic',
               );
@@ -402,19 +416,20 @@ describe('KeyringController', () => {
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
             withController({ cacheEncryptionKey }, async ({ controller }) => {
-              await controller.createNewVaultAndRestore(
-                password,
-                uint8ArraySeed,
-              );
+              await controller.createNewVaultWithKeyring(password, {
+                type: KeyringTypes.hd,
+                opts: {
+                  mnemonic: uint8ArraySeed,
+                  numberOfAccounts: 1,
+                },
+              });
               expect(controller.state.encryptionKey).toBeDefined();
               expect(controller.state.encryptionSalt).toBeDefined();
             });
           });
       }),
     );
-  });
 
-  describe('createNewVaultAndKeychain', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
         describe('when there is no existing vault', () => {
@@ -431,8 +446,11 @@ describe('KeyringController', () => {
                 const initialSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
-                await cleanKeyringController.createNewVaultAndKeychain(
+                await cleanKeyringController.createNewVaultWithKeyring(
                   password,
+                  {
+                    type: KeyringTypes.hd,
+                  },
                 );
                 const currentSeedWord =
                   await cleanKeyringController.exportSeedPhrase(password);
@@ -470,7 +488,9 @@ describe('KeyringController', () => {
                   password,
                 );
                 const initialVault = controller.state.vault;
-                await controller.createNewVaultAndKeychain(password);
+                await controller.createNewVaultWithKeyring(password, {
+                  type: KeyringTypes.hd,
+                });
                 const currentSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
@@ -2840,7 +2860,9 @@ async function withController<ReturnValue>(
     ...preferences,
     ...rest,
   });
-  await controller.createNewVaultAndKeychain(password);
+  await controller.createNewVaultWithKeyring(password, {
+    type: KeyringTypes.hd,
+  });
   return await fn({
     controller,
     preferences,
