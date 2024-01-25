@@ -876,7 +876,10 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransactionWithValidation(rawTx, transactionMeta);
+    const hash = await this.publishTransactionWithValidation(
+      rawTx,
+      transactionMeta,
+    );
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
@@ -1028,7 +1031,10 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await this.publishTransactionWithValidation(rawTx, transactionMeta);
+    const hash = await this.publishTransactionWithValidation(
+      rawTx,
+      transactionMeta,
+    );
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
@@ -2755,6 +2761,8 @@ export class TransactionController extends BaseControllerV1<
     let hash;
     try {
       hash = await this.publishTransaction(rawTx);
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error?.code === errorCodes.rpc.invalidInput) {
         await this.pendingTransactionTracker.isTransactionConfirmed(
