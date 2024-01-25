@@ -60,6 +60,7 @@ import {
   TransactionStatus,
   WalletDevice,
 } from './types';
+import { Hex } from '@metamask/utils';
 
 const HARDFORK = 'london';
 const SUBMIT_HISTORY_LIMIT = 100;
@@ -1294,7 +1295,7 @@ export class TransactionController extends BaseController<
   private async publishTransaction(
     rawTransaction: string,
     transaction: Record<string, unknown>,
-    chainId?: string,
+    chainId?: Hex,
     origin?: string,
   ): Promise<string> {
     const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
@@ -1412,7 +1413,7 @@ export class TransactionController extends BaseController<
     rawTransaction: string,
     hash: string,
     transaction: Record<string, unknown>,
-    chainId?: string,
+    chainId?: Hex,
     origin?: string,
   ): void {
     const { rpcUrl: networkUrl, type: networkType } =
