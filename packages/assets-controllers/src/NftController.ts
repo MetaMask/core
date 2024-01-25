@@ -903,19 +903,13 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       // If the nft is auto-detected we want some valid metadata to be present
       if (
         source === Source.Detected &&
-        Object.entries(contractInformation).every(([k, v]) => {
-          if (k === 'address') {
-            return true; // address will always be present
-          }
-          // collection will always be an object, we need to check the internal values
-          if (k === 'collection') {
-            const obj = v as {
-              name: string | null;
-              image_url?: string | null;
-            };
-            return obj?.name === null && obj?.image_url === null;
-          }
-          return !v;
+        (!('address' in contractInformation) || contractInformation.address) &&
+        (!('collection' in contractInformation) ||
+          (contractInformation.collection &&
+            contractInformation.collection.name === null &&
+            contractInformation.collection.image_url === null)) &&
+        Object.entries(contractInformation).every(([key, value]) => {
+          return key === 'address' || key === 'collection' || !value;
         })
       ) {
         return nftContracts;
