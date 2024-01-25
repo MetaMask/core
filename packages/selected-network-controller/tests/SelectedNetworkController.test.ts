@@ -88,6 +88,7 @@ describe('SelectedNetworkController', () => {
         messenger: buildSelectedNetworkControllerMessenger(),
       };
       const controller = new SelectedNetworkController(options);
+      controller.state.perDomainNetwork = false;
       const domains = ['1.com', '2.com', '3.com'];
       const networkClientIds = ['1', '2', '3'];
       const mockProviderProxy = {
@@ -102,6 +103,7 @@ describe('SelectedNetworkController', () => {
         once: jest.fn(),
       };
       createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
+      controller.setNetworkClientIdForMetamask('abc');
       domains.forEach((domain, i) =>
         controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
       );
@@ -111,9 +113,9 @@ describe('SelectedNetworkController', () => {
         expect(controller.state.domains[domain]).toBe('foo'),
       );
 
-      controller.setNetworkClientIdForMetamask('bar');
+      controller.setNetworkClientIdForMetamask('abc');
       domains.forEach((domain) =>
-        expect(controller.state.domains[domain]).toBe('bar'),
+        expect(controller.state.domains[domain]).toBe('abc'),
       );
     });
 
