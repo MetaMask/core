@@ -751,10 +751,6 @@ export class KeyringController extends BaseController<
 
     const keyring = await this.#newKeyring(type, opts);
 
-    if (!keyring) {
-      throw new Error(KeyringControllerError.NoKeyring);
-    }
-
     if (type === KeyringTypes.hd && (!isObject(opts) || !opts.mnemonic)) {
       if (!keyring.generateRandomMnemonic) {
         throw new Error(
@@ -1671,10 +1667,6 @@ export class KeyringController extends BaseController<
       accounts: [],
     })) as unknown as QRKeyring;
 
-    if (!qrKeyring) {
-      throw new Error(KeyringControllerError.NoKeyring);
-    }
-
     const accounts = await qrKeyring.getAccounts();
     await this.#checkForDuplicate(KeyringTypes.qr, accounts);
 
@@ -1858,12 +1850,7 @@ export class KeyringController extends BaseController<
    * @returns A promise that resolves if the operation was successful.
    */
   async #createKeyring(type: string, opts?: unknown) {
-    const keyring = (await this.addNewKeyring(type, opts)) as
-      | EthKeyring<Json>
-      | undefined;
-    if (!keyring) {
-      throw new Error(KeyringControllerError.NoKeyring);
-    }
+    const keyring = (await this.addNewKeyring(type, opts)) as EthKeyring<Json>;
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
