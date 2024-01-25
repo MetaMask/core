@@ -30,6 +30,7 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
@@ -1292,7 +1293,7 @@ export class TransactionController extends BaseController<
   private async publishTransaction(
     rawTransaction: string,
     transaction: Record<string, unknown>,
-    chainId?: string,
+    chainId?: Hex,
     origin?: string,
   ): Promise<string> {
     const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
@@ -1410,7 +1411,7 @@ export class TransactionController extends BaseController<
     rawTransaction: string,
     hash: string,
     transaction: Record<string, unknown>,
-    chainId?: string,
+    chainId?: Hex,
     origin?: string,
   ): void {
     const { rpcUrl: networkUrl, type: networkType } =
