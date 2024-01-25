@@ -250,6 +250,8 @@ export class IncomingTransactionHelper {
     remoteTxs: TransactionMeta[],
     additionalKeys: string[],
   ) {
+    console.log('updating last fetched block numbers');
+
     let lastFetchedBlockNumber = -1;
 
     for (const tx of remoteTxs) {
@@ -264,6 +266,7 @@ export class IncomingTransactionHelper {
     }
 
     if (lastFetchedBlockNumber === -1) {
+      console.log('last fetched block number is -1, so not updating anything');
       return;
     }
 
@@ -272,10 +275,16 @@ export class IncomingTransactionHelper {
     const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 
     if (previousValue >= lastFetchedBlockNumber) {
+      console.log(
+        'previous value is >= last fetched block number, so not updating anything',
+        previousValue,
+        lastFetchedBlockNumber,
+      );
       return;
     }
 
     lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
+    console.log('emitting updatedLastFetchedBlockNumber');
     this.hub.emit('updatedLastFetchedBlockNumbers', {
       lastFetchedBlockNumbers,
       blockNumber: lastFetchedBlockNumber,

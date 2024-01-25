@@ -21,7 +21,8 @@ import {
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import {
+import { NetworkClientType } from '@metamask/network-controller';
+import type {
   BlockTracker,
   NetworkClientId,
   NetworkController,
@@ -30,7 +31,6 @@ import {
   Provider,
   NetworkClientConfiguration,
   ProviderConfig,
-  NetworkClientType,
 } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
@@ -1220,11 +1220,20 @@ export class TransactionController extends BaseController<
   }
 
   async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
+    console.log('updating incoming transactions');
+
     if (networkClientIds.length === 0) {
+      console.log(
+        'no network client IDs yet, so going straight to incoming transaction helper',
+      );
       await this.incomingTransactionHelper.update();
       return;
     }
 
+    console.log(
+      'iterating through incoming transaction helpers per network client ID',
+      networkClientIds,
+    );
     await Promise.allSettled(
       networkClientIds.map(async (networkClientId) => {
         return await this.trackingMap
@@ -3079,6 +3088,14 @@ export class TransactionController extends BaseController<
     added: TransactionMeta[];
     updated: TransactionMeta[];
   }) {
+    console.log(
+      'incoming transactions received!',
+      'added',
+      added,
+      'updated',
+      updated,
+    );
+
     this.update((state) => {
       const { transactions: currentTransactions } = state;
       const updatedTransactions = [
@@ -3106,6 +3123,7 @@ export class TransactionController extends BaseController<
   }) {
     // TODO(JL): the way this object is updated in place from IncomingTransactionHelper
     // is incorrect. Additionally there may be a state clobbering issue we need to investigate still.
+    console.log('updating lastFetchedBlockNumbers');
     this.update((state) => {
       state.lastFetchedBlockNumbers = lastFetchedBlockNumbers;
     });
