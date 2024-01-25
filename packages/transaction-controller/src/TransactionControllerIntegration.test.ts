@@ -77,35 +77,31 @@ const newController = async (options: any = {}) => {
 
   const { state, config, ...opts } = options;
 
-  const transactionController = new TransactionController(
-    {
-      provider,
-      blockTracker,
-      messenger,
-      onNetworkStateChange: () => {
-        // noop
-      },
-      getCurrentNetworkEIP1559Compatibility:
-        networkController.getEIP1559Compatibility.bind(networkController),
-      getNetworkClientRegistry:
-        networkController.getNetworkClientRegistry.bind(networkController),
-      findNetworkClientIdByChainId:
-        networkController.findNetworkClientIdByChainId.bind(networkController),
-      getNetworkClientById:
-        networkController.getNetworkClientById.bind(networkController),
-      getNetworkState: () => networkController.state,
-      getSelectedAddress: () => '0xdeadbeef',
-      getPermittedAccounts: () => [ACCOUNT_MOCK],
-      ...opts,
+  const transactionController = new TransactionController({
+    provider,
+    blockTracker,
+    messenger,
+    onNetworkStateChange: () => {
+      // noop
     },
-    {
-      // TODO(JL): fix this type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sign: async (transaction: any) => transaction,
-      ...config,
-    },
+    getCurrentNetworkEIP1559Compatibility:
+      networkController.getEIP1559Compatibility.bind(networkController),
+    getNetworkClientRegistry:
+      networkController.getNetworkClientRegistry.bind(networkController),
+    findNetworkClientIdByChainId:
+      networkController.findNetworkClientIdByChainId.bind(networkController),
+    getNetworkClientById:
+      networkController.getNetworkClientById.bind(networkController),
+    getNetworkState: () => networkController.state,
+    getSelectedAddress: () => '0xdeadbeef',
+    getPermittedAccounts: () => [ACCOUNT_MOCK],
+    // TODO(JL): fix this type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sign: async (transaction: any) => transaction,
     state,
-  );
+    ...config,
+    ...opts,
+  });
 
   return {
     transactionController,
@@ -604,7 +600,7 @@ describe('TransactionController Integration', () => {
         );
         transactionController.destroy();
       });
-      it('should be able to get to confirmed state', async () => {
+      it.only('should be able to get to confirmed state', async () => {
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
           mocks: [
@@ -626,6 +622,24 @@ describe('TransactionController Integration', () => {
           mocks: [
             // NetworkController
             // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
             {
               request: {
                 method: 'eth_blockNumber',
@@ -733,6 +747,17 @@ describe('TransactionController Integration', () => {
               },
             },
             // PendingTransactionTracker.#onTransactionConfirmed
+            {
+              request: {
+                method: 'eth_getBlockByHash',
+                params: ['0x1', false],
+              },
+              response: {
+                result: {
+                  transactions: [],
+                },
+              },
+            },
             {
               request: {
                 method: 'eth_getBlockByHash',

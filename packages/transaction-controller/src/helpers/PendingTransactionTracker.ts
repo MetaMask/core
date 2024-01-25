@@ -395,13 +395,19 @@ export class PendingTransactionTracker {
     const { baseFeePerGas, timestamp: blockTimestamp } =
       await this.#getBlockByHash(blockHash, false);
 
-    txMeta.baseFeePerGas = baseFeePerGas;
+    try {
+      txMeta.baseFeePerGas = baseFeePerGas;
+      console.log('here first', txMeta);
+    } catch (error) {
+      console.log('error', error);
+    }
     txMeta.blockTimestamp = blockTimestamp;
     txMeta.status = TransactionStatus.confirmed;
     txMeta.txParams.gasUsed = receipt.gasUsed;
     txMeta.txReceipt = receipt;
     txMeta.verifiedOnBlockchain = true;
 
+    console.log('here', txMeta);
     this.#updateTransaction(
       txMeta,
       'PendingTransactionTracker:#onTransactionConfirmed - Transaction confirmed',
@@ -509,6 +515,7 @@ export class PendingTransactionTracker {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
+    console.log('blockHash', blockHash, includeTransactionDetails);
     return await query(this.#getEthQuery(), 'getBlockByHash', [
       blockHash,
       includeTransactionDetails,
