@@ -473,8 +473,8 @@ export type SecurityAlertResponse = {
  * Used for debugging purposes.
  */
 export type SubmitHistoryEntry = {
-  /** The chain ID of the transaction as a decimal string. */
-  chainId?: string;
+  /** The chain ID of the transaction as a hexadecimal string. */
+  chainId?: Hex;
 
   /** The hash of the transaction returned from the RPC provider. */
   hash: string;
