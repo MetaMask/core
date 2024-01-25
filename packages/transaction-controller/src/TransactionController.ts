@@ -1630,10 +1630,12 @@ export class TransactionController extends BaseControllerV1<
 
     if (status === TransactionStatus.submitted) {
       updatedTransactionMeta.submittedTime = new Date().getTime();
+      this.hub.emit(`${transactionMeta.id}:finished`, updatedTransactionMeta);
     }
 
     if (status === TransactionStatus.failed) {
       updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
+      this.hub.emit(`${transactionMeta.id}:finished`, updatedTransactionMeta);
     }
 
     this.updateTransaction(
