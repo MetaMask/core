@@ -57,8 +57,8 @@ export interface TokenRatesConfig extends BaseConfig {
   nativeCurrency: string;
   chainId: Hex;
   selectedAddress: string;
-  allTokens: { [chainId: string]: { [key: string]: Token[] } };
-  allDetectedTokens: { [chainId: string]: { [key: string]: Token[] } };
+  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   threshold: number;
 }
 
@@ -424,7 +424,7 @@ export class TokenRatesController extends BaseController<
     nativeCurrency,
   }: {
     tokenAddresses: Hex[];
-    chainId: string;
+    chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
@@ -468,7 +468,7 @@ export class TokenRatesController extends BaseController<
     nativeCurrency,
   }: {
     tokenAddresses: Hex[];
-    chainId: string;
+    chainId: Hex;
     nativeCurrency: string;
   }): Promise<ContractExchangeRates> {
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<
