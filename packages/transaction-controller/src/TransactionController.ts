@@ -1447,7 +1447,6 @@ export class TransactionController extends BaseControllerV1<
    * @param networkClientId - The network client id to use for the estimate.
    */
   async estimateGasBuffered(
-    // NOTE(JL): Need to update SwapsController's usage of this method
     transaction: TransactionParams,
     multiplier: number,
     networkClientId?: NetworkClientId,
@@ -1805,8 +1804,6 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
-    // TODO(JL): SmartTransactionController reaches into TransactionController.nonceTracker directly. Should probably change this.
-    // TODO(JL): Revisit this method. It's a bit complicated and not obvious what it achieves.
     let nonceMutexForChainId: Mutex | undefined;
     let { nonceTracker } = this;
     if (networkClientId) {
