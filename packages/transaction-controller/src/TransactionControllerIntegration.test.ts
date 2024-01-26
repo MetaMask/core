@@ -2399,7 +2399,7 @@ describe('TransactionController Integration', () => {
       const expectedTransactions: Partial<TransactionMeta>[] = [];
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
@@ -2726,7 +2726,7 @@ describe('TransactionController Integration', () => {
       });
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
@@ -2819,7 +2819,7 @@ describe('TransactionController Integration', () => {
       });
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
@@ -2913,7 +2913,7 @@ describe('TransactionController Integration', () => {
       const expectedTransactions: Partial<TransactionMeta>[] = [];
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
@@ -3015,7 +3015,7 @@ describe('TransactionController Integration', () => {
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
@@ -3095,7 +3095,7 @@ describe('TransactionController Integration', () => {
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // NOTE(JL): This doesn't seem to work for the globally selected provider because of nock getting stacked on mainnet.infura.io twice
+      // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
         (v) => v !== networkClientConfiguration.network,
       );
