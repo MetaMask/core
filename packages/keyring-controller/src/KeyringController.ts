@@ -605,17 +605,13 @@ export class KeyringController extends BaseController<
       };
     }
 
-    await this.addNewAccountForKeyring(primaryKeyring);
-    const newAccounts = await this.getAccounts();
-
+    const addedAccountAddress = await this.addNewAccountForKeyring(
+      primaryKeyring,
+    );
     await this.verifySeedPhrase();
 
-    this.updateIdentities(newAccounts);
-    const addedAccountAddress = newAccounts.find(
-      (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
-    );
+    this.updateIdentities(await this.getAccounts());
 
-    assertIsStrictHexString(addedAccountAddress);
     return {
       keyringState: this.#getMemState(),
       addedAccountAddress,
