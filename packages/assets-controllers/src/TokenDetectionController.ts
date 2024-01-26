@@ -39,6 +39,16 @@ import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
+/**
+ * Finds a case insensitive match in an array of strings
+ * @param source - An array of strings to search.
+ * @param target - The target string to search for.
+ * @returns The first match that is found.
+ */
+function findCaseInsensitiveMatch(source: string[], target: string) {
+  return source.find((e: string) => e.toLowerCase() === target.toLowerCase());
+}
+
 type LegacyToken = Omit<
   Token,
   'aggregators' | 'image' | 'balanceError' | 'isERC721'
@@ -451,9 +461,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     const { tokens, detectedTokens } = this.#getTokensState();
     const tokensToDetect: string[] = [];
-
-    const findCaseInsensitiveMatch = (source: string[], target: string) =>
-      source.find((e: string) => e.toLowerCase() === target.toLowerCase());
 
     for (const tokenAddress of Object.keys(tokenListUsed)) {
       if (
