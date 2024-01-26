@@ -34,7 +34,6 @@ import type {
 import { NetworkClientType } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
-import type { SelectedNetworkController } from '@metamask/selected-network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
