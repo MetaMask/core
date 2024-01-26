@@ -3053,7 +3053,7 @@ describe('TransactionController Integration', () => {
         }),
       );
 
-      // we have to wait for the mutex is released after the 5 second gap between API calls finishes
+      // we have to wait for the mutex to be released after the 5 second API rate limit timer
       await advanceTime({ clock, duration: 5000 });
 
       expect(transactionController.state.transactions).toHaveLength(

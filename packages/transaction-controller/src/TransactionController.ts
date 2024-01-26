@@ -2868,13 +2868,15 @@ export class TransactionController extends BaseControllerV1<
    */
   private markNonceDuplicatesDropped(transactionId: string) {
     const transactionMeta = this.getTransaction(transactionId);
-    // NOTE(JL): Should this method be exiting early if getTransaction returns no transaction object?
-    const nonce = transactionMeta?.txParams?.nonce;
-    const from = transactionMeta?.txParams?.from;
+    if (!transactionMeta) {
+      return;
+    }
+    const nonce = transactionMeta.txParams?.nonce;
+    const from = transactionMeta.txParams?.from;
     // NOTE(JL): the line below was removed upstream in favor of this.getChainId()
     // not sure specifically why that was the case
     // https://github.com/MetaMask/core/commit/89654542c9c61308cfad6a310f7fe2b4b669117b
-    const chainId = transactionMeta?.chainId;
+    const { chainId } = transactionMeta;
 
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
@@ -2891,8 +2893,8 @@ export class TransactionController extends BaseControllerV1<
 
     // Mark all same nonce transactions as dropped and give it a replacedBy hash
     for (const transaction of sameNonceTxs) {
-      transaction.replacedBy = transactionMeta?.hash;
-      transaction.replacedById = transactionMeta?.id;
+      transaction.replacedBy = transactionMeta.hash;
+      transaction.replacedById = transactionMeta.id;
       // Drop any transaction that wasn't previously failed (off chain failure)
       if (transaction.status !== TransactionStatus.failed) {
         this.setTransactionStatusDropped(transaction);

@@ -1288,7 +1288,9 @@ describe('TransactionController', () => {
         to: ACCOUNT_MOCK,
       });
 
-      expect(getNetworkStateMock).toHaveBeenCalledTimes(2); // we shouldn't test like this
+      // First call comes from getting the chainId to populate the initial unapproved transaction
+      // Second call comes from getting the network type to populate the initial gas estimates
+      expect(getNetworkStateMock).toHaveBeenCalledTimes(2);
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
