@@ -103,9 +103,7 @@ const newController = async (options: any = {}) => {
       ...opts,
     },
     {
-      // TODO(JL): fix this type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sign: async (transaction: any) => transaction,
+      sign: (transaction) => Promise.resolve(transaction),
       ...config,
     },
     state,
@@ -151,7 +149,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    it('should submit all approved transactions in state when the controller is constructed', async () => {
+    it('should submit all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -264,49 +262,7 @@ describe('TransactionController Integration', () => {
               },
               userFeeLevel: 'dappSuggested',
               sendFlowHistory: [],
-              history: [
-                {
-                  chainId: '0x5',
-                  id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
-                  status: 'unapproved',
-                  time: 1706039113766,
-                  txParams: {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x5208',
-                    maxFeePerGas: '0x1',
-                    maxPriorityFeePerGas: '0x1',
-                  },
-                  userEditedGasLimit: false,
-                  verifiedOnBlockchain: false,
-                  type: 'simpleSend',
-                  networkClientId: 'goerli',
-                  originalGasEstimate: '0x5208',
-                  defaultGasEstimates: {
-                    gas: '0x5208',
-                    maxFeePerGas: '0x1',
-                    maxPriorityFeePerGas: '0x1',
-                    estimateType: 'dappSuggested',
-                  },
-                  userFeeLevel: 'dappSuggested',
-                  sendFlowHistory: [],
-                },
-                [
-                  {
-                    op: 'add',
-                    path: '/txParams/nonce',
-                    value: '0x1',
-                    note: 'TransactionController#approveTransaction - Transaction approved',
-                    timestamp: 1706039113767,
-                  },
-                  {
-                    op: 'replace',
-                    path: '/status',
-                    value: 'approved',
-                  },
-                ],
-              ],
+              history: [{}, []],
             },
             {
               actionId: undefined,
@@ -342,49 +298,7 @@ describe('TransactionController Integration', () => {
               },
               userFeeLevel: 'dappSuggested',
               sendFlowHistory: [],
-              history: [
-                {
-                  chainId: '0xaa36a7',
-                  id: 'c4cc0ff0-ba28-11ee-926f-55a7f9c2c2c6',
-                  status: 'unapproved',
-                  time: 1706039113766,
-                  txParams: {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x5208',
-                    maxFeePerGas: '0x1',
-                    maxPriorityFeePerGas: '0x1',
-                  },
-                  userEditedGasLimit: false,
-                  verifiedOnBlockchain: false,
-                  type: 'simpleSend',
-                  networkClientId: 'sepolia',
-                  originalGasEstimate: '0x5208',
-                  defaultGasEstimates: {
-                    gas: '0x5208',
-                    maxFeePerGas: '0x1',
-                    maxPriorityFeePerGas: '0x1',
-                    estimateType: 'dappSuggested',
-                  },
-                  userFeeLevel: 'dappSuggested',
-                  sendFlowHistory: [],
-                },
-                [
-                  {
-                    op: 'add',
-                    path: '/txParams/nonce',
-                    value: '0x1',
-                    note: 'TransactionController#approveTransaction - Transaction approved',
-                    timestamp: 1706039113767,
-                  },
-                  {
-                    op: 'replace',
-                    path: '/status',
-                    value: 'approved',
-                  },
-                ],
-              ],
+              history: [{}, []],
             },
           ],
         },
