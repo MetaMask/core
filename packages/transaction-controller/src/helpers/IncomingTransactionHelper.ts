@@ -272,6 +272,7 @@ export class IncomingTransactionHelper {
 
     const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
     const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
+    const lastFetchedBlockNumbers = {...this.#getLastFetchedBlockNumbers()};
     const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 
     if (previousValue >= lastFetchedBlockNumber) {
