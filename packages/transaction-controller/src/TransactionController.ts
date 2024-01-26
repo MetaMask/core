@@ -29,7 +29,6 @@ import type {
   NetworkState,
   Provider,
   NetworkClientConfiguration,
-  ProviderConfig,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
@@ -589,7 +588,7 @@ export class TransactionController extends BaseControllerV1<
       blockTracker,
       getCurrentAccount: getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getNetworkState,
+      getChainId: this.getChainId.bind(this),
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
       remoteTransactionSource: etherscanRemoteTransactionSource,
@@ -1382,15 +1381,7 @@ export class TransactionController extends BaseControllerV1<
       blockTracker: networkClient.blockTracker,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      // TODO(JL): Fix this type
-      // TODO (AD):
-      // This is a hack until we remove the base IncomingTransactionHelper class
-      // and should be replaced with a plain chainId parameter
-      getNetworkState: () => {
-        return {
-          providerConfig: { chainId } as ProviderConfig,
-        } as NetworkState;
-      },
+      getChainId: () => chainId,
       isEnabled: this.incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: etherscanRemoteTransactionSource,
