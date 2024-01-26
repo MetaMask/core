@@ -276,7 +276,7 @@ function buildMockMessenger({
       handler({}, [
         {
           op: 'add',
-          path: ['networkConfigurations', 'foo', 'bar'],
+          path: ['networkConfigurations', 'foo'],
           value: 'foo',
         },
       ]);
