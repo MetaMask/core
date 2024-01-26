@@ -2419,11 +2419,11 @@ describe('TransactionController Integration', () => {
       });
       const startTrackinSpy = jest.spyOn(
         transactionController,
-        'startTrackingByNetworkClientId',
+        '#startTrackingByNetworkClientId',
       );
       const stopTrackinSpy = jest.spyOn(
         transactionController,
-        'stopTrackingByNetworkClientId',
+        '#stopTrackingByNetworkClientId',
       );
 
       const configurationId =
