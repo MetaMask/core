@@ -4957,7 +4957,11 @@ describe('TransactionController', () => {
 
   describe('startIncomingTransactionPolling', () => {
     it('should start the incoming transaction helper for the specific networkClientIds provided', () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
       controller.startTrackingByNetworkClientId('sepolia');
 
@@ -4972,7 +4976,11 @@ describe('TransactionController', () => {
     });
 
     it('should start the global incoming transaction helper when no networkClientIds provided', () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
 
       controller.startIncomingTransactionPolling([]);
 
@@ -4982,7 +4990,11 @@ describe('TransactionController', () => {
 
   describe('stopIncomingTransactionPolling', () => {
     it('should stop the incoming transaction helper for the specific networkClientIds provided', () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
       controller.startTrackingByNetworkClientId('sepolia');
 
