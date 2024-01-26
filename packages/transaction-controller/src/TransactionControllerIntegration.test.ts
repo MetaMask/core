@@ -102,9 +102,7 @@ const newController = async (options: any = {}) => {
       ...opts,
     },
     {
-      // TODO(JL): fix this type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sign: async (transaction: any) => transaction,
+      sign: (transaction) => Promise.resolve(transaction),
       ...config,
     },
     state,
