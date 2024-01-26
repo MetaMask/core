@@ -259,6 +259,9 @@ export enum SignTypedDataVersion {
   V4 = 'V4',
 }
 
+/**
+ * A serialized keyring object.
+ */
 export type SerializedKeyring = {
   type: string;
   data: Json;
@@ -1632,15 +1635,10 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Get Keyring Class For Type
+   * Get the keyring builder for the given `type`.
    *
-   * Searches the current `keyringBuilders` array
-   * for a Keyring builder whose unique `type` property
-   * matches the provided `type`,
-   * returning it if it exists.
-   *
-   * @param type - The type whose class to get.
-   * @returns The class, if it exists.
+   * @param type - The type of keyring to get the builder for.
+   * @returns The keyring builder, or undefined if none exists.
    */
   #getKeyringBuilderForType(
     type: string,
@@ -1701,7 +1699,7 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Create new vault And with a specific keyring
+   * Create new vault with an initial keyring
    *
    * Destroys any old encrypted storage,
    * creates a new encrypted store with the given password,
@@ -1727,7 +1725,7 @@ export class KeyringController extends BaseController<
     this.#password = password;
 
     await this.#clearKeyrings();
-    await this.#createKeyring(keyring.type, keyring.opts);
+    await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
     this.#setUnlocked();
     return this.#getMemState();
   }
@@ -1743,15 +1741,13 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Unlock Keyrings.
-   *
-   * Attempts to unlock the persisted encrypted storage,
-   * initializing the persisted keyrings to RAM.
+   * Unlock Keyrings, decrypting the vault and deserializing all
+   * keyrings contained in it, using a password or an encryption key with salt.
    *
    * @param password - The keyring controller password.
    * @param encryptionKey - An exported key string to unlock keyrings with.
    * @param encryptionSalt - The salt used to encrypt the vault.
-   * @returns The keyrings array.
+   * @returns A promise resolving to the deserialized keyrings array.
    */
   async #unlockKeyrings(
     password: string | undefined,
@@ -1836,16 +1832,14 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Create keyring.
+   * Create a new keyring, ensuring that the first account is
+   * also created.
    *
-   * - Creates a new vault.
-   * - Creates a new keyring with at least one account.
-   * - Makes the first account the selected account.
    * @param type - Keyring type to instantiate.
    * @param opts - Optional parameters required to instantiate the keyring.
-   * @returns A promise that resolves if the operation was successful.
+   * @returns A promise that resolves if the operation is successful.
    */
-  async #createKeyring(type: string, opts?: unknown) {
+  async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
     const keyring = (await this.addNewKeyring(type, opts)) as EthKeyring<Json>;
 
     const [firstAccount] = await keyring.getAccounts();
@@ -1855,9 +1849,9 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Instantiate, initialize and return a new keyring
-   *
-   * The keyring instantiated is of the given `type`.
+   * Instantiate, initialize and return a new keyring of the given `type`,
+   * using the given `opts`. The keyring is built using the keyring builder
+   * registered for the given `type`.
    *
    * @param type - The type of keyring to add.
    * @param data - The data to restore a previously serialized keyring.
@@ -1885,14 +1879,10 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Clear Keyrings
-   *
-   * Deallocates all currently managed keyrings and accounts.
-   * Used before initializing a new vault and after locking
-   * MetaMask.
+   * Remove all managed keyrings, destroying all their
+   * instances in memory.
    */
   async #clearKeyrings() {
-    // clear keyrings from memory
     for (const keyring of this.#keyrings) {
       await this.#destroyKeyring(keyring);
     }
@@ -2006,9 +1996,8 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Unlock Keyrings
-   *
-   * Unlocks the keyrings.
+   * Set the `isUnlocked` to true and notify listeners
+   * through the messenger.
    *
    * @fires KeyringController:unlock
    */
