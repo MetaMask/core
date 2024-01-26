@@ -2511,31 +2511,6 @@ describe('TransactionController', () => {
       expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
       expect(nextNonce).toBe(NONCE_MOCK);
     });
-
-    it('gets the next nonce from the nonceTracker for the provided networkClientId', async () => {
-      const controller = newController({
-        network: MOCK_LINEA_MAINNET_NETWORK,
-      });
-
-      const trackingMap = controller.startTrackingByNetworkClientId(
-        'customNetworkClientId-1',
-      );
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const { nonceTracker } = trackingMap.get('customNetworkClientId-1')!;
-      const nonceTrackerGetNonceLockSpy = jest.spyOn(
-        nonceTracker,
-        'getNonceLock',
-      );
-
-      const { nextNonce } = await controller.getNonceLock(
-        ACCOUNT_MOCK,
-        'customNetworkClientId-1',
-      );
-
-      expect(nonceTrackerGetNonceLockSpy).toHaveBeenCalledTimes(1);
-      expect(nonceTrackerGetNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
-      expect(nextNonce).toBe(NONCE_MOCK);
-    });
   });
 
   describe('confirmExternalTransaction', () => {
@@ -4802,45 +4777,6 @@ describe('TransactionController', () => {
       Current tx status: ${TransactionStatus.submitted}`);
     });
   });
-  describe('startTrackingByNetworkClientId', () => {
-    it('should start tracking in a tracking map', () => {
-      const controller = newController();
-      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
-      expect(trackingMap.get('mainnet')?.nonceTracker).toBeDefined();
-      expect(
-        trackingMap.get('mainnet')?.incomingTransactionHelper,
-      ).toBeDefined();
-      expect(
-        trackingMap.get('mainnet')?.pendingTransactionTracker,
-      ).toBeDefined();
-    });
-  });
-  describe('stopTrackingByNetworkClientId', () => {
-    it('should stop tracking in a tracking map', () => {
-      const mockGetNetworkClientRegistry = jest.fn();
-      mockGetNetworkClientRegistry.mockImplementation(() => ({
-        mainnet: {
-          configuration: {
-            chainId: '0x1',
-          },
-        },
-      }));
-      const controller = newController({
-        options: {
-          getNetworkClientRegistry: mockGetNetworkClientRegistry,
-        },
-      });
-      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
-      const incomingTransactionHelper =
-        trackingMap.get('mainnet')?.incomingTransactionHelper;
-      if (!incomingTransactionHelper) {
-        throw new Error('incomingTransactionHelper is undefined');
-      }
-      const stopSpy = jest.spyOn(incomingTransactionHelper, 'stop');
-      // controller.stopTrackingByNetworkClientId('mainnet');
-      expect(stopSpy).toHaveBeenCalledTimes(1);
-    });
-  });
 
   describe('initTrackingMap', () => {
     it('doesnt get called if the feature flag is disabled', () => {
@@ -4982,25 +4918,6 @@ describe('TransactionController', () => {
   });
 
   describe('startIncomingTransactionPolling', () => {
-    it('should start the incoming transaction helper for the specific networkClientIds provided', () => {
-      const controller = newController({
-        options: {
-          enableMultichain: true,
-        },
-      });
-      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
-      controller.startTrackingByNetworkClientId('sepolia');
-
-      controller.startIncomingTransactionPolling(['mainnet', 'sepolia']);
-
-      expect(
-        trackingMap.get('mainnet')?.incomingTransactionHelper.start,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        trackingMap.get('sepolia')?.incomingTransactionHelper.start,
-      ).toHaveBeenCalledTimes(1);
-    });
-
     it('should start the global incoming transaction helper when no networkClientIds provided', () => {
       const controller = newController({
         options: {
@@ -5015,25 +4932,6 @@ describe('TransactionController', () => {
   });
 
   describe('stopIncomingTransactionPolling', () => {
-    it('should stop the incoming transaction helper for the specific networkClientIds provided', () => {
-      const controller = newController({
-        options: {
-          enableMultichain: true,
-        },
-      });
-      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
-      controller.startTrackingByNetworkClientId('sepolia');
-
-      controller.stopIncomingTransactionPolling(['mainnet', 'sepolia']);
-
-      expect(
-        trackingMap.get('mainnet')?.incomingTransactionHelper.stop,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        trackingMap.get('sepolia')?.incomingTransactionHelper.stop,
-      ).toHaveBeenCalledTimes(1);
-    });
-
     it('should stop the global incoming transaction helper when no networkClientIds provided', () => {
       const controller = newController();
 
@@ -5043,49 +4941,9 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('stopAllIncomingTransactionPolling', () => {
-    it('should stop the global incoming transaction helper and each transaction helper in the tracking map', () => {
-      const controller = newController({
-        options: {
-          enableMultichain: true,
-        },
-      });
-      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
-
-      controller.stopAllIncomingTransactionPolling();
-
-      expect(incomingTransactionHelperMocks[0].stop).toHaveBeenCalledTimes(1);
-      expect(
-        trackingMap.get('mainnet')?.incomingTransactionHelper.stop,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        trackingMap.get('sepolia')?.incomingTransactionHelper.stop,
-      ).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('updateIncomingTransactions', () => {
-    it('should update the incoming transactions for the specific networkClientIds provided', async () => {
-      const controller = newController({
-        options: {
-          enableMultichain: true,
-        },
-      });
-      const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
-
-      await controller.updateIncomingTransactions(['mainnet', 'sepolia']);
-
-      expect(
-        trackingMap.get('mainnet')?.incomingTransactionHelper.update,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        trackingMap.get('sepolia')?.incomingTransactionHelper.update,
-      ).toHaveBeenCalledTimes(1);
-    });
-
     it('should update the global incoming transactions when no networkClientIds provided', async () => {
       const controller = newController();
-
       await controller.updateIncomingTransactions([]);
 
       expect(incomingTransactionHelperMocks[0].update).toHaveBeenCalledTimes(1);

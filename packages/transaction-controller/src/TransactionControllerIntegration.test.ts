@@ -2258,7 +2258,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('when changing rpcUrl of networkClient', () => {
-    it.only('should start tracking when a new network is added', async () => {
+    it('should start tracking when a new network is added', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
