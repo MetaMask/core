@@ -2273,6 +2273,16 @@ describe('TransactionController Integration', () => {
               result: '0x1',
             },
           },
+        ],
+      });
+      mockNetwork({
+        networkClientConfiguration: {
+          ...networkClientConfiguration,
+          type: NetworkClientType.Custom,
+          rpcUrl: 'https://mock.rpc.url',
+        },
+        mocks: [
+          // NetworkController
           // BlockTracker
           {
             request: {
@@ -2280,12 +2290,46 @@ describe('TransactionController Integration', () => {
               params: [],
             },
             response: {
-              result: '0x2',
+              result: '0x1',
+            },
+          },
+          // NetworkController
+          {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['0x1', false],
+            },
+            response: {
+              result: {
+                baseFeePerGas: '0x63c498a46',
+                number: '0x42',
+              },
+            },
+          },
+          // readAddressAsContract
+          // requiresFixedGas (cached)
+          {
+            request: {
+              method: 'eth_getCode',
+              params: [ACCOUNT_2_MOCK, '0x1'],
+            },
+            response: {
+              result: '0x', // non contract
+            },
+          },
+          // getSuggestedGasFees
+          {
+            request: {
+              method: 'eth_gasPrice',
+              params: [],
+            },
+            response: {
+              result: '0x1',
             },
           },
         ],
       });
-      const { networkController, transactionController, approvalController } =
+      const { networkController, transactionController } =
         await newController();
 
       const otherNetworkClientIdOnGoerli =
@@ -2301,7 +2345,7 @@ describe('TransactionController Integration', () => {
           },
         );
 
-      const addTx = await transactionController.addTransaction(
+      await transactionController.addTransaction(
         {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_3_MOCK,
@@ -2310,11 +2354,6 @@ describe('TransactionController Integration', () => {
           networkClientId: otherNetworkClientIdOnGoerli,
         },
       );
-
-      await approvalController.accept(addTx.transactionMeta.id);
-      await advanceTime({ clock, duration: 1 });
-
-      await addTx.result;
 
       expect(transactionController.state.transactions[0]).toStrictEqual(
         expect.objectContaining({
@@ -2367,9 +2406,6 @@ describe('TransactionController Integration', () => {
 
       networkController.removeNetworkConfiguration(configurationId);
 
-      // advance time to trigger events
-      await advanceTime({ clock, duration: 1000 });
-
       await expect(
         transactionController.addTransaction(
           {
@@ -2417,14 +2453,6 @@ describe('TransactionController Integration', () => {
       const { networkController, transactionController } = await newController({
         enableMultichain: false,
       });
-      const startTrackinSpy = jest.spyOn(
-        transactionController,
-        '#startTrackingByNetworkClientId',
-      );
-      const stopTrackinSpy = jest.spyOn(
-        transactionController,
-        '#stopTrackingByNetworkClientId',
-      );
 
       const configurationId =
         await networkController.upsertNetworkConfiguration(
@@ -2444,8 +2472,10 @@ describe('TransactionController Integration', () => {
       // advance time to trigger events
       await advanceTime({ clock, duration: 1000 });
 
-      expect(startTrackinSpy).toHaveBeenCalledTimes(0);
-      expect(stopTrackinSpy).toHaveBeenCalledTimes(0);
+      // FIX THESE
+      expect(false).toBe(true)
+      // expect(startTrackinSpy).toHaveBeenCalledTimes(0);
+      // expect(stopTrackinSpy).toHaveBeenCalledTimes(0);
     });
   });
 
