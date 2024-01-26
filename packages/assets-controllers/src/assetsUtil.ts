@@ -460,3 +460,29 @@ export async function fetchTokenContractExchangeRates({
     {},
   );
 }
+
+// Regex to match any last strings in URI starting from the last "/"
+// Example given a string: https://something.something/something/tokenID0001, it will return tokenID0001
+export const extractedTokenIdRegex = /\/([^/]+)$/u;
+
+/**
+ * Retrieve the tokenId from URI, converts it from hex to original tokenID
+ * @param tokenUri - string URI value
+ * @returns URI that can be used to fetch metadata object
+ */
+export const getFetchableURI = (tokenUri: string) => {
+  // tokenUri must be a match
+  const match = tokenUri.match(extractedTokenIdRegex);
+  // Extract the numeric string from the match
+  if (match) {
+    // Extract the substring from the match
+    const extractedHexTokenId = match[1];
+    // Convert extracted Hex tokenId to original id
+    const originalId = parseInt(extractedHexTokenId, 16);
+
+    // Replace the original uri string in the converted tokenId string
+    const result = tokenUri.replace(extractedTokenIdRegex, `/${originalId}`);
+    return result;
+  }
+  return tokenUri;
+};

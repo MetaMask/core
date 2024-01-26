@@ -585,6 +585,23 @@ describe('assetsUtil', () => {
       }
     });
   });
+
+  describe('getFetchableURI', () => {
+    it('should return the input tokenURI if no match found', () => {
+      const testURI = 'test';
+      const result = assetsUtil.getFetchableURI(testURI);
+      expect(result).toBe('test');
+    });
+
+    it('should return original tokenId when a match is found', () => {
+      const testURI =
+        'https://cloudflare-ipfs.com/ipfs/bafybeidojhsf6aqfewgvvvb7tefeuv5p7nnf7gqthlpcybqulmmz5whcjm/0000000000000000000000000000000000000000000000000000000048d9a18e';
+      const result = assetsUtil.getFetchableURI(testURI);
+      expect(result).toBe(
+        'https://cloudflare-ipfs.com/ipfs/bafybeidojhsf6aqfewgvvvb7tefeuv5p7nnf7gqthlpcybqulmmz5whcjm/1222222222',
+      );
+    });
+  });
 });
 
 /**

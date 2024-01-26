@@ -34,6 +34,7 @@ import { v4 as random } from 'uuid';
 import type { AssetsContractController } from './AssetsContractController';
 import {
   compareNftMetadata,
+  getFetchableURI,
   getFormattedIpfsUrl,
   mapOpenSeaContractV2ToV1,
   mapOpenSeaDetailedNftV2ToV1,
@@ -468,6 +469,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     );
     let tokenURI = result[0];
     const standard = result[1];
+    const originalURI = result[2];
 
     const hasIpfsTokenURI = tokenURI.startsWith('ipfs://');
 
@@ -499,7 +501,23 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     }
 
     try {
-      const object = await handleFetch(tokenURI);
+      // Check if the original tokenId includes "/{id}", in those cases, the tokenURI value will have a hex format of the tokenId
+      // In those cases the handleFetch will fail causing the image to be null.
+      // However, even though this fetch would fail, the getNftInformationFromApi will succeed and populate
+      // the imgUrl. The issue here is when the tokenURI is updated on the contract, and we fetch the data from opensea again, the imgUrl
+      // will not be updated. Opensea made a fix recently for this, however, you would have to call the refresh metadata API to get the
+      // updated image.
+      // To avoid calling another opensea API, and because the getNftInformationFromApi would return the not updated imgUrl, i am
+      // recreating a fetchable URI to get the imgURL. This will make the pull down experience on mobile display the updated img when
+      // metadata is updated.
+      let object;
+      if (originalURI.includes('{id}')) {
+        const fetchedUri = getFetchableURI(tokenURI);
+        object = await handleFetch(fetchedUri);
+      } else {
+        object = await handleFetch(tokenURI);
+      }
+
       // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
       const image = Object.prototype.hasOwnProperty.call(object, 'image')
         ? 'image'
@@ -531,13 +549,13 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
    * @param contractAddress - NFT contract address.
    * @param tokenId - NFT token id.
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
-   * @returns Promise resolving NFT uri and token standard.
+   * @returns Promise resolving NFT uri token standard and originalURI.
    */
   private async getNftURIAndStandard(
     contractAddress: string,
     tokenId: string,
     networkClientId?: NetworkClientId,
-  ): Promise<[string, string]> {
+  ): Promise<[string, string, string]> {
     // try ERC721 uri
     try {
       const uri = await this.getERC721TokenURI(
@@ -545,7 +563,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         tokenId,
         networkClientId,
       );
-      return [uri, ERC721];
+      return [uri, ERC721, uri];
     } catch {
       // Ignore error
     }
@@ -565,18 +583,18 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
        */
 
       if (!tokenURI.includes('{id}')) {
-        return [tokenURI, ERC1155];
+        return [tokenURI, ERC1155, tokenURI];
       }
 
       const hexTokenId = stripHexPrefix(BNToHex(new BN(tokenId)))
         .padStart(64, '0')
         .toLowerCase();
-      return [tokenURI.replace('{id}', hexTokenId), ERC1155];
+      return [tokenURI.replace('{id}', hexTokenId), ERC1155, tokenURI];
     } catch {
       // Ignore error
     }
 
-    return ['', ''];
+    return ['', '', ''];
   }
 
   /**
