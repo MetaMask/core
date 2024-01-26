@@ -45,6 +45,7 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
     'animation',
     'animationOriginal',
     'externalLink',
+    'tokenURI',
   ];
   const differentValues = keys.reduce((value, key) => {
     if (newNftMetadata[key] && newNftMetadata[key] !== nft[key]) {
