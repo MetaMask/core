@@ -3,6 +3,7 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { ControllerMessenger } from '@metamask/base-controller';
+import HDKeyring from '@metamask/eth-hd-keyring';
 import {
   normalize,
   recoverPersonalSignature,
@@ -522,6 +523,20 @@ describe('KeyringController', () => {
                     123,
                   ),
                 ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+              },
+            );
+          });
+
+          it('should throw error if the first account is not found on the keyring', async () => {
+            jest
+              .spyOn(HDKeyring.prototype, 'getAccounts')
+              .mockResolvedValue([]);
+            await withController(
+              { skipVaultCreation: true },
+              async ({ controller }) => {
+                await expect(
+                  controller.createNewVaultAndKeychain(password),
+                ).rejects.toThrow(KeyringControllerError.NoFirstAccount);
               },
             );
           });
