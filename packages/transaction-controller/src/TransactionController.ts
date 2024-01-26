@@ -725,8 +725,10 @@ export class TransactionController extends BaseControllerV1<
   #onStateChange = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
     this.pendingTransactionTracker.onStateChange();
-    for (const [, trackingMap] of this.trackingMap) {
-      trackingMap.pendingTransactionTracker.onStateChange();
+    if (this.enableMultichain) {
+      for (const [, trackingMap] of this.trackingMap) {
+        trackingMap.pendingTransactionTracker.onStateChange();
+      }
     }
   };
 
@@ -948,7 +950,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    if (networkClientIds.length === 0) {
+    if (networkClientIds.length === 0 || !this.enableMultichain) {
       this.incomingTransactionHelper.start();
       return;
     }
@@ -958,7 +960,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    if (networkClientIds.length === 0) {
+    if (networkClientIds.length === 0 || !this.enableMultichain) {
       this.incomingTransactionHelper.stop();
       return;
     }
@@ -969,13 +971,15 @@ export class TransactionController extends BaseControllerV1<
 
   stopAllIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
-    for (const [, trackingMap] of this.trackingMap) {
-      trackingMap.incomingTransactionHelper.stop();
+    if (this.enableMultichain) {
+      for (const [, trackingMap] of this.trackingMap) {
+        trackingMap.incomingTransactionHelper.stop();
+      }
     }
   }
 
   async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
-    if (networkClientIds.length === 0) {
+    if (networkClientIds.length === 0 || !this.enableMultichain) {
       await this.incomingTransactionHelper.update();
       return;
     }
@@ -1351,8 +1355,10 @@ export class TransactionController extends BaseControllerV1<
     this.incomingTransactionHelper.stop();
     this.removeIncomingTransactionHelperListeners();
 
-    for (const [networkClientId] of this.trackingMap) {
-      this.stopTrackingByNetworkClientId(networkClientId);
+    if (this.enableMultichain) {
+      for (const [networkClientId] of this.trackingMap) {
+        this.stopTrackingByNetworkClientId(networkClientId);
+      }
     }
   }
 
@@ -1834,7 +1840,7 @@ export class TransactionController extends BaseControllerV1<
     // TODO(JL): Revisit this method. It's a bit complicated and not obvious what it achieves.
     let nonceMutexForChainId: Mutex | undefined;
     let { nonceTracker } = this;
-    if (networkClientId) {
+    if (networkClientId && this.enableMultichain) {
       const networkClient = this.getNetworkClientById(networkClientId);
       nonceMutexForChainId = this.nonceMutexByChainId.get(
         networkClient.configuration.chainId,
@@ -2443,7 +2449,7 @@ export class TransactionController extends BaseControllerV1<
       }
 
       let { nonceTracker } = this;
-      if (networkClientId) {
+      if (networkClientId && this.enableMultichain) {
         const trackers = this.trackingMap.get(networkClientId);
         if (!trackers) {
           throw new Error('missing nonceTracker for networkClientId');
