@@ -1363,43 +1363,19 @@ async function withController<ReturnValue>(
     return await fn({
       controller,
       mockKeyringGetState: (state: KeyringControllerState) => {
-        controllerMessenger.unregisterActionHandler(
-          'KeyringController:getState',
-        );
-        controllerMessenger.registerActionHandler(
-          'KeyringController:getState',
-          mockKeyringState.mockReturnValue(state),
-        );
+        mockKeyringState.mockReturnValue(state);
       },
       mockPreferencesGetState: (state: PreferencesState) => {
-        controllerMessenger.unregisterActionHandler(
-          'PreferencesController:getState',
-        );
-        controllerMessenger.registerActionHandler(
-          'PreferencesController:getState',
-          mockPreferencesState.mockReturnValue(state),
-        );
+        mockPreferencesState.mockReturnValue(state);
       },
       mockTokenListGetState: (state: TokenListState) => {
-        controllerMessenger.unregisterActionHandler(
-          'TokenListController:getState',
-        );
-        controllerMessenger.registerActionHandler(
-          'TokenListController:getState',
-          mockTokenListState.mockReturnValue(state),
-        );
+        mockTokenListState.mockReturnValue(state);
       },
       mockGetNetworkConfigurationByNetworkClientId: (
         handler: (networkClientId: string) => NetworkConfiguration,
       ) => {
-        controllerMessenger.unregisterActionHandler(
-          'NetworkController:getNetworkConfigurationByNetworkClientId',
-        );
-        controllerMessenger.registerActionHandler(
-          'NetworkController:getNetworkConfigurationByNetworkClientId',
-          mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
-            handler,
-          ),
+        mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
+          handler,
         );
       },
       triggerKeyringUnlock: () => {
