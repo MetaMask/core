@@ -1576,156 +1576,226 @@ describe('KeyringController', () => {
     });
   });
 
-  describe('UserOperation methods', () => {
-    const addresses: Hex[] = ['0x660265edc169bab511a40c0e049cc1e33774443d'];
+  describe('prepareUserOperation', () => {
+    describe('when the keyring for the given address supports prepareUserOperation', () => {
+      it('should prepare base user operation', async () => {
+        const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
+        stubKeyringClassWithAccount(MockErc4337Keyring, address);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+          async ({ controller }) => {
+            const mockKeyring = (await controller.addNewKeyring(
+              MockErc4337Keyring.type,
+            )) as EthKeyring<Json>;
+            const baseUserOp = {
+              callData: '0x7064',
+              initCode: '0x22ff',
+              nonce: '0x1',
+              gasLimits: {
+                callGasLimit: '0x58a83',
+                verificationGasLimit: '0xe8c4',
+                preVerificationGas: '0xc57c',
+              },
+              dummySignature: '0x',
+              dummyPaymasterAndData: '0x',
+              bundlerUrl: 'https://bundler.example.com/rpc',
+            };
+            const baseTxs = [
+              {
+                to: '',
+                value: '0x0',
+                data: '0x7064',
+              },
+            ];
+            jest
+              .spyOn(mockKeyring, 'prepareUserOperation')
+              .mockResolvedValueOnce(baseUserOp);
 
-    it('should prepare base user operation', async () => {
-      await withController(
-        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
-        async ({ controller }) => {
-          const mockKeyring = (await controller.addNewKeyring(
-            MockErc4337Keyring.type,
-          )) as EthKeyring<Json>;
+            const result = await controller.prepareUserOperation(
+              address,
+              baseTxs,
+            );
 
-          jest
-            .spyOn(mockKeyring, 'getAccounts')
-            .mockResolvedValueOnce(addresses);
+            expect(result).toStrictEqual(baseUserOp);
+            expect(mockKeyring.prepareUserOperation).toHaveBeenCalledTimes(1);
+            expect(mockKeyring.prepareUserOperation).toHaveBeenCalledWith(
+              address,
+              baseTxs,
+            );
+          },
+        );
+      });
+    });
 
-          const baseUserOp = {
-            callData: '0x7064',
-            initCode: '0x22ff',
-            nonce: '0x1',
-            gasLimits: {
+    describe('when the keyring for the given address does not support prepareUserOperation', () => {
+      it('should throw error', async () => {
+        const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
+        stubKeyringClassWithAccount(MockKeyring, address);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            await expect(
+              controller.prepareUserOperation(address, []),
+            ).rejects.toThrow(
+              KeyringControllerError.UnsupportedPrepareUserOperation,
+            );
+          },
+        );
+      });
+    });
+  });
+
+  describe('patchUserOperation', () => {
+    describe('when the keyring for the given address supports patchUserOperation', () => {
+      it('should patch an user operation', async () => {
+        const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
+        stubKeyringClassWithAccount(MockErc4337Keyring, address);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+          async ({ controller }) => {
+            const mockKeyring = (await controller.addNewKeyring(
+              MockErc4337Keyring.type,
+            )) as EthKeyring<Json>;
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
               callGasLimit: '0x58a83',
               verificationGasLimit: '0xe8c4',
               preVerificationGas: '0xc57c',
-            },
-            dummySignature: '0x',
-            dummyPaymasterAndData: '0x',
-            bundlerUrl: 'https://bundler.example.com/rpc',
-          };
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+            const patch = {
+              paymasterAndData: '0x1234',
+            };
+            jest
+              .spyOn(mockKeyring, 'patchUserOperation')
+              .mockResolvedValueOnce(patch);
 
-          const baseTxs = [
-            {
-              to: '',
-              value: '0x0',
-              data: '0x7064',
-            },
-          ];
+            const result = await controller.patchUserOperation(address, userOp);
 
-          jest
-            .spyOn(mockKeyring, 'prepareUserOperation')
-            .mockResolvedValueOnce(baseUserOp);
-
-          const result = await controller.prepareUserOperation(
-            addresses[0],
-            baseTxs,
-          );
-
-          expect(result).toStrictEqual(baseUserOp);
-          expect(mockKeyring.prepareUserOperation).toHaveBeenCalledTimes(1);
-          expect(mockKeyring.prepareUserOperation).toHaveBeenCalledWith(
-            addresses[0],
-            baseTxs,
-          );
-        },
-      );
+            expect(result).toStrictEqual(patch);
+            expect(mockKeyring.patchUserOperation).toHaveBeenCalledTimes(1);
+            expect(mockKeyring.patchUserOperation).toHaveBeenCalledWith(
+              address,
+              userOp,
+            );
+          },
+        );
+      });
     });
 
-    it('should patch an user operation', async () => {
-      await withController(
-        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
-        async ({ controller }) => {
-          const mockKeyring = (await controller.addNewKeyring(
-            MockErc4337Keyring.type,
-          )) as EthKeyring<Json>;
+    describe('when the keyring for the given address does not support patchUserOperation', () => {
+      it('should throw error', async () => {
+        const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
+        stubKeyringClassWithAccount(MockKeyring, address);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
 
-          jest
-            .spyOn(mockKeyring, 'getAccounts')
-            .mockResolvedValueOnce(addresses);
+            await expect(
+              controller.patchUserOperation(address, userOp),
+            ).rejects.toThrow(
+              KeyringControllerError.UnsupportedPatchUserOperation,
+            );
+          },
+        );
+      });
+    });
+  });
 
-          const userOp = {
-            sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
-            nonce: '0x1',
-            initCode: '0x',
-            callData: '0x7064',
-            callGasLimit: '0x58a83',
-            verificationGasLimit: '0xe8c4',
-            preVerificationGas: '0xc57c',
-            maxFeePerGas: '0x87f0878c0',
-            maxPriorityFeePerGas: '0x1dcd6500',
-            paymasterAndData: '0x',
-            signature: '0x',
-          };
+  describe('signUserOperation', () => {
+    describe('when the keyring for the given address supports signUserOperation', () => {
+      it('should sign an user operation', async () => {
+        const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
+        stubKeyringClassWithAccount(MockErc4337Keyring, address);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
+          async ({ controller }) => {
+            const mockKeyring = (await controller.addNewKeyring(
+              MockErc4337Keyring.type,
+            )) as EthKeyring<Json>;
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
+            const signature = '0x1234';
+            jest
+              .spyOn(mockKeyring, 'signUserOperation')
+              .mockResolvedValueOnce(signature);
 
-          const patch = {
-            paymasterAndData: '0x1234',
-          };
+            const result = await controller.signUserOperation(address, userOp);
 
-          jest
-            .spyOn(mockKeyring, 'patchUserOperation')
-            .mockResolvedValueOnce(patch);
-
-          const result = await controller.patchUserOperation(
-            addresses[0],
-            userOp,
-          );
-
-          expect(result).toStrictEqual(patch);
-          expect(mockKeyring.patchUserOperation).toHaveBeenCalledTimes(1);
-          expect(mockKeyring.patchUserOperation).toHaveBeenCalledWith(
-            addresses[0],
-            userOp,
-          );
-        },
-      );
+            expect(result).toStrictEqual(signature);
+            expect(mockKeyring.signUserOperation).toHaveBeenCalledTimes(1);
+            expect(mockKeyring.signUserOperation).toHaveBeenCalledWith(
+              address,
+              userOp,
+            );
+          },
+        );
+      });
     });
 
-    it('should sign an user operation', async () => {
-      await withController(
-        { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
-        async ({ controller }) => {
-          const mockKeyring = (await controller.addNewKeyring(
-            MockErc4337Keyring.type,
-          )) as EthKeyring<Json>;
+    describe('when the keyring for the given address does not support signUserOperation', () => {
+      it('should throw error', async () => {
+        const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
+        stubKeyringClassWithAccount(MockKeyring, address);
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+            const userOp = {
+              sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
+              nonce: '0x1',
+              initCode: '0x',
+              callData: '0x7064',
+              callGasLimit: '0x58a83',
+              verificationGasLimit: '0xe8c4',
+              preVerificationGas: '0xc57c',
+              maxFeePerGas: '0x87f0878c0',
+              maxPriorityFeePerGas: '0x1dcd6500',
+              paymasterAndData: '0x',
+              signature: '0x',
+            };
 
-          jest
-            .spyOn(mockKeyring, 'getAccounts')
-            .mockResolvedValueOnce(addresses);
-
-          const userOp = {
-            sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
-            nonce: '0x1',
-            initCode: '0x',
-            callData: '0x7064',
-            callGasLimit: '0x58a83',
-            verificationGasLimit: '0xe8c4',
-            preVerificationGas: '0xc57c',
-            maxFeePerGas: '0x87f0878c0',
-            maxPriorityFeePerGas: '0x1dcd6500',
-            paymasterAndData: '0x',
-            signature: '0x',
-          };
-
-          const signature = '0x1234';
-
-          jest
-            .spyOn(mockKeyring, 'signUserOperation')
-            .mockResolvedValueOnce(signature);
-
-          const result = await controller.signUserOperation(
-            addresses[0],
-            userOp,
-          );
-
-          expect(result).toStrictEqual(signature);
-          expect(mockKeyring.signUserOperation).toHaveBeenCalledTimes(1);
-          expect(mockKeyring.signUserOperation).toHaveBeenCalledWith(
-            addresses[0],
-            userOp,
-          );
-        },
-      );
+            await expect(
+              controller.signUserOperation(address, userOp),
+            ).rejects.toThrow(
+              KeyringControllerError.UnsupportedSignUserOperation,
+            );
+          },
+        );
+      });
     });
   });
 
