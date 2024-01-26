@@ -564,7 +564,6 @@ describe('TransactionController', () => {
       .fn()
       .mockImplementation((networkClientId) => {
         switch (networkClientId) {
-          // TODO(JL): This needs to use different provider from globally selected
           case 'mainnet':
             return {
               configuration: {
@@ -597,27 +596,12 @@ describe('TransactionController', () => {
               blockTracker: buildMockBlockTracker('0x1'),
               provider: MAINNET_PROVIDER,
             };
-          case 'global':
-            return {
-              configuration: {
-                chainId: finalNetwork.state.providerConfig.chainId,
-              },
-              blockTracker: finalNetwork.blockTracker,
-              provider: finalNetwork.provider,
-            };
           default:
             throw new Error(`Invalid network client id ${networkClientId}`);
         }
       });
 
-    const mockFindNetworkClientIdByChainId = jest
-      .fn()
-      .mockImplementation((chainId) => {
-        if (chainId !== finalNetwork.state.providerConfig.chainId) {
-          throw new Error("Couldn't find networkClientId for chainId");
-        }
-        return 'global';
-      });
+    const mockFindNetworkClientIdByChainId = jest.fn();
 
     return new TransactionController(
       {
