@@ -2910,7 +2910,6 @@ __metadata:
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^17.2.0
     "@metamask/rpc-errors": ^6.1.0
-    "@metamask/selected-network-controller": ^7.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.54
@@ -2934,7 +2933,6 @@ __metadata:
     "@metamask/approval-controller": ^5.1.2
     "@metamask/gas-fee-controller": ^13.0.0
     "@metamask/network-controller": ^17.2.0
-    "@metamask/selected-network-controller": ^7.0.0
     babel-runtime: ^6.26.0
   languageName: unknown
   linkType: soft
