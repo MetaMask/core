@@ -807,8 +807,7 @@ describe('TransactionController', () => {
             ACCOUNT_MOCK,
           );
 
-        // gets called in constructor now
-        expect(nonceTrackerMock).toHaveBeenCalledTimes(4);
+        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
         expect(pendingTransactions).toStrictEqual([
           expect.any(Object),
           ...externalPendingTransactions,
@@ -1214,7 +1213,9 @@ describe('TransactionController', () => {
 
     describe('multichain', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
-        const controller = newController();
+        const controller = newController({
+          options: { enableMultiChain: true },
+        });
         const sepoliaTxParams: TransactionParams = {
           chainId: SEPOLIA.chainId,
           from: ACCOUNT_MOCK,
@@ -1237,7 +1238,10 @@ describe('TransactionController', () => {
         expect(transactionMeta.origin).toBe('metamask');
       });
       it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
-        const controller = newController({ approve: true });
+        const controller = newController({
+          approve: true,
+          options: { enableMultichain: true },
+        });
         const submittedEventListener = jest.fn();
         controller.hub.on('transaction-submitted', submittedEventListener);
 
@@ -4863,6 +4867,18 @@ describe('TransactionController', () => {
   });
 
   describe('initTrackingMap', () => {
+    it('doesnt get called if the feature flag is disabled', () => {
+      const hub = new EventEmitter() as TransactionControllerEventEmitter;
+      const spy = jest.fn();
+      hub.on('tracking-map-init', spy);
+      newController({
+        options: {
+          enableMultichain: false,
+          hub,
+        },
+      });
+      expect(spy).not.toHaveBeenCalled();
+    });
     // eslint-disable-next-line jest/no-done-callback
     it('should initialize the tracking map on construction', (done) => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
@@ -4876,6 +4892,7 @@ describe('TransactionController', () => {
       });
       const controller = newController({
         options: {
+          enableMultichain: true,
           hub,
         },
       });
@@ -4924,6 +4941,7 @@ describe('TransactionController', () => {
       const controller = newController({
         options: {
           getNetworkClientRegistry: mockGetNetworkClientRegistry,
+          enableMultichain: true,
           hub,
         },
       });
@@ -4979,6 +4997,7 @@ describe('TransactionController', () => {
       options: {
         messenger: mockMessenger.messenger,
         getNetworkClientRegistry: mockGetNetworkClientRegistry,
+        enableMultichain: true,
         hub,
       },
     });
@@ -4987,7 +5006,11 @@ describe('TransactionController', () => {
 
   describe('startIncomingTransactionPolling', () => {
     it('should start the incoming transaction helper for the specific networkClientIds provided', () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
       controller.startTrackingByNetworkClientId('sepolia');
 
@@ -5002,7 +5025,11 @@ describe('TransactionController', () => {
     });
 
     it('should start the global incoming transaction helper when no networkClientIds provided', () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
 
       controller.startIncomingTransactionPolling([]);
 
@@ -5012,7 +5039,11 @@ describe('TransactionController', () => {
 
   describe('stopIncomingTransactionPolling', () => {
     it('should stop the incoming transaction helper for the specific networkClientIds provided', () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
       controller.startTrackingByNetworkClientId('sepolia');
 
@@ -5037,7 +5068,11 @@ describe('TransactionController', () => {
 
   describe('stopAllIncomingTransactionPolling', () => {
     it('should stop the global incoming transaction helper and each transaction helper in the tracking map', () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
 
       controller.stopAllIncomingTransactionPolling();
@@ -5054,7 +5089,11 @@ describe('TransactionController', () => {
 
   describe('updateIncomingTransactions', () => {
     it('should update the incoming transactions for the specific networkClientIds provided', async () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          enableMultichain: true,
+        },
+      });
       const trackingMap = controller.startTrackingByNetworkClientId('mainnet');
 
       await controller.updateIncomingTransactions(['mainnet', 'sepolia']);

@@ -99,6 +99,7 @@ const newController = async (options: any = {}) => {
       getNetworkState: () => networkController.state,
       getSelectedAddress: () => '0xdeadbeef',
       getPermittedAccounts: () => [ACCOUNT_MOCK],
+      enableMultichain: true,
       ...opts,
     },
     {
@@ -2356,6 +2357,69 @@ describe('TransactionController Integration', () => {
 
       expect(stopTrackinSpy).toHaveBeenCalledTimes(1);
       expect(transactionController).toBeDefined();
+    });
+  });
+
+  describe('feature flag', () => {
+    it('should not track multichain transactions on network stateChange when feature flag is disabled', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x2',
+            },
+          },
+        ],
+      });
+      const { networkController, transactionController } = await newController({
+        enableMultichain: false,
+      });
+      const startTrackinSpy = jest.spyOn(
+        transactionController,
+        'startTrackingByNetworkClientId',
+      );
+      const stopTrackinSpy = jest.spyOn(
+        transactionController,
+        'stopTrackingByNetworkClientId',
+      );
+
+      const configurationId =
+        await networkController.upsertNetworkConfiguration(
+          {
+            ...networkClientConfiguration,
+            rpcUrl: 'https://mock.rpc.url',
+          },
+          {
+            setActive: false,
+            referrer: 'https://mock.referrer',
+            source: 'dapp',
+          },
+        );
+
+      networkController.removeNetworkConfiguration(configurationId);
+
+      // advance time to trigger events
+      await advanceTime({ clock, duration: 1000 });
+
+      expect(startTrackinSpy).toHaveBeenCalledTimes(0);
+      expect(stopTrackinSpy).toHaveBeenCalledTimes(0);
     });
   });
 
