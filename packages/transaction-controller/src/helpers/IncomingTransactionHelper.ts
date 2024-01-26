@@ -1,4 +1,4 @@
-import type { BlockTracker, NetworkState } from '@metamask/network-controller';
+import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
@@ -26,7 +26,7 @@ export class IncomingTransactionHelper {
 
   #getLocalTransactions: () => TransactionMeta[];
 
-  #getNetworkState: () => NetworkState;
+  #getChainId: () => Hex;
 
   #isEnabled: () => boolean;
 
@@ -49,7 +49,7 @@ export class IncomingTransactionHelper {
     getCurrentAccount,
     getLastFetchedBlockNumbers,
     getLocalTransactions,
-    getNetworkState,
+    getChainId,
     isEnabled,
     queryEntireHistory,
     remoteTransactionSource,
@@ -60,7 +60,7 @@ export class IncomingTransactionHelper {
     getCurrentAccount: () => string;
     getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
-    getNetworkState: () => NetworkState;
+    getChainId: () => Hex;
     isEnabled?: () => boolean;
     queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
@@ -73,7 +73,7 @@ export class IncomingTransactionHelper {
     this.#getCurrentAccount = getCurrentAccount;
     this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
     this.#getLocalTransactions = getLocalTransactions || (() => []);
-    this.#getNetworkState = getNetworkState;
+    this.#getChainId = getChainId;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
     this.#queryEntireHistory = queryEntireHistory ?? true;
@@ -130,7 +130,7 @@ export class IncomingTransactionHelper {
 
       const fromBlock = this.#getFromBlock(latestBlockNumber);
       const address = this.#getCurrentAccount();
-      const currentChainId = this.#getCurrentChainId();
+      const currentChainId = this.#getChainId();
 
       let remoteTransactions = [];
 
@@ -283,7 +283,7 @@ export class IncomingTransactionHelper {
   }
 
   #getBlockNumberKey(additionalKeys: string[]): string {
-    const currentChainId = this.#getCurrentChainId();
+    const currentChainId = this.#getChainId();
     const currentAccount = this.#getCurrentAccount()?.toLowerCase();
 
     return [currentChainId, currentAccount, ...additionalKeys].join('#');
@@ -291,15 +291,11 @@ export class IncomingTransactionHelper {
 
   #canStart(): boolean {
     const isEnabled = this.#isEnabled();
-    const currentChainId = this.#getCurrentChainId();
+    const currentChainId = this.#getChainId();
 
     const isSupportedNetwork =
       this.#remoteTransactionSource.isSupportedNetwork(currentChainId);
 
     return isEnabled && isSupportedNetwork;
-  }
-
-  #getCurrentChainId(): Hex {
-    return this.#getNetworkState().providerConfig.chainId;
   }
 }
