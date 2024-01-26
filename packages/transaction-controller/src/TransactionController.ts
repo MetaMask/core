@@ -654,7 +654,6 @@ export class TransactionController extends BaseControllerV1<
     this.#stopAllTracking();
   }
 
-  // TODO(JL): I think NetworkController should expose a NetworkClientRegistry type
   #refreshEtherscanRemoteTransactionSources = (
     networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
   ) => {
@@ -677,7 +676,6 @@ export class TransactionController extends BaseControllerV1<
     });
   };
 
-  // TODO(JL): I think NetworkController should expose a NetworkClientRegistry type
   #refreshTrackingMap = (
     networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
   ) => {
