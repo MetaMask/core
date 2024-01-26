@@ -2777,8 +2777,6 @@ export class TransactionController extends BaseControllerV1<
     };
     blockNumber: number;
   }) {
-    // TODO(JL): the way this object is updated in place from IncomingTransactionHelper
-    // is incorrect. Additionally there may be a state clobbering issue we need to investigate still.
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
