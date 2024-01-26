@@ -4791,28 +4791,29 @@ describe('TransactionController', () => {
       });
       expect(spy).not.toHaveBeenCalled();
     });
-    // eslint-disable-next-line jest/no-done-callback
-    it('should initialize the tracking map on construction', (done) => {
+    it('should initialize the tracking map on construction', async () => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
-      hub.on('tracking-map-init', (networkClientIds) => {
-        expect(networkClientIds).toStrictEqual([
-          'mainnet',
-          'sepolia',
-          'goerli',
-          'customNetworkClientId-1',
-        ]);
-        done();
-      });
-      const controller = newController({
+      const receivedEvents = new Promise(resolve => {
+        hub.on('tracking-map-init', (networkClientIds) => {
+          expect(networkClientIds).toStrictEqual([
+            'mainnet',
+            'sepolia',
+            'goerli',
+            'customNetworkClientId-1',
+          ]);
+          resolve(undefined);
+        });
+      })
+
+      newController({
         options: {
           enableMultichain: true,
           hub,
         },
       });
-      expect(controller).toBeDefined();
+      await receivedEvents;
     });
-    // eslint-disable-next-line jest/no-done-callback
-    it('should handle removals from the networkController registry', (done) => {
+    it('should handle removals from the networkController registry', async () => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
       const mockGetNetworkClientRegistry = jest.fn();
       mockGetNetworkClientRegistry.mockImplementation(() => ({
@@ -4832,37 +4833,52 @@ describe('TransactionController', () => {
           },
         },
       }));
-      hub.on('tracking-map-init', () => {
-        mockGetNetworkClientRegistry.mockClear();
-        mockGetNetworkClientRegistry.mockImplementation(() => ({
-          sepolia: {
-            configuration: {
-              chainId: ChainId.sepolia,
-            },
-          },
-          goerli: {
-            configuration: {
-              chainId: ChainId.goerli,
-            },
-          },
-        }));
-      });
-      hub.on('tracking-map-remove', (networkClientId) => {
-        expect(networkClientId).toBe('customNetworkClientId-1');
-        done();
-      });
-      const controller = newController({
+      const receivedEvents = new Promise(resolve => {
+        let expectedNetworkClientIds = [
+          'customNetworkClientId-1',
+          'goerli'
+        ]
+        hub.on('tracking-map-remove', (networkClientId) => {
+          expect(expectedNetworkClientIds).toContain(networkClientId)
+          expectedNetworkClientIds = expectedNetworkClientIds.filter(v => v !== networkClientId)
+          if(expectedNetworkClientIds.length === 0) {
+            resolve(undefined);
+          }
+        });
+      })
+
+      const mockMessenger = buildMockMessenger({});
+      (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
+        (_type, handler) => {
+          setTimeout(() => {
+            handler({}, [
+              {
+                op: 'remove',
+                path: ['networkConfigurations', 'goerli'],
+                value: 'foo',
+              },
+              {
+                op: 'remove',
+                path: ['networkConfigurations', 'customNetworkClientId-1'],
+                value: 'foo',
+              },
+            ]);
+          }, 0);
+        },
+      );
+
+      newController({
         options: {
+          messenger: mockMessenger.messenger,
           getNetworkClientRegistry: mockGetNetworkClientRegistry,
           enableMultichain: true,
           hub,
         },
       });
-      expect(controller).toBeDefined();
+      await receivedEvents
     });
   });
-  // eslint-disable-next-line jest/no-done-callback
-  it('should handle additions to the networkController registry', (done) => {
+  it('should handle additions to the networkController registry', async () => {
     const hub = new EventEmitter() as TransactionControllerEventEmitter;
     const mockGetNetworkClientRegistry = jest.fn();
     mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
@@ -4872,6 +4888,7 @@ describe('TransactionController', () => {
         },
       },
     }));
+
     hub.on('tracking-map-init', () => {
       mockGetNetworkClientRegistry.mockClear();
       mockGetNetworkClientRegistry.mockImplementation(() => ({
@@ -4887,18 +4904,28 @@ describe('TransactionController', () => {
         },
       }));
     });
-    hub.on('tracking-map-add', (networkClientIds) => {
-      expect(networkClientIds).toStrictEqual(['goerli']);
-      done();
-    });
+
+    const receivedEvents = new Promise(resolve => {
+      let expectedNetworkClientIds = [
+        'goerli',
+        'sepolia'
+      ]
+      hub.on('tracking-map-add', (networkClientId) => {
+        expect(expectedNetworkClientIds).toContain(networkClientId)
+        expectedNetworkClientIds = expectedNetworkClientIds.filter(v => v !== networkClientId)
+        if(expectedNetworkClientIds.length === 0) {
+          resolve(undefined);
+        }
+      });
+    })
     const mockMessenger = buildMockMessenger({});
     (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
       (_type, handler) => {
         setTimeout(() => {
           handler({}, [
             {
-              op: 'remove',
-              path: ['networkConfigurations', 'foo', 'bar'],
+              op: 'add',
+              path: ['networkConfigurations', 'goerli'],
               value: 'foo',
             },
           ]);
@@ -4906,7 +4933,7 @@ describe('TransactionController', () => {
       },
     );
 
-    const controller = newController({
+    newController({
       options: {
         messenger: mockMessenger.messenger,
         getNetworkClientRegistry: mockGetNetworkClientRegistry,
@@ -4914,7 +4941,7 @@ describe('TransactionController', () => {
         hub,
       },
     });
-    expect(controller).toBeDefined();
+    await receivedEvents
   });
 
   describe('startIncomingTransactionPolling', () => {

@@ -712,10 +712,6 @@ export class TransactionController extends BaseControllerV1<
     networkClientIdsToAdd.forEach((id) => {
       this.#startTrackingByNetworkClientId(id);
     });
-
-    if (networkClientIdsToAdd.length > 0) {
-      this.hub.emit('tracking-map-add', networkClientIdsToAdd);
-    }
   };
 
   #initTrackingMap = () => {
@@ -857,8 +853,7 @@ export class TransactionController extends BaseControllerV1<
 
     txParams = normalizeTxParams(txParams);
 
-    // TODO add feature flag block here
-    if (networkClientId && !this.trackingMap.has(networkClientId)) {
+    if (networkClientId && !this.trackingMap.has(networkClientId) && this.enableMultichain) {
       throw new Error(
         'The networkClientId for this transaction could not be found',
       );
@@ -1367,9 +1362,11 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
-  // NOTE(JL): Should this be private?
-  // TODO(JL): This should be idempotent
   #startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+    const trackers = this.trackingMap.get(networkClientId);
+    if (trackers) {
+      return
+    }
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
 
@@ -1438,12 +1435,13 @@ export class TransactionController extends BaseControllerV1<
 
     this.addPendingTransactionTrackerListeners(pendingTransactionTracker);
 
-    // add to tracking map
     this.trackingMap.set(networkClientId, {
       nonceTracker,
       incomingTransactionHelper,
       pendingTransactionTracker,
     });
+
+    this.hub.emit('tracking-map-add', networkClientId);
     return this.trackingMap;
   }
 
