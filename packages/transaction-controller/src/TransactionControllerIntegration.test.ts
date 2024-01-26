@@ -2458,6 +2458,69 @@ describe('TransactionController Integration', () => {
     });
   });
 
+  describe('feature flag', () => {
+    it('should not track multichain transactions on network stateChange when feature flag is disabled', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x2',
+            },
+          },
+        ],
+      });
+      const { networkController, transactionController } = await newController({
+        enableMultichain: false,
+      });
+      const startTrackinSpy = jest.spyOn(
+        transactionController,
+        'startTrackingByNetworkClientId',
+      );
+      const stopTrackinSpy = jest.spyOn(
+        transactionController,
+        'stopTrackingByNetworkClientId',
+      );
+
+      const configurationId =
+        await networkController.upsertNetworkConfiguration(
+          {
+            ...networkClientConfiguration,
+            rpcUrl: 'https://mock.rpc.url',
+          },
+          {
+            setActive: false,
+            referrer: 'https://mock.referrer',
+            source: 'dapp',
+          },
+        );
+
+      networkController.removeNetworkConfiguration(configurationId);
+
+      // advance time to trigger events
+      await advanceTime({ clock, duration: 1000 });
+
+      expect(startTrackinSpy).toHaveBeenCalledTimes(0);
+      expect(stopTrackinSpy).toHaveBeenCalledTimes(0);
+    });
+  });
+
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
