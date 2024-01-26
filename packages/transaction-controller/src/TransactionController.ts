@@ -622,7 +622,7 @@ export class TransactionController extends BaseControllerV1<
     this.addPendingTransactionTrackerListeners();
 
     this.subscribe(this.#onStateChange);
-    
+
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
@@ -636,19 +636,19 @@ export class TransactionController extends BaseControllerV1<
     if (this.enableMultichain) {
       this.messagingSystem.subscribe(
         'NetworkController:stateChange',
-          (_, patches) => {
-            const networkClients = this.getNetworkClientRegistry();
-            patches.forEach(({ op, path }) => {
-              if (op === 'remove' && path[0] === 'networkConfigurations') {
-                const networkClientId = path[1] as NetworkClientId;
-                delete networkClients[networkClientId];
-              }
-            });
+        (_, patches) => {
+          const networkClients = this.getNetworkClientRegistry();
+          patches.forEach(({ op, path }) => {
+            if (op === 'remove' && path[0] === 'networkConfigurations') {
+              const networkClientId = path[1] as NetworkClientId;
+              delete networkClients[networkClientId];
+            }
+          });
 
-            this.#refreshTrackingMap(networkClients);
-            this.#refreshEtherscanRemoteTransactionSources(networkClients);
-          },
-        );
+          this.#refreshTrackingMap(networkClients);
+          this.#refreshEtherscanRemoteTransactionSources(networkClients);
+        },
+      );
       this.#initTrackingMap();
     }
   }
