@@ -4576,7 +4576,7 @@ describe('TransactionController', () => {
         ).toStrictEqual([transactions[0], transactions[2]]);
       });
 
-      it('returns transactions matching current network', () => {
+      it('returns transactions matching current network if chainId is not provided', () => {
         const controller = newController();
 
         const transactions: TransactionMeta[] = [
@@ -4610,6 +4610,43 @@ describe('TransactionController', () => {
             filterToCurrentNetwork: true,
           }),
         ).toStrictEqual([transactions[0], transactions[2]]);
+      });
+
+      it('returns transactions matching chainId if provided', () => {
+        const controller = newController();
+
+        const transactions: TransactionMeta[] = [
+          {
+            chainId: MOCK_NETWORK.state.providerConfig.chainId,
+            id: 'testId1',
+            status: TransactionStatus.confirmed,
+            time: 1,
+            txParams: { from: '0x1' },
+          },
+          {
+            chainId: '0x2',
+            id: 'testId2',
+            status: TransactionStatus.unapproved,
+            time: 2,
+            txParams: { from: '0x2' },
+          },
+          {
+            chainId: MOCK_NETWORK.state.providerConfig.chainId,
+            id: 'testId3',
+            status: TransactionStatus.submitted,
+            time: 1,
+            txParams: { from: '0x3' },
+          },
+        ];
+
+        controller.state.transactions = transactions;
+
+        expect(
+          controller.getTransactions({
+            filterToCurrentNetwork: true,
+            chainId: '0x2'
+          }),
+        ).toStrictEqual([transactions[1]]);
       });
 
       it('returns transactions from specified list', () => {

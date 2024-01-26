@@ -2100,6 +2100,7 @@ export class TransactionController extends BaseControllerV1<
    * @param opts.initialList - The transactions to search. Defaults to the current state.
    * @param opts.filterToCurrentNetwork - Whether to filter the results to the current network. Defaults to true.
    * @param opts.limit - The maximum number of transactions to return. No limit by default.
+   * @param opts.chainId - Optional chainId to filter transactions by. Defaults to the current chainId.
    * @returns An array of transactions matching the provided options.
    */
   getTransactions({
@@ -2107,6 +2108,7 @@ export class TransactionController extends BaseControllerV1<
     initialList,
     filterToCurrentNetwork = true,
     limit,
+    chainId = this.getChainId(),
   }: {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2114,8 +2116,8 @@ export class TransactionController extends BaseControllerV1<
     initialList?: TransactionMeta[];
     filterToCurrentNetwork?: boolean;
     limit?: number;
+    chainId?: Hex;
   } = {}): TransactionMeta[] {
-    const chainId = this.getChainId(); // TODO(JL): This should be made into an optional param
     // searchCriteria is an object that might have values that aren't predicate
     // methods. When providing any other value type (string, number, etc), we
     // consider this shorthand for "check the value at key for strict equality
