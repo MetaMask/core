@@ -395,19 +395,23 @@ export class PendingTransactionTracker {
     const { baseFeePerGas, timestamp: blockTimestamp } =
       await this.#getBlockByHash(blockHash, false);
 
-    txMeta.baseFeePerGas = baseFeePerGas;
-    txMeta.blockTimestamp = blockTimestamp;
-    txMeta.status = TransactionStatus.confirmed;
-    txMeta.txParams.gasUsed = receipt.gasUsed;
-    txMeta.txReceipt = receipt;
-    txMeta.verifiedOnBlockchain = true;
+    const updatedTxMeta = { ...txMeta };
+    updatedTxMeta.baseFeePerGas = baseFeePerGas;
+    updatedTxMeta.blockTimestamp = blockTimestamp;
+    updatedTxMeta.status = TransactionStatus.confirmed;
+    updatedTxMeta.txParams = {
+      ...updatedTxMeta.txParams,
+      gasUsed: receipt.gasUsed,
+    };
+    updatedTxMeta.txReceipt = receipt;
+    updatedTxMeta.verifiedOnBlockchain = true;
 
     this.#updateTransaction(
-      txMeta,
+      updatedTxMeta,
       'PendingTransactionTracker:#onTransactionConfirmed - Transaction confirmed',
     );
 
-    this.hub.emit('transaction-confirmed', txMeta);
+    this.hub.emit('transaction-confirmed', updatedTxMeta);
   }
 
   async #isTransactionDropped(txMeta: TransactionMeta) {

@@ -525,6 +525,10 @@ describe('PendingTransactionTracker', () => {
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith({
             ...TRANSACTION_SUBMITTED_MOCK,
+            txParams: {
+              ...TRANSACTION_SUBMITTED_MOCK.txParams,
+              gasUsed: RECEIPT_MOCK.gasUsed,
+            },
             baseFeePerGas: BLOCK_MOCK.baseFeePerGas,
             blockTimestamp: BLOCK_MOCK.timestamp,
             status: TransactionStatus.confirmed,
@@ -559,6 +563,10 @@ describe('PendingTransactionTracker', () => {
           expect(listener).toHaveBeenCalledWith(
             {
               ...TRANSACTION_SUBMITTED_MOCK,
+              txParams: {
+                ...TRANSACTION_SUBMITTED_MOCK.txParams,
+                gasUsed: RECEIPT_MOCK.gasUsed,
+              },
               baseFeePerGas: BLOCK_MOCK.baseFeePerGas,
               blockTimestamp: BLOCK_MOCK.timestamp,
               status: TransactionStatus.confirmed,

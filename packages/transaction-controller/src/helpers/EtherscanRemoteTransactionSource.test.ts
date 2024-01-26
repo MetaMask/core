@@ -26,6 +26,8 @@ jest.mock('../utils/etherscan', () => ({
 
 jest.mock('uuid');
 
+const actualSetTimeout = setTimeout;
+
 describe('EtherscanRemoteTransactionSource', () => {
   const fetchEtherscanTransactionsMock =
     fetchEtherscanTransactions as jest.MockedFn<
@@ -40,8 +42,6 @@ describe('EtherscanRemoteTransactionSource', () => {
   const randomMock = random as jest.MockedFn<typeof random>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     fetchEtherscanTransactionsMock.mockResolvedValue(
       ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK,
     );
@@ -51,6 +51,17 @@ describe('EtherscanRemoteTransactionSource', () => {
     );
 
     randomMock.mockReturnValue(ID_MOCK);
+
+    jest.spyOn(window, 'setTimeout').mockImplementation((fn) => {
+      fn();
+      return actualSetTimeout(() => {
+        // do nothing
+      }, 0);
+    });
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
   describe('isSupportedNetwork', () => {
@@ -120,6 +131,9 @@ describe('EtherscanRemoteTransactionSource', () => {
     });
 
     it('returns normalized token transactions fetched from Etherscan', async () => {
+      fetchEtherscanTransactionsMock.mockResolvedValueOnce(
+        ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+      );
       fetchEtherscanTokenTransactionsMock.mockResolvedValueOnce(
         ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK,
       );

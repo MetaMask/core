@@ -1531,6 +1531,7 @@ describe('TransactionController Integration', () => {
         );
         transactionController.destroy();
       });
+
       it('should be able to get to speedup state', async () => {
         mockNetwork({
           networkClientConfiguration: mainnetNetworkClientConfiguration,
