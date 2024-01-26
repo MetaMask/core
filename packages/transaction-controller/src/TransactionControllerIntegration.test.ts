@@ -2452,7 +2452,6 @@ describe('TransactionController Integration', () => {
       // advance time to trigger events
       await advanceTime({ clock, duration: 1000 });
 
-      console.log('stopTrackingByNetworkClientId', stopTrackinSpy.mock.calls);
       expect(stopTrackinSpy).toHaveBeenCalledTimes(1);
       expect(transactionController).toBeDefined();
     });
