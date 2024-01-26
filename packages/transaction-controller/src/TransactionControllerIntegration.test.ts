@@ -148,7 +148,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    it('should submit all approved transactions in state when the controller is constructed', async () => {
+    it('should submit all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
