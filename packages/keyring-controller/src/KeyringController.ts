@@ -386,7 +386,6 @@ export class KeyringController extends BaseController<
     addedAccountAddress: string;
   }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
-    /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found');
     }
@@ -463,7 +462,6 @@ export class KeyringController extends BaseController<
    */
   async addNewAccountWithoutUpdate(): Promise<KeyringControllerMemState> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
-    /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found');
     }
@@ -700,7 +698,6 @@ export class KeyringController extends BaseController<
           throw new Error('Cannot import invalid private key.');
         }
 
-        /* istanbul ignore if */
         if (
           !isValidPrivate(bufferedPrivateKey) ||
           // ensures that the key is 64 bytes long
@@ -934,7 +931,6 @@ export class KeyringController extends BaseController<
    */
   async verifySeedPhrase(): Promise<Uint8Array> {
     const primaryKeyring = this.#keyring.getKeyringsByType(KeyringTypes.hd)[0];
-    /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found.');
     }
