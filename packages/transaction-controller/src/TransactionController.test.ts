@@ -72,17 +72,6 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
-const SEPOLIA = {
-  chainId: toHex(11155111),
-  type: NetworkType.sepolia,
-  ticker: NetworksTicker.sepolia,
-};
-const GOERLI = {
-  chainId: toHex(5),
-  type: NetworkType.goerli,
-  ticker: NetworksTicker.goerli,
-};
-
 const ethQueryMockResults = {
   sendRawTransaction: 'mockSendRawTransactionResult',
 };
@@ -587,7 +576,7 @@ describe('TransactionController', () => {
           case 'sepolia':
             return {
               configuration: {
-                chainId: SEPOLIA.chainId,
+                chainId: ChainId.sepolia,
               },
               blockTracker: buildMockBlockTracker('0x1'),
               provider: MAINNET_PROVIDER,
@@ -595,7 +584,7 @@ describe('TransactionController', () => {
           case 'goerli':
             return {
               configuration: {
-                chainId: GOERLI.chainId,
+                chainId: ChainId.goerli,
               },
               blockTracker: buildMockBlockTracker('0x1'),
               provider: MAINNET_PROVIDER,
@@ -634,21 +623,25 @@ describe('TransactionController', () => {
       {
         blockTracker: finalNetwork.blockTracker,
         getNetworkState: () => finalNetwork.state,
-        getCurrentAccountEIP1559Compatibility: () => true,
         getCurrentNetworkEIP1559Compatibility: () => true,
         getSavedGasFees: () => undefined,
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
         getNetworkClientRegistry: () => ({
+          mainnet: {
+            configuration: {
+              chainId: toHex(1),
+            },
+          },
           sepolia: {
             configuration: {
-              chainId: SEPOLIA.chainId,
+              chainId: ChainId.sepolia,
             },
           },
           goerli: {
             configuration: {
-              chainId: GOERLI.chainId,
+              chainId: ChainId.goerli,
             },
           },
           'customNetworkClientId-1': {
@@ -807,8 +800,8 @@ describe('TransactionController', () => {
             ACCOUNT_MOCK,
           );
 
-        // gets called in constructor now
-        expect(nonceTrackerMock).toHaveBeenCalledTimes(4);
+        // One NonceTracker instance per networkClient in the registry and one more for the global instance
+        expect(nonceTrackerMock).toHaveBeenCalledTimes(5);
         expect(pendingTransactions).toStrictEqual([
           expect.any(Object),
           ...externalPendingTransactions,
@@ -1216,7 +1209,7 @@ describe('TransactionController', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const controller = newController();
         const sepoliaTxParams: TransactionParams = {
-          chainId: SEPOLIA.chainId,
+          chainId: ChainId.sepolia,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         };
@@ -1242,7 +1235,7 @@ describe('TransactionController', () => {
         controller.hub.on('transaction-submitted', submittedEventListener);
 
         const sepoliaTxParams: TransactionParams = {
-          chainId: SEPOLIA.chainId,
+          chainId: ChainId.sepolia,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_MOCK,
         };
@@ -1260,7 +1253,7 @@ describe('TransactionController', () => {
         expect(submittedEventListener).toHaveBeenCalledTimes(1);
         expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(networkClientId).toBe('sepolia');
-        expect(chainId).toBe(SEPOLIA.chainId);
+        expect(chainId).toBe(ChainId.sepolia);
         expect(status).toBe(TransactionStatus.submitted);
       });
     });
@@ -4868,6 +4861,7 @@ describe('TransactionController', () => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
       hub.on('tracking-map-init', (networkClientIds) => {
         expect(networkClientIds).toStrictEqual([
+          'mainnet',
           'sepolia',
           'goerli',
           'customNetworkClientId-1',
@@ -4888,12 +4882,12 @@ describe('TransactionController', () => {
       mockGetNetworkClientRegistry.mockImplementation(() => ({
         sepolia: {
           configuration: {
-            chainId: SEPOLIA.chainId,
+            chainId: ChainId.sepolia,
           },
         },
         goerli: {
           configuration: {
-            chainId: GOERLI.chainId,
+            chainId: ChainId.goerli,
           },
         },
         'customNetworkClientId-1': {
@@ -4907,12 +4901,12 @@ describe('TransactionController', () => {
         mockGetNetworkClientRegistry.mockImplementation(() => ({
           sepolia: {
             configuration: {
-              chainId: SEPOLIA.chainId,
+              chainId: ChainId.sepolia,
             },
           },
           goerli: {
             configuration: {
-              chainId: GOERLI.chainId,
+              chainId: ChainId.goerli,
             },
           },
         }));
@@ -4937,7 +4931,7 @@ describe('TransactionController', () => {
     mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
       sepolia: {
         configuration: {
-          chainId: SEPOLIA.chainId,
+          chainId: ChainId.sepolia,
         },
       },
     }));
@@ -4946,12 +4940,12 @@ describe('TransactionController', () => {
       mockGetNetworkClientRegistry.mockImplementation(() => ({
         sepolia: {
           configuration: {
-            chainId: SEPOLIA.chainId,
+            chainId: ChainId.sepolia,
           },
         },
         goerli: {
           configuration: {
-            chainId: GOERLI.chainId,
+            chainId: ChainId.goerli,
           },
         },
       }));
