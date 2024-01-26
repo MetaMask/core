@@ -3076,7 +3076,6 @@ export class TransactionController extends BaseControllerV1<
       chainId,
     );
 
-    // TODO(JL): modify getExternalPendingTransactions in extension to accept a chainId to filter for smartTransactions by chainId
     const externalPendingTransactions = this.getExternalPendingTransactions(
       address,
       chainId,
