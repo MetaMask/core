@@ -766,9 +766,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  // what should this be?
-                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+                result: '0x', // non contract
               },
             },
             {
@@ -821,7 +819,7 @@ describe('TransactionController Integration', () => {
               request: {
                 method: 'eth_sendRawTransaction',
                 params: [
-                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
                 ],
               },
               response: {
@@ -881,9 +879,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  // what should this be?
-                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+                result: '0x', // non contract
               },
             },
             {
@@ -936,7 +932,7 @@ describe('TransactionController Integration', () => {
               request: {
                 method: 'eth_sendRawTransaction',
                 params: [
-                  '0x02e383aa36a7010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                  '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
                 ],
               },
               response: {
@@ -1764,9 +1760,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  // what should this be?
-                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+                result: '0x', // non contract
               },
             },
             {
@@ -1828,7 +1822,7 @@ describe('TransactionController Integration', () => {
               request: {
                 method: 'eth_sendRawTransaction',
                 params: [
-                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
                 ],
               },
               response: {
@@ -1893,9 +1887,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  // what should this be?
-                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+                result: '0x', // non contract
               },
             },
             {
@@ -2110,9 +2102,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_2_MOCK, '0x1'],
               },
               response: {
-                result:
-                  // what should this be?
-                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+                result: '0x', // non contract
               },
             },
             {
@@ -2121,9 +2111,7 @@ describe('TransactionController Integration', () => {
                 params: [ACCOUNT_3_MOCK, '0x1'],
               },
               response: {
-                result:
-                  // what should this be?
-                  '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+                result: '0x', // non contract
               },
             },
             {
@@ -2176,7 +2164,7 @@ describe('TransactionController Integration', () => {
               request: {
                 method: 'eth_sendRawTransaction',
                 params: [
-                  '0x02e005010101019408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
                 ],
               },
               response: {
@@ -2200,7 +2188,7 @@ describe('TransactionController Integration', () => {
               request: {
                 method: 'eth_sendRawTransaction',
                 params: [
-                  '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+                  '0x02e20502010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
                 ],
               },
               response: {
