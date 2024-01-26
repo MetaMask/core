@@ -13,7 +13,7 @@ import nock from 'nock';
 import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
 
-import { advanceTime, flushPromises } from '../../../tests/helpers';
+import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
   ETHERSCAN_TRANSACTION_BASE_MOCK,
@@ -2400,7 +2400,7 @@ describe('TransactionController Integration', () => {
       expect(startTrackinSpy).toHaveBeenCalledTimes(1);
       expect(transactionController).toBeDefined();
     });
-    it.only('should stop tracking when a network is removed', async () => {
+    it('should stop tracking when a network is removed', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
