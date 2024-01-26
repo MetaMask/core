@@ -2355,6 +2355,109 @@ describe('TransactionController Integration', () => {
     });
   });
 
+  describe('when changing rpcUrl of networkClient', () => {
+    it('should start tracking when a new network is added', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x2',
+            },
+          },
+        ],
+      });
+      const { networkController, transactionController } =
+        await newController();
+      const startTrackinSpy = jest.spyOn(
+        transactionController,
+        'startTrackingByNetworkClientId',
+      );
+
+      await networkController.upsertNetworkConfiguration(
+        {
+          ...networkClientConfiguration,
+          rpcUrl: 'https://mock.rpc.url',
+        },
+        { setActive: false, referrer: 'https://mock.referrer', source: 'dapp' },
+      );
+
+      expect(startTrackinSpy).toHaveBeenCalledTimes(1);
+      expect(transactionController).toBeDefined();
+    });
+    it('should stop tracking when a network is removed', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x2',
+            },
+          },
+        ],
+      });
+      const { networkController, transactionController } =
+        await newController();
+      const stopTrackinSpy = jest.spyOn(
+        transactionController,
+        'stopTrackingByNetworkClientId',
+      );
+
+      const configurationId =
+        await networkController.upsertNetworkConfiguration(
+          {
+            ...networkClientConfiguration,
+            rpcUrl: 'https://mock.rpc.url',
+          },
+          {
+            setActive: false,
+            referrer: 'https://mock.referrer',
+            source: 'dapp',
+          },
+        );
+
+      networkController.removeNetworkConfiguration(configurationId);
+
+      // advance time to trigger events
+      await advanceTime({ clock, duration: 1000 });
+
+      expect(stopTrackinSpy).toHaveBeenCalledTimes(1);
+      expect(transactionController).toBeDefined();
+    });
+  });
+
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
