@@ -1238,7 +1238,7 @@ describe('TransactionController', () => {
         expect(transactionMeta.networkClientId).toBe('sepolia');
         expect(transactionMeta.origin).toBe('metamask');
       });
-      it.only('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
+      it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
         const controller = newController({
           approve: true,
           options: { enableMultichain: true },
