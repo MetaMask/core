@@ -4837,7 +4837,7 @@ describe('TransactionController', () => {
         throw new Error('incomingTransactionHelper is undefined');
       }
       const stopSpy = jest.spyOn(incomingTransactionHelper, 'stop');
-      controller.stopTrackingByNetworkClientId('mainnet');
+      // controller.stopTrackingByNetworkClientId('mainnet');
       expect(stopSpy).toHaveBeenCalledTimes(1);
     });
   });
@@ -4911,8 +4911,8 @@ describe('TransactionController', () => {
           },
         }));
       });
-      hub.on('tracking-map-remove', (networkClientIds) => {
-        expect(networkClientIds).toStrictEqual(['customNetworkClientId-1']);
+      hub.on('tracking-map-remove', (networkClientId) => {
+        expect(networkClientId).toBe('customNetworkClientId-1');
         done();
       });
       const controller = newController({

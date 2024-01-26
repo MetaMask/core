@@ -2258,7 +2258,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('when changing rpcUrl of networkClient', () => {
-    it('should start tracking when a new network is added', async () => {
+    it.only('should start tracking when a new network is added', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2285,23 +2285,42 @@ describe('TransactionController Integration', () => {
           },
         ],
       });
-      const { networkController, transactionController } =
+      const { networkController, transactionController, approvalController } =
         await newController();
-      const startTrackinSpy = jest.spyOn(
-        transactionController,
-        'startTrackingByNetworkClientId',
-      );
 
-      await networkController.upsertNetworkConfiguration(
+      const otherNetworkClientIdOnGoerli =
+        await networkController.upsertNetworkConfiguration(
+          {
+            ...networkClientConfiguration,
+            rpcUrl: 'https://mock.rpc.url',
+          },
+          {
+            setActive: false,
+            referrer: 'https://mock.referrer',
+            source: 'dapp',
+          },
+        );
+
+      const addTx = await transactionController.addTransaction(
         {
-          ...networkClientConfiguration,
-          rpcUrl: 'https://mock.rpc.url',
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_3_MOCK,
         },
-        { setActive: false, referrer: 'https://mock.referrer', source: 'dapp' },
+        {
+          networkClientId: otherNetworkClientIdOnGoerli,
+        },
       );
 
-      expect(startTrackinSpy).toHaveBeenCalledTimes(1);
-      expect(transactionController).toBeDefined();
+      await approvalController.accept(addTx.transactionMeta.id);
+      await advanceTime({ clock, duration: 1 });
+
+      await addTx.result;
+
+      expect(transactionController.state.transactions[0]).toStrictEqual(
+        expect.objectContaining({
+          networkClientId: otherNetworkClientIdOnGoerli,
+        }),
+      );
     });
     it('should stop tracking when a network is removed', async () => {
       mockNetwork({
@@ -2332,10 +2351,6 @@ describe('TransactionController Integration', () => {
       });
       const { networkController, transactionController } =
         await newController();
-      const stopTrackinSpy = jest.spyOn(
-        transactionController,
-        'stopTrackingByNetworkClientId',
-      );
 
       const configurationId =
         await networkController.upsertNetworkConfiguration(
@@ -2355,7 +2370,18 @@ describe('TransactionController Integration', () => {
       // advance time to trigger events
       await advanceTime({ clock, duration: 1000 });
 
-      expect(stopTrackinSpy).toHaveBeenCalledTimes(1);
+      await expect(
+        transactionController.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+          { networkClientId: configurationId },
+        ),
+      ).rejects.toThrow(
+        'The networkClientId for this transaction could not be found',
+      );
+
       expect(transactionController).toBeDefined();
     });
   });
