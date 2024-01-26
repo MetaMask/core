@@ -192,7 +192,7 @@ export const SPEED_UP_RATE = 1.1;
 /**
  * @type IncomingTransactionOptions
  *
- * Configuration options for incoming transaction support
+ * Configuration options for the IncomingTransactionHelper
  * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
  * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
  * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
@@ -203,6 +203,16 @@ type IncomingTransactionOptions = {
   isEnabled?: () => boolean;
   queryEntireHistory?: boolean;
   updateTransactions?: boolean;
+};
+
+/**
+ * @type PendingTransactionOptions
+ *
+ * Configuration options for the PendingTransactionTracker
+ * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
+ */
+type PendingTransactionOptions = {
+  isResubmitEnabled?: boolean;
 };
 
 /**
@@ -303,6 +313,8 @@ export class TransactionController extends BaseControllerV1<
   private readonly speedUpMultiplier: number;
 
   private readonly incomingTransactionOptions: IncomingTransactionOptions;
+
+  private readonly pendingTransactionOptions: PendingTransactionOptions;
 
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
@@ -412,7 +424,6 @@ export class TransactionController extends BaseControllerV1<
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.pendingTransactions - Configuration options for pending transaction support.
-   * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
@@ -476,9 +487,7 @@ export class TransactionController extends BaseControllerV1<
       incomingTransactions?: IncomingTransactionOptions;
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
-      pendingTransactions?: {
-        isResubmitEnabled?: boolean;
-      };
+      pendingTransactions?: PendingTransactionOptions;
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
       speedUpMultiplier?: number;
@@ -545,6 +554,7 @@ export class TransactionController extends BaseControllerV1<
     this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
     this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
     this.incomingTransactionOptions = incomingTransactions;
+    this.pendingTransactionOptions = pendingTransactions;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -1398,7 +1408,7 @@ export class TransactionController extends BaseControllerV1<
       getChainId: () => networkClient.configuration.chainId,
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
-      isResubmitEnabled: true, // TODO: make this configurable
+      isResubmitEnabled: this.pendingTransactionOptions.isResubmitEnabled,
       nonceTracker,
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
