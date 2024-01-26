@@ -623,7 +623,6 @@ export class TransactionController extends BaseControllerV1<
 
     this.subscribe(this.#onStateChange);
 
-
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
