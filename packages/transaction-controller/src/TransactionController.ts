@@ -620,15 +620,16 @@ export class TransactionController extends BaseControllerV1<
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (_, patches) => {
-        const shouldRefresh = patches.some((patch) => {
-          const correctOp = patch.op === 'add' || patch.op === 'remove';
-          const correctPath = patch.path[0] === 'networkConfigurations';
-          return correctOp && correctPath;
+        const networkClients = this.getNetworkClientRegistry();
+        patches.forEach(({ op, path }) => {
+          if (op === 'remove' && path[0] === 'networkConfigurations') {
+            const networkClientId = path[1] as NetworkClientId;
+            delete networkClients[networkClientId];
+          }
         });
-        if (shouldRefresh) {
-          this.#refreshTrackingMap();
-          this.#refreshEtherscanRemoteTransactionSources();
-        }
+
+        this.#refreshTrackingMap(networkClients);
+        this.#refreshEtherscanRemoteTransactionSources(networkClients);
       },
     );
 
@@ -651,11 +652,13 @@ export class TransactionController extends BaseControllerV1<
     this.#stopAllTracking();
   }
 
-  #refreshEtherscanRemoteTransactionSources = () => {
+  // TODO(JL): I think NetworkController should expose a NetworkClientRegistry type
+  #refreshEtherscanRemoteTransactionSources = (
+    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
+  ) => {
     // this will be prettier when we have consolidated network clients with a single chainId:
     // check if there are still other network clients using the same chainId
     // if not remove the etherscanRemoteTransaction source from the map
-    const networkClients = this.getNetworkClientRegistry();
     const chainIdsInRegistry = new Set();
     Object.values(networkClients).forEach((networkClient) =>
       chainIdsInRegistry.add(networkClient.configuration.chainId),
@@ -672,8 +675,10 @@ export class TransactionController extends BaseControllerV1<
     });
   };
 
-  #refreshTrackingMap = () => {
-    const networkClients = this.getNetworkClientRegistry();
+  // TODO(JL): I think NetworkController should expose a NetworkClientRegistry type
+  #refreshTrackingMap = (
+    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
+  ) => {
     const networkClientIds = Object.keys(networkClients);
     const existingNetworkClientIds = Array.from(this.trackingMap.keys());
 
