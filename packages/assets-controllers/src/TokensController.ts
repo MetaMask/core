@@ -94,15 +94,14 @@ type SuggestedAssetMeta = {
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
-export type TokensState = BaseState &
-  Record<string, unknown> & {
-    tokens: Token[];
-    ignoredTokens: string[];
-    detectedTokens: Token[];
-    allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-    allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
-    allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-  };
+export type TokensState = {
+  tokens: Token[];
+  ignoredTokens: string[];
+  detectedTokens: Token[];
+  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
+  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+};
 
 /**
  * The name of the {@link TokensController}.
@@ -169,7 +168,7 @@ export const getDefaultTokensState = (): TokensState => {
  */
 export class TokensController extends BaseControllerV1<
   TokensConfig,
-  TokensState
+  TokensState & BaseState
 > {
   private readonly mutex = new Mutex();
 
