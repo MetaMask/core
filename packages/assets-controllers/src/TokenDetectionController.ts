@@ -316,7 +316,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         if (isChainIdChanged && this.#isDetectionEnabledForNetwork) {
           this.#chainId = newChainId;
           await this.#restartTokenDetection({
-            chainId: this.#chainId,
+            networkClientId: this.#networkClientId,
           });
         }
       },
@@ -410,15 +410,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    *
    * @param options - Options for restart token detection.
    * @param options.selectedAddress - the selectedAddress against which to detect for token balances
-   * @param options.chainId - the chainId against which to detect for token balances
+   * @param options.networkClientId - The ID of the network client to use.
    */
   async #restartTokenDetection({
     selectedAddress,
-    chainId,
-  }: Partial<{ selectedAddress: string; chainId: Hex }> = {}) {
+    networkClientId,
+  }: { selectedAddress?: string; networkClientId?: string } = {}) {
     await this.detectTokens({
+      networkClientId,
       accountAddress: selectedAddress,
-      networkClientId: chainId,
     });
     this.setIntervalLength(DEFAULT_INTERVAL);
   }
