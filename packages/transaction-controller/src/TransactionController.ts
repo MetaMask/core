@@ -34,7 +34,6 @@ import type {
 import { NetworkClientType } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
-import type { SelectedNetworkController } from '@metamask/selected-network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
@@ -332,8 +331,6 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
-  private readonly getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
-
   private failTransaction(
     transactionMeta: TransactionMeta,
     error: Error,
@@ -429,7 +426,6 @@ export class TransactionController extends BaseControllerV1<
    * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
-   * @param options.getNetworkClientIdForDomain - Gets the network client id for the given domain.
    * @param options.hub - Use a different event emitter for the hub.
    * @param options.getNetworkClientRegistry - Gets the network client registry.
    * @param options.enableMultichain - Enable multichain support.
@@ -460,7 +456,6 @@ export class TransactionController extends BaseControllerV1<
       speedUpMultiplier,
       findNetworkClientIdByChainId,
       getNetworkClientById,
-      getNetworkClientIdForDomain,
       getNetworkClientRegistry,
       hub,
       enableMultichain = false,
@@ -494,7 +489,6 @@ export class TransactionController extends BaseControllerV1<
       findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
       getNetworkClientById: NetworkController['getNetworkClientById'];
       getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-      getNetworkClientIdForDomain: SelectedNetworkController['getNetworkClientIdForDomain'];
       hub: TransactionControllerEventEmitter;
       enableMultichain: boolean;
       hooks: {
@@ -557,8 +551,6 @@ export class TransactionController extends BaseControllerV1<
     this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
     this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
     this.incomingTransactionOptions = incomingTransactions;
-
-    this.getNetworkClientIdForDomain = getNetworkClientIdForDomain;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -851,11 +843,6 @@ export class TransactionController extends BaseControllerV1<
     } = {},
   ): Promise<Result> {
     log('Adding transaction', txParams);
-
-    // TODO(JL): Revisit this fallback during implementation
-    // networkClientId ??= this.getNetworkClientIdForDomain(
-    //   origin ?? ORIGIN_METAMASK,
-    // );
 
     txParams = normalizeTxParams(txParams);
 
