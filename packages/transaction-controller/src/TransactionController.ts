@@ -623,20 +623,6 @@ export class TransactionController extends BaseControllerV1<
 
     this.subscribe(this.#onStateChange);
 
-    this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
-      (_, patches) => {
-        const shouldRefresh = patches.some((patch) => {
-          const correctOp = patch.op === 'add' || patch.op === 'remove';
-          const correctPath = patch.path[0] === 'networkConfigurations';
-          return correctOp && correctPath;
-        });
-        if (shouldRefresh) {
-          this.#refreshTrackingMap();
-          this.#refreshEtherscanRemoteTransactionSources();
-        }
-      },
-    );
 
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
@@ -649,6 +635,20 @@ export class TransactionController extends BaseControllerV1<
     this.onBootCleanup();
 
     if (this.enableMultichain) {
+      this.messagingSystem.subscribe(
+        'NetworkController:stateChange',
+        (_, patches) => {
+          const shouldRefresh = patches.some((patch) => {
+            const correctOp = patch.op === 'add' || patch.op === 'remove';
+            const correctPath = patch.path[0] === 'networkConfigurations';
+            return correctOp && correctPath;
+          });
+          if (shouldRefresh) {
+            this.#refreshTrackingMap();
+            this.#refreshEtherscanRemoteTransactionSources();
+          }
+        },
+      );
       this.#initTrackingMap();
     }
   }
@@ -759,6 +759,10 @@ export class TransactionController extends BaseControllerV1<
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   }): EthQuery {
+    // if multichain is disabled, use the global ethQuery
+    if (!this.enableMultichain) {
+      return this.ethQuery;
+    }
     let networkClient:
       | AutoManagedNetworkClient<NetworkClientConfiguration>
       | undefined;

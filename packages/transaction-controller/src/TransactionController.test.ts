@@ -807,8 +807,7 @@ describe('TransactionController', () => {
             ACCOUNT_MOCK,
           );
 
-        // gets called in constructor now
-        expect(nonceTrackerMock).toHaveBeenCalledTimes(4);
+        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
         expect(pendingTransactions).toStrictEqual([
           expect.any(Object),
           ...externalPendingTransactions,
