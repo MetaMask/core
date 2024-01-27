@@ -312,6 +312,7 @@ describe('TransactionController Integration', () => {
       expect(transactionController.state.transactions[1].status).toBe(
         'submitted',
       );
+      transactionController.destroy();
     });
   });
   describe('multichain transaction lifecycle', () => {
@@ -2319,6 +2320,7 @@ describe('TransactionController Integration', () => {
 
       expect(stopTrackinSpy).toHaveBeenCalledTimes(1);
       expect(transactionController).toBeDefined();
+      transactionController.destroy();
     });
   });
 
