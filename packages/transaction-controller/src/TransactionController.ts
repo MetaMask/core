@@ -38,6 +38,7 @@ import {
   AddResult,
 } from '@metamask/approval-controller';
 import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
+import { Hex } from '@metamask/utils';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -60,7 +61,6 @@ import {
   TransactionStatus,
   WalletDevice,
 } from './types';
-import { Hex } from '@metamask/utils';
 
 const HARDFORK = 'london';
 const SUBMIT_HISTORY_LIMIT = 100;
