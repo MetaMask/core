@@ -497,7 +497,7 @@ export class TokenRatesController extends BaseController<
       (obj, [tokenAddress, tokenPrice]) => {
         return {
           ...obj,
-          [tokenAddress]: tokenPrice.value,
+          [tokenAddress]: tokenPrice?.value,
         };
       },
       {},

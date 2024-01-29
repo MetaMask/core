@@ -159,8 +159,8 @@ export const SUPPORTED_CURRENCIES = [
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
 type SupportedCurrency =
-  | (typeof SUPPORTED_CURRENCIES)[number]
-  | Uppercase<(typeof SUPPORTED_CURRENCIES)[number]>;
+  | typeof SUPPORTED_CURRENCIES[number]
+  | Uppercase<typeof SUPPORTED_CURRENCIES[number]>;
 
 /**
  * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
@@ -238,7 +238,7 @@ export const SUPPORTED_CHAIN_IDS = [
  * but in hexadecimal form (for consistency with how we represent chain IDs in
  * other places).
  */
-type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
+type SupportedChainId = typeof SUPPORTED_CHAIN_IDS[number];
 
 /**
  * All requests to V2 of the Price API start with this.
@@ -310,7 +310,7 @@ export class CodefiTokenPricesServiceV2
     chainId: SupportedChainId;
     tokenAddresses: Hex[];
     currency: SupportedCurrency;
-  }): Promise<TokenPricesByTokenAddress<Hex, SupportedCurrency>> {
+  }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
     const chainIdAsNumber = hexToNumber(chainId);
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
@@ -340,7 +340,8 @@ export class CodefiTokenPricesServiceV2
           ];
 
         if (!price) {
-          throw new Error(
+          // console error instead of throwing to not interrupt the fetching of other tokens in case just one fails
+          console.error(
             `Could not find price for "${tokenAddress}" in "${currency}"`,
           );
         }
@@ -352,11 +353,13 @@ export class CodefiTokenPricesServiceV2
         };
         return {
           ...obj,
-          [tokenAddress]: tokenPrice,
+          ...(tokenPrice.value !== undefined
+            ? { [tokenAddress]: tokenPrice }
+            : {}),
         };
       },
       {},
-    ) as TokenPricesByTokenAddress<Hex, SupportedCurrency>;
+    ) as Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>;
   }
 
   /**
