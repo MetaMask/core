@@ -528,7 +528,6 @@ export class TransactionController extends BaseControllerV1<
       transactions: [],
       lastFetchedBlockNumbers: {},
     };
-
     this.initialize();
     this.hub = hub ?? this.hub;
     this.enableMultichain = enableMultichain;
@@ -704,30 +703,22 @@ export class TransactionController extends BaseControllerV1<
       (id) => !networkClientIds.includes(id),
     );
     networkClientIdsToRemove.forEach((id) => {
-      this.stopTrackingByNetworkClientId(id);
+      this.#stopTrackingByNetworkClientId(id);
     });
-
-    if (networkClientIdsToRemove.length > 0) {
-      this.hub.emit('tracking-map-remove', networkClientIdsToRemove);
-    }
 
     // Start tracking new NetworkClientIds from the registry
     const networkClientIdsToAdd = networkClientIds.filter(
       (id) => !existingNetworkClientIds.includes(id),
     );
     networkClientIdsToAdd.forEach((id) => {
-      this.startTrackingByNetworkClientId(id);
+      this.#startTrackingByNetworkClientId(id);
     });
-
-    if (networkClientIdsToAdd.length > 0) {
-      this.hub.emit('tracking-map-add', networkClientIdsToAdd);
-    }
   };
 
   #initTrackingMap = () => {
     const networkClients = this.getNetworkClientRegistry();
     const networkClientIds = Object.keys(networkClients);
-    networkClientIds.map((id) => this.startTrackingByNetworkClientId(id));
+    networkClientIds.map((id) => this.#startTrackingByNetworkClientId(id));
     this.hub.emit('tracking-map-init', networkClientIds);
   };
 
@@ -862,6 +853,11 @@ export class TransactionController extends BaseControllerV1<
     log('Adding transaction', txParams);
 
     txParams = normalizeTxParams(txParams);
+    if (networkClientId && !this.trackingMap.has(networkClientId)) {
+      throw new Error(
+        'The networkClientId for this transaction could not be found',
+      );
+    }
 
     const isEIP1559Compatible = await this.getEIP1559Compatibility(
       networkClientId,
@@ -1337,8 +1333,7 @@ export class TransactionController extends BaseControllerV1<
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
-  // NOTE(JL): Should this be private?
-  stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+  #stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const trackers = this.trackingMap.get(networkClientId);
     if (trackers) {
       trackers.pendingTransactionTracker.stop();
@@ -1350,6 +1345,7 @@ export class TransactionController extends BaseControllerV1<
         trackers.incomingTransactionHelper,
       );
       this.trackingMap.delete(networkClientId);
+      this.hub.emit('tracking-map-remove', networkClientId);
     }
   }
 
@@ -1361,14 +1357,16 @@ export class TransactionController extends BaseControllerV1<
 
     if (this.enableMultichain) {
       for (const [networkClientId] of this.trackingMap) {
-        this.stopTrackingByNetworkClientId(networkClientId);
+        this.#stopTrackingByNetworkClientId(networkClientId);
       }
     }
   }
 
-  // NOTE(JL): Should this be private?
-  // TODO(JL): This should be idempotent
-  startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+  #startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+    const trackers = this.trackingMap.get(networkClientId);
+    if (trackers) {
+      return;
+    }
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
 
@@ -1437,13 +1435,13 @@ export class TransactionController extends BaseControllerV1<
 
     this.addPendingTransactionTrackerListeners(pendingTransactionTracker);
 
-    // add to tracking map
     this.trackingMap.set(networkClientId, {
       nonceTracker,
       incomingTransactionHelper,
       pendingTransactionTracker,
     });
-    return this.trackingMap;
+
+    this.hub.emit('tracking-map-add', networkClientId);
   }
 
   /**
@@ -2422,7 +2420,6 @@ export class TransactionController extends BaseControllerV1<
     const releaseLock = await this.mutex.acquire();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
-
     const {
       txParams: { from },
       networkClientId,
@@ -2450,14 +2447,13 @@ export class TransactionController extends BaseControllerV1<
       }
 
       let { nonceTracker } = this;
-      if (networkClientId && this.enableMultichain) {
+      if (networkClientId) {
         const trackers = this.trackingMap.get(networkClientId);
         if (!trackers) {
           throw new Error('missing nonceTracker for networkClientId');
         }
         nonceTracker = trackers?.nonceTracker;
       }
-
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
         nonceTracker,
