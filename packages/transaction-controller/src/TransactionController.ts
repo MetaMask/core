@@ -3071,7 +3071,7 @@ export class TransactionController extends BaseControllerV1<
       'TransactionController#approveTransaction - Transaction signed',
     );
 
-    this.onTransactionStatusChange(transactionMeta); // TODO: fake this via networkClient
+    this.onTransactionStatusChange(transactionMeta);
 
     const rawTx = bufferToHex(signedTx.serialize());
 
