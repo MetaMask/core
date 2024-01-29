@@ -1236,8 +1236,6 @@ describe('TokensController', () => {
           .spyOn(ERC20Standard.prototype as any, 'getTokenDecimals')
           .mockImplementationOnce(() => a.decimals?.toString());
       });
-
-    let addRequestHandler: jest.Mock;
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
       type = ERC20;
@@ -1248,7 +1246,6 @@ describe('TokensController', () => {
         image: 'image',
         name: undefined,
       };
-      addRequestHandler = jest.fn();
 
       isERC721 = false;
       isERC1155 = false;
@@ -1592,6 +1589,7 @@ describe('TokensController', () => {
         }),
       );
 
+      const addRequestHandler = jest.fn();
       messenger.unregisterActionHandler(`ApprovalController:addRequest`);
       messenger.registerActionHandler(
         `ApprovalController:addRequest`,
