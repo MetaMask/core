@@ -853,7 +853,7 @@ export class TransactionController extends BaseControllerV1<
 
     txParams = normalizeTxParams(txParams);
 
-    if (networkClientId && !this.trackingMap.has(networkClientId) && this.enableMultichain) {
+    if (networkClientId && !this.trackingMap.has(networkClientId)) {
       throw new Error(
         'The networkClientId for this transaction could not be found',
       );
@@ -1365,7 +1365,7 @@ export class TransactionController extends BaseControllerV1<
   #startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
     const trackers = this.trackingMap.get(networkClientId);
     if (trackers) {
-      return
+      return;
     }
     const networkClient = this.getNetworkClientById(networkClientId);
     const { chainId } = networkClient.configuration;
@@ -2421,7 +2421,6 @@ export class TransactionController extends BaseControllerV1<
     const releaseLock = await this.mutex.acquire();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
-
     const {
       txParams: { from },
       networkClientId,
@@ -2449,14 +2448,13 @@ export class TransactionController extends BaseControllerV1<
       }
 
       let { nonceTracker } = this;
-      if (networkClientId && this.enableMultichain) {
+      if (networkClientId) {
         const trackers = this.trackingMap.get(networkClientId);
         if (!trackers) {
           throw new Error('missing nonceTracker for networkClientId');
         }
         nonceTracker = trackers?.nonceTracker;
       }
-
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
         nonceTracker,

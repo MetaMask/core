@@ -2448,8 +2448,40 @@ describe('TransactionController Integration', () => {
               result: '0x2',
             },
           },
+          {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['0x1', false],
+            },
+            response: {
+              result: {
+                baseFeePerGas: '0x63c498a46',
+                number: '0x42',
+              },
+            },
+          },
+          {
+            request: {
+              method: 'eth_gasPrice',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // eth_getCode
+          {
+            request: {
+              method: 'eth_getCode',
+              params: [ACCOUNT_2_MOCK, '0x1'],
+            },
+            response: {
+              result: '0x', // non contract
+            },
+          },
         ],
       });
+
       const { networkController, transactionController } = await newController({
         enableMultichain: false,
       });
@@ -2467,15 +2499,27 @@ describe('TransactionController Integration', () => {
           },
         );
 
-      networkController.removeNetworkConfiguration(configurationId);
+      // add a transaction with the networkClientId of the newly added network
+      // and expect it to throw since the networkClientId won't be found in the trackingMap
+      await expect(
+        transactionController.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+          },
+          { networkClientId: configurationId },
+        ),
+      ).rejects.toThrow(
+        'The networkClientId for this transaction could not be found',
+      );
 
-      // advance time to trigger events
-      await advanceTime({ clock, duration: 1000 });
-
-      // FIX THESE
-      expect(false).toBe(true)
-      // expect(startTrackinSpy).toHaveBeenCalledTimes(0);
-      // expect(stopTrackinSpy).toHaveBeenCalledTimes(0);
+      // adding a transaction without a networkClientId should work
+      expect(
+        await transactionController.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        }),
+      ).toBeDefined();
     });
   });
 
