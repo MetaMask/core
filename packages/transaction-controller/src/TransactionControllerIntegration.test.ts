@@ -2326,6 +2326,7 @@ describe('TransactionController Integration', () => {
           networkClientId: otherNetworkClientIdOnGoerli,
         }),
       );
+      transactionController.destroy();
     });
     it('should stop tracking when a network is removed', async () => {
       mockNetwork({
@@ -2487,6 +2488,7 @@ describe('TransactionController Integration', () => {
           to: ACCOUNT_2_MOCK,
         }),
       ).toBeDefined();
+      transactionController.destroy();
     });
   });
 
