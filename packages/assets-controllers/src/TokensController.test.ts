@@ -95,6 +95,10 @@ describe('TokensController', () => {
   >;
   let tokensControllerMessenger;
   let approvalControllerMessenger;
+  let getNetworkClientByIdHandler: jest.Mock<
+    ReturnType<NetworkController['getNetworkClientById']>,
+    Parameters<NetworkController['getNetworkClientById']>
+  >;
 
   const changeNetwork = (providerConfig: ProviderConfig) => {
     messenger.publish(`NetworkController:networkDidChange`, {
@@ -106,11 +110,6 @@ describe('TokensController', () => {
   const triggerPreferencesStateChange = (state: PreferencesState) => {
     messenger.publish('PreferencesController:stateChange', state, []);
   };
-
-  const getNetworkClientByIdHandler = jest.fn<
-    ReturnType<NetworkController['getNetworkClientById']>,
-    Parameters<NetworkController['getNetworkClientById']>
-  >();
 
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
@@ -151,6 +150,7 @@ describe('TokensController', () => {
       typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
     });
 
+    getNetworkClientByIdHandler = jest.fn();
     messenger.registerActionHandler(
       `NetworkController:getNetworkClientById`,
       getNetworkClientByIdHandler.mockReturnValue(
@@ -163,7 +163,6 @@ describe('TokensController', () => {
 
   afterEach(() => {
     sinon.restore();
-    messenger.unregisterActionHandler(`NetworkController:getNetworkClientById`);
   });
 
   it('should set default state', () => {
