@@ -622,13 +622,15 @@ export class TransactionController extends BaseControllerV1<
 
     this.addPendingTransactionTrackerListeners();
 
-    this.subscribe(this.#onStateChange);
+    // when transactionsController state changes
+    // check for pending transactions and start polling if there are any
+    this.subscribe(this.#checkForPendingTransactionAndStartPolling);
 
+    // TODO once v2 is merged make sure this only runs when
+    // selectedNetworkClientId changes
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
-      // TODO(JL): Network state changes also trigger PendingTransactionTracker's onStateChange.
-      // Verify if this is still necessary when the feature branch is being reviewed
-      this.#onStateChange();
+      this.pendingTransactionTracker.onStateChange();
       this.onBootCleanup();
     });
 
@@ -729,7 +731,7 @@ export class TransactionController extends BaseControllerV1<
     this.hub.emit('tracking-map-init', networkClientIds);
   };
 
-  #onStateChange = () => {
+  #checkForPendingTransactionAndStartPolling = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
     this.pendingTransactionTracker.onStateChange();
     if (this.enableMultichain) {
