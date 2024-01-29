@@ -2218,6 +2218,9 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
     });
+    it.todo('markNonceDuplicatesDropped', () => {
+      // todo: test that the nonce duplicates are dropped
+    });
   });
 
   describe('when changing rpcUrl of networkClient', () => {

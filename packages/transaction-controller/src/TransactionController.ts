@@ -2870,9 +2870,6 @@ export class TransactionController extends BaseControllerV1<
     }
     const nonce = transactionMeta.txParams?.nonce;
     const from = transactionMeta.txParams?.from;
-    // NOTE(JL): the line below was removed upstream in favor of this.getChainId()
-    // not sure specifically why that was the case
-    // https://github.com/MetaMask/core/commit/89654542c9c61308cfad6a310f7fe2b4b669117b
     const { chainId } = transactionMeta;
 
     const sameNonceTxs = this.state.transactions.filter(
