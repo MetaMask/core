@@ -15,9 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Add required `from` property to `AddUserOperationRequest` ([#3844](https://github.com/MetaMask/core/pull/3844))
 - **BREAKING**: Make `smartContractAccount` optional in `AddUserOperationOptions` ([#3844](https://github.com/MetaMask/core/pull/3844))
   - Use current account snap by default if not provided ([#3844](https://github.com/MetaMask/core/pull/3844))
-- **CHANGED**: Delete user operation if rejected during approval ([#3844](https://github.com/MetaMask/core/pull/3844))
-- **CHANGED**: Set `userFeeLevel` to `custom` in transaction event if using a paymaster ([#3844](https://github.com/MetaMask/core/pull/3844))
-- **CHANGED**: Validate arguments when calling `addUserOperationFromTransaction` ([#3844](https://github.com/MetaMask/core/pull/3844))
+- Delete user operation if rejected during approval ([#3844](https://github.com/MetaMask/core/pull/3844))
+- Set `userFeeLevel` to `custom` in transaction event if using a paymaster ([#3844](https://github.com/MetaMask/core/pull/3844))
+- Validate arguments when calling `addUserOperationFromTransaction` ([#3844](https://github.com/MetaMask/core/pull/3844))
 
 ## [2.0.0]
 
