@@ -791,7 +791,6 @@ describe('TransactionController', () => {
         expect(getExternalPendingTransactions).toHaveBeenCalledWith(
           ACCOUNT_MOCK,
           // This is undefined for the base nonceTracker
-          // TODO (AD) add tests for using external pending transactions with a networkClientId once we have trackingMaps instantiated
           undefined,
         );
       });
