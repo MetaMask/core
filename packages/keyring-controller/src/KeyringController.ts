@@ -47,7 +47,6 @@ import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 
 import { KeyringControllerError } from './constants';
-import { throwError } from './utils';
 
 const name = 'KeyringController';
 
@@ -1277,9 +1276,11 @@ export class KeyringController extends BaseController<
       address,
     )) as EthKeyring<Json>;
 
-    return keyring.prepareUserOperation
-      ? await keyring.prepareUserOperation(address, transactions)
-      : throwError(KeyringControllerError.UnsupportedPrepareUserOperation);
+    if (!keyring.prepareUserOperation) {
+      throw new Error(KeyringControllerError.UnsupportedPrepareUserOperation);
+    }
+
+    return await keyring.prepareUserOperation(address, transactions);
   }
 
   /**
@@ -1299,9 +1300,11 @@ export class KeyringController extends BaseController<
       address,
     )) as EthKeyring<Json>;
 
-    return keyring.patchUserOperation
-      ? await keyring.patchUserOperation(address, userOp)
-      : throwError(KeyringControllerError.UnsupportedPatchUserOperation);
+    if (!keyring.patchUserOperation) {
+      throw new Error(KeyringControllerError.UnsupportedPatchUserOperation);
+    }
+
+    return await keyring.patchUserOperation(address, userOp);
   }
 
   /**
@@ -1320,9 +1323,11 @@ export class KeyringController extends BaseController<
       address,
     )) as EthKeyring<Json>;
 
-    return keyring.signUserOperation
-      ? await keyring.signUserOperation(address, userOp)
-      : throwError(KeyringControllerError.UnsupportedSignUserOperation);
+    if (!keyring.signUserOperation) {
+      throw new Error(KeyringControllerError.UnsupportedSignUserOperation);
+    }
+
+    return await keyring.signUserOperation(address, userOp);
   }
 
   /**
