@@ -2115,7 +2115,7 @@ export class TransactionController extends BaseControllerV1<
     filterToCurrentNetwork?: boolean;
     limit?: number;
   } = {}): TransactionMeta[] {
-    const chainId = this.getChainId(); // TODO(JL): This should be made into an optional param
+    const chainId = this.getChainId();
     // searchCriteria is an object that might have values that aren't predicate
     // methods. When providing any other value type (string, number, etc), we
     // consider this shorthand for "check the value at key for strict equality
