@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Resolves transaction custodian promise when set transaction status to submitted or failed ([#3845](https://github.com/MetaMask/core/pull/3845))
-- Fix normalizer ensuring property type is always present in TransactionParams ([#3817](https://github.com/MetaMask/core/pull/3817))
+- Resolves transaction custodian promise when setting transaction status to `submitted` or `failed` ([#3845](https://github.com/MetaMask/core/pull/3845))
+- Fix normalizer ensuring property `type` is always present in `TransactionParams` ([#3817](https://github.com/MetaMask/core/pull/3817))
 
 ## [21.0.0]
 
