@@ -1822,13 +1822,13 @@ export class TransactionController extends BaseControllerV1<
    * @param opts.key - The hex address (or constant), pertaining to the chainId
    * @returns Mutex instance for the given chainId and key pair
    */
-  #getNonceMutex({
+  async #acquireNonceLockForChainIdKey({
     chainId,
     key = 'global',
   }: {
     chainId: Hex;
     key?: string;
-  }): Mutex {
+  }): Promise<() => void> {
     let nonceMutexesForChainId = this.nonceMutexesByChainId.get(chainId);
     if (!nonceMutexesForChainId) {
       nonceMutexesForChainId = new Map<string, Mutex>();
@@ -1840,7 +1840,7 @@ export class TransactionController extends BaseControllerV1<
       nonceMutexesForChainId.set(key, nonceMutexForKey);
     }
 
-    return nonceMutexForKey
+    return await nonceMutexForKey.acquire()
   }
 
   /**
@@ -1855,11 +1855,11 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
-    let nonceMutexForChainId: Mutex | undefined;
+    let releaseLockForChainIdKey = () => {}
     let { nonceTracker } = this;
     if (networkClientId && this.enableMultichain) {
       const networkClient = this.getNetworkClientById(networkClientId);
-      nonceMutexForChainId = this.#getNonceMutex({
+      releaseLockForChainIdKey = await this.#acquireNonceLockForChainIdKey({
         chainId: networkClient.configuration.chainId,
         key: address,
       });
@@ -1874,18 +1874,17 @@ export class TransactionController extends BaseControllerV1<
     // couples them together by replacing the nonceLock's releaseLock method with
     // an anonymous function that calls releases both the original nonceLock and the
     // lock for the chainId.
-    const releaseLockForChainId = await nonceMutexForChainId?.acquire();
     try {
       const nonceLock = await nonceTracker.getNonceLock(address);
       return {
         ...nonceLock,
         releaseLock: () => {
           nonceLock.releaseLock();
-          releaseLockForChainId?.();
+          releaseLockForChainIdKey?.();
         },
       };
     } catch (err) {
-      releaseLockForChainId?.();
+      releaseLockForChainIdKey?.();
       throw err;
     }
   }
