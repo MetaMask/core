@@ -602,7 +602,6 @@ describe('TransactionController', () => {
       });
 
     const mockFindNetworkClientIdByChainId = jest.fn();
-
     return new TransactionController(
       {
         blockTracker: finalNetwork.blockTracker,
@@ -1190,7 +1189,7 @@ describe('TransactionController', () => {
     describe('multichain', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const controller = newController({
-          options: { enableMultiChain: true },
+          options: { enableMultichain: true },
         });
         const sepoliaTxParams: TransactionParams = {
           chainId: ChainId.sepolia,
