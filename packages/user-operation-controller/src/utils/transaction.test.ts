@@ -13,7 +13,7 @@ const USER_OPERATION_METADATA_MOCK: UserOperationMetadata = {
   id: 'testUserOperationId',
   status: UserOperationStatus.Submitted,
   transactionParams: {},
-  userFeeLevel: UserFeeLevel.CUSTOM,
+  userFeeLevel: UserFeeLevel.DAPP_SUGGESTED,
   userOperation: {},
 } as UserOperationMetadata;
 
@@ -154,10 +154,30 @@ describe('transation', () => {
       expect(transactionMetadata?.txParams?.nonce).toBeUndefined();
     });
 
-    it('returns userFeeLevel from metadata', () => {
-      expect(
-        getTransactionMetadata(USER_OPERATION_METADATA_MOCK)?.userFeeLevel,
-      ).toBe(UserFeeLevel.CUSTOM);
+    it('returns userFeeLevel from metadata if paymaster data not set', () => {
+      const metadata = {
+        ...USER_OPERATION_METADATA_MOCK,
+        userOperation: {
+          paymasterAndData: EMPTY_BYTES,
+        },
+      } as UserOperationMetadata;
+
+      expect(getTransactionMetadata(metadata)?.userFeeLevel).toBe(
+        UserFeeLevel.DAPP_SUGGESTED,
+      );
+    });
+
+    it('returns userFeeLevel as custom if paymaster data set', () => {
+      const metadata = {
+        ...USER_OPERATION_METADATA_MOCK,
+        userOperation: {
+          paymasterAndData: '0x1',
+        },
+      } as UserOperationMetadata;
+
+      expect(getTransactionMetadata(metadata)?.userFeeLevel).toBe(
+        UserFeeLevel.CUSTOM,
+      );
     });
 
     it('returns from as user operation sender', () => {

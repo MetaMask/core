@@ -3,7 +3,10 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  UserFeeLevel,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
 
@@ -32,7 +35,7 @@ export function getTransactionMetadata(
     time,
     transactionParams,
     transactionType,
-    userFeeLevel,
+    userFeeLevel: rawUserFeeLevel,
     userOperation,
   } = metadata;
 
@@ -112,6 +115,8 @@ export function getTransactionMetadata(
     swapMetaData: swapsMetadata?.swapMetaData ?? undefined,
     swapTokenValue: swapsMetadata?.swapTokenValue ?? undefined,
   };
+
+  const userFeeLevel = hasPaymaster ? UserFeeLevel.CUSTOM : rawUserFeeLevel;
 
   return {
     baseFeePerGas: (baseFeePerGas as Hex) ?? undefined,

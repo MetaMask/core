@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.1]
+
+### Fixed
+
+- Resolves transaction custodian promise when setting transaction status to `submitted` or `failed` ([#3845](https://github.com/MetaMask/core/pull/3845))
+- Fix normalizer ensuring property `type` is always present in `TransactionParams` ([#3817](https://github.com/MetaMask/core/pull/3817))
+
 ## [21.0.0]
 
 ### Changed
@@ -457,7 +464,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.1...HEAD
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.0...@metamask/transaction-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@20.0.0...@metamask/transaction-controller@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@19.0.1...@metamask/transaction-controller@20.0.0
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@19.0.0...@metamask/transaction-controller@19.0.1
