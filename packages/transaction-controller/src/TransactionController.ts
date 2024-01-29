@@ -528,7 +528,6 @@ export class TransactionController extends BaseControllerV1<
       transactions: [],
       lastFetchedBlockNumbers: {},
     };
-
     this.initialize();
     this.hub = hub ?? this.hub;
     this.enableMultichain = enableMultichain;
@@ -852,7 +851,6 @@ export class TransactionController extends BaseControllerV1<
     log('Adding transaction', txParams);
 
     txParams = normalizeTxParams(txParams);
-
     if (networkClientId && !this.trackingMap.has(networkClientId)) {
       throw new Error(
         'The networkClientId for this transaction could not be found',
@@ -1442,7 +1440,6 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.hub.emit('tracking-map-add', networkClientId);
-    return this.trackingMap;
   }
 
   /**
