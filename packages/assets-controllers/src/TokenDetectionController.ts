@@ -306,16 +306,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
       async ({ selectedNetworkClientId }) => {
-        this.#networkClientId = selectedNetworkClientId;
-        const newChainId = this.#getCorrectChainId(selectedNetworkClientId);
-        const isChainIdChanged = this.#chainId !== newChainId;
+        const isNetworkClientIdChanged =
+          this.#networkClientId !== selectedNetworkClientId;
 
+        const newChainId = this.#getCorrectChainId(selectedNetworkClientId);
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
 
-        if (isChainIdChanged && this.#isDetectionEnabledForNetwork) {
-          this.#chainId = newChainId;
-          await this.#restartTokenDetection({
+        if (isNetworkClientIdChanged && this.#isDetectionEnabledForNetwork) {
+          this.#networkClientId = selectedNetworkClientId;
+          await this.detectTokens({
             networkClientId: this.#networkClientId,
           });
         }

@@ -760,7 +760,7 @@ describe('TokenDetectionController', () => {
     });
 
     describe('when "disabled" is "false"', () => {
-      it('should detect new tokens after switching chains', async () => {
+      it('should detect new tokens after switching network client id', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
@@ -859,7 +859,7 @@ describe('TokenDetectionController', () => {
         );
       });
 
-      it('should not detect new tokens if the chain has not changed', async () => {
+      it('should not detect new tokens if the network client id has not changed', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
@@ -898,7 +898,7 @@ describe('TokenDetectionController', () => {
 
             messenger.publish('NetworkController:networkDidChange', {
               ...defaultNetworkState,
-              selectedNetworkClientId: 'mainnnet',
+              selectedNetworkClientId: 'mainnet',
             });
             await advanceTime({ clock, duration: 1 });
 
@@ -909,7 +909,7 @@ describe('TokenDetectionController', () => {
     });
 
     describe('when "disabled" is "true"', () => {
-      it('should not detect new tokens after switching chains', async () => {
+      it('should not detect new tokens after switching network client id', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
