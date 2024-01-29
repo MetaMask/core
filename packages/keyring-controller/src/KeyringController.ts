@@ -465,8 +465,8 @@ async function displayForKeyring(
 
   return {
     type: keyring.type,
-    // Cast to `Hex[]` here is safe here because `addresses` has no nullish
-    // values, and `normalizeToHex` returns `Hex` unless given a nullish value
+    // Cast to `Hex[]` here is safe here because `accounts` has no nullish
+    // values, and `normalize` returns `Hex` unless given a nullish value
     accounts: accounts.map(normalize) as Hex[],
   };
 }
