@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "feat: add externalLinkClicked to TransactionMetaBase type" ([#3854](https://github.com/MetaMask/core/pull/3854))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+- fix: resolve tx custodian promise when set transaction to submitted or failed ([#3845](https://github.com/MetaMask/core/pull/3845))
+- feat: add externalLinkClicked to TransactionMetaBase type ([#3828](https://github.com/MetaMask/core/pull/3828))
+- Fix: normalizer ensuring type is always present in TransactionParams ([#3817](https://github.com/MetaMask/core/pull/3817))
+
 ## [21.0.0]
 
 ### Changed

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Use account snap by default in user operations ([#3844](https://github.com/MetaMask/core/pull/3844))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+
 ## [2.0.0]
 
 ### Changed
