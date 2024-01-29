@@ -1,5 +1,5 @@
 import type {
-  NonceTracker,
+  NonceLock,
   Transaction as NonceTrackerTransaction,
 } from 'nonce-tracker';
 
@@ -17,16 +17,6 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
   },
 };
 
-/**
- * Creates a mock instance of a nonce tracker.
- * @returns The mock instance.
- */
-function createNonceTrackerMock(): jest.Mocked<NonceTracker> {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { getNonceLock: jest.fn() } as any;
-}
-
 describe('nonce', () => {
   describe('getNextNonce', () => {
     it('returns custom nonce if provided', async () => {
@@ -35,11 +25,9 @@ describe('nonce', () => {
         customNonceValue: '123',
       };
 
-      const nonceTracker = createNonceTrackerMock();
-
       const [nonce, releaseLock] = await getNextNonce(
         transactionMeta,
-        nonceTracker,
+        jest.fn(),
       );
 
       expect(nonce).toBe('0x7b');
@@ -55,11 +43,9 @@ describe('nonce', () => {
         },
       };
 
-      const nonceTracker = createNonceTrackerMock();
-
       const [nonce, releaseLock] = await getNextNonce(
         transactionMeta,
-        nonceTracker,
+        jest.fn(),
       );
 
       expect(nonce).toBe('0x123');
@@ -74,19 +60,15 @@ describe('nonce', () => {
         },
       };
 
-      const nonceTracker = createNonceTrackerMock();
       const releaseLock = jest.fn();
-
-      nonceTracker.getNonceLock.mockResolvedValueOnce({
-        nextNonce: 456,
-        releaseLock,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
 
       const [nonce, resultReleaseLock] = await getNextNonce(
         transactionMeta,
-        nonceTracker,
+        () =>
+          Promise.resolve({
+            nextNonce: 456,
+            releaseLock,
+          } as unknown as NonceLock),
       );
 
       expect(nonce).toBe('0x1c8');

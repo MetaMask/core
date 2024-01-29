@@ -2478,17 +2478,9 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      let { nonceTracker } = this;
-      if (networkClientId) {
-        const trackers = this.trackingMap.get(networkClientId);
-        if (!trackers) {
-          throw new Error('missing nonceTracker for networkClientId');
-        }
-        nonceTracker = trackers?.nonceTracker;
-      }
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
-        nonceTracker,
+        (address: string) => this.getNonceLock(address, networkClientId),
       );
 
       releaseNonceLock = releaseNonce;
