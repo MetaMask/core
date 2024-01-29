@@ -1700,7 +1700,7 @@ describe('TokensController', () => {
 
       mockContract([asset, anotherAsset]);
 
-      const registerListeners = new Promise<void>((resolve) => {
+      const promiseForApprovals = new Promise<void>((resolve) => {
         const listener = (state: ApprovalControllerState) => {
           if (state.pendingApprovalCount === 2) {
             messenger.unsubscribe('ApprovalController:stateChange', listener);
@@ -1720,7 +1720,7 @@ describe('TokensController', () => {
         interactingAddress,
       });
 
-      await registerListeners;
+      await promiseForApprovals;
 
       await approvalController.accept(requestId);
       await approvalController.accept('67890');
