@@ -1860,8 +1860,7 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    let releaseLockForChainIdKey = () => {};
+    let releaseLockForChainIdKey: (() => void) | undefined;
     let { nonceTracker } = this;
     if (networkClientId && this.enableMultichain) {
       const networkClient = this.getNetworkClientById(networkClientId);
