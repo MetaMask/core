@@ -610,7 +610,10 @@ export class TransactionController extends BaseControllerV1<
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
-      nonceTracker: this.nonceTracker,
+      getGlobalLock: async () =>
+        this.#acquireNonceLockForChainIdKey({
+          chainId: this.getChainId(),
+        }),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -1417,11 +1420,13 @@ export class TransactionController extends BaseControllerV1<
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
       blockTracker: networkClient.blockTracker,
-      getChainId: () => networkClient.configuration.chainId,
+      getChainId: () => chainId,
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: this.pendingTransactionOptions.isResubmitEnabled,
-      nonceTracker,
+      getGlobalLock: this.#acquireNonceLockForChainIdKey.bind(this, {
+        chainId,
+      }),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -1814,12 +1819,12 @@ export class TransactionController extends BaseControllerV1<
     return this.getTransaction(transactionId) as TransactionMeta;
   }
 
-
   /**
    * Gets the mutex intended to guard the nonceTracker for a particular chainId and key .
    *
+   * @param opts - The options object.
    * @param opts.chainId - The hex chainId.
-   * @param opts.key - The hex address (or constant), pertaining to the chainId
+   * @param opts.key - The hex address (or constant) pertaining to the chainId
    * @returns Mutex instance for the given chainId and key pair
    */
   async #acquireNonceLockForChainIdKey({
@@ -1840,7 +1845,7 @@ export class TransactionController extends BaseControllerV1<
       nonceMutexesForChainId.set(key, nonceMutexForKey);
     }
 
-    return await nonceMutexForKey.acquire()
+    return await nonceMutexForKey.acquire();
   }
 
   /**
@@ -1855,7 +1860,8 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
-    let releaseLockForChainIdKey = () => {}
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    let releaseLockForChainIdKey = () => {};
     let { nonceTracker } = this;
     if (networkClientId && this.enableMultichain) {
       const networkClient = this.getNetworkClientById(networkClientId);

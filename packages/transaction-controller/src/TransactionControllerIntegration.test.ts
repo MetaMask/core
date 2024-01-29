@@ -3393,7 +3393,6 @@ describe('TransactionController Integration', () => {
           const secondNonceLock = await secondNonceLockPromise;
 
           expect(secondNonceLock.nextNonce).toBe(15);
-
         }),
       );
       transactionController.destroy();
