@@ -1,3 +1,0 @@
-curl -X GET 'https://api-sepolia.etherscan.io/api?module=account&address=0x806627172af48bd5b0765d3449a7def80d6576ff&startBlock=4919259&offset=40&sort=desc&action=txlist&tag=latest&page=1'
-& curl -X GET 'https://api.etherscan.io/api?module=account&action=txlist&address=0xa544EEbE103733F22EF62Af556023bC918B73d36&startblock=0&endblock=1&sort=desc'
-& curl -X GET 'https://api-sepolia.etherscan.io/api?module=account&address=0x806627172af48bd5b0765d3449a7def80d6576ff&startBlock=4919259&offset=40&sort=desc&action=txlist&tag=latest&page=1' 

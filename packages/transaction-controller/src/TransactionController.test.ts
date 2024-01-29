@@ -4795,7 +4795,7 @@ describe('TransactionController', () => {
     });
     it('should initialize the tracking map on construction', async () => {
       const hub = new EventEmitter() as TransactionControllerEventEmitter;
-      const receivedEvents = new Promise(resolve => {
+      const receivedEvents = new Promise((resolve) => {
         hub.on('tracking-map-init', (networkClientIds) => {
           expect(networkClientIds).toStrictEqual([
             'mainnet',
@@ -4805,7 +4805,7 @@ describe('TransactionController', () => {
           ]);
           resolve(undefined);
         });
-      })
+      });
 
       newController({
         options: {
@@ -4835,19 +4835,18 @@ describe('TransactionController', () => {
           },
         },
       }));
-      const receivedEvents = new Promise(resolve => {
-        let expectedNetworkClientIds = [
-          'customNetworkClientId-1',
-          'goerli'
-        ]
+      const receivedEvents = new Promise((resolve) => {
+        let expectedNetworkClientIds = ['customNetworkClientId-1', 'goerli'];
         hub.on('tracking-map-remove', (networkClientId) => {
-          expect(expectedNetworkClientIds).toContain(networkClientId)
-          expectedNetworkClientIds = expectedNetworkClientIds.filter(v => v !== networkClientId)
-          if(expectedNetworkClientIds.length === 0) {
+          expect(expectedNetworkClientIds).toContain(networkClientId);
+          expectedNetworkClientIds = expectedNetworkClientIds.filter(
+            (v) => v !== networkClientId,
+          );
+          if (expectedNetworkClientIds.length === 0) {
             resolve(undefined);
           }
         });
-      })
+      });
 
       const mockMessenger = buildMockMessenger({});
       (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
@@ -4877,7 +4876,7 @@ describe('TransactionController', () => {
           hub,
         },
       });
-      await receivedEvents
+      await receivedEvents;
     });
   });
   it('should handle additions to the networkController registry', async () => {
@@ -4907,19 +4906,18 @@ describe('TransactionController', () => {
       }));
     });
 
-    const receivedEvents = new Promise(resolve => {
-      let expectedNetworkClientIds = [
-        'goerli',
-        'sepolia'
-      ]
+    const receivedEvents = new Promise((resolve) => {
+      let expectedNetworkClientIds = ['goerli', 'sepolia'];
       hub.on('tracking-map-add', (networkClientId) => {
-        expect(expectedNetworkClientIds).toContain(networkClientId)
-        expectedNetworkClientIds = expectedNetworkClientIds.filter(v => v !== networkClientId)
-        if(expectedNetworkClientIds.length === 0) {
+        expect(expectedNetworkClientIds).toContain(networkClientId);
+        expectedNetworkClientIds = expectedNetworkClientIds.filter(
+          (v) => v !== networkClientId,
+        );
+        if (expectedNetworkClientIds.length === 0) {
           resolve(undefined);
         }
       });
-    })
+    });
     const mockMessenger = buildMockMessenger({});
     (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
       (_type, handler) => {
@@ -4943,7 +4941,7 @@ describe('TransactionController', () => {
         hub,
       },
     });
-    await receivedEvents
+    await receivedEvents;
   });
 
   describe('startIncomingTransactionPolling', () => {
