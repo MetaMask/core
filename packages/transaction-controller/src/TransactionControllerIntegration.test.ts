@@ -20,7 +20,7 @@ import {
   ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
   ETHERSCAN_TOKEN_TRANSACTION_MOCK,
   ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
-} from './helpers/EtherscanMocks';
+} from '../test/EtherscanMocks';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { TransactionStatus, TransactionType } from './types';

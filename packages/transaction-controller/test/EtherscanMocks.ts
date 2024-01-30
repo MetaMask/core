@@ -1,10 +1,10 @@
-import { TransactionStatus, TransactionType } from '../types';
+import { TransactionStatus, TransactionType } from '../src/types';
 import type {
   EtherscanTokenTransactionMeta,
   EtherscanTransactionMeta,
   EtherscanTransactionMetaBase,
   EtherscanTransactionResponse,
-} from '../utils/etherscan';
+} from '../src/utils/etherscan';
 
 export const ID_MOCK = '6843ba00-f4bf-11e8-a715-5f2fff84549d';
 
