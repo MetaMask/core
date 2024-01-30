@@ -675,68 +675,6 @@ export class TransactionController extends BaseControllerV1<
     this.#stopAllTracking();
   }
 
-  #refreshEtherscanRemoteTransactionSources = (
-    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
-  ) => {
-    // this will be prettier when we have consolidated network clients with a single chainId:
-    // check if there are still other network clients using the same chainId
-    // if not remove the etherscanRemoteTransaction source from the map
-    const chainIdsInRegistry = new Set();
-    Object.values(networkClients).forEach((networkClient) =>
-      chainIdsInRegistry.add(networkClient.configuration.chainId),
-    );
-    const existingChainIds = Array.from(
-      this.etherscanRemoteTransactionSourcesMap.keys(),
-    );
-    const chainIdsToRemove = existingChainIds.filter(
-      (chainId) => !chainIdsInRegistry.has(chainId),
-    );
-
-    chainIdsToRemove.forEach((chainId) => {
-      this.etherscanRemoteTransactionSourcesMap.delete(chainId);
-    });
-  };
-
-  #refreshTrackingMap = (
-    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
-  ) => {
-    const networkClientIds = Object.keys(networkClients);
-    const existingNetworkClientIds = Array.from(this.trackingMap.keys());
-
-    // Remove tracking for NetworkClientIds that no longer exist
-    const networkClientIdsToRemove = existingNetworkClientIds.filter(
-      (id) => !networkClientIds.includes(id),
-    );
-    networkClientIdsToRemove.forEach((id) => {
-      this.#stopTrackingByNetworkClientId(id);
-    });
-
-    // Start tracking new NetworkClientIds from the registry
-    const networkClientIdsToAdd = networkClientIds.filter(
-      (id) => !existingNetworkClientIds.includes(id),
-    );
-    networkClientIdsToAdd.forEach((id) => {
-      this.#startTrackingByNetworkClientId(id);
-    });
-  };
-
-  #initTrackingMap = () => {
-    const networkClients = this.getNetworkClientRegistry();
-    const networkClientIds = Object.keys(networkClients);
-    networkClientIds.map((id) => this.#startTrackingByNetworkClientId(id));
-    this.hub.emit('tracking-map-init', networkClientIds);
-  };
-
-  #checkForPendingTransactionAndStartPolling = () => {
-    // PendingTransactionTracker reads state through its getTransactions hook
-    this.pendingTransactionTracker.onStateChange();
-    if (this.enableMultichain) {
-      for (const [, trackingMap] of this.trackingMap) {
-        trackingMap.pendingTransactionTracker.onStateChange();
-      }
-    }
-  };
-
   /**
    * Handle new method data request.
    *
@@ -761,48 +699,6 @@ export class TransactionController extends BaseControllerV1<
     } finally {
       releaseLock();
     }
-  }
-
-  #getEthQuery({
-    networkClientId,
-    chainId,
-  }: {
-    networkClientId?: NetworkClientId;
-    chainId?: Hex;
-  }): EthQuery {
-    // if multichain is disabled, use the global ethQuery
-    if (!this.enableMultichain) {
-      return this.ethQuery;
-    }
-    let networkClient:
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
-
-    if (networkClientId) {
-      try {
-        networkClient = this.getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by networkClientId');
-      }
-    }
-
-    if (!networkClient && chainId) {
-      try {
-        networkClientId = this.findNetworkClientIdByChainId(chainId);
-        networkClient = this.getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by chainId');
-      }
-    }
-
-    if (networkClient) {
-      return new EthQuery(networkClient.provider);
-    }
-
-    // NOTE(JL): we're not ready to drop globally selected ethQuery yet.
-    // Some calls to getEthQuery only have access to optional networkClientId
-    // throw new Error('failed to get eth query instance');
-    return this.ethQuery;
   }
 
   /**
@@ -1336,116 +1232,6 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
-  }
-
-  #stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
-    const trackers = this.trackingMap.get(networkClientId);
-    if (trackers) {
-      trackers.pendingTransactionTracker.stop();
-      this.removePendingTransactionTrackerListeners(
-        trackers.pendingTransactionTracker,
-      );
-      trackers.incomingTransactionHelper.stop();
-      this.removeIncomingTransactionHelperListeners(
-        trackers.incomingTransactionHelper,
-      );
-      this.trackingMap.delete(networkClientId);
-      this.hub.emit('tracking-map-remove', networkClientId);
-    }
-  }
-
-  #stopAllTracking() {
-    this.pendingTransactionTracker.stop();
-    this.removePendingTransactionTrackerListeners();
-    this.incomingTransactionHelper.stop();
-    this.removeIncomingTransactionHelperListeners();
-
-    if (this.enableMultichain) {
-      for (const [networkClientId] of this.trackingMap) {
-        this.#stopTrackingByNetworkClientId(networkClientId);
-      }
-    }
-  }
-
-  #startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
-    const trackers = this.trackingMap.get(networkClientId);
-    if (trackers) {
-      return;
-    }
-    const networkClient = this.getNetworkClientById(networkClientId);
-    const { chainId } = networkClient.configuration;
-
-    let etherscanRemoteTransactionSource =
-      this.etherscanRemoteTransactionSourcesMap.get(chainId);
-    if (!etherscanRemoteTransactionSource) {
-      etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
-        includeTokenTransfers:
-          this.incomingTransactionOptions.includeTokenTransfers,
-      });
-      this.etherscanRemoteTransactionSourcesMap.set(
-        chainId,
-        etherscanRemoteTransactionSource,
-      );
-    }
-
-    const ethQuery = new EthQuery(networkClient.provider);
-
-    const nonceTracker = new NonceTracker({
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      provider: networkClient.provider as any,
-      blockTracker: networkClient.blockTracker,
-      getPendingTransactions: this.getNonceTrackerPendingTransactions.bind(
-        this,
-        chainId,
-      ),
-      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.confirmed,
-      ),
-    });
-
-    const incomingTransactionHelper = new IncomingTransactionHelper({
-      blockTracker: networkClient.blockTracker,
-      getCurrentAccount: this.getSelectedAddress,
-      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getChainId: () => chainId,
-      isEnabled: this.incomingTransactionOptions.isEnabled,
-      queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
-      remoteTransactionSource: etherscanRemoteTransactionSource,
-      transactionLimit: this.config.txHistoryLimit,
-      updateTransactions: this.incomingTransactionOptions.updateTransactions,
-    });
-
-    this.addIncomingTransactionHelperListeners(incomingTransactionHelper);
-
-    const pendingTransactionTracker = new PendingTransactionTracker({
-      approveTransaction: this.approveTransaction.bind(this),
-      blockTracker: networkClient.blockTracker,
-      getChainId: () => chainId,
-      getEthQuery: () => ethQuery,
-      getTransactions: () => this.state.transactions,
-      isResubmitEnabled: this.pendingTransactionOptions.isResubmitEnabled,
-      getGlobalLock: this.#acquireNonceLockForChainIdKey.bind(this, {
-        chainId,
-      }),
-      publishTransaction: this.publishTransaction.bind(this),
-      hooks: {
-        beforeCheckPendingTransaction:
-          this.beforeCheckPendingTransaction.bind(this),
-        beforePublish: this.beforePublish.bind(this),
-      },
-    });
-
-    this.addPendingTransactionTrackerListeners(pendingTransactionTracker);
-
-    this.trackingMap.set(networkClientId, {
-      nonceTracker,
-      incomingTransactionHelper,
-      pendingTransactionTracker,
-    });
-
-    this.hub.emit('tracking-map-add', networkClientId);
   }
 
   /**
@@ -3215,5 +3001,219 @@ export class TransactionController extends BaseControllerV1<
       /* istanbul ignore next */
       log('Error while updating post transaction balance', error);
     }
+  }
+
+  #getEthQuery({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  }): EthQuery {
+    // if multichain is disabled, use the global ethQuery
+    if (!this.enableMultichain) {
+      return this.ethQuery;
+    }
+    let networkClient:
+      | AutoManagedNetworkClient<NetworkClientConfiguration>
+      | undefined;
+
+    if (networkClientId) {
+      try {
+        networkClient = this.getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('failed to get network client by networkClientId');
+      }
+    }
+
+    if (!networkClient && chainId) {
+      try {
+        networkClientId = this.findNetworkClientIdByChainId(chainId);
+        networkClient = this.getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('failed to get network client by chainId');
+      }
+    }
+
+    if (networkClient) {
+      return new EthQuery(networkClient.provider);
+    }
+
+    // NOTE(JL): we're not ready to drop globally selected ethQuery yet.
+    // Some calls to getEthQuery only have access to optional networkClientId
+    // throw new Error('failed to get eth query instance');
+    return this.ethQuery;
+  }
+
+  #refreshEtherscanRemoteTransactionSources = (
+    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
+  ) => {
+    // this will be prettier when we have consolidated network clients with a single chainId:
+    // check if there are still other network clients using the same chainId
+    // if not remove the etherscanRemoteTransaction source from the map
+    const chainIdsInRegistry = new Set();
+    Object.values(networkClients).forEach((networkClient) =>
+      chainIdsInRegistry.add(networkClient.configuration.chainId),
+    );
+    const existingChainIds = Array.from(
+      this.etherscanRemoteTransactionSourcesMap.keys(),
+    );
+    const chainIdsToRemove = existingChainIds.filter(
+      (chainId) => !chainIdsInRegistry.has(chainId),
+    );
+
+    chainIdsToRemove.forEach((chainId) => {
+      this.etherscanRemoteTransactionSourcesMap.delete(chainId);
+    });
+  };
+
+  #refreshTrackingMap = (
+    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
+  ) => {
+    const networkClientIds = Object.keys(networkClients);
+    const existingNetworkClientIds = Array.from(this.trackingMap.keys());
+
+    // Remove tracking for NetworkClientIds that no longer exist
+    const networkClientIdsToRemove = existingNetworkClientIds.filter(
+      (id) => !networkClientIds.includes(id),
+    );
+    networkClientIdsToRemove.forEach((id) => {
+      this.#stopTrackingByNetworkClientId(id);
+    });
+
+    // Start tracking new NetworkClientIds from the registry
+    const networkClientIdsToAdd = networkClientIds.filter(
+      (id) => !existingNetworkClientIds.includes(id),
+    );
+    networkClientIdsToAdd.forEach((id) => {
+      this.#startTrackingByNetworkClientId(id);
+    });
+  };
+
+  #initTrackingMap = () => {
+    const networkClients = this.getNetworkClientRegistry();
+    const networkClientIds = Object.keys(networkClients);
+    networkClientIds.map((id) => this.#startTrackingByNetworkClientId(id));
+    this.hub.emit('tracking-map-init', networkClientIds);
+  };
+
+  #checkForPendingTransactionAndStartPolling = () => {
+    // PendingTransactionTracker reads state through its getTransactions hook
+    this.pendingTransactionTracker.onStateChange();
+    if (this.enableMultichain) {
+      for (const [, trackingMap] of this.trackingMap) {
+        trackingMap.pendingTransactionTracker.onStateChange();
+      }
+    }
+  };
+
+  #stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+    const trackers = this.trackingMap.get(networkClientId);
+    if (trackers) {
+      trackers.pendingTransactionTracker.stop();
+      this.removePendingTransactionTrackerListeners(
+        trackers.pendingTransactionTracker,
+      );
+      trackers.incomingTransactionHelper.stop();
+      this.removeIncomingTransactionHelperListeners(
+        trackers.incomingTransactionHelper,
+      );
+      this.trackingMap.delete(networkClientId);
+      this.hub.emit('tracking-map-remove', networkClientId);
+    }
+  }
+
+  #stopAllTracking() {
+    this.pendingTransactionTracker.stop();
+    this.removePendingTransactionTrackerListeners();
+    this.incomingTransactionHelper.stop();
+    this.removeIncomingTransactionHelperListeners();
+
+    if (this.enableMultichain) {
+      for (const [networkClientId] of this.trackingMap) {
+        this.#stopTrackingByNetworkClientId(networkClientId);
+      }
+    }
+  }
+
+  #startTrackingByNetworkClientId(networkClientId: NetworkClientId) {
+    const trackers = this.trackingMap.get(networkClientId);
+    if (trackers) {
+      return;
+    }
+    const networkClient = this.getNetworkClientById(networkClientId);
+    const { chainId } = networkClient.configuration;
+
+    let etherscanRemoteTransactionSource =
+      this.etherscanRemoteTransactionSourcesMap.get(chainId);
+    if (!etherscanRemoteTransactionSource) {
+      etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
+        includeTokenTransfers:
+          this.incomingTransactionOptions.includeTokenTransfers,
+      });
+      this.etherscanRemoteTransactionSourcesMap.set(
+        chainId,
+        etherscanRemoteTransactionSource,
+      );
+    }
+
+    const ethQuery = new EthQuery(networkClient.provider);
+
+    const nonceTracker = new NonceTracker({
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      provider: networkClient.provider as any,
+      blockTracker: networkClient.blockTracker,
+      getPendingTransactions: this.getNonceTrackerPendingTransactions.bind(
+        this,
+        chainId,
+      ),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
+    });
+
+    const incomingTransactionHelper = new IncomingTransactionHelper({
+      blockTracker: networkClient.blockTracker,
+      getCurrentAccount: this.getSelectedAddress,
+      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getChainId: () => chainId,
+      isEnabled: this.incomingTransactionOptions.isEnabled,
+      queryEntireHistory: this.incomingTransactionOptions.queryEntireHistory,
+      remoteTransactionSource: etherscanRemoteTransactionSource,
+      transactionLimit: this.config.txHistoryLimit,
+      updateTransactions: this.incomingTransactionOptions.updateTransactions,
+    });
+
+    this.addIncomingTransactionHelperListeners(incomingTransactionHelper);
+
+    const pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
+      blockTracker: networkClient.blockTracker,
+      getChainId: () => chainId,
+      getEthQuery: () => ethQuery,
+      getTransactions: () => this.state.transactions,
+      isResubmitEnabled: this.pendingTransactionOptions.isResubmitEnabled,
+      getGlobalLock: this.#acquireNonceLockForChainIdKey.bind(this, {
+        chainId,
+      }),
+      publishTransaction: this.publishTransaction.bind(this),
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.beforeCheckPendingTransaction.bind(this),
+        beforePublish: this.beforePublish.bind(this),
+      },
+    });
+
+    this.addPendingTransactionTrackerListeners(pendingTransactionTracker);
+
+    this.trackingMap.set(networkClientId, {
+      nonceTracker,
+      incomingTransactionHelper,
+      pendingTransactionTracker,
+    });
+
+    this.hub.emit('tracking-map-add', networkClientId);
   }
 }
