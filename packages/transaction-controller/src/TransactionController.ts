@@ -28,10 +28,9 @@ import type {
   NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
-  NetworkClientConfiguration,
+  NetworkClient,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
-import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -774,9 +773,7 @@ export class TransactionController extends BaseControllerV1<
     if (!this.enableMultichain) {
       return this.ethQuery;
     }
-    let networkClient:
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
+    let networkClient: NetworkClient | undefined;
 
     if (networkClientId) {
       try {
