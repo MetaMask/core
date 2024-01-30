@@ -197,7 +197,7 @@ export const SPEED_UP_RATE = 1.1;
  * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
  * @property updateTransactions - Whether to update local transactions using remote transaction data.
  */
-type IncomingTransactionOptions = {
+export type IncomingTransactionOptions = {
   includeTokenTransfers?: boolean;
   isEnabled?: () => boolean;
   queryEntireHistory?: boolean;
@@ -210,7 +210,7 @@ type IncomingTransactionOptions = {
  * Configuration options for the PendingTransactionTracker
  * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
-type PendingTransactionOptions = {
+export type PendingTransactionOptions = {
   isResubmitEnabled?: boolean;
 };
 
