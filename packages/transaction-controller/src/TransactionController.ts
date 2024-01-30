@@ -276,7 +276,7 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly mutex = new Mutex();
 
-  private readonly nonceMutexByChainId = new Map<Hex, Mutex>();
+  private readonly nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
@@ -612,7 +612,10 @@ export class TransactionController extends BaseControllerV1<
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
-      nonceTracker: this.nonceTracker,
+      getGlobalLock: async () =>
+        this.#acquireNonceLockForChainIdKey({
+          chainId: this.getChainId(),
+        }),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -1385,9 +1388,6 @@ export class TransactionController extends BaseControllerV1<
       );
     }
 
-    if (!this.nonceMutexByChainId.get(chainId)) {
-      this.nonceMutexByChainId.set(chainId, new Mutex());
-    }
     const ethQuery = new EthQuery(networkClient.provider);
 
     const nonceTracker = new NonceTracker({
@@ -1422,11 +1422,13 @@ export class TransactionController extends BaseControllerV1<
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
       blockTracker: networkClient.blockTracker,
-      getChainId: () => networkClient.configuration.chainId,
+      getChainId: () => chainId,
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: this.pendingTransactionOptions.isResubmitEnabled,
-      nonceTracker,
+      getGlobalLock: this.#acquireNonceLockForChainIdKey.bind(this, {
+        chainId,
+      }),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -1820,6 +1822,35 @@ export class TransactionController extends BaseControllerV1<
   }
 
   /**
+   * Gets the mutex intended to guard the nonceTracker for a particular chainId and key .
+   *
+   * @param opts - The options object.
+   * @param opts.chainId - The hex chainId.
+   * @param opts.key - The hex address (or constant) pertaining to the chainId
+   * @returns Mutex instance for the given chainId and key pair
+   */
+  async #acquireNonceLockForChainIdKey({
+    chainId,
+    key = 'global',
+  }: {
+    chainId: Hex;
+    key?: string;
+  }): Promise<() => void> {
+    let nonceMutexesForChainId = this.nonceMutexesByChainId.get(chainId);
+    if (!nonceMutexesForChainId) {
+      nonceMutexesForChainId = new Map<string, Mutex>();
+      this.nonceMutexesByChainId.set(chainId, nonceMutexesForChainId);
+    }
+    let nonceMutexForKey = nonceMutexesForChainId.get(key);
+    if (!nonceMutexForKey) {
+      nonceMutexForKey = new Mutex();
+      nonceMutexesForChainId.set(key, nonceMutexForKey);
+    }
+
+    return await nonceMutexForKey.acquire();
+  }
+
+  /**
    * Gets the next nonce according to the nonce-tracker.
    * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
    *
@@ -1831,13 +1862,14 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
-    let nonceMutexForChainId: Mutex | undefined;
+    let releaseLockForChainIdKey: (() => void) | undefined;
     let { nonceTracker } = this;
     if (networkClientId && this.enableMultichain) {
       const networkClient = this.getNetworkClientById(networkClientId);
-      nonceMutexForChainId = this.nonceMutexByChainId.get(
-        networkClient.configuration.chainId,
-      );
+      releaseLockForChainIdKey = await this.#acquireNonceLockForChainIdKey({
+        chainId: networkClient.configuration.chainId,
+        key: address,
+      });
       const trackers = this.trackingMap.get(networkClientId);
       if (!trackers) {
         throw new Error('missing nonceTracker for networkClientId');
@@ -1845,22 +1877,21 @@ export class TransactionController extends BaseControllerV1<
       nonceTracker = trackers?.nonceTracker;
     }
 
-    // Acquires the lock for the chainId and the nonceLock from the nonceTracker and then
+    // Acquires the lock for the chainId + address and the nonceLock from the nonceTracker, then
     // couples them together by replacing the nonceLock's releaseLock method with
     // an anonymous function that calls releases both the original nonceLock and the
     // lock for the chainId.
-    const releaseLockForChainId = await nonceMutexForChainId?.acquire();
     try {
       const nonceLock = await nonceTracker.getNonceLock(address);
       return {
         ...nonceLock,
         releaseLock: () => {
           nonceLock.releaseLock();
-          releaseLockForChainId?.();
+          releaseLockForChainIdKey?.();
         },
       };
     } catch (err) {
-      releaseLockForChainId?.();
+      releaseLockForChainIdKey?.();
       throw err;
     }
   }
@@ -2473,17 +2504,9 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      let { nonceTracker } = this;
-      if (networkClientId) {
-        const trackers = this.trackingMap.get(networkClientId);
-        if (!trackers) {
-          throw new Error('missing nonceTracker for networkClientId');
-        }
-        nonceTracker = trackers?.nonceTracker;
-      }
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
-        nonceTracker,
+        (address: string) => this.getNonceLock(address, networkClientId),
       );
 
       releaseNonceLock = releaseNonce;

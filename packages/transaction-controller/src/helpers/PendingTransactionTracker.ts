@@ -6,7 +6,6 @@ import type {
 } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
-import type { NonceTracker } from 'nonce-tracker';
 
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionReceipt } from '../types';
@@ -78,7 +77,7 @@ export class PendingTransactionTracker {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #listener: any;
 
-  #nonceTracker: NonceTracker;
+  #getGlobalLock: () => Promise<() => void>;
 
   #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
 
@@ -95,7 +94,7 @@ export class PendingTransactionTracker {
     getEthQuery,
     getTransactions,
     isResubmitEnabled,
-    nonceTracker,
+    getGlobalLock,
     publishTransaction,
     hooks,
   }: {
@@ -105,7 +104,7 @@ export class PendingTransactionTracker {
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
-    nonceTracker: NonceTracker;
+    getGlobalLock: () => Promise<() => void>;
     publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
@@ -124,7 +123,7 @@ export class PendingTransactionTracker {
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? true;
     this.#listener = this.#onLatestBlock.bind(this);
-    this.#nonceTracker = nonceTracker;
+    this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
@@ -165,7 +164,7 @@ export class PendingTransactionTracker {
   }
 
   async #onLatestBlock(latestBlockNumber: string) {
-    const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
+    const releaseLock = await this.#getGlobalLock();
 
     try {
       await this.#checkTransactions();
@@ -173,7 +172,7 @@ export class PendingTransactionTracker {
       /* istanbul ignore next */
       log('Failed to check transactions', error);
     } finally {
-      nonceGlobalLock.releaseLock();
+      releaseLock();
     }
 
     try {
