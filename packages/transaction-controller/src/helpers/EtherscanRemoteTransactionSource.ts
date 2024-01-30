@@ -24,6 +24,7 @@ import type {
   EtherscanTransactionResponse,
 } from '../utils/etherscan';
 
+const ETHERSCAN_RATE_LIMIT_INTERVAL = 5000;
 /**
  * A RemoteTransactionSource that fetches transaction data from Etherscan.
  */
@@ -35,8 +36,6 @@ export class EtherscanRemoteTransactionSource
   #isTokenRequestPending: boolean;
 
   #mutex = new Mutex();
-
-  ETHERSCAN_RATE_LIMIT_INTERVAL = 5000;
 
   constructor({
     includeTokenTransfers,
@@ -75,15 +74,20 @@ export class EtherscanRemoteTransactionSource
 
       return transactions;
     } finally {
-      const elapsedTime = Date.now() - acquiredTime;
-      const remainingTime = Math.max(
-        0,
-        this.ETHERSCAN_RATE_LIMIT_INTERVAL - elapsedTime,
-      );
-      // Wait for the remaining time if it hasn't been 5 seconds yet
-      if (remainingTime > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remainingTime));
-      }
+      this.#releaseLockAfterInterval(acquiredTime, releaseLock);
+    }
+  }
+
+  #releaseLockAfterInterval(acquireTime: number, releaseLock: () => void) {
+    const elapsedTime = Date.now() - acquireTime;
+    const remainingTime = Math.max(
+      0,
+      ETHERSCAN_RATE_LIMIT_INTERVAL - elapsedTime,
+    );
+    // Wait for the remaining time if it hasn't been 5 seconds yet
+    if (remainingTime > 0) {
+      setTimeout(releaseLock, remainingTime);
+    } else {
       releaseLock();
     }
   }
