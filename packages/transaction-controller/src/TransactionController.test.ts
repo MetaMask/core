@@ -21,6 +21,7 @@ import type {
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { EventEmitter } from 'events';
+import { createDeferredPromise } from '@metamask/utils';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -4972,6 +4973,63 @@ describe('TransactionController', () => {
       await controller.updateIncomingTransactions([]);
 
       expect(incomingTransactionHelperMocks[0].update).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('abortTransactionSigning', () => {
+    it('throws if transaction does not exist', () => {
+      const controller = newController();
+
+      expect(() =>
+        controller.abortTransactionSigning(TRANSACTION_META_MOCK.id),
+      ).toThrow('Cannot abort signing as no transaction metadata found');
+    });
+
+    it('throws if transaction not being signed', () => {
+      const controller = newController();
+
+      controller.state.transactions = [TRANSACTION_META_MOCK];
+
+      expect(() =>
+        controller.abortTransactionSigning(TRANSACTION_META_MOCK.id),
+      ).toThrow(
+        'Cannot abort signing as transaction is not waiting for signing',
+      );
+    });
+
+    it('sets status to failed if transaction being signed', async () => {
+      const controller = newController({
+        approve: true,
+        config: {
+          sign: jest.fn().mockReturnValue(createDeferredPromise().promise),
+        },
+      });
+
+      const { transactionMeta, result } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      result.catch(() => {
+        // Ignore error
+      });
+
+      await flushPromises();
+
+      controller.abortTransactionSigning(transactionMeta.id);
+
+      await flushPromises();
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
+      expect(
+        (
+          controller.state.transactions[0] as TransactionMeta & {
+            status: TransactionStatus.failed;
+          }
+        ).error.message,
+      ).toBe('Signing aborted by user');
     });
   });
 });

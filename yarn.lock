@@ -1942,22 +1942,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-keyring-controller@npm:^17.0.1":
-  version: 17.0.1
-  resolution: "@metamask/eth-keyring-controller@npm:17.0.1"
-  dependencies:
-    "@ethereumjs/tx": ^4.2.0
-    "@metamask/browser-passworder": ^4.3.0
-    "@metamask/eth-hd-keyring": ^7.0.1
-    "@metamask/eth-sig-util": ^7.0.0
-    "@metamask/eth-simple-keyring": ^6.0.1
-    "@metamask/keyring-api": ^3.0.0
-    "@metamask/obs-store": ^9.0.0
-    "@metamask/utils": ^8.2.0
-  checksum: ddaeeb15510fd1896bbe94ca3c47c5867730a1370ec19b7ba4206b1048e303a846c67592a64efbfed7f19d82eaa782f84e802d0d66e0d4764420684199e47c33
-  languageName: node
-  linkType: hard
-
 "@metamask/eth-query@npm:^4.0.0":
   version: 4.0.0
   resolution: "@metamask/eth-query@npm:4.0.0"
@@ -2243,8 +2227,10 @@ __metadata:
     "@lavamoat/allow-scripts": ^2.3.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
-    "@metamask/eth-keyring-controller": ^17.0.1
+    "@metamask/browser-passworder": ^4.3.0
+    "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.1
+    "@metamask/eth-simple-keyring": ^6.0.1
     "@metamask/keyring-api": ^3.0.0
     "@metamask/message-manager": ^7.3.8
     "@metamask/scure-bip39": ^2.1.1
@@ -2403,16 +2389,6 @@ __metadata:
     "@metamask/safe-event-emitter": ^2.0.0
     through2: ^2.0.3
   checksum: e1497140384de0ac689adbe7286df43e843c5d73fd8ba7080af2faab3de73e823b46b8214be1c839d9e9e5f86fb40df50a26e93bae936329daeaedae5e523323
-  languageName: node
-  linkType: hard
-
-"@metamask/obs-store@npm:^9.0.0":
-  version: 9.0.0
-  resolution: "@metamask/obs-store@npm:9.0.0"
-  dependencies:
-    "@metamask/safe-event-emitter": ^3.0.0
-    readable-stream: ^3.6.2
-  checksum: 1c202a5bbdc79a6b8b3fba946c09dc5521e87260956d30db6543e7bf3d95bd44ebd958f509e3e7332041845176487fe78d3b40bdedbc213061ba849fd978e468
   languageName: node
   linkType: hard
 
