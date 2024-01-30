@@ -3095,7 +3095,7 @@ describe('TransactionController Integration', () => {
       );
 
       // we have to wait for the mutex to be released after the 5 second API rate limit timer
-      await advanceTime({ clock, duration: 5000 });
+      await advanceTime({ clock, duration: 1 });
 
       expect(transactionController.state.transactions).toHaveLength(
         2 * networkClientIds.length,
