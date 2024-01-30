@@ -3,10 +3,7 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  KeyringControllerError,
-  keyringBuilderFactory,
-} from '@metamask/eth-keyring-controller';
+import HDKeyring from '@metamask/eth-hd-keyring';
 import {
   normalize,
   recoverPersonalSignature,
@@ -34,6 +31,7 @@ import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
 import { MockKeyring } from '../tests/mocks/mockKeyring';
 import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import { buildMockTransaction } from '../tests/mocks/mockTransaction';
+import { KeyringControllerError } from './constants';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -45,6 +43,7 @@ import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
+  keyringBuilderFactory,
 } from './KeyringController';
 
 jest.mock('uuid', () => {
@@ -524,6 +523,20 @@ describe('KeyringController', () => {
                     123,
                   ),
                 ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+              },
+            );
+          });
+
+          it('should throw error if the first account is not found on the keyring', async () => {
+            jest
+              .spyOn(HDKeyring.prototype, 'getAccounts')
+              .mockResolvedValue([]);
+            await withController(
+              { skipVaultCreation: true },
+              async ({ controller }) => {
+                await expect(
+                  controller.createNewVaultAndKeychain(password),
+                ).rejects.toThrow(KeyringControllerError.NoFirstAccount);
               },
             );
           });
@@ -1214,7 +1227,7 @@ describe('KeyringController', () => {
               data: '',
               from: initialState.keyrings[0].accounts[0],
             }),
-          ).toThrow("Can't sign an empty message");
+          ).rejects.toThrow("Can't sign an empty message");
         });
       });
 
