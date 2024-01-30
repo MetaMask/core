@@ -20,8 +20,8 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import { EventEmitter } from 'events';
 import { createDeferredPromise } from '@metamask/utils';
+import { EventEmitter } from 'events';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
