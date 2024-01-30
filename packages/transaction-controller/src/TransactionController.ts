@@ -273,6 +273,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly speedUpMultiplier: number;
 
+  private readonly signAbortCallbacks: Map<string, () => void> = new Map();
+
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
@@ -1818,6 +1820,31 @@ export class TransactionController extends BaseControllerV1<
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
+  /**
+   * Stop the signing process for a specific transaction.
+   * Throws an error causing the transaction status to be set to failed.
+   * @param transactionId - The ID of the transaction to stop signing.
+   */
+  abortTransactionSigning(transactionId: string) {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(`Cannot abort signing as no transaction metadata found`);
+    }
+
+    const abortCallback = this.signAbortCallbacks.get(transactionId);
+
+    if (!abortCallback) {
+      throw new Error(
+        `Cannot abort signing as transaction is not waiting for signing`,
+      );
+    }
+
+    abortCallback();
+
+    this.signAbortCallbacks.delete(transactionId);
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     const { transactions } = this.state;
     transactions.push(transactionMeta);
@@ -2572,11 +2599,19 @@ export class TransactionController extends BaseControllerV1<
 
     this.inProcessOfSigning.add(transactionMeta.id);
 
-    const signedTx = await this.sign?.(
-      unsignedEthTx,
-      txParams.from,
-      ...this.getAdditionalSignArguments(transactionMeta),
-    );
+    const signedTx = await new Promise<TypedTransaction>((resolve, reject) => {
+      this.sign?.(
+        unsignedEthTx,
+        txParams.from,
+        ...this.getAdditionalSignArguments(transactionMeta),
+      ).then(resolve, reject);
+
+      this.signAbortCallbacks.set(transactionMeta.id, () =>
+        reject(new Error('Signing aborted by user')),
+      );
+    });
+
+    this.signAbortCallbacks.delete(transactionMeta.id);
 
     if (!signedTx) {
       log('Skipping signed status as no signed transaction');
