@@ -1,10 +1,5 @@
 import { v1 as random } from 'uuid';
 
-import { CHAIN_IDS } from '../constants';
-import {
-  fetchEtherscanTokenTransactions,
-  fetchEtherscanTransactions,
-} from '../utils/etherscan';
 import {
   ID_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK,
@@ -17,6 +12,11 @@ import {
   ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK,
 } from '../../test/EtherscanMocks';
+import { CHAIN_IDS } from '../constants';
+import {
+  fetchEtherscanTokenTransactions,
+  fetchEtherscanTransactions,
+} from '../utils/etherscan';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 
 jest.mock('../utils/etherscan', () => ({
