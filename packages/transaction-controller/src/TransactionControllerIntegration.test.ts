@@ -3298,6 +3298,249 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
+    it('should block attempts to get the nonce lock for the same address from the nonceTracker for the different networkClientIds on the same chainId until the previous lock is released', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      const { networkController, transactionController } = await newController(
+        {},
+      );
+      mockNetwork({
+        networkClientConfiguration,
+        mocks: [
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // NonceTracker
+          {
+            request: {
+              method: 'eth_getTransactionCount',
+              params: [ACCOUNT_MOCK, '0x1'],
+            },
+            response: {
+              result: '0xa',
+            },
+          },
+        ],
+      });
+
+      mockNetwork({
+        networkClientConfiguration: {
+          ...networkClientConfiguration,
+          type: NetworkClientType.Custom,
+          rpcUrl: 'https://mock.rpc.url',
+        },
+        mocks: [
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // NonceTracker
+          {
+            request: {
+              method: 'eth_getTransactionCount',
+              params: [ACCOUNT_MOCK, '0x1'],
+            },
+            response: {
+              result: '0xa',
+            },
+          },
+        ],
+      });
+
+      const otherNetworkClientIdOnGoerli =
+        await networkController.upsertNetworkConfiguration(
+          {
+            rpcUrl: 'https://mock.rpc.url',
+            chainId: networkClientConfiguration.chainId,
+            ticker: networkClientConfiguration.ticker,
+          },
+          {
+            referrer: 'https://mock.referrer',
+            source: 'dapp',
+          },
+        );
+
+      const firstNonceLockPromise = transactionController.getNonceLock(
+        ACCOUNT_MOCK,
+        'goerli',
+      );
+      await advanceTime({ clock, duration: 1 });
+
+      const firstNonceLock = await firstNonceLockPromise;
+
+      expect(firstNonceLock.nextNonce).toBe(10);
+
+      const secondNonceLockPromise = transactionController.getNonceLock(
+        ACCOUNT_MOCK,
+        otherNetworkClientIdOnGoerli,
+      );
+      const delay = () =>
+        new Promise<null>(async (resolve) => {
+          await advanceTime({ clock, duration: 100 });
+          resolve(null);
+        });
+
+      let secondNonceLockIfAcquired = await Promise.race([
+        secondNonceLockPromise,
+        delay(),
+      ]);
+      expect(secondNonceLockIfAcquired).toBeNull();
+
+      await firstNonceLock.releaseLock();
+      await advanceTime({ clock, duration: 1 });
+
+      secondNonceLockIfAcquired = await Promise.race([
+        secondNonceLockPromise,
+        delay(),
+      ]);
+      expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
+
+      transactionController.destroy();
+    });
+
+    it('should not block attempts to get the nonce lock for the same addresses from the nonceTracker for different networkClientIds', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+
+      const { transactionController } = await newController({});
+
+      mockNetwork({
+        networkClientConfiguration,
+        mocks: [
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // NonceTracker
+          {
+            request: {
+              method: 'eth_getTransactionCount',
+              params: [ACCOUNT_MOCK, '0x1'],
+            },
+            response: {
+              result: '0xa',
+            },
+          },
+        ],
+      });
+
+      mockNetwork({
+        networkClientConfiguration: sepoliaNetworkClientConfiguration,
+        mocks: [
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+          // NonceTracker
+          {
+            request: {
+              method: 'eth_getTransactionCount',
+              params: [ACCOUNT_MOCK, '0x1'],
+            },
+            response: {
+              result: '0xf',
+            },
+          },
+        ],
+      });
+
+      const firstNonceLockPromise = transactionController.getNonceLock(
+        ACCOUNT_MOCK,
+        'goerli',
+      );
+      await advanceTime({ clock, duration: 1 });
+
+      const firstNonceLock = await firstNonceLockPromise;
+
+      expect(firstNonceLock.nextNonce).toBe(10);
+
+      const secondNonceLockPromise = transactionController.getNonceLock(
+        ACCOUNT_MOCK,
+        'sepolia',
+      );
+      await advanceTime({ clock, duration: 1 });
+
+      const secondNonceLock = await secondNonceLockPromise;
+
+      expect(secondNonceLock.nextNonce).toBe(15);
+
+      transactionController.destroy();
+    });
+
     it('should not block attempts to get the nonce lock for different addresses from the nonceTracker for the networkClientId', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
