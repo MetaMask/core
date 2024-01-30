@@ -205,7 +205,7 @@ type TransactionMetaBase = {
   isUserOperation?: boolean;
 
   /**
-   * The id for the NetworkClient for the transaction.
+   * The ID of the network client used by the transaction.
    */
   networkClientId?: NetworkClientId;
 
