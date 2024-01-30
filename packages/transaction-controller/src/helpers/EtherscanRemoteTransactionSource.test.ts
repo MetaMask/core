@@ -16,7 +16,7 @@ import {
   EXPECTED_NORMALISED_TOKEN_TRANSACTION,
   ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK,
-} from './EtherscanMocks';
+} from '../../test/EtherscanMocks';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 
 jest.mock('../utils/etherscan', () => ({
