@@ -35,7 +35,11 @@ import {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
+import type {
+  NonceLock,
+  Transaction as NonceTrackerTransaction,
+} from 'nonce-tracker/dist/NonceTracker';
+import { Hex } from '@metamask/utils';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -55,9 +59,13 @@ import {
   SubmitHistoryEntry,
   Transaction,
   TransactionMeta,
+  TransactionReceipt,
   TransactionStatus,
+  TransactionType,
   WalletDevice,
 } from './types';
+import { updatePostTransactionBalance } from './swaps';
+import { validateConfirmedExternalTransaction } from './external-transactions';
 
 const HARDFORK = 'london';
 const SUBMIT_HISTORY_LIMIT = 100;
@@ -177,6 +185,10 @@ export class TransactionController extends BaseController<
 
   private incomingTransactionHelper: IncomingTransactionHelper;
 
+  private readonly getExternalPendingTransactions: (
+    address: string,
+  ) => NonceTrackerTransaction[];
+
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
       ...transactionMeta,
@@ -218,6 +230,7 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
+   * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
@@ -234,6 +247,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       getNetworkState,
       getSelectedAddress,
+      getExternalPendingTransactions,
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
@@ -242,6 +256,9 @@ export class TransactionController extends BaseController<
       blockTracker: BlockTrackerProxy;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
+      getExternalPendingTransactions?: (
+        address: string,
+      ) => NonceTrackerTransaction[];
       incomingTransactions: {
         apiKey?: string;
         includeTokenTransfers?: boolean;
@@ -275,14 +292,14 @@ export class TransactionController extends BaseController<
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
     this.messagingSystem = messenger;
+    this.getExternalPendingTransactions =
+      getExternalPendingTransactions ?? (() => []);
 
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
-      getPendingTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.submitted,
-      ),
+      getPendingTransactions:
+        this.getNonceTrackerPendingTransactions.bind(this),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
         TransactionStatus.confirmed,
@@ -927,6 +944,50 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Adds external provided transaction to state as confirmed transaction.
+   *
+   * @param transactionMeta - TransactionMeta to add transactions.
+   * @param transactionReceipt - TransactionReceipt of the external transaction.
+   * @param baseFeePerGas - Base fee per gas of the external transaction.
+   */
+  async confirmExternalTransaction(
+    transactionMeta: TransactionMeta,
+    transactionReceipt: TransactionReceipt,
+    baseFeePerGas: Hex,
+  ) {
+    // Run validation and add external transaction to state.
+    this.addExternalTransaction(transactionMeta);
+
+    try {
+      const transactionId = transactionMeta.id;
+
+      // Make sure status is confirmed and define gasUsed as in receipt.
+      transactionMeta.status = TransactionStatus.confirmed;
+      transactionMeta.txReceipt = transactionReceipt;
+      if (baseFeePerGas) {
+        transactionMeta.baseFeePerGas = baseFeePerGas;
+      }
+
+      // Update same nonce local transactions as dropped and define replacedBy properties.
+      this.markNonceDuplicatesDropped(transactionId);
+
+      // Update external provided transaction with updated gas values and confirmed status.
+      this.updateTransaction(transactionMeta);
+      this.onTransactionStatusChange(transactionMeta);
+
+      // Intentional given potential duration of process.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.updatePostBalance(transactionMeta);
+
+      this.hub.emit('transaction-confirmed', {
+        transactionMeta,
+      });
+    } catch (error) {
+      console.error('Failed to confirm external transaction', error);
+    }
+  }
+
+  /**
    * Trim the amount of transactions that are set on the state. Checks
    * if the length of the tx history is longer then desired persistence
    * limit and then if it is removes the oldest confirmed or rejected tx.
@@ -1434,6 +1495,132 @@ export class TransactionController extends BaseController<
     }
 
     this.update({ submitHistory });
+  }
+
+  private getNonceTrackerPendingTransactions(address: string) {
+    const standardPendingTransactions = this.getNonceTrackerTransactions(
+      TransactionStatus.submitted,
+      address,
+    );
+
+    const externalPendingTransactions =
+      this.getExternalPendingTransactions(address);
+
+    return [...standardPendingTransactions, ...externalPendingTransactions];
+  }
+
+  /**
+   * Validates and adds external provided transaction to state.
+   *
+   * @param transactionMeta - Nominated external transaction to be added to state.
+   */
+  private addExternalTransaction(transactionMeta: TransactionMeta) {
+    const chainId = this.getChainId();
+    const { transactions } = this.state;
+    const fromAddress = transactionMeta?.transaction?.from;
+    const sameFromAndNetworkTransactions = transactions.filter(
+      (transaction) =>
+        transaction.transaction.from === fromAddress &&
+        transaction.chainId === chainId,
+    );
+    const confirmedTxs = sameFromAndNetworkTransactions.filter(
+      (transaction) => transaction.status === TransactionStatus.confirmed,
+    );
+    const pendingTxs = sameFromAndNetworkTransactions.filter(
+      (transaction) => transaction.status === TransactionStatus.submitted,
+    );
+
+    validateConfirmedExternalTransaction(
+      transactionMeta,
+      confirmedTxs,
+      pendingTxs,
+    );
+
+    const updatedTransactions = [...transactions, transactionMeta];
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+  }
+
+  /**
+   * Sets other txMeta statuses to dropped if the txMeta that has been confirmed has other transactions
+   * in the transactions have the same nonce.
+   *
+   * @param transactionId - Used to identify original transaction.
+   */
+  private markNonceDuplicatesDropped(transactionId: string) {
+    const chainId = this.getChainId();
+    const transactionMeta = this.getTransaction(transactionId);
+    const nonce = transactionMeta?.transaction?.nonce;
+    const from = transactionMeta?.transaction?.from;
+
+    const sameNonceTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.id !== transactionId &&
+        transaction.transaction.from === from &&
+        transaction.transaction.nonce === nonce &&
+        transaction.chainId === chainId &&
+        transaction.type !== TransactionType.incoming,
+    );
+
+    if (!sameNonceTxs.length) {
+      return;
+    }
+
+    // Mark all same nonce transactions as dropped and give it a replacedBy hash
+    for (const transaction of sameNonceTxs) {
+      transaction.replacedBy = transactionMeta?.transactionHash;
+      transaction.replacedById = transactionMeta?.id;
+      // Drop any transaction that wasn't previously failed (off chain failure)
+      if (transaction.status !== TransactionStatus.failed) {
+        this.setTransactionStatusDropped(transaction);
+      }
+    }
+  }
+
+  /**
+   * Method to set transaction status to dropped.
+   *
+   * @param transactionMeta - TransactionMeta of transaction to be marked as dropped.
+   */
+  private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
+    transactionMeta.status = TransactionStatus.dropped;
+    this.hub.emit('transaction-dropped', {
+      transactionMeta,
+    });
+    this.updateTransaction(transactionMeta);
+    this.onTransactionStatusChange(transactionMeta);
+  }
+
+  private async updatePostBalance(transactionMeta: TransactionMeta) {
+    try {
+      if (transactionMeta.type !== TransactionType.swap) {
+        return;
+      }
+
+      const { updatedTransactionMeta, approvalTransactionMeta } =
+        await updatePostTransactionBalance(transactionMeta, {
+          ethQuery: this.ethQuery,
+          getTransaction: this.getTransaction.bind(this),
+          updateTransaction: this.updateTransaction.bind(this),
+        });
+
+      this.hub.emit('post-transaction-balance-updated', {
+        transactionMeta: updatedTransactionMeta,
+        approvalTransactionMeta,
+      });
+    } catch (error) {
+      console.error('Error while updating post transaction balance', error);
+    }
+  }
+
+  private onTransactionStatusChange(transactionMeta: TransactionMeta) {
+    this.hub.emit('transaction-status-update', { transactionMeta });
+  }
+
+  private getChainId(): string {
+    const { providerConfig } = this.getNetworkState();
+    return providerConfig.chainId;
   }
 }
 
