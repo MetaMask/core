@@ -633,7 +633,7 @@ export class TransactionController extends BaseControllerV1<
     // selectedNetworkClientId changes
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
-      this.pendingTransactionTracker.onStateChange();
+      this.pendingTransactionTracker.startIfPendingTransactions();
       this.onBootCleanup();
     });
 
@@ -3096,10 +3096,10 @@ export class TransactionController extends BaseControllerV1<
 
   #checkForPendingTransactionAndStartPolling = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
-    this.pendingTransactionTracker.onStateChange();
+    this.pendingTransactionTracker.startIfPendingTransactions();
     if (this.enableMultichain) {
       for (const [, trackingMap] of this.trackingMap) {
-        trackingMap.pendingTransactionTracker.onStateChange();
+        trackingMap.pendingTransactionTracker.startIfPendingTransactions();
       }
     }
   };

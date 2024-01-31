@@ -70,7 +70,7 @@ describe('PendingTransactionTracker', () => {
       { ...TRANSACTION_SUBMITTED_MOCK },
     ]);
 
-    pendingTransactionTracker.onStateChange();
+    pendingTransactionTracker.startIfPendingTransactions();
 
     if (transactionsOnCheck) {
       options.getTransactions.mockReturnValue(transactionsOnCheck);
@@ -103,7 +103,7 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.startIfPendingTransactions();
 
       expect(blockTracker.on).toHaveBeenCalledTimes(1);
       expect(blockTracker.on).toHaveBeenCalledWith(
@@ -117,8 +117,8 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange();
-      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.startIfPendingTransactions();
+      pendingTransactionTracker.startIfPendingTransactions();
 
       expect(blockTracker.on).toHaveBeenCalledTimes(1);
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
@@ -129,13 +129,13 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.startIfPendingTransactions();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
 
       options.getTransactions.mockReturnValue([]);
 
-      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.startIfPendingTransactions();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
       expect(blockTracker.removeListener).toHaveBeenCalledWith(
@@ -149,17 +149,17 @@ describe('PendingTransactionTracker', () => {
 
       options.getTransactions.mockReturnValue([TRANSACTION_SUBMITTED_MOCK]);
 
-      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.startIfPendingTransactions();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
 
       options.getTransactions.mockReturnValue([]);
 
-      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.startIfPendingTransactions();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
 
-      pendingTransactionTracker.onStateChange();
+      pendingTransactionTracker.startIfPendingTransactions();
 
       expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
     });

@@ -131,7 +131,7 @@ export class PendingTransactionTracker {
       hooks?.beforeCheckPendingTransaction ?? (() => true);
   }
 
-  onStateChange = () => {
+  startIfPendingTransactions = () => {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (pendingTransactions.length) {

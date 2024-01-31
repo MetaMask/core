@@ -715,6 +715,7 @@ describe('TransactionController', () => {
       const pendingTransactionTrackerMock = {
         start: jest.fn(),
         stop: jest.fn(),
+        startIfPendingTransactions: jest.fn(),
         hub: {
           on: jest.fn(),
           removeAllListeners: jest.fn(),
