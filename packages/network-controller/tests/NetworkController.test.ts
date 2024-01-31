@@ -2776,7 +2776,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it.only('does not update network metadata property', async () => {
+        it('does not update network metadata property', async () => {
           await withController(
             {
               state: {
@@ -2820,8 +2820,8 @@ describe('NetworkController', () => {
                 Object.keys(
                   controller.state.networksMetadata['https://mock-rpc-url']
                     .EIPS,
-                ).length,
-              ).toStrictEqual(0);
+                ),
+              ).toHaveLength(0);
             },
           );
         });
