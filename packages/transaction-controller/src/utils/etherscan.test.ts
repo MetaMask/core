@@ -7,7 +7,7 @@ import type {
   EtherscanTransactionResponse,
 } from './etherscan';
 import * as Etherscan from './etherscan';
-import {getEtherscanApiHost}from './etherscan';
+import { getEtherscanApiHost } from './etherscan';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
