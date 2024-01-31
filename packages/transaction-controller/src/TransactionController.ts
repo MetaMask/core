@@ -214,6 +214,16 @@ type PendingTransactionOptions = {
 };
 
 /**
+ * @type NetworkClientRegistry
+ *
+ * Registry of network clients provided by the NetworkController
+ */
+
+type NetworkClientRegistry = ReturnType<
+  NetworkController['getNetworkClientRegistry']
+>;
+
+/**
  * The name of the {@link TransactionController}.
  */
 const controllerName = 'TransactionController';
@@ -3043,7 +3053,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   #refreshEtherscanRemoteTransactionSources = (
-    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
+    networkClients: NetworkClientRegistry,
   ) => {
     // this will be prettier when we have consolidated network clients with a single chainId:
     // check if there are still other network clients using the same chainId
