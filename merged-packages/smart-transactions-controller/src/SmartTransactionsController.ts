@@ -6,7 +6,7 @@ import {
   NetworkClientId,
 } from '@metamask/network-controller';
 import EthQuery, { Provider } from '@metamask/eth-query';
-import { PollingControllerV1 } from '@metamask/polling-controller';
+import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import { BigNumber } from 'bignumber.js';
 import { hexlify } from '@ethersproject/bytes';
 import cloneDeep from 'lodash/cloneDeep';
@@ -63,7 +63,7 @@ export type SmartTransactionsControllerState = BaseState & {
   };
 };
 
-export default class SmartTransactionsController extends PollingControllerV1<
+export default class SmartTransactionsController extends StaticIntervalPollingControllerV1<
   SmartTransactionsControllerConfig,
   SmartTransactionsControllerState
 > {
