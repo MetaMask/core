@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+- chore(deps): bump @metamask/eth-json-rpc-middleware from 12.0.1 to 12.1.0 ([#3829](https://github.com/MetaMask/core/pull/3829))
+
 ## [17.2.0]
 
 ### Changed
