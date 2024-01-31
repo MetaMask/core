@@ -126,7 +126,7 @@ export interface TransactionState extends BaseState {
 /**
  * Multiplier used to determine a transaction's increased gas fee during cancellation
  */
-export const CANCEL_RATE = 1.5;
+export const CANCEL_RATE = 1.1;
 
 /**
  * Multiplier used to determine a transaction's increased gas fee during speed up
