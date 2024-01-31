@@ -63,7 +63,7 @@ parse_version_range(VersionRange, Modifier, Major, Minor, Patch) :-
 % considered as less than the second.
 %
 % Borrowed from: <https://github.com/npm/node-semver/blob/a7b8722674e2eedfd89960b4155ffddd6a20ee21/classes/semver.js#L107>
-npm_version_range_out_of_sync(VersionRange1, VersionRange2) :-
+is_version_range_greater(VersionRange1, VersionRange2) :-
   parse_version_range(VersionRange1, VersionRange1Modifier, VersionRange1Major, VersionRange1Minor, VersionRange1Patch),
   parse_version_range(VersionRange2, VersionRange2Modifier, VersionRange2Major, VersionRange2Minor, VersionRange2Patch),
   VersionRange1Modifier == VersionRange2Modifier,
@@ -117,7 +117,7 @@ repo_name(RepoUrl, RepoName) :-
   RepoNameLength is End - Start,
   sub_atom(RepoUrl, PrefixLength, RepoNameLength, SuffixLength, RepoName).
 
-% True if DependencyIdent starts with '@metamask' and ends with '-controller'
+% True if DependencyIdent starts with '@metamask' and ends with '-controller'.
 is_controller(DependencyIdent) :-
   Prefix = '@metamask/',
   atom_length(Prefix, PrefixLength),
@@ -308,43 +308,66 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally start
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   \+ is_valid_version_range(DependencyRange).
 
-% All references to a workspace package must be up to date with the current
-% version of that package.
-gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, DependencyType) :-
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
-  workspace_ident(OtherWorkspaceCwd, DependencyIdent),
-  workspace_version(OtherWorkspaceCwd, OtherWorkspaceVersion),
-  atomic_list_concat(['^', OtherWorkspaceVersion], CorrectDependencyRange).
-
-% All dependency ranges for a package must be synchronized across the monorepo
-% (the least version range wins), regardless of which "*dependencies" field
-% where the package appears.
+% All version ranges used to reference one workspace package in another
+% workspace package's `dependencies`, `devDependencies`, or `peerDependencies`
+% must be the same. Among all references to the same dependency across the
+% monorepo, the one with the smallest version range will win.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, OtherDependencyRange, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   workspace_has_dependency(OtherWorkspaceCwd, DependencyIdent, OtherDependencyRange, OtherDependencyType),
   WorkspaceCwd \= OtherWorkspaceCwd,
   DependencyRange \= OtherDependencyRange,
-  npm_version_range_out_of_sync(DependencyRange, OtherDependencyRange).
+  is_version_range_greater(DependencyRange, OtherDependencyRange).
 
-% If a dependency is listed under "dependencies", it should not be listed under
-% "devDependencies". We match on the same dependency range so that if a
-% dependency is listed under both lists, their versions are synchronized and
-% then this constraint will apply and remove the "right" duplicate.
+% All version ranges used to reference one workspace package in another
+% workspace package's `dependencies` or `devDependencies` must match the current
+% version of that package. (We handle `peerDependencies` in another rule.)
+%gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, DependencyType) :-
+  %DependencyType \= 'peerDependencies',
+  %workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
+  %workspace_ident(OtherWorkspaceCwd, DependencyIdent),
+  %workspace_version(OtherWorkspaceCwd, OtherWorkspaceVersion),
+  %atomic_list_concat(['^', OtherWorkspaceVersion], CorrectDependencyRange).
+
+% If a workspace package is listed under another workspace package's
+% `dependencies`, it should not also be listed under its `devDependencies`.
+%
+% We care that the versions are the same between the two instances here so that
+% this constraint will apply and remove the "right" duplicate.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   DependencyType == 'devDependencies'.
 
-% If a controller dependency (other than `base-controller`, `eth-keyring-controller` and
-% `polling-controller`) is listed under "dependencies", it should also be
-% listed under "peerDependencies". Each controller is a singleton, so we need
-% to ensure the versions used match expectations.
-gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'peerDependencies') :-
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+% Each controller is a singleton, so we need to ensure the versions
+% used match expectations. To accomplish this, if a controller (other than
+% `base-controller`, `eth-keyring-controller` and `polling-controller`) is
+% listed under a workspace package's `dependencies`, it should also be listed
+% under its `peerDependencies`, and the major version of the peer dependency
+% should match the major version of the production dependency.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, SourceDependencyType),
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, PeerDependencyRange, 'peerDependencies'),
+  is_controller(DependencyIdent),
   DependencyIdent \= '@metamask/base-controller',
   DependencyIdent \= '@metamask/eth-keyring-controller',
   DependencyIdent \= '@metamask/polling-controller',
-  is_controller(DependencyIdent).
+  DependencyRange \= PeerDependencyRange,
+  SourceDependencyType \= 'peerDependencies',
+  parse_version_range(DependencyRange, _, DependencyMajor, DependencyMinor, DependencyPatch),
+  parse_version_range(PeerDependencyRange, _, PeerDependencyMajor, PeerDependencyMinor, PeerDependencyPatch),
+  (
+    is_version_range_greater(PeerDependencyRange, DependencyRange),
+    DependencyOrPeerDependencyMinor = DependencyMinor ;
+    DependencyOrPeerDependencyMinor = PeerDependencyMinor
+  ),
+  (
+    is_version_range_greater(PeerDependencyRange, DependencyRange),
+    DependencyOrPeerDependencyPatch = DependencyPatch ;
+    DependencyOrPeerDependencyPatch = PeerDependencyPatch
+  ),
+  atomic_list_concat([DependencyMajor, DependencyOrPeerDependencyMinor, DependencyOrPeerDependencyPatch], '.', CorrectPeerDependencyVersion),
+  atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange).
 
 % All packages must specify a minimum Node version of 16.
 gen_enforced_field(WorkspaceCwd, 'engines.node', '>=16.0.0').
