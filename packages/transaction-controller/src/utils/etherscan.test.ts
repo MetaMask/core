@@ -7,6 +7,7 @@ import type {
   EtherscanTransactionResponse,
 } from './etherscan';
 import * as Etherscan from './etherscan';
+import {getEtherscanApiHost}from './etherscan';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -35,6 +36,21 @@ describe('Etherscan', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  describe('getEtherscanApiHost', () => {
+    it('returns Etherscan API host for supported network', () => {
+      expect(getEtherscanApiHost(CHAIN_IDS.GOERLI)).toBe(
+        `https://${ETHERSCAN_SUPPORTED_NETWORKS[CHAIN_IDS.GOERLI].subdomain}.${
+          ETHERSCAN_SUPPORTED_NETWORKS[CHAIN_IDS.GOERLI].domain
+        }`,
+      );
+    });
+    it('returns an error for unsupported network', () => {
+      expect(() => getEtherscanApiHost('0x11111111111111111111')).toThrow(
+        'Etherscan does not support chain with ID: 0x11111111111111111111',
+      );
+    });
   });
 
   describe.each([
