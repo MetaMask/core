@@ -65,6 +65,23 @@ export function validateTxParams(
 }
 
 /**
+ * Ensures that error is a nonce issue
+ *
+ * @param error - The error to check
+ * @returns Whether or not the error is a nonce issue
+ */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isNonceIssue(error: any): boolean {
+  return (
+    error?.code === errorCodes.rpc.invalidInput ||
+    error?.message?.includes('nonce too low') ||
+    error?.data?.code === errorCodes.rpc.invalidInput ||
+    error?.data?.message?.includes('nonce too low')
+  );
+}
+
+/**
  * Validates EIP-1559 compatibility for transaction creation.
  *
  * @param txParams - The transaction parameters to validate.
@@ -324,20 +341,4 @@ function ensureFieldIsString(
       `Invalid transaction params: ${field} is not a string. got: (${txParams[field]})`,
     );
   }
-}
-
-/**
- * Ensures that error is a nonce issue
- *
- * @param error - The error to check
- */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isNonceIssue(error: any): boolean {
-  return (
-    error?.code === errorCodes.rpc.invalidInput ||
-    error?.message?.includes('nonce too low') ||
-    error?.data?.code === errorCodes.rpc.invalidInput ||
-    error?.data?.message?.includes('nonce too low')
-  );
 }

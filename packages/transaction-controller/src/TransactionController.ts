@@ -93,6 +93,7 @@ import {
 import {
   validateTransactionOrigin,
   validateTxParams,
+  isNonceIssue,
 } from './utils/validation';
 
 export const HARDFORK = Hardfork.London;
@@ -876,10 +877,7 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransactionForRetry(
-      rawTx,
-      transactionMeta,
-    );
+    const hash = await this.publishTransactionForRetry(rawTx, transactionMeta);
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
@@ -1031,10 +1029,7 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await this.publishTransactionForRetry(
-      rawTx,
-      transactionMeta,
-    );
+    const hash = await this.publishTransactionForRetry(rawTx, transactionMeta);
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
@@ -2764,7 +2759,7 @@ export class TransactionController extends BaseControllerV1<
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      if (error?.code === errorCodes.rpc.invalidInput) {
+      if (isNonceIssue(error)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
           transactionMeta,
         );
