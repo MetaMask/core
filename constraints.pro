@@ -371,14 +371,16 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRang
   (
     (
       SpecifiedPeerDependencyVersionMajor == CurrentDependencyVersionMajor,
-      SpecifiedPeerDependencyVersionMinor @=< CurrentDependencyVersionMinor,
-      SpecifiedPeerDependencyVersionPatch @=< CurrentDependencyVersionPatch
+      (
+        SpecifiedPeerDependencyVersionMinor @< CurrentDependencyVersionMinor ;
+        (
+          SpecifiedPeerDependencyVersionMinor == CurrentDependencyVersionMinor,
+          SpecifiedPeerDependencyVersionPatch @=< CurrentDependencyVersionPatch
+        )
+      )
     ) ->
       CorrectPeerDependencyRange = SpecifiedPeerDependencyRange ;
-      (
-        atomic_list_concat([CurrentDependencyVersionMajor, 0, 0], '.', CorrectPeerDependencyVersion),
-        atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange)
-      )
+      atom_concat('^', CurrentDependencyVersion, CorrectPeerDependencyRange)
   ).
 
 % All packages must specify a minimum Node version of 16.
