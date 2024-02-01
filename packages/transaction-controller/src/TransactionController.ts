@@ -2765,7 +2765,7 @@ export class TransactionController extends BaseControllerV1<
         );
         throw new Error('Transaction already confirmed.');
       }
-      throw new Error('Failed to publish transaction.');
+      throw error;
     }
     return hash;
   }
