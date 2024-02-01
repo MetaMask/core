@@ -170,14 +170,13 @@ export class AccountTrackerController extends BaseController<
    * @param address - The account address to fetch the balance for.
    * @returns A promise that resolves to the balance in a hex string format.
    */
-  async getBalanceFromChain(address: string) {
-    let balance;
-    await safelyExecuteWithTimeout(
-      async () =>
-        this.ethQuery &&
-        (balance = await query(this.ethQuery, 'getBalance', [address])),
-    );
-    return balance;
+  private async getBalanceFromChain(
+    address: string,
+  ): Promise<string | undefined> {
+    return await safelyExecuteWithTimeout(async () => {
+      assert(this.ethQuery, 'Provider not set.');
+      return await query(this.ethQuery, 'getBalance', [address]);
+    });
   }
 
   /**
