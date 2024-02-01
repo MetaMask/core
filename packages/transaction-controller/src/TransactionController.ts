@@ -876,7 +876,7 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransactionWithValidation(
+    const hash = await this.publishTransactionForRetry(
       rawTx,
       transactionMeta,
     );
@@ -1031,7 +1031,7 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await this.publishTransactionWithValidation(
+    const hash = await this.publishTransactionForRetry(
       rawTx,
       transactionMeta,
     );
@@ -2754,7 +2754,7 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
-  private async publishTransactionWithValidation(
+  private async publishTransactionForRetry(
     rawTx: string,
     transactionMeta: TransactionMeta,
   ): Promise<string> {
