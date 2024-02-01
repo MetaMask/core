@@ -63,7 +63,7 @@ parse_version_range(VersionRange, Modifier, Major, Minor, Patch) :-
 % considered as less than the second.
 %
 % Borrowed from: <https://github.com/npm/node-semver/blob/a7b8722674e2eedfd89960b4155ffddd6a20ee21/classes/semver.js#L107>
-is_version_range_greater(VersionRange1, VersionRange2) :-
+npm_version_range_out_of_sync(VersionRange1, VersionRange2) :-
   parse_version_range(VersionRange1, VersionRange1Modifier, VersionRange1Major, VersionRange1Minor, VersionRange1Patch),
   parse_version_range(VersionRange2, VersionRange2Modifier, VersionRange2Major, VersionRange2Minor, VersionRange2Patch),
   VersionRange1Modifier == VersionRange2Modifier,
@@ -318,7 +318,7 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, OtherDependencyRange, Dep
   workspace_has_dependency(OtherWorkspaceCwd, DependencyIdent, OtherDependencyRange, OtherDependencyType),
   WorkspaceCwd \= OtherWorkspaceCwd,
   DependencyRange \= OtherDependencyRange,
-  is_version_range_greater(DependencyRange, OtherDependencyRange),
+  npm_version_range_out_of_sync(DependencyRange, OtherDependencyRange),
   DependencyType \= 'peerDependencies',
   OtherDependencyType \= 'peerDependencies'.
 
