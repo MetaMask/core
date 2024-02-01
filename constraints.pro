@@ -346,18 +346,18 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, 'devDependencies') 
 % and patch parts set to 0. If it is already listed there, then the major
 % version should match the current version of the package and the minor and
 % patch parts should be <= the corresponding parts.
-%gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
-  %workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
-  %\+ workspace_has_dependency(WorkspaceCwd, DependencyIdent, _, 'peerDependencies'),
-  %is_controller(DependencyIdent),
-  %DependencyIdent \= '@metamask/base-controller',
-  %DependencyIdent \= '@metamask/eth-keyring-controller',
-  %DependencyIdent \= '@metamask/polling-controller',
-  %workspace_ident(DependencyWorkspaceCwd, DependencyIdent),
-  %workspace_version(DependencyWorkspaceCwd, CurrentDependencyWorkspaceVersion),
-  %parse_version_range(CurrentDependencyWorkspaceVersion, _, CurrentDependencyVersionMajor, _, _),
-  %atomic_list_concat([CurrentDependencyVersionMajor, 0, 0], '.', CorrectPeerDependencyVersion),
-  %atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange).
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+  \+ workspace_has_dependency(WorkspaceCwd, DependencyIdent, _, 'peerDependencies'),
+  is_controller(DependencyIdent),
+  DependencyIdent \= '@metamask/base-controller',
+  DependencyIdent \= '@metamask/eth-keyring-controller',
+  DependencyIdent \= '@metamask/polling-controller',
+  workspace_ident(DependencyWorkspaceCwd, DependencyIdent),
+  workspace_version(DependencyWorkspaceCwd, CurrentDependencyWorkspaceVersion),
+  parse_version_range(CurrentDependencyWorkspaceVersion, _, CurrentDependencyVersionMajor, _, _),
+  atomic_list_concat([CurrentDependencyVersionMajor, 0, 0], '.', CorrectPeerDependencyVersion),
+  atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange).
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, SpecifiedPeerDependencyRange, 'peerDependencies'),
   is_controller(DependencyIdent),
