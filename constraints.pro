@@ -335,8 +335,7 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, D
 % If a workspace package is listed under another workspace package's
 % `dependencies`, it should not also be listed under its `devDependencies`.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, 'devDependencies') :-
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'devDependencies').
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies').
 
 % Each controller is a singleton, so we need to ensure the versions
 % used match expectations. To accomplish this, if a controller (other than
