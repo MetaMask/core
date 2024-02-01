@@ -2226,7 +2226,9 @@ describe('TransactionController', () => {
         },
       );
 
-      await expect(controller.speedUpTransaction('2')).rejects.toThrow(errorMock);
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        errorMock,
+      );
 
       // Expect speedup transaction to be submitted - it will fail
       expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
