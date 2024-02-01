@@ -2135,10 +2135,14 @@ export class TransactionController extends BaseControllerV1<
 
       log('Publishing transaction', txParams);
 
-      const hookResponse = await this.publish(transactionMeta, rawTx);
+      let { transactionHash: hash } = await this.publish(
+        transactionMeta,
+        rawTx,
+      );
 
-      const hash =
-        hookResponse.transactionHash ?? (await this.publishTransaction(rawTx));
+      if (hash === undefined) {
+        hash = await this.publishTransaction(rawTx);
+      }
 
       log('Publish successful', hash);
 
