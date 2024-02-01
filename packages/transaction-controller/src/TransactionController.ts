@@ -2765,7 +2765,7 @@ export class TransactionController extends BaseControllerV1<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error?.code === errorCodes.rpc.invalidInput) {
-        await this.pendingTransactionTracker.isTransactionConfirmed(
+        await this.pendingTransactionTracker.forceCheckTransaction(
           transactionMeta,
         );
         throw new Error('Transaction already confirmed.');

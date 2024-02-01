@@ -145,17 +145,21 @@ export class PendingTransactionTracker {
   }
 
   /**
-   * Checks the network if the given transaction is confirmed and updates it's status.
+   * Force checks the network if the given transaction is confirmed and updates it's status.
    *
    * @param txMeta - The transaction to check
    */
-  async isTransactionConfirmed(txMeta: TransactionMeta) {
-    const { hash } = txMeta;
-    const receipt = await this.#getTransactionReceipt(hash);
-    await this.#handleTransactionReceiptStatus(
-      txMeta,
-      receipt as TransactionReceipt,
-    );
+  async forceCheckTransaction(txMeta: TransactionMeta) {
+    const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
+
+    try {
+      await this.#checkTransaction(txMeta);
+    } catch (error) {
+      /* istanbul ignore next */
+      log('Failed to check transaction', error);
+    } finally {
+      nonceGlobalLock.releaseLock();
+    }
   }
 
   #start() {

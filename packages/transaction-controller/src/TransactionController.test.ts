@@ -625,7 +625,7 @@ describe('TransactionController', () => {
       hub: {
         on: jest.fn(),
       },
-      isTransactionConfirmed: jest.fn(),
+      forceCheckTransaction: jest.fn(),
     } as unknown as jest.Mocked<PendingTransactionTracker>;
 
     incomingTransactionHelperClassMock.mockReturnValue(

@@ -823,7 +823,7 @@ describe('PendingTransactionTracker', () => {
     });
   });
 
-  describe('isTransactionConfirmed', () => {
+  describe('forceCheckTransaction', () => {
     let tracker: PendingTransactionTracker;
     let transactionMeta: TransactionMeta;
 
@@ -838,8 +838,9 @@ describe('PendingTransactionTracker', () => {
     it('should update transaction status to confirmed if receipt status is success', async () => {
       queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
       queryMock.mockResolvedValueOnce(BLOCK_MOCK);
+      options.getTransactions.mockReturnValue([]);
 
-      await tracker.isTransactionConfirmed(transactionMeta);
+      await tracker.forceCheckTransaction(transactionMeta);
 
       expect(transactionMeta.status).toStrictEqual(TransactionStatus.confirmed);
       expect(transactionMeta.txReceipt).toStrictEqual(RECEIPT_MOCK);
@@ -849,11 +850,12 @@ describe('PendingTransactionTracker', () => {
     it('should fail transaction if receipt status is failure', async () => {
       const receiptMock = { ...RECEIPT_MOCK, status: '0x0' };
       queryMock.mockResolvedValueOnce(receiptMock);
+      options.getTransactions.mockReturnValue([]);
 
       const listener = jest.fn();
       tracker.hub.addListener('transaction-failed', listener);
 
-      await tracker.isTransactionConfirmed(transactionMeta);
+      await tracker.forceCheckTransaction(transactionMeta);
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(
@@ -865,8 +867,9 @@ describe('PendingTransactionTracker', () => {
     it('should not change transaction status if receipt status is neither success nor failure', async () => {
       const receiptMock = { ...RECEIPT_MOCK, status: '0x2' };
       queryMock.mockResolvedValueOnce(receiptMock);
+      options.getTransactions.mockReturnValue([]);
 
-      await tracker.isTransactionConfirmed(transactionMeta);
+      await tracker.forceCheckTransaction(transactionMeta);
 
       expect(transactionMeta.status).toStrictEqual(TransactionStatus.submitted);
       expect(transactionMeta.txReceipt).toBeUndefined();
