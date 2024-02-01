@@ -1906,7 +1906,7 @@ describe('TransactionController', () => {
       );
 
       await expect(controller.stopTransaction('2')).rejects.toThrow(
-        'Transaction already confirmed.',
+        'Transaction already confirmed',
       );
 
       // Expect cancel transaction to be submitted - it will fail
@@ -1915,6 +1915,7 @@ describe('TransactionController', () => {
     });
 
     it('should throw error if publish transaction fails', async () => {
+      const errorMock = new Error('Another reason');
       const controller = newController();
 
       controller.state.transactions.push({
@@ -1933,16 +1934,12 @@ describe('TransactionController', () => {
           callback(
             undefined,
             // eslint-disable-next-line prefer-promise-reject-errors
-            Promise.reject({
-              code: 'Another reason',
-            }),
+            Promise.reject(errorMock),
           );
         },
       );
 
-      await expect(controller.stopTransaction('2')).rejects.toThrow(
-        'Failed to publish transaction.',
-      );
+      await expect(controller.stopTransaction('2')).rejects.toThrow(errorMock);
 
       // Expect cancel transaction to be submitted - it will fail
       expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
@@ -2196,7 +2193,7 @@ describe('TransactionController', () => {
       );
 
       await expect(controller.speedUpTransaction('2')).rejects.toThrow(
-        'Transaction already confirmed.',
+        'Transaction already confirmed',
       );
 
       // Expect speedup transaction to be submitted - it will fail
@@ -2206,6 +2203,7 @@ describe('TransactionController', () => {
 
     it('should throw error if publish transaction fails', async () => {
       const controller = newController();
+      const errorMock = new Error('Another reason');
 
       controller.state.transactions.push({
         id: '2',
@@ -2223,16 +2221,12 @@ describe('TransactionController', () => {
           callback(
             undefined,
             // eslint-disable-next-line prefer-promise-reject-errors
-            Promise.reject({
-              code: 'Another reason',
-            }),
+            Promise.reject(errorMock),
           );
         },
       );
 
-      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
-        'Failed to publish transaction.',
-      );
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(errorMock);
 
       // Expect speedup transaction to be submitted - it will fail
       expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
