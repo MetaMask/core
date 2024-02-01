@@ -21,6 +21,7 @@ import {
 
 const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',
+  from: '0x12',
   to: '0x2',
   value: '0x3',
   maxFeePerGas: '0x4',
@@ -126,13 +127,7 @@ describe('validation', () => {
       ],
       ['request', 'wrong type', 123, 'Expected an object, but received: 123'],
       [
-        'maxFeePerGas',
-        'missing',
-        undefined,
-        'Expected a value of type `Hexadecimal String`, but received: `undefined`',
-      ],
-      [
-        'maxPriorityFeePerGas',
+        'from',
         'missing',
         undefined,
         'Expected a value of type `Hexadecimal String`, but received: `undefined`',
@@ -163,6 +158,12 @@ describe('validation', () => {
       ],
       [
         'value',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String`, but received: `123`',
+      ],
+      [
+        'from',
         'wrong type',
         123,
         'Expected a value of type `Hexadecimal String`, but received: `123`',
@@ -203,12 +204,6 @@ describe('validation', () => {
         'missing',
         undefined,
         'Expected a string, but received: undefined',
-      ],
-      [
-        'smartContractAccount',
-        'missing',
-        undefined,
-        'Expected an object, but received: undefined',
       ],
       [
         'smartContractAccount.prepareUserOperation',

@@ -37,8 +37,9 @@ export function validateAddUserOperationRequest(
 
   const ValidRequest = object({
     data: optional(HexOrEmptyBytes),
-    maxFeePerGas: Hex,
-    maxPriorityFeePerGas: Hex,
+    from: Hex,
+    maxFeePerGas: optional(Hex),
+    maxPriorityFeePerGas: optional(Hex),
     to: optional(Hex),
     value: optional(Hex),
   });
@@ -57,11 +58,13 @@ export function validateAddUserOperationOptions(
     networkClientId: string(),
     origin: string(),
     requireApproval: optional(boolean()),
-    smartContractAccount: object({
-      prepareUserOperation: func(),
-      updateUserOperation: func(),
-      signUserOperation: func(),
-    }),
+    smartContractAccount: optional(
+      object({
+        prepareUserOperation: func(),
+        updateUserOperation: func(),
+        signUserOperation: func(),
+      }),
+    ),
     swaps: optional(
       object({
         approvalTxId: optional(string()),
