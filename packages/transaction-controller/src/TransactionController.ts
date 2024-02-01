@@ -2763,7 +2763,7 @@ export class TransactionController extends BaseControllerV1<
         await this.pendingTransactionTracker.forceCheckTransaction(
           transactionMeta,
         );
-        throw new Error('Transaction already confirmed.');
+        throw new Error('Transaction already confirmed');
       }
       throw error;
     }
