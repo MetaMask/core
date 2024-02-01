@@ -1,7 +1,7 @@
 import { Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors, rpcErrors, errorCodes } from '@metamask/rpc-errors';
 
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
@@ -324,4 +324,20 @@ function ensureFieldIsString(
       `Invalid transaction params: ${field} is not a string. got: (${txParams[field]})`,
     );
   }
+}
+
+/**
+ * Ensures that error is a nonce issue
+ *
+ * @param error - The error to check
+ */
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isNonceIssue(error: any): boolean {
+  return (
+    error?.code === errorCodes.rpc.invalidInput ||
+    error?.message?.includes('nonce too low') ||
+    error?.data?.code === errorCodes.rpc.invalidInput ||
+    error?.data?.message?.includes('nonce too low')
+  );
 }
