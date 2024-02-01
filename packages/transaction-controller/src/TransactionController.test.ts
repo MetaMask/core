@@ -3567,6 +3567,37 @@ describe('TransactionController', () => {
         ]),
       ).rejects.toThrow(mockSignError);
     });
+
+    it('does not create nonce lock if hasNonce set', async () => {
+      const getNonceLockMock = jest
+        .spyOn(NonceTrackerPackage.NonceTracker.prototype, 'getNonceLock')
+        .mockImplementation();
+
+      const controller = newController();
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+      };
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+      };
+
+      await controller.approveTransactionsWithSameNonce(
+        [mockTransactionParam, mockTransactionParam2],
+        { hasNonce: true },
+      );
+
+      expect(getNonceLockMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('with hooks', () => {
