@@ -191,23 +191,21 @@ export class AccountTrackerController extends BaseController<
     this.syncAccounts();
     const accounts = { ...this.state.accounts };
     const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
-    if (!isMultiAccountBalancesEnabled) {
-      const selectedAddress = this.getSelectedAddress();
-      const balance = await this.getBalanceFromChain(selectedAddress);
-      if (!balance) {
-        return;
-      }
-      accounts[selectedAddress] = { balance: BNToHex(balance) };
-      this.update({ accounts });
-      return;
-    }
-    for (const address in accounts) {
+
+    const accountsToUpdate = isMultiAccountBalancesEnabled
+      ? Object.keys(accounts)
+      : [this.getSelectedAddress()];
+
+    for (const address of accountsToUpdate) {
       const balance = await this.getBalanceFromChain(address);
-      if (!balance) {
+      if (balance) {
         continue;
       }
-      accounts[address] = { balance: BNToHex(balance) };
+      accounts[address] = {
+        balance: BNToHex(await this.getBalanceFromChain(address)),
+      };
     }
+
     this.update({ accounts });
   };
 
