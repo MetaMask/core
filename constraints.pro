@@ -343,19 +343,43 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, 'devDependencies') 
 % listed under a workspace package's `dependencies`, it should also be listed
 % under its `peerDependencies`, and the major version of the peer dependency
 % should match the major part of the current version dependency, with the minor
-% and patch parts set to 0.
+% and patch parts set to 0. If it is already listed there, then the major
+% version should match the current version of the package and the minor and
+% patch parts should be <= the corresponding parts.
+%gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
+  %workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+  %\+ workspace_has_dependency(WorkspaceCwd, DependencyIdent, _, 'peerDependencies'),
+  %is_controller(DependencyIdent),
+  %DependencyIdent \= '@metamask/base-controller',
+  %DependencyIdent \= '@metamask/eth-keyring-controller',
+  %DependencyIdent \= '@metamask/polling-controller',
+  %workspace_ident(DependencyWorkspaceCwd, DependencyIdent),
+  %workspace_version(DependencyWorkspaceCwd, CurrentDependencyWorkspaceVersion),
+  %parse_version_range(CurrentDependencyWorkspaceVersion, _, CurrentDependencyVersionMajor, _, _),
+  %atomic_list_concat([CurrentDependencyVersionMajor, 0, 0], '.', CorrectPeerDependencyVersion),
+  %atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange).
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
-  (DependencyType == 'dependencies' ; DependencyType == 'peerDependencies'),
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, SpecifiedPeerDependencyRange, 'peerDependencies'),
   is_controller(DependencyIdent),
   DependencyIdent \= '@metamask/base-controller',
   DependencyIdent \= '@metamask/eth-keyring-controller',
   DependencyIdent \= '@metamask/polling-controller',
   workspace_ident(DependencyWorkspaceCwd, DependencyIdent),
-  workspace_version(DependencyWorkspaceCwd, DependencyWorkspaceVersion),
-  parse_version_range(DependencyWorkspaceVersion, _, DependencyMajorVersion, _, _),
-  atomic_list_concat([DependencyMajorVersion, 0, 0], '.', CorrectPeerDependencyVersion),
-  atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange).
+  workspace_version(DependencyWorkspaceCwd, CurrentDependencyVersion),
+  parse_version_range(CurrentDependencyVersion, _, CurrentDependencyVersionMajor, CurrentDependencyVersionMinor, CurrentDependencyVersionPatch),
+  parse_version_range(SpecifiedPeerDependencyRange, _, SpecifiedPeerDependencyVersionMajor, SpecifiedPeerDependencyVersionMinor, SpecifiedPeerDependencyVersionPatch),
+  (
+    (
+      SpecifiedPeerDependencyVersionMajor == CurrentDependencyVersionMajor,
+      SpecifiedPeerDependencyVersionMinor @=< CurrentDependencyVersionMinor,
+      SpecifiedPeerDependencyVersionPatch @=< CurrentDependencyVersionPatch
+    ) ->
+      CorrectPeerDependencyRange = SpecifiedPeerDependencyRange ;
+      (
+        atomic_list_concat([CurrentDependencyVersionMajor, 0, 0], '.', CorrectPeerDependencyVersion),
+        atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange)
+      )
+  ).
 
 % All packages must specify a minimum Node version of 16.
 gen_enforced_field(WorkspaceCwd, 'engines.node', '>=16.0.0').
