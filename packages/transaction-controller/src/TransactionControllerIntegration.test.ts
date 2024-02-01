@@ -91,6 +91,7 @@ const newController = async (options: any = {}) => {
       getCurrentNetworkEIP1559Compatibility:
         networkController.getEIP1559Compatibility.bind(networkController),
       getNetworkClientRegistry:
+        opts.getNetworkClientRegistrySpy ||
         networkController.getNetworkClientRegistry.bind(networkController),
       findNetworkClientIdByChainId:
         networkController.findNetworkClientIdByChainId.bind(networkController),
@@ -2389,7 +2390,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('feature flag', () => {
-    it('should not track multichain transactions on network stateChange when feature flag is disabled', async () => {
+    it('should not allow transaction to be added with a networkClientId when feature flag is disabled', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
         mocks: [
@@ -2487,6 +2488,128 @@ describe('TransactionController Integration', () => {
         }),
       ).toBeDefined();
       transactionController.destroy();
+    });
+    it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
+        return {
+          [networkClientConfiguration.network]: {
+            configuration: networkClientConfiguration,
+          },
+        };
+      });
+
+      const { networkController, transactionController } = await newController({
+        enableMultichain: false,
+        getNetworkClientRegistrySpy,
+      });
+
+      await networkController.upsertNetworkConfiguration(
+        {
+          ...networkClientConfiguration,
+          rpcUrl: 'https://mock.rpc.url',
+        },
+        {
+          setActive: false,
+          referrer: 'https://mock.referrer',
+          source: 'dapp',
+        },
+      );
+
+      expect(getNetworkClientRegistrySpy).not.toHaveBeenCalled();
+      transactionController.destroy();
+    });
+    it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
+        return {
+          [networkClientConfiguration.network]: {
+            configuration: networkClientConfiguration,
+          },
+        };
+      });
+
+      const { networkController, transactionController } = await newController({
+        enableMultichain: true,
+        getNetworkClientRegistrySpy,
+      });
+
+      await networkController.upsertNetworkConfiguration(
+        {
+          ...networkClientConfiguration,
+          rpcUrl: 'https://mock.rpc.url',
+        },
+        {
+          setActive: false,
+          referrer: 'https://mock.referrer',
+          source: 'dapp',
+        },
+      );
+
+      expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
+      transactionController.destroy();
+    });
+    it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
+      mockNetwork({
+        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        mocks: [
+          // NetworkController
+          // BlockTracker
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
+        ],
+      });
+      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
+        return {
+          [networkClientConfiguration.network]: {
+            configuration: networkClientConfiguration,
+          },
+        };
+      });
+
+      await newController({
+        enableMultichain: true,
+        getNetworkClientRegistrySpy,
+      });
+
+      expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
     });
   });
 
@@ -2606,6 +2729,10 @@ describe('TransactionController Integration', () => {
       );
       transactionController.destroy();
     });
+
+    it.todo(
+      'should start the global incoming transaction helper when no networkClientIds provided',
+    );
 
     describe('when called with multiple networkClients which share the same chainId', () => {
       it('should only call the etherscan API max every 5 seconds, alternating between the token and txlist endpoints', async () => {
@@ -2822,6 +2949,9 @@ describe('TransactionController Integration', () => {
   });
 
   describe('stopIncomingTransactionPolling', () => {
+    it.todo(
+      'should stop the global incoming transaction helper when no networkClientIds provided',
+    );
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
       mockNetwork({
         networkClientConfiguration: mainnetNetworkClientConfiguration,
