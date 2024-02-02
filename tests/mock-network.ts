@@ -29,7 +29,7 @@ import { NetworkClientType } from '../packages/network-controller/src/types';
  * when the promise is initiated but before it is resolved). You can pass an
  * function (optionally async) to do this.
  */
-type JsonRpcRequestMock = {
+export type JsonRpcRequestMock = {
   request: {
     method: string;
     // TODO: Replace `any` with type
