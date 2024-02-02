@@ -41,7 +41,11 @@ import type {
 } from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
+import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
+import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
@@ -56,6 +60,7 @@ import type {
   TransactionReceipt,
   WalletDevice,
   SecurityAlertResponse,
+  GasFeeFlow,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -242,6 +247,8 @@ export class TransactionController extends BaseControllerV1<
   private readonly provider: Provider;
 
   private readonly mutex = new Mutex();
+
+  private readonly gasFeeFlows: GasFeeFlow[];
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
@@ -557,6 +564,24 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.addPendingTransactionTrackerListeners();
+
+    this.gasFeeFlows = this.getGasFeeFlows();
+
+    const gasFeePoller = new GasFeePoller({
+      gasFeeFlows: this.gasFeeFlows,
+      getEthQuery: () => this.ethQuery,
+      getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getProviderConfig: () => this.getNetworkState().providerConfig,
+      getTransactions: () => this.state.transactions,
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+      },
+    });
+
+    gasFeePoller.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
+    );
 
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
@@ -1867,8 +1892,9 @@ export class TransactionController extends BaseControllerV1<
     await updateGasFees({
       eip1559: isEIP1559Compatible,
       ethQuery: this.ethQuery,
+      gasFeeFlows: this.gasFeeFlows,
+      getGasFeeEstimates: this.getGasFeeEstimates,
       getSavedGasFees: this.getSavedGasFees.bind(this, chainId),
-      getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
     });
   }
@@ -2718,5 +2744,13 @@ export class TransactionController extends BaseControllerV1<
       /* istanbul ignore next */
       log('Error while updating post transaction balance', error);
     }
+  }
+
+  private getGasFeeFlows(): GasFeeFlow[] {
+    return [
+      new LineaGasFeeFlow(),
+      new TestGasFeeFlow(),
+      new DefaultGasFeeFlow(),
+    ];
   }
 }

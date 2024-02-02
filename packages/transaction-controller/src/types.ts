@@ -1,4 +1,6 @@
 import type { AccessList } from '@ethereumjs/tx';
+import EthQuery from '@metamask/eth-query';
+import { GasFeeState } from '@metamask/gas-fee-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -323,6 +325,24 @@ type TransactionMetaBase = {
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
+
+  suggestedGasFees?: {
+    low: {
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+      gasPrice?: string;
+    };
+    medium: {
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+      gasPrice?: string;
+    };
+    high: {
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+      gasPrice?: string;
+    };
+  };
 
   /**
    * The symbol of the token being swapped.
@@ -959,4 +979,28 @@ export type SecurityAlertResponse = {
   features?: string[];
   result_type: string;
   providerRequestsCount?: Record<string, number>;
+};
+
+export type GasFeeFlowRequest = {
+  ethQuery: EthQuery;
+  isEIP1559: boolean;
+  getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+  transactionMeta: TransactionMeta;
+};
+
+export type GasFeeFlowLevelResponse = {
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  gasPrice?: string;
+};
+
+export type GasFeeFlowResponse = {
+  low: GasFeeFlowLevelResponse;
+  medium: GasFeeFlowLevelResponse;
+  high: GasFeeFlowLevelResponse;
+};
+
+export type GasFeeFlow = {
+  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  getGasFees: (request: GasFeeFlowRequest) => Promise<GasFeeFlowResponse>;
 };
