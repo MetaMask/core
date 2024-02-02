@@ -36,6 +36,28 @@ const infuraProjectId = 'fake-infura-project-id';
 
 const BLOCK_TRACKER_POLLING_INTERVAL = 20000;
 
+function mockGloballySelectedNetwork() {
+  mockNetwork({
+    networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+      InfuraNetworkType.mainnet,
+    ),
+    mocks: [
+      // NetworkController
+      // BlockTracker
+      {
+        request: {
+          method: 'eth_blockNumber',
+          params: [],
+        },
+        response: {
+          result: '0x1',
+        },
+        discardAfterMatching: false,
+      },
+    ],
+  });
+}
+
 /**
  * Builds the Infura network client configuration.
  * @param network - The Infura network type.
@@ -133,48 +155,14 @@ describe('TransactionController Integration', () => {
 
   describe('constructor', () => {
     it('should create a new instance of TransactionController', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
       const { transactionController } = await newController({});
       expect(transactionController).toBeDefined();
       transactionController.destroy();
     });
 
     it('should submit all approved transactions in state', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -331,24 +319,7 @@ describe('TransactionController Integration', () => {
   describe('multichain transaction lifecycle', () => {
     describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
       it('should add a new unapproved transaction', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -403,24 +374,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to get to submitted state', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -545,24 +499,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to get to confirmed state', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -717,24 +654,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to send and confirm transactions on different chains', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -1036,24 +956,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to cancel a transaction', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -1242,24 +1145,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to confirm a cancelled transaction', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -1472,24 +1358,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to get to speedup state', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -1713,24 +1582,7 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '1',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -2058,24 +1910,7 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-          ],
-        });
+        mockGloballySelectedNetwork();
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -2289,24 +2124,7 @@ describe('TransactionController Integration', () => {
 
   describe('when changing rpcUrl of networkClient', () => {
     it('should start tracking when a new network is added', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
       mockNetwork({
         networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
@@ -2397,34 +2215,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should stop tracking when a network is removed', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
       const { networkController, transactionController } =
         await newController();
 
@@ -2557,24 +2348,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
@@ -2601,24 +2375,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
@@ -2645,24 +2402,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
@@ -3025,34 +2765,7 @@ describe('TransactionController Integration', () => {
       'should stop the global incoming transaction helper when no networkClientIds provided',
     );
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
@@ -3120,34 +2833,7 @@ describe('TransactionController Integration', () => {
 
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
@@ -3213,34 +2899,7 @@ describe('TransactionController Integration', () => {
 
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
@@ -3325,34 +2984,7 @@ describe('TransactionController Integration', () => {
 
   describe('getNonceLock', () => {
     it('should get the nonce lock from the nonceTracker for the given networkClientId', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
 
       const { networkController, transactionController } = await newController(
         {},
@@ -3407,34 +3039,7 @@ describe('TransactionController Integration', () => {
     });
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the networkClientId until the previous lock is released', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
 
       const { networkController, transactionController } = await newController(
         {},
@@ -3514,34 +3119,7 @@ describe('TransactionController Integration', () => {
     });
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the different networkClientIds on the same chainId until the previous lock is released', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
+      mockGloballySelectedNetwork();
 
       const { networkController, transactionController } = await newController(
         {},
@@ -3648,35 +3226,7 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for the same addresses from the nonceTracker for different networkClientIds', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
+      mockGloballySelectedNetwork();
       const { transactionController } = await newController({});
 
       mockNetwork({
@@ -3759,35 +3309,7 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for different addresses from the nonceTracker for the networkClientId', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
+      mockGloballySelectedNetwork();
       const { networkController, transactionController } = await newController(
         {},
       );
