@@ -29,6 +29,8 @@ import type {
   NetworkState,
   Provider,
   NetworkClient,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
@@ -231,7 +233,7 @@ const controllerName = 'TransactionController';
 /**
  * The external actions available to the {@link TransactionController}.
  */
-type AllowedActions = AddApprovalRequest;
+type AllowedActions = AddApprovalRequest | NetworkControllerFindNetworkClientIdByChainIdAction | NetworkControllerGetNetworkClientByIdAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
@@ -352,10 +354,6 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta: TransactionMeta,
   ) => (TransactionMeta | undefined)[];
 
-  private readonly findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
-
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
-
   private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
   private failTransaction(
@@ -446,8 +444,6 @@ export class TransactionController extends BaseControllerV1<
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
-   * @param options.findNetworkClientIdByChainId - Finds a networkClientId with the given chainId from the NetworkController.
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.hooks - The controller hooks.
    * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
    * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
@@ -480,8 +476,6 @@ export class TransactionController extends BaseControllerV1<
       provider,
       securityProviderRequest,
       speedUpMultiplier,
-      findNetworkClientIdByChainId,
-      getNetworkClientById,
       getNetworkClientRegistry,
       enableMultichain = false,
       hooks = {},
@@ -509,8 +503,6 @@ export class TransactionController extends BaseControllerV1<
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
       speedUpMultiplier?: number;
-      findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
-      getNetworkClientById: NetworkController['getNetworkClientById'];
       getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
       enableMultichain: boolean;
       hooks: {
@@ -547,8 +539,6 @@ export class TransactionController extends BaseControllerV1<
     };
     this.initialize();
     this.enableMultichain = enableMultichain;
-    this.findNetworkClientIdByChainId = findNetworkClientIdByChainId;
-    this.getNetworkClientById = getNetworkClientById;
     this.getNetworkClientRegistry = getNetworkClientRegistry;
     this.provider = provider;
     this.messagingSystem = messenger;
