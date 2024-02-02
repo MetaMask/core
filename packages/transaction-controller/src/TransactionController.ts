@@ -478,7 +478,6 @@ export class TransactionController extends BaseControllerV1<
       findNetworkClientIdByChainId,
       getNetworkClientById,
       getNetworkClientRegistry,
-      hub,
       enableMultichain = false,
       hooks = {},
     }: {
@@ -508,7 +507,6 @@ export class TransactionController extends BaseControllerV1<
       findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
       getNetworkClientById: NetworkController['getNetworkClientById'];
       getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-      hub: TransactionControllerEventEmitter;
       enableMultichain: boolean;
       hooks: {
         afterSign?: (
@@ -540,7 +538,6 @@ export class TransactionController extends BaseControllerV1<
       lastFetchedBlockNumbers: {},
     };
     this.initialize();
-    this.hub = hub ?? this.hub;
     this.enableMultichain = enableMultichain;
     this.findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.getNetworkClientById = getNetworkClientById;

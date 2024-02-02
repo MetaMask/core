@@ -21,7 +21,6 @@ import type {
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { createDeferredPromise } from '@metamask/utils';
-import { EventEmitter } from 'events';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -33,7 +32,6 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
   TransactionState,
-  TransactionControllerEventEmitter,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type {
