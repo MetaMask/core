@@ -25,6 +25,7 @@ import type {
   NftMetadata,
   OpenSeaV2ListNftsResponse,
 } from './NftController';
+import { Source } from './constants';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -413,10 +414,16 @@ export class NftDetectionController extends BaseController<
           last_sale && { lastSale: last_sale },
         );
 
-        await this.addNft(address, token_id, nftMetadata, {
-          userAddress: selectedAddress,
-          chainId,
-        });
+        await this.addNft(
+          address,
+          token_id,
+          nftMetadata,
+          {
+            userAddress: selectedAddress,
+            chainId,
+          },
+          Source.Detected,
+        );
       }
     });
     await Promise.all(addNftPromises);

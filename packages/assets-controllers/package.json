@@ -29,6 +29,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@ethersproject/address": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
@@ -40,6 +41,7 @@
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/network-controller": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
+    "@metamask/rpc-errors": "^5.1.1",
     "@metamask/utils": "^5.0.2",
     "@types/uuid": "^8.3.0",
     "abort-controller": "^3.0.0",

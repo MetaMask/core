@@ -2,10 +2,12 @@ import { EventEmitter } from 'events';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
 import type { Hex } from '@metamask/utils';
+import { v4 as random } from 'uuid';
 import {
   BaseController,
   BaseConfig,
   BaseState,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { NetworkState } from '@metamask/network-controller';
@@ -19,7 +21,11 @@ import {
   ERC721,
   ERC1155,
   OPENSEA_PROXY_URL,
+  ApprovalType,
 } from '@metamask/controller-utils';
+import { AddApprovalRequest } from '@metamask/approval-controller';
+import { rpcErrors } from '@metamask/rpc-errors';
+import { isAddress } from '@ethersproject/address';
 import type {
   ApiNftCreator,
   ApiNftContract,
@@ -32,6 +38,18 @@ import {
   mapOpenSeaContractV2ToV1,
   mapOpenSeaDetailedNftV2ToV1,
 } from './assetsUtil';
+import { Source } from './constants';
+
+type NFTStandardType = 'ERC721' | 'ERC1155';
+
+type SuggestedNftMeta = {
+  asset: { address: string; tokenId: string } & NftMetadata;
+  id: string;
+  time: number;
+  type: NFTStandardType;
+  interactingAddress: string;
+  origin: string;
+};
 
 /**
  * @type Nft
@@ -237,11 +255,39 @@ export interface NftState extends BaseState {
 const ALL_NFTS_STATE_KEY = 'allNfts';
 const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
 
+interface NftAsset {
+  address: string;
+  tokenId: string;
+}
+
+/**
+ * The name of the {@link NftController}.
+ */
+const controllerName = 'NftController';
+
+/**
+ * The external actions available to the {@link NftController}.
+ */
+type AllowedActions = AddApprovalRequest;
+
+/**
+ * The messenger of the {@link NftController}.
+ */
+export type NftControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  never,
+  AllowedActions['type'],
+  never
+>;
+
 /**
  * Controller that stores assets and exposes convenience methods
  */
 export class NftController extends BaseController<NftConfig, NftState> {
   private mutex = new Mutex();
+
+  private messagingSystem: NftControllerMessenger;
 
   private getNftApi({
     contractAddress,
@@ -275,8 +321,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param newCollection - the modified piece of state to update in the controller's store
    * @param baseStateKey - The root key in the store to update.
    * @param passedConfig - An object containing the selectedAddress and chainId that are passed through the auto-detection flow.
-   * @param passedConfig.userAddress - the address passed through the NFT detection flow to ensure detected assets are stored to the correct account
-   * @param passedConfig.chainId - the chainId passed through the NFT detection flow to ensure detected assets are stored to the correct account
+   * @param passedConfig.userAddress - the address passed through the NFT detection flow to ensure assets are stored to the correct account
+   * @param passedConfig.chainId - the chainId passed through the NFT detection flow to ensure assets are stored to the correct account
    */
   private updateNestedNftState(
     newCollection: Nft[] | NftContract[],
@@ -696,7 +742,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param tokenId - The NFT identifier.
    * @param nftMetadata - NFT optional information (name, image and description).
    * @param nftContract - An object containing contract data of the NFT being added.
-   * @param detection - The chain ID and address of the currently selected network and account at the moment the NFT was detected.
+   * @param accountParams - The chain ID and address of network and account to which the nftContract should be added.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.   * @returns Promise resolving to the current NFT list.
    * @returns Promise resolving to the current NFT list.
    */
   private async addIndividualNft(
@@ -704,7 +751,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string,
     nftMetadata: NftMetadata,
     nftContract: NftContract,
-    detection?: AccountParams,
+    accountParams?: AccountParams,
+    source = Source.Custom,
   ): Promise<Nft[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
@@ -713,9 +761,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
       const { allNfts } = this.state;
       let chainId, selectedAddress;
 
-      if (detection) {
-        chainId = detection.chainId;
-        selectedAddress = detection.userAddress;
+      if (accountParams) {
+        chainId = accountParams.chainId;
+        selectedAddress = accountParams.userAddress;
       } else {
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
@@ -770,7 +818,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           symbol: nftContract.symbol,
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
-          source: detection ? 'detected' : 'custom',
+          source,
           tokenURI: nftMetadata.tokenURI,
         });
       }
@@ -785,12 +833,14 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * Adds an NFT contract to the stored NFT contracts list.
    *
    * @param address - Hex address of the NFT contract.
-   * @param detection - The chain ID and address of the currently selected network and account at the moment the NFT was detected.
+   * @param accountParams - The chain ID and address of network and account to which the nftContract should be added.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns Promise resolving to the current NFT contracts list.
    */
   private async addNftContract(
     address: string,
-    detection?: AccountParams,
+    accountParams?: AccountParams,
+    source?: Source,
   ): Promise<NftContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
@@ -798,9 +848,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
       const { allNftContracts } = this.state;
 
       let chainId, selectedAddress;
-      if (detection) {
-        chainId = detection.chainId;
-        selectedAddress = detection.userAddress;
+      if (accountParams) {
+        chainId = accountParams.chainId;
+        selectedAddress = accountParams.userAddress;
       } else {
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
@@ -827,11 +877,20 @@ export class NftController extends BaseController<NftConfig, NftState> {
         external_link,
         collection: { name, image_url },
       } = contractInformation;
-      // If being auto-detected opensea information is expected
-      // Otherwise at least name from the contract is needed
+
+      // If the nft is auto-detected we want some valid metadata to be present
       if (
-        (detection && !name) ||
-        Object.keys(contractInformation).length === 0
+        source === Source.Detected &&
+        Object.entries(contractInformation).every(([k, v]: [string, any]) => {
+          if (k === 'address') {
+            return true; // address will always be present
+          }
+          // collection will always be an object, we need to check the internal values
+          if (k === 'collection') {
+            return v?.name === null && v?.image_url === null;
+          }
+          return Boolean(v) === false;
+        })
       ) {
         return nftContracts;
       }
@@ -970,7 +1029,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     symbol: string | undefined;
     tokenId: string;
     standard: string | null;
-    source: string;
+    source: Source;
     tokenURI?: string;
   }) => void;
 
@@ -989,6 +1048,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
+   * @param options.messenger - The controller messenger.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -1004,6 +1064,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       getERC1155BalanceOf,
       getERC1155TokenURI,
       onNftAdded,
+      messenger,
     }: {
       chainId: Hex;
       onPreferencesStateChange: (
@@ -1025,6 +1086,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: string | null;
         source: string;
       }) => void;
+      messenger: NftControllerMessenger;
     },
     config?: Partial<BaseConfig>,
     state?: Partial<NftState>,
@@ -1052,6 +1114,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.getERC1155BalanceOf = getERC1155BalanceOf;
     this.getERC1155TokenURI = getERC1155TokenURI;
     this.onNftAdded = onNftAdded;
+    this.messagingSystem = messenger;
 
     onPreferencesStateChange(
       ({
@@ -1073,6 +1136,109 @@ export class NftController extends BaseController<NftConfig, NftState> {
       const { chainId } = providerConfig;
       this.configure({ chainId });
     });
+  }
+
+  async validateWatchNft(
+    asset: NftAsset,
+    type: NFTStandardType,
+    accountAddress: string,
+  ) {
+    const { address: contractAddress, tokenId } = asset;
+    // Validate parameters
+    if (!type) {
+      throw rpcErrors.invalidParams('Asset type is required');
+    }
+
+    if (type !== ERC721 && type !== ERC1155) {
+      throw rpcErrors.invalidParams(
+        `Non NFT asset type ${type} not supported by watchNft`,
+      );
+    }
+
+    if (!contractAddress || !tokenId) {
+      throw rpcErrors.invalidParams('Both address and tokenId are required');
+    }
+    if (!isAddress(contractAddress)) {
+      throw rpcErrors.invalidParams('Invalid address');
+    }
+
+    if (!/^\d+$/u.test(tokenId)) {
+      throw rpcErrors.invalidParams('Invalid tokenId');
+    }
+
+    // Check if the user owns the suggested NFT
+    try {
+      const isOwner = await this.isNftOwner(
+        accountAddress,
+        contractAddress,
+        tokenId,
+      );
+      if (!isOwner) {
+        throw rpcErrors.invalidInput(
+          'Suggested NFT is not owned by the selected account',
+        );
+      }
+    } catch (error: any) {
+      // error thrown here: "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question."
+      throw rpcErrors.resourceUnavailable(error.message);
+    }
+  }
+
+  /**
+   * Adds a new suggestedAsset to state. Parameters will be validated according to
+   * asset type being watched. A `<suggestedNftMeta.id>:pending` hub event will be emitted once added.
+   *
+   * @param asset - The asset to be watched. For now ERC721 and ERC1155 tokens are accepted.
+   * @param asset.address - The address of the asset contract.
+   * @param asset.tokenId - The ID of the asset.
+   * @param type - The asset type.
+   * @param origin - Domain origin to register the asset from.
+   * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
+   */
+  async watchNft(asset: NftAsset, type: NFTStandardType, origin: string) {
+    const { selectedAddress, chainId } = this.config;
+
+    await this.validateWatchNft(asset, type, selectedAddress);
+
+    const nftMetadata = await this.getNftInformation(
+      asset.address,
+      asset.tokenId,
+    );
+
+    if (nftMetadata.standard && nftMetadata.standard !== type) {
+      throw rpcErrors.invalidInput(
+        `Suggested NFT of type ${nftMetadata.standard} does not match received type ${type}`,
+      );
+    }
+
+    const suggestedNftMeta: SuggestedNftMeta = {
+      asset: { ...asset, ...nftMetadata },
+      type,
+      id: random(),
+      time: Date.now(),
+      interactingAddress: selectedAddress,
+      origin,
+    };
+    await this._requestApproval(suggestedNftMeta);
+
+    const { address, tokenId } = asset;
+    const { name, standard, description, image } = nftMetadata;
+
+    await this.addNft(
+      address,
+      tokenId,
+      {
+        name: name ?? null,
+        description: description ?? null,
+        image: image ?? null,
+        standard: standard ?? null,
+      },
+      {
+        chainId,
+        userAddress: selectedAddress,
+      },
+      Source.Dapp,
+    );
   }
 
   /**
@@ -1120,7 +1286,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     }
 
     throw new Error(
-      'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect.',
+      `Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.`,
     );
   }
 
@@ -1145,17 +1311,23 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param address - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
    * @param nftMetadata - NFT optional metadata.
-   * @param detection - The chain ID and address of the currently selected network and account at the moment the NFT was detected.
+   * @param accountParams - The chain ID and address of network and account to which the nftContract should be added.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns Promise resolving to the current NFT list.
    */
   async addNft(
     address: string,
     tokenId: string,
     nftMetadata?: NftMetadata,
-    detection?: AccountParams,
+    accountParams?: AccountParams,
+    source = Source.Custom,
   ) {
     address = toChecksumHexAddress(address);
-    const newNftContracts = await this.addNftContract(address, detection);
+    const newNftContracts = await this.addNftContract(
+      address,
+      accountParams,
+      source,
+    );
     nftMetadata =
       nftMetadata || (await this.getNftInformation(address, tokenId));
 
@@ -1171,7 +1343,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
         tokenId,
         nftMetadata,
         nftContract,
-        detection,
+        accountParams,
+        source,
       );
     }
   }
@@ -1230,8 +1403,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param nft - The NFT object to check and update.
    * @param batch - A boolean indicating whether this method is being called as part of a batch or single update.
    * @param accountParams - The userAddress and chainId to check ownership against
-   * @param accountParams.userAddress - the address passed through the confirmed transaction flow to ensure detected assets are stored to the correct account
-   * @param accountParams.chainId - the chainId passed through the confirmed transaction flow to ensure detected assets are stored to the correct account
+   * @param accountParams.userAddress - the address passed through the confirmed transaction flow to ensure assets are stored to the correct account
+   * @param accountParams.chainId - the chainId passed through the confirmed transaction flow to ensure assets are stored to the correct account
    * @returns the NFT with the updated isCurrentlyOwned value
    */
   async checkAndUpdateSingleNftOwnershipStatus(
@@ -1437,6 +1610,30 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     this.updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY);
     return true;
+  }
+
+  async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {
+    return this.messagingSystem.call(
+      'ApprovalController:addRequest',
+      {
+        id: suggestedNftMeta.id,
+        origin: suggestedNftMeta.origin,
+        type: ApprovalType.WatchAsset,
+        requestData: {
+          id: suggestedNftMeta.id,
+          interactingAddress: suggestedNftMeta.interactingAddress,
+          asset: {
+            address: suggestedNftMeta.asset.address,
+            tokenId: suggestedNftMeta.asset.tokenId,
+            name: suggestedNftMeta.asset.name,
+            description: suggestedNftMeta.asset.description,
+            image: suggestedNftMeta.asset.image,
+            standard: suggestedNftMeta.asset.standard,
+          },
+        },
+      },
+      true,
+    );
   }
 }
 
