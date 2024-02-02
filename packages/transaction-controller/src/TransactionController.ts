@@ -447,7 +447,6 @@ export class TransactionController extends BaseControllerV1<
    * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
-   * @param options.hub - Use a different event emitter for the hub.
    * @param options.getNetworkClientRegistry - Gets the network client registry.
    * @param options.enableMultichain - Enable multichain support.
    * @param config - Initial options used to configure this controller.
