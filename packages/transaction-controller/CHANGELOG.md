@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [21.2.0]
 
-- Add transaction publish hook ([#3883](https://github.com/MetaMask/core/pull/3883))
+### Added
+
+- Add optional `publish` hook to support custom logic instead of submission to the RPC provider ([#3883](https://github.com/MetaMask/core/pull/3883))
+- Add `hasNonce` option to `approveTransactionsWithSameNonce` method ([#3883](https://github.com/MetaMask/core/pull/3883))
 
 ## [21.1.0]
 
@@ -474,7 +477,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.2.0...HEAD
+[21.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.1.0...@metamask/transaction-controller@21.2.0
 [21.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.1...@metamask/transaction-controller@21.1.0
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.0...@metamask/transaction-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@20.0.0...@metamask/transaction-controller@21.0.0
