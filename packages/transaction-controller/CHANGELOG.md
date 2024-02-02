@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add transaction publish hook ([#3883](https://github.com/MetaMask/core/pull/3883))
+
 ## [21.1.0]
 
 ### Added

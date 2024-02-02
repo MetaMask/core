@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Merge `EthKeyringController` into `KeyringController` ([#3830](https://github.com/MetaMask/core/pull/3830))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+- Add tests for KeyringController edge cases ([#3847](https://github.com/MetaMask/core/pull/3847))
+- Refactor user operations tests ([#3832](https://github.com/MetaMask/core/pull/3832))
+- Add coverage for unsupported keyring methods ([#3831](https://github.com/MetaMask/core/pull/3831))
+
 ## [12.2.0]
 
 ### Added
