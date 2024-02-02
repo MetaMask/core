@@ -233,7 +233,10 @@ const controllerName = 'TransactionController';
 /**
  * The external actions available to the {@link TransactionController}.
  */
-type AllowedActions = AddApprovalRequest | NetworkControllerFindNetworkClientIdByChainIdAction | NetworkControllerGetNetworkClientByIdAction;
+type AllowedActions =
+  | AddApprovalRequest
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
@@ -1656,7 +1659,10 @@ export class TransactionController extends BaseControllerV1<
     let releaseLockForChainIdKey: (() => void) | undefined;
     let { nonceTracker } = this;
     if (networkClientId && this.enableMultichain) {
-      const networkClient = this.getNetworkClientById(networkClientId);
+      const networkClient = this.messagingSystem.call(
+        `NetworkController:getNetworkClientById`,
+        networkClientId,
+      );
       releaseLockForChainIdKey = await this.#acquireNonceLockForChainIdKey({
         chainId: networkClient.configuration.chainId,
         key: address,
@@ -2109,8 +2115,10 @@ export class TransactionController extends BaseControllerV1<
     const { networkClientId, chainId } = transactionMeta;
 
     const isCustomNetwork = networkClientId
-      ? this.getNetworkClientById(networkClientId).configuration.type ===
-        NetworkClientType.Custom
+      ? this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        ).configuration.type === NetworkClientType.Custom
       : this.getNetworkState().providerConfig.type === NetworkType.rpc;
 
     await updateGas({
@@ -2564,7 +2572,10 @@ export class TransactionController extends BaseControllerV1<
 
   private getChainId(networkClientId?: NetworkClientId): Hex {
     if (networkClientId) {
-      return this.getNetworkClientById(networkClientId).configuration.chainId;
+      return this.messagingSystem.call(
+        `NetworkController:getNetworkClientById`,
+        networkClientId,
+      ).configuration.chainId;
     }
     const { providerConfig } = this.getNetworkState();
     return providerConfig.chainId;
@@ -3040,7 +3051,10 @@ export class TransactionController extends BaseControllerV1<
 
     if (networkClientId) {
       try {
-        networkClient = this.getNetworkClientById(networkClientId);
+        networkClient = this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        );
       } catch (err) {
         log('failed to get network client by networkClientId');
       }
@@ -3048,8 +3062,14 @@ export class TransactionController extends BaseControllerV1<
 
     if (!networkClient && chainId) {
       try {
-        networkClientId = this.findNetworkClientIdByChainId(chainId);
-        networkClient = this.getNetworkClientById(networkClientId);
+        networkClientId = this.messagingSystem.call(
+          `NetworkController:findNetworkClientIdByChainId`,
+          chainId,
+        );
+        networkClient = this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        );
       } catch (err) {
         log('failed to get network client by chainId');
       }
@@ -3161,7 +3181,10 @@ export class TransactionController extends BaseControllerV1<
     if (trackers) {
       return;
     }
-    const networkClient = this.getNetworkClientById(networkClientId);
+    const networkClient = this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      networkClientId,
+    );
     const { chainId } = networkClient.configuration;
 
     let etherscanRemoteTransactionSource =
