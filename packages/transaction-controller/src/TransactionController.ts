@@ -58,6 +58,7 @@ import {
   SecurityAlertResponse,
   SubmitHistoryEntry,
   Transaction,
+  TransactionEnvelopeType,
   TransactionMeta,
   TransactionReceipt,
   TransactionStatus,
@@ -66,6 +67,7 @@ import {
 } from './types';
 import { updatePostTransactionBalance } from './swaps';
 import { validateConfirmedExternalTransaction } from './external-transactions';
+import { projectLogger as log } from './logger';
 
 const HARDFORK = 'london';
 const SUBMIT_HISTORY_LIMIT = 100;
@@ -184,6 +186,8 @@ export class TransactionController extends BaseController<
   private messagingSystem: TransactionControllerMessenger;
 
   private incomingTransactionHelper: IncomingTransactionHelper;
+
+  private readonly inProcessOfSigning: Set<string> = new Set();
 
   private readonly getExternalPendingTransactions: (
     address: string,
@@ -944,6 +948,67 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Signs and returns the raw transaction data for provided transaction params list.
+   *
+   * @param listOfTxParams - The list of transaction params to approve.
+   * @returns The raw transactions.
+   */
+  async approveTransactionsWithSameNonce(
+    listOfTxParams: Transaction[] = [],
+  ): Promise<string | string[]> {
+    log('Approving transactions with same nonce', {
+      transactions: listOfTxParams,
+    });
+
+    if (listOfTxParams.length === 0) {
+      return '';
+    }
+
+    const initialTx = listOfTxParams[0];
+    const common = this.getCommonConfiguration();
+
+    const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
+      common,
+    });
+
+    const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
+
+    if (this.inProcessOfSigning.has(initialTxAsSerializedHex)) {
+      return '';
+    }
+
+    this.inProcessOfSigning.add(initialTxAsSerializedHex);
+
+    let rawTransactions, nonceLock;
+    try {
+      // TODO: we should add a check to verify that all transactions have the same from address
+      const fromAddress = initialTx.from;
+      nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
+      const nonce = nonceLock.nextNonce;
+
+      log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+
+      rawTransactions = await Promise.all(
+        listOfTxParams.map((txParams) => {
+          txParams.nonce = addHexPrefix(nonce.toString(16));
+          return this.signExternalTransaction(txParams);
+        }),
+      );
+    } catch (err) {
+      log('Error while signing transactions with same nonce', err);
+      // Must set transaction to submitted/failed before releasing lock
+      // continue with error chain
+      throw err;
+    } finally {
+      if (nonceLock) {
+        nonceLock.releaseLock();
+      }
+      this.inProcessOfSigning.delete(initialTxAsSerializedHex);
+    }
+    return rawTransactions;
+  }
+
+  /**
    * Adds external provided transaction to state as confirmed transaction.
    *
    * @param transactionMeta - TransactionMeta to add transactions.
@@ -1263,6 +1328,11 @@ export class TransactionController extends BaseController<
         return;
       }
 
+      if (this.inProcessOfSigning.has(transactionID)) {
+        log('Skipping approval as signing in progress', transactionID);
+        return;
+      }
+
       const chainId = parseInt(currentChainId, undefined);
       const { approved: status } = TransactionStatus;
       let nonceToUse = nonce;
@@ -1302,6 +1372,7 @@ export class TransactionController extends BaseController<
       }
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+      this.inProcessOfSigning.add(transactionMeta.id);
       const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
@@ -1326,6 +1397,7 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
+      this.inProcessOfSigning.delete(transactionID);
       // must set transaction to submitted/failed before releasing lock
       if (nonceLock) {
         nonceLock.releaseLock();
@@ -1612,6 +1684,37 @@ export class TransactionController extends BaseController<
     } catch (error) {
       console.error('Error while updating post transaction balance', error);
     }
+  }
+
+  private async signExternalTransaction(
+    transactionParams: Transaction,
+  ): Promise<string> {
+    if (!this.sign) {
+      throw new Error('No sign method defined.');
+    }
+
+    const normalizedTransactionParams = normalizeTransaction(transactionParams);
+    const chainId = this.getChainId();
+    const type = isEIP1559Transaction(normalizedTransactionParams)
+      ? TransactionEnvelopeType.feeMarket
+      : TransactionEnvelopeType.legacy;
+    const updatedTransactionParams = {
+      ...normalizedTransactionParams,
+      type,
+      gasLimit: normalizedTransactionParams.gas,
+      chainId,
+    };
+
+    const { from } = updatedTransactionParams;
+    const common = this.getCommonConfiguration();
+    const unsignedTransaction = TransactionFactory.fromTxData(
+      updatedTransactionParams,
+      { common },
+    );
+    const signedTransaction = await this.sign(unsignedTransaction, from);
+
+    const rawTransaction = bufferToHex(signedTransaction.serialize());
+    return rawTransaction;
   }
 
   private onTransactionStatusChange(transactionMeta: TransactionMeta) {
