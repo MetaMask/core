@@ -3,12 +3,14 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ApprovalType,
   BUILT_IN_NETWORKS,
+  InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkClientType,
 } from '@metamask/network-controller';
+import type { NetworkClientConfiguration } from '@metamask/network-controller';
 import nock from 'nock';
 import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
@@ -30,30 +32,32 @@ import * as etherscanUtils from './utils/etherscan';
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const ACCOUNT_3_MOCK = '0xe688b84b23f322a994a53dbf8e15fa82cdb71127';
-const infuraProjectId = '341eacb578dd44a1a049cbc5f6fd4035';
+const infuraProjectId = 'fake-infura-project-id';
 
-const networkClientConfiguration = {
-  type: NetworkClientType.Infura,
-  network: NetworkType.goerli,
+const BLOCK_TRACKER_POLLING_INTERVAL = 20000;
+
+/**
+ * Builds the Infura network client configuration.
+ * @param network - The Infura network type.
+ * @returns The network client configuration.
+ */
+function buildInfuraNetworkClientConfiguration(
+  network: InfuraNetworkType,
+): NetworkClientConfiguration {
+  return {
+    type: NetworkClientType.Infura,
+    network,
+    chainId: BUILT_IN_NETWORKS[network].chainId,
+    infuraProjectId,
+    ticker: BUILT_IN_NETWORKS[network].ticker,
+  };
+}
+
+const customGoerliNetworkClientConfiguration = {
+  type: NetworkClientType.Custom,
   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-  infuraProjectId,
   ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
-} as const;
-
-const sepoliaNetworkClientConfiguration = {
-  type: NetworkClientType.Infura,
-  network: NetworkType.sepolia,
-  chainId: BUILT_IN_NETWORKS[NetworkType.sepolia].chainId,
-  infuraProjectId,
-  ticker: BUILT_IN_NETWORKS[NetworkType.sepolia].ticker,
-} as const;
-
-const mainnetNetworkClientConfiguration = {
-  type: NetworkClientType.Infura,
-  network: NetworkType.mainnet,
-  chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
-  infuraProjectId,
-  ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
+  rpcUrl: 'https://mock.rpc.url',
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,7 +134,9 @@ describe('TransactionController Integration', () => {
   describe('constructor', () => {
     it('should create a new instance of TransactionController', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -152,7 +158,9 @@ describe('TransactionController Integration', () => {
 
     it('should submit all approved transactions in state', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -169,7 +177,9 @@ describe('TransactionController Integration', () => {
       });
 
       mockNetwork({
-        networkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.goerli,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -198,7 +208,9 @@ describe('TransactionController Integration', () => {
       });
 
       mockNetwork({
-        networkClientConfiguration: sepoliaNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.sepolia,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -320,7 +332,9 @@ describe('TransactionController Integration', () => {
     describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
       it('should add a new unapproved transaction', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -336,7 +350,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -388,7 +404,9 @@ describe('TransactionController Integration', () => {
       });
       it('should be able to get to submitted state', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -404,7 +422,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -526,7 +546,9 @@ describe('TransactionController Integration', () => {
       });
       it('should be able to get to confirmed state', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -542,7 +564,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -682,7 +706,7 @@ describe('TransactionController Integration', () => {
 
         await result;
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
         await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
@@ -694,7 +718,9 @@ describe('TransactionController Integration', () => {
       });
       it('should be able to send and confirm transactions on different chains', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -710,7 +736,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -835,7 +863,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration: sepoliaNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.sepolia,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -986,7 +1016,7 @@ describe('TransactionController Integration', () => {
         await Promise.all([firstTransaction.result, secondTransaction.result]);
 
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
         await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
@@ -1007,7 +1037,9 @@ describe('TransactionController Integration', () => {
       });
       it('should be able to cancel a transaction', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1023,7 +1055,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1209,7 +1243,9 @@ describe('TransactionController Integration', () => {
       });
       it('should be able to confirm a cancelled transaction', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1225,7 +1261,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1420,10 +1458,10 @@ describe('TransactionController Integration', () => {
         await transactionController.stopTransaction(transactionMeta.id);
 
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
         await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
         await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
@@ -1435,7 +1473,9 @@ describe('TransactionController Integration', () => {
       });
       it('should be able to get to speedup state', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1451,7 +1491,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1647,10 +1689,10 @@ describe('TransactionController Integration', () => {
         await transactionController.speedUpTransaction(transactionMeta.id);
 
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
         await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 20000 });
+        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
         await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
@@ -1672,7 +1714,9 @@ describe('TransactionController Integration', () => {
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1688,7 +1732,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -1814,13 +1860,18 @@ describe('TransactionController Integration', () => {
         });
 
         mockNetwork({
-          networkClientConfiguration: {
-            ...networkClientConfiguration,
-            type: NetworkClientType.Custom,
-            rpcUrl: 'https://mock.rpc.url',
-          },
+          networkClientConfiguration: customGoerliNetworkClientConfiguration,
           mocks: [
             // NetworkController
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
             // BlockTracker
             {
               request: {
@@ -1952,8 +2003,8 @@ describe('TransactionController Integration', () => {
           await networkController.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://mock.rpc.url',
-              chainId: networkClientConfiguration.chainId,
-              ticker: networkClientConfiguration.ticker,
+              chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+              ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
             },
             {
               referrer: 'https://mock.referrer',
@@ -1998,7 +2049,9 @@ describe('TransactionController Integration', () => {
     describe('when transactions are added concurrently with the same networkClientId', () => {
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -2014,7 +2067,9 @@ describe('TransactionController Integration', () => {
           ],
         });
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -2225,7 +2280,9 @@ describe('TransactionController Integration', () => {
   describe('when changing rpcUrl of networkClient', () => {
     it('should start tracking when a new network is added', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2241,13 +2298,18 @@ describe('TransactionController Integration', () => {
         ],
       });
       mockNetwork({
-        networkClientConfiguration: {
-          ...networkClientConfiguration,
-          type: NetworkClientType.Custom,
-          rpcUrl: 'https://mock.rpc.url',
-        },
+        networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
           // NetworkController
+          {
+            request: {
+              method: 'eth_blockNumber',
+              params: [],
+            },
+            response: {
+              result: '0x1',
+            },
+          },
           // BlockTracker
           {
             request: {
@@ -2299,10 +2361,7 @@ describe('TransactionController Integration', () => {
 
       const otherNetworkClientIdOnGoerli =
         await networkController.upsertNetworkConfiguration(
-          {
-            ...networkClientConfiguration,
-            rpcUrl: 'https://mock.rpc.url',
-          },
+          customGoerliNetworkClientConfiguration,
           {
             setActive: false,
             referrer: 'https://mock.referrer',
@@ -2329,7 +2388,9 @@ describe('TransactionController Integration', () => {
     });
     it('should stop tracking when a network is removed', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2359,10 +2420,7 @@ describe('TransactionController Integration', () => {
 
       const configurationId =
         await networkController.upsertNetworkConfiguration(
-          {
-            ...networkClientConfiguration,
-            rpcUrl: 'https://mock.rpc.url',
-          },
+          customGoerliNetworkClientConfiguration,
           {
             setActive: false,
             referrer: 'https://mock.referrer',
@@ -2392,7 +2450,9 @@ describe('TransactionController Integration', () => {
   describe('feature flag', () => {
     it('should not allow transaction to be added with a networkClientId when feature flag is disabled', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2455,10 +2515,7 @@ describe('TransactionController Integration', () => {
 
       const configurationId =
         await networkController.upsertNetworkConfiguration(
-          {
-            ...networkClientConfiguration,
-            rpcUrl: 'https://mock.rpc.url',
-          },
+          customGoerliNetworkClientConfiguration,
           {
             setActive: false,
             referrer: 'https://mock.referrer',
@@ -2491,7 +2548,9 @@ describe('TransactionController Integration', () => {
     });
     it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2508,8 +2567,8 @@ describe('TransactionController Integration', () => {
       });
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
-          [networkClientConfiguration.network]: {
-            configuration: networkClientConfiguration,
+          [NetworkType.goerli]: {
+            configuration: customGoerliNetworkClientConfiguration,
           },
         };
       });
@@ -2520,10 +2579,7 @@ describe('TransactionController Integration', () => {
       });
 
       await networkController.upsertNetworkConfiguration(
-        {
-          ...networkClientConfiguration,
-          rpcUrl: 'https://mock.rpc.url',
-        },
+        customGoerliNetworkClientConfiguration,
         {
           setActive: false,
           referrer: 'https://mock.referrer',
@@ -2536,7 +2592,9 @@ describe('TransactionController Integration', () => {
     });
     it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2553,8 +2611,8 @@ describe('TransactionController Integration', () => {
       });
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
-          [networkClientConfiguration.network]: {
-            configuration: networkClientConfiguration,
+          [NetworkType.goerli]: {
+            configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
           },
         };
       });
@@ -2565,10 +2623,7 @@ describe('TransactionController Integration', () => {
       });
 
       await networkController.upsertNetworkConfiguration(
-        {
-          ...networkClientConfiguration,
-          rpcUrl: 'https://mock.rpc.url',
-        },
+        customGoerliNetworkClientConfiguration,
         {
           setActive: false,
           referrer: 'https://mock.referrer',
@@ -2581,7 +2636,9 @@ describe('TransactionController Integration', () => {
     });
     it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2598,8 +2655,8 @@ describe('TransactionController Integration', () => {
       });
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
-          [networkClientConfiguration.network]: {
-            configuration: networkClientConfiguration,
+          [NetworkType.goerli]: {
+            configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
           },
         };
       });
@@ -2617,7 +2674,9 @@ describe('TransactionController Integration', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2655,7 +2714,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== networkClientConfiguration.network,
+        (v) => v !== NetworkType.goerli,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -2714,7 +2773,7 @@ describe('TransactionController Integration', () => {
           });
         }),
       );
-      await advanceTime({ clock, duration: 20000 });
+      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
 
       expect(transactionController.state.transactions).toHaveLength(
         2 * networkClientIds.length,
@@ -2730,6 +2789,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
+    // Unclear if we need this test
     it.todo(
       'should start the global incoming transaction helper when no networkClientIds provided',
     );
@@ -2748,7 +2808,9 @@ describe('TransactionController Integration', () => {
 
         // mocking infura mainnet
         mockNetwork({
-          networkClientConfiguration: mainnetNetworkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.mainnet,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -2776,7 +2838,9 @@ describe('TransactionController Integration', () => {
 
         // mocking infura goerli
         mockNetwork({
-          networkClientConfiguration,
+          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+            InfuraNetworkType.goerli,
+          ),
           mocks: [
             // NetworkController
             // BlockTracker
@@ -2805,8 +2869,9 @@ describe('TransactionController Integration', () => {
         // mock the other goerli network client node requests
         mockNetwork({
           networkClientConfiguration: {
-            ...networkClientConfiguration,
             type: NetworkClientType.Custom,
+            chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+            ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
             rpcUrl: 'https://mock.rpc.url',
           },
           mocks: [
@@ -2860,11 +2925,7 @@ describe('TransactionController Integration', () => {
 
         const otherGoerliClientNetworkClientId =
           await networkController.upsertNetworkConfiguration(
-            {
-              rpcUrl: 'https://mock.rpc.url',
-              chainId: networkClientConfiguration.chainId,
-              ticker: networkClientConfiguration.ticker,
-            },
+            customGoerliNetworkClientConfiguration,
             {
               referrer: 'https://mock.referrer',
               source: 'dapp',
@@ -2874,7 +2935,7 @@ describe('TransactionController Integration', () => {
         // Etherscan API Mocks
 
         // Non-token transactions
-        nock(getEtherscanApiHost(networkClientConfiguration.chainId))
+        nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.goerli].chainId))
           .get(
             `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
           )
@@ -2893,7 +2954,7 @@ describe('TransactionController Integration', () => {
           .persist();
 
         // token transactions
-        nock(getEtherscanApiHost(networkClientConfiguration.chainId))
+        nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.goerli].chainId))
           .get(
             `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
           )
@@ -2912,7 +2973,7 @@ describe('TransactionController Integration', () => {
 
         // start polling with two clients which share the same chainId
         transactionController.startIncomingTransactionPolling([
-          networkClientConfiguration.network, // 'goerli'
+          NetworkType.goerli,
           otherGoerliClientNetworkClientId,
         ]);
         await advanceTime({ clock, duration: 1 });
@@ -2949,12 +3010,15 @@ describe('TransactionController Integration', () => {
   });
 
   describe('stopIncomingTransactionPolling', () => {
+    // Unclear if we need this test
     it.todo(
       'should stop the global incoming transaction helper when no networkClientIds provided',
     );
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -2989,7 +3053,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== networkClientConfiguration.network,
+        (v) => v !== NetworkType.goerli,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3034,7 +3098,7 @@ describe('TransactionController Integration', () => {
           ]);
         }),
       );
-      await advanceTime({ clock, duration: 20000 });
+      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
 
       expect(transactionController.state.transactions).toStrictEqual([]);
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
@@ -3047,7 +3111,9 @@ describe('TransactionController Integration', () => {
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3082,7 +3148,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== networkClientConfiguration.network,
+        (v) => v !== NetworkType.goerli,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3125,7 +3191,7 @@ describe('TransactionController Integration', () => {
       );
 
       transactionController.stopAllIncomingTransactionPolling();
-      await advanceTime({ clock, duration: 20000 });
+      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
 
       expect(transactionController.state.transactions).toStrictEqual([]);
       expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
@@ -3138,7 +3204,9 @@ describe('TransactionController Integration', () => {
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3176,7 +3244,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== networkClientConfiguration.network,
+        (v) => v !== NetworkType.goerli,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3245,7 +3313,9 @@ describe('TransactionController Integration', () => {
   describe('getNonceLock', () => {
     it('should get the nonce lock from the nonceTracker for the given networkClientId', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3278,7 +3348,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== networkClientConfiguration.network,
+        (v) => v !== NetworkType.goerli,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3325,7 +3395,9 @@ describe('TransactionController Integration', () => {
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the networkClientId until the previous lock is released', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3358,7 +3430,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== networkClientConfiguration.network,
+        (v) => v !== NetworkType.goerli,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3430,7 +3502,9 @@ describe('TransactionController Integration', () => {
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the different networkClientIds on the same chainId until the previous lock is released', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3460,7 +3534,9 @@ describe('TransactionController Integration', () => {
         {},
       );
       mockNetwork({
-        networkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.goerli,
+        ),
         mocks: [
           // BlockTracker
           {
@@ -3486,11 +3562,7 @@ describe('TransactionController Integration', () => {
       });
 
       mockNetwork({
-        networkClientConfiguration: {
-          ...networkClientConfiguration,
-          type: NetworkClientType.Custom,
-          rpcUrl: 'https://mock.rpc.url',
-        },
+        networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
           // BlockTracker
           {
@@ -3517,11 +3589,7 @@ describe('TransactionController Integration', () => {
 
       const otherNetworkClientIdOnGoerli =
         await networkController.upsertNetworkConfiguration(
-          {
-            rpcUrl: 'https://mock.rpc.url',
-            chainId: networkClientConfiguration.chainId,
-            ticker: networkClientConfiguration.ticker,
-          },
+          customGoerliNetworkClientConfiguration,
           {
             referrer: 'https://mock.referrer',
             source: 'dapp',
@@ -3568,7 +3636,9 @@ describe('TransactionController Integration', () => {
 
     it('should not block attempts to get the nonce lock for the same addresses from the nonceTracker for different networkClientIds', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3597,7 +3667,9 @@ describe('TransactionController Integration', () => {
       const { transactionController } = await newController({});
 
       mockNetwork({
-        networkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.goerli,
+        ),
         mocks: [
           // BlockTracker
           {
@@ -3623,7 +3695,9 @@ describe('TransactionController Integration', () => {
       });
 
       mockNetwork({
-        networkClientConfiguration: sepoliaNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.sepolia,
+        ),
         mocks: [
           // BlockTracker
           {
@@ -3673,7 +3747,9 @@ describe('TransactionController Integration', () => {
 
     it('should not block attempts to get the nonce lock for different addresses from the nonceTracker for the networkClientId', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3706,7 +3782,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== networkClientConfiguration.network,
+        (v) => v !== NetworkType.goerli,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3773,7 +3849,9 @@ describe('TransactionController Integration', () => {
 
     it('should get the nonce lock from the globally selected nonceTracker if no networkClientId is provided', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3812,7 +3890,9 @@ describe('TransactionController Integration', () => {
 
     it('should block attempts to get the nonce lock from the globally selected NonceTracker for the same address until the previous lock is released', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
@@ -3874,7 +3954,9 @@ describe('TransactionController Integration', () => {
 
     it('should not block attempts to get the nonce lock from the globally selected nonceTracker for different addresses', async () => {
       mockNetwork({
-        networkClientConfiguration: mainnetNetworkClientConfiguration,
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
         mocks: [
           // NetworkController
           // BlockTracker
