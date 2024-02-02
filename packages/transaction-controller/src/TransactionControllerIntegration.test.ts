@@ -1856,6 +1856,16 @@ describe('TransactionController Integration', () => {
                 },
               },
             },
+            // BlockTracker
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x3',
+              },
+            },
           ],
         });
 
