@@ -227,18 +227,24 @@ function buildMockResultCallbacks(): AcceptResultCallbacks {
 }
 
 /**
+ * @type AddRequestOptions
+ * @property approved - Whether transactions should immediately be approved or rejected.
+ * @property delay - Whether to delay approval or rejection until the returned functions are called.
+ * @property resultCallbacks - The result callbacks to return when a request is approved.
+ */
+type AddRequestOptions = {
+  approved?: boolean;
+  delay?: boolean;
+  resultCallbacks?: AcceptResultCallbacks;
+};
+
+/**
  * Create a mock controller messenger.
  *
  * @param opts - Options to customize the mock messenger.
- * @param opts.approved - Whether transactions should immediately be approved or rejected.
- * @param opts.delay - Whether to delay approval or rejection until the returned functions are called.
- * @param opts.resultCallbacks - The result callbacks to return when a request is approved.
- * @param opts.addRequest
- * @param opts.addRequest.approved
- * @param opts.addRequest.delay
- * @param opts.addRequest.resultCallbacks
- * @param opts.getNetworkClientById
- * @param opts.findNetworkClientIdByChainId
+ * @param opts.addRequest - Options for ApprovalController.addRequest mock.
+ * @param opts.getNetworkClientById - The function to use as the NetworkController:getNetworkClientById mock.
+ * @param opts.findNetworkClientIdByChainId - The function to use as the NetworkController:findNetworkClientIdByChainId mock.
  * @returns The mock controller messenger.
  */
 //
@@ -247,11 +253,7 @@ function buildMockMessenger({
   getNetworkClientById,
   findNetworkClientIdByChainId,
 }: {
-  addRequest: {
-    approved?: boolean;
-    delay?: boolean;
-    resultCallbacks?: AcceptResultCallbacks;
-  };
+  addRequest: AddRequestOptions;
   getNetworkClientById: NetworkControllerGetNetworkClientByIdAction['handler'];
   findNetworkClientIdByChainId: NetworkControllerFindNetworkClientIdByChainIdAction['handler'];
 }): {
@@ -286,8 +288,9 @@ function buildMockMessenger({
 
   const messenger = {
     subscribe: mockSubscribe,
-    call: jest.fn().mockImplementation((type, ...args: any[]) => {
-      switch (type) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    call: jest.fn().mockImplementation((actionType: string, ...args: any[]) => {
+      switch (actionType) {
         case 'ApprovalController:addRequest':
           if (approved) {
             return Promise.resolve({ resultCallbacks });
@@ -302,9 +305,15 @@ function buildMockMessenger({
             code: errorCodes.provider.userRejectedRequest,
           });
         case 'NetworkController:getNetworkClientById':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (getNetworkClientById as any)(...args);
         case 'NetworkController:findNetworkClientIdByChainId':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (findNetworkClientIdByChainId as any)(...args);
+        default:
+          throw new Error(
+            `A handler for ${actionType} has not been registered`,
+          );
       }
     }),
   } as unknown as TransactionControllerMessenger;
@@ -569,7 +578,7 @@ describe('TransactionController', () => {
     const finalNetwork = network ?? MOCK_NETWORK;
 
     resultCallbacksMock = buildMockResultCallbacks();
-    let addRequestMockOptions: any;
+    let addRequestMockOptions: AddRequestOptions;
     if (approve) {
       addRequestMockOptions = {
         approved: true,
