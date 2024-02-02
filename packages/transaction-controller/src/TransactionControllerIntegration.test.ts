@@ -36,28 +36,6 @@ const infuraProjectId = 'fake-infura-project-id';
 
 const BLOCK_TRACKER_POLLING_INTERVAL = 20000;
 
-function mockGloballySelectedNetwork() {
-  mockNetwork({
-    networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-      InfuraNetworkType.mainnet,
-    ),
-    mocks: [
-      // NetworkController
-      // BlockTracker
-      {
-        request: {
-          method: 'eth_blockNumber',
-          params: [],
-        },
-        response: {
-          result: '0x1',
-        },
-        discardAfterMatching: false,
-      },
-    ],
-  });
-}
-
 /**
  * Builds the Infura network client configuration.
  * @param network - The Infura network type.
@@ -84,6 +62,27 @@ const customGoerliNetworkClientConfiguration = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const newController = async (options: any = {}) => {
+  // Mainnet network must be mocked for NetworkController instantiation
+  mockNetwork({
+    networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+      InfuraNetworkType.mainnet,
+    ),
+    mocks: [
+      // NetworkController
+      // BlockTracker
+      {
+        request: {
+          method: 'eth_blockNumber',
+          params: [],
+        },
+        response: {
+          result: '0x1',
+        },
+        discardAfterMatching: false,
+      },
+    ],
+  });
+
   const messenger = new ControllerMessenger();
   const networkController = new NetworkController({
     messenger: messenger.getRestricted({ name: 'NetworkController' }),
@@ -155,14 +154,12 @@ describe('TransactionController Integration', () => {
 
   describe('constructor', () => {
     it('should create a new instance of TransactionController', async () => {
-      mockGloballySelectedNetwork();
-      const { transactionController } = await newController({});
+            const { transactionController } = await newController({});
       expect(transactionController).toBeDefined();
       transactionController.destroy();
     });
 
     it('should submit all approved transactions in state', async () => {
-      mockGloballySelectedNetwork();
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -319,8 +316,7 @@ describe('TransactionController Integration', () => {
   describe('multichain transaction lifecycle', () => {
     describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
       it('should add a new unapproved transaction', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -374,8 +370,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to get to submitted state', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -499,8 +494,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to get to confirmed state', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -654,8 +648,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to send and confirm transactions on different chains', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -956,8 +949,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to cancel a transaction', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -1145,8 +1137,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to confirm a cancelled transaction', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -1358,8 +1349,7 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
       it('should be able to get to speedup state', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -1582,8 +1572,7 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -1910,8 +1899,7 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        mockGloballySelectedNetwork();
-        mockNetwork({
+                mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
@@ -2124,8 +2112,7 @@ describe('TransactionController Integration', () => {
 
   describe('when changing rpcUrl of networkClient', () => {
     it('should start tracking when a new network is added', async () => {
-      mockGloballySelectedNetwork();
-      mockNetwork({
+            mockNetwork({
         networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
           // NetworkController
@@ -2215,8 +2202,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should stop tracking when a network is removed', async () => {
-      mockGloballySelectedNetwork();
-      const { networkController, transactionController } =
+            const { networkController, transactionController } =
         await newController();
 
       const configurationId =
@@ -2348,8 +2334,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
-      mockGloballySelectedNetwork();
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
+            const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
             configuration: customGoerliNetworkClientConfiguration,
@@ -2375,8 +2360,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
-      mockGloballySelectedNetwork();
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
+            const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
             configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
@@ -2402,8 +2386,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
-      mockGloballySelectedNetwork();
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
+            const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
             configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
@@ -2462,10 +2445,7 @@ describe('TransactionController Integration', () => {
       const expectedTransactions: Partial<TransactionMeta>[] = [];
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.mainnet,
-      );
+const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
@@ -2765,7 +2745,6 @@ describe('TransactionController Integration', () => {
       'should stop the global incoming transaction helper when no networkClientIds provided',
     );
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
-      mockGloballySelectedNetwork();
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
@@ -2774,10 +2753,7 @@ describe('TransactionController Integration', () => {
       });
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.mainnet,
-      );
+const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
@@ -2833,7 +2809,6 @@ describe('TransactionController Integration', () => {
 
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
-      mockGloballySelectedNetwork();
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
@@ -2842,10 +2817,7 @@ describe('TransactionController Integration', () => {
       });
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.mainnet,
-      );
+const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
@@ -2899,7 +2871,6 @@ describe('TransactionController Integration', () => {
 
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
-      mockGloballySelectedNetwork();
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
@@ -2911,10 +2882,7 @@ describe('TransactionController Integration', () => {
       const expectedTransactions: Partial<TransactionMeta>[] = [];
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.mainnet,
-      );
+const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
@@ -2984,17 +2952,13 @@ describe('TransactionController Integration', () => {
 
   describe('getNonceLock', () => {
     it('should get the nonce lock from the nonceTracker for the given networkClientId', async () => {
-      mockGloballySelectedNetwork();
 
       const { networkController, transactionController } = await newController(
         {},
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.mainnet,
-      );
+const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
@@ -3039,17 +3003,13 @@ describe('TransactionController Integration', () => {
     });
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the networkClientId until the previous lock is released', async () => {
-      mockGloballySelectedNetwork();
 
       const { networkController, transactionController } = await newController(
         {},
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.mainnet,
-      );
+const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
@@ -3119,7 +3079,6 @@ describe('TransactionController Integration', () => {
     });
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the different networkClientIds on the same chainId until the previous lock is released', async () => {
-      mockGloballySelectedNetwork();
 
       const { networkController, transactionController } = await newController(
         {},
@@ -3226,8 +3185,7 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for the same addresses from the nonceTracker for different networkClientIds', async () => {
-      mockGloballySelectedNetwork();
-      const { transactionController } = await newController({});
+            const { transactionController } = await newController({});
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -3309,16 +3267,12 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for different addresses from the nonceTracker for the networkClientId', async () => {
-      mockGloballySelectedNetwork();
-      const { networkController, transactionController } = await newController(
+            const { networkController, transactionController } = await newController(
         {},
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.mainnet,
-      );
+const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
