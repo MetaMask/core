@@ -1185,7 +1185,7 @@ describe('TransactionController', () => {
       );
     });
 
-    describe('multichain', () => {
+    describe('when enableMultichain: true is specified', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const controller = newController({
           options: { enableMultichain: true },
@@ -1211,6 +1211,7 @@ describe('TransactionController', () => {
         expect(transactionMeta.networkClientId).toBe('sepolia');
         expect(transactionMeta.origin).toBe('metamask');
       });
+
       it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
         const controller = newController({
           approve: true,
