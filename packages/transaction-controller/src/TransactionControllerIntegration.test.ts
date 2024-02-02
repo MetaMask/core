@@ -2464,7 +2464,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
+        (v) => v !== NetworkType.mainnet,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -2776,7 +2776,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
+        (v) => v !== NetworkType.mainnet,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -2844,7 +2844,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
+        (v) => v !== NetworkType.mainnet,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -2913,7 +2913,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
+        (v) => v !== NetworkType.mainnet,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -2993,7 +2993,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
+        (v) => v !== NetworkType.mainnet,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3048,7 +3048,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
+        (v) => v !== NetworkType.mainnet,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
@@ -3317,7 +3317,7 @@ describe('TransactionController Integration', () => {
       const networkClients = networkController.getNetworkClientRegistry();
       // Skip the globally selected provider because we can't use nock to mock it twice
       const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
+        (v) => v !== NetworkType.mainnet,
       );
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
