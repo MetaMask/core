@@ -11,7 +11,8 @@ import { getGasFeeFlow } from '../utils/gas-flow';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 
-const POLLING_INTERVAL_MILLISECONDS = 10000;
+const INTERVAL_MILLISECONDS = 10000;
+const LEVELS = ['low', 'medium', 'high'] as const;
 
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
@@ -26,7 +27,7 @@ export class GasFeePoller {
 
   #getTransactions: () => TransactionMeta[];
 
-  #interval: ReturnType<typeof setInterval> | undefined;
+  #timeout: ReturnType<typeof setTimeout> | undefined;
 
   #running = false;
 
@@ -67,10 +68,9 @@ export class GasFeePoller {
       return;
     }
 
-    this.#interval = setInterval(
-      () => this.#updateTransactionSuggestedFees(),
-      POLLING_INTERVAL_MILLISECONDS,
-    );
+    // Intentionally not awaiting since this starts the timeout chain.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.#onTimeout();
 
     this.#running = true;
 
@@ -82,36 +82,48 @@ export class GasFeePoller {
       return;
     }
 
-    clearInterval(this.#interval);
+    clearTimeout(this.#timeout);
 
-    this.#interval = undefined;
+    this.#timeout = undefined;
     this.#running = false;
 
     log('Stopped polling');
   }
 
-  async #updateTransactionSuggestedFees() {
+  async #onTimeout() {
+    await this.#updateUnapprovedTransactions();
+
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
+  }
+
+  async #updateUnapprovedTransactions() {
     const unapprovedTransactions = this.#getUnapprovedTransactions();
 
-    log('Updating suggested gas fees', {
+    log('Found unapproved transactions', {
       count: unapprovedTransactions.length,
     });
 
     const ethQuery = this.#getEthQuery();
 
     for (const transactionMeta of unapprovedTransactions) {
-      await this.#updateTransactionSugesstedFees(transactionMeta, ethQuery);
+      await this.#updateTransactionSuggestedFees(transactionMeta, ethQuery);
     }
   }
 
-  async #updateTransactionSugesstedFees(
+  async #updateTransactionSuggestedFees(
     transactionMeta: TransactionMeta,
     ethQuery: EthQuery,
   ) {
-    const gasFeeFlow = getGasFeeFlow(
-      transactionMeta,
-      this.#gasFeeFlows,
-    ) as GasFeeFlow;
+    const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
+
+    if (!gasFeeFlow) {
+      log('Skipping update as no gas fee flow found', transactionMeta.id);
+
+      return;
+    }
+
+    log('Found gas fee flow', gasFeeFlow.constructor.name, transactionMeta.id);
 
     const request: GasFeeFlowRequest = {
       ethQuery,
@@ -135,9 +147,20 @@ export class GasFeePoller {
       'GasFeePoller - Suggested gas fees updated',
     );
 
-    log('Updated suggested gas fees', {
-      transaction: transactionMeta.id,
+    const debugSummary = LEVELS.map((level) => {
+      const value = transactionMeta.suggestedGasFees?.[level]
+        ?.maxFeePerGas as string;
+
+      if (!value) {
+        return 'Missing';
+      }
+
+      return `${value} (${parseInt(value, 16)})`;
+    }).join(' | ');
+
+    log('Updated suggested gas fees', debugSummary, {
       suggestedGasFees: transactionMeta.suggestedGasFees,
+      transaction: transactionMeta.id,
     });
   }
 

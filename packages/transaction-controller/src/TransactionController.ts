@@ -568,7 +568,8 @@ export class TransactionController extends BaseControllerV1<
     this.gasFeeFlows = this.getGasFeeFlows();
 
     const gasFeePoller = new GasFeePoller({
-      gasFeeFlows: this.gasFeeFlows,
+      // Default gas fee polling is not yet supported by the clients
+      gasFeeFlows: this.gasFeeFlows.slice(0, -1),
       getEthQuery: () => this.ethQuery,
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
       getProviderConfig: () => this.getNetworkState().providerConfig,
