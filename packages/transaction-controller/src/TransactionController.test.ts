@@ -15,6 +15,8 @@ import {
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   BlockTracker,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
@@ -225,22 +227,35 @@ function buildMockResultCallbacks(): AcceptResultCallbacks {
 }
 
 /**
- * Create a mock controller messenger.
- *
- * @param opts - Options to customize the mock messenger.
- * @param opts.approved - Whether transactions should immediately be approved or rejected.
- * @param opts.delay - Whether to delay approval or rejection until the returned functions are called.
- * @param opts.resultCallbacks - The result callbacks to return when a request is approved.
- * @returns The mock controller messenger.
+ * @type AddRequestOptions
+ * @property approved - Whether transactions should immediately be approved or rejected.
+ * @property delay - Whether to delay approval or rejection until the returned functions are called.
+ * @property resultCallbacks - The result callbacks to return when a request is approved.
  */
-function buildMockMessenger({
-  approved,
-  delay,
-  resultCallbacks,
-}: {
+type AddRequestOptions = {
   approved?: boolean;
   delay?: boolean;
   resultCallbacks?: AcceptResultCallbacks;
+};
+
+/**
+ * Create a mock controller messenger.
+ *
+ * @param opts - Options to customize the mock messenger.
+ * @param opts.addRequest - Options for ApprovalController.addRequest mock.
+ * @param opts.getNetworkClientById - The function to use as the NetworkController:getNetworkClientById mock.
+ * @param opts.findNetworkClientIdByChainId - The function to use as the NetworkController:findNetworkClientIdByChainId mock.
+ * @returns The mock controller messenger.
+ */
+//
+function buildMockMessenger({
+  addRequest: { approved, delay, resultCallbacks },
+  getNetworkClientById,
+  findNetworkClientIdByChainId,
+}: {
+  addRequest: AddRequestOptions;
+  getNetworkClientById: NetworkControllerGetNetworkClientByIdAction['handler'];
+  findNetworkClientIdByChainId: NetworkControllerFindNetworkClientIdByChainIdAction['handler'];
 }): {
   messenger: TransactionControllerMessenger;
   approve: () => void;
@@ -273,19 +288,33 @@ function buildMockMessenger({
 
   const messenger = {
     subscribe: mockSubscribe,
-    call: jest.fn().mockImplementation(() => {
-      if (approved) {
-        return Promise.resolve({ resultCallbacks });
-      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    call: jest.fn().mockImplementation((actionType: string, ...args: any[]) => {
+      switch (actionType) {
+        case 'ApprovalController:addRequest':
+          if (approved) {
+            return Promise.resolve({ resultCallbacks });
+          }
 
-      if (delay) {
-        return promise;
-      }
+          if (delay) {
+            return promise;
+          }
 
-      // eslint-disable-next-line prefer-promise-reject-errors
-      return Promise.reject({
-        code: errorCodes.provider.userRejectedRequest,
-      });
+          // eslint-disable-next-line prefer-promise-reject-errors
+          return Promise.reject({
+            code: errorCodes.provider.userRejectedRequest,
+          });
+        case 'NetworkController:getNetworkClientById':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (getNetworkClientById as any)(...args);
+        case 'NetworkController:findNetworkClientIdByChainId':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (findNetworkClientIdByChainId as any)(...args);
+        default:
+          throw new Error(
+            `A handler for ${actionType} has not been registered`,
+          );
+      }
     }),
   } as unknown as TransactionControllerMessenger;
 
@@ -499,8 +528,6 @@ describe('TransactionController', () => {
 
   let resultCallbacksMock: AcceptResultCallbacks;
   let messengerMock: TransactionControllerMessenger;
-  let rejectMessengerMock: TransactionControllerMessenger;
-  let delayMessengerMock: TransactionControllerMessenger;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let approveTransaction: (value?: any) => void;
@@ -549,14 +576,24 @@ describe('TransactionController', () => {
     state?: Partial<TransactionState>;
   } = {}): TransactionController {
     const finalNetwork = network ?? MOCK_NETWORK;
-    let messenger = delayMessengerMock;
 
+    resultCallbacksMock = buildMockResultCallbacks();
+    let addRequestMockOptions: AddRequestOptions;
     if (approve) {
-      messenger = messengerMock;
-    }
-
-    if (reject) {
-      messenger = rejectMessengerMock;
+      addRequestMockOptions = {
+        approved: true,
+        resultCallbacks: resultCallbacksMock,
+      };
+    } else if (reject) {
+      addRequestMockOptions = {
+        approved: false,
+        resultCallbacks: resultCallbacksMock,
+      };
+    } else {
+      addRequestMockOptions = {
+        delay: true,
+        resultCallbacks: resultCallbacksMock,
+      };
     }
 
     const mockGetNetworkClientById = jest
@@ -600,7 +637,13 @@ describe('TransactionController', () => {
         }
       });
 
-    const mockFindNetworkClientIdByChainId = jest.fn();
+    ({ messenger: messengerMock, approve: approveTransaction } =
+      buildMockMessenger({
+        addRequest: addRequestMockOptions,
+        getNetworkClientById: mockGetNetworkClientById,
+        findNetworkClientIdByChainId: jest.fn(),
+      }));
+
     return new TransactionController(
       {
         blockTracker: finalNetwork.blockTracker,
@@ -632,11 +675,9 @@ describe('TransactionController', () => {
             },
           },
         }),
-        messenger,
+        messenger: messengerMock,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
-        getNetworkClientById: mockGetNetworkClientById,
-        findNetworkClientIdByChainId: mockFindNetworkClientIdByChainId,
         ...options,
       },
       {
@@ -667,24 +708,6 @@ describe('TransactionController', () => {
     for (const key of Object.keys(mockFlags)) {
       mockFlags[key] = null;
     }
-
-    resultCallbacksMock = buildMockResultCallbacks();
-
-    messengerMock = buildMockMessenger({
-      approved: true,
-      resultCallbacks: resultCallbacksMock,
-    }).messenger;
-
-    rejectMessengerMock = buildMockMessenger({
-      approved: false,
-      resultCallbacks: resultCallbacksMock,
-    }).messenger;
-
-    ({ messenger: delayMessengerMock, approve: approveTransaction } =
-      buildMockMessenger({
-        delay: true,
-        resultCallbacks: resultCallbacksMock,
-      }));
 
     getNonceLockSpy = jest.fn().mockResolvedValue({
       nextNonce: NONCE_MOCK,
@@ -967,8 +990,8 @@ describe('TransactionController', () => {
       const secondTransactionCount = controller.state.transactions.length;
 
       expect(firstTransactionCount).toStrictEqual(secondTransactionCount);
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+      expect(messengerMock.call).toHaveBeenCalledTimes(1);
+      expect(messengerMock.call).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           id: expect.any(String),
@@ -1079,7 +1102,7 @@ describe('TransactionController', () => {
         const { transactions } = controller.state;
 
         expect(transactions).toHaveLength(expectedTransactionCount);
-        expect(delayMessengerMock.call).toHaveBeenCalledTimes(
+        expect(messengerMock.call).toHaveBeenCalledTimes(
           expectedRequestApprovalCalledTimes,
         );
       },
@@ -1451,8 +1474,8 @@ describe('TransactionController', () => {
         to: ACCOUNT_MOCK,
       });
 
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+      expect(messengerMock.call).toHaveBeenCalledTimes(1);
+      expect(messengerMock.call).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           id: expect.any(String),
@@ -1478,7 +1501,7 @@ describe('TransactionController', () => {
         },
       );
 
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(0);
+      expect(messengerMock.call).toHaveBeenCalledTimes(0);
     });
 
     it('calls security provider with transaction meta and sets response in to securityProviderResponse', async () => {
@@ -1702,7 +1725,7 @@ describe('TransactionController', () => {
 
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const callMock = delayMessengerMock.call as jest.MockedFunction<any>;
+          const callMock = messengerMock.call as jest.MockedFunction<any>;
           callMock.mockImplementationOnce(() => {
             throw new Error('Unknown problem');
           });
@@ -1723,7 +1746,7 @@ describe('TransactionController', () => {
 
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const callMock = delayMessengerMock.call as jest.MockedFunction<any>;
+          const callMock = messengerMock.call as jest.MockedFunction<any>;
           callMock.mockImplementationOnce(() => {
             throw new Error('TestError');
           });
@@ -1744,7 +1767,7 @@ describe('TransactionController', () => {
 
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const callMock = delayMessengerMock.call as jest.MockedFunction<any>;
+          const callMock = messengerMock.call as jest.MockedFunction<any>;
           callMock.mockImplementationOnce(() => {
             controller.state.transactions = [];
             throw new Error('Unknown problem');
@@ -4320,8 +4343,8 @@ describe('TransactionController', () => {
         controller.initApprovals();
         await flushPromises();
 
-        expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
-        expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        expect(messengerMock.call).toHaveBeenCalledTimes(2);
+        expect(messengerMock.call).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
             expectsResult: true,
@@ -4332,7 +4355,7 @@ describe('TransactionController', () => {
           },
           false,
         );
-        expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        expect(messengerMock.call).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
             expectsResult: true,
@@ -4428,12 +4451,18 @@ describe('TransactionController', () => {
           lastFetchedBlockNumbers: {},
         };
 
+        const controller = newController({
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        });
+
         const mockedErrorMessage = 'mocked error';
 
         // Expect both calls to throw error, one with code property to check if it is handled
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (delayMessengerMock.call as jest.MockedFunction<any>)
+        (messengerMock.call as jest.MockedFunction<any>)
           .mockImplementationOnce(() => {
             // eslint-disable-next-line @typescript-eslint/no-throw-literal
             throw { message: mockedErrorMessage };
@@ -4447,12 +4476,6 @@ describe('TransactionController', () => {
           });
         const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-        const controller = newController({
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          state: mockedControllerState as any,
-        });
-
         controller.initApprovals();
 
         await flushPromises();
@@ -4462,14 +4485,14 @@ describe('TransactionController', () => {
           'Error during persisted transaction approval',
           new Error(mockedErrorMessage),
         );
-        expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
+        expect(messengerMock.call).toHaveBeenCalledTimes(2);
       });
 
       it('does not create any approval when there is no unapproved transaction', async () => {
         const controller = newController();
         controller.initApprovals();
         await flushPromises();
-        expect(delayMessengerMock.call).not.toHaveBeenCalled();
+        expect(messengerMock.call).not.toHaveBeenCalled();
       });
     });
 
