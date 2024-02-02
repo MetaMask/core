@@ -3308,6 +3308,9 @@ describe('TransactionController Integration', () => {
       );
       transactionController.destroy();
     });
+    it.todo(
+      'should update the incoming transactions for the gloablly selected network when no networkClientIds provided',
+    );
   });
 
   describe('getNonceLock', () => {

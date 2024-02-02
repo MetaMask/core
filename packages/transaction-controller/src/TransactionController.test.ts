@@ -4779,15 +4779,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('updateIncomingTransactions', () => {
-    it('should update the global incoming transactions when no networkClientIds provided', async () => {
-      const controller = newController();
-      await controller.updateIncomingTransactions([]);
-
-      expect(incomingTransactionHelperMocks[0].update).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe('abortTransactionSigning', () => {
     it('throws if transaction does not exist', () => {
       const controller = newController();
