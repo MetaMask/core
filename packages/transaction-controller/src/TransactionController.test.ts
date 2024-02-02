@@ -21,7 +21,6 @@ import type {
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { createDeferredPromise } from '@metamask/utils';
-import { EventEmitter } from 'events';
 import * as NonceTrackerPackage from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -33,7 +32,6 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
   TransactionState,
-  TransactionControllerEventEmitter,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type {
@@ -1187,7 +1185,7 @@ describe('TransactionController', () => {
       );
     });
 
-    describe('multichain', () => {
+    describe('when enableMultichain: true is specified', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const controller = newController({
           options: { enableMultichain: true },
@@ -1213,6 +1211,7 @@ describe('TransactionController', () => {
         expect(transactionMeta.networkClientId).toBe('sepolia');
         expect(transactionMeta.origin).toBe('metamask');
       });
+
       it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
         const controller = newController({
           approve: true,
@@ -4777,194 +4776,6 @@ describe('TransactionController', () => {
         .rejects
         .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
       Current tx status: ${TransactionStatus.submitted}`);
-    });
-  });
-
-  describe('initTrackingMap', () => {
-    it('doesnt get called if the feature flag is disabled', () => {
-      const hub = new EventEmitter() as TransactionControllerEventEmitter;
-      const spy = jest.fn();
-      hub.on('tracking-map-init', spy);
-      newController({
-        options: {
-          enableMultichain: false,
-          hub,
-        },
-      });
-      expect(spy).not.toHaveBeenCalled();
-    });
-    it('should initialize the tracking map on construction', async () => {
-      const hub = new EventEmitter() as TransactionControllerEventEmitter;
-      const receivedEvents = new Promise((resolve) => {
-        hub.on('tracking-map-init', (networkClientIds) => {
-          expect(networkClientIds).toStrictEqual([
-            'mainnet',
-            'sepolia',
-            'goerli',
-            'customNetworkClientId-1',
-          ]);
-          resolve(undefined);
-        });
-      });
-
-      newController({
-        options: {
-          enableMultichain: true,
-          hub,
-        },
-      });
-      await receivedEvents;
-    });
-    it('should handle removals from the networkController registry', async () => {
-      const hub = new EventEmitter() as TransactionControllerEventEmitter;
-      const mockGetNetworkClientRegistry = jest.fn();
-      mockGetNetworkClientRegistry.mockImplementation(() => ({
-        sepolia: {
-          configuration: {
-            chainId: ChainId.sepolia,
-          },
-        },
-        goerli: {
-          configuration: {
-            chainId: ChainId.goerli,
-          },
-        },
-        'customNetworkClientId-1': {
-          configuration: {
-            chainId: '0xa',
-          },
-        },
-      }));
-      const receivedEvents = new Promise((resolve) => {
-        let expectedNetworkClientIds = ['customNetworkClientId-1', 'goerli'];
-        hub.on('tracking-map-remove', (networkClientId) => {
-          expect(expectedNetworkClientIds).toContain(networkClientId);
-          expectedNetworkClientIds = expectedNetworkClientIds.filter(
-            (v) => v !== networkClientId,
-          );
-          if (expectedNetworkClientIds.length === 0) {
-            resolve(undefined);
-          }
-        });
-      });
-
-      const mockMessenger = buildMockMessenger({});
-      (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
-        (_type, handler) => {
-          setTimeout(() => {
-            handler({}, [
-              {
-                op: 'remove',
-                path: ['networkConfigurations', 'goerli'],
-                value: 'foo',
-              },
-              {
-                op: 'remove',
-                path: ['networkConfigurations', 'customNetworkClientId-1'],
-                value: 'foo',
-              },
-            ]);
-          }, 0);
-        },
-      );
-
-      newController({
-        options: {
-          messenger: mockMessenger.messenger,
-          getNetworkClientRegistry: mockGetNetworkClientRegistry,
-          enableMultichain: true,
-          hub,
-        },
-      });
-      await receivedEvents;
-    });
-  });
-  it('should handle additions to the networkController registry', async () => {
-    const hub = new EventEmitter() as TransactionControllerEventEmitter;
-    const mockGetNetworkClientRegistry = jest.fn();
-    mockGetNetworkClientRegistry.mockImplementationOnce(() => ({
-      sepolia: {
-        configuration: {
-          chainId: ChainId.sepolia,
-        },
-      },
-    }));
-
-    hub.on('tracking-map-init', () => {
-      mockGetNetworkClientRegistry.mockClear();
-      mockGetNetworkClientRegistry.mockImplementation(() => ({
-        sepolia: {
-          configuration: {
-            chainId: ChainId.sepolia,
-          },
-        },
-        goerli: {
-          configuration: {
-            chainId: ChainId.goerli,
-          },
-        },
-      }));
-    });
-
-    const receivedEvents = new Promise((resolve) => {
-      let expectedNetworkClientIds = ['goerli', 'sepolia'];
-      hub.on('tracking-map-add', (networkClientId) => {
-        expect(expectedNetworkClientIds).toContain(networkClientId);
-        expectedNetworkClientIds = expectedNetworkClientIds.filter(
-          (v) => v !== networkClientId,
-        );
-        if (expectedNetworkClientIds.length === 0) {
-          resolve(undefined);
-        }
-      });
-    });
-    const mockMessenger = buildMockMessenger({});
-    (mockMessenger.messenger.subscribe as jest.Mock).mockImplementation(
-      (_type, handler) => {
-        setTimeout(() => {
-          handler({}, [
-            {
-              op: 'add',
-              path: ['networkConfigurations', 'goerli'],
-              value: 'foo',
-            },
-          ]);
-        }, 0);
-      },
-    );
-
-    newController({
-      options: {
-        messenger: mockMessenger.messenger,
-        getNetworkClientRegistry: mockGetNetworkClientRegistry,
-        enableMultichain: true,
-        hub,
-      },
-    });
-    await receivedEvents;
-  });
-
-  describe('startIncomingTransactionPolling', () => {
-    it('should start the global incoming transaction helper when no networkClientIds provided', () => {
-      const controller = newController({
-        options: {
-          enableMultichain: true,
-        },
-      });
-
-      controller.startIncomingTransactionPolling([]);
-
-      expect(incomingTransactionHelperMocks[0].start).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('stopIncomingTransactionPolling', () => {
-    it('should stop the global incoming transaction helper when no networkClientIds provided', () => {
-      const controller = newController();
-
-      controller.stopIncomingTransactionPolling([]);
-
-      expect(incomingTransactionHelperMocks[0].stop).toHaveBeenCalledTimes(1);
     });
   });
 
