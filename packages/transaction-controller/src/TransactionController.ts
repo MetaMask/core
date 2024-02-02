@@ -3073,9 +3073,7 @@ export class TransactionController extends BaseControllerV1<
     });
   };
 
-  #refreshTrackingMap = (
-    networkClients: ReturnType<NetworkController['getNetworkClientRegistry']>,
-  ) => {
+  #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
     this.#refreshEtherscanRemoteTransactionSources(networkClients);
 
     const networkClientIds = Object.keys(networkClients);
