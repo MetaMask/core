@@ -585,7 +585,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       });
     }
 
-    if (blockchainMetadata.error && openSeaMetadata.error) {
+    if (blockchainMetadata.error && openSeaMetadata?.error) {
       return {
         image: null,
         name: null,
