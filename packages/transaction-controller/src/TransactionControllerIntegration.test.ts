@@ -18,6 +18,12 @@ import { useFakeTimers } from 'sinon';
 import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
+  ETHERSCAN_TRANSACTION_BASE_MOCK,
+  ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+  ETHERSCAN_TOKEN_TRANSACTION_MOCK,
+  ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
+} from '../test/EtherscanMocks';
+import {
   buildEthGasPriceRequestMock,
   buildEthBlockNumberRequestMock,
   buildEthGetCodeRequestMock,
@@ -27,13 +33,7 @@ import {
   buildEthGetBlockByHashRequestMock,
   buildEthSendRawTransactionRequestMock,
   buildEthGetTransactionReceiptRequestMock,
-} from "../test/JsonRpcRequestMocks"
-import {
-  ETHERSCAN_TRANSACTION_BASE_MOCK,
-  ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
-  ETHERSCAN_TOKEN_TRANSACTION_MOCK,
-  ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
-} from '../test/EtherscanMocks';
+} from '../test/JsonRpcRequestMocks';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { TransactionStatus, TransactionType } from './types';
@@ -79,8 +79,6 @@ const newController = async (options: any = {}) => {
       InfuraNetworkType.mainnet,
     ),
     mocks: [
-      // NetworkController
-      // BlockTracker
       {
         ...buildEthBlockNumberRequestMock('0x1'),
         discardAfterMatching: false,
@@ -170,10 +168,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.goerli,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // publishTransaction
           buildEthSendRawTransactionRequestMock(
             '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
             '0x1',
@@ -186,10 +181,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.sepolia,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // publishTransaction
           buildEthSendRawTransactionRequestMock(
             '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
             '0x1',
@@ -295,13 +287,8 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
           ],
         });
@@ -325,23 +312,13 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x2'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
@@ -376,30 +353,18 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
@@ -435,30 +400,18 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
@@ -467,30 +420,18 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.sepolia,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
@@ -546,39 +487,24 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x1'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
               '0x2',
             ),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x2', '0x1', '0x3'),
           ],
         });
@@ -612,49 +538,32 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
               '0x2',
             ),
-            // PendingTransactionTracker.#checkTransaction
             {
               ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
               response: { result: null },
             },
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x4'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x4'),
-            // PendingTransactionTracker.#checkTransaction
             {
               ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
               response: { result: null },
             },
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x2'),
           ],
         });
@@ -696,49 +605,32 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e605018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             {
               ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
               response: { result: null },
             },
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e6050182044c82044c8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x2',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x4'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x4'),
-            // PendingTransactionTracker.#checkTransaction
             {
               ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
               response: { result: null },
             },
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x2'),
           ],
         });
@@ -791,32 +683,19 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x1'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
           ],
         });
@@ -824,31 +703,19 @@ describe('TransactionController Integration', () => {
         mockNetwork({
           networkClientConfiguration: customGoerliNetworkClientConfiguration,
           mocks: [
-            // NetworkController
             buildEthBlockNumberRequestMock('0x1'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
@@ -912,40 +779,24 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // NetworkController
             buildEthGetBlockByNumberRequestMock('0x1'),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-            // readAddressAsContract
-            // requiresFixedGas (cached)
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
-            // estimateGas
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
-            // getSuggestedGasFees
             buildEthGasPriceRequestMock(),
-            // NonceTracker
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x3'),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
-            // PendingTransactionTracker.#onTransactionConfirmed
             buildEthGetBlockByHashRequestMock('0x1'),
-            // publishTransaction
             buildEthSendRawTransactionRequestMock(
               '0x02e20502010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
               '0x2',
             ),
-            // PendingTransactionTracker.#checkTransaction
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
           ],
         });
@@ -1001,16 +852,10 @@ describe('TransactionController Integration', () => {
       mockNetwork({
         networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
-          // NetworkController
           buildEthBlockNumberRequestMock('0x1'),
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NetworkController
           buildEthGetBlockByNumberRequestMock('0x1'),
-          // readAddressAsContract
-          // requiresFixedGas (cached)
           buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-          // getSuggestedGasFees
           buildEthGasPriceRequestMock(),
         ],
       });
@@ -1084,16 +929,10 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x2'),
-          // NetworkController
           buildEthGetBlockByNumberRequestMock('0x1'),
-          // getSuggestedGasFees
           buildEthGasPriceRequestMock(),
-          // readAddressAsContract
           buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
         ],
       });
@@ -1213,10 +1052,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x2'),
         ],
       });
@@ -1238,9 +1074,7 @@ describe('TransactionController Integration', () => {
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x1'),
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x2'),
             ],
           });
@@ -1312,10 +1146,7 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.mainnet,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x2'),
           ],
         });
@@ -1326,10 +1157,7 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x2'),
           ],
         });
@@ -1343,9 +1171,7 @@ describe('TransactionController Integration', () => {
             rpcUrl: 'https://mock.rpc.url',
           },
           mocks: [
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x1'),
-            // BlockTracker
             buildEthBlockNumberRequestMock('0x2'),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthBlockNumberRequestMock('0x4'),
@@ -1465,9 +1291,7 @@ describe('TransactionController Integration', () => {
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x1'),
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x2'),
             ],
           });
@@ -1512,9 +1336,7 @@ describe('TransactionController Integration', () => {
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x1'),
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x2'),
             ],
           });
@@ -1559,10 +1381,7 @@ describe('TransactionController Integration', () => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
-            mocks: [
-              // BlockTracker
-              buildEthBlockNumberRequestMock('0x1'),
-            ],
+            mocks: [buildEthBlockNumberRequestMock('0x1')],
           });
           nock(getEtherscanApiHost(config.chainId))
             .get(
@@ -1627,9 +1446,7 @@ describe('TransactionController Integration', () => {
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x1'),
-              // NonceTracker
               buildEthGetTransactionCountRequestMock(
                 ACCOUNT_MOCK,
                 '0x1',
@@ -1665,9 +1482,7 @@ describe('TransactionController Integration', () => {
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x1'),
-              // NonceTracker
               buildEthGetTransactionCountRequestMock(
                 ACCOUNT_MOCK,
                 '0x1',
@@ -1724,9 +1539,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.goerli,
         ),
         mocks: [
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
@@ -1734,9 +1547,7 @@ describe('TransactionController Integration', () => {
       mockNetwork({
         networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
@@ -1796,9 +1607,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.goerli,
         ),
         mocks: [
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
@@ -1808,9 +1617,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.sepolia,
         ),
         mocks: [
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xf'),
         ],
       });
@@ -1851,15 +1658,12 @@ describe('TransactionController Integration', () => {
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
               buildEthBlockNumberRequestMock('0x1'),
-              // NonceTracker
               buildEthGetTransactionCountRequestMock(
                 ACCOUNT_MOCK,
                 '0x1',
                 '0xa',
               ),
-              // NonceTracker
               buildEthGetTransactionCountRequestMock(
                 ACCOUNT_2_MOCK,
                 '0x1',
@@ -1898,10 +1702,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
@@ -1923,10 +1724,7 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
@@ -1971,12 +1769,8 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
           buildEthBlockNumberRequestMock('0x1'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
-          // NonceTracker
           buildEthGetTransactionCountRequestMock(ACCOUNT_2_MOCK, '0x1', '0xf'),
         ],
       });
