@@ -2838,61 +2838,6 @@ export class TransactionController extends BaseControllerV1<
     );
   }
 
-  #removeIncomingTransactionHelperListeners(
-    incomingTransactionHelper = this.incomingTransactionHelper,
-  ) {
-    incomingTransactionHelper.hub.removeAllListeners('transactions');
-    incomingTransactionHelper.hub.removeAllListeners(
-      'updatedLastFetchedBlockNumbers',
-    );
-  }
-
-  #addIncomingTransactionHelperListeners(
-    incomingTransactionHelper = this.incomingTransactionHelper,
-  ) {
-    incomingTransactionHelper.hub.on(
-      'transactions',
-      this.onIncomingTransactions.bind(this),
-    );
-    incomingTransactionHelper.hub.on(
-      'updatedLastFetchedBlockNumbers',
-      this.onUpdatedLastFetchedBlockNumbers.bind(this),
-    );
-  }
-
-  #removePendingTransactionTrackerListeners(
-    pendingTransactionTracker = this.pendingTransactionTracker,
-  ) {
-    pendingTransactionTracker.hub.removeAllListeners('transaction-confirmed');
-    pendingTransactionTracker.hub.removeAllListeners('transaction-dropped');
-    pendingTransactionTracker.hub.removeAllListeners('transaction-failed');
-    pendingTransactionTracker.hub.removeAllListeners('transaction-updated');
-  }
-
-  #addPendingTransactionTrackerListeners(
-    pendingTransactionTracker = this.pendingTransactionTracker,
-  ) {
-    pendingTransactionTracker.hub.on(
-      'transaction-confirmed',
-      this.onConfirmedTransaction.bind(this),
-    );
-
-    pendingTransactionTracker.hub.on(
-      'transaction-dropped',
-      this.setTransactionStatusDropped.bind(this),
-    );
-
-    pendingTransactionTracker.hub.on(
-      'transaction-failed',
-      this.failTransaction.bind(this),
-    );
-
-    pendingTransactionTracker.hub.on(
-      'transaction-updated',
-      this.updateTransaction.bind(this),
-    );
-  }
-
   private async signTransaction(
     transactionMeta: TransactionMeta,
     txParams: TransactionParams,
@@ -2961,24 +2906,6 @@ export class TransactionController extends BaseControllerV1<
 
   private onTransactionStatusChange(transactionMeta: TransactionMeta) {
     this.hub.emit('transaction-status-update', { transactionMeta });
-  }
-
-  #getNonceTrackerPendingTransactions(
-    chainId: string | undefined,
-    address: string,
-  ) {
-    const standardPendingTransactions = this.getNonceTrackerTransactions(
-      TransactionStatus.submitted,
-      address,
-      chainId,
-    );
-
-    const externalPendingTransactions = this.getExternalPendingTransactions(
-      address,
-      chainId,
-    );
-
-    return [...standardPendingTransactions, ...externalPendingTransactions];
   }
 
   private getNonceTrackerTransactions(
@@ -3258,5 +3185,78 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.hub.emit('tracking-map-add', networkClientId);
+  }
+
+  #removeIncomingTransactionHelperListeners(
+    incomingTransactionHelper = this.incomingTransactionHelper,
+  ) {
+    incomingTransactionHelper.hub.removeAllListeners('transactions');
+    incomingTransactionHelper.hub.removeAllListeners(
+      'updatedLastFetchedBlockNumbers',
+    );
+  }
+
+  #addIncomingTransactionHelperListeners(
+    incomingTransactionHelper = this.incomingTransactionHelper,
+  ) {
+    incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+    incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
+  }
+
+  #removePendingTransactionTrackerListeners(
+    pendingTransactionTracker = this.pendingTransactionTracker,
+  ) {
+    pendingTransactionTracker.hub.removeAllListeners('transaction-confirmed');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-dropped');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-failed');
+    pendingTransactionTracker.hub.removeAllListeners('transaction-updated');
+  }
+
+  #addPendingTransactionTrackerListeners(
+    pendingTransactionTracker = this.pendingTransactionTracker,
+  ) {
+    pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      this.onConfirmedTransaction.bind(this),
+    );
+
+    pendingTransactionTracker.hub.on(
+      'transaction-dropped',
+      this.setTransactionStatusDropped.bind(this),
+    );
+
+    pendingTransactionTracker.hub.on(
+      'transaction-failed',
+      this.failTransaction.bind(this),
+    );
+
+    pendingTransactionTracker.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
+    );
+  }
+
+  #getNonceTrackerPendingTransactions(
+    chainId: string | undefined,
+    address: string,
+  ) {
+    const standardPendingTransactions = this.getNonceTrackerTransactions(
+      TransactionStatus.submitted,
+      address,
+      chainId,
+    );
+
+    const externalPendingTransactions = this.getExternalPendingTransactions(
+      address,
+      chainId,
+    );
+
+    return [...standardPendingTransactions, ...externalPendingTransactions];
   }
 }
