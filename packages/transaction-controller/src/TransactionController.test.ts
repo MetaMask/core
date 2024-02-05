@@ -1208,10 +1208,10 @@ describe('TransactionController', () => {
       );
     });
 
-    describe('when enableMultichain: true is specified', () => {
+    describe('when isMultichainEnabled: true is specified', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const controller = newController({
-          options: { enableMultichain: true },
+          options: { isMultichainEnabled: true },
         });
         const sepoliaTxParams: TransactionParams = {
           chainId: ChainId.sepolia,
@@ -1238,7 +1238,7 @@ describe('TransactionController', () => {
       it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
         const controller = newController({
           approve: true,
-          options: { enableMultichain: true },
+          options: { isMultichainEnabled: true },
         });
         const submittedEventListener = jest.fn();
         controller.hub.on('transaction-submitted', submittedEventListener);

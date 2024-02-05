@@ -308,7 +308,7 @@ export class TransactionController extends BaseControllerV1<
     chainId?: string,
   ) => NonceTrackerTransaction[];
 
-  #enableMultichain: boolean;
+  #isMultichainEnabled: boolean;
 
   private readonly messagingSystem: TransactionControllerMessenger;
 
@@ -425,7 +425,7 @@ export class TransactionController extends BaseControllerV1<
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
-   * @param options.enableMultichain - Enable multichain support.
+   * @param options.isMultichainEnabled - Enable multichain support.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
@@ -475,7 +475,7 @@ export class TransactionController extends BaseControllerV1<
       securityProviderRequest,
       speedUpMultiplier,
       getNetworkClientRegistry,
-      enableMultichain = false,
+      isMultichainEnabled = false,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -502,7 +502,7 @@ export class TransactionController extends BaseControllerV1<
       securityProviderRequest?: SecurityProviderRequest;
       speedUpMultiplier?: number;
       getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-      enableMultichain: boolean;
+      isMultichainEnabled: boolean;
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -536,7 +536,7 @@ export class TransactionController extends BaseControllerV1<
       lastFetchedBlockNumbers: {},
     };
     this.initialize();
-    this.#enableMultichain = enableMultichain;
+    this.#isMultichainEnabled = isMultichainEnabled;
     this.#getNetworkClientRegistry = getNetworkClientRegistry;
     this.provider = provider;
     this.messagingSystem = messenger;
@@ -646,7 +646,7 @@ export class TransactionController extends BaseControllerV1<
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (_, patches) => {
-        if (this.#enableMultichain) {
+        if (this.#isMultichainEnabled) {
           const networkClients = this.#getNetworkClientRegistry();
           patches.forEach(({ op, path }) => {
             if (op === 'remove' && path[0] === 'networkConfigurations') {
@@ -659,14 +659,7 @@ export class TransactionController extends BaseControllerV1<
         }
       },
     );
-    if (this.#enableMultichain) {
-      this.#initTrackingMap();
-    }
-  }
-
-  setEnableMultichain(enableMultichain: boolean) {
-    this.#enableMultichain = enableMultichain;
-    if (enableMultichain) {
+    if (this.#isMultichainEnabled) {
       this.#initTrackingMap();
     }
   }
@@ -854,7 +847,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    if (networkClientIds.length === 0 || !this.#enableMultichain) {
+    if (networkClientIds.length === 0 || !this.#isMultichainEnabled) {
       this.incomingTransactionHelper.start();
       return;
     }
@@ -864,7 +857,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    if (networkClientIds.length === 0 || !this.#enableMultichain) {
+    if (networkClientIds.length === 0 || !this.#isMultichainEnabled) {
       this.incomingTransactionHelper.stop();
       return;
     }
@@ -875,7 +868,7 @@ export class TransactionController extends BaseControllerV1<
 
   stopAllIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
-    if (this.#enableMultichain) {
+    if (this.#isMultichainEnabled) {
       for (const [, trackers] of this.trackingMap) {
         trackers.incomingTransactionHelper.stop();
       }
@@ -883,7 +876,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
-    if (networkClientIds.length === 0 || !this.#enableMultichain) {
+    if (networkClientIds.length === 0 || !this.#isMultichainEnabled) {
       await this.incomingTransactionHelper.update();
       return;
     }
@@ -1653,7 +1646,7 @@ export class TransactionController extends BaseControllerV1<
   ): Promise<NonceLock> {
     let releaseLockForChainIdKey: (() => void) | undefined;
     let { nonceTracker } = this;
-    if (networkClientId && this.#enableMultichain) {
+    if (networkClientId && this.#isMultichainEnabled) {
       const networkClient = this.messagingSystem.call(
         `NetworkController:getNetworkClientById`,
         networkClientId,
@@ -2965,7 +2958,7 @@ export class TransactionController extends BaseControllerV1<
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   }): EthQuery {
-    if (!this.#enableMultichain) {
+    if (!this.#isMultichainEnabled) {
       return this.ethQuery;
     }
     let networkClient: NetworkClient | undefined;
@@ -3061,7 +3054,7 @@ export class TransactionController extends BaseControllerV1<
   #checkForPendingTransactionAndStartPolling = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
     this.pendingTransactionTracker.startIfPendingTransactions();
-    if (this.#enableMultichain) {
+    if (this.#isMultichainEnabled) {
       for (const [, trackers] of this.trackingMap) {
         trackers.pendingTransactionTracker.startIfPendingTransactions();
       }
@@ -3090,7 +3083,7 @@ export class TransactionController extends BaseControllerV1<
     this.incomingTransactionHelper.stop();
     this.#removeIncomingTransactionHelperListeners();
 
-    if (this.#enableMultichain) {
+    if (this.#isMultichainEnabled) {
       for (const [networkClientId] of this.trackingMap) {
         this.#stopTrackingByNetworkClientId(networkClientId);
       }
