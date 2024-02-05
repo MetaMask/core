@@ -23,6 +23,17 @@ import {
   ETHERSCAN_TOKEN_TRANSACTION_MOCK,
   ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
 } from '../test/EtherscanMocks';
+import {
+  buildEthGasPriceRequestMock,
+  buildEthBlockNumberRequestMock,
+  buildEthGetCodeRequestMock,
+  buildEthGetBlockByNumberRequestMock,
+  buildEthEstimateGasRequestMock,
+  buildEthGetTransactionCountRequestMock,
+  buildEthGetBlockByHashRequestMock,
+  buildEthSendRawTransactionRequestMock,
+  buildEthGetTransactionReceiptRequestMock,
+} from '../test/JsonRpcRequestMocks';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { TransactionStatus, TransactionType } from './types';
@@ -62,6 +73,19 @@ const customGoerliNetworkClientConfiguration = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const newController = async (options: any = {}) => {
+  // Mainnet network must be mocked for NetworkController instantiation
+  mockNetwork({
+    networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+      InfuraNetworkType.mainnet,
+    ),
+    mocks: [
+      {
+        ...buildEthBlockNumberRequestMock('0x1'),
+        discardAfterMatching: false,
+      },
+    ],
+  });
+
   const messenger = new ControllerMessenger();
   const networkController = new NetworkController({
     messenger: messenger.getRestricted({ name: 'NetworkController' }),
@@ -133,24 +157,6 @@ describe('TransactionController Integration', () => {
 
   describe('constructor', () => {
     it('should create a new instance of TransactionController', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
       const { transactionController } = await newController({});
       expect(transactionController).toBeDefined();
       transactionController.destroy();
@@ -159,51 +165,14 @@ describe('TransactionController Integration', () => {
     it('should submit all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.goerli,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // publishTransaction
-          {
-            request: {
-              method: 'eth_sendRawTransaction',
-              params: [
-                '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-              ],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthSendRawTransactionRequestMock(
+            '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+            '0x1',
+          ),
         ],
       });
 
@@ -212,29 +181,11 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.sepolia,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // publishTransaction
-          {
-            request: {
-              method: 'eth_sendRawTransaction',
-              params: [
-                '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-              ],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthSendRawTransactionRequestMock(
+            '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+            '0x1',
+          ),
         ],
       });
 
@@ -333,59 +284,12 @@ describe('TransactionController Integration', () => {
       it('should add a new unapproved transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
           ],
         });
         const { transactionController } = await newController({});
@@ -405,121 +309,20 @@ describe('TransactionController Integration', () => {
       it('should be able to get to submitted state', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x42',
-                },
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthBlockNumberRequestMock('0x2'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
           ],
         });
         const { transactionController, approvalController } =
@@ -547,147 +350,22 @@ describe('TransactionController Integration', () => {
       it('should be able to get to confirmed state', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
         const { transactionController, approvalController } =
@@ -719,147 +397,22 @@ describe('TransactionController Integration', () => {
       it('should be able to send and confirm transactions on different chains', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
         mockNetwork({
@@ -867,126 +420,19 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.sepolia,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
         const { transactionController, approvalController } =
@@ -1038,183 +484,28 @@ describe('TransactionController Integration', () => {
       it('should be able to cancel a transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
-                ],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x2'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetBlockByHashRequestMock('0x1'),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
+              '0x2',
+            ),
+            buildEthGetTransactionReceiptRequestMock('0x2', '0x1', '0x3'),
           ],
         });
         const { transactionController, approvalController } =
@@ -1244,199 +535,36 @@ describe('TransactionController Integration', () => {
       it('should be able to confirm a cancelled transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
+              '0x2',
+            ),
             {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
+              ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
+              response: { result: null },
             },
-            // NetworkController
+            buildEthBlockNumberRequestMock('0x4'),
+            buildEthBlockNumberRequestMock('0x4'),
             {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
+              ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
+              response: { result: null },
             },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
-                ],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: null,
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x4',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x4',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: null,
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x2'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x2',
-                  blockNumber: '0x4', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x2', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
+            buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
+            buildEthGetBlockByHashRequestMock('0x2'),
           ],
         });
         const { transactionController, approvalController } =
@@ -1474,199 +602,36 @@ describe('TransactionController Integration', () => {
       it('should be able to get to speedup state', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3b3301',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e605018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
             {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
+              ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
+              response: { result: null },
             },
-            // NetworkController
+            buildEthSendRawTransactionRequestMock(
+              '0x02e6050182044c82044c8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x2',
+            ),
+            buildEthBlockNumberRequestMock('0x4'),
+            buildEthBlockNumberRequestMock('0x4'),
             {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
+              ...buildEthGetTransactionReceiptRequestMock('0x1', '0x0', '0x0'),
+              response: { result: null },
             },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e605018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: null,
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e6050182044c82044c8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x4',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x4',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: null,
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x2'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x2',
-                  blockNumber: '0x4', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x2', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
+            buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
+            buildEthGetBlockByHashRequestMock('0x2'),
           ],
         });
         const { transactionController, approvalController } =
@@ -1715,292 +680,43 @@ describe('TransactionController Integration', () => {
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '1',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetBlockByHashRequestMock('0x1'),
+            buildEthBlockNumberRequestMock('0x3'),
           ],
         });
 
         mockNetwork({
           networkClientConfiguration: customGoerliNetworkClientConfiguration,
           mocks: [
-            // NetworkController
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
 
@@ -2060,184 +776,28 @@ describe('TransactionController Integration', () => {
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-          ],
-        });
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NetworkController
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x63c498a46',
-                  number: '0x1',
-                },
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_2_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // readAddressAsContract
-            // requiresFixedGas (cached)
-            {
-              request: {
-                method: 'eth_getCode',
-                params: [ACCOUNT_3_MOCK, '0x1'],
-              },
-              response: {
-                result: '0x', // non contract
-              },
-            },
-            // estimateGas
-            {
-              request: {
-                method: 'eth_estimateGas',
-                params: [
-                  {
-                    from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                    to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                    value: '0x0',
-                    gas: '0x0',
-                  },
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // getSuggestedGasFees
-            {
-              request: {
-                method: 'eth_gasPrice',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // NonceTracker
-            {
-              request: {
-                method: 'eth_getTransactionCount',
-                params: ['0x6bf137f335ea1b8f193b8f6ea92561a60d23a207', '0x1'],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-                ],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x1'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x1',
-                  blockNumber: '0x3', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
-            // PendingTransactionTracker.#onTransactionConfirmed
-            {
-              request: {
-                method: 'eth_getBlockByHash',
-                params: ['0x1', false],
-              },
-              response: {
-                result: {
-                  transactions: [],
-                },
-              },
-            },
-            // publishTransaction
-            {
-              request: {
-                method: 'eth_sendRawTransaction',
-                params: [
-                  '0x02e20502010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
-                ],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-            // PendingTransactionTracker.#checkTransaction
-            {
-              request: {
-                method: 'eth_getTransactionReceipt',
-                params: ['0x2'],
-              },
-              response: {
-                result: {
-                  blockHash: '0x2',
-                  blockNumber: '0x4', // we need at least 2 blocks mocked since the first one is used for when the blockTracker is instantied before we have listeners
-                  status: '0x1', // 0x1 = success
-                },
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x1',
+            ),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetBlockByHashRequestMock('0x1'),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e20502010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+              '0x2',
+            ),
+            buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
           ],
         });
         const { approvalController, transactionController } =
@@ -2290,80 +850,13 @@ describe('TransactionController Integration', () => {
   describe('when changing rpcUrl of networkClient', () => {
     it('should start tracking when a new network is added', async () => {
       mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-      mockNetwork({
         networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
-          // NetworkController
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NetworkController
-          {
-            request: {
-              method: 'eth_getBlockByNumber',
-              params: ['0x1', false],
-            },
-            response: {
-              result: {
-                baseFeePerGas: '0x63c498a46',
-                number: '0x42',
-              },
-            },
-          },
-          // readAddressAsContract
-          // requiresFixedGas (cached)
-          {
-            request: {
-              method: 'eth_getCode',
-              params: [ACCOUNT_2_MOCK, '0x1'],
-            },
-            response: {
-              result: '0x', // non contract
-            },
-          },
-          // getSuggestedGasFees
-          {
-            request: {
-              method: 'eth_gasPrice',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetBlockByNumberRequestMock('0x1'),
+          buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+          buildEthGasPriceRequestMock(),
         ],
       });
       const { networkController, transactionController } =
@@ -2397,34 +890,6 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should stop tracking when a network is removed', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-        ],
-      });
       const { networkController, transactionController } =
         await newController();
 
@@ -2464,58 +929,11 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-          {
-            request: {
-              method: 'eth_getBlockByNumber',
-              params: ['0x1', false],
-            },
-            response: {
-              result: {
-                baseFeePerGas: '0x63c498a46',
-                number: '0x42',
-              },
-            },
-          },
-          {
-            request: {
-              method: 'eth_gasPrice',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // eth_getCode
-          {
-            request: {
-              method: 'eth_getCode',
-              params: [ACCOUNT_2_MOCK, '0x1'],
-            },
-            response: {
-              result: '0x', // non contract
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthBlockNumberRequestMock('0x2'),
+          buildEthGetBlockByNumberRequestMock('0x1'),
+          buildEthGasPriceRequestMock(),
+          buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
         ],
       });
 
@@ -2557,24 +975,6 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
@@ -2601,24 +1001,6 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
@@ -2645,24 +1027,6 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
     it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
           [NetworkType.goerli]: {
@@ -2688,27 +1052,8 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthBlockNumberRequestMock('0x2'),
         ],
       });
 
@@ -2722,36 +1067,15 @@ describe('TransactionController Integration', () => {
       const expectedTransactions: Partial<TransactionMeta>[] = [];
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
-      );
+      const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x2',
-                },
-              },
+              buildEthBlockNumberRequestMock('0x1'),
+              buildEthBlockNumberRequestMock('0x2'),
             ],
           });
           nock(getEtherscanApiHost(config.chainId))
@@ -2822,27 +1146,8 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.mainnet,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthBlockNumberRequestMock('0x2'),
           ],
         });
 
@@ -2852,27 +1157,8 @@ describe('TransactionController Integration', () => {
             InfuraNetworkType.goerli,
           ),
           mocks: [
-            // NetworkController
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthBlockNumberRequestMock('0x2'),
           ],
         });
 
@@ -2885,44 +1171,10 @@ describe('TransactionController Integration', () => {
             rpcUrl: 'https://mock.rpc.url',
           },
           mocks: [
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x1',
-              },
-            },
-            // BlockTracker
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x2',
-              },
-            },
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x3',
-              },
-            },
-            {
-              request: {
-                method: 'eth_blockNumber',
-                params: [],
-              },
-              response: {
-                result: '0x4',
-              },
-            },
+            buildEthBlockNumberRequestMock('0x1'),
+            buildEthBlockNumberRequestMock('0x2'),
+            buildEthBlockNumberRequestMock('0x3'),
+            buildEthBlockNumberRequestMock('0x4'),
           ],
         });
 
@@ -3025,35 +1277,6 @@ describe('TransactionController Integration', () => {
       'should stop the global incoming transaction helper when no networkClientIds provided',
     );
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x2',
-            },
-          },
-        ],
-      });
-
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
       const { networkController, transactionController } = await newController({
@@ -3061,36 +1284,15 @@ describe('TransactionController Integration', () => {
       });
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
-      );
+      const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x2',
-                },
-              },
+              buildEthBlockNumberRequestMock('0x1'),
+              buildEthBlockNumberRequestMock('0x2'),
             ],
           });
           nock(getEtherscanApiHost(config.chainId))
@@ -3120,35 +1322,6 @@ describe('TransactionController Integration', () => {
 
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
       const { networkController, transactionController } = await newController({
@@ -3156,36 +1329,15 @@ describe('TransactionController Integration', () => {
       });
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
-      );
+      const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x2',
-                },
-              },
+              buildEthBlockNumberRequestMock('0x1'),
+              buildEthBlockNumberRequestMock('0x2'),
             ],
           });
           nock(getEtherscanApiHost(config.chainId))
@@ -3213,35 +1365,6 @@ describe('TransactionController Integration', () => {
 
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
       const { networkController, transactionController } = await newController({
@@ -3252,27 +1375,13 @@ describe('TransactionController Integration', () => {
       const expectedTransactions: Partial<TransactionMeta>[] = [];
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
-      );
+      const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
-            mocks: [
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-            ],
+            mocks: [buildEthBlockNumberRequestMock('0x1')],
           });
           nock(getEtherscanApiHost(config.chainId))
             .get(
@@ -3325,70 +1434,24 @@ describe('TransactionController Integration', () => {
 
   describe('getNonceLock', () => {
     it('should get the nonce lock from the nonceTracker for the given networkClientId', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
       const { networkController, transactionController } = await newController(
         {},
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
-      );
+      const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              // NonceTracker
-              {
-                request: {
-                  method: 'eth_getTransactionCount',
-                  params: [ACCOUNT_MOCK, '0x1'],
-                },
-                response: {
-                  result: '0xa',
-                },
-              },
+              buildEthBlockNumberRequestMock('0x1'),
+              buildEthGetTransactionCountRequestMock(
+                ACCOUNT_MOCK,
+                '0x1',
+                '0xa',
+              ),
             ],
           });
 
@@ -3407,70 +1470,24 @@ describe('TransactionController Integration', () => {
     });
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the networkClientId until the previous lock is released', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
       const { networkController, transactionController } = await newController(
         {},
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
-      );
+      const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              // NonceTracker
-              {
-                request: {
-                  method: 'eth_getTransactionCount',
-                  params: [ACCOUNT_MOCK, '0x1'],
-                },
-                response: {
-                  result: '0xa',
-                },
-              },
+              buildEthBlockNumberRequestMock('0x1'),
+              buildEthGetTransactionCountRequestMock(
+                ACCOUNT_MOCK,
+                '0x1',
+                '0xa',
+              ),
             ],
           });
 
@@ -3514,35 +1531,6 @@ describe('TransactionController Integration', () => {
     });
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the different networkClientIds on the same chainId until the previous lock is released', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
       const { networkController, transactionController } = await newController(
         {},
       );
@@ -3551,52 +1539,16 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.goerli,
         ),
         mocks: [
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xa',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
 
       mockNetwork({
         networkClientConfiguration: customGoerliNetworkClientConfiguration,
         mocks: [
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xa',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
 
@@ -3648,35 +1600,6 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for the same addresses from the nonceTracker for different networkClientIds', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
       const { transactionController } = await newController({});
 
       mockNetwork({
@@ -3684,26 +1607,8 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.goerli,
         ),
         mocks: [
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xa',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
 
@@ -3712,26 +1617,8 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.sepolia,
         ),
         mocks: [
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xf',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xf'),
         ],
       });
 
@@ -3759,80 +1646,29 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for different addresses from the nonceTracker for the networkClientId', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ],
-      });
-
       const { networkController, transactionController } = await newController(
         {},
       );
 
       const networkClients = networkController.getNetworkClientRegistry();
-      // Skip the globally selected provider because we can't use nock to mock it twice
-      const networkClientIds = Object.keys(networkClients).filter(
-        (v) => v !== NetworkType.goerli,
-      );
+      const networkClientIds = Object.keys(networkClients);
       await Promise.all(
         networkClientIds.map(async (networkClientId) => {
           const config = networkClients[networkClientId].configuration;
           mockNetwork({
             networkClientConfiguration: config,
             mocks: [
-              // BlockTracker
-              {
-                request: {
-                  method: 'eth_blockNumber',
-                  params: [],
-                },
-                response: {
-                  result: '0x1',
-                },
-              },
-              // NonceTracker
-              {
-                request: {
-                  method: 'eth_getTransactionCount',
-                  params: [ACCOUNT_MOCK, '0x1'],
-                },
-                response: {
-                  result: '0xa',
-                },
-              },
-              // NonceTracker
-              {
-                request: {
-                  method: 'eth_getTransactionCount',
-                  params: [ACCOUNT_2_MOCK, '0x1'],
-                },
-                response: {
-                  result: '0xf',
-                },
-              },
+              buildEthBlockNumberRequestMock('0x1'),
+              buildEthGetTransactionCountRequestMock(
+                ACCOUNT_MOCK,
+                '0x1',
+                '0xa',
+              ),
+              buildEthGetTransactionCountRequestMock(
+                ACCOUNT_2_MOCK,
+                '0x1',
+                '0xf',
+              ),
             ],
           });
 
@@ -3866,27 +1702,8 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xa',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
 
@@ -3907,27 +1724,8 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xa',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
 
@@ -3971,37 +1769,9 @@ describe('TransactionController Integration', () => {
           InfuraNetworkType.mainnet,
         ),
         mocks: [
-          // NetworkController
-          // BlockTracker
-          {
-            request: {
-              method: 'eth_blockNumber',
-              params: [],
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xa',
-            },
-          },
-          // NonceTracker
-          {
-            request: {
-              method: 'eth_getTransactionCount',
-              params: [ACCOUNT_2_MOCK, '0x1'],
-            },
-            response: {
-              result: '0xf',
-            },
-          },
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
+          buildEthGetTransactionCountRequestMock(ACCOUNT_2_MOCK, '0x1', '0xf'),
         ],
       });
 
