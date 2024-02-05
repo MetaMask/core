@@ -881,13 +881,22 @@ export class TransactionController extends BaseControllerV1<
       return;
     }
 
-    await Promise.allSettled(
+    const promises = await Promise.allSettled(
       networkClientIds.map(async (networkClientId) => {
         return await this.trackingMap
           .get(networkClientId)
           ?.incomingTransactionHelper.update();
       }),
     );
+
+    promises
+      .filter((result) => result.status === 'rejected')
+      .forEach((result) => {
+        log(
+          'failed to update incoming transactions',
+          (result as PromiseRejectedResult).reason,
+        );
+      });
   }
 
   /**
