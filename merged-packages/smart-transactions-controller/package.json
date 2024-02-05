@@ -32,6 +32,7 @@
     "@metamask/network-controller": "^17.2.0",
     "@metamask/polling-controller": "^5.0.0",
     "bignumber.js": "^9.0.1",
+    "events": "^3.3.0",
     "fast-json-patch": "^3.1.0",
     "lodash": "^4.17.21"
   },

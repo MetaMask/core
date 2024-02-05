@@ -1105,6 +1105,7 @@ __metadata:
     eslint-plugin-jsdoc: ^39.2.9
     eslint-plugin-node: ^11.1.0
     eslint-plugin-prettier: ^4.2.1
+    events: ^3.3.0
     fast-json-patch: ^3.1.0
     isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
@@ -3594,6 +3595,13 @@ __metadata:
     ethereum-cryptography: ^0.1.3
     rlp: ^2.2.4
   checksum: ccfd9208bfe9205af124a9138c5a90db46cd2fcacf4b80f17f67915381c03253aa2fb90ead9e0b53d9a6fcfeed4310e5dfa8dc516ca2846d16baf81d605cd8c2
+  languageName: node
+  linkType: hard
+
+"events@npm:^3.3.0":
+  version: 3.3.0
+  resolution: "events@npm:3.3.0"
+  checksum: f6f487ad2198aa41d878fa31452f1a3c00958f46e9019286ff4787c84aac329332ab45c9cdc8c445928fc6d7ded294b9e005a7fce9426488518017831b272780
   languageName: node
   linkType: hard
 

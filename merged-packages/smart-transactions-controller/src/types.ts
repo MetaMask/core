@@ -89,6 +89,7 @@ export type SmartTransaction = {
   type?: string;
   confirmed?: boolean;
   cancellable?: boolean;
+  skipConfirm?: boolean;
 };
 
 export type Fee = {

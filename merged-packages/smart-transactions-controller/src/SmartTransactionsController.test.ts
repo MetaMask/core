@@ -10,7 +10,11 @@ import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';
 import { API_BASE_URL, CHAIN_IDS } from './constants';
-import { SmartTransaction, SmartTransactionStatuses } from './types';
+import {
+  SmartTransaction,
+  SmartTransactionStatuses,
+  UnsignedTransaction,
+} from './types';
 import * as utils from './utils';
 import { flushPromises, advanceTime } from './test-helpers';
 
@@ -63,7 +67,7 @@ const createUnsignedTransaction = (chainId: number) => {
     to: '0x0000000000000000000000000000000000000000',
     value: 0,
     data: '0x',
-    nonce: 0,
+    nonce: 1,
     type: 2,
     chainId,
   };
@@ -507,6 +511,32 @@ describe('SmartTransactionsController', () => {
     });
   });
 
+  describe('clearFees', () => {
+    it('clears fees', async () => {
+      const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+      const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
+      const getFeesApiResponse = createGetFeesApiResponse();
+      nock(API_BASE_URL)
+        .post(`/networks/${ethereumChainIdDec}/getFees`)
+        .reply(200, getFeesApiResponse);
+      const fees = await smartTransactionsController.getFees(
+        tradeTx,
+        approvalTx,
+      );
+      expect(fees).toMatchObject({
+        approvalTxFees: getFeesApiResponse.txs[0],
+        tradeTxFees: getFeesApiResponse.txs[1],
+      });
+      await smartTransactionsController.clearFees();
+      expect(
+        smartTransactionsController.state.smartTransactionsState.fees,
+      ).toStrictEqual({
+        approvalTxFees: undefined,
+        tradeTxFees: undefined,
+      });
+    });
+  });
+
   describe('getFees', () => {
     it('gets unsigned transactions and estimates based on an unsigned transaction', async () => {
       const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
@@ -522,6 +552,20 @@ describe('SmartTransactionsController', () => {
       expect(fees).toMatchObject({
         approvalTxFees: getFeesApiResponse.txs[0],
         tradeTxFees: getFeesApiResponse.txs[1],
+      });
+    });
+
+    it('gets estimates based on an unsigned transaction with an undefined nonce', async () => {
+      const tradeTx: UnsignedTransaction =
+        createUnsignedTransaction(ethereumChainIdDec);
+      tradeTx.nonce = undefined;
+      const getFeesApiResponse = createGetFeesApiResponse();
+      nock(API_BASE_URL)
+        .post(`/networks/${ethereumChainIdDec}/getFees`)
+        .reply(200, getFeesApiResponse);
+      const fees = await smartTransactionsController.getFees(tradeTx);
+      expect(fees).toMatchObject({
+        tradeTxFees: getFeesApiResponse.txs[0],
       });
     });
 

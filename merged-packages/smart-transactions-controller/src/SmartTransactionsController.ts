@@ -1,3 +1,4 @@
+import EventEmitter from 'events';
 import { BaseConfig, BaseState } from '@metamask/base-controller';
 import { safelyExecute, query } from '@metamask/controller-utils';
 import {
@@ -10,6 +11,7 @@ import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller'
 import { BigNumber } from 'bignumber.js';
 import { hexlify } from '@ethersproject/bytes';
 import cloneDeep from 'lodash/cloneDeep';
+
 import {
   APIType,
   SmartTransaction,
@@ -76,6 +78,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
   public confirmExternalTransaction: any;
 
   private trackMetaMetricsEvent: any;
+
+  private eventEmitter: EventEmitter;
 
   private getNetworkClientById: NetworkController['getNetworkClientById'];
 
@@ -169,6 +173,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     });
 
     this.subscribe((currentState: any) => this.checkPoll(currentState));
+    this.eventEmitter = new EventEmitter();
   }
 
   _executePoll(networkClientId: string): Promise<void> {
@@ -322,7 +327,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
   ): void {
     const { smartTransactionsState } = this.state;
     const { smartTransactions } = smartTransactionsState;
-    const currentSmartTransactions = smartTransactions[chainId];
+    const currentSmartTransactions = smartTransactions[chainId] ?? [];
     const currentIndex = currentSmartTransactions?.findIndex(
       (stx) => stx.uuid === smartTransaction.uuid,
     );
@@ -377,10 +382,12 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         ...currentSmartTransaction,
         ...smartTransaction,
       };
-      this.#confirmSmartTransaction(nextSmartTransaction, {
-        chainId,
-        ethQuery,
-      });
+      if (!smartTransaction.skipConfirm) {
+        this.#confirmSmartTransaction(nextSmartTransaction, {
+          chainId,
+          ethQuery,
+        });
+      }
     }
 
     this.update({
@@ -430,6 +437,9 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       ethQuery: EthQuery;
     },
   ) {
+    if (smartTransaction.skipConfirm) {
+      return;
+    }
     const txHash = smartTransaction.statusMetadata?.minedHash;
     try {
       const transactionReceipt: {
@@ -532,6 +542,12 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     >;
 
     Object.entries(data).forEach(([uuid, stxStatus]) => {
+      const transactionHash = stxStatus?.minedHash;
+      this.eventEmitter.emit(`${uuid}:status`, stxStatus);
+      if (transactionHash) {
+        this.eventEmitter.emit(`${uuid}:transaction-hash`, transactionHash);
+      }
+
       this.#updateSmartTransaction(
         {
           statusMetadata: stxStatus,
@@ -574,7 +590,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   async getFees(
     tradeTx: UnsignedTransaction,
-    approvalTx: UnsignedTransaction,
+    approvalTx?: UnsignedTransaction,
     { networkClientId }: { networkClientId?: NetworkClientId } = {},
   ): Promise<Fees> {
     const chainId = this.#getChainId({ networkClientId });
@@ -589,6 +605,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         // If there is an approval tx, the trade tx's nonce is increased by 1.
         nonce: incrementNonceInHex(unsignedApprovalTransactionWithNonce.nonce),
       };
+    } else if (tradeTx.nonce) {
+      unsignedTradeTransactionWithNonce = tradeTx;
     } else {
       unsignedTradeTransactionWithNonce = await this.addNonceToTransaction(
         tradeTx,
@@ -642,11 +660,13 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     signedTransactions,
     signedCanceledTransactions,
     networkClientId,
+    skipConfirm,
   }: {
     signedTransactions: SignedTransaction[];
     signedCanceledTransactions: SignedCanceledTransaction[];
     txParams?: any;
     networkClientId?: NetworkClientId;
+    skipConfirm?: boolean;
   }) {
     const chainId = this.#getChainId({ networkClientId });
     const ethQuery = this.#getEthQuery({ networkClientId });
@@ -670,14 +690,22 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     } catch (e) {
       console.error('provider error', e);
     }
-    const nonceLock = await this.getNonceLock(txParams?.from);
-    try {
-      const nonce = hexlify(nonceLock.nextNonce);
-      if (txParams && !txParams?.nonce) {
-        txParams.nonce = nonce;
-      }
-      const { nonceDetails } = nonceLock;
 
+    const requiresNonce = !txParams.nonce;
+    let nonce;
+    let nonceLock;
+    let nonceDetails = {};
+
+    if (requiresNonce) {
+      nonceLock = await this.getNonceLock(txParams?.from);
+      nonce = hexlify(nonceLock.nextNonce);
+      nonceDetails = nonceLock.nonceDetails;
+      if (txParams) {
+        txParams.nonce ??= nonce;
+      }
+    }
+
+    try {
       this.#updateSmartTransaction(
         {
           chainId,
@@ -688,11 +716,12 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           txParams,
           uuid: data.uuid,
           cancellable: true,
+          skipConfirm: skipConfirm ?? false,
         },
         { chainId, ethQuery },
       );
     } finally {
-      nonceLock.releaseLock();
+      nonceLock?.releaseLock();
     }
 
     return data;
