@@ -1,13 +1,11 @@
 /* eslint-disable jsdoc/match-description */
 /* eslint-disable jsdoc/require-returns */
 import { query } from '@metamask/controller-utils';
-import { merge, pickBy } from 'lodash';
 
 import { CHAIN_IDS } from './constants';
 import { createModuleLogger, projectLogger } from './logger';
-import type { Events, TransactionMeta } from './types';
+import type { TransactionMeta } from './types';
 import { TransactionType } from './types';
-import { validateIfTransactionUnapproved } from './utils';
 
 const log = createModuleLogger(projectLogger, 'swaps');
 
@@ -112,80 +110,6 @@ export const SWAP_TRANSACTION_TYPES = [
 ];
 
 /**
- * Updates the transaction meta object with the swap information
- *
- * @param transactionMeta - The transaction meta object to update
- * @param transactionType - The type of the transaction
- * @param swaps - The swaps object
- * @param swaps.hasApproveTx - Whether the swap has an approval transaction
- * @param swaps.meta - The swap meta object
- * @param updateSwapsTransactionRequest - Dependency bag
- * @param updateSwapsTransactionRequest.isSwapsDisabled - Whether swaps are disabled
- * @param updateSwapsTransactionRequest.cancelTransaction - Function to cancel a transaction
- * @param updateSwapsTransactionRequest.controllerHubEmitter - Function to emit an event to the controller hub
- */
-export async function updateSwapsTransaction(
-  transactionMeta: TransactionMeta,
-  transactionType: TransactionType,
-  swaps: {
-    hasApproveTx?: boolean;
-    meta?: Partial<TransactionMeta>;
-  },
-  {
-    isSwapsDisabled,
-    cancelTransaction,
-    controllerHubEmitter,
-  }: {
-    isSwapsDisabled: boolean;
-    cancelTransaction: (transactionId: string) => void;
-    controllerHubEmitter: <T extends keyof Events>(
-      eventName: T,
-      ...args: Events[T]
-    ) => boolean;
-  },
-) {
-  if (isSwapsDisabled || !SWAP_TRANSACTION_TYPES.includes(transactionType)) {
-    return;
-  }
-  // The simulationFails property is added if the estimateGas call fails. In cases
-  // when no swaps approval tx is required, this indicates that the swap will likely
-  // fail. There was an earlier estimateGas call made by the swaps controller,
-  // but it is possible that external conditions have change since then, and
-  // a previously succeeding estimate gas call could now fail. By checking for
-  // the `simulationFails` property here, we can reduce the number of swap
-  // transactions that get published to the blockchain only to fail and thereby
-  // waste the user's funds on gas.
-  if (
-    transactionType === TransactionType.swap &&
-    swaps?.hasApproveTx === false &&
-    transactionMeta.simulationFails
-  ) {
-    await cancelTransaction(transactionMeta.id);
-    throw new Error('Simulation failed');
-  }
-
-  const swapsMeta = swaps?.meta as Partial<TransactionMeta>;
-
-  if (!swapsMeta) {
-    return;
-  }
-
-  if (transactionType === TransactionType.swapApproval) {
-    updateSwapApprovalTransaction(transactionMeta, swapsMeta);
-    controllerHubEmitter('transaction-new-swap-approval', {
-      transactionMeta,
-    });
-  }
-
-  if (transactionType === TransactionType.swap) {
-    updateSwapTransaction(transactionMeta, swapsMeta);
-    controllerHubEmitter('transaction-new-swap', {
-      transactionMeta,
-    });
-  }
-}
-
-/**
  * Attempts to update the post transaction balance of the provided transaction
  *
  * @param transactionMeta - Transaction meta object to update
@@ -265,77 +189,6 @@ export async function updatePostTransactionBalance(
     updatedTransactionMeta: latestTransactionMeta as TransactionMeta,
     approvalTransactionMeta,
   };
-}
-
-/**
- * Updates the transaction meta object with the swap approval information
- *
- * @param transactionMeta - Transaction meta object to update
- * @param propsToUpdate - Properties to update
- * @param propsToUpdate.type - Type of the transaction
- * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
- */
-function updateSwapApprovalTransaction(
-  transactionMeta: TransactionMeta,
-  { type, sourceTokenSymbol }: Partial<TransactionMeta>,
-) {
-  validateIfTransactionUnapproved(
-    transactionMeta,
-    'updateSwapApprovalTransaction',
-  );
-
-  let swapApprovalTransaction = { type, sourceTokenSymbol } as any;
-  swapApprovalTransaction = pickBy({
-    type,
-    sourceTokenSymbol,
-  }) as Partial<TransactionMeta>;
-  merge(transactionMeta, swapApprovalTransaction);
-}
-
-/**
- * Updates the transaction meta object with the swap information
- *
- * @param transactionMeta - Transaction meta object to update
- * @param propsToUpdate - Properties to update
- * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
- * @param propsToUpdate.destinationTokenSymbol - Symbol of the token to be received
- * @param propsToUpdate.type - Type of the transaction
- * @param propsToUpdate.destinationTokenDecimals - Decimals of the token to be received
- * @param propsToUpdate.destinationTokenAddress - Address of the token to be received
- * @param propsToUpdate.swapMetaData - Metadata of the swap
- * @param propsToUpdate.swapTokenValue - Value of the token to be swapped
- * @param propsToUpdate.estimatedBaseFee - Estimated base fee of the transaction
- * @param propsToUpdate.approvalTxId - Transaction id of the approval transaction
- */
-function updateSwapTransaction(
-  transactionMeta: TransactionMeta,
-  {
-    sourceTokenSymbol,
-    destinationTokenSymbol,
-    type,
-    destinationTokenDecimals,
-    destinationTokenAddress,
-    swapMetaData,
-    swapTokenValue,
-    estimatedBaseFee,
-    approvalTxId,
-  }: Partial<TransactionMeta>,
-) {
-  validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
-
-  let swapTransaction = {
-    sourceTokenSymbol,
-    destinationTokenSymbol,
-    type,
-    destinationTokenDecimals,
-    destinationTokenAddress,
-    swapMetaData,
-    swapTokenValue,
-    estimatedBaseFee,
-    approvalTxId,
-  };
-  swapTransaction = pickBy(swapTransaction) as any;
-  merge(transactionMeta, swapTransaction);
 }
 
 /**

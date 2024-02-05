@@ -444,43 +444,6 @@ export enum TransactionType {
   tokenMethodSetApprovalForAll = 'setapprovalforall',
 }
 
-export type Events = {
-  ['incomingTransactionBlock']: [blockNumber: number];
-  ['post-transaction-balance-updated']: [
-    {
-      transactionMeta: TransactionMeta;
-      approvalTransactionMeta?: TransactionMeta;
-    },
-  ];
-  ['transaction-approved']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
-
-  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-failed']: [
-    {
-      actionId?: string;
-      error: string;
-      transactionMeta: TransactionMeta;
-    },
-  ];
-  ['transaction-new-swap']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-new-swap-approval']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-rejected']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-status-update']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-submitted']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:publish-skip`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
-};
-
 /**
  * Specifies the shape of the base transaction parameters.
  * Added in EIP-2718.
