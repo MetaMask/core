@@ -2967,7 +2967,6 @@ export class TransactionController extends BaseControllerV1<
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   }): EthQuery {
-    // if multichain is disabled, use the global ethQuery
     if (!this.#enableMultichain) {
       return this.ethQuery;
     }
