@@ -290,6 +290,11 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
+  private readonly publish: (
+    transactionMeta: TransactionMeta,
+    rawTx: string,
+  ) => Promise<{ transactionHash?: string }>;
+
   private readonly getAdditionalSignArguments: (
     transactionMeta: TransactionMeta,
   ) => (TransactionMeta | undefined)[];
@@ -377,6 +382,7 @@ export class TransactionController extends BaseControllerV1<
    * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
+   * @param options.hooks.publish - Alternate logic to publish a transaction.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -446,6 +452,9 @@ export class TransactionController extends BaseControllerV1<
         getAdditionalSignArguments?: (
           transactionMeta: TransactionMeta,
         ) => (TransactionMeta | undefined)[];
+        publish?: (
+          transactionMeta: TransactionMeta,
+        ) => Promise<{ transactionHash: string }>;
       };
     },
     config?: Partial<TransactionConfig>,
@@ -498,6 +507,8 @@ export class TransactionController extends BaseControllerV1<
     this.beforePublish = hooks?.beforePublish ?? (() => true);
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
+    this.publish =
+      hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
     this.nonceTracker = new NonceTracker({
       // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
@@ -1522,10 +1533,13 @@ export class TransactionController extends BaseControllerV1<
    * Signs and returns the raw transaction data for provided transaction params list.
    *
    * @param listOfTxParams - The list of transaction params to approve.
+   * @param opts - Options bag.
+   * @param opts.hasNonce - Whether the transactions already have a nonce.
    * @returns The raw transactions.
    */
   async approveTransactionsWithSameNonce(
     listOfTxParams: TransactionParams[] = [],
+    { hasNonce }: { hasNonce?: boolean } = {},
   ): Promise<string | string[]> {
     log('Approving transactions with same nonce', {
       transactions: listOfTxParams,
@@ -1554,14 +1568,23 @@ export class TransactionController extends BaseControllerV1<
     try {
       // TODO: we should add a check to verify that all transactions have the same from address
       const fromAddress = initialTx.from;
-      nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
-      const nonce = nonceLock.nextNonce;
+      const requiresNonce = hasNonce !== true;
 
-      log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+      nonceLock = requiresNonce
+        ? await this.nonceTracker.getNonceLock(fromAddress)
+        : undefined;
+
+      const nonce = nonceLock
+        ? addHexPrefix(nonceLock.nextNonce.toString(16))
+        : initialTx.nonce;
+
+      if (nonceLock) {
+        log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+      }
 
       rawTransactions = await Promise.all(
         listOfTxParams.map((txParams) => {
-          txParams.nonce = addHexPrefix(nonce.toString(16));
+          txParams.nonce = nonce;
           return this.signExternalTransaction(txParams);
         }),
       );
@@ -1571,9 +1594,7 @@ export class TransactionController extends BaseControllerV1<
       // continue with error chain
       throw err;
     } finally {
-      if (nonceLock) {
-        nonceLock.releaseLock();
-      }
+      nonceLock?.releaseLock();
       this.inProcessOfSigning.delete(initialTxAsSerializedHex);
     }
     return rawTransactions;
@@ -2114,7 +2135,14 @@ export class TransactionController extends BaseControllerV1<
 
       log('Publishing transaction', txParams);
 
-      const hash = await this.publishTransaction(rawTx);
+      let { transactionHash: hash } = await this.publish(
+        transactionMeta,
+        rawTx,
+      );
+
+      if (hash === undefined) {
+        hash = await this.publishTransaction(rawTx);
+      }
 
       log('Publish successful', hash);
 
