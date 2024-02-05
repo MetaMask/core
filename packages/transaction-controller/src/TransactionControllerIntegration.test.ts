@@ -1123,10 +1123,63 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    // Unclear if we need this test
-    it.todo(
-      'should start the global incoming transaction helper when no networkClientIds provided',
-    );
+    it.only('should start the global incoming transaction helper when no networkClientIds provided', async () => {
+      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+      mockNetwork({
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
+        mocks: [
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthBlockNumberRequestMock('0x2'),
+        ],
+      });
+      nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.mainnet].chainId))
+        .get(
+          `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+        )
+        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+
+      const { transactionController } = await newController({
+        getSelectedAddress: () => selectedAddress,
+      });
+
+      transactionController.startIncomingTransactionPolling();
+
+      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
+
+      // transactionController.stopIncomingTransactionPolling();
+
+      expect(transactionController.state.transactions).toHaveLength(2);
+      expect(transactionController.state.transactions).toStrictEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            chainId: '0x1',
+            type: TransactionType.incoming,
+            verifiedOnBlockchain: false,
+            status: TransactionStatus.confirmed,
+          }),
+          expect.objectContaining({
+            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            chainId: '0x1',
+            type: TransactionType.incoming,
+            verifiedOnBlockchain: false,
+            status: TransactionStatus.failed,
+          }),
+        ]),
+      );
+      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
+        {
+          [`0x1#${selectedAddress}#normal`]: parseInt(
+            ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            10,
+          ),
+        },
+      );
+      transactionController.destroy();
+    });
 
     describe('when called with multiple networkClients which share the same chainId', () => {
       it('should only call the etherscan API max every 5 seconds, alternating between the token and txlist endpoints', async () => {
@@ -1272,10 +1325,6 @@ describe('TransactionController Integration', () => {
   });
 
   describe('stopIncomingTransactionPolling', () => {
-    // Unclear if we need this test
-    it.todo(
-      'should stop the global incoming transaction helper when no networkClientIds provided',
-    );
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
@@ -1310,6 +1359,40 @@ describe('TransactionController Integration', () => {
           ]);
         }),
       );
+      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
+
+      expect(transactionController.state.transactions).toStrictEqual([]);
+      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
+        {},
+      );
+      transactionController.destroy();
+    });
+
+    it('should stop the global incoming transaction helper when no networkClientIds provided', async () => {
+      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+
+      const { transactionController } = await newController({
+        getSelectedAddress: () => selectedAddress,
+      });
+
+      mockNetwork({
+        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+          InfuraNetworkType.mainnet,
+        ),
+        mocks: [
+          buildEthBlockNumberRequestMock('0x1'),
+          buildEthBlockNumberRequestMock('0x2'),
+        ],
+      });
+      nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.mainnet].chainId))
+        .get(
+          `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
+        )
+        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
+
+      transactionController.startIncomingTransactionPolling();
+
+      transactionController.stopIncomingTransactionPolling();
       await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
 
       expect(transactionController.state.transactions).toStrictEqual([]);
@@ -1435,7 +1518,6 @@ describe('TransactionController Integration', () => {
         getSelectedAddress: () => selectedAddress,
       });
 
-
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.mainnet,
@@ -1449,7 +1531,6 @@ describe('TransactionController Integration', () => {
         .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
       transactionController.updateIncomingTransactions();
-
 
       // we have to wait for the mutex to be released after the 5 second API rate limit timer
       await advanceTime({ clock, duration: 1 });
@@ -1470,13 +1551,17 @@ describe('TransactionController Integration', () => {
             type: TransactionType.incoming,
             verifiedOnBlockchain: false,
             status: TransactionStatus.failed,
-          })
-        ]
-        ),
+          }),
+        ]),
       );
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual({
-        [`0x1#${selectedAddress}#normal`]: parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10),
-      });
+      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
+        {
+          [`0x1#${selectedAddress}#normal`]: parseInt(
+            ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
+            10,
+          ),
+        },
+      );
       transactionController.destroy();
     });
   });
