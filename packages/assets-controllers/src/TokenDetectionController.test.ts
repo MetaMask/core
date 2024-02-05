@@ -1359,7 +1359,7 @@ async function withController<ReturnValue>(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: true,
-    } as unknown as KeyringControllerState),
+    } as KeyringControllerState),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
