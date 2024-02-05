@@ -1,4 +1,5 @@
 import { Hex } from '@metamask/utils';
+import { GasFeeState } from '@metamask/gas-fee-controller';
 
 /**
  * @type TransactionMeta
@@ -47,6 +48,8 @@ type TransactionMetaBase = {
    * Response from security validator.
    */
   securityAlertResponse?: SecurityAlertResponse;
+
+  suggestedGasFees?: SuggestedGasFees;
 };
 
 /**
@@ -194,4 +197,50 @@ export type SubmitHistoryEntry = {
 
   /** The transaction parameters that were submitted. */
   transaction: Record<string, unknown>;
+};
+
+export type GasFeeFlowRequest = {
+  ethQuery: any;
+  isEIP1559: boolean;
+  getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+  transactionMeta: TransactionMeta;
+};
+
+export type GasFeeFlowLevelResponse = {
+  maxFeePerGas: string;
+  maxPriorityFeePerGas: string;
+  gasPrice: string;
+};
+
+export type GasFeeFlowResponse = {
+  low: GasFeeFlowLevelResponse;
+  medium: GasFeeFlowLevelResponse;
+  high: GasFeeFlowLevelResponse;
+};
+
+export type GasFeeFlow = {
+  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  getGasFees: (request: GasFeeFlowRequest) => Promise<GasFeeFlowResponse>;
+};
+
+export type EIP1559LevelSuggestedGasFees = {
+  suggestedMaxFeePerGas: string;
+  suggestedMaxPriorityFeePerGas: string;
+};
+
+export type EIP1559SuggestedGasFees = {
+  low: EIP1559LevelSuggestedGasFees;
+  medium: EIP1559LevelSuggestedGasFees;
+  high: EIP1559LevelSuggestedGasFees;
+};
+
+export type LegacySuggestedGasFees = {
+  low: string;
+  medium: string;
+  high: string;
+};
+
+export type SuggestedGasFees = {
+  eip1559: EIP1559SuggestedGasFees;
+  legacy: LegacySuggestedGasFees;
 };
