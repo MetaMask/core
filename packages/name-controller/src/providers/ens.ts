@@ -13,7 +13,7 @@ export type ReverseLookupCallback = (
 ) => Promise<string>;
 
 const ID = 'ens';
-const LABEL = 'Ethereum Name Service (ENS)';
+const LABEL = 'nameProviderEns';
 
 const log = createModuleLogger(projectLogger, 'ens');
 

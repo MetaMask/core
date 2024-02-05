@@ -9,7 +9,7 @@ import { NameType } from '../types';
 import { graphQL } from '../util';
 
 const ID = 'lens';
-const LABEL = 'Lens Protocol';
+const LABEL = 'nameProviderLens';
 const LENS_URL = `https://api.lens.dev`;
 
 const QUERY = `

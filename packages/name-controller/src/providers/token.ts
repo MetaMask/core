@@ -9,7 +9,7 @@ import { NameType } from '../types';
 import { handleFetch } from '../util';
 
 const ID = 'token';
-const LABEL = 'Blockchain (Token Name)';
+const LABEL = 'nameProviderToken';
 
 const log = createModuleLogger(projectLogger, 'token');
 

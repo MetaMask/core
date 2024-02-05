@@ -12,7 +12,7 @@ import { NameType } from '../types';
 import { handleFetch, assertIsError } from '../util';
 
 const ID = 'etherscan';
-const LABEL = 'Etherscan (Verified Contract Name)';
+const LABEL = 'nameProviderEtherscan';
 const RATE_LIMIT_UPDATE_DELAY = 5; // 5 Seconds
 const RATE_LIMIT_INTERVAL = RATE_LIMIT_UPDATE_DELAY * 1000;
 
