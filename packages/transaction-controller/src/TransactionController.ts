@@ -104,7 +104,9 @@ import {
 export const HARDFORK = Hardfork.London;
 
 /**
- * @type Result
+ * Object with new transaction's meta and a promise resolving to the
+ * transaction hash if successful.
+ *
  * @property result - Promise resolving to a new transaction hash
  * @property transactionMeta - Meta information about this new transaction
  */
@@ -132,9 +134,8 @@ export interface FeeMarketEIP1559Values {
 }
 
 /**
- * @type TransactionConfig
- *
  * Transaction controller configuration
+ *
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
@@ -149,9 +150,8 @@ export interface TransactionConfig extends BaseConfig {
 }
 
 /**
- * @type MethodData
- *
  * Method data registry object
+ *
  * @property registryMethod - Registry method raw string
  * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
@@ -164,9 +164,8 @@ export interface MethodData {
 }
 
 /**
- * @type TransactionState
- *
  * Transaction controller state
+ *
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
  */
@@ -190,9 +189,8 @@ export const CANCEL_RATE = 1.5;
 export const SPEED_UP_RATE = 1.1;
 
 /**
- * @type IncomingTransactionOptions
- *
  * Configuration options for the IncomingTransactionHelper
+ *
  * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
  * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
  * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
@@ -206,9 +204,8 @@ type IncomingTransactionOptions = {
 };
 
 /**
- * @type PendingTransactionOptions
- *
  * Configuration options for the PendingTransactionTracker
+ *
  * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 type PendingTransactionOptions = {
@@ -216,8 +213,6 @@ type PendingTransactionOptions = {
 };
 
 /**
- * @type NetworkClientRegistry
- *
  * Registry of network clients provided by the NetworkController
  */
 
