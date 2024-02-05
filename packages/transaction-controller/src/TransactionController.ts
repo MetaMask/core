@@ -1659,7 +1659,7 @@ export class TransactionController extends BaseControllerV1<
       if (!trackers) {
         throw new Error('missing nonceTracker for networkClientId');
       }
-      nonceTracker = trackers?.nonceTracker;
+      nonceTracker = trackers.nonceTracker;
     }
 
     // Acquires the lock for the chainId + address and the nonceLock from the nonceTracker, then
