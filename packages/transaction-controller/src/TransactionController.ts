@@ -868,7 +868,7 @@ export class TransactionController extends BaseControllerV1<
 
   stopAllIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
-    if (this.this.#isMultichainEnabled) {
+    if (this.#isMultichainEnabled) {
       for (const [, trackers] of this.trackingMap) {
         trackers.incomingTransactionHelper.stop();
       }
