@@ -243,7 +243,7 @@ describe('TokenDetectionController', () => {
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
-                name: sampleTokenA.name as string,
+                name: sampleTokenA.name,
                 symbol: sampleTokenA.symbol,
                 decimals: sampleTokenA.decimals,
                 address: sampleTokenA.address,
@@ -290,7 +290,7 @@ describe('TokenDetectionController', () => {
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
-                name: sampleTokenA.name as string,
+                name: sampleTokenA.name,
                 symbol: sampleTokenA.symbol,
                 decimals: sampleTokenA.decimals,
                 address: sampleTokenA.address,
@@ -340,7 +340,7 @@ describe('TokenDetectionController', () => {
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
-                name: sampleTokenA.name as string,
+                name: sampleTokenA.name,
                 symbol: sampleTokenA.symbol,
                 decimals: sampleTokenA.decimals,
                 address: sampleTokenA.address,
@@ -354,7 +354,7 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           tokenListState.tokenList[sampleTokenB.address] = {
-            name: sampleTokenB.name as string,
+            name: sampleTokenB.name,
             symbol: sampleTokenB.symbol,
             decimals: sampleTokenB.decimals,
             address: sampleTokenB.address,
@@ -404,7 +404,7 @@ describe('TokenDetectionController', () => {
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
-                name: sampleTokenA.name as string,
+                name: sampleTokenA.name,
                 symbol: sampleTokenA.symbol,
                 decimals: sampleTokenA.decimals,
                 address: sampleTokenA.address,
@@ -445,7 +445,7 @@ describe('TokenDetectionController', () => {
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
-                name: sampleTokenA.name as string,
+                name: sampleTokenA.name,
                 symbol: sampleTokenA.symbol,
                 decimals: sampleTokenA.decimals,
                 address: sampleTokenA.address,
@@ -503,7 +503,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -556,7 +556,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -619,7 +619,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -667,7 +667,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -720,7 +720,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -768,7 +768,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -836,7 +836,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -888,7 +888,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -935,7 +935,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -984,7 +984,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -1044,7 +1044,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -1131,7 +1131,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
-                  name: sampleTokenA.name as string,
+                  name: sampleTokenA.name,
                   symbol: sampleTokenA.symbol,
                   decimals: sampleTokenA.decimals,
                   address: sampleTokenA.address,
@@ -1184,7 +1184,7 @@ describe('TokenDetectionController', () => {
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
-                name: sampleTokenA.name as string,
+                name: sampleTokenA.name,
                 symbol: sampleTokenA.symbol,
                 decimals: sampleTokenA.decimals,
                 address: sampleTokenA.address,
@@ -1255,7 +1255,7 @@ describe('TokenDetectionController', () => {
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
-                name: sampleTokenA.name as string,
+                name: sampleTokenA.name,
                 symbol: sampleTokenA.symbol,
                 decimals: sampleTokenA.decimals,
                 address: sampleTokenA.address,
