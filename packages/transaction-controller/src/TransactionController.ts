@@ -876,10 +876,8 @@ export class TransactionController extends BaseControllerV1<
   stopAllIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
     if (this.#enableMultichain) {
-      for (const { incomingTransactionHelper } of Object.values(
-        this.trackingMap,
-      )) {
-        incomingTransactionHelper.stop();
+      for (const [, trackingMap] of this.trackingMap) {
+        trackingMap.incomingTransactionHelper.stop();
       }
     }
   }
@@ -3064,10 +3062,8 @@ export class TransactionController extends BaseControllerV1<
     // PendingTransactionTracker reads state through its getTransactions hook
     this.pendingTransactionTracker.startIfPendingTransactions();
     if (this.#enableMultichain) {
-      for (const { pendingTransactionTracker } of Object.values(
-        this.trackingMap,
-      )) {
-        pendingTransactionTracker.startIfPendingTransactions();
+      for (const [, trackingMap] of this.trackingMap) {
+        trackingMap.pendingTransactionTracker.startIfPendingTransactions();
       }
     }
   };
