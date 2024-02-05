@@ -202,9 +202,8 @@ function getEtherscanApiUrl(
  * @returns host URL to access Etherscan data.
  */
 export function getEtherscanApiHost(chainId: Hex) {
-  type SupportedChainId = keyof typeof ETHERSCAN_SUPPORTED_NETWORKS;
-
-  const networkInfo = ETHERSCAN_SUPPORTED_NETWORKS[chainId as SupportedChainId];
+  // @ts-expect-error We account for `chainId` not being a property below
+  const networkInfo = ETHERSCAN_SUPPORTED_NETWORKS[chainId];
 
   if (!networkInfo) {
     throw new Error(`Etherscan does not support chain with ID: ${chainId}`);
