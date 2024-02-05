@@ -73,20 +73,18 @@ export function buildEthGetCodeRequestMock(
  * Builds mock eth_getBlockByNumber request.
  * Used by NetworkController.
  *
- * @param blockNumber - The hex block number.
+ * @param number - the hex (block) number.
  * @param baseFeePerGas - the hex base fee per gas result.
- * @param number - the hex (block) number result.
  * @returns The mock json rpc request object.
  */
 export function buildEthGetBlockByNumberRequestMock(
-  blockNumber: Hex,
+  number: Hex,
   baseFeePerGas: Hex = '0x63c498a46',
-  number: Hex = '0x1',
 ): JsonRpcRequestMock {
   return {
     request: {
       method: 'eth_getBlockByNumber',
-      params: [blockNumber, false],
+      params: [number, false],
     },
     response: {
       result: {
