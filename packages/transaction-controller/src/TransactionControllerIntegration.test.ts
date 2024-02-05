@@ -128,7 +128,7 @@ const newController = async (options: any = {}) => {
       getNetworkState: () => networkController.state,
       getSelectedAddress: () => '0xdeadbeef',
       getPermittedAccounts: () => [ACCOUNT_MOCK],
-      enableMultichain: true,
+      isMultichainEnabled: true,
       ...opts,
     },
     {
@@ -938,7 +938,7 @@ describe('TransactionController Integration', () => {
       });
 
       const { networkController, transactionController } = await newController({
-        enableMultichain: false,
+        isMultichainEnabled: false,
       });
 
       const configurationId =
@@ -984,7 +984,7 @@ describe('TransactionController Integration', () => {
       });
 
       const { networkController, transactionController } = await newController({
-        enableMultichain: false,
+        isMultichainEnabled: false,
         getNetworkClientRegistrySpy,
       });
 
@@ -1010,7 +1010,7 @@ describe('TransactionController Integration', () => {
       });
 
       const { networkController, transactionController } = await newController({
-        enableMultichain: true,
+        isMultichainEnabled: true,
         getNetworkClientRegistrySpy,
       });
 
@@ -1036,7 +1036,7 @@ describe('TransactionController Integration', () => {
       });
 
       await newController({
-        enableMultichain: true,
+        isMultichainEnabled: true,
         getNetworkClientRegistrySpy,
       });
 
