@@ -1154,8 +1154,6 @@ describe('TransactionController Integration', () => {
 
       await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
 
-      // transactionController.stopIncomingTransactionPolling();
-
       expect(transactionController.state.transactions).toHaveLength(2);
       expect(transactionController.state.transactions).toStrictEqual(
         expect.arrayContaining([
