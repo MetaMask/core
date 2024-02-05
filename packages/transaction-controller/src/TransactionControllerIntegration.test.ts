@@ -532,7 +532,7 @@ describe('TransactionController Integration', () => {
         );
         transactionController.destroy();
       });
-      it('should be able to confirm a cancelled transaction', async () => {
+      it('should be able to confirm a cancelled transaction and drop the original transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -594,12 +594,15 @@ describe('TransactionController Integration', () => {
         await advanceTime({ clock, duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
+        expect(transactionController.state.transactions[0].status).toBe(
+          'dropped',
+        );
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
         transactionController.destroy();
       });
-      it('should be able to get to speedup state', async () => {
+      it('should be able to get to speedup state and drop the original transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -662,6 +665,9 @@ describe('TransactionController Integration', () => {
         await advanceTime({ clock, duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
+        expect(transactionController.state.transactions[0].status).toBe(
+          'dropped',
+        );
         expect(transactionController.state.transactions[1].status).toBe(
           'confirmed',
         );
@@ -844,7 +850,6 @@ describe('TransactionController Integration', () => {
         transactionController.destroy();
       });
     });
-    it.todo('markNonceDuplicatesDropped');
   });
 
   describe('when changing rpcUrl of networkClient', () => {
@@ -1123,7 +1128,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    it.only('should start the global incoming transaction helper when no networkClientIds provided', async () => {
+    it('should start the global incoming transaction helper when no networkClientIds provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
 
       mockNetwork({
