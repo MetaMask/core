@@ -3061,5 +3061,4 @@ export class TransactionController extends BaseControllerV1<
     );
     return [...standardPendingTransactions, ...externalPendingTransactions];
   }
-
 }
