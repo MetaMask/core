@@ -251,6 +251,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe('KeyringController:lock', () => {
       this.#isUnlocked = false;
+      this.#stopPolling();
     });
 
     this.messagingSystem.subscribe(
