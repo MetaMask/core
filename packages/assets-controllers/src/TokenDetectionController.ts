@@ -316,7 +316,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
         if (isNetworkClientIdChanged && this.#isDetectionEnabledForNetwork) {
           this.#networkClientId = selectedNetworkClientId;
-          await this.detectTokens({
+          await this.#restartTokenDetection({
             networkClientId: this.#networkClientId,
           });
         }
