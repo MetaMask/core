@@ -453,7 +453,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       ? STATIC_MAINNET_TOKEN_LIST
       : tokenList;
 
-    const { tokens, detectedTokens } = this.messagingSystem.call(
+    const { tokens, detectedTokens, ignoredTokens } = this.messagingSystem.call(
       'TokensController:getState',
     );
     const tokensToDetect: string[] = [];
@@ -495,13 +495,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           tokensSlice,
         );
         const tokensToAdd: Token[] = [];
-        const eventTokensDetails = [];
+        const eventTokensDetails: string[] = [];
+        let ignored;
         for (const tokenAddress of Object.keys(balances)) {
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredTokens } = this.messagingSystem.call(
-            'TokensController:getState',
-          );
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -516,7 +512,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
           if (ignored === undefined) {
             const { decimals, symbol, aggregators, iconUrl, name } =
-              tokenList[caseInsensitiveTokenKey];
+              tokenListUsed[caseInsensitiveTokenKey];
             eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
             tokensToAdd.push({
               address: tokenAddress,
