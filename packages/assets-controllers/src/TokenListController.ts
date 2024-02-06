@@ -3,7 +3,7 @@ import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { safelyExecute } from '@metamask/controller-utils';
+import { GANACHE_CHAIN_ID, safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
   NetworkControllerStateChangeEvent,
@@ -198,7 +198,10 @@ export class TokenListController extends StaticIntervalPollingController<
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenListSupportedForNetwork(this.chainId)) {
+    if (
+      !isTokenListSupportedForNetwork(this.chainId) &&
+      this.chainId !== GANACHE_CHAIN_ID
+    ) {
       return;
     }
     await this.startPolling();

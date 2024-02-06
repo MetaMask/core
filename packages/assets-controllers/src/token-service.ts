@@ -1,8 +1,4 @@
-import {
-  GANACHE_CHAIN_ID,
-  convertHexToDecimal,
-  timeoutFetch,
-} from '@metamask/controller-utils';
+import { convertHexToDecimal, timeoutFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
@@ -82,10 +78,7 @@ export async function fetchTokenMetadata<T>(
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<T | undefined> {
-  if (
-    !isTokenListSupportedForNetwork(chainId) ||
-    chainId === GANACHE_CHAIN_ID
-  ) {
+  if (!isTokenListSupportedForNetwork(chainId)) {
     throw new Error(TOKEN_METADATA_NO_SUPPORT_ERROR);
   }
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
