@@ -637,20 +637,20 @@ describe('TransactionController', () => {
         }
       });
 
-      const mockFindNetworkClientIdByChainId = jest
+    const mockFindNetworkClientIdByChainId = jest
       .fn()
       .mockImplementation((chainId) => {
-        switch(chainId) {
+        switch (chainId) {
           case '0x1':
-            return 'mainnet'
+            return 'mainnet';
           case ChainId.sepolia:
-            return 'sepolia'
+            return 'sepolia';
           case ChainId.goerli:
-            return 'goerli'
+            return 'goerli';
           case '0xa':
-            return 'customNetworkClientId-1'
+            return 'customNetworkClientId-1';
           default:
-            throw new Error("Couldn't find networkClientId for chainId")
+            throw new Error("Couldn't find networkClientId for chainId");
         }
       });
 
@@ -3885,8 +3885,7 @@ describe('TransactionController', () => {
         options: { isMultichainEnabled: true },
       });
 
-      const getNonceLockMock = jest
-      .spyOn(controller, 'getNonceLock')
+      const getNonceLockMock = jest.spyOn(controller, 'getNonceLock');
 
       const mockTransactionParam = {
         from: ACCOUNT_MOCK,
@@ -3906,11 +3905,12 @@ describe('TransactionController', () => {
         chainId: MOCK_NETWORK.state.providerConfig.chainId,
       };
 
-      await controller.approveTransactionsWithSameNonce(
-        [mockTransactionParam, mockTransactionParam2]
-      );
+      await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+        mockTransactionParam2,
+      ]);
 
-      expect(getNonceLockMock).toHaveBeenCalledWith(ACCOUNT_MOCK, 'goerli')
+      expect(getNonceLockMock).toHaveBeenCalledWith(ACCOUNT_MOCK, 'goerli');
     });
   });
 
