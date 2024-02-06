@@ -64,7 +64,12 @@ type LegacyToken = Omit<
 
 export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
   contractMap,
-).reduce<Record<string, Partial<TokenListToken>>>((acc, [base, contract]) => {
+).reduce<
+  Record<
+    string,
+    Partial<TokenListToken> & Pick<Token, 'address' | 'symbol' | 'decimals'>
+  >
+>((acc, [base, contract]) => {
   const { logo, ...tokenMetadata } = contract;
   return {
     ...acc,
