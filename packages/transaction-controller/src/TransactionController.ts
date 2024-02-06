@@ -2753,11 +2753,9 @@ export class TransactionController extends BaseControllerV1<
     rawTx: string,
     transactionMeta: TransactionMeta,
   ): Promise<string> {
-    let hash;
     try {
-      hash = await this.publishTransaction(rawTx);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hash = await this.publishTransaction(rawTx);
+      return hash;
     } catch (error: any) {
       if (isNonceIssue(error)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
@@ -2767,6 +2765,5 @@ export class TransactionController extends BaseControllerV1<
       }
       throw error;
     }
-    return hash;
   }
 }
