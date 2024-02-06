@@ -2756,8 +2756,8 @@ export class TransactionController extends BaseControllerV1<
     try {
       const hash = await this.publishTransaction(rawTx);
       return hash;
-    } catch (error: any) {
-      if (isNonceIssue(error)) {
+    } catch (error: unknown) {
+      if (isNonceIssue(error as Error)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
           transactionMeta,
         );
