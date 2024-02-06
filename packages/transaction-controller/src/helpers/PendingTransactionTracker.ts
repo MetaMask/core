@@ -145,7 +145,7 @@ export class PendingTransactionTracker {
   }
 
   /**
-   * Force checks the network if the given transaction is confirmed and updates it's status.
+   * Force checks the status of the given transaction.
    *
    * @param txMeta - The transaction to check
    */
