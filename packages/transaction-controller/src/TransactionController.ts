@@ -2975,23 +2975,6 @@ export class TransactionController extends BaseControllerV1<
     }
   }
 
-  #getNonceTrackerPendingTransactions(
-    chainId: string | undefined,
-    address: string,
-  ) {
-    const standardPendingTransactions = this.getNonceTrackerTransactions(
-      TransactionStatus.submitted,
-      address,
-      chainId,
-    );
-
-    const externalPendingTransactions = this.getExternalPendingTransactions(
-      address,
-      chainId,
-    );
-    return [...standardPendingTransactions, ...externalPendingTransactions];
-  }
-
   #checkForPendingTransactionAndStartPolling = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
     this.pendingTransactionTracker.startIfPendingTransactions();
@@ -3061,4 +3044,22 @@ export class TransactionController extends BaseControllerV1<
       this.updateTransaction.bind(this),
     );
   }
+
+  #getNonceTrackerPendingTransactions(
+    chainId: string | undefined,
+    address: string,
+  ) {
+    const standardPendingTransactions = this.getNonceTrackerTransactions(
+      TransactionStatus.submitted,
+      address,
+      chainId,
+    );
+
+    const externalPendingTransactions = this.getExternalPendingTransactions(
+      address,
+      chainId,
+    );
+    return [...standardPendingTransactions, ...externalPendingTransactions];
+  }
+
 }
