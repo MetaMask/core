@@ -527,6 +527,222 @@ describe('TokenDetectionController', () => {
     });
   });
 
+  describe('AccountsController:selectedAccountChange', () => {
+    let clock: sinon.SinonFakeTimers;
+    beforeEach(() => {
+      clock = sinon.useFakeTimers();
+    });
+
+    afterEach(() => {
+      clock.restore();
+    });
+
+    describe('when "disabled" is "false"', () => {
+      it('should detect new tokens after switching between accounts', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const firstSelectedAddress =
+          '0x0000000000000000000000000000000000000001';
+        const secondSelectedAddress =
+          '0x0000000000000000000000000000000000000002';
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress: firstSelectedAddress,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerSelectedAccountChange,
+            mockAddDetectedTokens,
+          }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerSelectedAccountChange({
+              address: secondSelectedAddress,
+            } as InternalAccount);
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+              [sampleTokenA],
+              {
+                chainId: ChainId.mainnet,
+                selectedAddress: secondSelectedAddress,
+              },
+            );
+          },
+        );
+      });
+
+      it('should not detect new tokens if the account is unchanged', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerSelectedAccountChange,
+            mockAddDetectedTokens,
+          }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerSelectedAccountChange({
+              address: selectedAddress,
+            } as InternalAccount);
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
+          },
+        );
+      });
+
+      describe('when keyring is locked', () => {
+        it('should not detect new tokens after switching between accounts', async () => {
+          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+            [sampleTokenA.address]: new BN(1),
+          });
+          const firstSelectedAddress =
+            '0x0000000000000000000000000000000000000001';
+          const secondSelectedAddress =
+            '0x0000000000000000000000000000000000000002';
+          await withController(
+            {
+              options: {
+                disabled: false,
+                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                networkClientId: NetworkType.mainnet,
+                selectedAddress: firstSelectedAddress,
+                isKeyringUnlocked: false,
+              },
+            },
+            async ({
+              mockTokenListGetState,
+              triggerSelectedAccountChange,
+              mockAddDetectedTokens,
+            }) => {
+              mockTokenListGetState({
+                ...getDefaultTokenListState(),
+                tokenList: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              });
+
+              triggerSelectedAccountChange({
+                address: secondSelectedAddress,
+              } as InternalAccount);
+              await advanceTime({ clock, duration: 1 });
+
+              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+                'TokensController:addDetectedTokens',
+              );
+            },
+          );
+        });
+      });
+    });
+
+    describe('when "disabled" is "true"', () => {
+      it('should not detect new tokens after switching between accounts', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const firstSelectedAddress =
+          '0x0000000000000000000000000000000000000001';
+        const secondSelectedAddress =
+          '0x0000000000000000000000000000000000000002';
+        await withController(
+          {
+            options: {
+              disabled: true,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              networkClientId: NetworkType.mainnet,
+              selectedAddress: firstSelectedAddress,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerSelectedAccountChange,
+            mockAddDetectedTokens,
+          }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerSelectedAccountChange({
+              address: secondSelectedAddress,
+            } as InternalAccount);
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
+          },
+        );
+      });
+    });
+  });
+
   describe('PreferencesController:stateChange', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
