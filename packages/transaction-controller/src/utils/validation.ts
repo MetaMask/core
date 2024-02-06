@@ -1,7 +1,7 @@
 import { Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { providerErrors, rpcErrors, errorCodes } from '@metamask/rpc-errors';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
@@ -63,7 +63,6 @@ export function validateTxParams(
   validateParamChainId(txParams.chainId);
   validateGasFeeParams(txParams);
 }
-
 
 /**
  * Validates EIP-1559 compatibility for transaction creation.

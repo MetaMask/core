@@ -379,7 +379,7 @@ export class PendingTransactionTracker {
           blockNumber,
           blockHash,
         });
-        
+
         return;
       }
       // TODO: Replace `any` with type

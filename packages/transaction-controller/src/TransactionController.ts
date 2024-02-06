@@ -93,7 +93,6 @@ import {
 import {
   validateTransactionOrigin,
   validateTxParams,
-  isNonceIssue,
 } from './utils/validation';
 
 export const HARDFORK = Hardfork.London;
