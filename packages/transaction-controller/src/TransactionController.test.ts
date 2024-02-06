@@ -1899,7 +1899,7 @@ describe('TransactionController', () => {
             undefined,
             // eslint-disable-next-line prefer-promise-reject-errors
             Promise.reject({
-              code: errorCodes.rpc.invalidInput,
+              message: "nonce too low",
             }),
           );
         },
@@ -2186,7 +2186,7 @@ describe('TransactionController', () => {
             undefined,
             // eslint-disable-next-line prefer-promise-reject-errors
             Promise.reject({
-              code: errorCodes.rpc.invalidInput,
+              message: "nonce too low",
             }),
           );
         },
