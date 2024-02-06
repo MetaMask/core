@@ -16,6 +16,7 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
+import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   NetworkState,
   ProviderConfig,
@@ -34,6 +35,10 @@ import { TOKEN_END_POINT_API } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
 import type { TokensControllerMessenger } from './TokensController';
+
+const provider = new HttpProvider(
+  'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+);
 
 jest.mock('uuid', () => {
   return {
@@ -123,7 +128,7 @@ describe('TokensController', () => {
       onTokenListStateChange,
       config: {
         selectedAddress: defaultSelectedAddress,
-        provider: sinon.stub(),
+        provider,
       },
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1545,7 +1550,7 @@ describe('TokensController', () => {
         .spyOn(tokensController as any, 'getNetworkClientById')
         .mockReturnValue({
           configuration: { chainId: '0x5' },
-          provider: sinon.stub(),
+          provider,
         });
       const generateRandomIdStub = jest
         .spyOn(tokensController, '_generateRandomId')
