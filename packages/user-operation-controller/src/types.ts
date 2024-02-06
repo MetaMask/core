@@ -161,6 +161,9 @@ export type PrepareUserOperationRequest = {
   /** The data to include in the resulting transaction.  */
   data?: string;
 
+  /** Address of the account requesting the user operation. */
+  from: string;
+
   /** The destination address of the resulting transaction. */
   to?: string;
 

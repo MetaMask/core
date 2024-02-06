@@ -16,6 +16,9 @@
       "path": "../gas-fee-controller/tsconfig.build.json"
     },
     {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
       "path": "../network-controller/tsconfig.build.json"
     },
     {

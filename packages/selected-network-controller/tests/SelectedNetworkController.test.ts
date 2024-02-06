@@ -83,6 +83,42 @@ describe('SelectedNetworkController', () => {
       expect(controller.state.domains[domain]).toBe(networkClientId);
     });
 
+    it('when the perDomainNetwork option is false, it updates the networkClientId for all domains in state', () => {
+      const options: SelectedNetworkControllerOptions = {
+        messenger: buildSelectedNetworkControllerMessenger(),
+      };
+      const controller = new SelectedNetworkController(options);
+      controller.state.perDomainNetwork = false;
+      const domains = ['1.com', '2.com', '3.com'];
+      const networkClientIds = ['1', '2', '3'];
+      const mockProviderProxy = {
+        setTarget: jest.fn(),
+        eventNames: jest.fn(),
+        rawListeners: jest.fn(),
+        removeAllListeners: jest.fn(),
+        on: jest.fn(),
+        prependListener: jest.fn(),
+        addListener: jest.fn(),
+        off: jest.fn(),
+        once: jest.fn(),
+      };
+      createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
+      controller.setNetworkClientIdForMetamask('abc');
+      domains.forEach((domain, i) =>
+        controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
+      );
+
+      controller.setNetworkClientIdForMetamask('foo');
+      domains.forEach((domain) =>
+        expect(controller.state.domains[domain]).toBe('foo'),
+      );
+
+      controller.setNetworkClientIdForMetamask('abc');
+      domains.forEach((domain) =>
+        expect(controller.state.domains[domain]).toBe('abc'),
+      );
+    });
+
     it('creates a new provider and block tracker proxy when they dont exist yet for the domain', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(),
