@@ -1701,6 +1701,39 @@ describe('TokenDetectionController', () => {
   });
 
   describe('detectTokens', () => {
+    it('should not detect tokens if token detection is disabled and current network is not mainnet', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: NetworkType.goerli,
+            selectedAddress,
+          },
+        },
+        async ({
+          controller,
+          triggerPreferencesStateChange,
+          callActionSpy,
+        }) => {
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: false,
+          });
+          await controller.detectTokens({
+            networkClientId: NetworkType.goerli,
+            accountAddress: selectedAddress,
+          });
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+          );
+        },
+      );
+    });
     it('should detect and add tokens by networkClientId correctly', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
