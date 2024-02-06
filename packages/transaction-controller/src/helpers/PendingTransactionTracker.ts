@@ -156,7 +156,7 @@ export class PendingTransactionTracker {
       await this.#checkTransaction(txMeta);
     } catch (error) {
       /* istanbul ignore next */
-      log('Failed to check transaction', error);
+      log('Failed to force check transaction', error);
     } finally {
       nonceGlobalLock.releaseLock();
     }
