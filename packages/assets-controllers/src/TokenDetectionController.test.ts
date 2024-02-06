@@ -32,6 +32,7 @@ import type {
   TokenDetectionControllerMessenger,
 } from './TokenDetectionController';
 import {
+  STATIC_MAINNET_TOKEN_LIST,
   TokenDetectionController,
   controllerName,
 } from './TokenDetectionController';
@@ -40,7 +41,7 @@ import {
   type TokenListState,
   type TokenListToken,
 } from './TokenListController';
-import type { TokensState } from './TokensController';
+import type { TokensController, TokensState } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -1734,6 +1735,64 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should detect and add tokens from the `@metamask/contract-metadata` legacy token list if token detection is disabled and current network is mainnet', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue(
+        Object.keys(STATIC_MAINNET_TOKEN_LIST).reduce<Record<string, BN>>(
+          (acc, address) => {
+            acc[address] = new BN(1);
+            return acc;
+          },
+          {},
+        ),
+      );
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress,
+          },
+        },
+        async ({
+          controller,
+          triggerPreferencesStateChange,
+          callActionSpy,
+        }) => {
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: false,
+          });
+          await controller.detectTokens({
+            networkClientId: NetworkType.mainnet,
+            accountAddress: selectedAddress,
+          });
+          expect(callActionSpy).toHaveBeenLastCalledWith(
+            'TokensController:addDetectedTokens',
+            Object.values(STATIC_MAINNET_TOKEN_LIST).map((token) => {
+              const newToken = {
+                ...token,
+                image: token.iconUrl,
+                isERC721: false,
+              };
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              delete (newToken as any).erc20;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              delete (newToken as any).erc721;
+              delete newToken.iconUrl;
+              return newToken;
+            }),
+            {
+              selectedAddress,
+              chainId: ChainId.mainnet,
+            },
+          );
+        },
+      );
+    });
+
     it('should detect and add tokens by networkClientId correctly', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
@@ -1889,6 +1948,15 @@ async function withController<ReturnValue>(
     mockPreferencesState.mockReturnValue({
       ...getDefaultPreferencesState(),
     }),
+  );
+  controllerMessenger.registerActionHandler(
+    'TokensController:addDetectedTokens',
+    jest
+      .fn<
+        ReturnType<TokensController['addDetectedTokens']>,
+        Parameters<TokensController['addDetectedTokens']>
+      >()
+      .mockResolvedValue(undefined),
   );
   const callActionSpy = jest.spyOn(controllerMessenger, 'call');
 
