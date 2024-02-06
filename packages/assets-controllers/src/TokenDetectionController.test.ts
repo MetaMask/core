@@ -295,11 +295,7 @@ describe('TokenDetectionController', () => {
             selectedAddress,
           },
         },
-        async ({
-          controller,
-          mockTokenListGetState,
-          mockAddDetectedTokens,
-        }) => {
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -317,7 +313,7 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+          expect(callActionSpy).toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
             [sampleTokenA],
             {
@@ -342,11 +338,7 @@ describe('TokenDetectionController', () => {
             selectedAddress,
           },
         },
-        async ({
-          controller,
-          mockTokenListGetState,
-          mockAddDetectedTokens,
-        }) => {
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -364,7 +356,7 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+          expect(callActionSpy).toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
             [sampleTokenA],
             {
@@ -392,11 +384,7 @@ describe('TokenDetectionController', () => {
             selectedAddress,
           },
         },
-        async ({
-          controller,
-          mockTokenListGetState,
-          mockAddDetectedTokens,
-        }) => {
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           const tokenListState = {
             ...getDefaultTokenListState(),
             tokenList: {
@@ -426,7 +414,7 @@ describe('TokenDetectionController', () => {
           mockTokenListGetState(tokenListState);
           await advanceTime({ clock, duration: interval });
 
-          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+          expect(callActionSpy).toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
             [sampleTokenA, sampleTokenB],
             {
@@ -455,7 +443,7 @@ describe('TokenDetectionController', () => {
           controller,
           mockTokensGetState,
           mockTokenListGetState,
-          mockAddDetectedTokens,
+          callActionSpy,
         }) => {
           mockTokensGetState({
             ...getDefaultTokensState(),
@@ -478,7 +466,7 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+          expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
           );
         },
@@ -497,11 +485,7 @@ describe('TokenDetectionController', () => {
             selectedAddress: '',
           },
         },
-        async ({
-          controller,
-          mockTokenListGetState,
-          mockAddDetectedTokens,
-        }) => {
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -519,7 +503,7 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+          expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
           );
         },
@@ -558,7 +542,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerSelectedAccountChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -580,7 +564,7 @@ describe('TokenDetectionController', () => {
             } as InternalAccount);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
               [sampleTokenA],
               {
@@ -609,7 +593,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerSelectedAccountChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -631,7 +615,7 @@ describe('TokenDetectionController', () => {
             } as InternalAccount);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -660,7 +644,7 @@ describe('TokenDetectionController', () => {
             async ({
               mockTokenListGetState,
               triggerSelectedAccountChange,
-              mockAddDetectedTokens,
+              callActionSpy,
             }) => {
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
@@ -682,7 +666,7 @@ describe('TokenDetectionController', () => {
               } as InternalAccount);
               await advanceTime({ clock, duration: 1 });
 
-              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
               );
             },
@@ -712,7 +696,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerSelectedAccountChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -734,7 +718,7 @@ describe('TokenDetectionController', () => {
             } as InternalAccount);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -774,7 +758,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerPreferencesStateChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -798,7 +782,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
               [sampleTokenA],
               {
@@ -827,7 +811,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerPreferencesStateChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -858,7 +842,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
               [sampleTokenA],
               {
@@ -890,7 +874,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerPreferencesStateChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -914,7 +898,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -938,7 +922,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerPreferencesStateChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -962,7 +946,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -991,7 +975,7 @@ describe('TokenDetectionController', () => {
             async ({
               mockTokenListGetState,
               triggerPreferencesStateChange,
-              mockAddDetectedTokens,
+              callActionSpy,
             }) => {
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
@@ -1015,7 +999,7 @@ describe('TokenDetectionController', () => {
               });
               await advanceTime({ clock, duration: 1 });
 
-              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
               );
             },
@@ -1040,7 +1024,7 @@ describe('TokenDetectionController', () => {
             async ({
               mockTokenListGetState,
               triggerPreferencesStateChange,
-              mockAddDetectedTokens,
+              callActionSpy,
             }) => {
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
@@ -1071,7 +1055,7 @@ describe('TokenDetectionController', () => {
               });
               await advanceTime({ clock, duration: 1 });
 
-              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
               );
             },
@@ -1101,7 +1085,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerPreferencesStateChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -1125,7 +1109,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -1149,7 +1133,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockTokenListGetState,
             triggerPreferencesStateChange,
-            mockAddDetectedTokens,
+            callActionSpy,
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
@@ -1180,7 +1164,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -1216,7 +1200,7 @@ describe('TokenDetectionController', () => {
           },
           async ({
             mockTokenListGetState,
-            mockAddDetectedTokens,
+            callActionSpy,
             triggerNetworkDidChange,
           }) => {
             mockTokenListGetState({
@@ -1240,7 +1224,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
               [sampleTokenA],
               {
@@ -1268,7 +1252,7 @@ describe('TokenDetectionController', () => {
           },
           async ({
             mockTokenListGetState,
-            mockAddDetectedTokens,
+            callActionSpy,
             triggerNetworkDidChange,
           }) => {
             mockTokenListGetState({
@@ -1292,7 +1276,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -1315,7 +1299,7 @@ describe('TokenDetectionController', () => {
           },
           async ({
             mockTokenListGetState,
-            mockAddDetectedTokens,
+            callActionSpy,
             triggerNetworkDidChange,
           }) => {
             mockTokenListGetState({
@@ -1339,7 +1323,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -1364,7 +1348,7 @@ describe('TokenDetectionController', () => {
             },
             async ({
               mockTokenListGetState,
-              mockAddDetectedTokens,
+              callActionSpy,
               triggerNetworkDidChange,
             }) => {
               mockTokenListGetState({
@@ -1388,7 +1372,7 @@ describe('TokenDetectionController', () => {
               });
               await advanceTime({ clock, duration: 1 });
 
-              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
               );
             },
@@ -1414,7 +1398,7 @@ describe('TokenDetectionController', () => {
           },
           async ({
             mockTokenListGetState,
-            mockAddDetectedTokens,
+            callActionSpy,
             triggerNetworkDidChange,
           }) => {
             mockTokenListGetState({
@@ -1438,7 +1422,7 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -1474,7 +1458,7 @@ describe('TokenDetectionController', () => {
           },
           async ({
             mockTokenListGetState,
-            mockAddDetectedTokens,
+            callActionSpy,
             triggerTokenListStateChange,
           }) => {
             const tokenListState = {
@@ -1496,7 +1480,7 @@ describe('TokenDetectionController', () => {
             triggerTokenListStateChange(tokenListState);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
               [sampleTokenA],
               {
@@ -1524,7 +1508,7 @@ describe('TokenDetectionController', () => {
           },
           async ({
             mockTokenListGetState,
-            mockAddDetectedTokens,
+            callActionSpy,
             triggerTokenListStateChange,
           }) => {
             const tokenListState = {
@@ -1536,7 +1520,7 @@ describe('TokenDetectionController', () => {
             triggerTokenListStateChange(tokenListState);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -1561,7 +1545,7 @@ describe('TokenDetectionController', () => {
             },
             async ({
               mockTokenListGetState,
-              mockAddDetectedTokens,
+              callActionSpy,
               triggerTokenListStateChange,
             }) => {
               const tokenListState = {
@@ -1583,7 +1567,7 @@ describe('TokenDetectionController', () => {
               triggerTokenListStateChange(tokenListState);
               await advanceTime({ clock, duration: 1 });
 
-              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
               );
             },
@@ -1609,7 +1593,7 @@ describe('TokenDetectionController', () => {
           },
           async ({
             mockTokenListGetState,
-            mockAddDetectedTokens,
+            callActionSpy,
             triggerTokenListStateChange,
           }) => {
             const tokenListState = {
@@ -1631,7 +1615,7 @@ describe('TokenDetectionController', () => {
             triggerTokenListStateChange(tokenListState);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
           },
@@ -1731,11 +1715,7 @@ describe('TokenDetectionController', () => {
             selectedAddress,
           },
         },
-        async ({
-          controller,
-          mockTokenListGetState,
-          mockAddDetectedTokens,
-        }) => {
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -1756,7 +1736,7 @@ describe('TokenDetectionController', () => {
             accountAddress: selectedAddress,
           });
 
-          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+          expect(callActionSpy).toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
             [sampleTokenA],
             {
@@ -1788,7 +1768,7 @@ type WithControllerCallback<ReturnValue> = ({
   mockTokensGetState,
   mockTokenListGetState,
   mockPreferencesGetState,
-  mockAddDetectedTokens,
+  callActionSpy,
   triggerKeyringUnlock,
   triggerKeyringLock,
   triggerTokenListStateChange,
@@ -1804,7 +1784,7 @@ type WithControllerCallback<ReturnValue> = ({
   mockGetNetworkConfigurationByNetworkClientId: (
     handler: (networkClientId: string) => NetworkConfiguration,
   ) => void;
-  mockAddDetectedTokens: jest.SpyInstance;
+  callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
   triggerTokenListStateChange: (state: TokenListState) => void;
@@ -1877,7 +1857,7 @@ async function withController<ReturnValue>(
       ...getDefaultPreferencesState(),
     }),
   );
-  const mockAddDetectedTokens = jest.spyOn(controllerMessenger, 'call');
+  const callActionSpy = jest.spyOn(controllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
     networkClientId: NetworkType.mainnet,
@@ -1908,7 +1888,7 @@ async function withController<ReturnValue>(
           handler,
         );
       },
-      mockAddDetectedTokens,
+      callActionSpy,
       triggerKeyringUnlock: () => {
         controllerMessenger.publish('KeyringController:unlock');
       },
