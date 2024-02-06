@@ -1899,7 +1899,7 @@ describe('TransactionController', () => {
             undefined,
             // eslint-disable-next-line prefer-promise-reject-errors
             Promise.reject({
-              message: "nonce too low",
+              message: 'nonce too low',
             }),
           );
         },
@@ -2186,7 +2186,7 @@ describe('TransactionController', () => {
             undefined,
             // eslint-disable-next-line prefer-promise-reject-errors
             Promise.reject({
-              message: "nonce too low",
+              message: 'nonce too low',
             }),
           );
         },
