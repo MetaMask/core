@@ -2709,6 +2709,66 @@ describe('PollingBlockTracker', () => {
             },
           );
         });
+
+        it('should cancel polling timeout and prevent multiple synchronize loops', async () => {
+          const setTimeoutRecorder = recordCallsToSetTimeout();
+
+          const blockTrackerOptions = {
+            pollingInterval: 100,
+            blockResetDuration: 200,
+          };
+
+          await withPollingBlockTracker(
+            {
+              provider: {
+                stubs: [
+                  {
+                    methodName: 'eth_blockNumber',
+                    response: {
+                      result: '0x0',
+                    },
+                  },
+                  {
+                    methodName: 'eth_blockNumber',
+                    response: {
+                      result: '0x1',
+                    },
+                  },
+                  {
+                    methodName: 'eth_blockNumber',
+                    response: {
+                      result: '0x2',
+                    },
+                  },
+                ],
+              },
+              blockTracker: blockTrackerOptions,
+            },
+            async ({ blockTracker }) => {
+              const listener = EMPTY_FUNCTION;
+
+              for (let i = 0; i < 3; i++) {
+                blockTracker.on('latest', listener);
+
+                expect(blockTracker.isRunning()).toBe(true);
+
+                await new Promise((resolve) => {
+                  blockTracker.on('_waitingForNextIteration', resolve);
+                });
+
+                blockTracker[methodToRemoveListener]('latest', listener);
+
+                expect(blockTracker.isRunning()).toBe(false);
+              }
+
+              expect(
+                setTimeoutRecorder.findCallsMatchingDuration(
+                  blockTrackerOptions.pollingInterval,
+                ),
+              ).toHaveLength(0);
+            },
+          );
+        });
       });
 
       describe('"sync"', () => {
@@ -2851,19 +2911,19 @@ describe('PollingBlockTracker', () => {
             blockTracker: blockTrackerOptions,
           },
           async ({ blockTracker }) => {
-            blockTracker.once('latest', EMPTY_FUNCTION);
+            const { promise, resolve: listener } = buildDeferred();
 
-            await new Promise((resolve) => {
-              blockTracker.on('_waitingForNextIteration', resolve);
-            });
+            blockTracker.once('latest', listener);
 
-            const nextIterationTimeout = setTimeoutRecorder.calls.find(
-              (call) => {
-                return call.duration === blockTrackerOptions.pollingInterval;
-              },
-            );
-            expect(nextIterationTimeout).toBeDefined();
-            expect(nextIterationTimeout?.timeout.hasRef()).toBe(false);
+            await promise;
+
+            // Once the listener has fired the block tracker should stop,
+            // meaning there should be no timeouts.
+            expect(
+              setTimeoutRecorder.findCallsMatchingDuration(
+                blockTrackerOptions.pollingInterval,
+              ),
+            ).toHaveLength(0);
           },
         );
       });

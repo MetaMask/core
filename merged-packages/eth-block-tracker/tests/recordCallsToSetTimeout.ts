@@ -99,6 +99,10 @@ class SetTimeoutRecorder {
     });
   }
 
+  findCallsMatchingDuration(duration: number): SetTimeoutCall[] {
+    return this.calls.filter((call) => call.duration === duration);
+  }
+
   /**
    * Registers a callback that will be called when `setTimeout` is called and
    * the expected number of `setTimeout` calls (as specified via

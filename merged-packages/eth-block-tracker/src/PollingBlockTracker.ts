@@ -43,6 +43,8 @@ export class PollingBlockTracker
 
   private _blockResetTimeout?: ReturnType<typeof setTimeout>;
 
+  private _pollingTimeout?: ReturnType<typeof setTimeout>;
+
   private readonly _provider: SafeEventEmitterProvider;
 
   private readonly _pollingInterval: number;
@@ -87,7 +89,7 @@ export class PollingBlockTracker
 
   async destroy() {
     this._cancelBlockResetTimeout();
-    await this._maybeEnd();
+    this._maybeEnd();
     super.removeAllListeners();
   }
 
@@ -154,24 +156,26 @@ export class PollingBlockTracker
     this._maybeEnd();
   }
 
-  private async _maybeStart(): Promise<void> {
+  private _maybeStart() {
     if (this._isRunning) {
       return;
     }
+
     this._isRunning = true;
     // cancel setting latest block to stale
     this._cancelBlockResetTimeout();
-    await this._start();
+    this._start();
     this.emit('_started');
   }
 
-  private async _maybeEnd(): Promise<void> {
+  private _maybeEnd() {
     if (!this._isRunning) {
       return;
     }
+
     this._isRunning = false;
     this._setupBlockResetTimeout();
-    await this._end();
+    this._end();
     this.emit('_ended');
   }
 
@@ -240,40 +244,14 @@ export class PollingBlockTracker
     return await this.getLatestBlock();
   }
 
-  private async _start(): Promise<void> {
-    this._synchronize();
+  private _start() {
+    // Intentionally not awaited as this starts the polling via a timeout chain.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this._updateAndQueue();
   }
 
-  private async _end(): Promise<void> {
-    // No-op
-  }
-
-  private async _synchronize(): Promise<void> {
-    while (this._isRunning) {
-      try {
-        await this._updateLatestBlock();
-        const promise = timeout(
-          this._pollingInterval,
-          !this._keepEventLoopActive,
-        );
-        this.emit('_waitingForNextIteration');
-        await promise;
-      } catch (err: any) {
-        const newErr = new Error(
-          `PollingBlockTracker - encountered an error while attempting to update latest block:\n${
-            err.stack ?? err
-          }`,
-        );
-        try {
-          this.emit('error', newErr);
-        } catch (emitErr) {
-          console.error(newErr);
-        }
-        const promise = timeout(this._retryTimeout, !this._keepEventLoopActive);
-        this.emit('_waitingForNextIteration');
-        await promise;
-      }
-    }
+  private _end() {
+    this._clearPollingTimeout();
   }
 
   private async _updateLatestBlock(): Promise<void> {
@@ -303,25 +281,59 @@ export class PollingBlockTracker
     }
     return res.result;
   }
-}
 
-/**
- * Waits for the specified amount of time.
- *
- * @param duration - The amount of time in milliseconds.
- * @param unref - Assuming this function is run in a Node context, governs
- * whether Node should wait before the `setTimeout` has completed before ending
- * the process (true for no, false for yes). Defaults to false.
- * @returns A promise that can be used to wait.
- */
-async function timeout(duration: number, unref: boolean) {
-  return new Promise((resolve) => {
-    const timeoutRef = setTimeout(resolve, duration);
-    // don't keep process open
-    if (timeoutRef.unref && unref) {
+  /**
+   * The core polling function that runs after each interval.
+   * Updates the latest block and then queues the next update.
+   */
+  private async _updateAndQueue() {
+    let interval = this._pollingInterval;
+
+    try {
+      await this._updateLatestBlock();
+    } catch (err: any) {
+      const newErr = new Error(
+        `PollingBlockTracker - encountered an error while attempting to update latest block:\n${
+          err.stack ?? err
+        }`,
+      );
+
+      try {
+        this.emit('error', newErr);
+      } catch (emitErr) {
+        console.error(newErr);
+      }
+
+      interval = this._retryTimeout;
+    }
+
+    if (!this._isRunning) {
+      return;
+    }
+
+    this._clearPollingTimeout();
+
+    const timeoutRef = setTimeout(() => {
+      // Intentionally not awaited as this just continues the polling loop.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this._updateAndQueue();
+    }, interval);
+
+    if (timeoutRef.unref && !this._keepEventLoopActive) {
       timeoutRef.unref();
     }
-  });
+
+    this._pollingTimeout = timeoutRef;
+
+    this.emit('_waitingForNextIteration');
+  }
+
+  _clearPollingTimeout() {
+    if (this._pollingTimeout) {
+      clearTimeout(this._pollingTimeout);
+      this._pollingTimeout = undefined;
+    }
+  }
 }
 
 /**
