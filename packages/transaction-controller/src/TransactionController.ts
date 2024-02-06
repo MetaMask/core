@@ -2757,7 +2757,7 @@ export class TransactionController extends BaseControllerV1<
       const hash = await this.publishTransaction(rawTx);
       return hash;
     } catch (error: unknown) {
-      if (isNonceIssue(error as Error)) {
+      if (this.isTransactionAlreadyConfirmedError(error as Error)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
           transactionMeta,
         );
@@ -2765,5 +2765,21 @@ export class TransactionController extends BaseControllerV1<
       }
       throw error;
     }
+  }
+
+  /**
+   * Ensures that error is a nonce issue
+   *
+   * @param error - The error to check
+   * @returns Whether or not the error is a nonce issue
+   */
+  // TODO: Replace `any` with type
+  // Some networks are returning original error in the data field
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private isTransactionAlreadyConfirmedError(error: any): boolean {
+    return (
+      error?.message?.includes('nonce too low') ||
+      error?.data?.message?.includes('nonce too low')
+    );
   }
 }
