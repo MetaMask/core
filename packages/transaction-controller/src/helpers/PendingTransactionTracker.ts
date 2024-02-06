@@ -145,7 +145,7 @@ export class PendingTransactionTracker {
   }
 
   /**
-   * Force checks the status of the given transaction.
+   * Force checks the network if the given transaction is confirmed and updates it's status.
    *
    * @param txMeta - The transaction to check
    */
@@ -156,7 +156,7 @@ export class PendingTransactionTracker {
       await this.#checkTransaction(txMeta);
     } catch (error) {
       /* istanbul ignore next */
-      log('Failed to force check transaction', error);
+      log('Failed to check transaction', error);
     } finally {
       nonceGlobalLock.releaseLock();
     }
@@ -334,36 +334,6 @@ export class PendingTransactionTracker {
     return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
   }
 
-  async #handleTransactionReceiptStatus(
-    txMeta: TransactionMeta,
-    receipt: TransactionReceipt,
-  ) {
-    const isSuccess = receipt?.status === RECEIPT_STATUS_SUCCESS;
-    const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
-
-    if (isFailure) {
-      log('Transaction receipt has failed status');
-      this.#failTransaction(
-        txMeta,
-        new Error('Transaction dropped or replaced'),
-      );
-      return true;
-    }
-
-    const { blockNumber, blockHash } = receipt || {};
-
-    if (isSuccess && blockNumber && blockHash) {
-      await this.#onTransactionConfirmed(txMeta, {
-        ...receipt,
-        blockNumber,
-        blockHash,
-      });
-      return true;
-    }
-
-    return false;
-  }
-
   async #checkTransaction(txMeta: TransactionMeta) {
     const { hash, id } = txMeta;
 
@@ -387,11 +357,29 @@ export class PendingTransactionTracker {
 
     try {
       const receipt = await this.#getTransactionReceipt(hash);
-      const isHandled = await this.#handleTransactionReceiptStatus(
-        txMeta,
-        receipt as TransactionReceipt,
-      );
-      if (isHandled) {
+      const isSuccess = receipt?.status === RECEIPT_STATUS_SUCCESS;
+      const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
+
+      if (isFailure) {
+        log('Transaction receipt has failed status');
+
+        this.#failTransaction(
+          txMeta,
+          new Error('Transaction dropped or replaced'),
+        );
+
+        return;
+      }
+
+      const { blockNumber, blockHash } = receipt || {};
+
+      if (isSuccess && blockNumber && blockHash) {
+        await this.#onTransactionConfirmed(txMeta, {
+          ...receipt,
+          blockNumber,
+          blockHash,
+        });
+        
         return;
       }
       // TODO: Replace `any` with type
