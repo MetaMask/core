@@ -1329,7 +1329,9 @@ type WithControllerCallback<ReturnValue> = ({
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
-  options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
+  options?: Partial<
+    ConstructorParameters<typeof TokenDetectionController>[0]
+  > & { isKeyringUnlocked?: boolean };
   messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
 };
 
@@ -1358,7 +1360,7 @@ async function withController<ReturnValue>(
   controllerMessenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
-      isUnlocked: true,
+      isUnlocked: options?.isKeyringUnlocked ?? true,
     } as KeyringControllerState),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
