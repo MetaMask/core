@@ -1,8 +1,4 @@
 import { Contract } from '@ethersproject/contracts';
-import type {
-  ExternalProvider,
-  JsonRpcFetchFunc,
-} from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
@@ -28,10 +24,11 @@ import type {
   NetworkClientId,
   NetworkController,
   NetworkState,
+  Provider,
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { Hex, Json } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
 import { v1 as random } from 'uuid';
@@ -65,7 +62,7 @@ const MISSING_PROVIDER_ERROR =
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
-  provider: ExternalProvider | JsonRpcFetchFunc | undefined;
+  provider: Provider | undefined;
 }
 
 /**
@@ -696,35 +693,15 @@ export class TokensController extends BaseControllerV1<
   }
 
   _getProvider(networkClientId?: NetworkClientId): Web3Provider {
-    let provider = this.config?.provider;
-    if (networkClientId) {
-      const networkClientProvider =
-        this.getNetworkClientById(networkClientId).provider;
-      provider = {
-        ...networkClientProvider,
-        send: (
-          _req: { method: string; params?: Json[] },
-          _callback: (error: unknown, response: unknown) => void,
-        ) =>
-          networkClientProvider.send.bind(provider)(
-            { ..._req, id: '', jsonrpc: '2.0' },
-            _callback,
-          ),
-        sendAsync: (
-          _req: { method: string; params?: Json[] },
-          _callback: (error: unknown, response: unknown) => void,
-        ) =>
-          networkClientProvider.sendAsync.bind(provider)(
-            { ..._req, id: '', jsonrpc: '2.0' },
-            _callback,
-          ),
-      };
-    }
+    const provider = networkClientId
+      ? this.getNetworkClientById(networkClientId).provider
+      : this.config?.provider;
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
 
+    // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     return new Web3Provider(provider);
   }
 
