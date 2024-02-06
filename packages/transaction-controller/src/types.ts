@@ -4,9 +4,6 @@ import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 export type Events = {
-  ['tracking-map-init']: [networkClientIds: NetworkClientId[]];
-  ['tracking-map-add']: [networkClientId: NetworkClientId];
-  ['tracking-map-remove']: [networkClientId: NetworkClientId];
   ['incomingTransactionBlock']: [blockNumber: number];
   ['post-transaction-balance-updated']: [
     {
