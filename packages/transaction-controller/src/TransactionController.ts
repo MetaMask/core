@@ -1726,7 +1726,8 @@ export class TransactionController extends BaseController<
     }
 
     const normalizedTransactionParams = normalizeTransaction(transactionParams);
-    const chainId = this.getChainId();
+    // Convert the chainId to a hex string while core v6 is not merged
+    const chainId = addHexPrefix(Number(this.getChainId())?.toString(16));
     const type = isEIP1559Transaction(normalizedTransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
