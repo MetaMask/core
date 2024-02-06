@@ -190,17 +190,62 @@ describe('TokenDetectionController', () => {
     });
 
     it('should not poll and detect tokens on interval while keyring is locked', async () => {
-      const mockGetBalancesInSingleCall = jest.fn();
       await withController(
         {
           options: {
-            getBalancesInSingleCall: mockGetBalancesInSingleCall,
             isKeyringUnlocked: false,
           },
         },
         async ({ controller }) => {
+          const mockTokens = sinon.stub(controller, 'detectTokens');
+          controller.setIntervalLength(10);
+
           await controller.start();
-          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+
+          expect(mockTokens.calledOnce).toBe(false);
+          await advanceTime({ clock, duration: 15 });
+          expect(mockTokens.calledTwice).toBe(false);
+        },
+      );
+    });
+
+    it('should detect tokens but not restart polling if locked keyring is unlocked', async () => {
+      await withController(
+        {
+          options: {
+            isKeyringUnlocked: false,
+          },
+        },
+        async ({ controller, triggerKeyringUnlock }) => {
+          const mockTokens = sinon.stub(controller, 'detectTokens');
+
+          await controller.start();
+          triggerKeyringUnlock();
+
+          expect(mockTokens.calledOnce).toBe(true);
+          await advanceTime({ clock, duration: DEFAULT_INTERVAL * 1.5 });
+          expect(mockTokens.calledTwice).toBe(false);
+        },
+      );
+    });
+
+    it('should stop polling and detect tokens on interval if unlocked keyring is locked', async () => {
+      await withController(
+        {
+          options: {
+            isKeyringUnlocked: true,
+          },
+        },
+        async ({ controller, triggerKeyringLock }) => {
+          const mockTokens = sinon.stub(controller, 'detectTokens');
+          controller.setIntervalLength(10);
+
+          await controller.start();
+          triggerKeyringLock();
+
+          expect(mockTokens.calledOnce).toBe(true);
+          await advanceTime({ clock, duration: 15 });
+          expect(mockTokens.calledTwice).toBe(false);
         },
       );
     });
