@@ -189,6 +189,22 @@ describe('TokenDetectionController', () => {
       clock.restore();
     });
 
+    it('should not poll and detect tokens on interval while keyring is locked', async () => {
+      const mockGetBalancesInSingleCall = jest.fn();
+      await withController(
+        {
+          options: {
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            isKeyringUnlocked: false,
+          },
+        },
+        async ({ controller }) => {
+          await controller.start();
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('should poll and detect tokens on interval while on supported networks', async () => {
       await withController(async ({ controller }) => {
         const mockTokens = sinon.stub(controller, 'detectTokens');
@@ -691,6 +707,116 @@ describe('TokenDetectionController', () => {
           },
         );
       });
+
+      describe('when keyring is locked', () => {
+        it('should not detect new tokens after switching between accounts', async () => {
+          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+            [sampleTokenA.address]: new BN(1),
+          });
+          const firstSelectedAddress =
+            '0x0000000000000000000000000000000000000001';
+          const secondSelectedAddress =
+            '0x0000000000000000000000000000000000000002';
+          await withController(
+            {
+              options: {
+                disabled: false,
+                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                networkClientId: NetworkType.mainnet,
+                selectedAddress: firstSelectedAddress,
+                isKeyringUnlocked: false,
+              },
+            },
+            async ({
+              mockTokenListGetState,
+              triggerPreferencesStateChange,
+              mockAddDetectedTokens,
+            }) => {
+              mockTokenListGetState({
+                ...getDefaultTokenListState(),
+                tokenList: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              });
+
+              triggerPreferencesStateChange({
+                ...getDefaultPreferencesState(),
+                selectedAddress: secondSelectedAddress,
+                useTokenDetection: true,
+              });
+              await advanceTime({ clock, duration: 1 });
+
+              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+                'TokensController:addDetectedTokens',
+              );
+            },
+          );
+        });
+
+        it('should not detect new tokens after enabling token detection', async () => {
+          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+            [sampleTokenA.address]: new BN(1),
+          });
+          const selectedAddress = '0x0000000000000000000000000000000000000001';
+          await withController(
+            {
+              options: {
+                disabled: false,
+                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                networkClientId: NetworkType.mainnet,
+                selectedAddress,
+                isKeyringUnlocked: false,
+              },
+            },
+            async ({
+              mockTokenListGetState,
+              triggerPreferencesStateChange,
+              mockAddDetectedTokens,
+            }) => {
+              mockTokenListGetState({
+                ...getDefaultTokenListState(),
+                tokenList: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              });
+
+              triggerPreferencesStateChange({
+                ...getDefaultPreferencesState(),
+                selectedAddress,
+                useTokenDetection: false,
+              });
+              await advanceTime({ clock, duration: 1 });
+
+              triggerPreferencesStateChange({
+                ...getDefaultPreferencesState(),
+                selectedAddress,
+                useTokenDetection: true,
+              });
+              await advanceTime({ clock, duration: 1 });
+
+              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+                'TokensController:addDetectedTokens',
+              );
+            },
+          );
+        });
+      });
     });
 
     describe('when "disabled" is "true"', () => {
@@ -958,6 +1084,56 @@ describe('TokenDetectionController', () => {
           },
         );
       });
+
+      describe('when keyring is locked', () => {
+        it('should not detect new tokens after switching network client id', async () => {
+          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+            [sampleTokenA.address]: new BN(1),
+          });
+          const selectedAddress = '0x0000000000000000000000000000000000000001';
+          await withController(
+            {
+              options: {
+                disabled: false,
+                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                networkClientId: NetworkType.mainnet,
+                selectedAddress,
+                isKeyringUnlocked: false,
+              },
+            },
+            async ({
+              mockTokenListGetState,
+              mockAddDetectedTokens,
+              triggerNetworkDidChange,
+            }) => {
+              mockTokenListGetState({
+                ...getDefaultTokenListState(),
+                tokenList: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              });
+
+              triggerNetworkDidChange({
+                ...defaultNetworkState,
+                selectedNetworkClientId: 'polygon',
+              });
+              await advanceTime({ clock, duration: 1 });
+
+              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+                'TokensController:addDetectedTokens',
+              );
+            },
+          );
+        });
+      });
     });
 
     describe('when "disabled" is "true"', () => {
@@ -1104,6 +1280,54 @@ describe('TokenDetectionController', () => {
             );
           },
         );
+      });
+
+      describe('when keyring is locked', () => {
+        it('should not detect tokens', async () => {
+          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+            [sampleTokenA.address]: new BN(1),
+          });
+          const selectedAddress = '0x0000000000000000000000000000000000000001';
+          await withController(
+            {
+              options: {
+                disabled: false,
+                getBalancesInSingleCall: mockGetBalancesInSingleCall,
+                networkClientId: NetworkType.mainnet,
+                selectedAddress,
+                isKeyringUnlocked: false,
+              },
+            },
+            async ({
+              mockTokenListGetState,
+              mockAddDetectedTokens,
+              triggerTokenListStateChange,
+            }) => {
+              const tokenListState = {
+                ...getDefaultTokenListState(),
+                tokenList: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              };
+              mockTokenListGetState(tokenListState);
+
+              triggerTokenListStateChange(tokenListState);
+              await advanceTime({ clock, duration: 1 });
+
+              expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+                'TokensController:addDetectedTokens',
+              );
+            },
+          );
+        });
       });
     });
 
