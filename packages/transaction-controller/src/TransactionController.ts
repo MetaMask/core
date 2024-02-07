@@ -356,7 +356,6 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly mutex = new Mutex();
 
-  private readonly nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
@@ -567,6 +566,32 @@ export class TransactionController extends BaseControllerV1<
       ),
     });
 
+    this.#multichainHelper = new MultichainHelper({
+      isMultichainEnabled,
+      ethQuery: this.ethQuery,
+      nonceTracker: this.nonceTracker,
+      incomingTransactionOptions: incomingTransactions,
+      findNetworkClientIdByChainId: (chainId: Hex) => {
+        return this.messagingSystem.call(
+          `NetworkController:findNetworkClientIdByChainId`,
+          chainId,
+        );
+      },
+      getNetworkClientById: ((networkClientId: NetworkClientId) => {
+        return this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        );
+      }) as NetworkController['getNetworkClientById'],
+      getNetworkClientRegistry,
+      removeIncomingTransactionHelperListeners:
+        this.#removeIncomingTransactionHelperListeners.bind(this),
+      removePendingTransactionTrackerListeners:
+        this.#removePendingTransactionTrackerListeners.bind(this),
+      createTrackersForNetworkClient:
+        this.#createTrackersForNetworkClient.bind(this),
+    });
+
     const etherscanRemoteTransactionSource =
       new EtherscanRemoteTransactionSource({
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
@@ -594,7 +619,7 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: pendingTransactions.isResubmitEnabled,
       getGlobalLock: async () =>
-        this.#acquireNonceLockForChainIdKey({
+        this.#multichainHelper.acquireNonceLockForChainIdKey({
           chainId: this.getChainId(),
         }),
       publishTransaction: this.publishTransaction.bind(this),
@@ -638,39 +663,12 @@ export class TransactionController extends BaseControllerV1<
         }
       },
     );
-
-    this.#multichainHelper = new MultichainHelper({
-      isMultichainEnabled,
-      ethQuery: this.ethQuery,
-      nonceTracker: this.nonceTracker,
-      incomingTransactionOptions: incomingTransactions,
-      findNetworkClientIdByChainId: (chainId: Hex) => {
-        return this.messagingSystem.call(
-          `NetworkController:findNetworkClientIdByChainId`,
-          chainId,
-        );
-      },
-      getNetworkClientById: ((networkClientId: NetworkClientId) => {
-        return this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        );
-      }) as NetworkController['getNetworkClientById'],
-      getNetworkClientRegistry,
-      removeIncomingTransactionHelperListeners:
-        this.#removeIncomingTransactionHelperListeners.bind(this),
-      removePendingTransactionTrackerListeners:
-        this.#removePendingTransactionTrackerListeners.bind(this),
-      createTrackersForNetworkClient:
-        this.#createTrackersForNetworkClient.bind(this),
-      acquireNonceLockForChainIdKey:
-        this.#acquireNonceLockForChainIdKey.bind(this),
-    });
   }
 
   #createTrackersForNetworkClient(
     networkClient: NetworkClient,
     etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource,
+    acquireNonceLockForChainIdKey: any
   ) {
     const { chainId } = networkClient.configuration;
 
@@ -712,7 +710,7 @@ export class TransactionController extends BaseControllerV1<
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
-      getGlobalLock: this.#acquireNonceLockForChainIdKey.bind(this, {
+      getGlobalLock: () => acquireNonceLockForChainIdKey({
         chainId,
       }),
       publishTransaction: this.publishTransaction.bind(this),
@@ -1659,37 +1657,6 @@ export class TransactionController extends BaseControllerV1<
     return this.getTransaction(transactionId) as TransactionMeta;
   }
 
-  /**
-   * Gets the mutex intended to guard the nonceTracker for a particular chainId and key .
-   *
-   * @param opts - The options object.
-   * @param opts.chainId - The hex chainId.
-   * @param opts.key - The hex address (or constant) pertaining to the chainId
-   * @returns Mutex instance for the given chainId and key pair
-   */
-  // This should live in the Multichain helper, except that it's needed in this
-  // controller context as well. It's possible to move this, but just highlighting the coupling.
-  // MultichainHelper is really TrackingHelper and would contain the global trackers.
-  async #acquireNonceLockForChainIdKey({
-    chainId,
-    key = 'global',
-  }: {
-    chainId: Hex;
-    key?: string;
-  }): Promise<() => void> {
-    let nonceMutexesForChainId = this.nonceMutexesByChainId.get(chainId);
-    if (!nonceMutexesForChainId) {
-      nonceMutexesForChainId = new Map<string, Mutex>();
-      this.nonceMutexesByChainId.set(chainId, nonceMutexesForChainId);
-    }
-    let nonceMutexForKey = nonceMutexesForChainId.get(key);
-    if (!nonceMutexForKey) {
-      nonceMutexForKey = new Mutex();
-      nonceMutexesForChainId.set(key, nonceMutexForKey);
-    }
-
-    return await nonceMutexForKey.acquire();
-  }
 
   async getNonceLock(
     address: string,

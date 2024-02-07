@@ -6,6 +6,7 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import type { NonceLock, NonceTracker } from 'nonce-tracker';
+import { Mutex } from 'async-mutex';
 
 import { incomingTransactionsLogger as log } from '../logger';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
@@ -68,12 +69,10 @@ export class MultichainHelper {
   readonly #createTrackersForNetworkClient: (
     networkClient: NetworkClient,
     etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource,
+    acquireNonceLockForChainIdKey: any,
   ) => Trackers;
 
-  readonly #acquireNonceLockForChainIdKey: (opts: {
-    chainId: Hex;
-    key?: string;
-  }) => Promise<() => void>;
+  readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
   readonly #trackingMap: Map<NetworkClientId, Trackers> = new Map();
 
@@ -93,7 +92,6 @@ export class MultichainHelper {
     removeIncomingTransactionHelperListeners,
     removePendingTransactionTrackerListeners,
     createTrackersForNetworkClient,
-    acquireNonceLockForChainIdKey,
   }: {
     isMultichainEnabled: boolean;
     ethQuery: EthQuery;
@@ -113,11 +111,8 @@ export class MultichainHelper {
     createTrackersForNetworkClient: (
       networkClient: NetworkClient,
       etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource,
+      acquireNonceLockForChainIdKey: any,
     ) => Trackers;
-    acquireNonceLockForChainIdKey: (opts: {
-      chainId: Hex;
-      key?: string;
-    }) => Promise<() => void>;
   }) {
     this.#isMultichainEnabled = isMultichainEnabled;
     this.#ethQuery = ethQuery;
@@ -133,7 +128,6 @@ export class MultichainHelper {
     this.#removePendingTransactionTrackerListeners =
       removePendingTransactionTrackerListeners;
     this.#createTrackersForNetworkClient = createTrackersForNetworkClient;
-    this.#acquireNonceLockForChainIdKey = acquireNonceLockForChainIdKey;
 
     if (this.#isMultichainEnabled) {
       this.#initTrackingMap();
@@ -190,6 +184,38 @@ export class MultichainHelper {
   }
 
   /**
+   * Gets the mutex intended to guard the nonceTracker for a particular chainId and key .
+   *
+   * @param opts - The options object.
+   * @param opts.chainId - The hex chainId.
+   * @param opts.key - The hex address (or constant) pertaining to the chainId
+   * @returns Mutex instance for the given chainId and key pair
+   */
+  // This should live in the Multichain helper, except that it's needed in this
+  // controller context as well. It's possible to move this, but just highlighting the coupling.
+  // MultichainHelper is really TrackingHelper and would contain the global trackers.
+  async acquireNonceLockForChainIdKey({
+    chainId,
+    key = 'global',
+  }: {
+    chainId: Hex;
+    key?: string;
+  }): Promise<() => void> {
+    let nonceMutexesForChainId = this.#nonceMutexesByChainId.get(chainId);
+    if (!nonceMutexesForChainId) {
+      nonceMutexesForChainId = new Map<string, Mutex>();
+      this.#nonceMutexesByChainId.set(chainId, nonceMutexesForChainId);
+    }
+    let nonceMutexForKey = nonceMutexesForChainId.get(key);
+    if (!nonceMutexForKey) {
+      nonceMutexForKey = new Mutex();
+      nonceMutexesForChainId.set(key, nonceMutexForKey);
+    }
+
+    return await nonceMutexForKey.acquire();
+  }
+
+  /**
    * Gets the next nonce according to the nonce-tracker.
    * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
    *
@@ -206,7 +232,7 @@ export class MultichainHelper {
     if (networkClientId && this.#isMultichainEnabled) {
       const networkClient = this.#getNetworkClientById(networkClientId);
       // #acquireNonceLockForChainIdKey is needed by both TransactionController and here. Coupling is tight.
-      releaseLockForChainIdKey = await this.#acquireNonceLockForChainIdKey({
+      releaseLockForChainIdKey = await this.acquireNonceLockForChainIdKey({
         chainId: networkClient.configuration.chainId,
         key: address,
       });
@@ -363,6 +389,7 @@ export class MultichainHelper {
     trackers = this.#createTrackersForNetworkClient(
       networkClient,
       etherscanRemoteTransactionSource,
+      this.acquireNonceLockForChainIdKey.bind(this)
     );
 
     this.#trackingMap.set(networkClientId, trackers);
