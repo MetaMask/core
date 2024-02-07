@@ -1745,6 +1745,21 @@ export class TransactionController extends BaseControllerV1<
     const initialTx = listOfTxParams[0];
     const common = this.getCommonConfiguration(initialTx.chainId);
 
+    // We need to ensure we get the nonce using the the NonceTracker on the chain matching
+    // the txParams. In this context we only have chainId available to us, but the
+    // NonceTrackers are keyed by networkClientId. To workaround this, we attempt to find
+    // a networkClientId that matches the chainId. As a fallback, the globally selected
+    // network's NonceTracker will be used instead.
+    let networkClientId: NetworkClientId | undefined;
+    try {
+      networkClientId = this.messagingSystem.call(
+        `NetworkController:findNetworkClientIdByChainId`,
+        initialTx.chainId,
+      );
+    } catch (err) {
+      log('failed to find networkClientId from chainId', err);
+    }
+
     const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
       common,
     });
@@ -1763,7 +1778,7 @@ export class TransactionController extends BaseControllerV1<
       const requiresNonce = hasNonce !== true;
 
       nonceLock = requiresNonce
-        ? await this.#multichainHelper.getNonceLock(fromAddress)
+        ? await this.#multichainHelper.getNonceLock(fromAddress, networkClientId)
         : undefined;
 
       const nonce = nonceLock
