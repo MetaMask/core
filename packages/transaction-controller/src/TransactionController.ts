@@ -28,7 +28,6 @@ import type {
   NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
-  NetworkClient,
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
@@ -336,8 +335,6 @@ export class TransactionController extends BaseControllerV1<
   TransactionConfig,
   TransactionState
 > {
-  private readonly ethQuery: EthQuery;
-
   private readonly isHistoryDisabled: boolean;
 
   private readonly isSwapsDisabled: boolean;
@@ -355,7 +352,6 @@ export class TransactionController extends BaseControllerV1<
   private readonly provider: Provider;
 
   private readonly mutex = new Mutex();
-
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
@@ -517,7 +513,6 @@ export class TransactionController extends BaseControllerV1<
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
-    this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
@@ -552,23 +547,14 @@ export class TransactionController extends BaseControllerV1<
     this.publish =
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
-    this.nonceTracker = new NonceTracker({
-      // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
+    this.nonceTracker = this.#createNonceTracker({
       provider,
       blockTracker,
-      getPendingTransactions: this.#getNonceTrackerPendingTransactions.bind(
-        this,
-        undefined,
-      ),
-      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.confirmed,
-      ),
     });
 
     this.#multichainHelper = new MultichainHelper({
       isMultichainEnabled,
-      ethQuery: this.ethQuery,
+      provider,
       nonceTracker: this.nonceTracker,
       incomingTransactionOptions: incomingTransactions,
       findNetworkClientIdByChainId: (chainId: Hex) => {
@@ -588,8 +574,11 @@ export class TransactionController extends BaseControllerV1<
         this.#removeIncomingTransactionHelperListeners.bind(this),
       removePendingTransactionTrackerListeners:
         this.#removePendingTransactionTrackerListeners.bind(this),
-      createTrackersForNetworkClient:
-        this.#createTrackersForNetworkClient.bind(this),
+      createNonceTracker: this.#createNonceTracker.bind(this),
+      createIncomingTransactionHelper:
+        this.#createIncomingTransactionHelper.bind(this),
+      createPendingTransactionTracker:
+        this.#createPendingTransactionTracker.bind(this),
     });
 
     const etherscanRemoteTransactionSource =
@@ -597,40 +586,15 @@ export class TransactionController extends BaseControllerV1<
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       });
 
-    this.incomingTransactionHelper = new IncomingTransactionHelper({
+    this.incomingTransactionHelper = this.#createIncomingTransactionHelper({
       blockTracker,
-      getCurrentAccount: getSelectedAddress,
-      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getChainId: this.getChainId.bind(this),
-      isEnabled: incomingTransactions.isEnabled,
-      queryEntireHistory: incomingTransactions.queryEntireHistory,
-      remoteTransactionSource: etherscanRemoteTransactionSource,
-      transactionLimit: this.config.txHistoryLimit,
-      updateTransactions: incomingTransactions.updateTransactions,
+      etherscanRemoteTransactionSource,
     });
 
-    this.#addIncomingTransactionHelperListeners();
-
-    this.pendingTransactionTracker = new PendingTransactionTracker({
-      approveTransaction: this.approveTransaction.bind(this),
+    this.pendingTransactionTracker = this.#createPendingTransactionTracker({
+      provider,
       blockTracker,
-      getChainId: this.getChainId.bind(this),
-      getEthQuery: () => this.ethQuery,
-      getTransactions: () => this.state.transactions,
-      isResubmitEnabled: pendingTransactions.isResubmitEnabled,
-      getGlobalLock: async () =>
-        this.#multichainHelper.acquireNonceLockForChainIdKey({
-          chainId: this.getChainId(),
-        }),
-      publishTransaction: this.publishTransaction.bind(this),
-      hooks: {
-        beforeCheckPendingTransaction:
-          this.beforeCheckPendingTransaction.bind(this),
-        beforePublish: this.beforePublish.bind(this),
-      },
     });
-
-    this.#addPendingTransactionTrackerListeners();
 
     // when transactionsController state changes
     // check for pending transactions and start polling if there are any
@@ -665,20 +629,20 @@ export class TransactionController extends BaseControllerV1<
     );
   }
 
-  #createTrackersForNetworkClient(
-    networkClient: NetworkClient,
-    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource,
-    acquireNonceLockForChainIdKey: any
-  ) {
-    const { chainId } = networkClient.configuration;
-
-    const ethQuery = new EthQuery(networkClient.provider);
-
-    const nonceTracker = new NonceTracker({
+  #createNonceTracker({
+    provider,
+    blockTracker,
+    chainId,
+  }: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+    chainId?: Hex;
+  }): NonceTracker {
+    return new NonceTracker({
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      provider: networkClient.provider as any,
-      blockTracker: networkClient.blockTracker,
+      provider: provider as any,
+      blockTracker,
       getPendingTransactions: this.#getNonceTrackerPendingTransactions.bind(
         this,
         chainId,
@@ -688,12 +652,22 @@ export class TransactionController extends BaseControllerV1<
         TransactionStatus.confirmed,
       ),
     });
+  }
 
+  #createIncomingTransactionHelper({
+    blockTracker,
+    etherscanRemoteTransactionSource,
+    chainId,
+  }: {
+    blockTracker: BlockTracker;
+    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
+    chainId?: Hex;
+  }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
-      blockTracker: networkClient.blockTracker,
+      blockTracker,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getChainId: () => chainId,
+      getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: etherscanRemoteTransactionSource,
@@ -703,16 +677,32 @@ export class TransactionController extends BaseControllerV1<
 
     this.#addIncomingTransactionHelperListeners(incomingTransactionHelper);
 
+    return incomingTransactionHelper;
+  }
+
+  #createPendingTransactionTracker({
+    provider,
+    blockTracker,
+    chainId,
+  }: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+    chainId?: Hex;
+  }): PendingTransactionTracker {
+    const ethQuery = new EthQuery(provider);
+    const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
+
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: this.approveTransaction.bind(this),
-      blockTracker: networkClient.blockTracker,
-      getChainId: () => chainId,
+      blockTracker,
+      getChainId,
       getEthQuery: () => ethQuery,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
-      getGlobalLock: () => acquireNonceLockForChainIdKey({
-        chainId,
-      }),
+      getGlobalLock: () =>
+        this.#multichainHelper.acquireNonceLockForChainIdKey({
+          chainId: getChainId(),
+        }),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
         beforeCheckPendingTransaction:
@@ -723,11 +713,7 @@ export class TransactionController extends BaseControllerV1<
 
     this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);
 
-    return {
-      nonceTracker,
-      incomingTransactionHelper,
-      pendingTransactionTracker,
-    };
+    return pendingTransactionTracker;
   }
 
   /**
@@ -1656,7 +1642,6 @@ export class TransactionController extends BaseControllerV1<
 
     return this.getTransaction(transactionId) as TransactionMeta;
   }
-
 
   async getNonceLock(
     address: string,
