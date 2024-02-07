@@ -3,14 +3,14 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcResponse } from '@metamask/utils';
 
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
-import type {
-  SelectedNetworkMiddlewareJsonRpcRequest,
-  SelectedNetworkMiddlewareMessenger,
-} from '../src/SelectedNetworkMiddleware';
+import type { SelectedNetworkControllerMessenger } from '../src/SelectedNetworkController';
+import type { SelectedNetworkMiddlewareJsonRpcRequest } from '../src/SelectedNetworkMiddleware';
 import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
-const buildMessenger = (): SelectedNetworkMiddlewareMessenger => {
-  return new ControllerMessenger();
+const buildMessenger = (): SelectedNetworkControllerMessenger => {
+  return new ControllerMessenger().getRestricted({
+    name: 'SelectedNetworkController',
+  });
 };
 
 const noop = jest.fn();
@@ -58,7 +58,7 @@ describe('createSelectedNetworkMiddleware', () => {
     expect(req.networkClientId).toBe('mockNetworkClientId');
   });
 
-  it('sets the networkClientId for the domain to the current network from networkController if one is not set', async () => {
+  it('puts metamask selected networkClientId on request if requesting origin does not have one set', async () => {
     const messenger = buildMessenger();
     const middleware = createSelectedNetworkMiddleware(messenger);
 
@@ -68,36 +68,25 @@ describe('createSelectedNetworkMiddleware', () => {
 
     const mockGetNetworkClientIdForDomain = jest
       .fn()
-      .mockReturnValueOnce(undefined)
-      .mockReturnValueOnce('defaultNetworkClientId');
-    const mockSetNetworkClientIdForDomain = jest.fn();
-    const mockNetworkControllerGetState = jest.fn().mockReturnValue({
-      selectedNetworkClientId: 'defaultNetworkClientId',
-    });
+      .mockReturnValue(undefined);
+    const mockGetNetworkClientIdForMetamask = jest
+      .fn()
+      .mockReturnValue('metamaskNetworkClientId');
+
     messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       mockGetNetworkClientIdForDomain,
     );
     messenger.registerActionHandler(
-      SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
-      mockSetNetworkClientIdForDomain,
-    );
-    messenger.registerActionHandler(
-      'NetworkController:getState',
-      mockNetworkControllerGetState,
+      SelectedNetworkControllerActionTypes.getNetworkClientIdForMetamask,
+      mockGetNetworkClientIdForMetamask,
     );
 
     await new Promise((resolve) =>
       middleware(req, {} as JsonRpcResponse<typeof req>, resolve, noop),
     );
 
-    expect(mockGetNetworkClientIdForDomain).toHaveBeenCalledWith('example.com');
-    expect(mockNetworkControllerGetState).toHaveBeenCalled();
-    expect(mockSetNetworkClientIdForDomain).toHaveBeenCalledWith(
-      'example.com',
-      'defaultNetworkClientId',
-    );
-    expect(req.networkClientId).toBe('defaultNetworkClientId');
+    expect(req.networkClientId).toBe('metamaskNetworkClientId');
   });
 
   it('implements the json-rpc-engine middleware interface appropriately', async () => {

@@ -93,6 +93,7 @@ export const createQueuedRequestMiddleware = ({
         QueuedRequestControllerActionTypes.enqueueRequest,
         async () => {
           if (
+            // TODO should this list include wallet_requestPermissions/requestAccounts
             req.method === 'wallet_switchEthereumChain' ||
             req.method === 'wallet_addEthereumChain'
           ) {
