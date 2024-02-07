@@ -2954,15 +2954,19 @@ export class TransactionController extends BaseControllerV1<
 
   #stopAllTracking() {
     this.pendingTransactionTracker.stop();
-    this.#removePendingTransactionTrackerListeners();
+    this.#removePendingTransactionTrackerListeners(
+      this.pendingTransactionTracker,
+    );
     this.incomingTransactionHelper.stop();
-    this.#removeIncomingTransactionHelperListeners();
+    this.#removeIncomingTransactionHelperListeners(
+      this.incomingTransactionHelper,
+    );
 
     this.#multichainTrackingHelper.stopAllTracking();
   }
 
   #removeIncomingTransactionHelperListeners(
-    incomingTransactionHelper = this.incomingTransactionHelper,
+    incomingTransactionHelper: IncomingTransactionHelper,
   ) {
     incomingTransactionHelper.hub.removeAllListeners('transactions');
     incomingTransactionHelper.hub.removeAllListeners(
@@ -2971,7 +2975,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   #addIncomingTransactionHelperListeners(
-    incomingTransactionHelper = this.incomingTransactionHelper,
+    incomingTransactionHelper: IncomingTransactionHelper,
   ) {
     incomingTransactionHelper.hub.on(
       'transactions',
@@ -2984,7 +2988,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   #removePendingTransactionTrackerListeners(
-    pendingTransactionTracker = this.pendingTransactionTracker,
+    pendingTransactionTracker: PendingTransactionTracker,
   ) {
     pendingTransactionTracker.hub.removeAllListeners('transaction-confirmed');
     pendingTransactionTracker.hub.removeAllListeners('transaction-dropped');
@@ -2993,7 +2997,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   #addPendingTransactionTrackerListeners(
-    pendingTransactionTracker = this.pendingTransactionTracker,
+    pendingTransactionTracker: PendingTransactionTracker,
   ) {
     pendingTransactionTracker.hub.on(
       'transaction-confirmed',
