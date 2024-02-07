@@ -40,7 +40,7 @@ type IncomingTransactionOptions = {
   updateTransactions?: boolean;
 };
 
-export class MultichainHelper {
+export class MultichainTrackingHelper {
   #isMultichainEnabled: boolean;
 
   readonly #provider: Provider;
@@ -235,9 +235,6 @@ export class MultichainHelper {
    * @param opts.key - The hex address (or constant) pertaining to the chainId
    * @returns Mutex instance for the given chainId and key pair
    */
-  // This should live in the Multichain helper, except that it's needed in this
-  // controller context as well. It's possible to move this, but just highlighting the coupling.
-  // MultichainHelper is really TrackingHelper and would contain the global trackers.
   async acquireNonceLockForChainIdKey({
     chainId,
     key = 'global',

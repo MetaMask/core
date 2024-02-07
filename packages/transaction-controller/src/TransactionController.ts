@@ -48,7 +48,7 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
-import { MultichainHelper } from './helpers/MultichainHelper';
+import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
 import type {
@@ -447,7 +447,7 @@ export class TransactionController extends BaseControllerV1<
     return { registryMethod, parsedRegistryMethod };
   }
 
-  #multichainHelper: MultichainHelper;
+  #multichainTrackingHelper: MultichainTrackingHelper;
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -552,7 +552,7 @@ export class TransactionController extends BaseControllerV1<
       blockTracker,
     });
 
-    this.#multichainHelper = new MultichainHelper({
+    this.#multichainTrackingHelper = new MultichainTrackingHelper({
       isMultichainEnabled,
       provider,
       nonceTracker: this.nonceTracker,
@@ -688,7 +688,7 @@ export class TransactionController extends BaseControllerV1<
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
       getGlobalLock: () =>
-        this.#multichainHelper.acquireNonceLockForChainIdKey({
+        this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId: getChainId(),
         }),
       publishTransaction: this.publishTransaction.bind(this),
@@ -790,7 +790,10 @@ export class TransactionController extends BaseControllerV1<
     log('Adding transaction', txParams);
 
     txParams = normalizeTxParams(txParams);
-    if (networkClientId && !this.#multichainHelper.has(networkClientId)) {
+    if (
+      networkClientId &&
+      !this.#multichainTrackingHelper.has(networkClientId)
+    ) {
       throw new Error(
         'The networkClientId for this transaction could not be found',
       );
@@ -817,7 +820,7 @@ export class TransactionController extends BaseControllerV1<
     );
 
     const chainId = this.getChainId(networkClientId);
-    const ethQuery = this.#multichainHelper.getEthQuery({
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
       networkClientId,
       chainId,
     });
@@ -894,7 +897,9 @@ export class TransactionController extends BaseControllerV1<
       this.incomingTransactionHelper.start();
       return;
     }
-    this.#multichainHelper.startIncomingTransactionPolling(networkClientIds);
+    this.#multichainTrackingHelper.startIncomingTransactionPolling(
+      networkClientIds,
+    );
   }
 
   stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
@@ -902,12 +907,14 @@ export class TransactionController extends BaseControllerV1<
       this.incomingTransactionHelper.stop();
       return;
     }
-    this.#multichainHelper.stopIncomingTransactionPolling(networkClientIds);
+    this.#multichainTrackingHelper.stopIncomingTransactionPolling(
+      networkClientIds,
+    );
   }
 
   stopAllIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
-    this.#multichainHelper.stopAllIncomingTransactionPolling();
+    this.#multichainTrackingHelper.stopAllIncomingTransactionPolling();
   }
 
   async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
@@ -915,7 +922,9 @@ export class TransactionController extends BaseControllerV1<
       await this.incomingTransactionHelper.update();
       return;
     }
-    await this.#multichainHelper.updateIncomingTransactions(networkClientIds);
+    await this.#multichainTrackingHelper.updateIncomingTransactions(
+      networkClientIds,
+    );
   }
 
   /**
@@ -1046,7 +1055,7 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const ethQuery = this.#multichainHelper.getEthQuery({
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
@@ -1206,7 +1215,7 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const ethQuery = this.#multichainHelper.getEthQuery({
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
@@ -1269,7 +1278,9 @@ export class TransactionController extends BaseControllerV1<
     transaction: TransactionParams,
     networkClientId?: NetworkClientId,
   ) {
-    const ethQuery = this.#multichainHelper.getEthQuery({ networkClientId });
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId,
+    });
     const { estimatedGas, simulationFails } = await estimateGas(
       transaction,
       ethQuery,
@@ -1290,7 +1301,9 @@ export class TransactionController extends BaseControllerV1<
     multiplier: number,
     networkClientId?: NetworkClientId,
   ) {
-    const ethQuery = this.#multichainHelper.getEthQuery({ networkClientId });
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId,
+    });
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
       transaction,
       ethQuery,
@@ -1635,7 +1648,10 @@ export class TransactionController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
-    return this.#multichainHelper.getNonceLock(address, networkClientId);
+    return this.#multichainTrackingHelper.getNonceLock(
+      address,
+      networkClientId,
+    );
   }
 
   /**
@@ -1696,7 +1712,7 @@ export class TransactionController extends BaseControllerV1<
     const updatedTransaction = merge(transactionMeta, editableParams);
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
-      this.#multichainHelper.getEthQuery({
+      this.#multichainTrackingHelper.getEthQuery({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       }),
@@ -2082,7 +2098,7 @@ export class TransactionController extends BaseControllerV1<
       : this.getNetworkState().providerConfig.type === NetworkType.rpc;
 
     await updateGas({
-      ethQuery: this.#multichainHelper.getEthQuery({
+      ethQuery: this.#multichainTrackingHelper.getEthQuery({
         networkClientId,
         chainId,
       }),
@@ -2093,7 +2109,7 @@ export class TransactionController extends BaseControllerV1<
 
     await updateGasFees({
       eip1559: isEIP1559Compatible,
-      ethQuery: this.#multichainHelper.getEthQuery({
+      ethQuery: this.#multichainTrackingHelper.getEthQuery({
         networkClientId,
         chainId,
       }),
@@ -2282,7 +2298,7 @@ export class TransactionController extends BaseControllerV1<
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
         (address: string) =>
-          this.#multichainHelper.getNonceLock(address, networkClientId),
+          this.#multichainTrackingHelper.getNonceLock(address, networkClientId),
       );
 
       releaseNonceLock = releaseNonce;
@@ -2325,7 +2341,7 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      const ethQuery = this.#multichainHelper.getEthQuery({
+      const ethQuery = this.#multichainTrackingHelper.getEthQuery({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       });
@@ -2909,7 +2925,7 @@ export class TransactionController extends BaseControllerV1<
         return;
       }
 
-      const ethQuery = this.#multichainHelper.getEthQuery({
+      const ethQuery = this.#multichainTrackingHelper.getEthQuery({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       });
@@ -2933,7 +2949,7 @@ export class TransactionController extends BaseControllerV1<
   #checkForPendingTransactionAndStartPolling = () => {
     // PendingTransactionTracker reads state through its getTransactions hook
     this.pendingTransactionTracker.startIfPendingTransactions();
-    this.#multichainHelper.checkForPendingTransactionAndStartPolling();
+    this.#multichainTrackingHelper.checkForPendingTransactionAndStartPolling();
   };
 
   #stopAllTracking() {
@@ -2942,7 +2958,7 @@ export class TransactionController extends BaseControllerV1<
     this.incomingTransactionHelper.stop();
     this.#removeIncomingTransactionHelperListeners();
 
-    this.#multichainHelper.stopAllTracking();
+    this.#multichainTrackingHelper.stopAllTracking();
   }
 
   #removeIncomingTransactionHelperListeners(
