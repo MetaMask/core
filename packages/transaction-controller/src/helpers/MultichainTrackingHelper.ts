@@ -13,10 +13,8 @@ import type { NonceLock, NonceTracker } from 'nonce-tracker';
 
 import { incomingTransactionsLogger as log } from '../logger';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import type { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import type { IncomingTransactionHelper, IncomingTransactionOptions } from './IncomingTransactionHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
-
-// TODO(JL): Dry these types that are duplicated in TransactionController
 
 /**
  * Registry of network clients provided by the NetworkController
@@ -24,21 +22,6 @@ import type { PendingTransactionTracker } from './PendingTransactionTracker';
 type NetworkClientRegistry = ReturnType<
   NetworkController['getNetworkClientRegistry']
 >;
-
-/**
- * Configuration options for the IncomingTransactionHelper
- *
- * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
- * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
- * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
- * @property updateTransactions - Whether to update local transactions using remote transaction data.
- */
-type IncomingTransactionOptions = {
-  includeTokenTransfers?: boolean;
-  isEnabled?: () => boolean;
-  queryEntireHistory?: boolean;
-  updateTransactions?: boolean;
-};
 
 export class MultichainTrackingHelper {
   #isMultichainEnabled: boolean;

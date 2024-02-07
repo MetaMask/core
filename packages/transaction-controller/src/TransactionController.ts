@@ -47,7 +47,7 @@ import type {
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
-import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { IncomingTransactionHelper, IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
@@ -187,21 +187,6 @@ export const CANCEL_RATE = 1.5;
  * Multiplier used to determine a transaction's increased gas fee during speed up
  */
 export const SPEED_UP_RATE = 1.1;
-
-/**
- * Configuration options for the IncomingTransactionHelper
- *
- * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
- * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
- * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
- * @property updateTransactions - Whether to update local transactions using remote transaction data.
- */
-export type IncomingTransactionOptions = {
-  includeTokenTransfers?: boolean;
-  isEnabled?: () => boolean;
-  queryEntireHistory?: boolean;
-  updateTransactions?: boolean;
-};
 
 /**
  * Configuration options for the PendingTransactionTracker

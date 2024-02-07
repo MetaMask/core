@@ -15,6 +15,21 @@ const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.txParams.gasUsed,
 ];
 
+/**
+ * Configuration options for the IncomingTransactionHelper
+ *
+ * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
+ * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
+ * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
+ * @property updateTransactions - Whether to update local transactions using remote transaction data.
+ */
+export type IncomingTransactionOptions = {
+  includeTokenTransfers?: boolean;
+  isEnabled?: () => boolean;
+  queryEntireHistory?: boolean;
+  updateTransactions?: boolean;
+};
+
 export class IncomingTransactionHelper {
   hub: EventEmitter;
 
