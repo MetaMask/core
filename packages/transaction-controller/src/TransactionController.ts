@@ -579,6 +579,12 @@ export class TransactionController extends BaseControllerV1<
         this.#createIncomingTransactionHelper.bind(this),
       createPendingTransactionTracker:
         this.#createPendingTransactionTracker.bind(this),
+      onNetworkStateChange: (listener) => {
+        this.messagingSystem.subscribe(
+          'NetworkController:stateChange',
+          listener,
+        );
+      },
     });
 
     const etherscanRemoteTransactionSource =
@@ -609,24 +615,6 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.onBootCleanup();
-    this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
-      (_, patches) => {
-        // only needed to get `should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled` to pass,
-        // otherwise can rely on the guard inside the helper
-        if (isMultichainEnabled) {
-          const networkClients = this.#getNetworkClientRegistry();
-          patches.forEach(({ op, path }) => {
-            if (op === 'remove' && path[0] === 'networkConfigurations') {
-              const networkClientId = path[1] as NetworkClientId;
-              delete networkClients[networkClientId];
-            }
-          });
-
-          this.#multichainHelper.onNetworkClientsChange(networkClients);
-        }
-      },
-    );
   }
 
   #createNonceTracker({
@@ -1778,10 +1766,7 @@ export class TransactionController extends BaseControllerV1<
       const requiresNonce = hasNonce !== true;
 
       nonceLock = requiresNonce
-        ? await this.getNonceLock(
-            fromAddress,
-            networkClientId,
-          )
+        ? await this.getNonceLock(fromAddress, networkClientId)
         : undefined;
 
       const nonce = nonceLock

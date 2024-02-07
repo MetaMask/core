@@ -5,6 +5,7 @@ import type {
   NetworkClient,
   BlockTracker,
   Provider,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -109,6 +110,7 @@ export class MultichainHelper {
     createNonceTracker,
     createIncomingTransactionHelper,
     createPendingTransactionTracker,
+    onNetworkStateChange,
   }: {
     isMultichainEnabled: boolean;
     provider: Provider;
@@ -140,6 +142,11 @@ export class MultichainHelper {
       blockTracker: BlockTracker;
       chainId?: Hex;
     }) => PendingTransactionTracker;
+    onNetworkStateChange: (
+      listener: (
+        ...payload: NetworkControllerStateChangeEvent['payload']
+      ) => void,
+    ) => void;
   }) {
     this.#isMultichainEnabled = isMultichainEnabled;
     this.#provider = provider;
@@ -161,12 +168,20 @@ export class MultichainHelper {
     if (this.#isMultichainEnabled) {
       this.#initTrackingMap();
     }
-  }
 
-  onNetworkClientsChange(networkClients: NetworkClientRegistry) {
-    if (this.#isMultichainEnabled) {
-      this.#refreshTrackingMap(networkClients);
-    }
+    onNetworkStateChange((_, patches) => {
+      if (this.#isMultichainEnabled) {
+        const networkClients = this.#getNetworkClientRegistry();
+        patches.forEach(({ op, path }) => {
+          if (op === 'remove' && path[0] === 'networkConfigurations') {
+            const networkClientId = path[1] as NetworkClientId;
+            delete networkClients[networkClientId];
+          }
+        });
+
+        this.#refreshTrackingMap(networkClients);
+      }
+    });
   }
 
   has(networkClientId: NetworkClientId) {
