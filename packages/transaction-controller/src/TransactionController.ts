@@ -349,8 +349,6 @@ export class TransactionController extends BaseControllerV1<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly registry: any;
 
-  private readonly provider: Provider;
-
   private readonly mutex = new Mutex();
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
@@ -415,8 +413,6 @@ export class TransactionController extends BaseControllerV1<
   private readonly getAdditionalSignArguments: (
     transactionMeta: TransactionMeta,
   ) => (TransactionMeta | undefined)[];
-
-  readonly #getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
   private failTransaction(
     transactionMeta: TransactionMeta,
@@ -509,8 +505,6 @@ export class TransactionController extends BaseControllerV1<
       lastFetchedBlockNumbers: {},
     };
     this.initialize();
-    this.#getNetworkClientRegistry = getNetworkClientRegistry;
-    this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;

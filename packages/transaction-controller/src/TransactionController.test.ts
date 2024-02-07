@@ -605,6 +605,7 @@ describe('TransactionController', () => {
       };
     }
 
+    // Revisit if these mocked providers are okay
     const mockGetNetworkClientById = jest
       .fn()
       .mockImplementation((networkClientId) => {
@@ -646,6 +647,7 @@ describe('TransactionController', () => {
         }
       });
 
+    // is this needed?
     const mockFindNetworkClientIdByChainId = jest
       .fn()
       .mockImplementation((chainId) => {
@@ -679,28 +681,7 @@ describe('TransactionController', () => {
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
-        getNetworkClientRegistry: () => ({
-          mainnet: {
-            configuration: {
-              chainId: toHex(1),
-            },
-          },
-          sepolia: {
-            configuration: {
-              chainId: ChainId.sepolia,
-            },
-          },
-          goerli: {
-            configuration: {
-              chainId: ChainId.goerli,
-            },
-          },
-          'customNetworkClientId-1': {
-            configuration: {
-              chainId: '0xa',
-            },
-          },
-        }),
+        getNetworkClientRegistry: jest.fn(),
         messenger: messengerMock,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
