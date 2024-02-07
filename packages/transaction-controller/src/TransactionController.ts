@@ -47,7 +47,8 @@ import type {
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
-import { IncomingTransactionHelper, IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
+import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
+import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';

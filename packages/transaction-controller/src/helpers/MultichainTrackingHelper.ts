@@ -13,7 +13,10 @@ import type { NonceLock, NonceTracker } from 'nonce-tracker';
 
 import { incomingTransactionsLogger as log } from '../logger';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import type { IncomingTransactionHelper, IncomingTransactionOptions } from './IncomingTransactionHelper';
+import type {
+  IncomingTransactionHelper,
+  IncomingTransactionOptions,
+} from './IncomingTransactionHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
 
 /**
@@ -22,6 +25,44 @@ import type { PendingTransactionTracker } from './PendingTransactionTracker';
 type NetworkClientRegistry = ReturnType<
   NetworkController['getNetworkClientRegistry']
 >;
+
+export type MultichainTrackingHelperOptions = {
+  isMultichainEnabled: boolean;
+  provider: Provider;
+  nonceTracker: NonceTracker;
+  incomingTransactionOptions: IncomingTransactionOptions;
+
+  findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
+  getNetworkClientById: NetworkController['getNetworkClientById'];
+  getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
+
+  removeIncomingTransactionHelperListeners: (
+    IncomingTransactionHelper: IncomingTransactionHelper,
+  ) => void;
+  removePendingTransactionTrackerListeners: (
+    pendingTransactionTracker: PendingTransactionTracker,
+  ) => void;
+  createNonceTracker: (opts: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+    chainId?: Hex;
+  }) => NonceTracker;
+  createIncomingTransactionHelper: (opts: {
+    blockTracker: BlockTracker;
+    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
+    chainId?: Hex;
+  }) => IncomingTransactionHelper;
+  createPendingTransactionTracker: (opts: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+    chainId?: Hex;
+  }) => PendingTransactionTracker;
+  onNetworkStateChange: (
+    listener: (
+      ...payload: NetworkControllerStateChangeEvent['payload']
+    ) => void,
+  ) => void;
+};
 
 export class MultichainTrackingHelper {
   #isMultichainEnabled: boolean;
@@ -94,43 +135,7 @@ export class MultichainTrackingHelper {
     createIncomingTransactionHelper,
     createPendingTransactionTracker,
     onNetworkStateChange,
-  }: {
-    isMultichainEnabled: boolean;
-    provider: Provider;
-    nonceTracker: NonceTracker;
-    incomingTransactionOptions: IncomingTransactionOptions;
-
-    findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
-    getNetworkClientById: NetworkController['getNetworkClientById'];
-    getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-
-    removeIncomingTransactionHelperListeners: (
-      IncomingTransactionHelper: IncomingTransactionHelper,
-    ) => void;
-    removePendingTransactionTrackerListeners: (
-      pendingTransactionTracker: PendingTransactionTracker,
-    ) => void;
-    createNonceTracker: (opts: {
-      provider: Provider;
-      blockTracker: BlockTracker;
-      chainId?: Hex;
-    }) => NonceTracker;
-    createIncomingTransactionHelper: (opts: {
-      blockTracker: BlockTracker;
-      etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
-      chainId?: Hex;
-    }) => IncomingTransactionHelper;
-    createPendingTransactionTracker: (opts: {
-      provider: Provider;
-      blockTracker: BlockTracker;
-      chainId?: Hex;
-    }) => PendingTransactionTracker;
-    onNetworkStateChange: (
-      listener: (
-        ...payload: NetworkControllerStateChangeEvent['payload']
-      ) => void,
-    ) => void;
-  }) {
+  }: MultichainTrackingHelperOptions) {
     this.#isMultichainEnabled = isMultichainEnabled;
     this.#provider = provider;
     this.#nonceTracker = nonceTracker;
