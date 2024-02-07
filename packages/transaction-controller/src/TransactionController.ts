@@ -617,93 +617,6 @@ export class TransactionController extends BaseControllerV1<
     this.onBootCleanup();
   }
 
-  #createNonceTracker({
-    provider,
-    blockTracker,
-    chainId,
-  }: {
-    provider: Provider;
-    blockTracker: BlockTracker;
-    chainId?: Hex;
-  }): NonceTracker {
-    return new NonceTracker({
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      provider: provider as any,
-      blockTracker,
-      getPendingTransactions: this.#getNonceTrackerPendingTransactions.bind(
-        this,
-        chainId,
-      ),
-      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.confirmed,
-      ),
-    });
-  }
-
-  #createIncomingTransactionHelper({
-    blockTracker,
-    etherscanRemoteTransactionSource,
-    chainId,
-  }: {
-    blockTracker: BlockTracker;
-    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
-    chainId?: Hex;
-  }): IncomingTransactionHelper {
-    const incomingTransactionHelper = new IncomingTransactionHelper({
-      blockTracker,
-      getCurrentAccount: this.getSelectedAddress,
-      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getChainId: chainId ? () => chainId : this.getChainId.bind(this),
-      isEnabled: this.#incomingTransactionOptions.isEnabled,
-      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
-      remoteTransactionSource: etherscanRemoteTransactionSource,
-      transactionLimit: this.config.txHistoryLimit,
-      updateTransactions: this.#incomingTransactionOptions.updateTransactions,
-    });
-
-    this.#addIncomingTransactionHelperListeners(incomingTransactionHelper);
-
-    return incomingTransactionHelper;
-  }
-
-  #createPendingTransactionTracker({
-    provider,
-    blockTracker,
-    chainId,
-  }: {
-    provider: Provider;
-    blockTracker: BlockTracker;
-    chainId?: Hex;
-  }): PendingTransactionTracker {
-    const ethQuery = new EthQuery(provider);
-    const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
-
-    const pendingTransactionTracker = new PendingTransactionTracker({
-      approveTransaction: this.approveTransaction.bind(this),
-      blockTracker,
-      getChainId,
-      getEthQuery: () => ethQuery,
-      getTransactions: () => this.state.transactions,
-      isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
-      getGlobalLock: () =>
-        this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
-          chainId: getChainId(),
-        }),
-      publishTransaction: this.publishTransaction.bind(this),
-      hooks: {
-        beforeCheckPendingTransaction:
-          this.beforeCheckPendingTransaction.bind(this),
-        beforePublish: this.beforePublish.bind(this),
-      },
-    });
-
-    this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);
-
-    return pendingTransactionTracker;
-  }
-
   /**
    * Stops polling and removes listeners to prepare the controller for garbage collection.
    */
@@ -2944,6 +2857,93 @@ export class TransactionController extends BaseControllerV1<
       /* istanbul ignore next */
       log('Error while updating post transaction balance', error);
     }
+  }
+
+  #createNonceTracker({
+    provider,
+    blockTracker,
+    chainId,
+  }: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+    chainId?: Hex;
+  }): NonceTracker {
+    return new NonceTracker({
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      provider: provider as any,
+      blockTracker,
+      getPendingTransactions: this.#getNonceTrackerPendingTransactions.bind(
+        this,
+        chainId,
+      ),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
+    });
+  }
+
+  #createIncomingTransactionHelper({
+    blockTracker,
+    etherscanRemoteTransactionSource,
+    chainId,
+  }: {
+    blockTracker: BlockTracker;
+    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
+    chainId?: Hex;
+  }): IncomingTransactionHelper {
+    const incomingTransactionHelper = new IncomingTransactionHelper({
+      blockTracker,
+      getCurrentAccount: this.getSelectedAddress,
+      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getChainId: chainId ? () => chainId : this.getChainId.bind(this),
+      isEnabled: this.#incomingTransactionOptions.isEnabled,
+      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
+      remoteTransactionSource: etherscanRemoteTransactionSource,
+      transactionLimit: this.config.txHistoryLimit,
+      updateTransactions: this.#incomingTransactionOptions.updateTransactions,
+    });
+
+    this.#addIncomingTransactionHelperListeners(incomingTransactionHelper);
+
+    return incomingTransactionHelper;
+  }
+
+  #createPendingTransactionTracker({
+    provider,
+    blockTracker,
+    chainId,
+  }: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+    chainId?: Hex;
+  }): PendingTransactionTracker {
+    const ethQuery = new EthQuery(provider);
+    const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
+
+    const pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
+      blockTracker,
+      getChainId,
+      getEthQuery: () => ethQuery,
+      getTransactions: () => this.state.transactions,
+      isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
+      getGlobalLock: () =>
+        this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
+          chainId: getChainId(),
+        }),
+      publishTransaction: this.publishTransaction.bind(this),
+      hooks: {
+        beforeCheckPendingTransaction:
+          this.beforeCheckPendingTransaction.bind(this),
+        beforePublish: this.beforePublish.bind(this),
+      },
+    });
+
+    this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);
+
+    return pendingTransactionTracker;
   }
 
   #checkForPendingTransactionAndStartPolling = () => {

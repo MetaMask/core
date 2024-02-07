@@ -351,6 +351,15 @@ export class MultichainTrackingHelper {
       });
   }
 
+  checkForPendingTransactionAndStartPolling = () => {
+    if (!this.#isMultichainEnabled) {
+      return;
+    }
+    for (const [, trackers] of this.#trackingMap) {
+      trackers.pendingTransactionTracker.startIfPendingTransactions();
+    }
+  };
+
   #initTrackingMap = () => {
     const networkClients = this.#getNetworkClientRegistry();
     const networkClientIds = Object.keys(networkClients);
@@ -453,15 +462,6 @@ export class MultichainTrackingHelper {
       pendingTransactionTracker,
     });
   }
-
-  checkForPendingTransactionAndStartPolling = () => {
-    if (!this.#isMultichainEnabled) {
-      return;
-    }
-    for (const [, trackers] of this.#trackingMap) {
-      trackers.pendingTransactionTracker.startIfPendingTransactions();
-    }
-  };
 
   #refreshEtherscanRemoteTransactionSources = (
     networkClients: NetworkClientRegistry,
