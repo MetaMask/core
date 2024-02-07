@@ -1365,8 +1365,9 @@ describe('TransactionController', () => {
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
         ethQuery: expect.any(Object),
-        getSavedGasFees: expect.any(Function),
+        gasFeeFlows: expect.any(Array),
         getGasFeeEstimates: expect.any(Function),
+        getSavedGasFees: expect.any(Function),
         txMeta: expect.any(Object),
       });
     });

@@ -5,8 +5,11 @@ import {
   query,
   toHex,
 } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
+import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { createModuleLogger, type Hex } from '@metamask/utils';
+import { BN } from 'ethereumjs-util';
 
 import { projectLogger } from '../logger';
 import type {
@@ -16,7 +19,20 @@ import type {
   TransactionMeta,
 } from '../types';
 
+type LineaEstimateGasResponse = {
+  baseFeePerGas: Hex;
+  priorityFeePerGas: Hex;
+};
+
+type FeesByLevel = {
+  low: BN;
+  medium: BN;
+  high: BN;
+};
+
 const log = createModuleLogger(projectLogger, 'linea-gas-fee-flow');
+
+const ONE_GWEI_IN_WEI = new BN(1e9);
 
 const LINEA_CHAIN_IDS: Hex[] = [
   ChainId['linea-mainnet'],
@@ -29,74 +45,125 @@ const BASE_FEE_MULTIPLIERS = {
   high: 1.7,
 };
 
+/**
+ * Implementation of a gas fee flow specific to Linea networks that obtains gas fee estimates using:
+ * - The `linea_estimateGas` RPC method to obtain the base fee and lowest priority fee.
+ * - The GasFeeController to provide the priority fee deltas based on recent block analysis.
+ */
 export class LineaGasFeeFlow implements GasFeeFlow {
   matchesTransaction(transactionMeta: TransactionMeta): boolean {
     return LINEA_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
-    const { ethQuery, getGasFeeControllerEstimates } = request;
+    const { ethQuery, getGasFeeControllerEstimates, transactionMeta } = request;
 
-    const lineaResponse = await query(ethQuery, 'linea_estimateGas', [
-      {
-        from: request.transactionMeta.txParams.from,
-        to: request.transactionMeta.txParams.to,
-        value: request.transactionMeta.txParams.value,
-        input: request.transactionMeta.txParams.data,
-      },
-    ]);
-
-    log('Got Linea response', lineaResponse);
-
-    const baseFeeLowDecimal = hexToBN(lineaResponse.baseFeePerGas);
-
-    const baseFeeMediumDecimal = baseFeeLowDecimal.muln(
-      BASE_FEE_MULTIPLIERS.medium,
+    const lineaResponse = await this.#getLineaResponse(
+      transactionMeta,
+      ethQuery,
     );
 
-    const baseFeeHighDecimal = baseFeeLowDecimal.muln(
-      BASE_FEE_MULTIPLIERS.high,
-    );
+    log('Received Linea response', lineaResponse);
 
-    const gasFeeEstimates = await getGasFeeControllerEstimates();
+    const gasFeeControllerEstimates = await getGasFeeControllerEstimates();
 
-    log('Got estimates from gas fee controller', gasFeeEstimates);
-
-    if (gasFeeEstimates.gasEstimateType !== GAS_ESTIMATE_TYPES.FEE_MARKET) {
+    if (
+      gasFeeControllerEstimates.gasEstimateType !==
+      GAS_ESTIMATE_TYPES.FEE_MARKET
+    ) {
       throw new Error('No gas fee estimates available');
     }
 
-    const { low, medium, high } = gasFeeEstimates.gasFeeEstimates;
+    const baseFees = this.#getBaseFees(lineaResponse);
 
-    const mediumPriorityIncrease = gweiDecToWEIBN(
-      medium.suggestedMaxFeePerGas,
-    ).sub(gweiDecToWEIBN(low.suggestedMaxPriorityFeePerGas));
-
-    const highPriorityIncrease = gweiDecToWEIBN(high.suggestedMaxFeePerGas).sub(
-      gweiDecToWEIBN(medium.suggestedMaxPriorityFeePerGas),
+    const priorityFees = this.#getPriorityFees(
+      lineaResponse,
+      gasFeeControllerEstimates.gasFeeEstimates,
     );
 
-    const priorityFeeLow = hexToBN(lineaResponse.priorityFeePerGas);
+    const maxFees = this.#getMaxFees(baseFees, priorityFees);
+
+    return {
+      estimates: {
+        low: {
+          maxFeePerGas: toHex(maxFees.low),
+          maxPriorityFeePerGas: toHex(priorityFees.low),
+        },
+        medium: {
+          maxFeePerGas: toHex(maxFees.medium),
+          maxPriorityFeePerGas: toHex(priorityFees.medium),
+        },
+        high: {
+          maxFeePerGas: toHex(maxFees.high),
+          maxPriorityFeePerGas: toHex(priorityFees.high),
+        },
+      },
+    };
+  }
+
+  #getLineaResponse(
+    transactionMeta: TransactionMeta,
+    ethQuery: EthQuery,
+  ): Promise<LineaEstimateGasResponse> {
+    return query(ethQuery, 'linea_estimateGas', [
+      {
+        from: transactionMeta.txParams.from,
+        to: transactionMeta.txParams.to,
+        value: transactionMeta.txParams.value,
+        input: transactionMeta.txParams.data,
+      },
+    ]);
+  }
+
+  #getBaseFees(lineaResponse: LineaEstimateGasResponse): FeesByLevel {
+    const baseFeeLow = hexToBN(lineaResponse.baseFeePerGas).mul(
+      ONE_GWEI_IN_WEI,
+    );
+
+    const baseFeeMedium = baseFeeLow.muln(BASE_FEE_MULTIPLIERS.medium);
+    const baseFeeHigh = baseFeeLow.muln(BASE_FEE_MULTIPLIERS.high);
+
+    return {
+      low: baseFeeLow,
+      medium: baseFeeMedium,
+      high: baseFeeHigh,
+    };
+  }
+
+  #getPriorityFees(
+    lineaResponse: LineaEstimateGasResponse,
+    gasFeeEstimates: GasFeeEstimates,
+  ): FeesByLevel {
+    const mediumPriorityIncrease = gweiDecToWEIBN(
+      gasFeeEstimates.medium.suggestedMaxPriorityFeePerGas,
+    ).sub(gweiDecToWEIBN(gasFeeEstimates.low.suggestedMaxPriorityFeePerGas));
+
+    const highPriorityIncrease = gweiDecToWEIBN(
+      gasFeeEstimates.high.suggestedMaxPriorityFeePerGas,
+    ).sub(gweiDecToWEIBN(gasFeeEstimates.medium.suggestedMaxPriorityFeePerGas));
+
+    const priorityFeeLow = hexToBN(lineaResponse.priorityFeePerGas).mul(
+      ONE_GWEI_IN_WEI,
+    );
+
     const priorityFeeMedium = priorityFeeLow.add(mediumPriorityIncrease);
     const priorityFeeHigh = priorityFeeMedium.add(highPriorityIncrease);
 
-    const maxFeeLow = baseFeeLowDecimal.add(priorityFeeLow);
-    const maxFeeMedium = baseFeeMediumDecimal.add(priorityFeeMedium);
-    const maxFeeHigh = baseFeeHighDecimal.add(priorityFeeHigh);
-
     return {
-      low: {
-        maxFeePerGas: toHex(maxFeeLow),
-        maxPriorityFeePerGas: toHex(priorityFeeLow),
-      },
-      medium: {
-        maxFeePerGas: toHex(maxFeeMedium),
-        maxPriorityFeePerGas: toHex(priorityFeeMedium),
-      },
-      high: {
-        maxFeePerGas: toHex(maxFeeHigh),
-        maxPriorityFeePerGas: toHex(priorityFeeHigh),
-      },
+      low: priorityFeeLow,
+      medium: priorityFeeMedium,
+      high: priorityFeeHigh,
+    };
+  }
+
+  #getMaxFees(
+    baseFees: Record<'low' | 'medium' | 'high', BN>,
+    priorityFees: Record<'low' | 'medium' | 'high', BN>,
+  ): FeesByLevel {
+    return {
+      low: baseFees.low.add(priorityFees.low),
+      medium: baseFees.medium.add(priorityFees.medium),
+      high: baseFees.high.add(priorityFees.high),
     };
   }
 }

@@ -1,6 +1,6 @@
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { ProviderConfig } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 
@@ -12,18 +12,20 @@ import { getGasFeeFlow } from '../utils/gas-flow';
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 
 const INTERVAL_MILLISECONDS = 10000;
-const LEVELS = ['low', 'medium', 'high'] as const;
 
+/**
+ * Automatically polls and updates suggested gas fees on unapproved transactions.
+ */
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
 
   #gasFeeFlows: GasFeeFlow[];
 
+  #getChainIds: () => Hex[];
+
   #getEthQuery: () => EthQuery;
 
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
-
-  #getProviderConfig: () => ProviderConfig;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -31,25 +33,35 @@ export class GasFeePoller {
 
   #running = false;
 
+  /**
+   * Constructs a new instance of the GasFeePoller.
+   * @param options - The options for this instance.
+   * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
+   * @param options.getChainIds - Callback to specify the chain IDs to monitor.
+   * @param options.getEthQuery - Callback to obtain an EthQuery instance.
+   * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
+   * @param options.getTransactions - Callback to obtain the transaction data.
+   * @param options.onStateChange - Callback to register a listener for controller state changes.
+   */
   constructor({
     gasFeeFlows,
+    getChainIds,
     getEthQuery,
     getGasFeeControllerEstimates,
-    getProviderConfig,
     getTransactions,
     onStateChange,
   }: {
     gasFeeFlows: GasFeeFlow[];
+    getChainIds: () => Hex[];
     getEthQuery: () => EthQuery;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
-    getProviderConfig: () => ProviderConfig;
     getTransactions: () => TransactionMeta[];
     onStateChange: (listener: () => void) => void;
   }) {
     this.#gasFeeFlows = gasFeeFlows;
+    this.#getChainIds = getChainIds;
     this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
-    this.#getProviderConfig = getProviderConfig;
     this.#getTransactions = getTransactions;
 
     onStateChange(() => {
@@ -128,14 +140,13 @@ export class GasFeePoller {
     const request: GasFeeFlowRequest = {
       ethQuery,
       getGasFeeControllerEstimates: this.#getGasFeeControllerEstimates,
-      isEIP1559: false,
       transactionMeta,
     };
 
     try {
       const response = await gasFeeFlow.getGasFees(request);
 
-      transactionMeta.suggestedGasFees = response;
+      transactionMeta.gasFeeEstimates = response.estimates;
     } catch (error) {
       log('Failed to get suggested gas fees', transactionMeta.id, error);
       return;
@@ -147,29 +158,18 @@ export class GasFeePoller {
       'GasFeePoller - Suggested gas fees updated',
     );
 
-    const debugSummary = LEVELS.map((level) => {
-      const value = transactionMeta.suggestedGasFees?.[level]
-        ?.maxFeePerGas as string;
-
-      if (!value) {
-        return 'Missing';
-      }
-
-      return `${value} (${parseInt(value, 16)})`;
-    }).join(' | ');
-
-    log('Updated suggested gas fees', debugSummary, {
-      suggestedGasFees: transactionMeta.suggestedGasFees,
+    log('Updated suggested gas fees', {
+      gasFeeEstimates: transactionMeta.gasFeeEstimates,
       transaction: transactionMeta.id,
     });
   }
 
   #getUnapprovedTransactions() {
-    const currentChainId = this.#getProviderConfig().chainId;
+    const chainIds = this.#getChainIds();
 
     return this.#getTransactions().filter(
       (tx) =>
-        tx.chainId === currentChainId &&
+        chainIds.includes(tx.chainId) &&
         tx.status === TransactionStatus.unapproved,
     );
   }

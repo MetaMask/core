@@ -33,9 +33,15 @@ export type UpdateGasFeesRequest = {
 };
 
 export type GetGasFeeRequest = UpdateGasFeesRequest & {
-  savedGasFees?: SavedGasFees;
   initialParams: TransactionParams;
-  suggestedGasFees: Awaited<ReturnType<typeof getSuggestedGasFees>>;
+  savedGasFees?: SavedGasFees;
+  suggestedGasFees: SuggestedGasFees;
+};
+
+type SuggestedGasFees = {
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  gasPrice?: string;
 };
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
@@ -53,7 +59,7 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 
   log('Suggested gas fees', suggestedGasFees);
 
-  const getGasFeeRequest = {
+  const getGasFeeRequest: GetGasFeeRequest = {
     ...request,
     initialParams,
     savedGasFees,
@@ -196,6 +202,11 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
     return initialParams.gasPrice;
   }
 
+  if (suggestedGasFees.maxFeePerGas) {
+    log('Using suggested maxFeePerGas', suggestedGasFees.maxFeePerGas);
+    return suggestedGasFees.maxFeePerGas;
+  }
+
   if (suggestedGasFees.gasPrice) {
     log('Using suggested gasPrice', suggestedGasFees.gasPrice);
     return suggestedGasFees.gasPrice;
@@ -257,7 +268,9 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
   txMeta.defaultGasEstimates.estimateType = txMeta.userFeeLevel;
 }
 
-async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
+async function getSuggestedGasFees(
+  request: UpdateGasFeesRequest,
+): Promise<SuggestedGasFees> {
   const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
     request;
 
@@ -273,14 +286,13 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
   const gasFeeFlow = getGasFeeFlow(txMeta, gasFeeFlows) as GasFeeFlow;
 
   try {
-    const { medium } = await gasFeeFlow.getGasFees({
+    const response = await gasFeeFlow.getGasFees({
       ethQuery,
-      isEIP1559: false,
       getGasFeeControllerEstimates: getGasFeeEstimates,
       transactionMeta: txMeta,
     });
 
-    return medium;
+    return response.estimates.medium;
   } catch (error) {
     log('Failed to get suggested gas fees', error);
   }

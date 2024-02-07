@@ -1,6 +1,6 @@
 import type { AccessList } from '@ethereumjs/tx';
-import EthQuery from '@metamask/eth-query';
-import { GasFeeState } from '@metamask/gas-fee-controller';
+import type EthQuery from '@metamask/eth-query';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -326,23 +326,7 @@ type TransactionMetaBase = {
    */
   submittedTime?: number;
 
-  suggestedGasFees?: {
-    low: {
-      maxFeePerGas?: string;
-      maxPriorityFeePerGas?: string;
-      gasPrice?: string;
-    };
-    medium: {
-      maxFeePerGas?: string;
-      maxPriorityFeePerGas?: string;
-      gasPrice?: string;
-    };
-    high: {
-      maxFeePerGas?: string;
-      maxPriorityFeePerGas?: string;
-      gasPrice?: string;
-    };
-  };
+  gasFeeEstimates?: GasFeeEstimates;
 
   /**
    * The symbol of the token being swapped.
@@ -981,26 +965,58 @@ export type SecurityAlertResponse = {
   providerRequestsCount?: Record<string, number>;
 };
 
+/** Gas fee estimates for a specific priority level. */
+export type GasFeeEstimatesLevel = {
+  /** Maximum amount to pay per gas. */
+  maxFeePerGas: Hex;
+
+  /** Maximum amount per gas to give to the validator as an incentive. */
+  maxPriorityFeePerGas: Hex;
+};
+
+/** Gas fee estimates for a transaction. */
+export type GasFeeEstimates = {
+  /** The gas fee estimate for a low priority transaction. */
+  low: GasFeeEstimatesLevel;
+
+  /** The gas fee estimate for a medium priority transaction. */
+  medium: GasFeeEstimatesLevel;
+
+  /** The gas fee estimate for a high priority transaction. */
+  high: GasFeeEstimatesLevel;
+};
+
+/** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {
+  /** An EthQuery instance to enable queries to the associated RPC provider. */
   ethQuery: EthQuery;
-  isEIP1559: boolean;
+
+  /** Callback to get the GasFeeController estimates. */
   getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+
+  /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
 };
 
-export type GasFeeFlowLevelResponse = {
-  maxFeePerGas?: string;
-  maxPriorityFeePerGas?: string;
-  gasPrice?: string;
-};
-
+/** Response from a gas fee flow containing gas fee estimates. */
 export type GasFeeFlowResponse = {
-  low: GasFeeFlowLevelResponse;
-  medium: GasFeeFlowLevelResponse;
-  high: GasFeeFlowLevelResponse;
+  /** The gas fee estimates for the transaction. */
+  estimates: GasFeeEstimates;
 };
 
+/** A method of obtaining gas fee estimates for a specific transaction. */
 export type GasFeeFlow = {
+  /**
+   * Determine if the gas fee flow supports the specified transaction.
+   * @param transactionMeta - The transaction metadata.
+   * @returns Whether the gas fee flow supports the transaction.
+   */
   matchesTransaction(transactionMeta: TransactionMeta): boolean;
+
+  /**
+   * Get gas fee estimates for a specific transaction.
+   * @param request - The gas fee flow request.
+   * @returns The gas fee flow response containing the gas fee estimates.
+   */
   getGasFees: (request: GasFeeFlowRequest) => Promise<GasFeeFlowResponse>;
 };
