@@ -1726,7 +1726,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
-    "@babel/runtime": ^7.23.9
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
@@ -1744,8 +1743,6 @@ __metadata:
     typedoc: ^0.24.8
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
-  peerDependencies:
-    "@babel/runtime": ^7.23.9
   languageName: unknown
   linkType: soft
 
@@ -2111,7 +2108,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
   dependencies:
-    "@babel/runtime": ^7.23.9
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
     "@metamask/controller-utils": ^8.0.2
@@ -2135,7 +2131,6 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@babel/runtime": ^7.23.9
     "@metamask/network-controller": ^17.2.0
   languageName: unknown
   linkType: soft
@@ -2936,7 +2931,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/user-operation-controller@workspace:packages/user-operation-controller"
   dependencies:
-    "@babel/runtime": ^7.23.9
     "@metamask/approval-controller": ^5.1.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
@@ -2962,7 +2956,6 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@babel/runtime": ^7.23.9
     "@metamask/approval-controller": ^5.1.2
     "@metamask/gas-fee-controller": ^13.0.0
     "@metamask/keyring-controller": ^12.2.0
