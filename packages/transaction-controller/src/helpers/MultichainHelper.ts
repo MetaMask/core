@@ -231,7 +231,6 @@ export class MultichainHelper {
     let nonceTracker = this.#nonceTracker;
     if (networkClientId && this.#isMultichainEnabled) {
       const networkClient = this.#getNetworkClientById(networkClientId);
-      // #acquireNonceLockForChainIdKey is needed by both TransactionController and here. Coupling is tight.
       releaseLockForChainIdKey = await this.acquireNonceLockForChainIdKey({
         chainId: networkClient.configuration.chainId,
         key: address,
