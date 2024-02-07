@@ -197,7 +197,7 @@ export const SPEED_UP_RATE = 1.1;
  * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
  * @property updateTransactions - Whether to update local transactions using remote transaction data.
  */
-type IncomingTransactionOptions = {
+export type IncomingTransactionOptions = {
   includeTokenTransfers?: boolean;
   isEnabled?: () => boolean;
   queryEntireHistory?: boolean;
@@ -209,8 +209,86 @@ type IncomingTransactionOptions = {
  *
  * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
-type PendingTransactionOptions = {
+export type PendingTransactionOptions = {
   isResubmitEnabled?: boolean;
+};
+
+/**
+ * TransactionController constructor options.
+ *
+ * @property blockTracker - The block tracker used to poll for new blocks data.
+ * @property cancelMultiplier - Multiplier used to determine a transaction's increased gas fee during cancellation.
+ * @property disableHistory - Whether to disable storing history in transaction metadata.
+ * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
+ * @property disableSwaps - Whether to disable additional processing on swaps transactions.
+ * @property isMultichainEnabled - Enable multichain support.
+ * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+ * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+ * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
+ * @property getGasFeeEstimates - Callback to retrieve gas fee estimates.
+ * @property getNetworkClientRegistry - Gets the network client registry.
+ * @property getNetworkState - Gets the state of the network controller.
+ * @property getPermittedAccounts - Get accounts that a given origin has permissions for.
+ * @property getSavedGasFees - Gets the saved gas fee config.
+ * @property getSelectedAddress - Gets the address of the currently selected account.
+ * @property incomingTransactions - Configuration options for incoming transaction support.
+ * @property messenger - The controller messenger.
+ * @property onNetworkStateChange - Allows subscribing to network controller state changes.
+ * @property pendingTransactions - Configuration options for pending transaction support.
+ * @property provider - The provider used to create the underlying EthQuery instance.
+ * @property securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
+ * @property speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
+ * @property hooks - The controller hooks.
+ * @property hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
+ * @property hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
+ * @property hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
+ * @property hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
+ * @property hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
+ * @property hooks.publish - Alternate logic to publish a transaction.
+ */
+export type TransactionControllerOptions = {
+  blockTracker: BlockTracker;
+  cancelMultiplier?: number;
+  disableHistory: boolean;
+  disableSendFlowHistory: boolean;
+  disableSwaps: boolean;
+  getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
+  getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+  getExternalPendingTransactions?: (
+    address: string,
+    chainId?: string,
+  ) => NonceTrackerTransaction[];
+  getGasFeeEstimates?: () => Promise<GasFeeState>;
+  getNetworkState: () => NetworkState;
+  getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+  getSelectedAddress: () => string;
+  incomingTransactions?: IncomingTransactionOptions;
+  messenger: TransactionControllerMessenger;
+  onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+  pendingTransactions?: PendingTransactionOptions;
+  provider: Provider;
+  securityProviderRequest?: SecurityProviderRequest;
+  speedUpMultiplier?: number;
+  getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
+  isMultichainEnabled: boolean;
+  hooks: {
+    afterSign?: (
+      transactionMeta: TransactionMeta,
+      signedTx: TypedTransaction,
+    ) => boolean;
+    beforeApproveOnInit?: (transactionMeta: TransactionMeta) => boolean;
+    beforeCheckPendingTransaction?: (
+      transactionMeta: TransactionMeta,
+    ) => boolean;
+    beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    getAdditionalSignArguments?: (
+      transactionMeta: TransactionMeta,
+    ) => (TransactionMeta | undefined)[];
+    publish?: (
+      transactionMeta: TransactionMeta,
+    ) => Promise<{ transactionHash: string }>;
+  };
 };
 
 /**
@@ -395,42 +473,6 @@ export class TransactionController extends BaseControllerV1<
     transactionMeta?: TransactionMeta,
   ) => Promise<TypedTransaction>;
 
-  /**
-   * Creates a TransactionController instance.
-   *
-   * @param options - The controller options.
-   * @param options.blockTracker - The block tracker used to poll for new blocks data.
-   * @param options.cancelMultiplier - Multiplier used to determine a transaction's increased gas fee during cancellation.
-   * @param options.disableHistory - Whether to disable storing history in transaction metadata.
-   * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
-   * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
-   * @param options.isMultichainEnabled - Enable multichain support.
-   * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
-   * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
-   * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
-   * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
-   * @param options.getNetworkClientRegistry - Gets the network client registry.
-   * @param options.getNetworkState - Gets the state of the network controller.
-   * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
-   * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.getSelectedAddress - Gets the address of the currently selected account.
-   * @param options.incomingTransactions - Configuration options for incoming transaction support.
-   * @param options.messenger - The controller messenger.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-   * @param options.pendingTransactions - Configuration options for pending transaction support.
-   * @param options.provider - The provider used to create the underlying EthQuery instance.
-   * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
-   * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
-   * @param options.hooks - The controller hooks.
-   * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
-   * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
-   * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
-   * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
-   * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
-   * @param options.hooks.publish - Alternate logic to publish a transaction.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
-   */
   constructor(
     {
       blockTracker,
@@ -456,50 +498,7 @@ export class TransactionController extends BaseControllerV1<
       getNetworkClientRegistry,
       isMultichainEnabled = false,
       hooks = {},
-    }: {
-      blockTracker: BlockTracker;
-      cancelMultiplier?: number;
-      disableHistory: boolean;
-      disableSendFlowHistory: boolean;
-      disableSwaps: boolean;
-      getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
-      getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
-      getExternalPendingTransactions?: (
-        address: string,
-        chainId?: string,
-      ) => NonceTrackerTransaction[];
-      getGasFeeEstimates?: () => Promise<GasFeeState>;
-      getNetworkState: () => NetworkState;
-      getPermittedAccounts: (origin?: string) => Promise<string[]>;
-      getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-      getSelectedAddress: () => string;
-      incomingTransactions?: IncomingTransactionOptions;
-      messenger: TransactionControllerMessenger;
-      onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
-      pendingTransactions?: PendingTransactionOptions;
-      provider: Provider;
-      securityProviderRequest?: SecurityProviderRequest;
-      speedUpMultiplier?: number;
-      getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-      isMultichainEnabled: boolean;
-      hooks: {
-        afterSign?: (
-          transactionMeta: TransactionMeta,
-          signedTx: TypedTransaction,
-        ) => boolean;
-        beforeApproveOnInit?: (transactionMeta: TransactionMeta) => boolean;
-        beforeCheckPendingTransaction?: (
-          transactionMeta: TransactionMeta,
-        ) => boolean;
-        beforePublish?: (transactionMeta: TransactionMeta) => boolean;
-        getAdditionalSignArguments?: (
-          transactionMeta: TransactionMeta,
-        ) => (TransactionMeta | undefined)[];
-        publish?: (
-          transactionMeta: TransactionMeta,
-        ) => Promise<{ transactionHash: string }>;
-      };
-    },
+    }: TransactionControllerOptions,
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
   ) {
@@ -627,15 +626,15 @@ export class TransactionController extends BaseControllerV1<
         // only needed to get `should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled` to pass,
         // otherwise can rely on the guard inside the helper
         if (isMultichainEnabled) {
-        const networkClients = this.#getNetworkClientRegistry();
-        patches.forEach(({ op, path }) => {
-          if (op === 'remove' && path[0] === 'networkConfigurations') {
-            const networkClientId = path[1] as NetworkClientId;
-            delete networkClients[networkClientId];
-          }
-        });
+          const networkClients = this.#getNetworkClientRegistry();
+          patches.forEach(({ op, path }) => {
+            if (op === 'remove' && path[0] === 'networkConfigurations') {
+              const networkClientId = path[1] as NetworkClientId;
+              delete networkClients[networkClientId];
+            }
+          });
 
-        this.#multichainHelper.onNetworkClientsChange(networkClients);
+          this.#multichainHelper.onNetworkClientsChange(networkClients);
         }
       },
     );
@@ -655,7 +654,8 @@ export class TransactionController extends BaseControllerV1<
         return this.messagingSystem.call(
           `NetworkController:getNetworkClientById`,
           networkClientId,
-        )}) as NetworkController['getNetworkClientById'],
+        );
+      }) as NetworkController['getNetworkClientById'],
       getNetworkClientRegistry,
       removeIncomingTransactionHelperListeners:
         this.#removeIncomingTransactionHelperListeners.bind(this),
@@ -663,7 +663,8 @@ export class TransactionController extends BaseControllerV1<
         this.#removePendingTransactionTrackerListeners.bind(this),
       createTrackersForNetworkClient:
         this.#createTrackersForNetworkClient.bind(this),
-      acquireNonceLockForChainIdKey: this.#acquireNonceLockForChainIdKey.bind(this),
+      acquireNonceLockForChainIdKey:
+        this.#acquireNonceLockForChainIdKey.bind(this),
     });
   }
 
@@ -3060,5 +3061,4 @@ export class TransactionController extends BaseControllerV1<
     );
     return [...standardPendingTransactions, ...externalPendingTransactions];
   }
-
 }
