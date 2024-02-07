@@ -637,11 +637,28 @@ describe('TransactionController', () => {
         }
       });
 
+    const mockFindNetworkClientIdByChainId = jest
+      .fn()
+      .mockImplementation((chainId) => {
+        switch (chainId) {
+          case '0x1':
+            return 'mainnet';
+          case ChainId.sepolia:
+            return 'sepolia';
+          case ChainId.goerli:
+            return 'goerli';
+          case '0xa':
+            return 'customNetworkClientId-1';
+          default:
+            throw new Error("Couldn't find networkClientId for chainId");
+        }
+      });
+
     ({ messenger: messengerMock, approve: approveTransaction } =
       buildMockMessenger({
         addRequest: addRequestMockOptions,
         getNetworkClientById: mockGetNetworkClientById,
-        findNetworkClientIdByChainId: jest.fn(),
+        findNetworkClientIdByChainId: mockFindNetworkClientIdByChainId,
       }));
 
     return new TransactionController(
@@ -3861,6 +3878,39 @@ describe('TransactionController', () => {
       );
 
       expect(getNonceLockMock).not.toHaveBeenCalled();
+    });
+
+    it('uses the nonceTracker for the networkClientId matching the chainId', async () => {
+      const controller = newController({
+        options: { isMultichainEnabled: true },
+      });
+
+      const getNonceLockMock = jest.spyOn(controller, 'getNonceLock');
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+        mockTransactionParam2,
+      ]);
+
+      expect(getNonceLockMock).toHaveBeenCalledWith(ACCOUNT_MOCK, 'goerli');
     });
   });
 
