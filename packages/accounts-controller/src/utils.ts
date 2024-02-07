@@ -9,6 +9,12 @@ import { v4 as uuid } from 'uuid';
  * @returns The name of the keyring type.
  */
 export function keyringTypeToName(keyringType: string): string {
+  // Custody keyrings are a special case, as they are not a single type
+  // they just start with the prefix `Custody`
+  if (/Custody.*/u.test(keyringType)) {
+    return 'Custody';
+  }
+
   switch (keyringType) {
     case KeyringTypes.simple: {
       return 'Account';
@@ -30,9 +36,6 @@ export function keyringTypeToName(keyringType: string): string {
     }
     case KeyringTypes.snap: {
       return 'Snap Account';
-    }
-    case KeyringTypes.custody: {
-      return 'Custody';
     }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
