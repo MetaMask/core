@@ -209,10 +209,6 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type KeyringControllerOptions = {
-  syncIdentities: (addresses: string[]) => string;
-  updateIdentities: (addresses: string[]) => void;
-  setSelectedAddress: (selectedAddress: string) => void;
-  setAccountLabel?: (address: string, label: string) => void;
   keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
@@ -486,14 +482,6 @@ export class KeyringController extends BaseController<
 > {
   private readonly mutex = new Mutex();
 
-  private readonly syncIdentities: (addresses: string[]) => string;
-
-  private readonly updateIdentities: (addresses: string[]) => void;
-
-  private readonly setSelectedAddress: (selectedAddress: string) => void;
-
-  private readonly setAccountLabel?: (address: string, label: string) => void;
-
   #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
 
   #keyrings: EthKeyring<Json>[];
@@ -514,10 +502,6 @@ export class KeyringController extends BaseController<
    * Creates a KeyringController instance.
    *
    * @param options - Initial options used to configure this controller
-   * @param options.syncIdentities - Sync identities with the given list of addresses.
-   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param options.setSelectedAddress - Set the selected address.
-   * @param options.setAccountLabel - Set a new name for account.
    * @param options.encryptor - An optional object for defining encryption schemes.
    * @param options.keyringBuilders - Set a new name for account.
    * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
@@ -526,10 +510,6 @@ export class KeyringController extends BaseController<
    */
   constructor(options: KeyringControllerOptions) {
     const {
-      syncIdentities,
-      updateIdentities,
-      setSelectedAddress,
-      setAccountLabel,
       encryptor = encryptorUtils,
       keyringBuilders,
       messenger,
@@ -566,11 +546,6 @@ export class KeyringController extends BaseController<
     if (this.#cacheEncryptionKey) {
       assertIsExportableKeyEncryptor(encryptor);
     }
-
-    this.syncIdentities = syncIdentities;
-    this.updateIdentities = updateIdentities;
-    this.setSelectedAddress = setSelectedAddress;
-    this.setAccountLabel = setAccountLabel;
 
     this.#registerMessageHandlers();
   }
