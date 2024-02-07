@@ -1906,7 +1906,7 @@ describe('TransactionController', () => {
       );
 
       await expect(controller.stopTransaction('2')).rejects.toThrow(
-        'Transaction already confirmed',
+        'Previous transaction is already confirmed',
       );
 
       // Expect cancel transaction to be submitted - it will fail
@@ -2193,7 +2193,7 @@ describe('TransactionController', () => {
       );
 
       await expect(controller.speedUpTransaction('2')).rejects.toThrow(
-        'Transaction already confirmed',
+        'Previous transaction is already confirmed',
       );
 
       // Expect speedup transaction to be submitted - it will fail
