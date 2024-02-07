@@ -194,11 +194,7 @@ export class SelectedNetworkController extends BaseController<
 
   getNetworkClientIdForDomain(domain: Domain): NetworkClientId {
     if (this.state.perDomainNetwork) {
-      const id = this.state.domains[domain];
-      if (id === undefined) {
-        return this.state.domains[METAMASK_DOMAIN];
-      }
-      return id;
+      return this.state.domains[domain] ?? this.state.domains[METAMASK_DOMAIN];
     }
     return this.state.domains[METAMASK_DOMAIN];
   }
