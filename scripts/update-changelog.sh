@@ -15,7 +15,7 @@ shift # remove package name from arguments
 branch=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ $branch =~ ^release/ ]]; then
-  yarn auto-changelog update --tag-prefix "${package_name}@" --rc "$@"
+  yarn auto-changelog update --prettier --tag-prefix "${package_name}@" --rc "$@"
 else
-  yarn auto-changelog update --tag-prefix "${package_name}@" "$@"
+  yarn auto-changelog update --prettier --tag-prefix "${package_name}@" "$@"
 fi

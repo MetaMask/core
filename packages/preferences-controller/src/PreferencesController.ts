@@ -5,6 +5,10 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+import type {
+  KeyringControllerState,
+  KeyringControllerStateChangeEvent,
+} from '@metamask/keyring-controller';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 
@@ -139,12 +143,14 @@ export type PreferencesControllerActions = PreferencesControllerGetStateAction;
 
 export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
+export type AllowedEvents = KeyringControllerStateChangeEvent;
+
 export type PreferencesControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   PreferencesControllerActions,
-  PreferencesControllerEvents,
+  PreferencesControllerEvents | AllowedEvents,
   never,
-  never
+  AllowedEvents['type']
 >;
 
 /**
@@ -224,6 +230,19 @@ export class PreferencesController extends BaseController<
         ...state,
       },
     });
+
+    messenger.subscribe(
+      'KeyringController:stateChange',
+      (keyringState: KeyringControllerState) => {
+        const accounts = new Set<string>();
+        for (const keyring of keyringState.keyrings) {
+          for (const account of keyring.accounts) {
+            accounts.add(account);
+          }
+        }
+        this.syncIdentities(Array.from(accounts));
+      },
+    );
   }
 
   /**
@@ -301,6 +320,7 @@ export class PreferencesController extends BaseController<
    *
    * @param addresses - List of addresses corresponding to identities to sync.
    * @returns Newly-selected address after syncing.
+   * @deprecated This will be removed in a future release
    */
   syncIdentities(addresses: string[]) {
     addresses = addresses.map((address: string) =>

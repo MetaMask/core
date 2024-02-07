@@ -144,7 +144,7 @@ export class SelectedNetworkController extends BaseController<
     this.setNetworkClientIdForDomain(METAMASK_DOMAIN, networkClientId);
   }
 
-  setNetworkClientIdForDomain(
+  #setNetworkClientIdForDomain(
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
@@ -171,6 +171,25 @@ export class SelectedNetworkController extends BaseController<
         state.domains[METAMASK_DOMAIN] = networkClientId;
       }
     });
+  }
+
+  setNetworkClientIdForDomain(
+    domain: Domain,
+    networkClientId: NetworkClientId,
+  ) {
+    if (!this.state.perDomainNetwork) {
+      Object.entries(this.state.domains).forEach(
+        ([entryDomain, networkClientIdForDomain]) => {
+          if (
+            networkClientIdForDomain !== networkClientId &&
+            entryDomain !== domain
+          ) {
+            this.#setNetworkClientIdForDomain(entryDomain, networkClientId);
+          }
+        },
+      );
+    }
+    this.#setNetworkClientIdForDomain(domain, networkClientId);
   }
 
   getNetworkClientIdForDomain(domain: Domain) {
