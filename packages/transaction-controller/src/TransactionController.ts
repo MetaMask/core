@@ -1778,7 +1778,10 @@ export class TransactionController extends BaseControllerV1<
       const requiresNonce = hasNonce !== true;
 
       nonceLock = requiresNonce
-        ? await this.#multichainHelper.getNonceLock(fromAddress, networkClientId)
+        ? await this.#multichainHelper.getNonceLock(
+            fromAddress,
+            networkClientId,
+          )
         : undefined;
 
       const nonce = nonceLock
