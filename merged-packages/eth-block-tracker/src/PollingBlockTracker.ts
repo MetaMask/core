@@ -265,7 +265,6 @@ export class PollingBlockTracker
       jsonrpc: '2.0',
       id: createRandomId(),
       method: 'eth_blockNumber',
-      params: [],
     };
     if (this._setSkipCacheFlag) {
       req.skipCache = true;
