@@ -161,6 +161,11 @@ function newMultichainTrackingHelper(
 
   const helper = new MultichainTrackingHelper(options);
 
+  // helper to ignore calls from instantiation side effects
+  if (opts.clearMocks !== false) {
+    jest.clearAllMocks();
+  }
+
   return {
     helper,
     options,
@@ -174,13 +179,13 @@ describe('MultichainTrackingHelper', () => {
 
   describe('constructor', () => {
     it('inits the tracking map', () => {
-      const { options } = newMultichainTrackingHelper();
+      const { options } = newMultichainTrackingHelper({ clearMocks: false });
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
     });
 
     it('refreshes the tracking map onNetworkStateChange', () => {
-      const { options } = newMultichainTrackingHelper();
+      const { options } = newMultichainTrackingHelper({ clearMocks: false });
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,6 +204,7 @@ describe('MultichainTrackingHelper', () => {
       it('does not init the tracking map', () => {
         const { options } = newMultichainTrackingHelper({
           isMultichainEnabled: false,
+          clearMocks: false,
         });
 
         expect(options.getNetworkClientRegistry).not.toHaveBeenCalled();
@@ -207,6 +213,7 @@ describe('MultichainTrackingHelper', () => {
       it('does not refresh the tracking map onNetworkStateChange', () => {
         const { options } = newMultichainTrackingHelper({
           isMultichainEnabled: false,
+          clearMocks: false,
         });
 
         // TODO: Replace `any` with type
@@ -228,7 +235,6 @@ describe('MultichainTrackingHelper', () => {
     describe('when given networkClientId and chainId', () => {
       it('returns EthQuery with the networkClientId provider when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
-        (options.getNetworkClientById as any).mockClear();
 
         const ethQuery = helper.getEthQuery({
           networkClientId: 'goerli',
@@ -242,7 +248,6 @@ describe('MultichainTrackingHelper', () => {
 
       it('returns EthQuery with a fallback networkClient provider matching the chainId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
-        (options.getNetworkClientById as any).mockClear();
 
         const ethQuery = helper.getEthQuery({
           networkClientId: 'missingNetworkClientId',
@@ -266,7 +271,6 @@ describe('MultichainTrackingHelper', () => {
 
       it('returns EthQuery with the fallback global provider if networkClientId and chainId cannot be satisfied', () => {
         const { options, helper } = newMultichainTrackingHelper();
-        (options.getNetworkClientById as any).mockClear();
 
         const ethQuery = helper.getEthQuery({
           networkClientId: 'missingNetworkClientId',
@@ -287,7 +291,6 @@ describe('MultichainTrackingHelper', () => {
     describe('when given only networkClientId', () => {
       it('returns EthQuery with the networkClientId provider when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
-        (options.getNetworkClientById as any).mockClear();
 
         const ethQuery = helper.getEthQuery({ networkClientId: 'goerli' });
         expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.goerli);
@@ -298,7 +301,6 @@ describe('MultichainTrackingHelper', () => {
 
       it('returns EthQuery with the fallback global provider if networkClientId cannot be satisfied', () => {
         const { options, helper } = newMultichainTrackingHelper();
-        (options.getNetworkClientById as any).mockClear();
 
         const ethQuery = helper.getEthQuery({
           networkClientId: 'missingNetworkClientId',
@@ -315,7 +317,6 @@ describe('MultichainTrackingHelper', () => {
     describe('when given only chainId', () => {
       it('returns EthQuery with a fallback networkClient provider matching the chainId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
-        (options.getNetworkClientById as any).mockClear();
 
         const ethQuery = helper.getEthQuery({ chainId: '0xa' });
         expect((ethQuery as any).provider).toBe(
@@ -333,7 +334,6 @@ describe('MultichainTrackingHelper', () => {
 
       it('returns EthQuery with the fallback global provider if chainId cannot be satisfied', () => {
         const { options, helper } = newMultichainTrackingHelper();
-        (options.getNetworkClientById as any).mockClear();
 
         const ethQuery = helper.getEthQuery({ chainId: '0xdeadbeef' });
         expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
