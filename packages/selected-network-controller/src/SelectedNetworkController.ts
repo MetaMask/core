@@ -192,9 +192,9 @@ export class SelectedNetworkController extends BaseController<
     this.#setNetworkClientIdForDomain(domain, networkClientId);
   }
 
-  getNetworkClientIdForDomain(domain: Domain) {
+  getNetworkClientIdForDomain(domain: Domain): NetworkClientId {
     if (this.state.perDomainNetwork) {
-      return this.state.domains[domain];
+      return this.state.domains[domain] ?? this.state.domains[METAMASK_DOMAIN];
     }
     return this.state.domains[METAMASK_DOMAIN];
   }
