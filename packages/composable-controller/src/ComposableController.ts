@@ -5,6 +5,7 @@ import type {
   BaseState,
   BaseConfig,
 } from '@metamask/base-controller';
+import type { Json } from '@metamask/utils';
 
 export const controllerName = 'ComposableController';
 
@@ -18,7 +19,7 @@ export const controllerName = 'ComposableController';
 type ControllerInstance =
   // As explained above, `any` is used to include all `BaseControllerV1` instances.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BaseControllerV1<any, any> | { name: string; state: Record<string, unknown> };
+  BaseControllerV1<any, any> | { name: string; state: Record<string, Json> };
 
 /**
  * List of child controller instances
@@ -68,15 +69,14 @@ export function isBaseController(
 
 export type ComposableControllerState = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
-  // `ComposableController` state needs to accommodate `BaseControllerV1` state objects, and there is no straightforward way
-  // to include objects in `BaseController` state when they may have properties that are wider than `Json`.
+  // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: Record<string, any>;
 };
 
 export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
-  ComposableControllerState
+  Record<string, Json | (BaseState & Record<string, unknown>)>
 >;
 
 export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
@@ -137,7 +137,6 @@ export class ComposableController extends BaseController<
    */
   #updateChildController(controller: ControllerInstance): void {
     const { name } = controller;
-
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState) => {
         this.update((state) => ({
