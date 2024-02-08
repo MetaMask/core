@@ -2,12 +2,14 @@
 import { ChainId } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import type { NonceLock, NonceTracker } from 'nonce-tracker';
+import type { NonceTracker } from 'nonce-tracker';
+import { useFakeTimers } from 'sinon';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
+import { advanceTime } from '../../../../tests/helpers';
 
 jest.mock(
   '@metamask/eth-query',
@@ -674,8 +676,53 @@ describe('MultichainTrackingHelper', () => {
     })
   })
 
-  // describe('acquireNonceLockForChainIdKey', () => {
-  // })
+  describe('acquireNonceLockForChainIdKey', () => {
+    it('returns a unqiue mutex for each chainId and key combination', async () => {
+      const { helper } = newMultichainTrackingHelper();
+
+      await helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'a'})
+      await helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'b'})
+      await helper.acquireNonceLockForChainIdKey({chainId: '0xa', key: 'a'})
+      await helper.acquireNonceLockForChainIdKey({chainId: '0xa', key: 'b'})
+
+      // nothing to exepect as this spec will pass if all locks are acquired
+    })
+
+    it('should block on attempts to get the lock for the same chainId and key combination', async () => {
+      let clock = useFakeTimers();
+      const { helper } = newMultichainTrackingHelper();
+
+      const firstReleaseLockPromise = helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'a'})
+
+      const firstReleaseLock = await firstReleaseLockPromise;
+
+      const secondReleaseLockPromise = helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'a'})
+
+      const delay = () =>
+        new Promise<null>(async (resolve) => {
+          await advanceTime({ clock, duration: 100 });
+         resolve(null)
+        });
+
+      let secondReleaseLockIfAcquired = await Promise.race([
+        secondReleaseLockPromise,
+        delay(),
+      ]);
+      expect(secondReleaseLockIfAcquired).toBeNull();
+
+      await firstReleaseLock();
+      await advanceTime({ clock, duration: 1 });
+
+      secondReleaseLockIfAcquired = await Promise.race([
+        secondReleaseLockPromise,
+        delay(),
+      ]);
+
+      expect(secondReleaseLockIfAcquired).toStrictEqual(expect.any(Function));
+
+      clock.restore();
+    })
+  })
 
   describe('getEthQuery', () => {
     describe('when given networkClientId and chainId', () => {
