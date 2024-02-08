@@ -5,4 +5,8 @@ export type {
   ComposableControllerEvents,
   ComposableControllerMessenger,
 } from './ComposableController';
-export { ComposableController } from './ComposableController';
+export {
+  ComposableController,
+  isBaseController,
+  isBaseControllerV1,
+} from './ComposableController';
