@@ -2,6 +2,7 @@
 import { ChainId } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import type { NonceLock, NonceTracker } from 'nonce-tracker';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
@@ -134,7 +135,17 @@ function newMultichainTrackingHelper(
     },
   });
 
-  const mockCreateNonceTracker = jest.fn().mockReturnValue({});
+  const mockNonceLock = {releaseLock: jest.fn()}
+  const mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>> = {}
+  const mockCreateNonceTracker = jest
+    .fn()
+    .mockImplementation(({chainId}: {chainId: Hex}) => {
+      const mockNonceTracker = {
+        getNonceLock: jest.fn().mockResolvedValue(mockNonceLock)
+      } as unknown as jest.Mocked<NonceTracker>
+      mockNonceTrackers[chainId] = mockNonceTracker
+      return mockNonceTracker
+    });
 
   const mockIncomingTransactionHelpers: Record<Hex, jest.Mocked<IncomingTransactionHelper>> = {}
   const mockCreateIncomingTransactionHelper = jest
@@ -195,6 +206,8 @@ function newMultichainTrackingHelper(
   return {
     helper,
     options,
+    mockNonceLock,
+    mockNonceTrackers,
     mockIncomingTransactionHelpers,
     mockPendingTransactionTrackers,
   };
@@ -442,8 +455,88 @@ describe('MultichainTrackingHelper', () => {
     })
   })
 
-  // describe('getNonceLock', () => {
-  // })
+  describe('getNonceLock', () => {
+    it('gets the shared nonce lock by chainId for the networkClientId', async () => {
+      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      const mockAcquireNonceLockForChainIdKey = jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+
+      helper.initialize();
+
+      await helper.getNonceLock('0xdeadbeef', 'mainnet')
+
+      expect(mockAcquireNonceLockForChainIdKey).toHaveBeenCalledWith({
+        chainId: '0x1',
+        key: '0xdeadbeef',
+      })
+    })
+
+    it('gets the nonce lock from the NonceTracker for the networkClientId', async () => {
+      const { mockNonceTrackers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+
+      helper.initialize();
+
+      await helper.getNonceLock('0xdeadbeef', 'mainnet')
+
+      expect(mockNonceTrackers['0x1'].getNonceLock).toHaveBeenCalledWith('0xdeadbeef')
+    })
+
+    it('merges the nonce lock by chainId release with the NonceTracker releaseLock function', async () => {
+      const { mockNonceLock, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      const releaseLockForChainIdKey = jest.fn()
+      jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(releaseLockForChainIdKey)
+
+      helper.initialize();
+
+      const nonceLock = await helper.getNonceLock('0xdeadbeef', 'mainnet')
+
+      expect(releaseLockForChainIdKey).not.toHaveBeenCalled()
+      expect(mockNonceLock.releaseLock).not.toHaveBeenCalled()
+
+      nonceLock.releaseLock()
+
+      expect(releaseLockForChainIdKey).toHaveBeenCalled()
+      expect(mockNonceLock.releaseLock).toHaveBeenCalled()
+    })
+
+    it('throws an error if the networkClientId does not exist in the tracking map', async () => {
+      const { helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+
+      await expect(helper.getNonceLock('0xdeadbeef', 'mainnet')).rejects.toThrow('missing nonceTracker for networkClientId')
+    })
+
+    it('throws an error and releases nonce lock by chainId if unable to acquire nonce lock from the NonceTracker', async () => {
+      const { mockNonceTrackers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      const releaseLockForChainIdKey = jest.fn()
+      jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(releaseLockForChainIdKey)
+
+      helper.initialize();
+
+      mockNonceTrackers['0x1'].getNonceLock.mockRejectedValue('failed to acquire lock from nonceTracker')
+
+
+      // for some reason jest expect().rejects.toThrow doesn't work here
+      let error = "";
+      try {
+        await helper.getNonceLock('0xdeadbeef', 'mainnet')
+      } catch(err: unknown) {
+        error = err as string
+      }
+      expect(error).toStrictEqual('failed to acquire lock from nonceTracker')
+      expect(releaseLockForChainIdKey).toHaveBeenCalled()
+    })
+
+
+    describe('when isMultichainEnabled: false', () => {
+
+    })
+  })
 
   // describe('acquireNonceLockForChainIdKey', () => {
   // })
