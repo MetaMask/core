@@ -1,8 +1,8 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import { ChainId, toHex } from '@metamask/controller-utils';
+import { ChainId } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 
-import type { MultichainTrackingHelperOptions } from './MultichainTrackingHelper';
+import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
 
 jest.mock(
@@ -49,10 +49,7 @@ const MOCK_PROVIDERS = {
 function newMultichainTrackingHelper(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   opts: any = {},
-): {
-  helper: MultichainTrackingHelper;
-  options: MultichainTrackingHelperOptions;
-} {
+) {
   const mockGetNetworkClientById = jest
     .fn()
     .mockImplementation((networkClientId) => {
@@ -60,7 +57,7 @@ function newMultichainTrackingHelper(
         case 'mainnet':
           return {
             configuration: {
-              chainId: toHex(1),
+              chainId: '0x1',
             },
             blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
             provider: MOCK_PROVIDERS.mainnet,
@@ -114,7 +111,7 @@ function newMultichainTrackingHelper(
   const mockGetNetworkClientRegistry = jest.fn().mockReturnValue({
     mainnet: {
       configuration: {
-        chainId: toHex(1),
+        chainId: '0x1',
       },
     },
     sepolia: {
@@ -134,6 +131,22 @@ function newMultichainTrackingHelper(
     },
   });
 
+  const mockCreateNonceTracker = jest.fn().mockReturnValue({});
+
+  const mockIncomingTransactionHelper = {
+    stop: jest.fn(),
+  };
+  const mockCreateIncomingTransactionHelper = jest
+    .fn()
+    .mockReturnValue(mockIncomingTransactionHelper);
+
+  const mockPendingTransactionTracker = {
+    stop: jest.fn(),
+  };
+  const mockCreatePendingTransactionTracker = jest
+    .fn()
+    .mockReturnValue(mockPendingTransactionTracker);
+
   const options = {
     isMultichainEnabled: true,
     provider: MOCK_PROVIDERS.mainnet,
@@ -150,9 +163,9 @@ function newMultichainTrackingHelper(
     getNetworkClientRegistry: mockGetNetworkClientRegistry,
     removeIncomingTransactionHelperListeners: jest.fn(),
     removePendingTransactionTrackerListeners: jest.fn(),
-    createNonceTracker: jest.fn(),
-    createIncomingTransactionHelper: jest.fn(),
-    createPendingTransactionTracker: jest.fn(),
+    createNonceTracker: mockCreateNonceTracker,
+    createIncomingTransactionHelper: mockCreateIncomingTransactionHelper,
+    createPendingTransactionTracker: mockCreatePendingTransactionTracker,
     onNetworkStateChange: jest.fn(),
     ...opts,
   };
@@ -168,6 +181,8 @@ function newMultichainTrackingHelper(
   return {
     helper,
     options,
+    mockIncomingTransactionHelper,
+    mockPendingTransactionTracker,
   };
 }
 
@@ -176,41 +191,184 @@ describe('MultichainTrackingHelper', () => {
     jest.resetAllMocks();
   });
 
-  describe('constructor', () => {
-    it('refreshes the tracking map onNetworkStateChange', () => {
-      const { options } = newMultichainTrackingHelper({ clearMocks: false });
+  describe('onNetworkStateChange', () => {
+    it('refreshes the tracking map', () => {
+      const { options, helper } = newMultichainTrackingHelper({
+        clearMocks: false,
+      });
 
-      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (options.onNetworkStateChange as any).mock.calls[0][0]({}, []);
+
+      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
+      expect(helper.has('mainnet')).toBe(true);
+      expect(helper.has('goerli')).toBe(true);
+      expect(helper.has('sepolia')).toBe(true);
+      expect(helper.has('customNetworkClientId-1')).toBe(true);
+    });
+
+    it('refreshes the tracking map and excludes removed networkClientIds in the patches', () => {
+      const { options, helper } = newMultichainTrackingHelper({
+        clearMocks: false,
+      });
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (options.onNetworkStateChange as any).mock.calls[0][0]({}, [
         {
-          op: 'add',
-          path: ['networkConfigurations', 'foo'],
+          op: 'remove',
+          path: ['networkConfigurations', 'mainnet'],
           value: 'foo',
         },
       ]);
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
+      expect(helper.has('mainnet')).toBe(false);
+      expect(helper.has('goerli')).toBe(true);
+      expect(helper.has('sepolia')).toBe(true);
+      expect(helper.has('customNetworkClientId-1')).toBe(true);
     });
 
-    describe('when isMultichainEnabled: false', () => {
-      it('does not refresh the tracking map onNetworkStateChange', () => {
-        const { options } = newMultichainTrackingHelper({
-          isMultichainEnabled: false,
-          clearMocks: false,
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (options.onNetworkStateChange as any).mock.calls[0][0]({}, [
-          {
-            op: 'add',
-            path: ['networkConfigurations', 'foo'],
-            value: 'foo',
-          },
-        ]);
-
-        expect(options.getNetworkClientRegistry).not.toHaveBeenCalled();
+    it('does not refresh the tracking map when isMultichainEnabled: false', () => {
+      const { options, helper } = newMultichainTrackingHelper({
+        isMultichainEnabled: false,
+        clearMocks: false,
       });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (options.onNetworkStateChange as any).mock.calls[0][0]({}, []);
+
+      expect(options.getNetworkClientRegistry).not.toHaveBeenCalled();
+      expect(helper.has('mainnet')).toBe(false);
+      expect(helper.has('goerli')).toBe(false);
+      expect(helper.has('sepolia')).toBe(false);
+      expect(helper.has('customNetworkClientId-1')).toBe(false);
+    });
+  });
+
+  describe('initialize', () => {
+    it('initializes the tracking map', () => {
+      const { options, helper } = newMultichainTrackingHelper({
+        clearMocks: false,
+      });
+
+      helper.initialize();
+
+      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
+      expect(helper.has('mainnet')).toBe(true);
+      expect(helper.has('goerli')).toBe(true);
+      expect(helper.has('sepolia')).toBe(true);
+      expect(helper.has('customNetworkClientId-1')).toBe(true);
+    });
+
+    it('does not initialize the tracking map when isMultichainEnabled: false', () => {
+      const { options, helper } = newMultichainTrackingHelper({
+        isMultichainEnabled: false,
+        clearMocks: false,
+      });
+
+      helper.initialize();
+
+      expect(options.getNetworkClientRegistry).not.toHaveBeenCalled();
+      expect(helper.has('mainnet')).toBe(false);
+      expect(helper.has('goerli')).toBe(false);
+      expect(helper.has('sepolia')).toBe(false);
+      expect(helper.has('customNetworkClientId-1')).toBe(false);
+    });
+  });
+
+  describe('stopAllTracking', () => {
+    it('clears the tracking map', () => {
+      const { helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      helper.initialize();
+
+      expect(helper.has('mainnet')).toBe(true);
+      expect(helper.has('goerli')).toBe(true);
+      expect(helper.has('sepolia')).toBe(true);
+      expect(helper.has('customNetworkClientId-1')).toBe(true);
+
+      helper.stopAllTracking();
+
+      expect(helper.has('mainnet')).toBe(false);
+      expect(helper.has('goerli')).toBe(false);
+      expect(helper.has('sepolia')).toBe(false);
+      expect(helper.has('customNetworkClientId-1')).toBe(false);
+    });
+  });
+
+  describe('#startTrackingByNetworkClientId', () => {
+    it('instantiates trackers and adds them to the tracking map', () => {
+      const { options, helper } = newMultichainTrackingHelper({
+        getNetworkClientRegistry: jest.fn().mockReturnValue({
+          mainnet: {
+            configuration: {
+              chainId: '0x1',
+            },
+          },
+        }),
+      });
+
+      helper.initialize();
+
+      expect(options.createNonceTracker).toHaveBeenCalledTimes(1);
+      expect(options.createNonceTracker).toHaveBeenCalledWith({
+        provider: MOCK_PROVIDERS.mainnet,
+        blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
+        chainId: '0x1',
+      });
+
+      expect(options.createIncomingTransactionHelper).toHaveBeenCalledTimes(1);
+      expect(options.createIncomingTransactionHelper).toHaveBeenCalledWith({
+        blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
+        etherscanRemoteTransactionSource: expect.any(
+          EtherscanRemoteTransactionSource,
+        ),
+        chainId: '0x1',
+      });
+
+      expect(options.createPendingTransactionTracker).toHaveBeenCalledTimes(1);
+      expect(options.createPendingTransactionTracker).toHaveBeenCalledWith({
+        provider: MOCK_PROVIDERS.mainnet,
+        blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
+        chainId: '0x1',
+      });
+
+      expect(helper.has('mainnet')).toBe(true);
+    });
+  });
+
+  describe('#stopTrackingByNetworkClientId', () => {
+    it('stops trackers and removes them from the tracking map', () => {
+      const {
+        options,
+        mockIncomingTransactionHelper,
+        mockPendingTransactionTracker,
+        helper,
+      } = newMultichainTrackingHelper({
+        getNetworkClientRegistry: jest.fn().mockReturnValue({
+          mainnet: {
+            configuration: {
+              chainId: '0x1',
+            },
+          },
+        }),
+      });
+
+      helper.initialize();
+
+      expect(helper.has('mainnet')).toBe(true);
+
+      helper.stopAllTracking();
+
+      expect(mockPendingTransactionTracker.stop).toHaveBeenCalled();
+      expect(
+        options.removePendingTransactionTrackerListeners,
+      ).toHaveBeenCalledWith(mockPendingTransactionTracker);
+      expect(mockIncomingTransactionHelper.stop).toHaveBeenCalled();
+      expect(
+        options.removeIncomingTransactionHelperListeners,
+      ).toHaveBeenCalledWith(mockIncomingTransactionHelper);
+      expect(helper.has('mainnet')).toBe(false);
     });
   });
 

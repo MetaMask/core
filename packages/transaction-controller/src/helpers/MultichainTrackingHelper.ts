@@ -170,10 +170,10 @@ export class MultichainTrackingHelper {
 
   initialize() {
     if (!this.#isMultichainEnabled) {
-      return
+      return;
     }
-      const networkClients = this.#getNetworkClientRegistry();
-      this.#refreshTrackingMap(networkClients);
+    const networkClients = this.#getNetworkClientRegistry();
+    this.#refreshTrackingMap(networkClients);
   }
 
   has(networkClientId: NetworkClientId) {
@@ -391,6 +391,8 @@ export class MultichainTrackingHelper {
 
   stopAllTracking() {
     if (!this.#isMultichainEnabled) {
+      // shouldn't be possible to start tracking in the first place
+      // if the feature flag is off, but will leave this guard here.
       return;
     }
     for (const [networkClientId] of this.#trackingMap) {
@@ -412,6 +414,8 @@ export class MultichainTrackingHelper {
 
     let etherscanRemoteTransactionSource =
       this.#etherscanRemoteTransactionSourcesMap.get(chainId);
+    // This shouldn't be possible anymore since refreshEtherscanRemoteTransactionSources
+    // is always called before this method
     if (!etherscanRemoteTransactionSource) {
       etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
         includeTokenTransfers:
