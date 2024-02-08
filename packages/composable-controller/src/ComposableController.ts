@@ -36,6 +36,23 @@ function isBaseControllerV1(
   return controller instanceof BaseControllerV1;
 }
 
+/**
+ * Determines if the given controller is an instance of BaseController
+ * @param controller - Controller instance to check
+ * @returns True if the controller is an instance of BaseController
+ */
+function isBaseController(
+  controller: ControllerInstance,
+): controller is BaseController<never, never, never> {
+  return (
+    'name' in controller &&
+    typeof controller.name === 'string' &&
+    'state' in controller &&
+    typeof controller.state === 'object' &&
+    controller instanceof BaseController
+  );
+}
+
 export type ComposableControllerState = {
   [name: string]: ControllerInstance['state'];
 };
@@ -113,15 +130,16 @@ export class ComposableController extends BaseController<
           [name]: childState,
         }));
       });
+    } else if (isBaseController(controller)) {
+      this.messagingSystem.subscribe(`${name}:stateChange`, (childState) => {
+        this.update((state) => ({
+          ...state,
+          [name]: childState,
+        }));
+      });
     } else {
-      this.messagingSystem.subscribe(
-        `${String(name)}:stateChange`,
-        (childState: Record<string, unknown>) => {
-          this.update((state) => ({
-            ...state,
-            [name]: childState,
-          }));
-        },
+      throw new Error(
+        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
       );
     }
   }
