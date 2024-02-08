@@ -16,7 +16,6 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   NetworkState,
   ProviderConfig,
@@ -29,16 +28,13 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { FakeProvider } from '../../../tests/fake-provider';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
 import type { TokensControllerMessenger } from './TokensController';
-
-const provider = new HttpProvider(
-  'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
-);
 
 jest.mock('uuid', () => {
   return {
@@ -114,6 +110,8 @@ describe('TokensController', () => {
     tokenListStateChangeListener = listener;
   });
 
+  const fakeProvider = new FakeProvider();
+
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
     const preferencesStateChangeListeners: ((
@@ -128,7 +126,7 @@ describe('TokensController', () => {
       onTokenListStateChange,
       config: {
         selectedAddress: defaultSelectedAddress,
-        provider,
+        provider: fakeProvider,
       },
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1550,7 +1548,7 @@ describe('TokensController', () => {
         .spyOn(tokensController as any, 'getNetworkClientById')
         .mockReturnValue({
           configuration: { chainId: '0x5' },
-          provider,
+          provider: fakeProvider,
         });
       const generateRandomIdStub = jest
         .spyOn(tokensController, '_generateRandomId')
