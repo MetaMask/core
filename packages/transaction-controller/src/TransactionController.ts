@@ -566,6 +566,7 @@ export class TransactionController extends BaseControllerV1<
         );
       },
     });
+    this.#multichainTrackingHelper.initialize();
 
     const etherscanRemoteTransactionSource =
       new EtherscanRemoteTransactionSource({

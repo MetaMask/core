@@ -153,10 +153,6 @@ export class MultichainTrackingHelper {
     this.#createIncomingTransactionHelper = createIncomingTransactionHelper;
     this.#createPendingTransactionTracker = createPendingTransactionTracker;
 
-    if (this.#isMultichainEnabled) {
-      this.#initTrackingMap();
-    }
-
     onNetworkStateChange((_, patches) => {
       if (this.#isMultichainEnabled) {
         const networkClients = this.#getNetworkClientRegistry();
@@ -170,6 +166,12 @@ export class MultichainTrackingHelper {
         this.#refreshTrackingMap(networkClients);
       }
     });
+  }
+
+  initialize() {
+    if (this.#isMultichainEnabled) {
+      this.#initTrackingMap();
+    }
   }
 
   has(networkClientId: NetworkClientId) {

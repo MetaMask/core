@@ -159,6 +159,7 @@ function newMultichainTrackingHelper(
 
   const helper = new MultichainTrackingHelper(options);
 
+  // may not need this anymore since init is no longer in constructor
   // helper to ignore calls from instantiation side effects
   if (opts.clearMocks !== false) {
     jest.clearAllMocks();
@@ -176,12 +177,6 @@ describe('MultichainTrackingHelper', () => {
   });
 
   describe('constructor', () => {
-    it('inits the tracking map', () => {
-      const { options } = newMultichainTrackingHelper({ clearMocks: false });
-
-      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
-    });
-
     it('refreshes the tracking map onNetworkStateChange', () => {
       const { options } = newMultichainTrackingHelper({ clearMocks: false });
 
@@ -195,7 +190,7 @@ describe('MultichainTrackingHelper', () => {
         },
       ]);
 
-      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(2);
+      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
     });
 
     describe('when isMultichainEnabled: false', () => {

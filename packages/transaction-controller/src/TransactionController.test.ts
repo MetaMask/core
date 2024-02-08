@@ -755,6 +755,7 @@ describe('TransactionController', () => {
         }),
         checkForPendingTransactionAndStartPolling: jest.fn(),
         getNonceLock: getNonceLockSpy,
+        initialize: jest.fn(),
         has: jest.fn().mockReturnValue(false),
       } as unknown as jest.Mocked<MultichainTrackingHelper>;
       return multichainTrackingHelperMock;
