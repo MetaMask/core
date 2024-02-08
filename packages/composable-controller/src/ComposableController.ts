@@ -119,9 +119,12 @@ export class ComposableController extends BaseController<
     super({
       name: controllerName,
       metadata: {},
-      state: controllers.reduce((state, controller) => {
-        return { ...state, [controller.name]: controller.state };
-      }, {} as ComposableControllerState),
+      state: controllers.reduce<ComposableControllerState>(
+        (state, controller) => {
+          return { ...state, [controller.name]: controller.state };
+        },
+        {},
+      ),
       messenger,
     });
 
