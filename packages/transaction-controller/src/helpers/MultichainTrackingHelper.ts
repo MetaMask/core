@@ -169,9 +169,11 @@ export class MultichainTrackingHelper {
   }
 
   initialize() {
-    if (this.#isMultichainEnabled) {
-      this.#initTrackingMap();
+    if (!this.#isMultichainEnabled) {
+      return
     }
+      const networkClients = this.#getNetworkClientRegistry();
+      this.#refreshTrackingMap(networkClients);
   }
 
   has(networkClientId: NetworkClientId) {
@@ -347,12 +349,6 @@ export class MultichainTrackingHelper {
     for (const [, trackers] of this.#trackingMap) {
       trackers.pendingTransactionTracker.startIfPendingTransactions();
     }
-  };
-
-  #initTrackingMap = () => {
-    const networkClients = this.#getNetworkClientRegistry();
-    const networkClientIds = Object.keys(networkClients);
-    networkClientIds.map((id) => this.#startTrackingByNetworkClientId(id));
   };
 
   #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {

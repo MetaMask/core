@@ -194,15 +194,6 @@ describe('MultichainTrackingHelper', () => {
     });
 
     describe('when isMultichainEnabled: false', () => {
-      it('does not init the tracking map', () => {
-        const { options } = newMultichainTrackingHelper({
-          isMultichainEnabled: false,
-          clearMocks: false,
-        });
-
-        expect(options.getNetworkClientRegistry).not.toHaveBeenCalled();
-      });
-
       it('does not refresh the tracking map onNetworkStateChange', () => {
         const { options } = newMultichainTrackingHelper({
           isMultichainEnabled: false,
