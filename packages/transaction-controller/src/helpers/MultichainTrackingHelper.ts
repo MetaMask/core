@@ -182,7 +182,7 @@ export class MultichainTrackingHelper {
   }: {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
-  }): EthQuery {
+  } = {}): EthQuery {
     if (!this.#isMultichainEnabled) {
       return new EthQuery(this.#provider);
     }
@@ -195,7 +195,6 @@ export class MultichainTrackingHelper {
         log('failed to get network client by networkClientId');
       }
     }
-
     if (!networkClient && chainId) {
       try {
         networkClientId = this.#findNetworkClientIdByChainId(chainId);
