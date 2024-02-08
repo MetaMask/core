@@ -1839,6 +1839,57 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should invoke the `trackMetaMetricsEvent` callback when token detection is triggered', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const mockTrackMetaMetricsEvent = jest.fn();
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
+            networkClientId: NetworkType.mainnet,
+            selectedAddress,
+          },
+        },
+        async ({ controller, mockTokenListGetState }) => {
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokenList: {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            },
+          });
+
+          await controller.detectTokens({
+            networkClientId: NetworkType.mainnet,
+            accountAddress: selectedAddress,
+          });
+
+          expect(mockTrackMetaMetricsEvent).toHaveBeenCalledWith({
+            event: 'Token Detected',
+            category: 'Wallet',
+            properties: {
+              tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
+              token_standard: 'ERC20',
+              asset_type: 'TOKEN',
+            },
+          });
+        },
+      );
+    });
   });
 });
 
