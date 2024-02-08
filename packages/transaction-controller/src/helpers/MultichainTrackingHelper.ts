@@ -336,6 +336,12 @@ export class MultichainTrackingHelper {
     }
   };
 
+  stopAllTracking() {
+    for (const [networkClientId] of this.#trackingMap) {
+      this.#stopTrackingByNetworkClientId(networkClientId);
+    }
+  }
+
   #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
     this.#refreshEtherscanRemoteTransactionSources(networkClients);
 
@@ -371,12 +377,6 @@ export class MultichainTrackingHelper {
         trackers.incomingTransactionHelper,
       );
       this.#trackingMap.delete(networkClientId);
-    }
-  }
-
-  stopAllTracking() {
-    for (const [networkClientId] of this.#trackingMap) {
-      this.#stopTrackingByNetworkClientId(networkClientId);
     }
   }
 
