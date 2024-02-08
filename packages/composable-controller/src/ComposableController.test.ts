@@ -11,7 +11,7 @@ import type { Patch } from 'immer';
 import * as sinon from 'sinon';
 
 import { JsonRpcEngine } from '../../json-rpc-engine/src/JsonRpcEngine';
-import type { ComposableControllerStateChangeEvent } from './ComposableController';
+import type { ComposableControllerEvents } from './ComposableController';
 import { ComposableController } from './ComposableController';
 
 // Mock BaseController classes
@@ -107,7 +107,10 @@ describe('ComposableController', () => {
 
   describe('BaseControllerV1', () => {
     it('should compose controller state', () => {
-      const composableMessenger = new ControllerMessenger().getRestricted({
+      const composableMessenger = new ControllerMessenger<
+        never,
+        ComposableControllerEvents
+      >().getRestricted({
         name: 'ComposableController',
       });
       const controller = new ComposableController({
@@ -124,7 +127,7 @@ describe('ComposableController', () => {
     it('should notify listeners of nested state change', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerStateChangeEvent
+        ComposableControllerEvents
       >();
       const composableMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
@@ -177,7 +180,7 @@ describe('ComposableController', () => {
     it('should notify listeners of nested state change', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerStateChangeEvent | FooControllerEvent
+        ComposableControllerEvents | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted<
         'FooController',
@@ -241,7 +244,7 @@ describe('ComposableController', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerStateChangeEvent | FooControllerEvent
+        ComposableControllerEvents | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted<
         'FooController',
@@ -281,7 +284,7 @@ describe('ComposableController', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerStateChangeEvent | FooControllerEvent
+        ComposableControllerEvents | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted<
         'FooController',
@@ -337,7 +340,7 @@ describe('ComposableController', () => {
       ).toThrow('Messaging system is required');
     });
 
-    it('should throw if attempting to compose a controller that does not extend from BaseController', () => {
+    it('should throw if composing a controller that does not extend from BaseController', () => {
       const notController = new JsonRpcEngine();
       const controllerMessenger = new ControllerMessenger<
         never,
