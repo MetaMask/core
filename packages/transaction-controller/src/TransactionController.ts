@@ -176,7 +176,7 @@ export interface TransactionState extends BaseState {
 /**
  * Multiplier used to determine a transaction's increased gas fee during cancellation
  */
-export const CANCEL_RATE = 1.5;
+export const CANCEL_RATE = 1.1;
 
 /**
  * Multiplier used to determine a transaction's increased gas fee during speed up
@@ -269,8 +269,6 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
-  private readonly cancelMultiplier: number;
-
   private readonly speedUpMultiplier: number;
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
@@ -352,7 +350,6 @@ export class TransactionController extends BaseControllerV1<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
-   * @param options.cancelMultiplier - Multiplier used to determine a transaction's increased gas fee during cancellation.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
@@ -389,7 +386,6 @@ export class TransactionController extends BaseControllerV1<
   constructor(
     {
       blockTracker,
-      cancelMultiplier,
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
@@ -411,7 +407,6 @@ export class TransactionController extends BaseControllerV1<
       hooks = {},
     }: {
       blockTracker: BlockTracker;
-      cancelMultiplier?: number;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
       disableSwaps: boolean;
@@ -495,7 +490,6 @@ export class TransactionController extends BaseControllerV1<
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
-    this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
     this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
@@ -794,7 +788,7 @@ export class TransactionController extends BaseControllerV1<
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
       transactionMeta.txParams.gasPrice,
-      this.cancelMultiplier,
+      CANCEL_RATE,
     );
 
     const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
@@ -808,7 +802,7 @@ export class TransactionController extends BaseControllerV1<
     const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
     const minMaxFeePerGas = getIncreasedPriceFromExisting(
       existingMaxFeePerGas,
-      this.cancelMultiplier,
+      CANCEL_RATE,
     );
     const maxFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
@@ -822,7 +816,7 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta.txParams?.maxPriorityFeePerGas;
     const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
       existingMaxPriorityFeePerGas,
-      this.cancelMultiplier,
+      CANCEL_RATE,
     );
     const maxPriorityFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
