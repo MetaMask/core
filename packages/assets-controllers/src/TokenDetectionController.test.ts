@@ -6,8 +6,11 @@ import {
   convertHexToDecimal,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
+import type { KeyringControllerState } from '@metamask/keyring-controller';
 import {
   defaultState as defaultNetworkState,
+  type NetworkState,
   type NetworkConfiguration,
   type NetworkController,
 } from '@metamask/network-controller';
@@ -133,13 +136,18 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
+      'KeyringController:getState',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'TokenListController:getState',
+      'PreferencesController:getState',
     ],
     allowedEvents: [
-      'NetworkController:stateChange',
+      'AccountsController:selectedAccountChange',
+      'KeyringController:lock',
+      'KeyringController:unlock',
       'NetworkController:networkDidChange',
       'TokenListController:stateChange',
+      'PreferencesController:stateChange',
     ],
   });
 }
@@ -226,7 +234,7 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, mockTokenListGetState }) => {
-          mockTokenListGetState.mockReturnValue({
+          mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
@@ -267,7 +275,7 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, mockTokenListGetState }) => {
-          mockTokenListGetState.mockReturnValue({
+          mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
@@ -325,7 +333,7 @@ describe('TokenDetectionController', () => {
               },
             },
           };
-          mockTokenListGetState.mockReturnValue(tokenListState);
+          mockTokenListGetState(tokenListState);
           await controller.start();
           mockAddDetectedTokens.mockReset();
 
@@ -338,7 +346,7 @@ describe('TokenDetectionController', () => {
             aggregators: sampleTokenB.aggregators,
             iconUrl: sampleTokenB.image,
           };
-          mockTokenListGetState.mockReturnValue(tokenListState);
+          mockTokenListGetState(tokenListState);
           await advanceTime({ clock, duration: interval });
 
           expect(mockAddDetectedTokens).toHaveBeenCalledWith(
@@ -373,7 +381,7 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, mockTokenListGetState }) => {
-          mockTokenListGetState.mockReturnValue({
+          mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
@@ -410,7 +418,7 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, mockTokenListGetState }) => {
-          mockTokenListGetState.mockReturnValue({
+          mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
@@ -464,7 +472,7 @@ describe('TokenDetectionController', () => {
             },
           },
           async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -506,17 +514,12 @@ describe('TokenDetectionController', () => {
               addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              getPreferencesState: jest.fn().mockReturnValue({
-                ...getDefaultPreferencesState(),
-                selectedAddress,
-                useTokenDetection: false,
-              }),
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
           async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -530,6 +533,13 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress,
+              useTokenDetection: false,
+            });
+            await advanceTime({ clock, duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
@@ -566,7 +576,7 @@ describe('TokenDetectionController', () => {
             },
           },
           async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -610,7 +620,7 @@ describe('TokenDetectionController', () => {
             },
           },
           async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -659,7 +669,7 @@ describe('TokenDetectionController', () => {
             },
           },
           async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -698,17 +708,12 @@ describe('TokenDetectionController', () => {
               addDetectedTokens: mockAddDetectedTokens,
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              getPreferencesState: jest.fn().mockReturnValue({
-                ...getDefaultPreferencesState(),
-                selectedAddress,
-                useTokenDetection: false,
-              }),
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
           async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -722,6 +727,13 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              selectedAddress,
+              useTokenDetection: false,
+            });
+            await advanceTime({ clock, duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
@@ -748,7 +760,7 @@ describe('TokenDetectionController', () => {
     });
 
     describe('when "disabled" is "false"', () => {
-      it('should detect new tokens after switching chains', async () => {
+      it('should detect new tokens after switching network client id', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
@@ -770,7 +782,7 @@ describe('TokenDetectionController', () => {
             messenger,
           },
           async ({ mockTokenListGetState }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -821,7 +833,7 @@ describe('TokenDetectionController', () => {
             messenger,
           },
           async ({ mockTokenListGetState }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -847,7 +859,7 @@ describe('TokenDetectionController', () => {
         );
       });
 
-      it('should not detect new tokens if the chain has not changed', async () => {
+      it('should not detect new tokens if the network client id has not changed', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
@@ -869,7 +881,7 @@ describe('TokenDetectionController', () => {
             messenger,
           },
           async ({ mockTokenListGetState }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -886,7 +898,7 @@ describe('TokenDetectionController', () => {
 
             messenger.publish('NetworkController:networkDidChange', {
               ...defaultNetworkState,
-              selectedNetworkClientId: 'mainnnet',
+              selectedNetworkClientId: 'mainnet',
             });
             await advanceTime({ clock, duration: 1 });
 
@@ -897,7 +909,7 @@ describe('TokenDetectionController', () => {
     });
 
     describe('when "disabled" is "true"', () => {
-      it('should not detect new tokens after switching chains', async () => {
+      it('should not detect new tokens after switching network client id', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
@@ -919,7 +931,7 @@ describe('TokenDetectionController', () => {
             messenger,
           },
           async ({ mockTokenListGetState }) => {
-            mockTokenListGetState.mockReturnValue({
+            mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
                 [sampleTokenA.address]: {
@@ -994,7 +1006,7 @@ describe('TokenDetectionController', () => {
                 },
               },
             };
-            mockTokenListGetState.mockReturnValue(tokenListState);
+            mockTokenListGetState(tokenListState);
 
             messenger.publish(
               'TokenListController:stateChange',
@@ -1037,7 +1049,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultTokenListState(),
               tokenList: {},
             };
-            mockTokenListGetState.mockReturnValue(tokenListState);
+            mockTokenListGetState(tokenListState);
 
             messenger.publish(
               'TokenListController:stateChange',
@@ -1089,7 +1101,7 @@ describe('TokenDetectionController', () => {
                 },
               },
             };
-            mockTokenListGetState.mockReturnValue(tokenListState);
+            mockTokenListGetState(tokenListState);
 
             messenger.publish(
               'TokenListController:stateChange',
@@ -1137,7 +1149,7 @@ describe('TokenDetectionController', () => {
           messenger,
         },
         async ({ controller, mockTokenListGetState }) => {
-          mockTokenListGetState.mockReturnValue({
+          mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
@@ -1211,7 +1223,7 @@ describe('TokenDetectionController', () => {
           messenger,
         },
         async ({ controller, mockTokenListGetState }) => {
-          mockTokenListGetState.mockReturnValue({
+          mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
               [sampleTokenA.address]: {
@@ -1255,12 +1267,29 @@ function getTokensPath(chainId: Hex) {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  mockKeyringGetState,
   mockTokenListGetState,
+  mockPreferencesGetState,
+  triggerKeyringUnlock,
+  triggerKeyringLock,
+  triggerTokenListStateChange,
   triggerPreferencesStateChange,
+  triggerSelectedAccountChange,
+  triggerNetworkDidChange,
 }: {
   controller: TokenDetectionController;
-  mockTokenListGetState: jest.Mock<TokenListState, []>;
+  mockKeyringGetState: (state: KeyringControllerState) => void;
+  mockTokenListGetState: (state: TokenListState) => void;
+  mockPreferencesGetState: (state: PreferencesState) => void;
+  mockGetNetworkConfigurationByNetworkClientId: (
+    handler: (networkClientId: string) => NetworkConfiguration,
+  ) => void;
+  triggerKeyringUnlock: () => void;
+  triggerKeyringLock: () => void;
+  triggerTokenListStateChange: (state: TokenListState) => void;
   triggerPreferencesStateChange: (state: PreferencesState) => void;
+  triggerSelectedAccountChange: (account: InternalAccount) => void;
+  triggerNetworkDidChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1289,51 +1318,97 @@ async function withController<ReturnValue>(
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
 
-  const mockGetNetworkConfigurationByNetworkClientId = jest
-    .fn<
-      ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
-      Parameters<NetworkController['getNetworkConfigurationByNetworkClientId']>
-    >()
-    .mockImplementation((networkClientId: string) => {
-      return mockNetworkConfigurations[networkClientId];
-    });
+  const mockKeyringState = jest.fn<KeyringControllerState, []>();
+  controllerMessenger.registerActionHandler(
+    'KeyringController:getState',
+    mockKeyringState.mockReturnValue({
+      isUnlocked: true,
+    } as unknown as KeyringControllerState),
+  );
+  const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
+    ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
+    Parameters<NetworkController['getNetworkConfigurationByNetworkClientId']>
+  >();
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
-    mockGetNetworkConfigurationByNetworkClientId,
+    mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
+      (networkClientId: string) => {
+        return mockNetworkConfigurations[networkClientId];
+      },
+    ),
   );
-  const mockTokenListGetState = jest
-    .fn<TokenListState, []>()
-    .mockReturnValue({ ...getDefaultTokenListState() });
+  const mockTokenListState = jest.fn<TokenListState, []>();
   controllerMessenger.registerActionHandler(
     'TokenListController:getState',
-    mockTokenListGetState,
+    mockTokenListState.mockReturnValue({ ...getDefaultTokenListState() }),
+  );
+  const mockPreferencesState = jest.fn<PreferencesState, []>();
+  controllerMessenger.registerActionHandler(
+    'PreferencesController:getState',
+    mockPreferencesState.mockReturnValue({
+      ...getDefaultPreferencesState(),
+    }),
   );
 
-  const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
-    [];
   const controller = new TokenDetectionController({
     networkClientId: NetworkType.mainnet,
-    onPreferencesStateChange: (listener) => {
-      preferencesStateChangeListeners.push(listener);
-    },
     getBalancesInSingleCall: jest.fn(),
     addDetectedTokens: jest.fn(),
     getTokensState: jest.fn().mockReturnValue(getDefaultTokensState()),
-    getPreferencesState: jest.fn().mockReturnValue({
-      ...getDefaultPreferencesState(),
-      useTokenDetection: true,
-    }),
+    trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     ...options,
   });
   try {
     return await fn({
       controller,
-      mockTokenListGetState,
+      mockKeyringGetState: (state: KeyringControllerState) => {
+        mockKeyringState.mockReturnValue(state);
+      },
+      mockPreferencesGetState: (state: PreferencesState) => {
+        mockPreferencesState.mockReturnValue(state);
+      },
+      mockTokenListGetState: (state: TokenListState) => {
+        mockTokenListState.mockReturnValue(state);
+      },
+      mockGetNetworkConfigurationByNetworkClientId: (
+        handler: (networkClientId: string) => NetworkConfiguration,
+      ) => {
+        mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
+          handler,
+        );
+      },
+      triggerKeyringUnlock: () => {
+        controllerMessenger.publish('KeyringController:unlock');
+      },
+      triggerKeyringLock: () => {
+        controllerMessenger.publish('KeyringController:lock');
+      },
+      triggerTokenListStateChange: (state: TokenListState) => {
+        controllerMessenger.publish(
+          'TokenListController:stateChange',
+          state,
+          [],
+        );
+      },
       triggerPreferencesStateChange: (state: PreferencesState) => {
-        for (const listener of preferencesStateChangeListeners) {
-          listener(state);
-        }
+        controllerMessenger.publish(
+          'PreferencesController:stateChange',
+          state,
+          [],
+        );
+      },
+      triggerSelectedAccountChange: (account: InternalAccount) => {
+        controllerMessenger.publish(
+          'AccountsController:selectedAccountChange',
+          account,
+        );
+      },
+      triggerNetworkDidChange: (state: NetworkState) => {
+        controllerMessenger.publish(
+          'NetworkController:networkDidChange',
+          state,
+        );
       },
     });
   } finally {
