@@ -116,7 +116,7 @@ export class MultichainTrackingHelper {
     }
   > = new Map();
 
-  readonly etherscanRemoteTransactionSourcesMap: Map<
+  readonly #etherscanRemoteTransactionSourcesMap: Map<
     Hex,
     EtherscanRemoteTransactionSource
   > = new Map();
@@ -411,13 +411,13 @@ export class MultichainTrackingHelper {
     } = this.#getNetworkClientById(networkClientId);
 
     let etherscanRemoteTransactionSource =
-      this.etherscanRemoteTransactionSourcesMap.get(chainId);
+      this.#etherscanRemoteTransactionSourcesMap.get(chainId);
     if (!etherscanRemoteTransactionSource) {
       etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
         includeTokenTransfers:
           this.#incomingTransactionOptions.includeTokenTransfers,
       });
-      this.etherscanRemoteTransactionSourcesMap.set(
+      this.#etherscanRemoteTransactionSourcesMap.set(
         chainId,
         etherscanRemoteTransactionSource,
       );
@@ -459,14 +459,14 @@ export class MultichainTrackingHelper {
       chainIdsInRegistry.add(networkClient.configuration.chainId),
     );
     const existingChainIds = Array.from(
-      this.etherscanRemoteTransactionSourcesMap.keys(),
+      this.#etherscanRemoteTransactionSourcesMap.keys(),
     );
     const chainIdsToRemove = existingChainIds.filter(
       (chainId) => !chainIdsInRegistry.has(chainId),
     );
 
     chainIdsToRemove.forEach((chainId) => {
-      this.etherscanRemoteTransactionSourcesMap.delete(chainId);
+      this.#etherscanRemoteTransactionSourcesMap.delete(chainId);
     });
   };
 }
