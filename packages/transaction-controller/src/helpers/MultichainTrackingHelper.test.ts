@@ -5,11 +5,11 @@ import type { Hex } from '@metamask/utils';
 import type { NonceTracker } from 'nonce-tracker';
 import { useFakeTimers } from 'sinon';
 
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import { MultichainTrackingHelper } from './MultichainTrackingHelper';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
 import { advanceTime } from '../../../../tests/helpers';
+import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import type { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { MultichainTrackingHelper } from './MultichainTrackingHelper';
+import type { PendingTransactionTracker } from './PendingTransactionTracker';
 
 jest.mock(
   '@metamask/eth-query',
@@ -137,48 +137,54 @@ function newMultichainTrackingHelper(
     },
   });
 
-  const mockNonceLock = {releaseLock: jest.fn()}
-  const mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>> = {}
+  const mockNonceLock = { releaseLock: jest.fn() };
+  const mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>> = {};
   const mockCreateNonceTracker = jest
     .fn()
-    .mockImplementation(({chainId}: {chainId: Hex}) => {
+    .mockImplementation(({ chainId }: { chainId: Hex }) => {
       const mockNonceTracker = {
-        getNonceLock: jest.fn().mockResolvedValue(mockNonceLock)
-      } as unknown as jest.Mocked<NonceTracker>
-      mockNonceTrackers[chainId] = mockNonceTracker
-      return mockNonceTracker
+        getNonceLock: jest.fn().mockResolvedValue(mockNonceLock),
+      } as unknown as jest.Mocked<NonceTracker>;
+      mockNonceTrackers[chainId] = mockNonceTracker;
+      return mockNonceTracker;
     });
 
-  const mockIncomingTransactionHelpers: Record<Hex, jest.Mocked<IncomingTransactionHelper>> = {}
+  const mockIncomingTransactionHelpers: Record<
+    Hex,
+    jest.Mocked<IncomingTransactionHelper>
+  > = {};
   const mockCreateIncomingTransactionHelper = jest
     .fn()
-    .mockImplementation(({chainId}: {chainId: Hex}) => {
+    .mockImplementation(({ chainId }: { chainId: Hex }) => {
       const mockIncomingTransactionHelper = {
         start: jest.fn(),
         stop: jest.fn(),
-        update: jest.fn()
-      } as unknown as jest.Mocked<IncomingTransactionHelper>
-      mockIncomingTransactionHelpers[chainId] = mockIncomingTransactionHelper
-      return mockIncomingTransactionHelper
+        update: jest.fn(),
+      } as unknown as jest.Mocked<IncomingTransactionHelper>;
+      mockIncomingTransactionHelpers[chainId] = mockIncomingTransactionHelper;
+      return mockIncomingTransactionHelper;
     });
 
-  const mockPendingTransactionTrackers: Record<Hex, jest.Mocked<PendingTransactionTracker>> = {}
+  const mockPendingTransactionTrackers: Record<
+    Hex,
+    jest.Mocked<PendingTransactionTracker>
+  > = {};
   const mockCreatePendingTransactionTracker = jest
     .fn()
-    .mockImplementation(({chainId}: {chainId: Hex}) => {
+    .mockImplementation(({ chainId }: { chainId: Hex }) => {
       const mockPendingTransactionTracker = {
         start: jest.fn(),
         stop: jest.fn(),
-      } as unknown as jest.Mocked<PendingTransactionTracker>
-      mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker
-      return mockPendingTransactionTracker
+      } as unknown as jest.Mocked<PendingTransactionTracker>;
+      mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker;
+      return mockPendingTransactionTracker;
     });
 
   const options = {
     isMultichainEnabled: true,
     provider: MOCK_PROVIDERS.mainnet,
     nonceTracker: {
-      getNonceLock: jest.fn().mockResolvedValue(mockNonceLock)
+      getNonceLock: jest.fn().mockResolvedValue(mockNonceLock),
     },
     incomingTransactionOptions: {
       // make this a comparable reference
@@ -405,303 +411,376 @@ describe('MultichainTrackingHelper', () => {
 
   describe('startIncomingTransactionPolling', () => {
     it('starts polling on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+      const { mockIncomingTransactionHelpers, helper } =
+        newMultichainTrackingHelper({ clearMocks: false });
 
       helper.initialize();
 
-      helper.startIncomingTransactionPolling(['mainnet', 'goerli'])
-      expect(mockIncomingTransactionHelpers['0x1'].start).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.goerli].start).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.sepolia].start).not.toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers['0xa'].start).not.toHaveBeenCalled()
-    })
-  })
+      helper.startIncomingTransactionPolling(['mainnet', 'goerli']);
+      expect(mockIncomingTransactionHelpers['0x1'].start).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.goerli].start,
+      ).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.sepolia].start,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers['0xa'].start,
+      ).not.toHaveBeenCalled();
+    });
+  });
 
   describe('stopIncomingTransactionPolling', () => {
     it('stops polling on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+      const { mockIncomingTransactionHelpers, helper } =
+        newMultichainTrackingHelper({ clearMocks: false });
 
       helper.initialize();
 
-      helper.stopIncomingTransactionPolling(['mainnet', 'goerli'])
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.goerli].stop).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.sepolia].stop).not.toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers['0xa'].stop).not.toHaveBeenCalled()
-    })
-  })
+      helper.stopIncomingTransactionPolling(['mainnet', 'goerli']);
+      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.goerli].stop,
+      ).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.sepolia].stop,
+      ).not.toHaveBeenCalled();
+      expect(mockIncomingTransactionHelpers['0xa'].stop).not.toHaveBeenCalled();
+    });
+  });
 
   describe('stopAllIncomingTransactionPolling', () => {
     it('stops polling on all IncomingTransactionHelpers', () => {
-      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+      const { mockIncomingTransactionHelpers, helper } =
+        newMultichainTrackingHelper({ clearMocks: false });
 
       helper.initialize();
 
-      helper.stopAllIncomingTransactionPolling()
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.goerli].stop).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.sepolia].stop).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers['0xa'].stop).toHaveBeenCalled()
-    })
-  })
+      helper.stopAllIncomingTransactionPolling();
+      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.goerli].stop,
+      ).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.sepolia].stop,
+      ).toHaveBeenCalled();
+      expect(mockIncomingTransactionHelpers['0xa'].stop).toHaveBeenCalled();
+    });
+  });
 
   describe('updateIncomingTransactions', () => {
     it('calls update on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+      const { mockIncomingTransactionHelpers, helper } =
+        newMultichainTrackingHelper({ clearMocks: false });
 
       helper.initialize();
 
-      helper.updateIncomingTransactions(['mainnet', 'goerli'])
-      expect(mockIncomingTransactionHelpers['0x1'].update).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.goerli].update).toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers[ChainId.sepolia].update).not.toHaveBeenCalled()
-      expect(mockIncomingTransactionHelpers['0xa'].update).not.toHaveBeenCalled()
-    })
-  })
+      helper.updateIncomingTransactions(['mainnet', 'goerli']);
+      expect(mockIncomingTransactionHelpers['0x1'].update).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.goerli].update,
+      ).toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers[ChainId.sepolia].update,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockIncomingTransactionHelpers['0xa'].update,
+      ).not.toHaveBeenCalled();
+    });
+  });
 
   describe('getNonceLock', () => {
     describe('when given a networkClientId', () => {
       it('gets the shared nonce lock by chainId for the networkClientId', async () => {
-        const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { helper } = newMultichainTrackingHelper({ clearMocks: false });
 
-        const mockAcquireNonceLockForChainIdKey = jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+        const mockAcquireNonceLockForChainIdKey = jest
+          .spyOn(helper, 'acquireNonceLockForChainIdKey')
+          .mockResolvedValue(jest.fn());
 
         helper.initialize();
 
-        await helper.getNonceLock('0xdeadbeef', 'mainnet')
+        await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
         expect(mockAcquireNonceLockForChainIdKey).toHaveBeenCalledWith({
           chainId: '0x1',
           key: '0xdeadbeef',
-        })
-      })
+        });
+      });
 
       it('gets the nonce lock from the NonceTracker for the networkClientId', async () => {
-        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({
+          clearMocks: false,
+        });
 
-        jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+        jest
+          .spyOn(helper, 'acquireNonceLockForChainIdKey')
+          .mockResolvedValue(jest.fn());
 
         helper.initialize();
 
-        await helper.getNonceLock('0xdeadbeef', 'mainnet')
+        await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
-        expect(mockNonceTrackers['0x1'].getNonceLock).toHaveBeenCalledWith('0xdeadbeef')
-      })
+        expect(mockNonceTrackers['0x1'].getNonceLock).toHaveBeenCalledWith(
+          '0xdeadbeef',
+        );
+      });
 
       it('merges the nonce lock by chainId release with the NonceTracker releaseLock function', async () => {
-        const { mockNonceLock, helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { mockNonceLock, helper } = newMultichainTrackingHelper({
+          clearMocks: false,
+        });
 
-        const releaseLockForChainIdKey = jest.fn()
-        jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(releaseLockForChainIdKey)
+        const releaseLockForChainIdKey = jest.fn();
+        jest
+          .spyOn(helper, 'acquireNonceLockForChainIdKey')
+          .mockResolvedValue(releaseLockForChainIdKey);
 
         helper.initialize();
 
-        const nonceLock = await helper.getNonceLock('0xdeadbeef', 'mainnet')
+        const nonceLock = await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
-        expect(releaseLockForChainIdKey).not.toHaveBeenCalled()
-        expect(mockNonceLock.releaseLock).not.toHaveBeenCalled()
+        expect(releaseLockForChainIdKey).not.toHaveBeenCalled();
+        expect(mockNonceLock.releaseLock).not.toHaveBeenCalled();
 
-        nonceLock.releaseLock()
+        nonceLock.releaseLock();
 
-        expect(releaseLockForChainIdKey).toHaveBeenCalled()
-        expect(mockNonceLock.releaseLock).toHaveBeenCalled()
-      })
+        expect(releaseLockForChainIdKey).toHaveBeenCalled();
+        expect(mockNonceLock.releaseLock).toHaveBeenCalled();
+      });
 
       it('throws an error if the networkClientId does not exist in the tracking map', async () => {
         const { helper } = newMultichainTrackingHelper({ clearMocks: false });
 
-        jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+        jest
+          .spyOn(helper, 'acquireNonceLockForChainIdKey')
+          .mockResolvedValue(jest.fn());
 
-        await expect(helper.getNonceLock('0xdeadbeef', 'mainnet')).rejects.toThrow('missing nonceTracker for networkClientId')
-      })
+        await expect(
+          helper.getNonceLock('0xdeadbeef', 'mainnet'),
+        ).rejects.toThrow('missing nonceTracker for networkClientId');
+      });
 
       it('throws an error and releases nonce lock by chainId if unable to acquire nonce lock from the NonceTracker', async () => {
-        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({
+          clearMocks: false,
+        });
 
-        const releaseLockForChainIdKey = jest.fn()
-        jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(releaseLockForChainIdKey)
+        const releaseLockForChainIdKey = jest.fn();
+        jest
+          .spyOn(helper, 'acquireNonceLockForChainIdKey')
+          .mockResolvedValue(releaseLockForChainIdKey);
 
         helper.initialize();
 
-        mockNonceTrackers['0x1'].getNonceLock.mockRejectedValue('failed to acquire lock from nonceTracker')
-
+        mockNonceTrackers['0x1'].getNonceLock.mockRejectedValue(
+          'failed to acquire lock from nonceTracker',
+        );
 
         // for some reason jest expect().rejects.toThrow doesn't work here
-        let error = "";
+        let error = '';
         try {
-          await helper.getNonceLock('0xdeadbeef', 'mainnet')
-        } catch(err: unknown) {
-          error = err as string
+          await helper.getNonceLock('0xdeadbeef', 'mainnet');
+        } catch (err: unknown) {
+          error = err as string;
         }
-        expect(error).toStrictEqual('failed to acquire lock from nonceTracker')
-        expect(releaseLockForChainIdKey).toHaveBeenCalled()
-      })
-    })
+        expect(error).toBe('failed to acquire lock from nonceTracker');
+        expect(releaseLockForChainIdKey).toHaveBeenCalled();
+      });
+    });
 
     describe('when no networkClientId given', () => {
       it('does not get the shared nonce lock by chainId', async () => {
         const { helper } = newMultichainTrackingHelper({ clearMocks: false });
 
-        const mockAcquireNonceLockForChainIdKey = jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+        const mockAcquireNonceLockForChainIdKey = jest
+          .spyOn(helper, 'acquireNonceLockForChainIdKey')
+          .mockResolvedValue(jest.fn());
 
         helper.initialize();
 
-        await helper.getNonceLock('0xdeadbeef')
+        await helper.getNonceLock('0xdeadbeef');
 
-        expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled()
-      })
+        expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled();
+      });
 
       it('gets the nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { options, helper } = newMultichainTrackingHelper({
+          clearMocks: false,
+        });
 
         helper.initialize();
 
-        await helper.getNonceLock('0xdeadbeef')
+        await helper.getNonceLock('0xdeadbeef');
 
-        expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith('0xdeadbeef')
-      })
+        expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith(
+          '0xdeadbeef',
+        );
+      });
 
       it('throws an error if unable to acquire nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { options, helper } = newMultichainTrackingHelper({
+          clearMocks: false,
+        });
 
         helper.initialize();
 
-        options.nonceTracker.getNonceLock.mockRejectedValue('failed to acquire lock from nonceTracker')
+        options.nonceTracker.getNonceLock.mockRejectedValue(
+          'failed to acquire lock from nonceTracker',
+        );
 
         // for some reason jest expect().rejects.toThrow doesn't work here
-        let error = "";
+        let error = '';
         try {
-          await helper.getNonceLock('0xdeadbeef')
-        } catch(err: unknown) {
-          error = err as string
+          await helper.getNonceLock('0xdeadbeef');
+        } catch (err: unknown) {
+          error = err as string;
         }
-        expect(error).toStrictEqual('failed to acquire lock from nonceTracker')
-      })
-    })
+        expect(error).toBe('failed to acquire lock from nonceTracker');
+      });
+    });
 
     describe('when isMultichainEnabled: false', () => {
       describe('when passed a networkClientId', () => {
         it('does not get the shared nonce lock by chainId', async () => {
           const { helper } = newMultichainTrackingHelper({
-            isMultichainEnabled: false
+            isMultichainEnabled: false,
           });
 
-          const mockAcquireNonceLockForChainIdKey = jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+          const mockAcquireNonceLockForChainIdKey = jest
+            .spyOn(helper, 'acquireNonceLockForChainIdKey')
+            .mockResolvedValue(jest.fn());
 
           helper.initialize();
 
-          await helper.getNonceLock('0xdeadbeef', '0xabc')
+          await helper.getNonceLock('0xdeadbeef', '0xabc');
 
-          expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled()
-        })
+          expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled();
+        });
 
         it('gets the nonce lock from the global NonceTracker', async () => {
           const { options, helper } = newMultichainTrackingHelper({
-            isMultichainEnabled: false
+            isMultichainEnabled: false,
           });
 
           helper.initialize();
 
-          await helper.getNonceLock('0xdeadbeef', '0xabc')
+          await helper.getNonceLock('0xdeadbeef', '0xabc');
 
-          expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith('0xdeadbeef')
-        })
+          expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith(
+            '0xdeadbeef',
+          );
+        });
 
         it('throws an error if unable to acquire nonce lock from the global NonceTracker', async () => {
           const { options, helper } = newMultichainTrackingHelper({
-            isMultichainEnabled: false
+            isMultichainEnabled: false,
           });
 
           helper.initialize();
 
-          options.nonceTracker.getNonceLock.mockRejectedValue('failed to acquire lock from nonceTracker')
+          options.nonceTracker.getNonceLock.mockRejectedValue(
+            'failed to acquire lock from nonceTracker',
+          );
 
           // for some reason jest expect().rejects.toThrow doesn't work here
-          let error = "";
+          let error = '';
           try {
-            await helper.getNonceLock('0xdeadbeef', '0xabc')
-          } catch(err: unknown) {
-            error = err as string
+            await helper.getNonceLock('0xdeadbeef', '0xabc');
+          } catch (err: unknown) {
+            error = err as string;
           }
-          expect(error).toStrictEqual('failed to acquire lock from nonceTracker')
-        })
-      })
+          expect(error).toBe('failed to acquire lock from nonceTracker');
+        });
+      });
 
       describe('when not passed a networkClientId', () => {
         it('does not get the shared nonce lock by chainId', async () => {
           const { helper } = newMultichainTrackingHelper({
-            isMultichainEnabled: false
+            isMultichainEnabled: false,
           });
 
-          const mockAcquireNonceLockForChainIdKey = jest.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(jest.fn())
+          const mockAcquireNonceLockForChainIdKey = jest
+            .spyOn(helper, 'acquireNonceLockForChainIdKey')
+            .mockResolvedValue(jest.fn());
 
           helper.initialize();
 
-          await helper.getNonceLock('0xdeadbeef')
+          await helper.getNonceLock('0xdeadbeef');
 
-          expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled()
-        })
+          expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled();
+        });
 
         it('gets the nonce lock from the global NonceTracker', async () => {
           const { options, helper } = newMultichainTrackingHelper({
-            isMultichainEnabled: false
+            isMultichainEnabled: false,
           });
 
           helper.initialize();
 
-          await helper.getNonceLock('0xdeadbeef')
+          await helper.getNonceLock('0xdeadbeef');
 
-          expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith('0xdeadbeef')
-        })
+          expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith(
+            '0xdeadbeef',
+          );
+        });
 
         it('throws an error if unable to acquire nonce lock from the global NonceTracker', async () => {
           const { options, helper } = newMultichainTrackingHelper({
-            isMultichainEnabled: false
+            isMultichainEnabled: false,
           });
 
           helper.initialize();
 
-          options.nonceTracker.getNonceLock.mockRejectedValue('failed to acquire lock from nonceTracker')
+          options.nonceTracker.getNonceLock.mockRejectedValue(
+            'failed to acquire lock from nonceTracker',
+          );
 
           // for some reason jest expect().rejects.toThrow doesn't work here
-          let error = "";
+          let error = '';
           try {
-            await helper.getNonceLock('0xdeadbeef')
-          } catch(err: unknown) {
-            error = err as string
+            await helper.getNonceLock('0xdeadbeef');
+          } catch (err: unknown) {
+            error = err as string;
           }
-          expect(error).toStrictEqual('failed to acquire lock from nonceTracker')
-        })
-      })
-    })
-  })
+          expect(error).toBe('failed to acquire lock from nonceTracker');
+        });
+      });
+    });
+  });
 
   describe('acquireNonceLockForChainIdKey', () => {
     it('returns a unqiue mutex for each chainId and key combination', async () => {
       const { helper } = newMultichainTrackingHelper();
 
-      await helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'a'})
-      await helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'b'})
-      await helper.acquireNonceLockForChainIdKey({chainId: '0xa', key: 'a'})
-      await helper.acquireNonceLockForChainIdKey({chainId: '0xa', key: 'b'})
+      await helper.acquireNonceLockForChainIdKey({ chainId: '0x1', key: 'a' });
+      await helper.acquireNonceLockForChainIdKey({ chainId: '0x1', key: 'b' });
+      await helper.acquireNonceLockForChainIdKey({ chainId: '0xa', key: 'a' });
+      await helper.acquireNonceLockForChainIdKey({ chainId: '0xa', key: 'b' });
 
       // nothing to exepect as this spec will pass if all locks are acquired
-    })
+    });
 
     it('should block on attempts to get the lock for the same chainId and key combination', async () => {
-      let clock = useFakeTimers();
+      const clock = useFakeTimers();
       const { helper } = newMultichainTrackingHelper();
 
-      const firstReleaseLockPromise = helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'a'})
+      const firstReleaseLockPromise = helper.acquireNonceLockForChainIdKey({
+        chainId: '0x1',
+        key: 'a',
+      });
 
       const firstReleaseLock = await firstReleaseLockPromise;
 
-      const secondReleaseLockPromise = helper.acquireNonceLockForChainIdKey({chainId: '0x1', key: 'a'})
+      const secondReleaseLockPromise = helper.acquireNonceLockForChainIdKey({
+        chainId: '0x1',
+        key: 'a',
+      });
 
       const delay = () =>
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
-         resolve(null)
+          resolve(null);
         });
 
       let secondReleaseLockIfAcquired = await Promise.race([
@@ -721,8 +800,8 @@ describe('MultichainTrackingHelper', () => {
       expect(secondReleaseLockIfAcquired).toStrictEqual(expect.any(Function));
 
       clock.restore();
-    })
-  })
+    });
+  });
 
   describe('getEthQuery', () => {
     describe('when given networkClientId and chainId', () => {
