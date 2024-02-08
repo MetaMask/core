@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Throws an error if a non-controller is passed into the `controllers` constructor option ([#3904](https://github.com/MetaMask/core/pull/3904))
 
+### Removed
+
+- **BREAKING:** The `AllowedActions` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions. ([#3904](https://github.com/MetaMask/core/pull/3904))
+
 ## [5.0.1]
 
 ### Changed
