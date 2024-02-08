@@ -294,36 +294,25 @@ export class MultichainTrackingHelper {
   }
 
   startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    if (!this.#isMultichainEnabled) {
-      return;
-    }
+
     networkClientIds.forEach((networkClientId) => {
       this.#trackingMap.get(networkClientId)?.incomingTransactionHelper.start();
     });
   }
 
   stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    if (!this.#isMultichainEnabled) {
-      return;
-    }
     networkClientIds.forEach((networkClientId) => {
       this.#trackingMap.get(networkClientId)?.incomingTransactionHelper.stop();
     });
   }
 
   stopAllIncomingTransactionPolling() {
-    if (!this.#isMultichainEnabled) {
-      return;
-    }
     for (const [, trackers] of this.#trackingMap) {
       trackers.incomingTransactionHelper.stop();
     }
   }
 
   async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
-    if (!this.#isMultichainEnabled) {
-      return;
-    }
     const promises = await Promise.allSettled(
       networkClientIds.map(async (networkClientId) => {
         return await this.#trackingMap
@@ -343,9 +332,6 @@ export class MultichainTrackingHelper {
   }
 
   checkForPendingTransactionAndStartPolling = () => {
-    if (!this.#isMultichainEnabled) {
-      return;
-    }
     for (const [, trackers] of this.#trackingMap) {
       trackers.pendingTransactionTracker.startIfPendingTransactions();
     }
@@ -390,11 +376,6 @@ export class MultichainTrackingHelper {
   }
 
   stopAllTracking() {
-    if (!this.#isMultichainEnabled) {
-      // shouldn't be possible to start tracking in the first place
-      // if the feature flag is off, but will leave this guard here.
-      return;
-    }
     for (const [networkClientId] of this.#trackingMap) {
       this.#stopTrackingByNetworkClientId(networkClientId);
     }
