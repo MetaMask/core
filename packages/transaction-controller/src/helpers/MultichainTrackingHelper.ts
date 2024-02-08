@@ -394,8 +394,6 @@ export class MultichainTrackingHelper {
 
     let etherscanRemoteTransactionSource =
       this.#etherscanRemoteTransactionSourcesMap.get(chainId);
-    // This shouldn't be possible anymore since refreshEtherscanRemoteTransactionSources
-    // is always called before this method
     if (!etherscanRemoteTransactionSource) {
       etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
         includeTokenTransfers:
