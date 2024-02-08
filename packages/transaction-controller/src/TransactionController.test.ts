@@ -605,7 +605,6 @@ describe('TransactionController', () => {
       };
     }
 
-    // Revisit if these mocked providers are okay
     const mockGetNetworkClientById = jest
       .fn()
       .mockImplementation((networkClientId) => {
@@ -647,7 +646,6 @@ describe('TransactionController', () => {
         }
       });
 
-    // is this needed?
     const mockFindNetworkClientIdByChainId = jest
       .fn()
       .mockImplementation((chainId) => {
