@@ -30,7 +30,7 @@ export type ControllerList = ControllerInstance[];
  * @param controller - Controller instance to check
  * @returns True if the controller is an instance of BaseControllerV1
  */
-function isBaseControllerV1(
+export function isBaseControllerV1(
   controller: ControllerInstance,
 ): controller is BaseControllerV1<
   BaseConfig & Record<string, unknown>,
@@ -54,7 +54,7 @@ function isBaseControllerV1(
  * @param controller - Controller instance to check
  * @returns True if the controller is an instance of BaseController
  */
-function isBaseController(
+export function isBaseController(
   controller: ControllerInstance,
 ): controller is BaseController<never, never, never> {
   return (
