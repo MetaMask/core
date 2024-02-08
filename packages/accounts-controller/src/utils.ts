@@ -1,4 +1,4 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
+import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
 import { sha256FromString } from 'ethereumjs-util';
 import { v4 as uuid } from 'uuid';
 
@@ -11,7 +11,7 @@ import { v4 as uuid } from 'uuid';
 export function keyringTypeToName(keyringType: string): string {
   // Custody keyrings are a special case, as they are not a single type
   // they just start with the prefix `Custody`
-  if (/Custody.*/u.test(keyringType)) {
+  if (isCustodyKeyring(keyringType)) {
     return 'Custody';
   }
 

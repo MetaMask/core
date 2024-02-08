@@ -43,6 +43,7 @@ import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
+  isCustodyKeyring,
   keyringBuilderFactory,
 } from './KeyringController';
 
@@ -2788,6 +2789,16 @@ describe('KeyringController', () => {
           expect(listener).toHaveBeenCalledTimes(1);
         });
       });
+    });
+  });
+
+  describe('isCustodyKeyring', () => {
+    it('should return true if keyring is custody keyring', () => {
+      expect(isCustodyKeyring('Custody JSON-RPC')).toBe(true);
+    });
+
+    it('should not return true if keyring is not custody keyring', () => {
+      expect(isCustodyKeyring(KeyringTypes.hd)).toBe(false);
     });
   });
 
