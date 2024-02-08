@@ -207,12 +207,6 @@ function newMultichainTrackingHelper(
 
   const helper = new MultichainTrackingHelper(options);
 
-  // may not need this anymore since init is no longer in constructor
-  // helper to ignore calls from instantiation side effects
-  if (opts.clearMocks !== false) {
-    jest.clearAllMocks();
-  }
-
   return {
     helper,
     options,
@@ -230,9 +224,7 @@ describe('MultichainTrackingHelper', () => {
 
   describe('onNetworkStateChange', () => {
     it('refreshes the tracking map', () => {
-      const { options, helper } = newMultichainTrackingHelper({
-        clearMocks: false,
-      });
+      const { options, helper } = newMultichainTrackingHelper();
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (options.onNetworkStateChange as any).mock.calls[0][0]({}, []);
@@ -245,9 +237,7 @@ describe('MultichainTrackingHelper', () => {
     });
 
     it('refreshes the tracking map and excludes removed networkClientIds in the patches', () => {
-      const { options, helper } = newMultichainTrackingHelper({
-        clearMocks: false,
-      });
+      const { options, helper } = newMultichainTrackingHelper();
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (options.onNetworkStateChange as any).mock.calls[0][0]({}, [
@@ -268,7 +258,6 @@ describe('MultichainTrackingHelper', () => {
     it('does not refresh the tracking map when isMultichainEnabled: false', () => {
       const { options, helper } = newMultichainTrackingHelper({
         isMultichainEnabled: false,
-        clearMocks: false,
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -284,9 +273,7 @@ describe('MultichainTrackingHelper', () => {
 
   describe('initialize', () => {
     it('initializes the tracking map', () => {
-      const { options, helper } = newMultichainTrackingHelper({
-        clearMocks: false,
-      });
+      const { options, helper } = newMultichainTrackingHelper();
 
       helper.initialize();
 
@@ -300,7 +287,6 @@ describe('MultichainTrackingHelper', () => {
     it('does not initialize the tracking map when isMultichainEnabled: false', () => {
       const { options, helper } = newMultichainTrackingHelper({
         isMultichainEnabled: false,
-        clearMocks: false,
       });
 
       helper.initialize();
@@ -315,7 +301,7 @@ describe('MultichainTrackingHelper', () => {
 
   describe('stopAllTracking', () => {
     it('clears the tracking map', () => {
-      const { helper } = newMultichainTrackingHelper({ clearMocks: false });
+      const { helper } = newMultichainTrackingHelper();
 
       helper.initialize();
 
@@ -412,7 +398,7 @@ describe('MultichainTrackingHelper', () => {
   describe('startIncomingTransactionPolling', () => {
     it('starts polling on the IncomingTransactionHelper for the networkClientIds', () => {
       const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper({ clearMocks: false });
+        newMultichainTrackingHelper();
 
       helper.initialize();
 
@@ -433,7 +419,7 @@ describe('MultichainTrackingHelper', () => {
   describe('stopIncomingTransactionPolling', () => {
     it('stops polling on the IncomingTransactionHelper for the networkClientIds', () => {
       const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper({ clearMocks: false });
+        newMultichainTrackingHelper();
 
       helper.initialize();
 
@@ -452,7 +438,7 @@ describe('MultichainTrackingHelper', () => {
   describe('stopAllIncomingTransactionPolling', () => {
     it('stops polling on all IncomingTransactionHelpers', () => {
       const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper({ clearMocks: false });
+        newMultichainTrackingHelper();
 
       helper.initialize();
 
@@ -471,7 +457,7 @@ describe('MultichainTrackingHelper', () => {
   describe('updateIncomingTransactions', () => {
     it('calls update on the IncomingTransactionHelper for the networkClientIds', () => {
       const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper({ clearMocks: false });
+        newMultichainTrackingHelper();
 
       helper.initialize();
 
@@ -492,7 +478,7 @@ describe('MultichainTrackingHelper', () => {
   describe('getNonceLock', () => {
     describe('when given a networkClientId', () => {
       it('gets the shared nonce lock by chainId for the networkClientId', async () => {
-        const { helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { helper } = newMultichainTrackingHelper();
 
         const mockAcquireNonceLockForChainIdKey = jest
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
@@ -509,9 +495,7 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('gets the nonce lock from the NonceTracker for the networkClientId', async () => {
-        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({
-          clearMocks: false,
-        });
+        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({});
 
         jest
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
@@ -527,9 +511,7 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('merges the nonce lock by chainId release with the NonceTracker releaseLock function', async () => {
-        const { mockNonceLock, helper } = newMultichainTrackingHelper({
-          clearMocks: false,
-        });
+        const { mockNonceLock, helper } = newMultichainTrackingHelper({});
 
         const releaseLockForChainIdKey = jest.fn();
         jest
@@ -550,7 +532,7 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('throws an error if the networkClientId does not exist in the tracking map', async () => {
-        const { helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { helper } = newMultichainTrackingHelper();
 
         jest
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
@@ -562,9 +544,7 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('throws an error and releases nonce lock by chainId if unable to acquire nonce lock from the NonceTracker', async () => {
-        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({
-          clearMocks: false,
-        });
+        const { mockNonceTrackers, helper } = newMultichainTrackingHelper({});
 
         const releaseLockForChainIdKey = jest.fn();
         jest
@@ -591,7 +571,7 @@ describe('MultichainTrackingHelper', () => {
 
     describe('when no networkClientId given', () => {
       it('does not get the shared nonce lock by chainId', async () => {
-        const { helper } = newMultichainTrackingHelper({ clearMocks: false });
+        const { helper } = newMultichainTrackingHelper();
 
         const mockAcquireNonceLockForChainIdKey = jest
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
@@ -605,9 +585,7 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('gets the nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({
-          clearMocks: false,
-        });
+        const { options, helper } = newMultichainTrackingHelper({});
 
         helper.initialize();
 
@@ -619,9 +597,7 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('throws an error if unable to acquire nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({
-          clearMocks: false,
-        });
+        const { options, helper } = newMultichainTrackingHelper({});
 
         helper.initialize();
 
