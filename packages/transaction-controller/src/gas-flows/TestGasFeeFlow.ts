@@ -1,17 +1,22 @@
 import { ChainId, hexToBN, toHex } from '@metamask/controller-utils';
 
 import type {
+  GasFeeEstimatesLevel,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
 } from '../types';
 
-const LEVEL_MULTIPLIERS = {
+const MULTIPLIER = 10e17;
+
+const LEVEL_INCREMENTS = {
   low: 0,
   medium: 1,
   high: 2,
 };
+
+type Level = keyof typeof LEVEL_INCREMENTS;
 
 export class TestGasFeeFlow implements GasFeeFlow {
   #increment = 0;
@@ -27,20 +32,25 @@ export class TestGasFeeFlow implements GasFeeFlow {
 
     const gas = hexToBN(transactionMeta.txParams.gas as string).toNumber();
 
-    return (['low', 'medium', 'high'] as const).reduce((result, level) => {
-      const maxFeePerGas = Math.floor(
-        ((this.#increment + LEVEL_MULTIPLIERS[level]) * 10e10) / gas,
-      );
+    return {
+      estimates: {
+        low: this.#getFeeLevel('low', gas),
+        medium: this.#getFeeLevel('medium', gas),
+        high: this.#getFeeLevel('high', gas),
+      },
+    };
+  }
 
-      const maxPriorityFeePerGas = Math.floor(maxFeePerGas * 0.2);
+  #getFeeLevel(level: Level, gas: number): GasFeeEstimatesLevel {
+    const maxFeePerGas = Math.floor(
+      ((this.#increment + LEVEL_INCREMENTS[level]) * MULTIPLIER) / gas,
+    );
 
-      return {
-        ...result,
-        [level]: {
-          maxFeePerGas: toHex(maxFeePerGas),
-          maxPriorityFeePerGas: toHex(maxPriorityFeePerGas),
-        },
-      };
-    }, {}) as GasFeeFlowResponse;
+    const maxPriorityFeePerGas = Math.floor(maxFeePerGas * 0.2);
+
+    return {
+      maxFeePerGas: toHex(maxFeePerGas),
+      maxPriorityFeePerGas: toHex(maxPriorityFeePerGas),
+    };
   }
 }

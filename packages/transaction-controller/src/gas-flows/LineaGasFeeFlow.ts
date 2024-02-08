@@ -9,7 +9,7 @@ import type EthQuery from '@metamask/eth-query';
 import type { GasFeeEstimates } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { createModuleLogger, type Hex } from '@metamask/utils';
-import { BN } from 'ethereumjs-util';
+import type { BN } from 'ethereumjs-util';
 
 import { projectLogger } from '../logger';
 import type {
@@ -32,7 +32,7 @@ type FeesByLevel = {
 
 const log = createModuleLogger(projectLogger, 'linea-gas-fee-flow');
 
-const ONE_GWEI_IN_WEI = new BN(1e9);
+const ONE_GWEI_IN_WEI = 1e9;
 
 const LINEA_CHAIN_IDS: Hex[] = [
   ChainId['linea-mainnet'],
@@ -67,6 +67,8 @@ export class LineaGasFeeFlow implements GasFeeFlow {
 
     const gasFeeControllerEstimates = await getGasFeeControllerEstimates();
 
+    log('Received gas fee controller estimates', gasFeeControllerEstimates);
+
     if (
       gasFeeControllerEstimates.gasEstimateType !==
       GAS_ESTIMATE_TYPES.FEE_MARKET
@@ -82,6 +84,11 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     );
 
     const maxFees = this.#getMaxFees(baseFees, priorityFees);
+
+    this.#logDifferencesToGasFeeController(
+      maxFees,
+      gasFeeControllerEstimates.gasFeeEstimates,
+    );
 
     return {
       estimates: {
@@ -111,15 +118,13 @@ export class LineaGasFeeFlow implements GasFeeFlow {
         to: transactionMeta.txParams.to,
         value: transactionMeta.txParams.value,
         input: transactionMeta.txParams.data,
+        gasPrice: '0x100000000',
       },
     ]);
   }
 
   #getBaseFees(lineaResponse: LineaEstimateGasResponse): FeesByLevel {
-    const baseFeeLow = hexToBN(lineaResponse.baseFeePerGas).mul(
-      ONE_GWEI_IN_WEI,
-    );
-
+    const baseFeeLow = hexToBN(lineaResponse.baseFeePerGas);
     const baseFeeMedium = baseFeeLow.muln(BASE_FEE_MULTIPLIERS.medium);
     const baseFeeHigh = baseFeeLow.muln(BASE_FEE_MULTIPLIERS.high);
 
@@ -142,10 +147,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
       gasFeeEstimates.high.suggestedMaxPriorityFeePerGas,
     ).sub(gweiDecToWEIBN(gasFeeEstimates.medium.suggestedMaxPriorityFeePerGas));
 
-    const priorityFeeLow = hexToBN(lineaResponse.priorityFeePerGas).mul(
-      ONE_GWEI_IN_WEI,
-    );
-
+    const priorityFeeLow = hexToBN(lineaResponse.priorityFeePerGas);
     const priorityFeeMedium = priorityFeeLow.add(mediumPriorityIncrease);
     const priorityFeeHigh = priorityFeeMedium.add(highPriorityIncrease);
 
@@ -165,5 +167,32 @@ export class LineaGasFeeFlow implements GasFeeFlow {
       medium: baseFees.medium.add(priorityFees.medium),
       high: baseFees.high.add(priorityFees.high),
     };
+  }
+
+  #logDifferencesToGasFeeController(
+    maxFees: FeesByLevel,
+    gasFeeControllerEstimates: GasFeeEstimates,
+  ) {
+    const calculateDifference = (level: keyof FeesByLevel) => {
+      const newMaxFeeWeiDec = maxFees[level].toNumber();
+      const newMaxFeeGweiDec = newMaxFeeWeiDec / ONE_GWEI_IN_WEI;
+
+      const oldMaxFeeGweiDec = parseFloat(
+        gasFeeControllerEstimates[level].suggestedMaxFeePerGas,
+      );
+
+      const percentDifference = (newMaxFeeGweiDec / oldMaxFeeGweiDec - 1) * 100;
+
+      return `${percentDifference > 0 ? '+' : ''}${percentDifference.toFixed(
+        2,
+      )}%`;
+    };
+
+    log(
+      'Difference to gas fee controller',
+      calculateDifference('low'),
+      calculateDifference('medium'),
+      calculateDifference('high'),
+    );
   }
 }

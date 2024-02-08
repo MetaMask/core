@@ -88,7 +88,7 @@ describe('LineaGasFeeFlow', () => {
   });
 
   describe('getGasFees', () => {
-    it('returns priority fees using custom RPC method and gas fee controller estimate deltas', async () => {
+    it('returns priority fees using custom RPC method and gas fee controller estimate differences', async () => {
       const flow = new LineaGasFeeFlow();
       const response = await flow.getGasFees(request);
 
@@ -96,7 +96,7 @@ describe('LineaGasFeeFlow', () => {
         Object.values(response.estimates).map(
           (level) => level.maxPriorityFeePerGas,
         ),
-      ).toStrictEqual(['0x77359400', '0xee6b2800', '0x165a0bc00']);
+      ).toStrictEqual(['0x2', '0x77359402', '0xee6b2802']);
     });
 
     it('returns max fees using custom RPC method and base fee multipliers', async () => {
@@ -105,7 +105,7 @@ describe('LineaGasFeeFlow', () => {
 
       expect(
         Object.values(response.estimates).map((level) => level.maxFeePerGas),
-      ).toStrictEqual(['0xb2d05e00', '0x13b48ebe6', '0x1c7c179cc']);
+      ).toStrictEqual(['0x3', '0x77359403', '0xee6b2803']);
     });
 
     it('throws if gas fee estimate type is not fee market', async () => {
