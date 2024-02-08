@@ -2800,6 +2800,10 @@ describe('KeyringController', () => {
     it('should not return true if keyring is not custody keyring', () => {
       expect(isCustodyKeyring(KeyringTypes.hd)).toBe(false);
     });
+
+    it("should not return true if the keyring doesn't start with custody", () => {
+      expect(isCustodyKeyring('NotCustody')).toBe(false);
+    });
   });
 
   describe('actions', () => {
