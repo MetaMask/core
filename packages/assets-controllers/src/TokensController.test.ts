@@ -422,13 +422,9 @@ describe('TokensController', () => {
 
   it('should add token to the correct chainId when passed a networkClientId', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
-    messenger.unregisterActionHandler(`NetworkController:getNetworkClientById`);
-    messenger.registerActionHandler(
-      `NetworkController:getNetworkClientById`,
-      getNetworkClientByIdHandler.mockReturnValue({
-        configuration: { chainId: '0x5' },
-      } as unknown as ReturnType<NetworkController['getNetworkClientById']>),
-    );
+    getNetworkClientByIdHandler.mockReturnValue({
+      configuration: { chainId: '0x5' },
+    } as unknown as ReturnType<NetworkController['getNetworkClientById']>);
     await tokensController.addToken({
       address: '0x01',
       symbol: 'bar',
@@ -1111,15 +1107,9 @@ describe('TokensController', () => {
     });
 
     it('should add tokens to the correct chainId when passed a networkClientId', async () => {
-      messenger.unregisterActionHandler(
-        `NetworkController:getNetworkClientById`,
-      );
-      messenger.registerActionHandler(
-        `NetworkController:getNetworkClientById`,
-        getNetworkClientByIdHandler.mockReturnValue({
-          configuration: { chainId: '0x5' },
-        } as unknown as ReturnType<NetworkController['getNetworkClientById']>),
-      );
+      getNetworkClientByIdHandler.mockReturnValue({
+        configuration: { chainId: '0x5' },
+      } as unknown as ReturnType<NetworkController['getNetworkClientById']>);
       const dummyTokens: Token[] = [
         {
           address: '0x01',
@@ -1571,23 +1561,17 @@ describe('TokensController', () => {
     });
 
     it('stores token correctly when passed a networkClientId', async function () {
-      messenger.unregisterActionHandler(
-        `NetworkController:getNetworkClientById`,
-      );
-      messenger.registerActionHandler(
-        `NetworkController:getNetworkClientById`,
-        getNetworkClientByIdHandler.mockImplementation((networkClientId) => {
-          expect(networkClientId).toBe('networkClientId1');
-          return {
-            configuration: { chainId: '0x5' },
-            provider: new FakeProvider({
-              stubs: [],
-            }),
-            blockTracker: new FakeBlockTracker(),
-            destroy: jest.fn(),
-          } as unknown as ReturnType<NetworkController['getNetworkClientById']>;
-        }),
-      );
+      getNetworkClientByIdHandler.mockImplementation((networkClientId) => {
+        expect(networkClientId).toBe('networkClientId1');
+        return {
+          configuration: { chainId: '0x5' },
+          provider: new FakeProvider({
+            stubs: [],
+          }),
+          blockTracker: new FakeBlockTracker(),
+          destroy: jest.fn(),
+        } as unknown as ReturnType<NetworkController['getNetworkClientById']>;
+      });
 
       const addRequestHandler = jest.fn();
       messenger.unregisterActionHandler(`ApprovalController:addRequest`);

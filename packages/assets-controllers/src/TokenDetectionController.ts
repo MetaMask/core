@@ -462,7 +462,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       'TokensController:getState',
     );
     const tokensToDetect: string[] = [];
-
     for (const tokenAddress of Object.keys(tokenListUsed)) {
       if (
         !findCaseInsensitiveMatch(

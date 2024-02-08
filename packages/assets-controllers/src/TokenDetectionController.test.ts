@@ -1390,7 +1390,6 @@ async function withController<ReturnValue>(
       ...getDefaultPreferencesState(),
     }),
   );
-
   const mockAddDetectedTokens = jest.spyOn(controllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
@@ -1406,17 +1405,11 @@ async function withController<ReturnValue>(
       mockKeyringGetState: (state: KeyringControllerState) => {
         mockKeyringState.mockReturnValue(state);
       },
+      mockTokensGetState: (state: TokensState) => {
+        mockTokensState.mockReturnValue(state);
+      },
       mockPreferencesGetState: (state: PreferencesState) => {
         mockPreferencesState.mockReturnValue(state);
-      },
-      mockTokensGetState: (state: TokensState) => {
-        controllerMessenger.unregisterActionHandler(
-          'TokensController:getState',
-        );
-        controllerMessenger.registerActionHandler(
-          'TokensController:getState',
-          mockTokensState.mockReturnValue(state),
-        );
       },
       mockTokenListGetState: (state: TokenListState) => {
         mockTokenListState.mockReturnValue(state);
