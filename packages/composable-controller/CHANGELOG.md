@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Add exports `isBaseControllerV1` and `isBaseController`, which are type guards for validating controller instances ([#3904](https://github.com/MetaMask/core/pull/3904))
+
+### Changed
+
+- Throws an error if a non-controller is passed into the `controllers` constructor option ([#3904](https://github.com/MetaMask/core/pull/3904))
+
 ## [5.0.1]
 
 ### Changed
