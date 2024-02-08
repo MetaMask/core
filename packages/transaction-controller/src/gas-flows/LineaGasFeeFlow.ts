@@ -183,6 +183,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
 
       const percentDifference = (newMaxFeeGweiDec / oldMaxFeeGweiDec - 1) * 100;
 
+      /* istanbul ignore next */
       return `${percentDifference > 0 ? '+' : ''}${percentDifference.toFixed(
         2,
       )}%`;

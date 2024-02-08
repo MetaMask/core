@@ -118,9 +118,11 @@ export class GasFeePoller {
 
     const ethQuery = this.#getEthQuery();
 
-    for (const transactionMeta of unapprovedTransactions) {
-      await this.#updateTransactionSuggestedFees(transactionMeta, ethQuery);
-    }
+    await Promise.all(
+      unapprovedTransactions.map((tx) =>
+        this.#updateTransactionSuggestedFees(tx, ethQuery),
+      ),
+    );
   }
 
   async #updateTransactionSuggestedFees(
