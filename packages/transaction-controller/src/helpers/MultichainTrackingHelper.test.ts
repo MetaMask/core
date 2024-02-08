@@ -1,7 +1,5 @@
-/* eslint-disable jest/prefer-spy-on */
 /* eslint-disable jsdoc/require-jsdoc */
 import { ChainId, toHex } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 
 import type { MultichainTrackingHelperOptions } from './MultichainTrackingHelper';
@@ -216,7 +214,6 @@ describe('MultichainTrackingHelper', () => {
           clearMocks: false,
         });
 
-        // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (options.onNetworkStateChange as any).mock.calls[0][0]({}, [
           {
@@ -240,7 +237,7 @@ describe('MultichainTrackingHelper', () => {
           networkClientId: 'goerli',
           chainId: '0xa',
         });
-        expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.goerli);
+        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.goerli);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
@@ -253,7 +250,7 @@ describe('MultichainTrackingHelper', () => {
           networkClientId: 'missingNetworkClientId',
           chainId: '0xa',
         });
-        expect((ethQuery as any).provider).toBe(
+        expect(ethQuery.provider).toBe(
           MOCK_PROVIDERS['customNetworkClientId-1'],
         );
 
@@ -276,7 +273,7 @@ describe('MultichainTrackingHelper', () => {
           networkClientId: 'missingNetworkClientId',
           chainId: '0xdeadbeef',
         });
-        expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith(
@@ -293,7 +290,7 @@ describe('MultichainTrackingHelper', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
         const ethQuery = helper.getEthQuery({ networkClientId: 'goerli' });
-        expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.goerli);
+        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.goerli);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
@@ -305,7 +302,7 @@ describe('MultichainTrackingHelper', () => {
         const ethQuery = helper.getEthQuery({
           networkClientId: 'missingNetworkClientId',
         });
-        expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith(
@@ -319,7 +316,7 @@ describe('MultichainTrackingHelper', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
         const ethQuery = helper.getEthQuery({ chainId: '0xa' });
-        expect((ethQuery as any).provider).toBe(
+        expect(ethQuery.provider).toBe(
           MOCK_PROVIDERS['customNetworkClientId-1'],
         );
 
@@ -336,7 +333,7 @@ describe('MultichainTrackingHelper', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
         const ethQuery = helper.getEthQuery({ chainId: '0xdeadbeef' });
-        expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
 
         expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
           '0xdeadbeef',
@@ -346,10 +343,9 @@ describe('MultichainTrackingHelper', () => {
 
     it('returns EthQuery with the global provider when no arguments are provided', () => {
       const { options, helper } = newMultichainTrackingHelper();
-      (options.getNetworkClientById as any).mockClear();
 
       const ethQuery = helper.getEthQuery();
-      expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
 
       expect(options.getNetworkClientById).not.toHaveBeenCalled();
     });
@@ -363,13 +359,13 @@ describe('MultichainTrackingHelper', () => {
         networkClientId: 'goerli',
         chainId: '0x5',
       });
-      expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
       ethQuery = helper.getEthQuery({ networkClientId: 'goerli' });
-      expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
       ethQuery = helper.getEthQuery({ chainId: '0x5' });
-      expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
       ethQuery = helper.getEthQuery();
-      expect((ethQuery as any).provider).toBe(MOCK_PROVIDERS.mainnet);
+      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
 
       expect(options.getNetworkClientById).not.toHaveBeenCalled();
     });
