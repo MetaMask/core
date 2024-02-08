@@ -205,6 +205,18 @@ describe('SelectedNetworkController', () => {
       expect(result1).toBe(networkClientId1);
       expect(result2).toBe(networkClientId2);
     });
+
+    it('returns the networkClientId for the metamask domain, when the perDomainNetwork option is true, but no networkClientId has been set for the domain requested', () => {
+      const options: SelectedNetworkControllerOptions = {
+        messenger: buildSelectedNetworkControllerMessenger(),
+      };
+      const controller = new SelectedNetworkController(options);
+      controller.state.perDomainNetwork = true;
+      const networkClientId = 'network7';
+      controller.setNetworkClientIdForMetamask(networkClientId);
+      const result = controller.getNetworkClientIdForDomain('example.com');
+      expect(result).toBe(networkClientId);
+    });
   });
 
   describe('getProviderAndBlockTracker', () => {
