@@ -76,17 +76,24 @@ export type ComposableControllerState = {
 
 export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
-  Record<string, Json | (BaseState & Record<string, unknown>)>
+  Record<string, unknown>
 >;
 
 export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
 
+type AnyControllerStateChangeEvent = ControllerStateChangeEvent<
+  string,
+  Record<string, unknown>
+>;
+
+type AllowedEvents = AnyControllerStateChangeEvent;
+
 export type ComposableControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   never,
-  ControllerStateChangeEvent<string, Record<string, unknown>>,
-  string,
-  string
+  ComposableControllerEvents | AllowedEvents,
+  never,
+  AllowedEvents['type']
 >;
 
 /**
