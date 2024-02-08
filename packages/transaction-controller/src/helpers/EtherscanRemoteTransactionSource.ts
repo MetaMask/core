@@ -1,6 +1,6 @@
 import { BNToHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import { v1 as random } from 'uuid';
 
 import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';

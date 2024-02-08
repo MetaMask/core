@@ -44,6 +44,7 @@
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
+    "bn.js": "^5.2.1",
     "eth-method-registry": "^4.0.0",
     "ethereumjs-util": "^7.0.10",
     "fast-json-patch": "^3.1.1",

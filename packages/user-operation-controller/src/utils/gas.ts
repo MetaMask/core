@@ -1,5 +1,6 @@
 import { hexToBN } from '@metamask/controller-utils';
-import { BN, addHexPrefix } from 'ethereumjs-util';
+import BN from 'bn.js';
+import { addHexPrefix } from 'ethereumjs-util';
 
 import { VALUE_ZERO } from '../constants';
 import { Bundler } from '../helpers/Bundler';
