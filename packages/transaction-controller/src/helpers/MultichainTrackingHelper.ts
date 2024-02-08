@@ -294,7 +294,6 @@ export class MultichainTrackingHelper {
   }
 
   startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-
     networkClientIds.forEach((networkClientId) => {
       this.#trackingMap.get(networkClientId)?.incomingTransactionHelper.start();
     });

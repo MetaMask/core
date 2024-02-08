@@ -1,9 +1,12 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { ChainId } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { PendingTransactionTracker } from './PendingTransactionTracker';
 
 jest.mock(
   '@metamask/eth-query',
@@ -133,19 +136,30 @@ function newMultichainTrackingHelper(
 
   const mockCreateNonceTracker = jest.fn().mockReturnValue({});
 
-  const mockIncomingTransactionHelper = {
-    stop: jest.fn(),
-  };
+  const mockIncomingTransactionHelpers: Record<Hex, jest.Mocked<IncomingTransactionHelper>> = {}
   const mockCreateIncomingTransactionHelper = jest
     .fn()
-    .mockReturnValue(mockIncomingTransactionHelper);
+    .mockImplementation(({chainId}: {chainId: Hex}) => {
+      const mockIncomingTransactionHelper = {
+        start: jest.fn(),
+        stop: jest.fn(),
+        update: jest.fn()
+      } as unknown as jest.Mocked<IncomingTransactionHelper>
+      mockIncomingTransactionHelpers[chainId] = mockIncomingTransactionHelper
+      return mockIncomingTransactionHelper
+    });
 
-  const mockPendingTransactionTracker = {
-    stop: jest.fn(),
-  };
+  const mockPendingTransactionTrackers: Record<Hex, jest.Mocked<PendingTransactionTracker>> = {}
   const mockCreatePendingTransactionTracker = jest
     .fn()
-    .mockReturnValue(mockPendingTransactionTracker);
+    .mockImplementation(({chainId}: {chainId: Hex}) => {
+      const mockPendingTransactionTracker = {
+        start: jest.fn(),
+        stop: jest.fn(),
+      } as unknown as jest.Mocked<PendingTransactionTracker>
+      mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker
+      return mockPendingTransactionTracker
+    });
 
   const options = {
     isMultichainEnabled: true,
@@ -181,8 +195,8 @@ function newMultichainTrackingHelper(
   return {
     helper,
     options,
-    mockIncomingTransactionHelper,
-    mockPendingTransactionTracker,
+    mockIncomingTransactionHelpers,
+    mockPendingTransactionTrackers,
   };
 }
 
@@ -341,8 +355,8 @@ describe('MultichainTrackingHelper', () => {
     it('stops trackers and removes them from the tracking map', () => {
       const {
         options,
-        mockIncomingTransactionHelper,
-        mockPendingTransactionTracker,
+        mockIncomingTransactionHelpers,
+        mockPendingTransactionTrackers,
         helper,
       } = newMultichainTrackingHelper({
         getNetworkClientRegistry: jest.fn().mockReturnValue({
@@ -360,17 +374,79 @@ describe('MultichainTrackingHelper', () => {
 
       helper.stopAllTracking();
 
-      expect(mockPendingTransactionTracker.stop).toHaveBeenCalled();
+      expect(mockPendingTransactionTrackers['0x1'].stop).toHaveBeenCalled();
       expect(
         options.removePendingTransactionTrackerListeners,
-      ).toHaveBeenCalledWith(mockPendingTransactionTracker);
-      expect(mockIncomingTransactionHelper.stop).toHaveBeenCalled();
+      ).toHaveBeenCalledWith(mockPendingTransactionTrackers['0x1']);
+      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
       expect(
         options.removeIncomingTransactionHelperListeners,
-      ).toHaveBeenCalledWith(mockIncomingTransactionHelper);
+      ).toHaveBeenCalledWith(mockIncomingTransactionHelpers['0x1']);
       expect(helper.has('mainnet')).toBe(false);
     });
   });
+
+  describe('startIncomingTransactionPolling', () => {
+    it('starts polling on the IncomingTransactionHelper for the networkClientIds', () => {
+      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      helper.initialize();
+
+      helper.startIncomingTransactionPolling(['mainnet', 'goerli'])
+      expect(mockIncomingTransactionHelpers['0x1'].start).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.goerli].start).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.sepolia].start).not.toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers['0xa'].start).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('stopIncomingTransactionPolling', () => {
+    it('stops polling on the IncomingTransactionHelper for the networkClientIds', () => {
+      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      helper.initialize();
+
+      helper.stopIncomingTransactionPolling(['mainnet', 'goerli'])
+      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.goerli].stop).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.sepolia].stop).not.toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers['0xa'].stop).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('stopAllIncomingTransactionPolling', () => {
+    it('stops polling on all IncomingTransactionHelpers', () => {
+      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      helper.initialize();
+
+      helper.stopAllIncomingTransactionPolling()
+      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.goerli].stop).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.sepolia].stop).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers['0xa'].stop).toHaveBeenCalled()
+    })
+  })
+
+  describe('updateIncomingTransactions', () => {
+    it('calls update on the IncomingTransactionHelper for the networkClientIds', () => {
+      const { mockIncomingTransactionHelpers, helper } = newMultichainTrackingHelper({ clearMocks: false });
+
+      helper.initialize();
+
+      helper.updateIncomingTransactions(['mainnet', 'goerli'])
+      expect(mockIncomingTransactionHelpers['0x1'].update).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.goerli].update).toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers[ChainId.sepolia].update).not.toHaveBeenCalled()
+      expect(mockIncomingTransactionHelpers['0xa'].update).not.toHaveBeenCalled()
+    })
+  })
+
+  // describe('getNonceLock', () => {
+  // })
+
+  // describe('acquireNonceLockForChainIdKey', () => {
+  // })
 
   describe('getEthQuery', () => {
     describe('when given networkClientId and chainId', () => {
