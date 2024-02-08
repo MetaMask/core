@@ -5,7 +5,7 @@ import type {
   BaseState,
   BaseConfig,
 } from '@metamask/base-controller';
-import type { Json } from '@metamask/utils';
+import { isValidJson, type Json } from '@metamask/utils';
 
 export const controllerName = 'ComposableController';
 
@@ -156,10 +156,12 @@ export class ComposableController extends BaseController<
       });
     } else if (isBaseController(controller)) {
       this.messagingSystem.subscribe(`${name}:stateChange`, (childState) => {
-        this.update((state) => ({
-          ...state,
-          [name]: childState,
-        }));
+        if (isValidJson(childState)) {
+          this.update((state) => ({
+            ...state,
+            [name]: childState,
+          }));
+        }
       });
     } else {
       throw new Error(
