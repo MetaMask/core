@@ -4,8 +4,8 @@ import { decodeSingle } from '@metamask/abi-utils';
 import { ERC20 } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { assertIsStrictHexString } from '@metamask/utils';
+import type * as BN from 'bn.js';
 import { toUtf8 } from 'ethereumjs-util';
-import type { BN } from 'ethereumjs-util';
 
 import { ethersBigNumberToBN } from '../assetsUtil';
 

@@ -1,5 +1,5 @@
 import EthQuery from '@metamask/eth-query';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import nock from 'nock';
 
 import { FakeProvider } from '../../../tests/fake-provider';

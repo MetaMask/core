@@ -8,7 +8,8 @@ import {
   UserFeeLevel,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
+import BN from 'bn.js';
+import { addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
 
 import { EMPTY_BYTES, VALUE_ZERO } from '../constants';
 import { UserOperationStatus } from '../types';

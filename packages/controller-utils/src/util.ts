@@ -2,12 +2,12 @@ import type EthQuery from '@metamask/eth-query';
 import { fromWei, toWei } from '@metamask/ethjs-unit';
 import type { Hex, Json } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
+import BN from 'bn.js';
 import ensNamehash from 'eth-ens-namehash';
 import {
   addHexPrefix,
   isValidAddress,
   isHexString,
-  BN,
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';

@@ -19,7 +19,7 @@ import {
   type PreferencesState,
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
