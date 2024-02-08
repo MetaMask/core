@@ -2,6 +2,8 @@ import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
+  BaseState,
+  BaseConfig,
 } from '@metamask/base-controller';
 
 export const controllerName = 'ComposableController';
@@ -14,7 +16,7 @@ export const controllerName = 'ComposableController';
  * that we use in the ComposableController (name and state).
  */
 type ControllerInstance =
-  // TODO: Replace `any` with type
+  // As explained above, `any` is used to include all `BaseControllerV1` instances.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   BaseControllerV1<any, any> | { name: string; state: Record<string, unknown> };
 
@@ -30,10 +32,21 @@ export type ControllerList = ControllerInstance[];
  */
 function isBaseControllerV1(
   controller: ControllerInstance,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): controller is BaseControllerV1<any, any> {
-  return controller instanceof BaseControllerV1;
+): controller is BaseControllerV1<
+  BaseConfig & Record<string, unknown>,
+  BaseState & Record<string, unknown>
+> {
+  return (
+    'name' in controller &&
+    typeof controller.name === 'string' &&
+    'defaultConfig' in controller &&
+    typeof controller.defaultConfig === 'object' &&
+    'defaultState' in controller &&
+    typeof controller.defaultState === 'object' &&
+    'disabled' in controller &&
+    typeof controller.disabled === 'boolean' &&
+    controller instanceof BaseControllerV1
+  );
 }
 
 /**
@@ -54,7 +67,11 @@ function isBaseController(
 }
 
 export type ComposableControllerState = {
-  [name: string]: ControllerInstance['state'];
+  // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
+  // `ComposableController` state needs to accommodate `BaseControllerV1` state objects, and there is no straightforward way
+  // to include objects in `BaseController` state when they may have properties that are wider than `Json`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [name: string]: Record<string, any>;
 };
 
 export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
