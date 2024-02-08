@@ -10,6 +10,7 @@ import {
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
 
+import { JsonRpcEngine } from '../../json-rpc-engine/src/JsonRpcEngine';
 import type { ComposableControllerStateChangeEvent } from './ComposableController';
 import { ComposableController } from './ComposableController';
 
@@ -334,6 +335,36 @@ describe('ComposableController', () => {
             controllers: [barController, fooController],
           }),
       ).toThrow('Messaging system is required');
+    });
+
+    it('should throw if attempting to compose a controller that does not extend from BaseController', () => {
+      const notController = new JsonRpcEngine();
+      const controllerMessenger = new ControllerMessenger<
+        never,
+        FooControllerEvent
+      >();
+      const fooControllerMessenger = controllerMessenger.getRestricted<
+        'FooController',
+        never,
+        never
+      >({
+        name: 'FooController',
+      });
+      const fooController = new FooController(fooControllerMessenger);
+      const composableControllerMessenger = controllerMessenger.getRestricted({
+        name: 'ComposableController',
+        allowedEvents: ['FooController:stateChange'],
+      });
+      expect(
+        () =>
+          new ComposableController({
+            // @ts-expect-error - Suppressing type error to test for runtime error handling
+            controllers: [notController, fooController],
+            messenger: composableControllerMessenger,
+          }),
+      ).toThrow(
+        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
+      );
     });
   });
 });
