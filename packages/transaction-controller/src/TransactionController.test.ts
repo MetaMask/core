@@ -1221,12 +1221,7 @@ describe('TransactionController', () => {
       );
     });
 
-    // Note that we don't really test the effects of the feature flag anymore since
-    // MultichainTrackingHelper is mocked. We're testing if the trackers exist which is
-    // a side effect of MultichainTrackingHelper being passed isMultichainEnabled: true,
-    // but again this is mocked so we aren't really testing it.
-    // describe('networkClientId exists in the MultichainTrackingHelper', () => {
-    describe('when isMultichainEnabled: true is specified', () => {
+    describe('networkClientId exists in the MultichainTrackingHelper', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const controller = newController({
           options: { isMultichainEnabled: true },
