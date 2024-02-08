@@ -97,8 +97,6 @@ export class ComposableController extends BaseController<
   ComposableControllerState,
   ComposableControllerMessenger
 > {
-  readonly #controllers: ControllerList = [];
-
   /**
    * Creates a ComposableController instance.
    *
@@ -127,19 +125,19 @@ export class ComposableController extends BaseController<
       messenger,
     });
 
-    this.#controllers = controllers;
-    this.#controllers.forEach((controller) =>
+    controllers.forEach((controller) =>
       this.#updateChildController(controller),
     );
   }
 
   /**
-   * Adds a child controller instance to composable controller state,
-   * or updates the state of a child controller.
+   * Constructor helper that adds a child controller instance to composable controller state
+   * and subscribes to child controller state changes.
    * @param controller - Controller instance to update
    */
   #updateChildController(controller: ControllerInstance): void {
     const { name } = controller;
+
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState) => {
         this.update((state) => ({
