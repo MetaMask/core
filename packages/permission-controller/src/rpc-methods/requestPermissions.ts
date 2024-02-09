@@ -22,7 +22,6 @@ export const requestPermissionsHandler: PermittedHandlerExport<
 
 type RequestPermissions = (
   requestedPermissions: RequestedPermissions,
-  id: string,
 ) => Promise<
   [Record<string, PermissionConstraint>, { id: string; origin: string }]
 >;
@@ -49,19 +48,7 @@ async function requestPermissionsImplementation(
   end: JsonRpcEngineEndCallback,
   { requestPermissionsForOrigin }: RequestPermissionsHooks,
 ): Promise<void> {
-  const { id, params } = req;
-
-  if (
-    (typeof id !== 'number' && typeof id !== 'string') ||
-    (typeof id === 'string' && !id)
-  ) {
-    return end(
-      rpcErrors.invalidRequest({
-        message: 'Invalid request: Must specify a valid id.',
-        data: { request: req },
-      }),
-    );
-  }
+  const { params } = req;
 
   if (!Array.isArray(params) || !isPlainObject(params[0])) {
     return end(invalidParams({ data: { request: req } }));
@@ -70,7 +57,6 @@ async function requestPermissionsImplementation(
   const [requestedPermissions] = params;
   const [grantedPermissions] = await requestPermissionsForOrigin(
     requestedPermissions,
-    String(id),
   );
 
   // `wallet_requestPermission` is specified to return an array.
