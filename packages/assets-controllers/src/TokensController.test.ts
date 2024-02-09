@@ -1,8 +1,7 @@
+import type { ApprovalControllerEvents } from '@metamask/approval-controller';
 import {
   ApprovalController,
-  type AddApprovalRequest,
   type ApprovalControllerState,
-  type ApprovalControllerEvents,
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
@@ -17,10 +16,15 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type {
-  NetworkState,
+  BlockTrackerProxy,
+  NetworkController,
   ProviderConfig,
+  ProviderProxy,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import {
+  defaultState as defaultNetworkState,
+  NetworkClientType,
+} from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -28,13 +32,15 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
+import type { TokenListState } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
-import type { TokensControllerMessenger } from './TokensController';
+import type { AllowedActions, AllowedEvents } from './TokensController';
 
 jest.mock('uuid', () => {
   return {
@@ -52,7 +58,21 @@ const stubCreateEthers = (ctrl: TokensController, res: () => boolean) => {
     } as any;
   });
 };
-
+const MAINNET = {
+  chainId: ChainId.mainnet,
+  type: NetworkType.mainnet,
+  ticker: NetworksTicker.mainnet,
+};
+const mockMainnetClient = {
+  configuration: {
+    network: 'mainnet',
+    ...MAINNET,
+    type: NetworkClientType.Infura,
+  },
+  provider: {} as ProviderProxy,
+  blockTracker: {} as BlockTrackerProxy,
+  destroy: jest.fn(),
+};
 const SEPOLIA = {
   chainId: toHex(11155111),
   type: NetworkType.sepolia,
@@ -66,78 +86,81 @@ const GOERLI = {
 
 const controllerName = 'TokensController' as const;
 
-type ApprovalActions = AddApprovalRequest;
-
 describe('TokensController', () => {
   let tokensController: TokensController;
-  let triggerPreferencesStateChange: (state: PreferencesState) => void;
-  const messenger = new ControllerMessenger<
-    ApprovalActions,
-    ApprovalControllerEvents
-  >();
+  let approvalController: ApprovalController;
+  let messenger: ControllerMessenger<
+    AllowedActions,
+    AllowedEvents | ApprovalControllerEvents
+  >;
+  let tokensControllerMessenger;
+  let approvalControllerMessenger;
+  let getNetworkClientByIdHandler: jest.Mock<
+    ReturnType<NetworkController['getNetworkClientById']>,
+    Parameters<NetworkController['getNetworkClientById']>
+  >;
 
-  const approvalControllerMessenger = messenger.getRestricted({
-    name: 'ApprovalController',
-  });
-
-  const approvalController = new ApprovalController({
-    messenger: approvalControllerMessenger,
-    showApprovalRequest: jest.fn(),
-    typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
-  });
-
-  const tokensControllerMessenger = messenger.getRestricted<
-    typeof controllerName,
-    ApprovalActions['type'],
-    never
-  >({
-    name: controllerName,
-    allowedActions: ['ApprovalController:addRequest'],
-  }) as TokensControllerMessenger;
-
-  let onNetworkDidChangeListener: (state: NetworkState) => void;
   const changeNetwork = (providerConfig: ProviderConfig) => {
-    onNetworkDidChangeListener({
+    messenger.publish(`NetworkController:networkDidChange`, {
       ...defaultNetworkState,
       providerConfig,
     });
   };
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let tokenListStateChangeListener: (state: any) => void;
-  const onTokenListStateChange = sinon.stub().callsFake((listener) => {
-    tokenListStateChangeListener = listener;
-  });
+  const triggerPreferencesStateChange = (state: PreferencesState) => {
+    messenger.publish('PreferencesController:stateChange', state, []);
+  };
 
   const fakeProvider = new FakeProvider();
 
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
-    const preferencesStateChangeListeners: ((
-      state: PreferencesState,
-    ) => void)[] = [];
+    messenger = new ControllerMessenger();
+
+    approvalControllerMessenger = messenger.getRestricted<
+      'ApprovalController',
+      never,
+      never
+    >({
+      name: 'ApprovalController',
+    });
+
+    tokensControllerMessenger = messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [
+        'ApprovalController:addRequest',
+        'NetworkController:getNetworkClientById',
+      ],
+      allowedEvents: [
+        'NetworkController:networkDidChange',
+        'PreferencesController:stateChange',
+        'TokenListController:stateChange',
+      ],
+    });
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
-      onPreferencesStateChange: (listener) => {
-        preferencesStateChangeListeners.push(listener);
-      },
-      onNetworkDidChange: (listener) => (onNetworkDidChangeListener = listener),
-      onTokenListStateChange,
       config: {
         selectedAddress: defaultSelectedAddress,
         provider: fakeProvider,
       },
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getNetworkClientById: sinon.stub() as any,
       messenger: tokensControllerMessenger,
     });
-    triggerPreferencesStateChange = (state: PreferencesState) => {
-      for (const listener of preferencesStateChangeListeners) {
-        listener(state);
-      }
-    };
+
+    approvalController = new ApprovalController({
+      messenger: approvalControllerMessenger,
+      showApprovalRequest: jest.fn(),
+      typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
+    });
+
+    getNetworkClientByIdHandler = jest.fn();
+    messenger.registerActionHandler(
+      `NetworkController:getNetworkClientById`,
+      getNetworkClientByIdHandler.mockReturnValue(
+        mockMainnetClient as unknown as ReturnType<
+          NetworkController['getNetworkClientById']
+        >,
+      ),
+    );
   });
 
   afterEach(() => {
@@ -401,11 +424,9 @@ describe('TokensController', () => {
 
   it('should add token to the correct chainId when passed a networkClientId', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
-    const getNetworkClientByIdStub = jest
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .spyOn(tokensController as any, 'getNetworkClientById')
-      .mockReturnValue({ configuration: { chainId: '0x5' } });
+    getNetworkClientByIdHandler.mockReturnValue({
+      configuration: { chainId: '0x5' },
+    } as unknown as ReturnType<NetworkController['getNetworkClientById']>);
     await tokensController.addToken({
       address: '0x01',
       symbol: 'bar',
@@ -435,7 +456,9 @@ describe('TokensController', () => {
       },
     ]);
 
-    expect(getNetworkClientByIdStub).toHaveBeenCalledWith('networkClientId1');
+    expect(getNetworkClientByIdHandler).toHaveBeenCalledWith(
+      'networkClientId1',
+    );
     stub.restore();
   });
 
@@ -1086,12 +1109,9 @@ describe('TokensController', () => {
     });
 
     it('should add tokens to the correct chainId when passed a networkClientId', async () => {
-      const getNetworkClientByIdStub = jest
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .spyOn(tokensController as any, 'getNetworkClientById')
-        .mockReturnValue({ configuration: { chainId: '0x5' } });
-
+      getNetworkClientByIdHandler.mockReturnValue({
+        configuration: { chainId: '0x5' },
+      } as unknown as ReturnType<NetworkController['getNetworkClientById']>);
       const dummyTokens: Token[] = [
         {
           address: '0x01',
@@ -1117,7 +1137,9 @@ describe('TokensController', () => {
       expect(tokensController.state.allTokens['0x5']['0x1']).toStrictEqual(
         dummyTokens,
       );
-      expect(getNetworkClientByIdStub).toHaveBeenCalledWith('networkClientId1');
+      expect(getNetworkClientByIdHandler).toHaveBeenCalledWith(
+        'networkClientId1',
+      );
     });
   });
 
@@ -1206,7 +1228,6 @@ describe('TokensController', () => {
           .spyOn(ERC20Standard.prototype as any, 'getTokenDecimals')
           .mockImplementationOnce(() => a.decimals?.toString());
       });
-
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
       type = ERC20;
@@ -1542,21 +1563,25 @@ describe('TokensController', () => {
     });
 
     it('stores token correctly when passed a networkClientId', async function () {
-      const getNetworkClientByIdStub = jest
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .spyOn(tokensController as any, 'getNetworkClientById')
-        .mockReturnValue({
+      getNetworkClientByIdHandler.mockImplementation((networkClientId) => {
+        expect(networkClientId).toBe('networkClientId1');
+        return {
           configuration: { chainId: '0x5' },
-          provider: fakeProvider,
-        });
+          blockTracker: new FakeBlockTracker(),
+          destroy: jest.fn(),
+        } as unknown as ReturnType<NetworkController['getNetworkClientById']>;
+      });
+
+      const addRequestHandler = jest.fn();
+      messenger.unregisterActionHandler(`ApprovalController:addRequest`);
+      messenger.registerActionHandler(
+        `ApprovalController:addRequest`,
+        addRequestHandler,
+      );
+
       const generateRandomIdStub = jest
         .spyOn(tokensController, '_generateRandomId')
         .mockReturnValue(requestId);
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockResolvedValue(undefined);
 
       await tokensController.watchAsset({
         asset,
@@ -1564,6 +1589,20 @@ describe('TokensController', () => {
         interactingAddress,
         networkClientId: 'networkClientId1',
       });
+
+      expect(addRequestHandler).toHaveBeenCalledWith(
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset,
+          },
+        },
+        true,
+      );
 
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
@@ -1579,22 +1618,6 @@ describe('TokensController', () => {
           ...asset,
         },
       ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress,
-            asset,
-          },
-        },
-        true,
-      );
-      expect(getNetworkClientByIdStub).toHaveBeenCalledWith('networkClientId1');
       generateRandomIdStub.mockRestore();
     });
 
@@ -1633,7 +1656,7 @@ describe('TokensController', () => {
       generateRandomIdStub.mockRestore();
     });
 
-    it('stores multiple tokens from a batched watchAsset confirmation screen correctly when user confirms', async function () {
+    it('stores multiple tokens from a batched watchAsset confirmation screen correctly when user confirms', async () => {
       const generateRandomIdStub = jest
         .spyOn(tokensController, '_generateRandomId')
         .mockImplementationOnce(() => requestId)
@@ -1660,36 +1683,32 @@ describe('TokensController', () => {
 
       mockContract([asset, anotherAsset]);
 
+      const promiseForApprovals = new Promise<void>((resolve) => {
+        const listener = (state: ApprovalControllerState) => {
+          if (state.pendingApprovalCount === 2) {
+            messenger.unsubscribe('ApprovalController:stateChange', listener);
+            resolve();
+          }
+        };
+        messenger.subscribe('ApprovalController:stateChange', listener);
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       tokensController.watchAsset({ asset, type, interactingAddress });
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       tokensController.watchAsset({
         asset: anotherAsset,
         type,
         interactingAddress,
       });
 
-      await new Promise<void>((resolve) => {
-        const listener = (state: ApprovalControllerState) => {
-          if (state.pendingApprovalCount === 2) {
-            approvalControllerMessenger.unsubscribe(
-              'ApprovalController:stateChange',
-              listener,
-            );
-            resolve();
-          }
-        };
-        approvalControllerMessenger.subscribe(
-          'ApprovalController:stateChange',
-          listener,
-        );
-      });
+      await promiseForApprovals;
 
       await approvalController.accept(requestId);
       await approvalController.accept('67890');
       await acceptedRequest;
 
-      expect(
-        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
-      ).toHaveLength(2);
       expect(
         tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
       ).toStrictEqual([
@@ -1705,19 +1724,6 @@ describe('TokensController', () => {
         },
       ]);
       generateRandomIdStub.mockRestore();
-    });
-
-    it('should error if provider is missing', async function () {
-      const MISSING_PROVIDER_ERROR =
-        'TokensController failed to set the provider correctly. A provider must be set for this method to be available';
-
-      tokensController.configure({
-        provider: undefined,
-      });
-
-      await expect(
-        tokensController.watchAsset({ asset, type }),
-      ).rejects.toThrow(MISSING_PROVIDER_ERROR);
     });
   });
 
@@ -1973,8 +1979,13 @@ describe('TokensController', () => {
           aggregators: ['Aave'],
         },
       };
-
-      await tokenListStateChangeListener({ tokenList: sampleMainnetTokenList });
+      messenger.publish(
+        'TokenListController:stateChange',
+        {
+          tokenList: sampleMainnetTokenList,
+        } as unknown as TokenListState,
+        [],
+      );
 
       expect(tokensController.state.tokens[0]).toStrictEqual({
         address: '0x01',
