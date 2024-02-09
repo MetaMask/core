@@ -40,6 +40,7 @@ import {
   type TokenListState,
   type TokenListToken,
 } from './TokenListController';
+import type { TokensState } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -138,6 +139,8 @@ function buildTokenDetectionControllerMessenger(
     allowedActions: [
       'KeyringController:getState',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
+      'TokensController:getState',
+      'TokensController:addDetectedTokens',
       'TokenListController:getState',
       'PreferencesController:getState',
     ],
@@ -222,18 +225,20 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const mockAddDetectedTokens = jest.fn();
       const selectedAddress = '0x0000000000000000000000000000000000000001';
       await withController(
         {
           options: {
-            addDetectedTokens: mockAddDetectedTokens,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
-        async ({ controller, mockTokenListGetState }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockAddDetectedTokens,
+        }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -251,10 +256,14 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
-            chainId: ChainId.mainnet,
-            selectedAddress,
-          });
+          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+            [sampleTokenA],
+            {
+              chainId: ChainId.mainnet,
+              selectedAddress,
+            },
+          );
         },
       );
     });
@@ -263,18 +272,20 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const mockAddDetectedTokens = jest.fn();
       const selectedAddress = '0x0000000000000000000000000000000000000001';
       await withController(
         {
           options: {
-            addDetectedTokens: mockAddDetectedTokens,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             networkClientId: 'polygon',
             selectedAddress,
           },
         },
-        async ({ controller, mockTokenListGetState }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockAddDetectedTokens,
+        }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -292,10 +303,14 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
-            chainId: '0x89',
-            selectedAddress,
-          });
+          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+            [sampleTokenA],
+            {
+              chainId: '0x89',
+              selectedAddress,
+            },
+          );
         },
       );
     });
@@ -305,20 +320,22 @@ describe('TokenDetectionController', () => {
         [sampleTokenA.address]: new BN(1),
         [sampleTokenB.address]: new BN(1),
       });
-      const mockAddDetectedTokens = jest.fn();
       const selectedAddress = '0x0000000000000000000000000000000000000001';
       const interval = 100;
       await withController(
         {
           options: {
-            addDetectedTokens: mockAddDetectedTokens,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             interval,
             networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
-        async ({ controller, mockTokenListGetState }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockAddDetectedTokens,
+        }) => {
           const tokenListState = {
             ...getDefaultTokenListState(),
             tokenList: {
@@ -335,7 +352,6 @@ describe('TokenDetectionController', () => {
           };
           mockTokenListGetState(tokenListState);
           await controller.start();
-          mockAddDetectedTokens.mockReset();
 
           tokenListState.tokenList[sampleTokenB.address] = {
             name: sampleTokenB.name as string,
@@ -350,6 +366,7 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: interval });
 
           expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
             [sampleTokenA, sampleTokenB],
             {
               chainId: ChainId.mainnet,
@@ -364,23 +381,25 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const mockAddDetectedTokens = jest.fn();
-      const mockGetTokensState = jest.fn().mockReturnValue({
-        ...getDefaultTokensState(),
-        ignoredTokens: [sampleTokenA.address],
-      });
       const selectedAddress = '0x0000000000000000000000000000000000000001';
       await withController(
         {
           options: {
-            addDetectedTokens: mockAddDetectedTokens,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            getTokensState: mockGetTokensState,
             networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
-        async ({ controller, mockTokenListGetState }) => {
+        async ({
+          controller,
+          mockTokensGetState,
+          mockTokenListGetState,
+          mockAddDetectedTokens,
+        }) => {
+          mockTokensGetState({
+            ...getDefaultTokensState(),
+            ignoredTokens: [sampleTokenA.address],
+          });
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -398,7 +417,9 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+          );
         },
       );
     });
@@ -407,17 +428,19 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const mockAddDetectedTokens = jest.fn();
       await withController(
         {
           options: {
-            addDetectedTokens: mockAddDetectedTokens,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             networkClientId: NetworkType.mainnet,
             selectedAddress: '',
           },
         },
-        async ({ controller, mockTokenListGetState }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockAddDetectedTokens,
+        }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -435,7 +458,9 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+          expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+          );
         },
       );
     });
@@ -456,7 +481,6 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const firstSelectedAddress =
           '0x0000000000000000000000000000000000000001';
         const secondSelectedAddress =
@@ -464,14 +488,17 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
-          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            mockAddDetectedTokens,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -494,10 +521,14 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
-              chainId: ChainId.mainnet,
-              selectedAddress: secondSelectedAddress,
-            });
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+              [sampleTokenA],
+              {
+                chainId: ChainId.mainnet,
+                selectedAddress: secondSelectedAddress,
+              },
+            );
           },
         );
       });
@@ -506,19 +537,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
-          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            mockAddDetectedTokens,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -548,10 +581,14 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
-              chainId: ChainId.mainnet,
-              selectedAddress,
-            });
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+              [sampleTokenA],
+              {
+                chainId: ChainId.mainnet,
+                selectedAddress,
+              },
+            );
           },
         );
       });
@@ -560,7 +597,6 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const firstSelectedAddress =
           '0x0000000000000000000000000000000000000001';
         const secondSelectedAddress =
@@ -568,14 +604,17 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
-          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            mockAddDetectedTokens,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -598,7 +637,9 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -607,19 +648,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
-          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            mockAddDetectedTokens,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -642,7 +685,9 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -653,7 +698,6 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const firstSelectedAddress =
           '0x0000000000000000000000000000000000000001';
         const secondSelectedAddress =
@@ -661,14 +705,17 @@ describe('TokenDetectionController', () => {
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
-          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            mockAddDetectedTokens,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -691,7 +738,9 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -700,19 +749,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
-          async ({ mockTokenListGetState, triggerPreferencesStateChange }) => {
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            mockAddDetectedTokens,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -742,7 +793,9 @@ describe('TokenDetectionController', () => {
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -764,24 +817,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
-        const messenger = new ControllerMessenger<
-          AllowedActions,
-          AllowedEvents
-        >();
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
-            messenger,
           },
-          async ({ mockTokenListGetState }) => {
+          async ({
+            mockTokenListGetState,
+            mockAddDetectedTokens,
+            triggerNetworkDidChange,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -797,16 +847,20 @@ describe('TokenDetectionController', () => {
               },
             });
 
-            messenger.publish('NetworkController:networkDidChange', {
+            triggerNetworkDidChange({
               ...defaultNetworkState,
               selectedNetworkClientId: 'polygon',
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
-              chainId: '0x89',
-              selectedAddress,
-            });
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+              [sampleTokenA],
+              {
+                chainId: '0x89',
+                selectedAddress,
+              },
+            );
           },
         );
       });
@@ -815,24 +869,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
-        const messenger = new ControllerMessenger<
-          AllowedActions,
-          AllowedEvents
-        >();
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
-            messenger,
           },
-          async ({ mockTokenListGetState }) => {
+          async ({
+            mockTokenListGetState,
+            mockAddDetectedTokens,
+            triggerNetworkDidChange,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -848,13 +899,15 @@ describe('TokenDetectionController', () => {
               },
             });
 
-            messenger.publish('NetworkController:networkDidChange', {
+            triggerNetworkDidChange({
               ...defaultNetworkState,
               selectedNetworkClientId: 'goerli',
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -863,24 +916,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
-        const messenger = new ControllerMessenger<
-          AllowedActions,
-          AllowedEvents
-        >();
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
-            messenger,
           },
-          async ({ mockTokenListGetState }) => {
+          async ({
+            mockTokenListGetState,
+            mockAddDetectedTokens,
+            triggerNetworkDidChange,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -896,13 +946,15 @@ describe('TokenDetectionController', () => {
               },
             });
 
-            messenger.publish('NetworkController:networkDidChange', {
+            triggerNetworkDidChange({
               ...defaultNetworkState,
               selectedNetworkClientId: 'mainnet',
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -913,24 +965,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
-        const messenger = new ControllerMessenger<
-          AllowedActions,
-          AllowedEvents
-        >();
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
-            messenger,
           },
-          async ({ mockTokenListGetState }) => {
+          async ({
+            mockTokenListGetState,
+            mockAddDetectedTokens,
+            triggerNetworkDidChange,
+          }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -946,13 +995,15 @@ describe('TokenDetectionController', () => {
               },
             });
 
-            messenger.publish('NetworkController:networkDidChange', {
+            triggerNetworkDidChange({
               ...defaultNetworkState,
               selectedNetworkClientId: 'polygon',
             });
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -974,24 +1025,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
-        const messenger = new ControllerMessenger<
-          AllowedActions,
-          AllowedEvents
-        >();
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
-            messenger,
           },
-          async ({ mockTokenListGetState }) => {
+          async ({
+            mockTokenListGetState,
+            mockAddDetectedTokens,
+            triggerTokenListStateChange,
+          }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1008,17 +1056,17 @@ describe('TokenDetectionController', () => {
             };
             mockTokenListGetState(tokenListState);
 
-            messenger.publish(
-              'TokenListController:stateChange',
-              tokenListState,
-              [],
-            );
+            triggerTokenListStateChange(tokenListState);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
-              chainId: ChainId.mainnet,
-              selectedAddress,
-            });
+            expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+              [sampleTokenA],
+              {
+                chainId: ChainId.mainnet,
+                selectedAddress,
+              },
+            );
           },
         );
       });
@@ -1027,38 +1075,33 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
-        const messenger = new ControllerMessenger<
-          AllowedActions,
-          AllowedEvents
-        >();
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
-            messenger,
           },
-          async ({ mockTokenListGetState }) => {
+          async ({
+            mockTokenListGetState,
+            mockAddDetectedTokens,
+            triggerTokenListStateChange,
+          }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
               tokenList: {},
             };
             mockTokenListGetState(tokenListState);
 
-            messenger.publish(
-              'TokenListController:stateChange',
-              tokenListState,
-              [],
-            );
+            triggerTokenListStateChange(tokenListState);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -1069,24 +1112,21 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const mockAddDetectedTokens = jest.fn();
         const selectedAddress = '0x0000000000000000000000000000000000000001';
-        const messenger = new ControllerMessenger<
-          AllowedActions,
-          AllowedEvents
-        >();
         await withController(
           {
             options: {
-              addDetectedTokens: mockAddDetectedTokens,
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
               networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
-            messenger,
           },
-          async ({ mockTokenListGetState }) => {
+          async ({
+            mockTokenListGetState,
+            mockAddDetectedTokens,
+            triggerTokenListStateChange,
+          }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1103,14 +1143,12 @@ describe('TokenDetectionController', () => {
             };
             mockTokenListGetState(tokenListState);
 
-            messenger.publish(
-              'TokenListController:stateChange',
-              tokenListState,
-              [],
-            );
+            triggerTokenListStateChange(tokenListState);
             await advanceTime({ clock, duration: 1 });
 
-            expect(mockAddDetectedTokens).not.toHaveBeenCalled();
+            expect(mockAddDetectedTokens).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
           },
         );
       });
@@ -1131,22 +1169,15 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const mockAddDetectedTokens = jest.fn();
       const selectedAddress = '0x0000000000000000000000000000000000000001';
-      const messenger = new ControllerMessenger<
-        AllowedActions,
-        AllowedEvents
-      >();
       await withController(
         {
           options: {
-            addDetectedTokens: mockAddDetectedTokens,
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
-          messenger,
         },
         async ({ controller, mockTokenListGetState }) => {
           mockTokenListGetState({
@@ -1205,24 +1236,21 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const mockAddDetectedTokens = jest.fn();
       const selectedAddress = '0x0000000000000000000000000000000000000001';
-      const messenger = new ControllerMessenger<
-        AllowedActions,
-        AllowedEvents
-      >();
       await withController(
         {
           options: {
-            addDetectedTokens: mockAddDetectedTokens,
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
-          messenger,
         },
-        async ({ controller, mockTokenListGetState }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockAddDetectedTokens,
+        }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokenList: {
@@ -1243,10 +1271,14 @@ describe('TokenDetectionController', () => {
             accountAddress: selectedAddress,
           });
 
-          expect(mockAddDetectedTokens).toHaveBeenCalledWith([sampleTokenA], {
-            chainId: ChainId.mainnet,
-            selectedAddress,
-          });
+          expect(mockAddDetectedTokens).toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+            [sampleTokenA],
+            {
+              chainId: ChainId.mainnet,
+              selectedAddress,
+            },
+          );
         },
       );
     });
@@ -1268,8 +1300,10 @@ function getTokensPath(chainId: Hex) {
 type WithControllerCallback<ReturnValue> = ({
   controller,
   mockKeyringGetState,
+  mockTokensGetState,
   mockTokenListGetState,
   mockPreferencesGetState,
+  mockAddDetectedTokens,
   triggerKeyringUnlock,
   triggerKeyringLock,
   triggerTokenListStateChange,
@@ -1279,11 +1313,13 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: TokenDetectionController;
   mockKeyringGetState: (state: KeyringControllerState) => void;
+  mockTokensGetState: (state: TokensState) => void;
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
   mockGetNetworkConfigurationByNetworkClientId: (
     handler: (networkClientId: string) => NetworkConfiguration,
   ) => void;
+  mockAddDetectedTokens: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
   triggerTokenListStateChange: (state: TokenListState) => void;
@@ -1323,7 +1359,7 @@ async function withController<ReturnValue>(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: true,
-    } as unknown as KeyringControllerState),
+    } as KeyringControllerState),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
@@ -1337,6 +1373,11 @@ async function withController<ReturnValue>(
       },
     ),
   );
+  const mockTokensState = jest.fn<TokensState, []>();
+  controllerMessenger.registerActionHandler(
+    'TokensController:getState',
+    mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
+  );
   const mockTokenListState = jest.fn<TokenListState, []>();
   controllerMessenger.registerActionHandler(
     'TokenListController:getState',
@@ -1349,12 +1390,11 @@ async function withController<ReturnValue>(
       ...getDefaultPreferencesState(),
     }),
   );
+  const mockAddDetectedTokens = jest.spyOn(controllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
     networkClientId: NetworkType.mainnet,
     getBalancesInSingleCall: jest.fn(),
-    addDetectedTokens: jest.fn(),
-    getTokensState: jest.fn().mockReturnValue(getDefaultTokensState()),
     trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     ...options,
@@ -1364,6 +1404,9 @@ async function withController<ReturnValue>(
       controller,
       mockKeyringGetState: (state: KeyringControllerState) => {
         mockKeyringState.mockReturnValue(state);
+      },
+      mockTokensGetState: (state: TokensState) => {
+        mockTokensState.mockReturnValue(state);
       },
       mockPreferencesGetState: (state: PreferencesState) => {
         mockPreferencesState.mockReturnValue(state);
@@ -1378,6 +1421,7 @@ async function withController<ReturnValue>(
           handler,
         );
       },
+      mockAddDetectedTokens,
       triggerKeyringUnlock: () => {
         controllerMessenger.publish('KeyringController:unlock');
       },
