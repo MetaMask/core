@@ -1,7 +1,12 @@
-import { hexToBN, toHex } from '@metamask/controller-utils';
+import {
+  convertHexToDecimal,
+  hexToBN,
+  toHex,
+} from '@metamask/controller-utils';
 
 import { BN } from 'ethereumjs-util';
 import type {
+  GasFeeEstimatesLevel,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
@@ -9,19 +14,24 @@ import type {
 } from '../types';
 import { CHAIN_IDS } from '../constants';
 
-const LEVELS = ['low', 'medium', 'high'] as const;
+const MULTIPLIER = 10e17;
 
-const LEVEL_MULTIPLIERS = {
+const LEVEL_INCREMENTS = {
   low: 0,
   medium: 1,
   high: 2,
 };
 
+type Level = keyof typeof LEVEL_INCREMENTS;
+
 export class TestGasFeeFlow implements GasFeeFlow {
   #increment = 0;
 
   matchesTransaction(transactionMeta: TransactionMeta): boolean {
-    return transactionMeta.chainId === `${parseInt(CHAIN_IDS.SEPOLIA, 16)}`;
+    return (
+      transactionMeta.chainId ===
+      convertHexToDecimal(CHAIN_IDS.SEPOLIA).toString()
+    );
   }
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
@@ -29,25 +39,29 @@ export class TestGasFeeFlow implements GasFeeFlow {
 
     this.#increment += 1;
 
-    const gasRaw = transactionMeta.transaction?.gas as any;
-    const gasBigNumber = BN.isBN(gasRaw) ? gasRaw : hexToBN(gasRaw as string);
-    const gas = gasBigNumber.toNumber();
+    const gasRaw = transactionMeta.transaction.gas;
+    const gasBN = BN.isBN(gasRaw) ? gasRaw : hexToBN(gasRaw as string);
+    const gas = gasBN.toNumber();
 
-    return LEVELS.reduce((result, level) => {
-      const maxFeePerGas = Math.floor(
-        ((this.#increment + LEVEL_MULTIPLIERS[level]) * 10e17) / gas,
-      );
+    return {
+      estimates: {
+        low: this.#getFeeLevel('low', gas),
+        medium: this.#getFeeLevel('medium', gas),
+        high: this.#getFeeLevel('high', gas),
+      },
+    };
+  }
 
-      const maxPriorityFeePerGas = Math.floor(maxFeePerGas * 0.2);
+  #getFeeLevel(level: Level, gas: number): GasFeeEstimatesLevel {
+    const maxFeePerGas = Math.floor(
+      ((this.#increment + LEVEL_INCREMENTS[level]) * MULTIPLIER) / gas,
+    );
 
-      return {
-        ...result,
-        [level]: {
-          maxFeePerGas: toHex(maxFeePerGas),
-          maxPriorityFeePerGas: toHex(maxPriorityFeePerGas),
-          gasPrice: toHex(maxFeePerGas),
-        },
-      };
-    }, {}) as GasFeeFlowResponse;
+    const maxPriorityFeePerGas = Math.floor(maxFeePerGas * 0.2);
+
+    return {
+      maxFeePerGas: toHex(maxFeePerGas),
+      maxPriorityFeePerGas: toHex(maxPriorityFeePerGas),
+    };
   }
 }

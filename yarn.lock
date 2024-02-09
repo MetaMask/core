@@ -2040,6 +2040,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": "workspace:^"
+    "@metamask/gas-fee-controller": "workspace:^"
     "@metamask/network-controller": "workspace:^"
   languageName: unknown
   linkType: soft
