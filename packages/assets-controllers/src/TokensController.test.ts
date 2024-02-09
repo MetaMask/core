@@ -1567,6 +1567,7 @@ describe('TokensController', () => {
         expect(networkClientId).toBe('networkClientId1');
         return {
           configuration: { chainId: '0x5' },
+          provider: fakeProvider,
           blockTracker: new FakeBlockTracker(),
           destroy: jest.fn(),
         } as unknown as ReturnType<NetworkController['getNetworkClientById']>;
