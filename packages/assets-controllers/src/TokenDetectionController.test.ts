@@ -1804,15 +1804,20 @@ describe('TokenDetectionController', () => {
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache:{
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           });
@@ -1854,16 +1859,21 @@ describe('TokenDetectionController', () => {
         async ({ controller, mockTokenListGetState }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
-              },
+            tokensChainsCache:{
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                  }
+              }
             },
           });
 
