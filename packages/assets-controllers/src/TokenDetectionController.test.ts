@@ -193,9 +193,7 @@ describe('TokenDetectionController', () => {
     it('should not poll and detect tokens on interval while keyring is locked', async () => {
       await withController(
         {
-          options: {
-            isKeyringUnlocked: false,
-          },
+          isKeyringUnlocked: false,
         },
         async ({ controller }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
@@ -213,9 +211,7 @@ describe('TokenDetectionController', () => {
     it('should detect tokens but not restart polling if locked keyring is unlocked', async () => {
       await withController(
         {
-          options: {
-            isKeyringUnlocked: false,
-          },
+          isKeyringUnlocked: false,
         },
         async ({ controller, triggerKeyringUnlock }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
@@ -233,9 +229,7 @@ describe('TokenDetectionController', () => {
     it('should stop polling and detect tokens on interval if unlocked keyring is locked', async () => {
       await withController(
         {
-          options: {
-            isKeyringUnlocked: true,
-          },
+          isKeyringUnlocked: true,
         },
         async ({ controller, triggerKeyringLock }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
@@ -639,8 +633,8 @@ describe('TokenDetectionController', () => {
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
                 networkClientId: NetworkType.mainnet,
                 selectedAddress: firstSelectedAddress,
-                isKeyringUnlocked: false,
               },
+              isKeyringUnlocked: false,
             },
             async ({
               mockTokenListGetState,
@@ -970,8 +964,8 @@ describe('TokenDetectionController', () => {
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
                 networkClientId: NetworkType.mainnet,
                 selectedAddress: firstSelectedAddress,
-                isKeyringUnlocked: false,
               },
+              isKeyringUnlocked: false,
             },
             async ({
               mockTokenListGetState,
@@ -1019,8 +1013,8 @@ describe('TokenDetectionController', () => {
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
                 networkClientId: NetworkType.mainnet,
                 selectedAddress,
-                isKeyringUnlocked: false,
               },
+              isKeyringUnlocked: false,
             },
             async ({
               mockTokenListGetState,
@@ -1344,8 +1338,8 @@ describe('TokenDetectionController', () => {
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
                 networkClientId: NetworkType.mainnet,
                 selectedAddress,
-                isKeyringUnlocked: false,
               },
+              isKeyringUnlocked: false,
             },
             async ({
               mockTokenListGetState,
@@ -1541,8 +1535,8 @@ describe('TokenDetectionController', () => {
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
                 networkClientId: NetworkType.mainnet,
                 selectedAddress,
-                isKeyringUnlocked: false,
               },
+              isKeyringUnlocked: false,
             },
             async ({
               mockTokenListGetState,
@@ -1937,9 +1931,8 @@ type WithControllerCallback<ReturnValue> = ({
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
-  options?: Partial<
-    ConstructorParameters<typeof TokenDetectionController>[0]
-  > & { isKeyringUnlocked?: boolean };
+  options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
+  isKeyringUnlocked?: boolean;
   messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
 };
 
@@ -1960,7 +1953,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, messenger } = rest;
+  const { options, isKeyringUnlocked, messenger } = rest;
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
 
@@ -1968,7 +1961,7 @@ async function withController<ReturnValue>(
   controllerMessenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
-      isUnlocked: options?.isKeyringUnlocked ?? true,
+      isUnlocked: isKeyringUnlocked ?? true,
     } as KeyringControllerState),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
