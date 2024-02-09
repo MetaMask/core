@@ -5,6 +5,8 @@ import type {
   BaseConfig,
   BaseState,
   RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
@@ -22,10 +24,10 @@ import {
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
-  NetworkController,
-  NetworkState,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -41,7 +43,7 @@ import {
 } from './token-service';
 import type {
   TokenListMap,
-  TokenListState,
+  TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
@@ -92,37 +94,62 @@ type SuggestedAssetMeta = {
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TokensState extends BaseState {
+export type TokensState = {
   tokens: Token[];
   ignoredTokens: string[];
   detectedTokens: Token[];
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-}
+};
 
 /**
  * The name of the {@link TokensController}.
  */
 const controllerName = 'TokensController';
 
+export type TokensControllerActions =
+  | TokensControllerGetStateAction
+  | TokensControllerAddDetectedTokensAction;
+
+export type TokensControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  TokensState
+>;
+
+export type TokensControllerAddDetectedTokensAction = {
+  type: `${typeof controllerName}:addDetectedTokens`;
+  handler: TokensController['addDetectedTokens'];
+};
+
 /**
  * The external actions available to the {@link TokensController}.
  */
-type AllowedActions = AddApprovalRequest;
+export type AllowedActions =
+  | AddApprovalRequest
+  | NetworkControllerGetNetworkClientByIdAction;
+
+export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  TokensState
+>;
+
+export type TokensControllerEvents = TokensControllerStateChangeEvent;
+
+export type AllowedEvents =
+  | NetworkControllerNetworkDidChangeEvent
+  | PreferencesControllerStateChangeEvent
+  | TokenListStateChange;
 
 /**
  * The messenger of the {@link TokensController}.
  */
 export type TokensControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  AllowedActions,
-  never,
+  TokensControllerActions | AllowedActions,
+  TokensControllerEvents | AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 export const getDefaultTokensState = (): TokensState => {
@@ -141,7 +168,7 @@ export const getDefaultTokensState = (): TokensState => {
  */
 export class TokensController extends BaseControllerV1<
   TokensConfig,
-  TokensState
+  TokensState & BaseState
 > {
   private readonly mutex = new Mutex();
 
@@ -186,42 +213,22 @@ export class TokensController extends BaseControllerV1<
    */
   override name = 'TokensController';
 
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
-
   /**
    * Creates a TokensController instance.
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
-   * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
    */
   constructor({
     chainId: initialChainId,
-    onPreferencesStateChange,
-    onNetworkDidChange,
-    onTokenListStateChange,
-    getNetworkClientById,
     config,
     state,
     messenger,
   }: {
     chainId: Hex;
-    onPreferencesStateChange: (
-      listener: (preferencesState: PreferencesState) => void,
-    ) => void;
-    onNetworkDidChange: (
-      listener: (networkState: NetworkState) => void,
-    ) => void;
-    onTokenListStateChange: (
-      listener: (tokenListState: TokenListState) => void,
-    ) => void;
-    getNetworkClientById: NetworkController['getNetworkClientById'];
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
     messenger: TokensControllerMessenger;
@@ -242,41 +249,54 @@ export class TokensController extends BaseControllerV1<
 
     this.initialize();
     this.abortController = new AbortController();
-    this.getNetworkClientById = getNetworkClientById;
 
     this.messagingSystem = messenger;
 
-    onPreferencesStateChange(({ selectedAddress }) => {
-      const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-      const { chainId } = this.config;
-      this.configure({ selectedAddress });
-      this.update({
-        tokens: allTokens[chainId]?.[selectedAddress] || [],
-        ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
-        detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
-      });
-    });
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addDetectedTokens` as const,
+      this.addDetectedTokens.bind(this),
+    );
 
-    onNetworkDidChange(({ providerConfig }) => {
-      const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-      const { selectedAddress } = this.config;
-      const { chainId } = providerConfig;
-      this.abortController.abort();
-      this.abortController = new AbortController();
-      this.configure({ chainId });
-      this.update({
-        tokens: allTokens[chainId]?.[selectedAddress] || [],
-        ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
-        detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
-      });
-    });
+    this.messagingSystem.subscribe(
+      'PreferencesController:stateChange',
+      ({ selectedAddress }) => {
+        const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+        const { chainId } = this.config;
+        this.configure({ selectedAddress });
+        this.update({
+          tokens: allTokens[chainId]?.[selectedAddress] ?? [],
+          ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] ?? [],
+          detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] ?? [],
+        });
+      },
+    );
 
-    onTokenListStateChange(({ tokenList }) => {
-      const { tokens } = this.state;
-      if (tokens.length && !tokens[0].name) {
-        this.updateTokensAttribute(tokenList, 'name');
-      }
-    });
+    this.messagingSystem.subscribe(
+      'NetworkController:networkDidChange',
+      ({ providerConfig }) => {
+        const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+        const { selectedAddress } = this.config;
+        const { chainId } = providerConfig;
+        this.abortController.abort();
+        this.abortController = new AbortController();
+        this.configure({ chainId });
+        this.update({
+          tokens: allTokens[chainId]?.[selectedAddress] || [],
+          ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
+          detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
+        });
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'TokenListController:stateChange',
+      ({ tokenList }) => {
+        const { tokens } = this.state;
+        if (tokens.length && !tokens[0].name) {
+          this.updateTokensAttribute(tokenList, 'name');
+        }
+      },
+    );
   }
 
   /**
@@ -314,8 +334,10 @@ export class TokensController extends BaseControllerV1<
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     let currentChainId = chainId;
     if (networkClientId) {
-      currentChainId =
-        this.getNetworkClientById(networkClientId).configuration.chainId;
+      currentChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      ).configuration.chainId;
     }
 
     const accountAddress = interactingAddress || selectedAddress;
@@ -445,8 +467,10 @@ export class TokensController extends BaseControllerV1<
 
       let interactingChainId;
       if (networkClientId) {
-        interactingChainId =
-          this.getNetworkClientById(networkClientId).configuration.chainId;
+        interactingChainId = this.messagingSystem.call(
+          'NetworkController:getNetworkClientById',
+          networkClientId,
+        ).configuration.chainId;
       }
 
       const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
@@ -695,8 +719,11 @@ export class TokensController extends BaseControllerV1<
   _getProvider(networkClientId?: NetworkClientId): Web3Provider {
     return new Web3Provider(
       networkClientId
-        ? this.getNetworkClientById(networkClientId).provider
-        : this.config?.provider,
+        ? this.messagingSystem.call(
+            'NetworkController:getNetworkClientById',
+            networkClientId,
+          ).provider
+        : this.config.provider,
     );
   }
 
