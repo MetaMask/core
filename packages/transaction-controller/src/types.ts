@@ -326,6 +326,7 @@ type TransactionMetaBase = {
    */
   submittedTime?: number;
 
+  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
   /**
