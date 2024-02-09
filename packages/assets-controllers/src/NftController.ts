@@ -903,17 +903,14 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       // If the nft is auto-detected we want some valid metadata to be present
       if (
         source === Source.Detected &&
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        Object.entries(contractInformation).every(([k, v]: [string, any]) => {
-          if (k === 'address') {
-            return true; // address will always be present
-          }
-          // collection will always be an object, we need to check the internal values
-          if (k === 'collection') {
-            return v?.name === null && v?.image_url === null;
-          }
-          return !v;
+        'address' in contractInformation &&
+        typeof contractInformation.address === 'string' &&
+        'collection' in contractInformation &&
+        contractInformation.collection.name === null &&
+        'image_url' in contractInformation.collection &&
+        contractInformation.collection.image_url === null &&
+        Object.entries(contractInformation).every(([key, value]) => {
+          return key === 'address' || key === 'collection' || !value;
         })
       ) {
         return nftContracts;
@@ -1239,11 +1236,12 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           'Suggested NFT is not owned by the selected account',
         );
       }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error) {
       // error thrown here: "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question."
-      throw rpcErrors.resourceUnavailable(error.message);
+      if (error instanceof Error) {
+        throw rpcErrors.resourceUnavailable(error.message);
+      }
+      throw error;
     }
   }
 
