@@ -111,6 +111,8 @@ describe('TokensController', () => {
     messenger.publish('PreferencesController:stateChange', state, []);
   };
 
+  const fakeProvider = new FakeProvider();
+
   beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
     messenger = new ControllerMessenger();
@@ -139,7 +141,7 @@ describe('TokensController', () => {
       chainId: ChainId.mainnet,
       config: {
         selectedAddress: defaultSelectedAddress,
-        provider: sinon.stub(),
+        provider: fakeProvider,
       },
       messenger: tokensControllerMessenger,
     });
@@ -1565,9 +1567,7 @@ describe('TokensController', () => {
         expect(networkClientId).toBe('networkClientId1');
         return {
           configuration: { chainId: '0x5' },
-          provider: new FakeProvider({
-            stubs: [],
-          }),
+          provider: fakeProvider,
           blockTracker: new FakeBlockTracker(),
           destroy: jest.fn(),
         } as unknown as ReturnType<NetworkController['getNetworkClientById']>;
