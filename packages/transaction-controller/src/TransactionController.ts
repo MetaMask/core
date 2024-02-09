@@ -330,9 +330,9 @@ export class TransactionController extends BaseController<
 
     const gasFeePoller = new GasFeePoller({
       gasFeeFlows: this.gasFeeFlows,
+      getChainIds: () => [this.getNetworkState().providerConfig.chainId],
       getEthQuery: () => this.ethQuery,
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
-      getProviderConfig: () => this.getNetworkState().providerConfig,
       getTransactions: () => this.state.transactions,
       onStateChange: (listener) => {
         this.subscribe(listener);

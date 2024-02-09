@@ -1,61 +1,66 @@
 import EventEmitter from 'events';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { ProviderConfig } from '@metamask/network-controller';
+import { createModuleLogger } from '@metamask/utils';
 
-import { weiHexToGweiDec } from '@metamask/controller-utils';
-import type {
-  EIP1559SuggestedGasFees,
-  GasFeeFlow,
-  GasFeeFlowRequest,
-  GasFeeFlowResponse,
-  LegacySuggestedGasFees,
-  SuggestedGasFees,
-} from '../types';
+import { projectLogger } from '../logger';
+import type { GasFeeFlow, GasFeeFlowRequest } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 
-const log = (...args: any[]) =>
-  console.log(`gas-fee-poller - ${args[0]}`, ...args.slice(1));
+const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 
 const INTERVAL_MILLISECONDS = 10000;
-const LEVELS = ['low', 'medium', 'high'] as const;
 
+/**
+ * Automatically polls and updates suggested gas fees on unapproved transactions.
+ */
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
 
   #gasFeeFlows: GasFeeFlow[];
 
+  #getChainIds: () => string[];
+
   #getEthQuery: () => any;
 
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
 
-  #getProviderConfig: () => ProviderConfig;
-
   #getTransactions: () => TransactionMeta[];
 
-  #timeout: ReturnType<typeof setTimeout> | undefined;
+  #timeout: any;
 
   #running = false;
 
+  /**
+   * Constructs a new instance of the GasFeePoller.
+   *
+   * @param options - The options for this instance.
+   * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
+   * @param options.getChainIds - Callback to specify the chain IDs to monitor.
+   * @param options.getEthQuery - Callback to obtain an EthQuery instance.
+   * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
+   * @param options.getTransactions - Callback to obtain the transaction data.
+   * @param options.onStateChange - Callback to register a listener for controller state changes.
+   */
   constructor({
     gasFeeFlows,
+    getChainIds,
     getEthQuery,
     getGasFeeControllerEstimates,
-    getProviderConfig,
     getTransactions,
     onStateChange,
   }: {
     gasFeeFlows: GasFeeFlow[];
+    getChainIds: () => string[];
     getEthQuery: () => any;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
-    getProviderConfig: () => ProviderConfig;
     getTransactions: () => TransactionMeta[];
     onStateChange: (listener: () => void) => void;
   }) {
     this.#gasFeeFlows = gasFeeFlows;
+    this.#getChainIds = getChainIds;
     this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
-    this.#getProviderConfig = getProviderConfig;
     this.#getTransactions = getTransactions;
 
     onStateChange(() => {
@@ -88,7 +93,7 @@ export class GasFeePoller {
       return;
     }
 
-    clearTimeout(this.#timeout as any);
+    clearTimeout(this.#timeout);
 
     this.#timeout = undefined;
     this.#running = false;
@@ -112,9 +117,11 @@ export class GasFeePoller {
 
     const ethQuery = this.#getEthQuery();
 
-    for (const transactionMeta of unapprovedTransactions) {
-      await this.#updateTransactionSuggestedFees(transactionMeta, ethQuery);
-    }
+    await Promise.all(
+      unapprovedTransactions.map((tx) =>
+        this.#updateTransactionSuggestedFees(tx, ethQuery),
+      ),
+    );
   }
 
   async #updateTransactionSuggestedFees(
@@ -134,15 +141,13 @@ export class GasFeePoller {
     const request: GasFeeFlowRequest = {
       ethQuery,
       getGasFeeControllerEstimates: this.#getGasFeeControllerEstimates,
-      isEIP1559: false,
       transactionMeta,
     };
 
     try {
       const response = await gasFeeFlow.getGasFees(request);
 
-      transactionMeta.suggestedGasFees =
-        this.#gasFeeFlowResponseToSuggestedGasFees(response);
+      transactionMeta.gasFeeEstimates = response.estimates;
     } catch (error) {
       log('Failed to get suggested gas fees', transactionMeta.id, error);
       return;
@@ -155,58 +160,18 @@ export class GasFeePoller {
     );
 
     log('Updated suggested gas fees', {
-      suggestedGasFees: transactionMeta.suggestedGasFees,
+      gasFeeEstimates: transactionMeta.gasFeeEstimates,
       transaction: transactionMeta.id,
     });
   }
 
   #getUnapprovedTransactions() {
-    const currentChainId = this.#getProviderConfig().chainId;
+    const chainIds = this.#getChainIds();
 
     return this.#getTransactions().filter(
       (tx) =>
-        tx.chainId === currentChainId &&
+        chainIds.includes(tx.chainId as string) &&
         tx.status === TransactionStatus.unapproved,
     );
-  }
-
-  #gasFeeFlowResponseToSuggestedGasFees(
-    response: GasFeeFlowResponse,
-  ): SuggestedGasFees {
-    return {
-      eip1559: this.#responseToEIP1559SuggestedGasFees(response),
-      legacy: this.#responseToLegacySuggestedGasFees(response),
-    };
-  }
-
-  #responseToEIP1559SuggestedGasFees(
-    response: GasFeeFlowResponse,
-  ): EIP1559SuggestedGasFees {
-    return LEVELS.reduce(
-      (result, level) => ({
-        ...result,
-        [level]: {
-          suggestedMaxFeePerGas: weiHexToGweiDec(
-            response[level].maxFeePerGas as string,
-          ),
-          suggestedMaxPriorityFeePerGas: weiHexToGweiDec(
-            response[level].maxPriorityFeePerGas as string,
-          ),
-        },
-      }),
-      {},
-    ) as EIP1559SuggestedGasFees;
-  }
-
-  #responseToLegacySuggestedGasFees(
-    response: GasFeeFlowResponse,
-  ): LegacySuggestedGasFees {
-    return LEVELS.reduce(
-      (result, level) => ({
-        ...result,
-        [level]: weiHexToGweiDec(response[level].gasPrice as string),
-      }),
-      {},
-    ) as LegacySuggestedGasFees;
   }
 }
