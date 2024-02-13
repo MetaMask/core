@@ -41,7 +41,7 @@
     "@metamask/network-controller": "^17.2.0",
     "@metamask/polling-controller": "^5.0.0",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/transaction-controller": "^21.2.0",
+    "@metamask/transaction-controller": "^21.3.0",
     "@metamask/utils": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
