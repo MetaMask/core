@@ -269,8 +269,6 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
-  private readonly speedUpMultiplier: number;
-
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
   private readonly afterSign: (
@@ -372,7 +370,6 @@ export class TransactionController extends BaseControllerV1<
    * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
-   * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
    * @param options.hooks - The controller hooks.
    * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
    * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
@@ -403,7 +400,6 @@ export class TransactionController extends BaseControllerV1<
       pendingTransactions = {},
       provider,
       securityProviderRequest,
-      speedUpMultiplier,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
@@ -433,7 +429,6 @@ export class TransactionController extends BaseControllerV1<
       };
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
-      speedUpMultiplier?: number;
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -490,7 +485,6 @@ export class TransactionController extends BaseControllerV1<
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
-    this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -949,7 +943,7 @@ export class TransactionController extends BaseControllerV1<
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
       transactionMeta.txParams.gasPrice,
-      this.speedUpMultiplier,
+      SPEED_UP_RATE,
     );
 
     const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
@@ -963,7 +957,7 @@ export class TransactionController extends BaseControllerV1<
     const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
     const minMaxFeePerGas = getIncreasedPriceFromExisting(
       existingMaxFeePerGas,
-      this.speedUpMultiplier,
+      SPEED_UP_RATE,
     );
     const maxFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
@@ -977,7 +971,7 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta.txParams?.maxPriorityFeePerGas;
     const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
       existingMaxPriorityFeePerGas,
-      this.speedUpMultiplier,
+      SPEED_UP_RATE,
     );
     const maxPriorityFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
