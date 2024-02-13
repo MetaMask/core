@@ -26,6 +26,7 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
+  Provider,
 } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
@@ -60,9 +61,7 @@ import type { Token } from './TokenRatesController';
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  provider: any;
+  provider: Provider | undefined;
 }
 
 /**
@@ -705,9 +704,7 @@ export class TokensController extends BaseControllerV1<
     );
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error) {
       // currently we see a variety of errors across different networks when
       // token contracts are not ERC721 compatible. We need to figure out a better
       // way of differentiating token interface types but for now if we get an error
@@ -718,6 +715,7 @@ export class TokensController extends BaseControllerV1<
 
   _getProvider(networkClientId?: NetworkClientId): Web3Provider {
     return new Web3Provider(
+      // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
       networkClientId
         ? this.messagingSystem.call(
             'NetworkController:getNetworkClientById',
