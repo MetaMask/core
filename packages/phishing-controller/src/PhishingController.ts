@@ -14,7 +14,7 @@ export const METAMASK_STALELIST_FILE = '/v1/stalelist';
 export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
 
 export const HOTLIST_REFRESH_INTERVAL = 30 * 60; // 30 mins in seconds
-export const STALELIST_REFRESH_INTERVAL = 4 * 24 * 60 * 60; // 4 days in seconds
+export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
 
 export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
