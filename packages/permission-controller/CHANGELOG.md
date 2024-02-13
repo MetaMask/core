@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Simplify `wallet_requestPermissions` implementation ([#3911](https://github.com/MetaMask/core/pull/3911))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
-
 ## [8.0.0]
 
 ### Changed

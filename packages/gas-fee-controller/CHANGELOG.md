@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- deps: bump @metamask/ethjs- packages to latest ([#3897](https://github.com/MetaMask/core/pull/3897))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
-
 ## [13.0.0]
 
 ### Changed

@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- [token-detection-controller] Add tests for API changes from merge with `DetectTokensController` ([#3867](https://github.com/MetaMask/core/pull/3867))
-- any type in asset-controller classes have been fixed with a proper types ([#3818](https://github.com/MetaMask/core/pull/3818))
-- deps: bump @metamask/ethjs- packages to latest ([#3897](https://github.com/MetaMask/core/pull/3897))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
-
 ### Added
 
 - **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).

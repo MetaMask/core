@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- [composable-controller] Remove `flatState` getter ([#3877](https://github.com/MetaMask/core/pull/3877))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
-
 ## [5.0.1]
 
 ### Changed
