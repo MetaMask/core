@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Ensure selectedNetworkController always returns a networkClientId whe… ([#3884](https://github.com/MetaMask/core/pull/3884))
+
 ## [7.0.1]
 
 ### Changed
