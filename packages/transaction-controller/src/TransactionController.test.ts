@@ -12,6 +12,7 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   BlockTracker,
@@ -29,6 +30,7 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type {
   TransactionControllerMessenger,
@@ -199,6 +201,7 @@ jest.mock('@metamask/eth-query', () =>
 
 jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/PendingTransactionTracker');
+jest.mock('./helpers/MultichainTrackingHelper');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -532,8 +535,9 @@ describe('TransactionController', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let approveTransaction: (value?: any) => void;
   let getNonceLockSpy: jest.Mock;
-  let incomingTransactionHelperMocks: jest.Mocked<IncomingTransactionHelper>[];
-  let pendingTransactionTrackerMocks: jest.Mocked<PendingTransactionTracker>[];
+  let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
+  let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
+  let multichainTrackingHelperMock: jest.Mocked<MultichainTrackingHelper>;
   let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
@@ -544,6 +548,11 @@ describe('TransactionController', () => {
   const pendingTransactionTrackerClassMock =
     PendingTransactionTracker as jest.MockedClass<
       typeof PendingTransactionTracker
+    >;
+
+  const multichainTrackingHelperClassMock =
+    MultichainTrackingHelper as jest.MockedClass<
+      typeof MultichainTrackingHelper
     >;
 
   /**
@@ -670,28 +679,7 @@ describe('TransactionController', () => {
         getGasFeeEstimates: () => Promise.resolve({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
-        getNetworkClientRegistry: () => ({
-          mainnet: {
-            configuration: {
-              chainId: toHex(1),
-            },
-          },
-          sepolia: {
-            configuration: {
-              chainId: ChainId.sepolia,
-            },
-          },
-          goerli: {
-            configuration: {
-              chainId: ChainId.goerli,
-            },
-          },
-          'customNetworkClientId-1': {
-            configuration: {
-              chainId: '0xa',
-            },
-          },
-        }),
+        getNetworkClientRegistry: jest.fn(),
         messenger: messengerMock,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
@@ -731,11 +719,8 @@ describe('TransactionController', () => {
       releaseLock: () => Promise.resolve(),
     });
 
-    NonceTrackerPackage.NonceTracker.prototype.getNonceLock = getNonceLockSpy;
-
-    incomingTransactionHelperMocks = [];
     incomingTransactionHelperClassMock.mockImplementation(() => {
-      const incomingTransactionHelperMock = {
+      incomingTransactionHelperMock = {
         start: jest.fn(),
         stop: jest.fn(),
         update: jest.fn(),
@@ -744,13 +729,11 @@ describe('TransactionController', () => {
           removeAllListeners: jest.fn(),
         },
       } as unknown as jest.Mocked<IncomingTransactionHelper>;
-      incomingTransactionHelperMocks.push(incomingTransactionHelperMock);
       return incomingTransactionHelperMock;
     });
 
-    pendingTransactionTrackerMocks = [];
     pendingTransactionTrackerClassMock.mockImplementation(() => {
-      const pendingTransactionTrackerMock = {
+      pendingTransactionTrackerMock = {
         start: jest.fn(),
         stop: jest.fn(),
         startIfPendingTransactions: jest.fn(),
@@ -760,9 +743,20 @@ describe('TransactionController', () => {
         },
         onStateChange: jest.fn(),
       } as unknown as jest.Mocked<PendingTransactionTracker>;
-
-      pendingTransactionTrackerMocks.push(pendingTransactionTrackerMock);
       return pendingTransactionTrackerMock;
+    });
+
+    multichainTrackingHelperClassMock.mockImplementation(({ provider }) => {
+      multichainTrackingHelperMock = {
+        getEthQuery: jest.fn().mockImplementation(() => {
+          return new EthQuery(provider);
+        }),
+        checkForPendingTransactionAndStartPolling: jest.fn(),
+        getNonceLock: getNonceLockSpy,
+        initialize: jest.fn(),
+        has: jest.fn().mockReturnValue(false),
+      } as unknown as jest.Mocked<MultichainTrackingHelper>;
+      return multichainTrackingHelperMock;
     });
   });
 
@@ -1225,7 +1219,7 @@ describe('TransactionController', () => {
       );
     });
 
-    describe('when isMultichainEnabled: true is specified', () => {
+    describe('networkClientId exists in the MultichainTrackingHelper', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const controller = newController({
           options: { isMultichainEnabled: true },
@@ -1235,6 +1229,8 @@ describe('TransactionController', () => {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         };
+
+        multichainTrackingHelperMock.has.mockReturnValue(true);
 
         await controller.addTransaction(sepoliaTxParams, {
           origin: 'metamask',
@@ -1257,6 +1253,9 @@ describe('TransactionController', () => {
           approve: true,
           options: { isMultichainEnabled: true },
         });
+
+        multichainTrackingHelperMock.has.mockReturnValue(true);
+
         const submittedEventListener = jest.fn();
         controller.hub.on('transaction-submitted', submittedEventListener);
 
@@ -1454,12 +1453,10 @@ describe('TransactionController', () => {
       const firstTransaction = controller.state.transactions[0];
 
       // eslint-disable-next-line jest/prefer-spy-on
-      NonceTrackerPackage.NonceTracker.prototype.getNonceLock = jest
-        .fn()
-        .mockResolvedValue({
-          nextNonce: NONCE_MOCK + 1,
-          releaseLock: () => Promise.resolve(),
-        });
+      multichainTrackingHelperMock.getNonceLock = jest.fn().mockResolvedValue({
+        nextNonce: NONCE_MOCK + 1,
+        releaseLock: () => Promise.resolve(),
+      });
 
       const { result: secondResult } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -2540,20 +2537,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('getNonceLock', () => {
-    it('gets the next nonce from the globally selected nonceTracker when no networkClientId is provided', async () => {
-      const controller = newController({
-        network: MOCK_LINEA_MAINNET_NETWORK,
-      });
-
-      const { nextNonce } = await controller.getNonceLock(ACCOUNT_MOCK);
-
-      expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
-      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
-      expect(nextNonce).toBe(NONCE_MOCK);
-    });
-  });
-
   describe('confirmExternalTransaction', () => {
     it('adds external transaction to the state as confirmed', async () => {
       const controller = newController();
@@ -3196,7 +3179,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[0][1]({
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
         added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
         updated: [],
       });
@@ -3222,7 +3205,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[0][1]({
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
         added: [],
         updated: [updatedTransaction],
       });
@@ -3238,7 +3221,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[0][1]({
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
         added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
         updated: [],
       });
@@ -3259,7 +3242,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[1][1]({
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
         lastFetchedBlockNumbers,
         blockNumber: 123,
       });
@@ -3278,7 +3261,7 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMocks[0].hub.on as any).mock.calls[1][1]({
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
         lastFetchedBlockNumbers: {
           key: 234,
         },
@@ -3497,7 +3480,7 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...args: any
     ) {
-      (pendingTransactionTrackerMocks[0].hub.on as jest.Mock).mock.calls.find(
+      (pendingTransactionTrackerMock.hub.on as jest.Mock).mock.calls.find(
         (call) => call[0] === eventName,
       )[1](...args);
     }
@@ -3848,10 +3831,6 @@ describe('TransactionController', () => {
     });
 
     it('does not create nonce lock if hasNonce set', async () => {
-      const getNonceLockMock = jest
-        .spyOn(NonceTrackerPackage.NonceTracker.prototype, 'getNonceLock')
-        .mockImplementation();
-
       const controller = newController();
 
       const mockTransactionParam = {
@@ -3877,15 +3856,11 @@ describe('TransactionController', () => {
         { hasNonce: true },
       );
 
-      expect(getNonceLockMock).not.toHaveBeenCalled();
+      expect(getNonceLockSpy).not.toHaveBeenCalled();
     });
 
     it('uses the nonceTracker for the networkClientId matching the chainId', async () => {
-      const controller = newController({
-        options: { isMultichainEnabled: true },
-      });
-
-      const getNonceLockMock = jest.spyOn(controller, 'getNonceLock');
+      const controller = newController();
 
       const mockTransactionParam = {
         from: ACCOUNT_MOCK,
@@ -3910,7 +3885,7 @@ describe('TransactionController', () => {
         mockTransactionParam2,
       ]);
 
-      expect(getNonceLockMock).toHaveBeenCalledWith(ACCOUNT_MOCK, 'goerli');
+      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK, 'goerli');
     });
   });
 
