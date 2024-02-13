@@ -43,7 +43,6 @@ import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
-import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
@@ -2748,10 +2747,6 @@ export class TransactionController extends BaseControllerV1<
   }
 
   private getGasFeeFlows(): GasFeeFlow[] {
-    return [
-      new LineaGasFeeFlow(),
-      new TestGasFeeFlow(),
-      new DefaultGasFeeFlow(),
-    ];
+    return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
   }
 }
