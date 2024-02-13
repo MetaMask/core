@@ -864,7 +864,7 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransaction(rawTx);
+    const hash = await this.publishTransactionForRetry(rawTx, transactionMeta);
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
@@ -1016,7 +1016,7 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+    const hash = await this.publishTransactionForRetry(rawTx, transactionMeta);
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
@@ -2734,5 +2734,39 @@ export class TransactionController extends BaseControllerV1<
       /* istanbul ignore next */
       log('Error while updating post transaction balance', error);
     }
+  }
+
+  private async publishTransactionForRetry(
+    rawTx: string,
+    transactionMeta: TransactionMeta,
+  ): Promise<string> {
+    try {
+      const hash = await this.publishTransaction(rawTx);
+      return hash;
+    } catch (error: unknown) {
+      if (this.isTransactionAlreadyConfirmedError(error as Error)) {
+        await this.pendingTransactionTracker.forceCheckTransaction(
+          transactionMeta,
+        );
+        throw new Error('Previous transaction is already confirmed');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Ensures that error is a nonce issue
+   *
+   * @param error - The error to check
+   * @returns Whether or not the error is a nonce issue
+   */
+  // TODO: Replace `any` with type
+  // Some networks are returning original error in the data field
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private isTransactionAlreadyConfirmedError(error: any): boolean {
+    return (
+      error?.message?.includes('nonce too low') ||
+      error?.data?.message?.includes('nonce too low')
+    );
   }
 }

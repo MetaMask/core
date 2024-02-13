@@ -7,6 +7,7 @@ import type {
   NetworkClientId,
   NetworkState,
   NetworkController,
+  Provider,
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
@@ -62,9 +63,7 @@ export const MISSING_PROVIDER_ERROR =
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AssetsContractConfig extends BaseConfig {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  provider: any;
+  provider: Provider | undefined;
   ipfsGateway: string;
   chainId: Hex;
 }
@@ -89,9 +88,7 @@ export class AssetsContractController extends BaseControllerV1<
   AssetsContractConfig,
   BaseState
 > {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _provider?: any;
+  private _provider?: Provider;
 
   /**
    * Name of this controller used during composition
@@ -159,9 +156,7 @@ export class AssetsContractController extends BaseControllerV1<
    *
    * @property provider - Provider used to create a new underlying Web3 instance
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  set provider(provider: any) {
+  set provider(provider: Provider) {
     this._provider = provider;
   }
 
@@ -184,6 +179,7 @@ export class AssetsContractController extends BaseControllerV1<
       throw new Error(MISSING_PROVIDER_ERROR);
     }
 
+    // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     return new Web3Provider(provider);
   }
 
