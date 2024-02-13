@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `updateIdentities`, `syncIdentities`, `setSelectedAddress`, `setAccountLabel` from constructor options of `KeyringController` class.
+
 ## [12.2.0]
 
 ### Added
