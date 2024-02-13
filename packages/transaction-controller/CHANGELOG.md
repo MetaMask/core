@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [21.3.0]
 
-### Uncategorized
+### Changed
 
 - Remove `cancelMultiplier` & `speedUpMultiplier` option from `TransactionController` ([#3909](https://github.com/MetaMask/core/pull/3909))
-- Check pending txs before submitting cancel ([#3800](https://github.com/MetaMask/core/pull/3800))
-- deps: bump @metamask/ethjs- packages to latest ([#3897](https://github.com/MetaMask/core/pull/3897))
+- Add error check to publishing cancel transaction to determine if transaction is confirmed ([#3800](https://github.com/MetaMask/core/pull/3800))
+- Bump `@metamask/ethjs-*` packages to latest ([#3897](https://github.com/MetaMask/core/pull/3897))
 
 ## [21.2.0]
 
