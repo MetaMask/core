@@ -180,7 +180,7 @@ export interface TransactionState extends BaseState {
 /**
  * Multiplier used to determine a transaction's increased gas fee during cancellation
  */
-export const CANCEL_RATE = 1.5;
+export const CANCEL_RATE = 1.1;
 
 /**
  * Multiplier used to determine a transaction's increased gas fee during speed up
@@ -275,10 +275,6 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
-  private readonly cancelMultiplier: number;
-
-  private readonly speedUpMultiplier: number;
-
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
   private readonly afterSign: (
@@ -295,6 +291,11 @@ export class TransactionController extends BaseControllerV1<
   ) => boolean;
 
   private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
+
+  private readonly publish: (
+    transactionMeta: TransactionMeta,
+    rawTx: string,
+  ) => Promise<{ transactionHash?: string }>;
 
   private readonly getAdditionalSignArguments: (
     transactionMeta: TransactionMeta,
@@ -353,7 +354,6 @@ export class TransactionController extends BaseControllerV1<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
-   * @param options.cancelMultiplier - Multiplier used to determine a transaction's increased gas fee during cancellation.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
@@ -376,20 +376,19 @@ export class TransactionController extends BaseControllerV1<
    * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
-   * @param options.speedUpMultiplier - Multiplier used to determine a transaction's increased gas fee during speed up.
    * @param options.hooks - The controller hooks.
    * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
    * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
    * @param options.hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
    * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
+   * @param options.hooks.publish - Alternate logic to publish a transaction.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
       blockTracker,
-      cancelMultiplier,
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
@@ -407,11 +406,9 @@ export class TransactionController extends BaseControllerV1<
       pendingTransactions = {},
       provider,
       securityProviderRequest,
-      speedUpMultiplier,
       hooks = {},
     }: {
       blockTracker: BlockTracker;
-      cancelMultiplier?: number;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
       disableSwaps: boolean;
@@ -438,7 +435,6 @@ export class TransactionController extends BaseControllerV1<
       };
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
-      speedUpMultiplier?: number;
       hooks: {
         afterSign?: (
           transactionMeta: TransactionMeta,
@@ -452,6 +448,9 @@ export class TransactionController extends BaseControllerV1<
         getAdditionalSignArguments?: (
           transactionMeta: TransactionMeta,
         ) => (TransactionMeta | undefined)[];
+        publish?: (
+          transactionMeta: TransactionMeta,
+        ) => Promise<{ transactionHash: string }>;
       };
     },
     config?: Partial<TransactionConfig>,
@@ -492,8 +491,6 @@ export class TransactionController extends BaseControllerV1<
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
-    this.cancelMultiplier = cancelMultiplier ?? CANCEL_RATE;
-    this.speedUpMultiplier = speedUpMultiplier ?? SPEED_UP_RATE;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -504,6 +501,8 @@ export class TransactionController extends BaseControllerV1<
     this.beforePublish = hooks?.beforePublish ?? (() => true);
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
+    this.publish =
+      hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
     this.nonceTracker = new NonceTracker({
       // @ts-expect-error provider types misaligned: SafeEventEmitterProvider vs Record<string,string>
@@ -808,7 +807,7 @@ export class TransactionController extends BaseControllerV1<
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
       transactionMeta.txParams.gasPrice,
-      this.cancelMultiplier,
+      CANCEL_RATE,
     );
 
     const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
@@ -822,7 +821,7 @@ export class TransactionController extends BaseControllerV1<
     const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
     const minMaxFeePerGas = getIncreasedPriceFromExisting(
       existingMaxFeePerGas,
-      this.cancelMultiplier,
+      CANCEL_RATE,
     );
     const maxFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
@@ -836,7 +835,7 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta.txParams?.maxPriorityFeePerGas;
     const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
       existingMaxPriorityFeePerGas,
-      this.cancelMultiplier,
+      CANCEL_RATE,
     );
     const maxPriorityFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
@@ -890,7 +889,7 @@ export class TransactionController extends BaseControllerV1<
       txParams: newTxParams,
     });
 
-    const hash = await this.publishTransaction(rawTx);
+    const hash = await this.publishTransactionForRetry(rawTx, transactionMeta);
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
@@ -969,7 +968,7 @@ export class TransactionController extends BaseControllerV1<
     // gasPrice (legacy non EIP1559)
     const minGasPrice = getIncreasedPriceFromExisting(
       transactionMeta.txParams.gasPrice,
-      this.speedUpMultiplier,
+      SPEED_UP_RATE,
     );
 
     const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
@@ -983,7 +982,7 @@ export class TransactionController extends BaseControllerV1<
     const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
     const minMaxFeePerGas = getIncreasedPriceFromExisting(
       existingMaxFeePerGas,
-      this.speedUpMultiplier,
+      SPEED_UP_RATE,
     );
     const maxFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
@@ -997,7 +996,7 @@ export class TransactionController extends BaseControllerV1<
       transactionMeta.txParams?.maxPriorityFeePerGas;
     const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
       existingMaxPriorityFeePerGas,
-      this.speedUpMultiplier,
+      SPEED_UP_RATE,
     );
     const maxPriorityFeePerGasValues =
       isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
@@ -1042,7 +1041,7 @@ export class TransactionController extends BaseControllerV1<
 
     log('Submitting speed up transaction', { oldFee, newFee, txParams });
 
-    const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+    const hash = await this.publishTransactionForRetry(rawTx, transactionMeta);
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
@@ -1547,10 +1546,13 @@ export class TransactionController extends BaseControllerV1<
    * Signs and returns the raw transaction data for provided transaction params list.
    *
    * @param listOfTxParams - The list of transaction params to approve.
+   * @param opts - Options bag.
+   * @param opts.hasNonce - Whether the transactions already have a nonce.
    * @returns The raw transactions.
    */
   async approveTransactionsWithSameNonce(
     listOfTxParams: TransactionParams[] = [],
+    { hasNonce }: { hasNonce?: boolean } = {},
   ): Promise<string | string[]> {
     log('Approving transactions with same nonce', {
       transactions: listOfTxParams,
@@ -1579,14 +1581,23 @@ export class TransactionController extends BaseControllerV1<
     try {
       // TODO: we should add a check to verify that all transactions have the same from address
       const fromAddress = initialTx.from;
-      nonceLock = await this.nonceTracker.getNonceLock(fromAddress);
-      const nonce = nonceLock.nextNonce;
+      const requiresNonce = hasNonce !== true;
 
-      log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+      nonceLock = requiresNonce
+        ? await this.nonceTracker.getNonceLock(fromAddress)
+        : undefined;
+
+      const nonce = nonceLock
+        ? addHexPrefix(nonceLock.nextNonce.toString(16))
+        : initialTx.nonce;
+
+      if (nonceLock) {
+        log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+      }
 
       rawTransactions = await Promise.all(
         listOfTxParams.map((txParams) => {
-          txParams.nonce = addHexPrefix(nonce.toString(16));
+          txParams.nonce = nonce;
           return this.signExternalTransaction(txParams);
         }),
       );
@@ -1596,9 +1607,7 @@ export class TransactionController extends BaseControllerV1<
       // continue with error chain
       throw err;
     } finally {
-      if (nonceLock) {
-        nonceLock.releaseLock();
-      }
+      nonceLock?.releaseLock();
       this.inProcessOfSigning.delete(initialTxAsSerializedHex);
     }
     return rawTransactions;
@@ -2140,7 +2149,14 @@ export class TransactionController extends BaseControllerV1<
 
       log('Publishing transaction', txParams);
 
-      const hash = await this.publishTransaction(rawTx);
+      let { transactionHash: hash } = await this.publish(
+        transactionMeta,
+        rawTx,
+      );
+
+      if (hash === undefined) {
+        hash = await this.publishTransaction(rawTx);
+      }
 
       log('Publish successful', hash);
 
@@ -2744,6 +2760,40 @@ export class TransactionController extends BaseControllerV1<
       /* istanbul ignore next */
       log('Error while updating post transaction balance', error);
     }
+  }
+
+  private async publishTransactionForRetry(
+    rawTx: string,
+    transactionMeta: TransactionMeta,
+  ): Promise<string> {
+    try {
+      const hash = await this.publishTransaction(rawTx);
+      return hash;
+    } catch (error: unknown) {
+      if (this.isTransactionAlreadyConfirmedError(error as Error)) {
+        await this.pendingTransactionTracker.forceCheckTransaction(
+          transactionMeta,
+        );
+        throw new Error('Previous transaction is already confirmed');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Ensures that error is a nonce issue
+   *
+   * @param error - The error to check
+   * @returns Whether or not the error is a nonce issue
+   */
+  // TODO: Replace `any` with type
+  // Some networks are returning original error in the data field
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private isTransactionAlreadyConfirmedError(error: any): boolean {
+    return (
+      error?.message?.includes('nonce too low') ||
+      error?.data?.message?.includes('nonce too low')
+    );
   }
 
   private getGasFeeFlows(): GasFeeFlow[] {

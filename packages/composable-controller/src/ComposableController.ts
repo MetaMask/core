@@ -100,21 +100,6 @@ export class ComposableController extends BaseController<
   }
 
   /**
-   * Flat state representation, one that isn't keyed
-   * of controller name. Instead, all child controller state is merged
-   * together into a single, flat object.
-   *
-   * @returns Merged state representation of all child controllers.
-   */
-  get flatState() {
-    let flatState = {};
-    for (const controller of this.#controllers) {
-      flatState = { ...flatState, ...controller.state };
-    }
-    return flatState;
-  }
-
-  /**
    * Adds a child controller instance to composable controller state,
    * or updates the state of a child controller.
    * @param controller - Controller instance to update

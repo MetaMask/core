@@ -40,11 +40,12 @@ export class ERC20Standard {
     try {
       const decimals = await contract.decimals();
       return decimals.toString();
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
+    } catch (err) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (
+        err instanceof Error &&
+        err.message.includes('call revert exception')
+      ) {
         throw new Error('Failed to parse token decimals');
       }
       throw err;
@@ -62,11 +63,12 @@ export class ERC20Standard {
     try {
       const name = await contract.name();
       return name.toString();
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
+    } catch (err) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (
+        err instanceof Error &&
+        err.message.includes('call revert exception')
+      ) {
         throw new Error('Failed to parse token name');
       }
       throw err;

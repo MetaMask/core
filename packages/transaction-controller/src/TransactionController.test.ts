@@ -625,6 +625,7 @@ describe('TransactionController', () => {
       hub: {
         on: jest.fn(),
       },
+      forceCheckTransaction: jest.fn(),
     } as unknown as jest.Mocked<PendingTransactionTracker>;
 
     incomingTransactionHelperClassMock.mockReturnValue(
@@ -1879,6 +1880,73 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(1);
     });
 
+    it('should throw error if transaction already confirmed', async () => {
+      const controller = newController();
+
+      controller.state.transactions.push({
+        id: '2',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        type: TransactionType.cancel,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+        },
+      });
+
+      mockSendRawTransaction.mockImplementationOnce(
+        (_transaction, callback) => {
+          callback(
+            undefined,
+            // eslint-disable-next-line prefer-promise-reject-errors
+            Promise.reject({
+              message: 'nonce too low',
+            }),
+          );
+        },
+      );
+
+      await expect(controller.stopTransaction('2')).rejects.toThrow(
+        'Previous transaction is already confirmed',
+      );
+
+      // Expect cancel transaction to be submitted - it will fail
+      expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('should throw error if publish transaction fails', async () => {
+      const errorMock = new Error('Another reason');
+      const controller = newController();
+
+      controller.state.transactions.push({
+        id: '2',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        type: TransactionType.cancel,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+        },
+      });
+
+      mockSendRawTransaction.mockImplementationOnce(
+        (_transaction, callback) => {
+          callback(
+            undefined,
+            // eslint-disable-next-line prefer-promise-reject-errors
+            Promise.reject(errorMock),
+          );
+        },
+      );
+
+      await expect(controller.stopTransaction('2')).rejects.toThrow(errorMock);
+
+      // Expect cancel transaction to be submitted - it will fail
+      expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
     it('submits a cancel transaction', async () => {
       const simpleSendTransactionId =
         'simpleeb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
@@ -2096,6 +2164,75 @@ describe('TransactionController', () => {
         actionId: mockActionId,
       });
 
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('should throw error if transaction already confirmed', async () => {
+      const controller = newController();
+
+      controller.state.transactions.push({
+        id: '2',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        type: TransactionType.retry,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+        },
+      });
+
+      mockSendRawTransaction.mockImplementationOnce(
+        (_transaction, callback) => {
+          callback(
+            undefined,
+            // eslint-disable-next-line prefer-promise-reject-errors
+            Promise.reject({
+              message: 'nonce too low',
+            }),
+          );
+        },
+      );
+
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        'Previous transaction is already confirmed',
+      );
+
+      // Expect speedup transaction to be submitted - it will fail
+      expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
+      expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('should throw error if publish transaction fails', async () => {
+      const controller = newController();
+      const errorMock = new Error('Another reason');
+
+      controller.state.transactions.push({
+        id: '2',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        type: TransactionType.retry,
+        time: 123456789,
+        txParams: {
+          from: ACCOUNT_MOCK,
+        },
+      });
+
+      mockSendRawTransaction.mockImplementationOnce(
+        (_transaction, callback) => {
+          callback(
+            undefined,
+            // eslint-disable-next-line prefer-promise-reject-errors
+            Promise.reject(errorMock),
+          );
+        },
+      );
+
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        errorMock,
+      );
+
+      // Expect speedup transaction to be submitted - it will fail
+      expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
       expect(controller.state.transactions).toHaveLength(1);
     });
 
@@ -3568,6 +3705,37 @@ describe('TransactionController', () => {
         ]),
       ).rejects.toThrow(mockSignError);
     });
+
+    it('does not create nonce lock if hasNonce set', async () => {
+      const getNonceLockMock = jest
+        .spyOn(NonceTrackerPackage.NonceTracker.prototype, 'getNonceLock')
+        .mockImplementation();
+
+      const controller = newController();
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+      };
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+      };
+
+      await controller.approveTransactionsWithSameNonce(
+        [mockTransactionParam, mockTransactionParam2],
+        { hasNonce: true },
+      );
+
+      expect(getNonceLockMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('with hooks', () => {
@@ -3692,6 +3860,47 @@ describe('TransactionController', () => {
         }),
         'TransactionController#signTransaction - Update after sign',
       );
+    });
+
+    it('gets transaction hash from publish hook and does not submit to provider', async () => {
+      const controller = newController({
+        options: {
+          hooks: {
+            publish: async () => ({
+              transactionHash: '0x123',
+            }),
+          },
+        },
+        approve: true,
+      });
+
+      const { result } = await controller.addTransaction(paramsMock);
+
+      await result;
+
+      expect(controller.state.transactions[0].hash).toBe('0x123');
+      expect(mockSendRawTransaction).not.toHaveBeenCalled();
+    });
+
+    it('submits to provider if publish hook returns no transaction hash', async () => {
+      const controller = newController({
+        options: {
+          hooks: {
+            publish: async () => ({}),
+          },
+        },
+        approve: true,
+      });
+
+      const { result } = await controller.addTransaction(paramsMock);
+
+      await result;
+
+      expect(controller.state.transactions[0].hash).toBe(
+        ethQueryMockResults.sendRawTransaction,
+      );
+
+      expect(mockSendRawTransaction).toHaveBeenCalledTimes(1);
     });
   });
 
