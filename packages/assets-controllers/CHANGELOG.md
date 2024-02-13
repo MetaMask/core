@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
 - **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, `KeyringController:unlock` events, and allows the `PreferencesController:getState` messenger action. ([#3775](https://github.com/MetaMask/core/pull/3775/))
+- `TokensController` now exports `TokensControllerActions`, `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerEvents`, `TokensControllerStateChangeEvent`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
 
 ### Changed
 
@@ -21,11 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** The `detectTokens` method now excludes tokens that are already included in the `TokensController`'s `detectedTokens` list from the batch of incoming tokens it sends to the `TokensController` `addDetectedTokens` method.
   - **BREAKING:** The constructor for `TokenDetectionController` expects a new required proprerty `trackMetaMetricsEvent`, which defines the callback that is called in the `detectTokens` method.
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
+  - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
+    - This is breaking because it could affect how this type is used with other types, such as `Json`, which does not support TypeScript interfaces.
 
 ### Removed
 
-- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `onPreferencesStateChange`, `getPreferencesState`. ([#3775](https://github.com/MetaMask/core/pull/3775/))
+- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, `addDetectedTokens`. ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/))
 - **BREAKING:** `TokenDetectionController` no longer allows the `NetworkController:stateChange` event. The `NetworkController:networkDidChange` event can be used instead. ([#3775](https://github.com/MetaMask/core/pull/3775/))
+- **BREAKING:** `TokensController` constructor no longer accepts options `onPreferencesStateChange`, `onNetworkDidChange`, `onTokenListStateChange`, `getNetworkClientById`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
+- **BREAKING:** `TokenBalancesController` constructor no longer accepts options `onTokensStateChange`, `getSelectedAddress`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
 
 ## [25.0.0]
 
@@ -136,8 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - These are needed for the new "polling by `networkClientId`" feature
 - **BREAKING:** `AccountTrackerController` has a new required state property, `accountByChainId`([#3586](https://github.com/MetaMask/core/pull/3586))
   - This is needed to track balances accross chains. It was introduced for the "polling by `networkClientId`" feature, but is useful on its own as well.
-- **BREAKING**: `AccountTrackerController` adds a mutex to `refresh` making it only possible for one call to be executed at time ([#3586](https://github.com/MetaMask/core/pull/3586))
-- **BREAKING**: `TokensController.watchAsset` now performs on-chain validation of the asset's symbol and decimals, if they're defined in the contract ([#1745](https://github.com/MetaMask/core/pull/1745))
+- **BREAKING:** `AccountTrackerController` adds a mutex to `refresh` making it only possible for one call to be executed at time ([#3586](https://github.com/MetaMask/core/pull/3586))
+- **BREAKING:** `TokensController.watchAsset` now performs on-chain validation of the asset's symbol and decimals, if they're defined in the contract ([#1745](https://github.com/MetaMask/core/pull/1745))
   - The `TokensController` constructor no longer accepts a `getERC20TokenName` option. It was no longer needed due to this change.
   - Add new method `_getProvider`, though this is intended for internal use and should not be called externally.
   - Additionally, if the symbol and decimals are defined in the contract, they are no longer required to be passed to `watchAsset`
@@ -168,10 +173,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This method was previously used in TokenRatesController to access the CoinGecko API. There is no equivalent.
 - **BREAKING:** Remove `CoinGeckoResponse` and `CoinGeckoPlatform` types ([#3600](https://github.com/MetaMask/core/pull/3600))
   - These types were previously used in TokenRatesController to represent data returned from the CoinGecko API. There is no equivalent.
-- **BREAKING**: The TokenRatesController now only supports updating and polling rates for tokens tracked by the TokensController ([#3639](https://github.com/MetaMask/core/pull/3639))
+- **BREAKING:** The TokenRatesController now only supports updating and polling rates for tokens tracked by the TokensController ([#3639](https://github.com/MetaMask/core/pull/3639))
   - The `tokenAddresses` option has been removed from `startPollingByNetworkClientId`
   - The `tokenContractAddresses` option has been removed from `updateExchangeRatesByChainId`
-- **BREAKING**: `TokenRatesController.fetchAndMapExchangeRates` is no longer exposed publicly ([#3621](https://github.com/MetaMask/core/pull/3621))
+- **BREAKING:** `TokenRatesController.fetchAndMapExchangeRates` is no longer exposed publicly ([#3621](https://github.com/MetaMask/core/pull/3621))
 
 ### Fixed
 
@@ -255,7 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ```
 - **BREAKING**: `CurrencyRateController` now extends `PollingController` ([#1805](https://github.com/MetaMask/core/pull/1805))
   - `start()` and `stop()` methods replaced with `startPollingByNetworkClientId()`, `stopPollingByPollingToken()`, and `stopAllPolling()`
-- **BREAKING**: `CurrencyRateController` now sends the `NetworkController:getNetworkClientById` action via messaging controller ([#1805](https://github.com/MetaMask/core/pull/1805))
+- **BREAKING:** `CurrencyRateController` now sends the `NetworkController:getNetworkClientById` action via messaging controller ([#1805](https://github.com/MetaMask/core/pull/1805))
 
 ### Fixed
 
@@ -360,7 +365,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       networkClientId?: NetworkClientId;
     }
   ```
-- **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+- **BREAKING:** Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
 - **CHANGED**: `TokensController.addToken` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.addTokens` now accepts an optional `networkClientId` as the last parameter ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.addTokens` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
@@ -425,13 +430,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: New required constructor parameters for the `TokenRatesController` ([#1497](https://github.com/MetaMask/core/pull/1497), [#1511](https://github.com/MetaMask/core/pull/1511))
   - The new required parameters are `ticker`, `onSelectedAddress`, and `onPreferencesStateChange`
-- **BREAKING**: Remove `onCurrencyRateStateChange` constructor parameter from `TokenRatesController` ([#1496](https://github.com/MetaMask/core/pull/1496))
-- **BREAKING**: Disable `TokenRatesController` automatic polling ([#1501](https://github.com/MetaMask/core/pull/1501))
+- **BREAKING:** Remove `onCurrencyRateStateChange` constructor parameter from `TokenRatesController` ([#1496](https://github.com/MetaMask/core/pull/1496))
+- **BREAKING:** Disable `TokenRatesController` automatic polling ([#1501](https://github.com/MetaMask/core/pull/1501))
   - Polling must be started explicitly by calling the `start` method
   - The token rates are not updated upon state changes when polling is disabled.
-- **BREAKING**: Replace the `poll` method with `start` ([#1501](https://github.com/MetaMask/core/pull/1501))
+- **BREAKING:** Replace the `poll` method with `start` ([#1501](https://github.com/MetaMask/core/pull/1501))
   - The `start` method does not offer a way to change the interval. That must be done by calling `.configure` instead
-- **BREAKING**: Remove `TokenRatecontroller` setter for `chainId` and `tokens` properties ([#1505](https://github.com/MetaMask/core/pull/1505))
+- **BREAKING:** Remove `TokenRatecontroller` setter for `chainId` and `tokens` properties ([#1505](https://github.com/MetaMask/core/pull/1505))
 - Bump @metamask/abi-utils from 1.2.0 to 2.0.1 ([#1525](https://github.com/MetaMask/core/pull/1525))
 - Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
 - Remove unnecessary `babel-runtime` dependency ([#1504](https://github.com/MetaMask/core/pull/1504))
@@ -520,7 +525,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The tokens controller `addDetectedTokens` method now accepts the `chainId` property of the `detectionDetails` parameter to be of type `Hex` rather than decimal `string`.
   - The tokens controller state properties `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are now keyed by chain ID in `Hex` format rather than decimal `string`.
     - This requires a state migration
-- **BREAKING**: Use approval controller for suggested assets ([#1261](https://github.com/MetaMask/core/pull/1261), [#1268](https://github.com/MetaMask/core/pull/1268))
+- **BREAKING:** Use approval controller for suggested assets ([#1261](https://github.com/MetaMask/core/pull/1261), [#1268](https://github.com/MetaMask/core/pull/1268))
   - The actions `ApprovalController:acceptRequest` and `ApprovalController:rejectRequest` are no longer required by the token controller messenger.
   - The `suggestedAssets` state has been removed, which means that suggested assets are no longer persisted in state
   - The return type for `watchAsset` has changed. It now returns a Promise that settles after the request has been confirmed or rejected.

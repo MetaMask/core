@@ -895,4 +895,57 @@ describe('PendingTransactionTracker', () => {
       });
     });
   });
+
+  describe('forceCheckTransaction', () => {
+    let tracker: PendingTransactionTracker;
+    let transactionMeta: TransactionMeta;
+
+    beforeEach(() => {
+      tracker = new PendingTransactionTracker(options);
+      transactionMeta = {
+        ...TRANSACTION_SUBMITTED_MOCK,
+        hash: '0x123',
+      } as TransactionMeta;
+    });
+
+    it('should update transaction status to confirmed if receipt status is success', async () => {
+      queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
+      queryMock.mockResolvedValueOnce(BLOCK_MOCK);
+      options.getTransactions.mockReturnValue([]);
+
+      await tracker.forceCheckTransaction(transactionMeta);
+
+      expect(transactionMeta.status).toStrictEqual(TransactionStatus.confirmed);
+      expect(transactionMeta.txReceipt).toStrictEqual(RECEIPT_MOCK);
+      expect(transactionMeta.verifiedOnBlockchain).toBe(true);
+    });
+
+    it('should fail transaction if receipt status is failure', async () => {
+      const receiptMock = { ...RECEIPT_MOCK, status: '0x0' };
+      queryMock.mockResolvedValueOnce(receiptMock);
+      options.getTransactions.mockReturnValue([]);
+
+      const listener = jest.fn();
+      tracker.hub.addListener('transaction-failed', listener);
+
+      await tracker.forceCheckTransaction(transactionMeta);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        transactionMeta,
+        new Error('Transaction dropped or replaced'),
+      );
+    });
+
+    it('should not change transaction status if receipt status is neither success nor failure', async () => {
+      const receiptMock = { ...RECEIPT_MOCK, status: '0x2' };
+      queryMock.mockResolvedValueOnce(receiptMock);
+      options.getTransactions.mockReturnValue([]);
+
+      await tracker.forceCheckTransaction(transactionMeta);
+
+      expect(transactionMeta.status).toStrictEqual(TransactionStatus.submitted);
+      expect(transactionMeta.txReceipt).toBeUndefined();
+    });
+  });
 });

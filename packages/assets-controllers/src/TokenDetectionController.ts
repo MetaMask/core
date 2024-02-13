@@ -35,7 +35,10 @@ import type {
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
-import type { TokensController, TokensState } from './TokensController';
+import type {
+  TokensControllerAddDetectedTokensAction,
+  TokensControllerGetStateAction,
+} from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -61,7 +64,12 @@ type LegacyToken = Omit<
 
 export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
   contractMap,
-).reduce<Record<string, Partial<TokenListToken>>>((acc, [base, contract]) => {
+).reduce<
+  Record<
+    string,
+    Partial<TokenListToken> & Pick<Token, 'address' | 'symbol' | 'decimals'>
+  >
+>((acc, [base, contract]) => {
   const { logo, ...tokenMetadata } = contract;
   return {
     ...acc,
@@ -90,7 +98,9 @@ export type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | GetTokenListState
   | KeyringControllerGetStateAction
-  | PreferencesControllerGetStateAction;
+  | PreferencesControllerGetStateAction
+  | TokensControllerGetStateAction
+  | TokensControllerAddDetectedTokensAction;
 
 export type TokenDetectionControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, TokenDetectionState>;
@@ -146,11 +156,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #isDetectionEnabledForNetwork: boolean;
 
-  readonly #addDetectedTokens: TokensController['addDetectedTokens'];
-
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-
-  readonly #getTokensState: () => TokensState;
 
   readonly #trackMetaMetricsEvent: (options: {
     event: string;
@@ -171,9 +177,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.networkClientId - The selected network client ID of the current network
    * @param options.selectedAddress - Vault selected address
-   * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
-   * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    */
   constructor({
@@ -182,8 +186,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     interval = DEFAULT_INTERVAL,
     disabled = true,
     getBalancesInSingleCall,
-    addDetectedTokens,
-    getTokensState,
     trackMetaMetricsEvent,
     messenger,
   }: {
@@ -191,9 +193,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     selectedAddress?: string;
     interval?: number;
     disabled?: boolean;
-    addDetectedTokens: TokensController['addDetectedTokens'];
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-    getTokensState: () => TokensState;
     trackMetaMetricsEvent: (options: {
       event: string;
       category: string;
@@ -226,9 +226,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       this.#chainId,
     );
 
-    this.#addDetectedTokens = addDetectedTokens;
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
-    this.#getTokensState = getTokensState;
 
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
 
@@ -460,9 +458,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       ? STATIC_MAINNET_TOKEN_LIST
       : tokenList;
 
-    const { tokens, detectedTokens } = this.#getTokensState();
+    const { tokens, detectedTokens, ignoredTokens } = this.messagingSystem.call(
+      'TokensController:getState',
+    );
     const tokensToDetect: string[] = [];
-
     for (const tokenAddress of Object.keys(tokenListUsed)) {
       if (
         !findCaseInsensitiveMatch(
@@ -500,11 +499,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           tokensSlice,
         );
         const tokensToAdd: Token[] = [];
-        const eventTokensDetails = [];
+        const eventTokensDetails: string[] = [];
+        let ignored;
         for (const tokenAddress of Object.keys(balances)) {
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredTokens } = this.#getTokensState();
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -519,7 +516,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
           if (ignored === undefined) {
             const { decimals, symbol, aggregators, iconUrl, name } =
-              tokenList[caseInsensitiveTokenKey];
+              tokenListUsed[caseInsensitiveTokenKey];
             eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
             tokensToAdd.push({
               address: tokenAddress,
@@ -543,10 +540,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<
               asset_type: 'TOKEN',
             },
           });
-          await this.#addDetectedTokens(tokensToAdd, {
-            selectedAddress,
-            chainId,
-          });
+          await this.messagingSystem.call(
+            'TokensController:addDetectedTokens',
+            tokensToAdd,
+            {
+              selectedAddress,
+              chainId,
+            },
+          );
         }
       });
     }
