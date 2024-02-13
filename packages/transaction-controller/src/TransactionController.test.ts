@@ -742,7 +742,7 @@ describe('TransactionController', () => {
           removeAllListeners: jest.fn(),
         },
         onStateChange: jest.fn(),
-      forceCheckTransaction: jest.fn(),
+        forceCheckTransaction: jest.fn(),
       } as unknown as jest.Mocked<PendingTransactionTracker>;
       return pendingTransactionTrackerMock;
     });

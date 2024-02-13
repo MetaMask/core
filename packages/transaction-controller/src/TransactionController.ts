@@ -941,7 +941,11 @@ export class TransactionController extends BaseControllerV1<
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
-    const hash = await this.publishTransactionForRetry(ethQuery, rawTx, transactionMeta);
+    const hash = await this.publishTransactionForRetry(
+      ethQuery,
+      rawTx,
+      transactionMeta,
+    );
 
     const cancelTransactionMeta: TransactionMeta = {
       actionId,
@@ -1101,7 +1105,11 @@ export class TransactionController extends BaseControllerV1<
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
-    const hash = await this.publishTransactionForRetry(ethQuery, rawTx, transactionMeta);
+    const hash = await this.publishTransactionForRetry(
+      ethQuery,
+      rawTx,
+      transactionMeta,
+    );
 
     const baseTransactionMeta: TransactionMeta = {
       ...transactionMeta,
