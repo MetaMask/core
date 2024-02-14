@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [21.3.0]
+## [22.0.0]
 
 ### Changed
 
@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Remove implicit peerDependency on `babel-runtime` ([#3897](https://github.com/MetaMask/core/pull/3897))
+
 ## [21.2.0]
 
 ### Added
