@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- The `cancelMultiplier` & `speedUpMultiplier` parameters have been eliminated from the `TransactionController` constructor. Their values are now set as a hardcoded global constant of `1.1`. ([#3909](https://github.com/MetaMask/core/pull/3909))
+- Remove `cancelMultiplier` and `speedUpMultiplier` constructor options as both values are now fixed at `1.1`. ([#3909](https://github.com/MetaMask/core/pull/3909))
 
 ### Fixed
 
