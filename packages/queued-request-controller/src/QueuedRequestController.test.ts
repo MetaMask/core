@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { createDeferredPromise } from '@metamask/utils';
 
 import type {
   QueuedRequestControllerActions,
@@ -35,10 +36,43 @@ describe('QueuedRequestController', () => {
     };
 
     const controller = new QueuedRequestController(options);
-    expect(controller.state).toStrictEqual({});
+    expect(controller.state).toStrictEqual({ queuedRequestCount: 0 });
   });
 
   describe('enqueueRequest', () => {
+    it('counts a request as queued during processing', async () => {
+      const options: QueuedRequestControllerOptions = {
+        messenger: buildQueuedRequestControllerMessenger(),
+      };
+      const controller = new QueuedRequestController(options);
+
+      await controller.enqueueRequest(async () => {
+        expect(controller.state.queuedRequestCount).toBe(1);
+      });
+      expect(controller.state.queuedRequestCount).toBe(0);
+    });
+
+    it('counts a request as queued while waiting on another request to finish processing', async () => {
+      const options: QueuedRequestControllerOptions = {
+        messenger: buildQueuedRequestControllerMessenger(),
+      };
+      const controller = new QueuedRequestController(options);
+      const { promise: firstRequestProcessing, resolve: resolveFirstRequest } =
+        createDeferredPromise();
+      const firstRequest = controller.enqueueRequest(
+        () => firstRequestProcessing,
+      );
+      const secondRequest = controller.enqueueRequest(async () => {
+        expect(controller.state.queuedRequestCount).toBe(1);
+      });
+
+      expect(controller.state.queuedRequestCount).toBe(2);
+
+      resolveFirstRequest();
+      await firstRequest;
+      await secondRequest;
+    });
+
     it('runs the next request immediately when the queue is empty', async () => {
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(),
@@ -106,6 +140,20 @@ describe('QueuedRequestController', () => {
           controller.enqueueRequest(requestWithError),
         ).rejects.toThrow(new Error('Request failed'));
         expect(controller.length()).toBe(0);
+      });
+
+      it('correctly updates the request queue count upon failure', async () => {
+        const options: QueuedRequestControllerOptions = {
+          messenger: buildQueuedRequestControllerMessenger(),
+        };
+        const controller = new QueuedRequestController(options);
+
+        await expect(() =>
+          controller.enqueueRequest(async () => {
+            throw new Error('Request failed');
+          }),
+        ).rejects.toThrow('Request failed');
+        expect(controller.state.queuedRequestCount).toBe(0);
       });
 
       it('handles errors without interrupting the execution of the next item in the queue', async () => {
