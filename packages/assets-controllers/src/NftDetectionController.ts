@@ -299,9 +299,6 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
         !useNftDetection !== disabled
       ) {
         this.configure({ selectedAddress, disabled: !useNftDetection });
-      }
-
-      if (useNftDetection !== undefined) {
         if (useNftDetection) {
           this.start();
         } else {
