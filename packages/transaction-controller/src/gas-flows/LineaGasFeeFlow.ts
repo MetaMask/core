@@ -17,6 +17,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { CHAIN_IDS } from '../constants';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 type LineaEstimateGasResponse = {
   baseFeePerGas: Hex;
@@ -56,6 +57,15 @@ export class LineaGasFeeFlow implements GasFeeFlow {
   }
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
+    try {
+      return await this.#getLineaGasFees(request);
+    } catch (error) {
+      log('Using default flow as fallback due to error', error);
+      return new DefaultGasFeeFlow().getGasFees(request);
+    }
+  }
+
+  async #getLineaGasFees(request: GasFeeFlowRequest) {
     const { ethQuery, getGasFeeControllerEstimates, transactionMeta } = request;
 
     const lineaResponse = await this.#getLineaResponse(

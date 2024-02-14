@@ -4,6 +4,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 
+import { BN } from 'ethereumjs-util';
 import type {
   GasFeeEstimatesLevel,
   GasFeeFlow,
@@ -12,7 +13,6 @@ import type {
   TransactionMeta,
 } from '../types';
 import { CHAIN_IDS } from '../constants';
-import { BN } from 'ethereumjs-util';
 
 const MULTIPLIER = 10e17;
 
