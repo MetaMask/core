@@ -38,6 +38,7 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
+- [`@metamask/user-operation-controller`](packages/user-operation-controller)
 
 <!-- end package list -->
 
@@ -79,15 +80,18 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
+  user_operation_controller(["@metamask/user-operation-controller"]);
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
   approval_controller --> base_controller;
+  assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> keyring_controller;
   assets_controllers --> network_controller;
   assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
@@ -103,7 +107,6 @@ linkStyle default opacity:0.5
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> message_manager;
-  keyring_controller --> preferences_controller;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
   message_manager --> base_controller;
@@ -114,10 +117,10 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   notification_controller --> base_controller;
-  permission_controller --> approval_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
   permission_controller --> json_rpc_engine;
+  permission_controller --> approval_controller;
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
   phishing_controller --> base_controller;
@@ -127,10 +130,11 @@ linkStyle default opacity:0.5
   polling_controller --> network_controller;
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
-  queued_request_controller --> approval_controller;
+  preferences_controller --> keyring_controller;
   queued_request_controller --> base_controller;
   queued_request_controller --> controller_utils;
   queued_request_controller --> json_rpc_engine;
+  queued_request_controller --> approval_controller;
   queued_request_controller --> network_controller;
   queued_request_controller --> selected_network_controller;
   rate_limit_controller --> base_controller;
@@ -148,6 +152,14 @@ linkStyle default opacity:0.5
   transaction_controller --> controller_utils;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
+  user_operation_controller --> approval_controller;
+  user_operation_controller --> base_controller;
+  user_operation_controller --> controller_utils;
+  user_operation_controller --> gas_fee_controller;
+  user_operation_controller --> keyring_controller;
+  user_operation_controller --> network_controller;
+  user_operation_controller --> polling_controller;
+  user_operation_controller --> transaction_controller;
 ```
 
 <!-- end dependency graph -->
