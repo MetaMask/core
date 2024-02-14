@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
 ### Added
 
 - **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: Narrows `AssetsContractController` `provider` property type from `any` to `Provider` from `@metamask/network-controller`. ([#3818](https://github.com/MetaMask/core/pull/3818))
+- **BREAKING**: Narrows `TokensController` `provider` property type from `any` to `Provider` from `@metamask/network-controller`. ([#3818](https://github.com/MetaMask/core/pull/3818))
 - **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo. ([#3775](https://github.com/MetaMask/core/pull/3775/))
   - **BREAKING:** `TokenDetectionController` now resets its polling interval to the default value of 3 minutes when token detection is triggered by external controller events `KeyringController:unlock`, `TokenListController:stateChange`, `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`.
   - **BREAKING:** `TokenDetectionController` now refetches tokens on `NetworkController:networkDidChange` if the `networkClientId` is changed instead of `chainId`.
@@ -24,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
   - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
     - This is breaking because it could affect how this type is used with other types, such as `Json`, which does not support TypeScript interfaces.
+- Bump `@metamask/ethjs-provider-http` from ^0.2.0 to ^0.3.0 ([#3897](https://github.com/MetaMask/core/pull/3897))
 
 ### Removed
 
@@ -673,7 +678,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...@metamask/assets-controllers@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...@metamask/assets-controllers@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.0.0...@metamask/assets-controllers@23.1.0
