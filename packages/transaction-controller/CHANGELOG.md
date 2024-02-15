@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `startIncomingTransactionPolling()` and `updateIncomingTransactions()` now enforce a 5 second delay between requests per chainId to avoid rate limiting ([#3643](https://github.com/MetaMask/core/pull/3643))
 - `TransactionMeta` type now specifies an optional `networkClientId` field ([#3643](https://github.com/MetaMask/core/pull/3643))
 - `startIncomingTransactionPolling()` now accepts an optional array of `networkClientIds`. When provided, the `IncomingTransactionHelpers` for those networkClientIds will be started. If empty or not provided, the global `IncomingTransactionHelper` will be started. ([#3643](https://github.com/MetaMask/core/pull/3643))
-- `stopIncomingTransactionPolling()` now accepts an optional array of `networkClientIds`. When provided, the `IncomingTransactionHelpers` for those networkClientIds will be stoppped. If empty or not provided, the global `IncomingTransactionHelper` will be stopped. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `stopIncomingTransactionPolling()` now accepts an optional array of `networkClientIds`. When provided, the `IncomingTransactionHelpers` for those networkClientIds will be stopped. If empty or not provided, the global `IncomingTransactionHelper` will be stopped. ([#3643](https://github.com/MetaMask/core/pull/3643))
 
 ### Added
 
