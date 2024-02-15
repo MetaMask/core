@@ -34,14 +34,14 @@
   "dependencies": {
     "@metamask/approval-controller": "^5.1.2",
     "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.2",
+    "@metamask/controller-utils": "^8.0.3",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^13.0.0",
+    "@metamask/gas-fee-controller": "^13.0.1",
     "@metamask/keyring-controller": "^12.2.0",
     "@metamask/network-controller": "^17.2.0",
     "@metamask/polling-controller": "^5.0.0",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/transaction-controller": "^21.2.0",
+    "@metamask/transaction-controller": "^22.0.0",
     "@metamask/utils": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
@@ -64,7 +64,7 @@
     "@metamask/gas-fee-controller": "^13.0.0",
     "@metamask/keyring-controller": "^12.2.0",
     "@metamask/network-controller": "^17.2.0",
-    "@metamask/transaction-controller": "^21.2.0"
+    "@metamask/transaction-controller": "^22.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
