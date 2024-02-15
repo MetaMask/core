@@ -33,10 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exports `PendingTransactionOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
 - Exports `TransactionControllerOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
 
-### Fixed
-
-- Approval of transactions previously used the chainId from the global provider state as the source of truth. Instead it will now use the chainId from the TransactionMeta object. **Not sure we really need to put this in the changelog since all tx will have chainId populated** ???? ([#3643](https://github.com/MetaMask/core/pull/3643))
-
 ## [22.0.0]
 
 ### Changed
