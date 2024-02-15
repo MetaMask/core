@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
+### Changed
+
+- **BREAKING:** `approveTransactionsWithSameNonce()` now requires `chainId` to be populated in for each TransactionParams that is passed ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `addTransaction()` now accepts optional `networkClientId` in its options param which specifies the network client that the transaction will be processed with during its lifecycle if the `isMultichainEnabled` feature flag is on ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `estimateGas()` now accepts optional networkClientId as its last param which specifies the network client that should be used to estimate the required gas for the given transaction ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `estimateGasBuffered()` now accepts optional networkClientId as its last param which specifies the network client that should be used to estimate the required gas plus buffer for the given transaction ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `getNonceLock()` now accepts optional networkClientId as its last param which specifies which the network client's nonceTracker should be used to determine the next nonce. ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - When used with the `isMultichainEnabled` feature flag on and with networkClientId specified, this method will also restrict acquiring the next nonce by chainId, i.e. if this method is called with two different networkClientIds on the same chainId, only the first call will return immediately with a lock from its respective nonceTracker with the second call being blocked until the first caller releases its lock
+- `EtherscanRemoteTransactionSource` now enforces a 5 second delay between requests to avoid rate limiting ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `TransactionMeta` type now specifies an optional `networkClientId` field ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `startIncomingTransactionPolling()` now accepts an optional array of `networkClientIds`. When provided, the `IncomingTransactionHelpers` for those networkClientIds will be started. If empty or not provided, the global `IncomingTransactionHelper` will be started. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `stopIncomingTransactionPolling()` now accepts an optional array of `networkClientIds`. When provided, the `IncomingTransactionHelpers` for those networkClientIds will be stoppped. If empty or not provided, the global `IncomingTransactionHelper` will be stopped. ([#3643](https://github.com/MetaMask/core/pull/3643))
+
+### Added
+
+- **BREAKING:** Constructor now expects a `getNetworkClientRegistry` callback function ([#3643](https://github.com/MetaMask/core/pull/3643))
+- **BREAKING:** Messenger now requires `NetworkController:stateChange` to be an allowed event ([#3643](https://github.com/MetaMask/core/pull/3643))
+- **BREAKING:** Messenger now requires `NetworkController:findNetworkClientByChainId` and `NetworkController:getNetworkClientById` actions ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds a feature flag parameter `isMultichainEnabled`  passed via the constructor (and defaulted to false), which when passed a truthy value will initialize `IncomingTransactionHelper`, `PendingTransactionTracker`, `NonceTracker` per networkClientId from the NetworkController’s `networkClientRegistry` and a EtherScanRemoteTransactionSource helper per chainId in the registry. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds `destroy()` method that stops/removes internal polling and listeners ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds `stopAllIncomingTransactionPolling()` method that stops the global `IncomingTransactionHelper` and each networkClientId's `IncomingTransactionHelper` ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Exports `PendingTransactionOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Exports `TransactionControllerOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
+
+### Fixed
+
+- Approval of transactions previously used the chainId from the global provider state as the source of truth. Instead it will now use the chainId from the TransactionMeta object. **Not sure we really need to put this in the changelog since all tx will have chainId populated** ???? ([#3643](https://github.com/MetaMask/core/pull/3643))
+
+
 ## [22.0.0]
 
 ### Changed
