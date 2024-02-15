@@ -1481,6 +1481,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
+    "@ethereumjs/util": ^8.1.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
     "@metamask/eth-snap-keyring": ^2.1.1
@@ -1493,7 +1494,7 @@ __metadata:
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
+    ethereum-cryptography: ^2.1.2
     immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4

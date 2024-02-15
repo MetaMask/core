@@ -1,3 +1,4 @@
+import { toBuffer } from '@ethereumjs/util';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -22,7 +23,7 @@ import type {
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
-import { sha256FromString } from 'ethereumjs-util';
+import { sha256 } from 'ethereum-cryptography/sha256';
 import type { Draft } from 'immer';
 import { v4 as uuid } from 'uuid';
 
@@ -455,7 +456,7 @@ export class AccountsController extends BaseController<
         address,
       );
       const v4options = {
-        random: sha256FromString(address).slice(0, 16),
+        random: sha256(toBuffer(address)).slice(0, 16),
       };
 
       internalAccounts.push({
