@@ -176,9 +176,9 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
-    it('returns true for ganache local network', () => {
+    it('returns false for ganache local network', () => {
       expect(assetsUtil.isTokenListSupportedForNetwork(GANACHE_CHAIN_ID)).toBe(
-        true,
+        false,
       );
     });
 
