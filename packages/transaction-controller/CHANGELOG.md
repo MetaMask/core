@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Add peerDependency on `@babel/runtime` ([#3897](https://github.com/MetaMask/core/pull/3897))
-- Remove `cancelMultiplier` & `speedUpMultiplier` option from `TransactionController` ([#3909](https://github.com/MetaMask/core/pull/3909))
 - Throw after publishing a canceled or sped-up transaction if already confirmed ([#3800](https://github.com/MetaMask/core/pull/3800))
 - Bump `eth-method-registry` from `^3.0.0` to `^4.0.0` ([#3897](https://github.com/MetaMask/core/pull/3897))
 
