@@ -61,8 +61,17 @@ export enum KeyringTypes {
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
-  custody = 'Custody - JSONRPC',
 }
+
+/**
+ * Custody keyring types are a special case, as they are not a single type
+ * but they all start with the prefix "Custody".
+ * @param keyringType - The type of the keyring.
+ * @returns Whether the keyring type is a custody keyring.
+ */
+export const isCustodyKeyring = (keyringType: string): boolean => {
+  return keyringType.startsWith('Custody');
+};
 
 /**
  * @type KeyringControllerState
