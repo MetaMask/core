@@ -33,7 +33,7 @@
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.2",
+    "@metamask/controller-utils": "^8.0.3",
     "@metamask/utils": "^8.3.0",
     "ethereum-ens-network-map": "^1.0.2",
     "punycode": "^2.1.1"
