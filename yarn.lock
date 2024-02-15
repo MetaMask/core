@@ -1576,6 +1576,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
+    "@ethereumjs/util": ^8.1.0
     "@ethersproject/address": ^5.7.0
     "@ethersproject/bignumber": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
@@ -1606,7 +1607,6 @@ __metadata:
     bn.js: ^5.2.1
     cockatiel: ^3.1.2
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
     lodash: ^4.17.21

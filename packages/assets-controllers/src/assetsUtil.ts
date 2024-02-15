@@ -4,8 +4,8 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import { remove0x } from '@metamask/utils';
 import BN from 'bn.js';
-import { stripHexPrefix } from 'ethereumjs-util';
 import { CID } from 'multiformats/cid';
 
 import type {
@@ -241,7 +241,7 @@ export function addUrlProtocolPrefix(urlString: string): string {
  * @returns A BN object.
  */
 export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
-  return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
+  return new BN(remove0x(bigNumber.toHexString()), 'hex');
 }
 
 /**

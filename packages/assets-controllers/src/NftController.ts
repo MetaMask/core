@@ -26,9 +26,9 @@ import type {
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
+import { remove0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BN from 'bn.js';
-import { stripHexPrefix } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { v4 as random } from 'uuid';
 
@@ -569,7 +569,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         return [tokenURI, ERC1155];
       }
 
-      const hexTokenId = stripHexPrefix(BNToHex(new BN(tokenId)))
+      const hexTokenId = remove0x(BNToHex(new BN(tokenId)))
         .padStart(64, '0')
         .toLowerCase();
       return [tokenURI.replace('{id}', hexTokenId), ERC1155];
