@@ -1,7 +1,7 @@
 # Lines starting with '#' are comments.
 # Each line is a file pattern followed by one or more owners.
 
-*                                    @MetaMask/engineering
+*                                    @MetaMask/extension-devs @MetaMask/mobile-devs @MetaMask/shared-libraries-engineers
 /packages/permission-controller      @MetaMask/snaps-devs @MetaMask/shared-libraries-engineers
 /packages/notification-controller    @MetaMask/snaps-devs @MetaMask/shared-libraries-engineers
 /packages/rate-limit-controller      @MetaMask/snaps-devs @MetaMask/shared-libraries-engineers
