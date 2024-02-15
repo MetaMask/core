@@ -11,20 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
+- **BREAKING:** Add `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
 - **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, `KeyringController:unlock` events, and allows the `PreferencesController:getState` messenger action. ([#3775](https://github.com/MetaMask/core/pull/3775/))
 - `TokensController` now exports `TokensControllerActions`, `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerEvents`, `TokensControllerStateChangeEvent`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
 
 ### Changed
 
-- **BREAKING**: Narrows `AssetsContractController` `provider` property type from `any` to `Provider` from `@metamask/network-controller`. ([#3818](https://github.com/MetaMask/core/pull/3818))
-- **BREAKING**: Narrows `TokensController` `provider` property type from `any` to `Provider` from `@metamask/network-controller`. ([#3818](https://github.com/MetaMask/core/pull/3818))
+- **BREAKING**: Narrow `AssetsContractController` constructor option `provider` so that it must be a `Provider` from `@metamask/network-controller`. ([#3818](https://github.com/MetaMask/core/pull/3818))
+- **BREAKING**: Narrow `TokensController` constructor option `provider` so that it must be a `Provider` from `@metamask/network-controller`. ([#3818](https://github.com/MetaMask/core/pull/3818))
 - **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo. ([#3775](https://github.com/MetaMask/core/pull/3775/))
   - **BREAKING:** `TokenDetectionController` now resets its polling interval to the default value of 3 minutes when token detection is triggered by external controller events `KeyringController:unlock`, `TokenListController:stateChange`, `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`.
   - **BREAKING:** `TokenDetectionController` now refetches tokens on `NetworkController:networkDidChange` if the `networkClientId` is changed instead of `chainId`.
   - **BREAKING:** `TokenDetectionController` cannot initiate polling or token detection if `KeyringController` state is locked.
   - **BREAKING:** The `detectTokens` method now excludes tokens that are already included in the `TokensController`'s `detectedTokens` list from the batch of incoming tokens it sends to the `TokensController` `addDetectedTokens` method.
-  - **BREAKING:** The constructor for `TokenDetectionController` expects a new required proprerty `trackMetaMetricsEvent`, which defines the callback that is called in the `detectTokens` method.
+  - **BREAKING:** The constructor for `TokenDetectionController` expects a new required property `trackMetaMetricsEvent`, which defines the callback that is called in the `detectTokens` method.
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
   - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
     - This is breaking because it could affect how this type is used with other types, such as `Json`, which does not support TypeScript interfaces.
