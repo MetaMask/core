@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
+### Added
+
+- **BREAKING:** Constructor now expects a `getNetworkClientRegistry` callback function ([#3643](https://github.com/MetaMask/core/pull/3643))
+- **BREAKING:** Messenger now requires `NetworkController:stateChange` to be an allowed event ([#3643](https://github.com/MetaMask/core/pull/3643))
+- **BREAKING:** Messenger now requires `NetworkController:findNetworkClientByChainId` and `NetworkController:getNetworkClientById` actions ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds a feature flag parameter `isMultichainEnabled` passed via the constructor (and defaulted to false), which when passed a truthy value will enable the controller to submit, process, and track transactions concurrently on multiple networks. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds `destroy()` method that stops/removes internal polling and listeners ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds `stopAllIncomingTransactionPolling()` method that stops polling Etherscan for transaction updates relevant to the currently selected network.
+  - When called with the `isMultichainEnabled` feature flag on, also stops polling Etherscan for transaction updates relevant to each currently polled networkClientId. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Exports `PendingTransactionOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Exports `TransactionControllerOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
+
 ### Changed
 
 - **BREAKING:** `approveTransactionsWithSameNonce()` now requires `chainId` to be populated in for each TransactionParams that is passed ([#3643](https://github.com/MetaMask/core/pull/3643))
@@ -31,18 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When `networkClientIds` is provided and the `isMultichainEnabled` feature flag is on, the controller will stop polling Ethercsan for transaction updates relevant to the networkClientIds.
   - When `networkClientIds` is provided and the `isMultichainEnabled` feature flag is off, nothing will happen.
   - If `networkClientIds` is empty or not provided, the controller will stop polling Etherscan for transaction updates relevant to the currently selected network.
-
-### Added
-
-- **BREAKING:** Constructor now expects a `getNetworkClientRegistry` callback function ([#3643](https://github.com/MetaMask/core/pull/3643))
-- **BREAKING:** Messenger now requires `NetworkController:stateChange` to be an allowed event ([#3643](https://github.com/MetaMask/core/pull/3643))
-- **BREAKING:** Messenger now requires `NetworkController:findNetworkClientByChainId` and `NetworkController:getNetworkClientById` actions ([#3643](https://github.com/MetaMask/core/pull/3643))
-- Adds a feature flag parameter `isMultichainEnabled` passed via the constructor (and defaulted to false), which when passed a truthy value will enable the controller to submit, process, and track transactions concurrently on multiple networks. ([#3643](https://github.com/MetaMask/core/pull/3643))
-- Adds `destroy()` method that stops/removes internal polling and listeners ([#3643](https://github.com/MetaMask/core/pull/3643))
-- Adds `stopAllIncomingTransactionPolling()` method that stops polling Etherscan for transaction updates relevant to the currently selected network.
-  - When called with the `isMultichainEnabled` feature flag on, also stops polling Etherscan for transaction updates relevant to each currently polled networkClientId. ([#3643](https://github.com/MetaMask/core/pull/3643))
-- Exports `PendingTransactionOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
-- Exports `TransactionControllerOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
 
 ## [22.0.0]
 
