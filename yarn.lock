@@ -2917,6 +2917,7 @@ __metadata:
     fast-json-patch: ^3.1.1
     jest: ^27.5.1
     lodash: ^4.17.21
+    nock: ^13.3.1
     nonce-tracker: ^3.0.0
     sinon: ^9.2.4
     ts-jest: ^27.1.4

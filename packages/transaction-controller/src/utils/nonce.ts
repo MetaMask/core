@@ -1,6 +1,6 @@
 import { toHex } from '@metamask/controller-utils';
 import type {
-  NonceTracker,
+  NonceLock,
   Transaction as NonceTrackerTransaction,
 } from 'nonce-tracker';
 
@@ -13,12 +13,12 @@ const log = createModuleLogger(projectLogger, 'nonce');
  * Determine the next nonce to be used for a transaction.
  *
  * @param txMeta - The transaction metadata.
- * @param nonceTracker - An instance of a nonce tracker.
+ * @param getNonceLock - An anonymous function that acquires the nonce lock for an address
  * @returns The next hexadecimal nonce to be used for the given transaction, and optionally a function to release the nonce lock.
  */
 export async function getNextNonce(
   txMeta: TransactionMeta,
-  nonceTracker: NonceTracker,
+  getNonceLock: (address: string) => Promise<NonceLock>,
 ): Promise<[string, (() => void) | undefined]> {
   const {
     customNonceValue,
@@ -37,7 +37,7 @@ export async function getNextNonce(
     return [existingNonce, undefined];
   }
 
-  const nonceLock = await nonceTracker.getNonceLock(from);
+  const nonceLock = await getNonceLock(from);
   const nonce = toHex(nonceLock.nextNonce);
   const releaseLock = nonceLock.releaseLock.bind(nonceLock);
 

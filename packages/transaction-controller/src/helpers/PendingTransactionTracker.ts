@@ -1,9 +1,11 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { BlockTracker } from '@metamask/network-controller';
+import type {
+  BlockTracker,
+  NetworkClientId,
+} from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
-import type { NonceTracker } from 'nonce-tracker';
 
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionReceipt } from '../types';
@@ -65,7 +67,7 @@ export class PendingTransactionTracker {
 
   #getChainId: () => string;
 
-  #getEthQuery: () => EthQuery;
+  #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -75,11 +77,9 @@ export class PendingTransactionTracker {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #listener: any;
 
-  #nonceTracker: NonceTracker;
+  #getGlobalLock: () => Promise<() => void>;
 
-  #onStateChange: (listener: () => void) => void;
-
-  #publishTransaction: (rawTx: string) => Promise<string>;
+  #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
 
   #running: boolean;
 
@@ -94,20 +94,18 @@ export class PendingTransactionTracker {
     getEthQuery,
     getTransactions,
     isResubmitEnabled,
-    nonceTracker,
-    onStateChange,
+    getGlobalLock,
     publishTransaction,
     hooks,
   }: {
     approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
     getChainId: () => string;
-    getEthQuery: () => EthQuery;
+    getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
-    nonceTracker: NonceTracker;
-    onStateChange: (listener: () => void) => void;
-    publishTransaction: (rawTx: string) => Promise<string>;
+    getGlobalLock: () => Promise<() => void>;
+    publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
@@ -125,24 +123,23 @@ export class PendingTransactionTracker {
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? true;
     this.#listener = this.#onLatestBlock.bind(this);
-    this.#nonceTracker = nonceTracker;
-    this.#onStateChange = onStateChange;
+    this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
-
-    this.#onStateChange(() => {
-      const pendingTransactions = this.#getPendingTransactions();
-
-      if (pendingTransactions.length) {
-        this.#start();
-      } else {
-        this.#stop();
-      }
-    });
   }
+
+  startIfPendingTransactions = () => {
+    const pendingTransactions = this.#getPendingTransactions();
+
+    if (pendingTransactions.length) {
+      this.#start();
+    } else {
+      this.stop();
+    }
+  };
 
   /**
    * Force checks the network if the given transaction is confirmed and updates it's status.
@@ -150,7 +147,7 @@ export class PendingTransactionTracker {
    * @param txMeta - The transaction to check
    */
   async forceCheckTransaction(txMeta: TransactionMeta) {
-    const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
+    const releaseLock = await this.#getGlobalLock();
 
     try {
       await this.#checkTransaction(txMeta);
@@ -158,7 +155,7 @@ export class PendingTransactionTracker {
       /* istanbul ignore next */
       log('Failed to check transaction', error);
     } finally {
-      nonceGlobalLock.releaseLock();
+      releaseLock();
     }
   }
 
@@ -173,7 +170,7 @@ export class PendingTransactionTracker {
     log('Started polling');
   }
 
-  #stop() {
+  stop() {
     if (!this.#running) {
       return;
     }
@@ -185,7 +182,7 @@ export class PendingTransactionTracker {
   }
 
   async #onLatestBlock(latestBlockNumber: string) {
-    const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
+    const releaseLock = await this.#getGlobalLock();
 
     try {
       await this.#checkTransactions();
@@ -193,7 +190,7 @@ export class PendingTransactionTracker {
       /* istanbul ignore next */
       log('Failed to check transactions', error);
     } finally {
-      nonceGlobalLock.releaseLock();
+      releaseLock();
     }
 
     try {
@@ -295,7 +292,8 @@ export class PendingTransactionTracker {
       return;
     }
 
-    await this.#publishTransaction(rawTx);
+    const ethQuery = this.#getEthQuery(txMeta.networkClientId);
+    await this.#publishTransaction(ethQuery, rawTx);
 
     txMeta.retryCount = (txMeta.retryCount ?? 0) + 1;
 

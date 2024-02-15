@@ -1,4 +1,5 @@
 import type { AccessList } from '@ethereumjs/tx';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -199,6 +200,11 @@ type TransactionMetaBase = {
    * Whether the transaction entry is generated from a user operation.
    */
   isUserOperation?: boolean;
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId?: NetworkClientId;
 
   /**
    * Network code as per EIP-155 for this transaction
