@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Constructor now expects a `getNetworkClientRegistry` callback function ([#3643](https://github.com/MetaMask/core/pull/3643))
 - **BREAKING:** Messenger now requires `NetworkController:stateChange` to be an allowed event ([#3643](https://github.com/MetaMask/core/pull/3643))
 - **BREAKING:** Messenger now requires `NetworkController:findNetworkClientByChainId` and `NetworkController:getNetworkClientById` actions ([#3643](https://github.com/MetaMask/core/pull/3643))
-- Adds a feature flag parameter `isMultichainEnabled`  passed via the constructor (and defaulted to false), which when passed a truthy value will initialize `IncomingTransactionHelper`, `PendingTransactionTracker`, `NonceTracker` per networkClientId from the NetworkController’s `networkClientRegistry` and a EtherScanRemoteTransactionSource helper per chainId in the registry. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds a feature flag parameter `isMultichainEnabled` passed via the constructor (and defaulted to false), which when passed a truthy value will initialize `IncomingTransactionHelper`, `PendingTransactionTracker`, `NonceTracker` per networkClientId from the NetworkController’s `networkClientRegistry` and a EtherScanRemoteTransactionSource helper per chainId in the registry. ([#3643](https://github.com/MetaMask/core/pull/3643))
 - Adds `destroy()` method that stops/removes internal polling and listeners ([#3643](https://github.com/MetaMask/core/pull/3643))
 - Adds `stopAllIncomingTransactionPolling()` method that stops the global `IncomingTransactionHelper` and each networkClientId's `IncomingTransactionHelper` ([#3643](https://github.com/MetaMask/core/pull/3643))
 - Exports `PendingTransactionOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
@@ -36,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Approval of transactions previously used the chainId from the global provider state as the source of truth. Instead it will now use the chainId from the TransactionMeta object. **Not sure we really need to put this in the changelog since all tx will have chainId populated** ???? ([#3643](https://github.com/MetaMask/core/pull/3643))
-
 
 ## [22.0.0]
 
