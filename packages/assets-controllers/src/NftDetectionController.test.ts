@@ -570,6 +570,34 @@ describe('NftDetectionController', () => {
       },
     );
   });
+
+  it('should only re-detect when relevant settings change', async () => {
+    await withController(
+      {},
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const detectNfts = sinon.stub(controller, 'detectNfts');
+
+        // Repeated preference changes should only trigger 1 detection
+        for (let i = 0; i < 5; i++) {
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useNftDetection: true,
+          });
+        }
+        await advanceTime({ clock, duration: 1 });
+        expect(detectNfts.callCount).toBe(1);
+
+        // Irrelevant preference changes shouldn't trigger a detection
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+          securityAlertsEnabled: true,
+        });
+        await advanceTime({ clock, duration: 1 });
+        expect(detectNfts.callCount).toBe(1);
+      },
+    );
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
