@@ -2297,7 +2297,6 @@ __metadata:
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     jest: ^27.5.1
     jsonschema: ^1.2.4
     ts-jest: ^27.1.4

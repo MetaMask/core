@@ -4,7 +4,7 @@ import {
   typedSignatureHash,
 } from '@metamask/eth-sig-util';
 import type { Hex } from '@metamask/utils';
-import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
+import { add0x, bytesToHex, remove0x } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
 import type { DecryptMessageParams } from './DecryptMessageManager';
@@ -37,14 +37,14 @@ function validateAddress(address: string, propertyName: string) {
  */
 export function normalizeMessageData(data: string) {
   try {
-    const stripped = stripHexPrefix(data);
+    const stripped = remove0x(data);
     if (stripped.match(hexRe)) {
-      return addHexPrefix(stripped);
+      return add0x(stripped);
     }
   } catch (e) {
     /* istanbul ignore next */
   }
-  return bufferToHex(Buffer.from(data, 'utf8'));
+  return bytesToHex(Buffer.from(data, 'utf8'));
 }
 
 /**
