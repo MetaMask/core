@@ -1,4 +1,5 @@
 import type { TxData, TypedTransaction } from '@ethereumjs/tx';
+import { isValidPrivate, toBuffer, getBinarySize } from '@ethereumjs/util';
 import type {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
@@ -27,7 +28,9 @@ import type {
   KeyringClass,
 } from '@metamask/utils';
 import {
+  add0x,
   assertIsStrictHexString,
+  bytesToHex,
   hasProperty,
   isObject,
   isValidHexAddress,
@@ -35,14 +38,6 @@ import {
   remove0x,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import {
-  addHexPrefix,
-  bufferToHex,
-  isValidPrivate,
-  toBuffer,
-  stripHexPrefix,
-  getBinarySize,
-} from 'ethereumjs-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 
@@ -1027,7 +1022,7 @@ export class KeyringController extends BaseController<
         if (!importedKey) {
           throw new Error('Cannot import an empty key.');
         }
-        const prefixed = addHexPrefix(importedKey);
+        const prefixed = add0x(importedKey);
 
         let bufferedPrivateKey;
         try {
@@ -1044,7 +1039,7 @@ export class KeyringController extends BaseController<
           throw new Error('Cannot import invalid private key.');
         }
 
-        privateKey = stripHexPrefix(prefixed);
+        privateKey = remove0x(prefixed);
         break;
       case 'json':
         let wallet;
@@ -1054,7 +1049,7 @@ export class KeyringController extends BaseController<
         } catch (e) {
           wallet = wallet || (await Wallet.fromV3(input, password, true));
         }
-        privateKey = bufferToHex(wallet.getPrivateKey());
+        privateKey = bytesToHex(wallet.getPrivateKey());
         break;
       default:
         throw new Error(`Unexpected import strategy: '${strategy}'`);
