@@ -28,7 +28,10 @@ export function isSafeChainId(chainId: Hex): boolean {
   if (!isHexString(chainId)) {
     return false;
   }
-  const decimalChainId = Number.parseInt(chainId);
+  const decimalChainId = Number.parseInt(
+    chainId,
+    isStrictHexString(chainId) ? 16 : 10,
+  );
   return (
     Number.isSafeInteger(decimalChainId) &&
     decimalChainId > 0 &&
