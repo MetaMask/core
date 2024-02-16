@@ -154,7 +154,9 @@ export class SelectedNetworkController extends BaseController<
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       ({ selectedNetworkClientId }) => {
-        this.setNetworkClientIdForMetamask(selectedNetworkClientId);
+        if (this.getNetworkClientIdForMetamask() !== selectedNetworkClientId) {
+          this.setNetworkClientIdForMetamask(selectedNetworkClientId);
+        }
       },
     );
   }
@@ -204,7 +206,7 @@ export class SelectedNetworkController extends BaseController<
     });
   }
 
-  domainHasPermissions(domain: Domain): boolean {
+  #domainHasPermissions(domain: Domain): boolean {
     return this.messagingSystem.call(
       'PermissionController:hasPermissions',
       domain,
@@ -221,7 +223,7 @@ export class SelectedNetworkController extends BaseController<
     }
 
     // Check and, if not a metamask request, return early if the domain lacks permissions
-    if (domain !== METAMASK_DOMAIN && !this.domainHasPermissions(domain)) {
+    if (domain !== METAMASK_DOMAIN && !this.#domainHasPermissions(domain)) {
       return;
     }
 
