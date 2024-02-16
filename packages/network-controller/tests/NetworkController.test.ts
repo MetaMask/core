@@ -1115,8 +1115,8 @@ describe('NetworkController', () => {
           mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
           const networkClientId =
-            controller.findNetworkClientIdByChainId('0x1');
-          expect(networkClientId).toBe('mainnet');
+            controller.findNetworkClientIdByChainId('0xe708');
+          expect(networkClientId).toBe('linea-mainnet');
         },
       );
     });
