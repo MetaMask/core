@@ -1121,6 +1121,26 @@ describe('NetworkController', () => {
       );
     });
 
+    it('prefers the current network client if multiple exist with the given chainId', async () => {
+      const chainId = '0x123';
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              other: { id: 'other', chainId, rpcUrl: '', ticker: '' },
+              current: { id: 'current', chainId, rpcUrl: '', ticker: '' },
+            },
+            providerConfig: { chainId, type: 'rpc', ticker: '', rpcUrl: '' },
+            selectedNetworkClientId: 'current',
+          },
+        },
+        async ({ controller }) =>
+          expect(controller.findNetworkClientIdByChainId(chainId)).toBe(
+            'current',
+          ),
+      );
+    });
+
     it('throws if the chainId doesnt exist in the configuration', async () => {
       await withController(
         { infuraProjectId: 'some-infura-project-id' },
