@@ -52,8 +52,7 @@ const BASE_FEE_MULTIPLIERS = {
  */
 export class LineaGasFeeFlow implements GasFeeFlow {
   matchesTransaction(transactionMeta: TransactionMeta): boolean {
-    const chainIdHex = toHex(transactionMeta.chainId as string);
-    return LINEA_CHAIN_IDS.includes(chainIdHex);
+    return LINEA_CHAIN_IDS.includes(transactionMeta.chainId as Hex);
   }
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
