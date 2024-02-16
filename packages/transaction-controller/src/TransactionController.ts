@@ -61,7 +61,7 @@ import {
   WalletDevice,
 } from './types';
 import { GasFeePoller } from './helpers/GasFeePoller';
-import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 
 const HARDFORK = 'london';
 const SUBMIT_HISTORY_LIMIT = 100;
@@ -1467,7 +1467,7 @@ export class TransactionController extends BaseController<
   }
 
   private getGasFeeFlows(): GasFeeFlow[] {
-    return [new TestGasFeeFlow()];
+    return [new LineaGasFeeFlow()];
   }
 }
 
