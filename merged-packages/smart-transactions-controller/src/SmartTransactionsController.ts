@@ -69,6 +69,11 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
   SmartTransactionsControllerConfig,
   SmartTransactionsControllerState
 > {
+  /**
+   * Name of this controller used during composition
+   */
+  override name = 'SmartTransactionsController';
+
   public timeoutHandle?: NodeJS.Timeout;
 
   private getNonceLock: any;
