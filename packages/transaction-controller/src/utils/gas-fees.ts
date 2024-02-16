@@ -100,6 +100,10 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   updateDefaultGasEstimates(txMeta);
 }
 
+export function gweiDecimalToWeiHex(value: string) {
+  return toHex(gweiDecToWEIBN(value));
+}
+
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   const { savedGasFees, eip1559, initialParams, suggestedGasFees } = request;
 
@@ -312,8 +316,4 @@ async function getSuggestedGasFees(
     : undefined;
 
   return { gasPrice };
-}
-
-function gweiDecimalToWeiHex(value: string) {
-  return toHex(gweiDecToWEIBN(value));
 }

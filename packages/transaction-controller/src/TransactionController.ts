@@ -577,7 +577,7 @@ export class TransactionController extends BaseControllerV1<
       blockTracker,
     });
 
-    this.gasFeeFlows = this.getGasFeeFlows();
+    this.gasFeeFlows = this.#getGasFeeFlows();
 
     const gasFeePoller = new GasFeePoller({
       // Default gas fee polling is not yet supported by the clients
@@ -594,9 +594,8 @@ export class TransactionController extends BaseControllerV1<
       },
     });
 
-    gasFeePoller.hub.on(
-      'transaction-updated',
-      this.updateTransaction.bind(this),
+    gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
+      this.#updateTransactionInternal(transactionMeta, { skipHistory: true }),
     );
 
     // when transactionsController state changes
@@ -1242,15 +1241,10 @@ export class TransactionController extends BaseControllerV1<
    * @param note - A note or update reason to include in the transaction history.
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
-    const { transactions } = this.state;
-    transactionMeta.txParams = normalizeTxParams(transactionMeta.txParams);
-    validateTxParams(transactionMeta.txParams);
-    if (!this.isHistoryDisabled) {
-      updateTransactionHistory(transactionMeta, note);
-    }
-    const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
-    transactions[index] = transactionMeta;
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.#updateTransactionInternal(transactionMeta, {
+      note,
+      skipHistory: this.isHistoryDisabled,
+    });
   }
 
   /**
@@ -3078,7 +3072,27 @@ export class TransactionController extends BaseControllerV1<
     );
   }
 
-  private getGasFeeFlows(): GasFeeFlow[] {
+  #getGasFeeFlows(): GasFeeFlow[] {
     return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
+  }
+
+  #updateTransactionInternal(
+    transactionMeta: TransactionMeta,
+    { note, skipHistory }: { note?: string; skipHistory?: boolean },
+  ) {
+    const { transactions } = this.state;
+
+    transactionMeta.txParams = normalizeTxParams(transactionMeta.txParams);
+
+    validateTxParams(transactionMeta.txParams);
+
+    if (skipHistory !== true) {
+      updateTransactionHistory(transactionMeta, note ?? 'Transaction updated');
+    }
+
+    const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
+    transactions[index] = transactionMeta;
+
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 }

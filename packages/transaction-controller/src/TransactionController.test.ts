@@ -29,6 +29,9 @@ import * as NonceTrackerPackage from 'nonce-tracker';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
+import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
@@ -56,16 +59,22 @@ import {
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
 
+jest.mock('./gas-flows/DefaultGasFeeFlow');
+jest.mock('./gas-flows/LineaGasFeeFlow');
+jest.mock('./helpers/GasFeePoller');
+jest.mock('./helpers/IncomingTransactionHelper');
+jest.mock('./helpers/MultichainTrackingHelper');
+jest.mock('./helpers/PendingTransactionTracker');
+jest.mock('./utils/gas');
+jest.mock('./utils/gas-fees');
+jest.mock('./utils/swaps');
+
 jest.mock('uuid', () => {
   return {
     ...jest.requireActual('uuid'),
     v1: () => v1Stub(),
   };
 });
-
-jest.mock('./utils/gas');
-jest.mock('./utils/gas-fees');
-jest.mock('./utils/swaps');
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -198,10 +207,6 @@ jest.mock('@metamask/eth-query', () =>
     };
   }),
 );
-
-jest.mock('./helpers/IncomingTransactionHelper');
-jest.mock('./helpers/PendingTransactionTracker');
-jest.mock('./helpers/MultichainTrackingHelper');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -528,6 +533,9 @@ describe('TransactionController', () => {
   const updatePostTransactionBalanceMock = jest.mocked(
     updatePostTransactionBalance,
   );
+  const defaultGasFeeFlowClassMock = jest.mocked(DefaultGasFeeFlow);
+  const lineaGasFeeFlowClassMock = jest.mocked(LineaGasFeeFlow);
+  const gasFeePollerClassMock = jest.mocked(GasFeePoller);
 
   let resultCallbacksMock: AcceptResultCallbacks;
   let messengerMock: TransactionControllerMessenger;
@@ -538,6 +546,9 @@ describe('TransactionController', () => {
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
   let multichainTrackingHelperMock: jest.Mocked<MultichainTrackingHelper>;
+  let defaultGasFeeFlowMock: jest.Mocked<DefaultGasFeeFlow>;
+  let lineaGasFeeFlowMock: jest.Mocked<LineaGasFeeFlow>;
+  let gasFeePollerMock: jest.Mocked<GasFeePoller>;
   let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
@@ -759,6 +770,29 @@ describe('TransactionController', () => {
       } as unknown as jest.Mocked<MultichainTrackingHelper>;
       return multichainTrackingHelperMock;
     });
+
+    defaultGasFeeFlowClassMock.mockImplementation(() => {
+      defaultGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<DefaultGasFeeFlow>;
+      return defaultGasFeeFlowMock;
+    });
+
+    lineaGasFeeFlowClassMock.mockImplementation(() => {
+      lineaGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<LineaGasFeeFlow>;
+      return lineaGasFeeFlowMock;
+    });
+
+    gasFeePollerClassMock.mockImplementation(() => {
+      gasFeePollerMock = {
+        hub: {
+          on: jest.fn(),
+        },
+      } as unknown as jest.Mocked<GasFeePoller>;
+      return gasFeePollerMock;
+    });
   });
 
   afterEach(() => {
@@ -781,6 +815,17 @@ describe('TransactionController', () => {
         txHistoryLimit: 40,
         sign: expect.any(Function),
       });
+    });
+
+    it('provides gas fee flows to GasFeePoller in correct order', () => {
+      newController();
+
+      expect(gasFeePollerClassMock).toHaveBeenCalledTimes(1);
+      expect(gasFeePollerClassMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeFlows: [lineaGasFeeFlowMock],
+        }),
+      );
     });
 
     describe('nonce tracker', () => {
@@ -1587,7 +1632,7 @@ describe('TransactionController', () => {
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
         ethQuery: expect.any(Object),
-        gasFeeFlows: expect.any(Array),
+        gasFeeFlows: [lineaGasFeeFlowMock, defaultGasFeeFlowMock],
         getGasFeeEstimates: expect.any(Function),
         getSavedGasFees: expect.any(Function),
         txMeta: expect.any(Object),

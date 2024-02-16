@@ -147,11 +147,7 @@ export class GasFeePoller {
       return;
     }
 
-    this.hub.emit(
-      'transaction-updated',
-      transactionMeta,
-      'GasFeePoller - Suggested gas fees updated',
-    );
+    this.hub.emit('transaction-updated', transactionMeta);
 
     log('Updated suggested gas fees', {
       gasFeeEstimates: transactionMeta.gasFeeEstimates,

@@ -996,6 +996,13 @@ export type GasFeeEstimates = {
   high: GasFeeEstimatesLevel;
 };
 
+/** Alternate priority levels for which values are provided in gas fee estimates. */
+export enum GasFeeEstimateLevel {
+  low = 'low',
+  medium = 'medium',
+  high = 'high',
+}
+
 /** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {
   /** An EthQuery instance to enable queries to the associated RPC provider. */

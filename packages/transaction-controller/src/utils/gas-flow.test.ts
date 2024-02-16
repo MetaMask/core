@@ -6,10 +6,7 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
 import type { GasFeeEstimates, GasFeeFlow, TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
-import {
-  getGasFeeFlow,
-  mergeGasFeeControllerAndTransactionGasFeeEstimates,
-} from './gas-flow';
+import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
@@ -102,13 +99,13 @@ describe('gas-flow', () => {
     });
   });
 
-  describe('mergeGasFeeControllerAndTransactionGasFeeEstimates', () => {
+  describe('mergeGasFeeEstimates', () => {
     it('uses transaction estimates and other gas fee controller properties if estimate type is fee market', () => {
-      const result = mergeGasFeeControllerAndTransactionGasFeeEstimates(
-        GAS_ESTIMATE_TYPES.FEE_MARKET,
-        GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
-        TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
-      );
+      const result = mergeGasFeeEstimates({
+        gasFeeControllerEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
+        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
+        transactionGasFeeEstimates: TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
+      });
 
       expect(result).toStrictEqual({
         baseFeeTrend: 'up',
@@ -134,11 +131,11 @@ describe('gas-flow', () => {
     });
 
     it('uses transaction estimates only if estimate type is legacy', () => {
-      const result = mergeGasFeeControllerAndTransactionGasFeeEstimates(
-        GAS_ESTIMATE_TYPES.LEGACY,
-        GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK,
-        TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
-      );
+      const result = mergeGasFeeEstimates({
+        gasFeeControllerEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
+        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK,
+        transactionGasFeeEstimates: TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
+      });
 
       expect(result).toStrictEqual({
         low: '0.000000007',
@@ -148,11 +145,11 @@ describe('gas-flow', () => {
     });
 
     it('uses unchanged gas fee controller estimates if estimate type is gas price', () => {
-      const result = mergeGasFeeControllerAndTransactionGasFeeEstimates(
-        GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-        GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK,
-        TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
-      );
+      const result = mergeGasFeeEstimates({
+        gasFeeControllerEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK,
+        transactionGasFeeEstimates: TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
+      } as never);
 
       expect(result).toStrictEqual(GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK);
     });

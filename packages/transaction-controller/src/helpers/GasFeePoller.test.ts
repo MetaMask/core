@@ -89,13 +89,10 @@ describe('GasFeePoller', () => {
         await flushPromises();
 
         expect(listener).toHaveBeenCalledTimes(1);
-        expect(listener).toHaveBeenCalledWith(
-          {
-            ...TRANSACTION_META_MOCK,
-            gasFeeEstimates: GAS_FEE_FLOW_RESPONSE_MOCK.estimates,
-          },
-          'GasFeePoller - Suggested gas fees updated',
-        );
+        expect(listener).toHaveBeenCalledWith({
+          ...TRANSACTION_META_MOCK,
+          gasFeeEstimates: GAS_FEE_FLOW_RESPONSE_MOCK.estimates,
+        });
       });
 
       it('calls gas fee flow', async () => {
