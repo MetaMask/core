@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.3]
+
+### Changed
+
+- Bump `@metamask/ethjs-unit` to `^0.3.0` ([#3897](https://github.com/MetaMask/core/pull/3897))
+
 ## [8.0.2]
 
 ### Changed
@@ -264,7 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.3...HEAD
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.2...@metamask/controller-utils@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...@metamask/controller-utils@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@7.0.0...@metamask/controller-utils@8.0.0

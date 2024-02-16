@@ -942,6 +942,43 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
+  it('should throw when ERC1155 function transferSingle is not defined', async () => {
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
+      await setupAssetContractControllers();
+    assetsContract.configure({ provider });
+    mockNetworkWithDefaultChainId({
+      networkClientConfiguration,
+      mocks: [
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: ERC1155_ADDRESS,
+                data: '0x00fdd58e0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000001',
+          },
+        },
+      ],
+    });
+    await expect(
+      assetsContract.transferSingleERC1155(
+        ERC1155_ADDRESS,
+        '0x0',
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        ERC1155_ID,
+        '1',
+      ),
+    ).rejects.toThrow('contract.transferSingle is not a function');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
   it('should get the balance of a ERC-1155 NFT for a given address', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();

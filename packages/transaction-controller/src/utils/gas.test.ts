@@ -1,6 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { NetworkType, query } from '@metamask/controller-utils';
+import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 
 import { CHAIN_IDS } from '../constants';
@@ -37,7 +37,8 @@ const TRANSACTION_META_MOCK = {
 
 const UPDATE_GAS_REQUEST_MOCK = {
   txMeta: TRANSACTION_META_MOCK,
-  providerConfig: {},
+  chainId: '0x0',
+  isCustomNetwork: false,
   ethQuery: ETH_QUERY_MOCK,
 } as UpdateGasRequest;
 
@@ -117,7 +118,7 @@ describe('gas', () => {
       });
 
       it('to estimate if custom network', async () => {
-        updateGasRequest.providerConfig.type = NetworkType.rpc;
+        updateGasRequest.isCustomNetwork = true;
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -133,7 +134,7 @@ describe('gas', () => {
       });
 
       it('to estimate if not custom network and no to parameter', async () => {
-        updateGasRequest.providerConfig.type = NetworkType.mainnet;
+        updateGasRequest.isCustomNetwork = false;
         const gasEstimation = Math.ceil(GAS_MOCK * DEFAULT_GAS_MULTIPLIER);
         delete updateGasRequest.txMeta.txParams.to;
         mockQuery({
@@ -190,7 +191,7 @@ describe('gas', () => {
         const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
         const estimatedGas = estimatedGasPadded; // Optimism multiplier is 1
 
-        updateGasRequest.providerConfig.chainId = CHAIN_IDS.OPTIMISM;
+        updateGasRequest.chainId = CHAIN_IDS.OPTIMISM;
 
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -229,7 +230,7 @@ describe('gas', () => {
 
       describe('to fixed value', () => {
         it('if not custom network and to parameter and no data and no code', async () => {
-          updateGasRequest.providerConfig.type = NetworkType.mainnet;
+          updateGasRequest.isCustomNetwork = false;
           delete updateGasRequest.txMeta.txParams.data;
 
           mockQuery({
@@ -246,7 +247,7 @@ describe('gas', () => {
         });
 
         it('if not custom network and to parameter and no data and empty code', async () => {
-          updateGasRequest.providerConfig.type = NetworkType.mainnet;
+          updateGasRequest.isCustomNetwork = false;
           delete updateGasRequest.txMeta.txParams.data;
 
           mockQuery({

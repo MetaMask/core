@@ -4,6 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 
+import type { NetworkClientId } from '../../../network-controller/src';
 import { projectLogger } from '../logger';
 import type { GasFeeFlow, GasFeeFlowRequest } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
@@ -21,9 +22,7 @@ export class GasFeePoller {
 
   #gasFeeFlows: GasFeeFlow[];
 
-  #getChainIds: () => Hex[];
-
-  #getEthQuery: () => EthQuery;
+  #getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
 
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
 
@@ -37,7 +36,6 @@ export class GasFeePoller {
    * Constructs a new instance of the GasFeePoller.
    * @param options - The options for this instance.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
-   * @param options.getChainIds - Callback to specify the chain IDs to monitor.
    * @param options.getEthQuery - Callback to obtain an EthQuery instance.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
    * @param options.getTransactions - Callback to obtain the transaction data.
@@ -45,21 +43,18 @@ export class GasFeePoller {
    */
   constructor({
     gasFeeFlows,
-    getChainIds,
     getEthQuery,
     getGasFeeControllerEstimates,
     getTransactions,
     onStateChange,
   }: {
     gasFeeFlows: GasFeeFlow[];
-    getChainIds: () => Hex[];
-    getEthQuery: () => EthQuery;
+    getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
     getTransactions: () => TransactionMeta[];
     onStateChange: (listener: () => void) => void;
   }) {
     this.#gasFeeFlows = gasFeeFlows;
-    this.#getChainIds = getChainIds;
     this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
     this.#getTransactions = getTransactions;
@@ -116,19 +111,17 @@ export class GasFeePoller {
       count: unapprovedTransactions.length,
     });
 
-    const ethQuery = this.#getEthQuery();
-
     await Promise.all(
       unapprovedTransactions.map((tx) =>
-        this.#updateTransactionSuggestedFees(tx, ethQuery),
+        this.#updateTransactionSuggestedFees(tx),
       ),
     );
   }
 
-  async #updateTransactionSuggestedFees(
-    transactionMeta: TransactionMeta,
-    ethQuery: EthQuery,
-  ) {
+  async #updateTransactionSuggestedFees(transactionMeta: TransactionMeta) {
+    const { chainId, networkClientId } = transactionMeta;
+
+    const ethQuery = this.#getEthQuery(chainId, networkClientId);
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
     if (!gasFeeFlow) {
@@ -167,12 +160,8 @@ export class GasFeePoller {
   }
 
   #getUnapprovedTransactions() {
-    const chainIds = this.#getChainIds();
-
     return this.#getTransactions().filter(
-      (tx) =>
-        chainIds.includes(tx.chainId) &&
-        tx.status === TransactionStatus.unapproved,
+      (tx) => tx.status === TransactionStatus.unapproved,
     );
   }
 }

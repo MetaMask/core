@@ -67,6 +67,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
 
   async #getLineaGasFees(request: GasFeeFlowRequest) {
     const { ethQuery, getGasFeeControllerEstimates, transactionMeta } = request;
+    const { networkClientId } = transactionMeta;
 
     const lineaResponse = await this.#getLineaResponse(
       transactionMeta,
@@ -75,7 +76,9 @@ export class LineaGasFeeFlow implements GasFeeFlow {
 
     log('Received Linea response', lineaResponse);
 
-    const gasFeeControllerEstimates = await getGasFeeControllerEstimates();
+    const gasFeeControllerEstimates = await getGasFeeControllerEstimates({
+      networkClientId,
+    });
 
     log('Received gas fee controller estimates', gasFeeControllerEstimates);
 

@@ -2,13 +2,12 @@
 
 import {
   BNToHex,
-  NetworkType,
   fractionBN,
   hexToBN,
   query,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { ProviderConfig } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
@@ -18,7 +17,8 @@ import type { TransactionMeta, TransactionParams } from '../types';
 
 export type UpdateGasRequest = {
   ethQuery: EthQuery;
-  providerConfig: ProviderConfig;
+  isCustomNetwork: boolean;
+  chainId: Hex;
   txMeta: TransactionMeta;
 };
 
@@ -120,7 +120,7 @@ export function addGasBuffer(
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?]> {
-  const { providerConfig, txMeta } = request;
+  const { isCustomNetwork, chainId, txMeta } = request;
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
@@ -137,14 +137,14 @@ async function getGas(
     request.ethQuery,
   );
 
-  if (providerConfig.type === NetworkType.rpc) {
+  if (isCustomNetwork) {
     log('Using original estimate as custom network');
     return [estimatedGas, simulationFails];
   }
 
   const bufferMultiplier =
     GAS_BUFFER_CHAIN_OVERRIDES[
-      providerConfig.chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
+      chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
     ] ?? DEFAULT_GAS_MULTIPLIER;
 
   const bufferedGas = addGasBuffer(
@@ -159,10 +159,8 @@ async function getGas(
 async function requiresFixedGas({
   ethQuery,
   txMeta,
-  providerConfig,
+  isCustomNetwork,
 }: UpdateGasRequest): Promise<boolean> {
-  const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-
   const {
     txParams: { to, data },
   } = txMeta;

@@ -7,7 +7,11 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
@@ -27,8 +31,10 @@ export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
   gasFeeFlows: GasFeeFlow[];
-  getSavedGasFees: () => SavedGasFees | undefined;
-  getGasFeeEstimates: () => Promise<GasFeeState>;
+  getGasFeeEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
+  getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
   txMeta: TransactionMeta;
 };
 
@@ -53,7 +59,9 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   const isSwap = SWAP_TRANSACTION_TYPES.includes(
     txMeta.type as TransactionType,
   );
-  const savedGasFees = isSwap ? undefined : request.getSavedGasFees();
+  const savedGasFees = isSwap
+    ? undefined
+    : request.getSavedGasFees(txMeta.chainId);
 
   const suggestedGasFees = await getSuggestedGasFees(request);
 

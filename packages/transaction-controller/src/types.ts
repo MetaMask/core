@@ -1,6 +1,10 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type EthQuery from '@metamask/eth-query';
-import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -201,6 +205,11 @@ type TransactionMetaBase = {
    * Whether the transaction entry is generated from a user operation.
    */
   isUserOperation?: boolean;
+
+  /**
+   * The ID of the network client used by the transaction.
+   */
+  networkClientId?: NetworkClientId;
 
   /**
    * Network code as per EIP-155 for this transaction
@@ -993,7 +1002,9 @@ export type GasFeeFlowRequest = {
   ethQuery: EthQuery;
 
   /** Callback to get the GasFeeController estimates. */
-  getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+  getGasFeeControllerEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;

@@ -68,7 +68,6 @@ describe('GasFeePoller', () => {
 
     constructorOptions = {
       gasFeeFlows: [gasFeeFlowMock],
-      getChainIds: () => [CHAIN_ID_MOCK],
       getEthQuery: () => ({} as EthQuery),
       getGasFeeControllerEstimates: jest.fn(),
       getTransactions: getTransactionsMock,

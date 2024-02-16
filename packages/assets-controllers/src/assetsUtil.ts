@@ -1,7 +1,6 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
-  GANACHE_CHAIN_ID,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
@@ -152,9 +151,7 @@ export function isTokenDetectionSupportedForNetwork(chainId: Hex): boolean {
  * @returns Whether the current network supports tokenlists
  */
 export function isTokenListSupportedForNetwork(chainId: Hex): boolean {
-  return (
-    isTokenDetectionSupportedForNetwork(chainId) || chainId === GANACHE_CHAIN_ID
-  );
+  return isTokenDetectionSupportedForNetwork(chainId);
 }
 
 /**
