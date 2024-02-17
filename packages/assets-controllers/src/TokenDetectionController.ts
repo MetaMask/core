@@ -1,4 +1,7 @@
-import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
 import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
@@ -95,6 +98,7 @@ export type TokenDetectionControllerActions =
   TokenDetectionControllerGetStateAction;
 
 export type AllowedActions =
+  | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | GetTokenListState
   | KeyringControllerGetStateAction
@@ -182,7 +186,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    */
   constructor({
     networkClientId,
-    selectedAddress = '',
+    selectedAddress,
     interval = DEFAULT_INTERVAL,
     disabled = true,
     getBalancesInSingleCall,
@@ -216,7 +220,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.setIntervalLength(interval);
 
     this.#networkClientId = networkClientId;
-    this.#selectedAddress = selectedAddress;
+    this.#selectedAddress =
+      selectedAddress ??
+      this.messagingSystem.call('AccountsController:getSelectedAccount')
+        .address;
     this.#chainId = this.#getCorrectChainId(networkClientId);
 
     const { useTokenDetection: defaultUseTokenDetection } =
