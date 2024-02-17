@@ -140,7 +140,9 @@ function buildTokenDetectionControllerMessenger(
     allowedActions: [
       'AccountsController:getSelectedAccount',
       'KeyringController:getState',
+      'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
+      'NetworkController:getProviderConfig',
       'TokensController:getState',
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
