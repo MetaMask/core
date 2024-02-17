@@ -325,30 +325,29 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   /**
    * Allows controller to make active and passive polling requests
    */
-  enable() {
+  enable(): void {
     this.#disabled = false;
   }
 
   /**
    * Blocks controller from making network calls
    */
-  disable() {
+  disable(): void {
     this.#disabled = true;
   }
 
   /**
    * Internal isActive state
-   *
-   * @type {object}
+   * @type {boolean}
    */
-  get isActive() {
+  get isActive(): boolean {
     return !this.#disabled && this.#isUnlocked;
   }
 
   /**
    * Start polling for detected tokens.
    */
-  async start() {
+  async start(): Promise<void> {
     this.enable();
     await this.#startPolling();
   }
@@ -356,12 +355,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   /**
    * Stop polling for detected tokens.
    */
-  stop() {
+  stop(): void {
     this.disable();
     this.#stopPolling();
   }
 
-  #stopPolling() {
+  #stopPolling(): void {
     if (this.#intervalId) {
       clearInterval(this.#intervalId);
     }
@@ -414,7 +413,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   async #restartTokenDetection({
     selectedAddress,
     networkClientId,
-  }: { selectedAddress?: string; networkClientId?: string } = {}) {
+  } = {}): Promise<void> {
     await this.detectTokens({
       networkClientId,
       accountAddress: selectedAddress,
