@@ -234,7 +234,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       selectedAddress ??
       this.messagingSystem.call('AccountsController:getSelectedAccount')
         .address;
-    this.#chainId = this.#getCorrectChainId(networkClientId);
+    const { chainId } =
+      this.#getCorrectChainIdAndNetworkClientId(networkClientId);
+    this.#chainId = chainId;
 
     const { useTokenDetection: defaultUseTokenDetection } =
       this.messagingSystem.call('PreferencesController:getState');
@@ -325,7 +327,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         const isNetworkClientIdChanged =
           this.#networkClientId !== selectedNetworkClientId;
 
-        const newChainId = this.#getCorrectChainId(selectedNetworkClientId);
+        const { chainId: newChainId } =
+          this.#getCorrectChainIdAndNetworkClientId(selectedNetworkClientId);
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
 
@@ -398,13 +401,33 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }, this.getIntervalLength());
   }
 
-  #getCorrectChainId(networkClientId?: NetworkClientId) {
-    const { chainId } =
-      this.messagingSystem.call(
+  #getCorrectChainIdAndNetworkClientId(networkClientId?: NetworkClientId): {
+    chainId: Hex;
+    networkClientId: NetworkClientId;
+  } {
+    if (networkClientId) {
+      const networkConfiguration = this.messagingSystem.call(
         'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId ?? this.#networkClientId,
-      ) ?? {};
-    return chainId ?? this.#chainId;
+        networkClientId,
+      );
+      if (networkConfiguration) {
+        return {
+          chainId: networkConfiguration.chainId,
+          networkClientId,
+        };
+      }
+    }
+    const { chainId } = this.messagingSystem.call(
+      'NetworkController:getProviderConfig',
+    );
+    const newNetworkClientId = this.messagingSystem.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      this.#chainId,
+    );
+    return {
+      chainId,
+      networkClientId: newNetworkClientId,
+    };
   }
 
   async _executePoll(
@@ -457,25 +480,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     if (!this.isActive) {
       return;
     }
+
     const addressAgainstWhichToDetect = accountAddress ?? this.#selectedAddress;
-    let chainIdAgainstWhichToDetect: Hex;
-    let networkClientIdAgainstWhichToDetect: NetworkClientId;
-    if (networkClientId) {
-      const networkConfiguration = this.messagingSystem.call(
-        'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId,
-      );
-      chainIdAgainstWhichToDetect = networkConfiguration.chainId;
-      networkClientIdAgainstWhichToDetect = networkClientId;
-    } else {
-      chainIdAgainstWhichToDetect = this.messagingSystem.call(
-        'NetworkController:getProviderConfig',
-      ).chainId;
-      networkClientIdAgainstWhichToDetect = this.messagingSystem.call(
-        'NetworkController:findNetworkClientIdByChainId',
-        chainIdAgainstWhichToDetect,
-      );
-    }
+    const {
+      chainId: chainIdAgainstWhichToDetect,
+      networkClientId: networkClientIdAgainstWhichToDetect,
+    } = this.#getCorrectChainIdAndNetworkClientId(networkClientId);
+
     if (!isTokenDetectionSupportedForNetwork(chainIdAgainstWhichToDetect)) {
       return;
     }
