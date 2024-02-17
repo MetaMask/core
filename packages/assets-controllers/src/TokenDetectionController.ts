@@ -485,19 +485,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         tokensToDetect.push(tokenAddress);
       }
     }
-    const sliceOfTokensToDetect = [];
-    sliceOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
-    sliceOfTokensToDetect[1] = tokensToDetect.slice(
+    const slicesOfTokensToDetect = [];
+    slicesOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
+    slicesOfTokensToDetect[1] = tokensToDetect.slice(
       1000,
       tokensToDetect.length - 1,
     );
-
-    /* istanbul ignore else */
-    if (!selectedAddress) {
-      return;
-    }
-
-    for (const tokensSlice of sliceOfTokensToDetect) {
+    for (const tokensSlice of slicesOfTokensToDetect) {
       if (tokensSlice.length === 0) {
         break;
       }
@@ -507,39 +501,21 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           selectedAddress,
           tokensSlice,
         );
-        const tokensToAdd: Token[] = [];
+        const tokensWithBalance: Token[] = [];
         const eventTokensDetails: string[] = [];
-        let ignored;
-        for (const tokenAddress of Object.keys(balances)) {
-          if (ignoredTokens.length) {
-            ignored = ignoredTokens.find(
-              (ignoredTokenAddress) =>
-                ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
-            );
-          }
-          const caseInsensitiveTokenKey =
-            findCaseInsensitiveMatch(
-              Object.keys(tokenListUsed),
-              tokenAddress,
-            ) ?? '';
-
-          if (ignored === undefined) {
-            const { decimals, symbol, aggregators, iconUrl, name } =
-              tokenListUsed[caseInsensitiveTokenKey];
-            eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
-            tokensToAdd.push({
-              address: tokenAddress,
-              decimals,
-              symbol,
-              aggregators,
-              image: iconUrl,
-              isERC721: false,
-              name,
-            });
-          }
+        for (const nonZeroTokenAddress of Object.keys(balances)) {
+          eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
+          tokensWithBalance.push({
+            address: nonZeroTokenAddress,
+            decimals,
+            symbol,
+            aggregators,
+            image: iconUrl,
+            isERC721: false,
+            name,
+          });
         }
-
-        if (tokensToAdd.length) {
+        if (tokensWithBalance.length) {
           this.#trackMetaMetricsEvent({
             event: 'Token Detected',
             category: 'Wallet',
@@ -551,7 +527,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           });
           await this.messagingSystem.call(
             'TokensController:addDetectedTokens',
-            tokensToAdd,
+            tokensWithBalance,
             {
               selectedAddress,
               chainId,
