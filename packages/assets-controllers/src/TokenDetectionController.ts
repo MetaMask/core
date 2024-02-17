@@ -390,7 +390,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }
 
   async _executePoll(
-    networkClientId: string,
+    networkClientId: NetworkClientId,
     options: { address: string },
   ): Promise<void> {
     if (!this.isActive) {
@@ -413,6 +413,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   async #restartTokenDetection({
     selectedAddress,
     networkClientId,
+  }: {
+    selectedAddress?: string;
+    networkClientId?: NetworkClientId;
   } = {}): Promise<void> {
     await this.detectTokens({
       networkClientId,
