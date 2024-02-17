@@ -138,6 +138,7 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
+      'AccountsController:getSelectedAccount',
       'KeyringController:getState',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
       'TokensController:getState',
