@@ -8,11 +8,7 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import contractMap from '@metamask/contract-metadata';
-import {
-  ChainId,
-  safelyExecute,
-  toChecksumHexAddress,
-} from '@metamask/controller-utils';
+import { ChainId, safelyExecute } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -48,13 +44,23 @@ import type {
 const DEFAULT_INTERVAL = 180000;
 
 /**
- * Finds a case insensitive match in an array of strings
- * @param source - An array of strings to search.
- * @param target - The target string to search for.
- * @returns The first match that is found.
+ * Compare 2 given strings and return boolean
+ * eg: "foo" and "FOO" => true
+ * eg: "foo" and "bar" => false
+ * eg: "foo" and 123 => false
+ *
+ * @param value1 - first string to compare
+ * @param value2 - first string to compare
+ * @returns true if 2 strings are identical when they are lowercase
  */
-function findCaseInsensitiveMatch(source: string[], target: string) {
-  return source.find((e: string) => e.toLowerCase() === target.toLowerCase());
+export function isEqualCaseInsensitive(
+  value1: string,
+  value2: string,
+): boolean {
+  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
+    return false;
+  }
+  return value1.toLowerCase() === value2.toLowerCase();
 }
 
 type LegacyToken = Omit<
@@ -485,25 +491,34 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const isTokenDetectionInactiveInMainnet =
       !this.#isDetectionEnabledFromPreferences &&
       chainIdAgainstWhichToDetect === ChainId.mainnet;
+    const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
+    const tokenList =
+      tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
     const tokenListUsed = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
       : tokenList;
 
-    const { tokens, detectedTokens, ignoredTokens } = this.messagingSystem.call(
-      'TokensController:getState',
+    const { allTokens, allDetectedTokens, allIgnoredTokens } =
+      this.messagingSystem.call('TokensController:getState');
+    const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddreses] = [
+      allTokens,
+      allDetectedTokens,
+      allIgnoredTokens,
+    ].map((tokens) =>
+      (
+        tokens[chainIdAgainstWhichToDetect]?.[addressAgainstWhichToDetect] ?? []
+      ).map((value) => (typeof value === 'string' ? value : value.address)),
     );
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(tokenListUsed)) {
+    for (const tokenAddress of Object.keys(tokenList)) {
       if (
-        !findCaseInsensitiveMatch(
-          tokens.map(({ address }) => address),
-          tokenAddress,
-        ) &&
-        !findCaseInsensitiveMatch(
-          detectedTokens.map(({ address }) => address),
-          tokenAddress,
+        [tokensAddresses, detectedTokensAddresses, ignoredTokensAddreses].every(
+          (addresses) =>
+            !addresses.find((address) =>
+              isEqualCaseInsensitive(address, tokenAddress),
+            ),
         )
       ) {
         tokensToDetect.push(tokenAddress);
@@ -529,6 +544,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         const tokensWithBalance: Token[] = [];
         const eventTokensDetails: string[] = [];
         for (const nonZeroTokenAddress of Object.keys(balances)) {
+          const { decimals, symbol, aggregators, iconUrl, name } =
+            tokenListUsed[nonZeroTokenAddress];
           eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
           tokensWithBalance.push({
             address: nonZeroTokenAddress,
