@@ -20,8 +20,10 @@ import type {
 } from '@metamask/keyring-controller';
 import type {
   NetworkClientId,
-  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetProviderConfigAction,
+  NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
@@ -99,7 +101,9 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerGetProviderConfigAction
   | GetTokenListState
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
@@ -446,21 +450,41 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId?: NetworkClientId;
     accountAddress?: string;
   } = {}): Promise<void> {
-    if (!this.isActive || !this.#isDetectionEnabledForNetwork) {
+    if (!this.isActive) {
       return;
     }
-    const selectedAddress = accountAddress ?? this.#selectedAddress;
-    const chainId = this.#getCorrectChainId(networkClientId);
+    const addressAgainstWhichToDetect = accountAddress ?? this.#selectedAddress;
+    let chainIdAgainstWhichToDetect: Hex;
+    let networkClientIdAgainstWhichToDetect: NetworkClientId;
+    if (networkClientId) {
+      const networkConfiguration = this.messagingSystem.call(
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        networkClientId,
+      );
+      chainIdAgainstWhichToDetect = networkConfiguration.chainId;
+      networkClientIdAgainstWhichToDetect = networkClientId;
+    } else {
+      chainIdAgainstWhichToDetect = this.messagingSystem.call(
+        'NetworkController:getProviderConfig',
+      ).chainId;
+      networkClientIdAgainstWhichToDetect = this.messagingSystem.call(
+        'NetworkController:findNetworkClientIdByChainId',
+        chainIdAgainstWhichToDetect,
+      );
+    }
+    if (!isTokenDetectionSupportedForNetwork(chainIdAgainstWhichToDetect)) {
+      return;
+    }
 
     if (
       !this.#isDetectionEnabledFromPreferences &&
-      chainId !== ChainId.mainnet
+      chainIdAgainstWhichToDetect !== ChainId.mainnet
     ) {
       return;
     }
     const isTokenDetectionInactiveInMainnet =
-      !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
-    const { tokenList } = this.messagingSystem.call(
+      !this.#isDetectionEnabledFromPreferences &&
+      chainIdAgainstWhichToDetect === ChainId.mainnet;
       'TokenListController:getState',
     );
     const tokenListUsed = isTokenDetectionInactiveInMainnet
@@ -498,8 +522,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
       await safelyExecute(async () => {
         const balances = await this.#getBalancesInSingleCall(
-          selectedAddress,
+          addressAgainstWhichToDetect,
           tokensSlice,
+          networkClientIdAgainstWhichToDetect,
         );
         const tokensWithBalance: Token[] = [];
         const eventTokensDetails: string[] = [];
@@ -529,8 +554,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
             'TokensController:addDetectedTokens',
             tokensWithBalance,
             {
-              selectedAddress,
-              chainId,
+              selectedAddress: addressAgainstWhichToDetect,
+              chainId: chainIdAgainstWhichToDetect,
             },
           );
         }
