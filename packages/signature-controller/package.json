@@ -33,7 +33,7 @@
   "dependencies": {
     "@metamask/approval-controller": "^5.1.2",
     "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.2",
+    "@metamask/controller-utils": "^8.0.3",
     "@metamask/keyring-controller": "^12.2.0",
     "@metamask/logging-controller": "^2.0.2",
     "@metamask/message-manager": "^7.3.8",

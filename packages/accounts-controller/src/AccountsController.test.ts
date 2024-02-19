@@ -1401,7 +1401,7 @@ describe('AccountsController', () => {
       KeyringTypes.ledger,
       KeyringTypes.lattice,
       KeyringTypes.qr,
-      KeyringTypes.custody,
+      'Custody - JSON - RPC',
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
 

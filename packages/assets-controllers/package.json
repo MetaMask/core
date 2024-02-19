@@ -40,7 +40,7 @@
     "@metamask/approval-controller": "^5.1.2",
     "@metamask/base-controller": "^4.1.1",
     "@metamask/contract-metadata": "^2.4.0",
-    "@metamask/controller-utils": "^8.0.2",
+    "@metamask/controller-utils": "^8.0.3",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/keyring-controller": "^12.2.0",
     "@metamask/metamask-eth-abis": "3.0.0",
