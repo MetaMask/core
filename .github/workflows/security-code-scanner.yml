@@ -1,10 +1,10 @@
-name: "MetaMask Security Code Scanner"
+name: 'MetaMask Security Code Scanner'
 
 on:
   push:
-    branches: [ 'main' ]
+    branches: ['develop']
   pull_request:
-    branches: [ 'main' ]
+    branches: ['develop']
 
 jobs:
   run-security-scan:
@@ -24,7 +24,6 @@ jobs:
             '**/*.test.js'
             '**/*.test.ts'
             node_modules
-          rules_excluded:
-            example
+          rules_excluded: example
           mixpanel_project_token: ${{secrets.SECURITY_CODE_SCANNER_MIXPANEL_TOKEN}}
           slack_webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
