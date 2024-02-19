@@ -190,11 +190,6 @@ export class SelectedNetworkController extends BaseController<
         'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController ',
       );
     }
-    if (!this.state.perDomainNetwork) {
-      throw new Error(
-        'NetworkClientId for domain cannot be called while perDomainNetwork preference is false',
-      );
-    }
 
     if (!this.#domainHasPermissions(domain)) {
       throw new Error(
@@ -249,16 +244,6 @@ export class SelectedNetworkController extends BaseController<
     this.update((state) => {
       state.perDomainNetwork = enabled;
       return state;
-    });
-    // when perDomainNetwork is toggled on or off we need to update the proxies for all domains
-    // when toggled on all domains should have their own proxies
-    // when toggled off all domains should use the same proxies as the metamask domain
-    Object.keys(this.state.domains).forEach((domain) => {
-      this.setNetworkClientIdForDomain(
-        domain,
-        // when perDomainNetwork is false, getNetworkClientIdForDomain always returns the networkClientId for the domain 'metamask'
-        this.getNetworkClientIdForDomain(domain),
-      );
     });
   }
 }
