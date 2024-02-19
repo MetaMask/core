@@ -69,6 +69,8 @@ export function createAutoManagedNetworkClient<
   let networkClient: NetworkClient | undefined;
 
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     get(_target: any, propertyName: PropertyKey, receiver: unknown) {
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return networkClient?.provider;
@@ -90,6 +92,8 @@ export function createAutoManagedNetworkClient<
           // Ensure that the method on the provider is called with `this` as
           // the target, *not* the proxy (which happens by default) —
           // this allows private properties to be accessed
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return function (this: unknown, ...args: any[]) {
             // @ts-expect-error We don't care that `this` may not be compatible
             // with the signature of the method being called, as technically
@@ -103,6 +107,8 @@ export function createAutoManagedNetworkClient<
       return undefined;
     },
 
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     has(_target: any, propertyName: PropertyKey) {
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
@@ -116,6 +122,8 @@ export function createAutoManagedNetworkClient<
   const blockTrackerProxy: ProxyWithAccessibleTarget<BlockTracker> = new Proxy(
     UNINITIALIZED_TARGET,
     {
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       get(_target: any, propertyName: PropertyKey, receiver: unknown) {
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return networkClient?.blockTracker;
@@ -137,6 +145,8 @@ export function createAutoManagedNetworkClient<
             // Ensure that the method on the provider is called with `this` as
             // the target, *not* the proxy (which happens by default) —
             // this allows private properties to be accessed
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return function (this: unknown, ...args: any[]) {
               // @ts-expect-error We don't care that `this` may not be
               // compatible with the signature of the method being called, as
@@ -150,6 +160,8 @@ export function createAutoManagedNetworkClient<
         return undefined;
       },
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       has(_target: any, propertyName: PropertyKey) {
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;

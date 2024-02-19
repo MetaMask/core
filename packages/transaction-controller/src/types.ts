@@ -28,12 +28,14 @@ export type Events = {
   ['transaction-rejected']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
+  ['transaction-status-update']: [{ transactionMeta: TransactionMeta }];
   ['transaction-submitted']: [
     { transactionMeta: TransactionMeta; actionId?: string },
   ];
   ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
   [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
+  [key: `${string}:publish-skip`]: [tansactionMeta: TransactionMeta];
   [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
 };
 
@@ -103,6 +105,9 @@ type TransactionMetaBase = {
    */
   custodyStatus?: string;
 
+  /** The optional custom nonce override as a decimal string. */
+  customNonceValue?: string;
+
   /**
    * The custom token amount is the amount set by the user.
    */
@@ -136,7 +141,7 @@ type TransactionMetaBase = {
   /**
    * The decimals of the token being received of swap transaction.
    */
-  destinationTokenDecimals?: string;
+  destinationTokenDecimals?: number;
 
   /**
    * The symbol of the token being received with swap.
@@ -189,6 +194,11 @@ type TransactionMetaBase = {
    * Whether the transaction is a transfer.
    */
   isTransfer?: boolean;
+
+  /**
+   * Whether the transaction entry is generated from a user operation.
+   */
+  isUserOperation?: boolean;
 
   /**
    * Network code as per EIP-155 for this transaction
@@ -287,6 +297,8 @@ type TransactionMetaBase = {
   /**
    * Response from security provider.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   securityProviderResponse?: Record<string, any>;
 
   /**
@@ -320,7 +332,9 @@ type TransactionMetaBase = {
   /**
    * The metadata of the swap transaction.
    */
-  swapMetaData?: Record<string, unknown>;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  swapMetaData?: Record<string, any>;
 
   /**
    * The value of the token being swapped.
@@ -688,9 +702,9 @@ export interface TransactionReceipt {
   status?: string;
 
   /**
-   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
+   * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
-  transactionIndex?: number;
+  transactionIndex?: string;
 }
 
 /**
@@ -836,6 +850,8 @@ export type InferTransactionTypeResult = {
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
 /**

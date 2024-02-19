@@ -1,9 +1,12 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type { ControllerGetStateAction } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerStateChangeEvent,
+  type RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
-import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 
 import {
@@ -63,6 +66,8 @@ type ApprovalFlow = {
 type ResultOptions = {
   flowToEnd?: string;
   header?: (string | ResultComponent)[];
+  icon?: string | null;
+  title?: string | null;
 };
 
 // Miscellaneous Types
@@ -240,19 +245,19 @@ export type ErrorResult = Record<string, never>;
 
 // Event Types
 
-export type ApprovalStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ApprovalControllerState, Patch[]];
-};
+export type ApprovalStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ApprovalControllerEvents = ApprovalStateChange;
 
 // Action Types
 
-export type GetApprovalsState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => ApprovalControllerState;
-};
+export type GetApprovalsState = ControllerGetStateAction<
+  typeof controllerName,
+  ApprovalControllerState
+>;
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;
@@ -335,7 +340,7 @@ export type ApprovalControllerActions =
  * Adding a request returns a promise that resolves or rejects when the request
  * is approved or denied, respectively.
  */
-export class ApprovalController extends BaseControllerV2<
+export class ApprovalController extends BaseController<
   typeof controllerName,
   ApprovalControllerState,
   ApprovalControllerMessenger
@@ -746,9 +751,8 @@ export class ApprovalController extends BaseControllerV2<
     }
 
     this.update((draftState) => {
-      // Typecast: ts(2589)
       draftState.pendingApprovals[opts.id].requestState =
-        opts.requestState as any;
+        opts.requestState as never;
     });
   }
 
@@ -830,13 +834,18 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.message - The message text or components to display in the page.
    * @param opts.header - The text or components to display in the header of the page.
    * @param opts.flowToEnd - The ID of the approval flow to end once the success page is approved.
+   * @param opts.title - The title to display above the message. Shown by default but can be hidden with `null`.
+   * @param opts.icon - The icon to display in the page. Shown by default but can be hidden with `null`.
    * @returns Empty object to support future additions.
    */
   async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
     await this.#result(APPROVAL_TYPE_RESULT_SUCCESS, opts, {
       message: opts.message,
       header: opts.header,
-    } as any);
+      title: opts.title,
+      icon: opts.icon,
+    } as Record<string, Json>);
+
     return {};
   }
 
@@ -847,13 +856,18 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.message - The message text or components to display in the page.
    * @param opts.header - The text or components to display in the header of the page.
    * @param opts.flowToEnd - The ID of the approval flow to end once the error page is approved.
+   * @param opts.title - The title to display above the message. Shown by default but can be hidden with `null`.
+   * @param opts.icon - The icon to display in the page. Shown by default but can be hidden with `null`.
    * @returns Empty object to support future additions.
    */
   async error(opts: ErrorOptions = {}): Promise<ErrorResult> {
     await this.#result(APPROVAL_TYPE_RESULT_ERROR, opts, {
       error: opts.error,
       header: opts.header,
-    } as any);
+      title: opts.title,
+      icon: opts.icon,
+    } as Record<string, Json>);
+
     return {};
   }
 
@@ -983,7 +997,7 @@ export class ApprovalController extends BaseControllerV2<
     requestState?: Record<string, Json>,
     expectsResult?: boolean,
   ): void {
-    const approval: ApprovalRequest<Record<string, Json> | null> = {
+    const approval = {
       id,
       origin,
       type,
@@ -994,8 +1008,8 @@ export class ApprovalController extends BaseControllerV2<
     };
 
     this.update((draftState) => {
-      // Typecast: ts(2589)
-      draftState.pendingApprovals[id] = approval as any;
+      draftState.pendingApprovals[id] = approval as never;
+
       draftState.pendingApprovalCount = Object.keys(
         draftState.pendingApprovals,
       ).length;

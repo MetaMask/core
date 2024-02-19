@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "15.2.0",
+  "version": "17.1.0",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -30,16 +31,16 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.3",
-    "@metamask/controller-utils": "^5.0.2",
+    "@metamask/base-controller": "^4.1.0",
+    "@metamask/controller-utils": "^8.0.1",
     "@metamask/eth-json-rpc-infura": "^9.0.0",
     "@metamask/eth-json-rpc-middleware": "^12.0.1",
-    "@metamask/eth-json-rpc-provider": "^2.3.0",
+    "@metamask/eth-json-rpc-provider": "^2.3.1",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/json-rpc-engine": "^7.3.0",
+    "@metamask/json-rpc-engine": "^7.3.1",
     "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/swappable-obj-proxy": "^2.1.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/swappable-obj-proxy": "^2.2.0",
+    "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
     "eth-block-tracker": "^8.0.0",
     "immer": "^9.0.6",
@@ -47,7 +48,7 @@
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",

@@ -3,8 +3,12 @@ import type {
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type {
   KeyringControllerSignMessageAction,
@@ -44,7 +48,6 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
 import { bufferToHex } from 'ethereumjs-util';
 import EventEmitter from 'events';
-import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 
 const controllerName = 'SignatureController';
@@ -95,15 +98,15 @@ type TypedMessageSigningOptions = {
   parseJsonData: boolean;
 };
 
-export type GetSignatureState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => SignatureControllerState;
-};
+export type GetSignatureState = ControllerGetStateAction<
+  typeof controllerName,
+  SignatureControllerState
+>;
 
-export type SignatureStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [SignatureControllerState, Patch[]];
-};
+export type SignatureStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  SignatureControllerState
+>;
 
 export type SignatureControllerActions = GetSignatureState;
 
@@ -122,8 +125,12 @@ export type SignatureControllerOptions = {
   isEthSignEnabled: () => boolean;
   getAllState: () => unknown;
   securityProviderRequest?: (
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     requestData: any,
     methodName: string,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
   getCurrentChainId: () => Hex;
 };
@@ -131,7 +138,7 @@ export type SignatureControllerOptions = {
 /**
  * Controller for creating signing requests requiring user approval.
  */
-export class SignatureController extends BaseControllerV2<
+export class SignatureController extends BaseController<
   typeof controllerName,
   SignatureControllerState,
   SignatureControllerMessenger
@@ -140,6 +147,8 @@ export class SignatureController extends BaseControllerV2<
 
   #isEthSignEnabled: () => boolean;
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #getAllState: () => any;
 
   #messageManager: MessageManager;
@@ -394,6 +403,8 @@ export class SignatureController extends BaseControllerV2<
    * @param messageId - The id of the Message to update.
    * @param signature - The data to update the message with.
    */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setDeferredSignSuccess(messageId: string, signature: any) {
     this.#tryForEachMessageManager(
       this.#trySetDeferredSignSuccess,
@@ -583,6 +594,8 @@ export class SignatureController extends BaseControllerV2<
     msgParams: TypedMessageParamsMetamask,
     /* istanbul ignore next */
     opts = { parseJsonData: true },
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     const { version } = msgParams;
     return await this.#signAbstractMessage(
@@ -605,9 +618,15 @@ export class SignatureController extends BaseControllerV2<
 
   #tryForEachMessageManager(
     callbackFn: (
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       messageManager: AbstractMessageManager<any, any, any>,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...args: any[]
     ) => boolean,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...args: any
   ) {
     const messageManagers = [
@@ -625,8 +644,12 @@ export class SignatureController extends BaseControllerV2<
   }
 
   #trySetDeferredSignSuccess(
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     signature: any,
   ) {
     try {
@@ -638,6 +661,8 @@ export class SignatureController extends BaseControllerV2<
   }
 
   #trySetMessageMetadata(
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
     metadata: Json,
@@ -651,6 +676,8 @@ export class SignatureController extends BaseControllerV2<
   }
 
   #trySetDeferredSignError(
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
   ) {
@@ -691,6 +718,8 @@ export class SignatureController extends BaseControllerV2<
     messageManager: AbstractMessageManager<M, P, PM>,
     methodName: string,
     msgParams: PM,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getSignature: (cleanMessageParams: P) => Promise<any>,
   ) {
     console.info(`MetaMaskController - ${methodName}`);
@@ -714,6 +743,8 @@ export class SignatureController extends BaseControllerV2<
         this.hub.emit(`${messageId}:signError`, { error });
         throw error;
       }
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
       this.#errorMessage(messageManager, messageId, error.message);
@@ -784,6 +815,8 @@ export class SignatureController extends BaseControllerV2<
   ) {
     messageManager.subscribe((state: MessageManagerState<AbstractMessage>) => {
       const newMessages = this.#migrateMessages(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         state.unapprovedMessages as any,
       );
 

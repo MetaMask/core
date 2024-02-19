@@ -3,12 +3,11 @@ import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
-import type NonceTracker from 'nonce-tracker';
+import type { NonceTracker } from 'nonce-tracker';
 
 import { projectLogger } from '../logger';
-import type { TransactionState } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
-import { TransactionStatus } from '../types';
+import { TransactionStatus, TransactionType } from '../types';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -16,6 +15,8 @@ import { TransactionStatus } from '../types';
  */
 const DROPPED_BLOCK_COUNT = 3;
 
+const RECEIPT_STATUS_SUCCESS = '0x1';
+const RECEIPT_STATUS_FAILURE = '0x0';
 const MAX_RETRY_BLOCK_DISTANCE = 50;
 
 const KNOWN_TRANSACTION_ERRORS = [
@@ -70,11 +71,13 @@ export class PendingTransactionTracker {
 
   #isResubmitEnabled: boolean;
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #listener: any;
 
   #nonceTracker: NonceTracker;
 
-  #onStateChange: (listener: (state: TransactionState) => void) => void;
+  #onStateChange: (listener: () => void) => void;
 
   #publishTransaction: (rawTx: string) => Promise<string>;
 
@@ -103,7 +106,7 @@ export class PendingTransactionTracker {
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
     nonceTracker: NonceTracker;
-    onStateChange: (listener: (state: TransactionState) => void) => void;
+    onStateChange: (listener: () => void) => void;
     publishTransaction: (rawTx: string) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
@@ -130,10 +133,8 @@ export class PendingTransactionTracker {
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
 
-    this.#onStateChange((state) => {
-      const pendingTransactions = this.#getPendingTransactions(
-        state.transactions,
-      );
+    this.#onStateChange(() => {
+      const pendingTransactions = this.#getPendingTransactions();
 
       if (pendingTransactions.length) {
         this.#start();
@@ -227,6 +228,8 @@ export class PendingTransactionTracker {
     for (const txMeta of pendingTransactions) {
       try {
         await this.#resubmitTransaction(txMeta, latestBlockNumber);
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         /* istanbul ignore next */
         const errorMessage =
@@ -336,9 +339,10 @@ export class PendingTransactionTracker {
 
     try {
       const receipt = await this.#getTransactionReceipt(hash);
-      const isSuccess = receipt?.status === '0x1';
+      const isSuccess = receipt?.status === RECEIPT_STATUS_SUCCESS;
+      const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
-      if (receipt && !isSuccess) {
+      if (isFailure) {
         log('Transaction receipt has failed status');
 
         this.#failTransaction(
@@ -360,6 +364,8 @@ export class PendingTransactionTracker {
 
         return;
       }
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       log('Failed to check transaction', id, error);
 
@@ -446,23 +452,22 @@ export class PendingTransactionTracker {
   #isNonceTaken(txMeta: TransactionMeta): boolean {
     const { id, txParams } = txMeta;
 
-    return this.#getTransactions().some(
+    return this.#getCurrentChainTransactions().some(
       (tx) =>
         tx.id !== id &&
         tx.txParams.from === txParams.from &&
         tx.status === TransactionStatus.confirmed &&
-        tx.txParams.nonce === txParams.nonce,
+        tx.txParams.nonce === txParams.nonce &&
+        tx.type !== TransactionType.incoming,
     );
   }
 
-  #getPendingTransactions(transactions?: TransactionMeta[]): TransactionMeta[] {
-    const currentChainId = this.#getChainId();
-
-    return (transactions ?? this.#getTransactions()).filter(
+  #getPendingTransactions(): TransactionMeta[] {
+    return this.#getCurrentChainTransactions().filter(
       (tx) =>
         tx.status === TransactionStatus.submitted &&
-        tx.chainId === currentChainId &&
-        !tx.verifiedOnBlockchain,
+        !tx.verifiedOnBlockchain &&
+        !tx.isUserOperation,
     );
   }
 
@@ -501,6 +506,8 @@ export class PendingTransactionTracker {
   async #getBlockByHash(
     blockHash: string,
     includeTransactionDetails: boolean,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     return await query(this.#getEthQuery(), 'getBlockByHash', [
       blockHash,
@@ -510,5 +517,13 @@ export class PendingTransactionTracker {
 
   async #getNetworkTransactionCount(address: string): Promise<string> {
     return await query(this.#getEthQuery(), 'getTransactionCount', [address]);
+  }
+
+  #getCurrentChainTransactions(): TransactionMeta[] {
+    const currentChainId = this.#getChainId();
+
+    return this.#getTransactions().filter(
+      (tx) => tx.chainId === currentChainId,
+    );
   }
 }

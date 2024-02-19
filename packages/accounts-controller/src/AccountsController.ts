@@ -1,8 +1,12 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
@@ -15,10 +19,11 @@ import type {
   SnapControllerEvents,
   SnapControllerState,
 } from '@metamask/snaps-controllers';
-import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
+import type { SnapId } from '@metamask/snaps-sdk';
+import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
-import type { Patch, Draft } from 'immer';
+import type { Draft } from 'immer';
 import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
@@ -32,10 +37,10 @@ export type AccountsControllerState = {
   };
 };
 
-export type AccountsControllerGetStateAction = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => AccountsControllerState;
-};
+export type AccountsControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AccountsControllerState
+>;
 
 export type AccountsControllerSetSelectedAccountAction = {
   type: `${typeof controllerName}:setSelectedAccount`;
@@ -66,6 +71,12 @@ export type AccountsControllerGetAccountByAddressAction = {
   type: `${typeof controllerName}:getAccountByAddress`;
   handler: AccountsController['getAccountByAddress'];
 };
+
+export type AccountsControllerGetAccountAction = {
+  type: `${typeof controllerName}:getAccount`;
+  handler: AccountsController['getAccount'];
+};
+
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
@@ -74,14 +85,15 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetAccountAction
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetAccountsAction;
 
-export type AccountsControllerChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [AccountsControllerState, Patch[]];
-};
+export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AccountsControllerState
+>;
 
 export type AccountsControllerSelectedAccountChangeEvent = {
   type: `${typeof controllerName}:selectedAccountChange`;
@@ -129,7 +141,7 @@ const defaultState: AccountsControllerState = {
  * The accounts controller also listens for snap state changes and updates the internal accounts accordingly.
  *
  */
-export class AccountsController extends BaseControllerV2<
+export class AccountsController extends BaseController<
   typeof controllerName,
   AccountsControllerState,
   AccountsControllerMessenger
@@ -388,12 +400,12 @@ export class AccountsController extends BaseControllerV2<
       address,
       options: {},
       methods: [
-        'personal_sign',
-        'eth_sign',
-        'eth_signTransaction',
-        'eth_signTypedData_v1',
-        'eth_signTypedData_v3',
-        'eth_signTypedData_v4',
+        EthMethod.PersonalSign,
+        EthMethod.Sign,
+        EthMethod.SignTransaction,
+        EthMethod.SignTypedDataV1,
+        EthMethod.SignTypedDataV3,
+        EthMethod.SignTypedDataV4,
       ],
       type: EthAccountType.Eoa,
       metadata: {
@@ -451,12 +463,12 @@ export class AccountsController extends BaseControllerV2<
         address,
         options: {},
         methods: [
-          'personal_sign',
-          'eth_sign',
-          'eth_signTransaction',
-          'eth_signTypedData_v1',
-          'eth_signTypedData_v3',
-          'eth_signTypedData_v4',
+          EthMethod.PersonalSign,
+          EthMethod.Sign,
+          EthMethod.SignTransaction,
+          EthMethod.SignTypedDataV1,
+          EthMethod.SignTypedDataV3,
+          EthMethod.SignTypedDataV4,
         ],
         type: EthAccountType.Eoa,
         metadata: {
@@ -482,7 +494,10 @@ export class AccountsController extends BaseControllerV2<
     // check if there are any new accounts added
     // TODO: change when accountAdded event is added to the keyring controller
 
-    if (keyringState.isUnlocked) {
+    // We check for keyrings length to be greater than 0 because the extension client may try execute
+    // submit password twice and clear the keyring state.
+    // https://github.com/MetaMask/KeyringController/blob/2d73a4deed8d013913f6ef0c9f5c0bb7c614f7d3/src/KeyringController.ts#L910
+    if (keyringState.isUnlocked && keyringState.keyrings.length > 0) {
       const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
@@ -628,7 +643,7 @@ export class AccountsController extends BaseControllerV2<
           currentState.internalAccounts.accounts[account.id];
         if (currentAccount.metadata.snap) {
           const snapId = currentAccount.metadata.snap.id;
-          const storedSnap: Snap = snaps[snapId as ValidatedSnapId];
+          const storedSnap: Snap = snaps[snapId as SnapId];
           if (storedSnap) {
             currentAccount.metadata.snap.enabled =
               storedSnap.enabled && !storedSnap.blocked;
@@ -778,6 +793,11 @@ export class AccountsController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountByAddress`,
       this.getAccountByAddress.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `AccountsController:getAccount`,
+      this.getAccount.bind(this),
     );
   }
 }

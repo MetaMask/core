@@ -159,32 +159,80 @@ To use a preview build for a package within a project, you need to override the 
 
 4. Run `yarn install`.
 
+## Adding new packages
+
+> If you're migrating an existing package to the monorepo, please see [the package migration documentation](./package-migration-process-guide.md).
+> You may be able to make use of `create-package` when migrating your package, but there's a lot more to it.
+
+Manually a new monorepo package can be a tedious, even frustrating process. To spare us from that
+suffering, we have created a CLI that automates most of the job for us, creatively titled
+[`create-package`](../scripts/create-package/). To create a new monorepo package, follow these steps:
+
+1. Create a new package using `yarn create-package`.
+   - Use the `--help` flag for usage information.
+   - Once this is done, you can find a package with your chosen name in `/packages`.
+2. Make sure your license is correct.
+   - By default, `create-package` gives your package an MIT license.
+   - If your desired license is _not_ MIT, then you must update your `LICENSE` file and the
+     `license` field of `package.json`.
+3. Add your dependencies.
+   - Do this as normal using `yarn`.
+   - Remember, if you are adding other monorepo packages as dependents, don't forget to add them
+     to the `references` array in your package's `tsconfig.json` and `tsconfig.build.json`.
+
+And that's it!
+
+### Contributing to `create-package`
+
+Along with this documentation, `create-package` is intended to be the source of truth for the
+process of adding new packages to the monorepo. Consequently, to change that process, you will want
+to change `create-package`.
+
+The `create-package` directory contains a [template package](../scripts/create-package/package-template/). The CLI is not aware of the contents of the template, only that its files have
+[placeholder values](../scripts/create-package/constants.ts). When a new package is created, the template files are read from disk, the
+placeholder values are replaced with real ones, and the updated files are added to a new directory
+in `/packages`. To modify the template package:
+
+- If you need to add or modify any files or folders, just go ahead and make your changes in
+  [`/scripts/create-package/package-template`](../scripts/create-package/package-template/).
+  The CLI will read whatever's in that directory and write it to disk.
+- If you need to add or modify any placeholders, make sure that your desired values are added to
+  both the relevant file(s) and
+  [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts).
+  Then, update the implementation of the CLI accordingly.
+- As with placeholders, updating the monorepo files that the CLI interacts with begins by updating
+  [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts).
+
 ## Releasing
 
 The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process.
 
-1. **Create a release branch.**
+1. **Initiate the release branch and specify packages to be released.**
 
-   Run `yarn create-release-branch`. This tool generates a file and opens it in your editor, where you can specify which packages you want to include in the next release and which versions they should receive. Instructions are provided for you at the top; read them and update the file accordingly.
+   1. **Create the release branch.**
 
-   When you're ready to continue, save and close the file.
+      Start by running `yarn create-release-branch`. This command creates a branch named `release/<new release version>` which will represent the new release.
 
-2. **Update changelogs for relevant packages.**
+   2. **Specify packages to release along with their versions.**
 
-   At this point you will be on a new release branch, and a new section will have been added to the changelog of each package you specified in the previous step.
+      At this point, you need to tell the tool which packages you want to include in the next release and which versions to assign to those packages. You do this by modifying a YAML file called a "release spec", which the tool has generated and opened it in your editor. Follow the instructions at the top of the file to proceed.
 
-   For each changelog, review the new section and make the appropriate changes:
+      To assist you, the tool has also updated all of the packages that have been changed since their previous releases so that their changelogs now reflect those new changes. This should help you to understand what will be released and how to bump the versions.
 
-   - Move each entry into the appropriate category (review the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/#types) spec for the full list of categories and the correct ordering of all categories).
-   - Remove any changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
-   - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
-   - Consolidate related changes into one change entry if it makes it easier to comprehend.
+      Once you save and close the release spec, the tool will proceed.
 
-   Run `yarn changelog:validate` to check that all changelogs are correctly formatted.
+2. **Review and update changelogs for relevant packages.**
 
-   Commit and push the branch.
+   1. At this point, the versions of all packages you intend to release have been bumped and their changelogs list new changes. Now you need to go through each changelog and make sure that they follow existing standards:
 
-3. **Submit a pull request for the release branch so that it can be reviewed and tested.**
+      - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines.
+      - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+      - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
+      - Consolidate related changes into single entries where appropriate.
+
+   2. Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
+
+3. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
 
    Make sure the title of the pull request follows the pattern "Release \<new version\>".
 
@@ -201,3 +249,26 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
    The `publish-release` GitHub Action workflow runs the `publish-npm` job, which publishes relevant packages to NPM. It requires approval from the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team to complete. If you're not on the team, ask a member to approve it for you; otherwise, approve the job.
 
    Once the `publish-npm` job has finished, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
+
+### Handling common errors
+
+If an error occurs, re-edit the release spec and rerun `yarn create-release-branch`. Common errors include:
+
+- **Invalid Version Specifier:**
+
+  - Error: `* Line 14: "invalid_version" is not a valid version specifier...`
+  - Resolution: Use "major", "minor", "patch", or a specific version number like "1.2.3".
+
+- **Version Less than or Equal to Current:**
+
+  - Error: `* Line 14: "1.2.3" is not a valid version specifier...`
+  - Resolution: Specify a version greater than the current version of the package.
+
+- **Releasing Packages with Breaking Changes:**
+
+  - Error: `* The following dependents of package '@metamask/a'...`
+  - Resolution: Include dependent packages in the release or use "intentionally-skip" if certain they are unaffected.
+
+- **Dependencies/Peer Dependencies Missing:**
+  - Error: `* The following packages, which are dependencies...`
+  - Resolution: Include necessary dependencies or peer dependencies in the release or use "intentionally-skip" if certain they are unaffected.

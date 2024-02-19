@@ -1,6 +1,9 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
-import type { Patch } from 'immer';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 
 import type {
   NameProvider,
@@ -9,6 +12,23 @@ import type {
   NameProviderSourceResult,
 } from './types';
 import { NameType } from './types';
+
+export const FALLBACK_VARIATION = '*';
+export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
+
+/**
+ * Enumerates the possible origins responsible for setting a petname.
+ */
+export enum NameOrigin {
+  // Originated from an account identity.
+  ACCOUNT_IDENTITY = 'account-identity',
+  // Originated from an address book entry.
+  ADDRESS_BOOK = 'address-book',
+  // Originated from the API (NameController.setName). This is the default.
+  API = 'api',
+  // Originated from the user taking action in the UI.
+  UI = 'ui',
+}
 
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 const DEFAULT_VARIATION = '';
@@ -36,6 +56,7 @@ export type ProposedNamesEntry = {
 export type NameEntry = {
   name: string | null;
   sourceId: string | null;
+  origin: NameOrigin | null;
   proposedNames: Record<string, ProposedNamesEntry>;
 };
 
@@ -49,15 +70,15 @@ export type NameControllerState = {
   nameSources: Record<string, SourceEntry>;
 };
 
-export type GetNameState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => NameControllerState;
-};
+export type GetNameState = ControllerGetStateAction<
+  typeof controllerName,
+  NameControllerState
+>;
 
-export type NameStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [NameControllerState, Patch[]];
-};
+export type NameStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  NameControllerState
+>;
 
 export type NameControllerActions = GetNameState;
 
@@ -96,12 +117,13 @@ export type SetNameRequest = {
   name: string | null;
   sourceId?: string;
   variation?: string;
+  origin?: NameOrigin;
 };
 
 /**
  * Controller for storing and deriving names for values such as Ethereum addresses.
  */
-export class NameController extends BaseControllerV2<
+export class NameController extends BaseController<
   typeof controllerName,
   NameControllerState,
   NameControllerMessenger
@@ -149,12 +171,23 @@ export class NameController extends BaseControllerV2<
   setName(request: SetNameRequest) {
     this.#validateSetNameRequest(request);
 
-    const { value, type, name, sourceId: requestSourceId, variation } = request;
+    const {
+      value,
+      type,
+      name,
+      sourceId: requestSourceId,
+      origin: requestOrigin,
+      variation,
+    } = request;
     const sourceId = requestSourceId ?? null;
+    // If the name is being cleared, the fallback origin should be cleared as well.
+    const fallbackOrigin = name === null ? null : NameOrigin.API;
+    const origin = requestOrigin ?? fallbackOrigin;
 
     this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
       entry.sourceId = sourceId;
+      entry.origin = origin;
     });
   }
 
@@ -183,6 +216,7 @@ export class NameController extends BaseControllerV2<
 
     this.#updateProposedNameState(request, providerResponses);
     this.#updateSourceState(this.#providers);
+    this.#removeExpiredEntries();
 
     return this.#getUpdateProposedNamesResult(providerResponses);
   }
@@ -418,6 +452,7 @@ export class NameController extends BaseControllerV2<
         proposedNames: {},
         name: null,
         sourceId: null,
+        origin: null,
       };
       variationEntries[normalizedVariation] = entry;
 
@@ -430,7 +465,7 @@ export class NameController extends BaseControllerV2<
   }
 
   #validateSetNameRequest(request: SetNameRequest) {
-    const { name, value, type, sourceId, variation } = request;
+    const { name, value, type, sourceId, variation, origin } = request;
     const errorMessages: string[] = [];
 
     this.#validateValue(value, errorMessages);
@@ -438,6 +473,7 @@ export class NameController extends BaseControllerV2<
     this.#validateName(name, errorMessages);
     this.#validateSourceId(sourceId, type, name, errorMessages);
     this.#validateVariation(variation, type, errorMessages);
+    this.#validateOrigin(origin, name, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -568,10 +604,36 @@ export class NameController extends BaseControllerV2<
     if (
       !variation?.length ||
       typeof variation !== 'string' ||
-      !variation.match(/^0x[0-9A-Fa-f]+$/u)
+      (!variation.match(/^0x[0-9A-Fa-f]+$/u) &&
+        variation !== FALLBACK_VARIATION)
     ) {
       errorMessages.push(
-        `Must specify a chain ID in hexidecimal format for variation when using '${type}' type.`,
+        `Must specify a chain ID in hexidecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
+      );
+    }
+  }
+
+  #validateOrigin(
+    origin: NameOrigin | null | undefined,
+    name: string | null,
+    errorMessages: string[],
+  ) {
+    if (!origin) {
+      return;
+    }
+
+    if (name === null) {
+      errorMessages.push(
+        `Cannot specify an origin when clearing the saved name: ${origin}`,
+      );
+      return;
+    }
+
+    if (!Object.values(NameOrigin).includes(origin)) {
+      errorMessages.push(
+        `Must specify one of the following origins: ${Object.values(
+          NameOrigin,
+        ).join(', ')}`,
       );
     }
   }
@@ -606,5 +668,47 @@ export class NameController extends BaseControllerV2<
     for (const dormantSourceId of dormantSourceIds) {
       delete proposedNames[dormantSourceId];
     }
+  }
+
+  #removeExpiredEntries(): void {
+    const currentTime = this.#getCurrentTimeSeconds();
+
+    this.update((state: NameControllerState) => {
+      const entries = this.#getEntriesList(state);
+      for (const { nameType, value, variation, entry } of entries) {
+        if (entry.name !== null) {
+          continue;
+        }
+
+        const proposedNames = Object.values(entry.proposedNames);
+        const allProposedNamesExpired = proposedNames.every(
+          (proposedName: ProposedNamesEntry) =>
+            currentTime - (proposedName.lastRequestTime ?? 0) >=
+            PROPOSED_NAME_EXPIRE_DURATION,
+        );
+
+        if (allProposedNamesExpired) {
+          delete state.names[nameType][value][variation];
+        }
+      }
+    });
+  }
+
+  #getEntriesList(state: NameControllerState): {
+    nameType: NameType;
+    value: string;
+    variation: string;
+    entry: NameEntry;
+  }[] {
+    return Object.entries(state.names).flatMap(([type, typeEntries]) =>
+      Object.entries(typeEntries).flatMap(([value, variationEntries]) =>
+        Object.entries(variationEntries).map(([variation, entry]) => ({
+          entry,
+          nameType: type as NameType,
+          value,
+          variation,
+        })),
+      ),
+    );
   }
 }

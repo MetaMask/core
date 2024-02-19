@@ -107,7 +107,7 @@ describe('EnsController', () => {
     expect(controller.state.ensResolutionsByAddress).toStrictEqual({});
   });
 
-  it('should clear ensResolutionsByAddress state propery on networkStateChange', async () => {
+  it('should clear ensResolutionsByAddress state propery on networkDidChange', async () => {
     const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
@@ -117,7 +117,7 @@ describe('EnsController', () => {
         },
       },
       provider: getProvider(),
-      onNetworkStateChange: (listener) => {
+      onNetworkDidChange: (listener) => {
         listener({
           providerConfig: {
             chainId: toHex(1),
@@ -442,7 +442,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),
@@ -460,7 +460,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(0),
@@ -485,7 +485,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),
@@ -508,7 +508,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),
@@ -530,7 +530,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),
@@ -555,7 +555,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),
@@ -580,7 +580,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),
@@ -607,7 +607,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),
@@ -633,7 +633,7 @@ describe('EnsController', () => {
       const ens = new EnsController({
         messenger,
         provider: getProvider(),
-        onNetworkStateChange: (listener) => {
+        onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
               chainId: toHex(1),

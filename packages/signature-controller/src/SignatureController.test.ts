@@ -71,6 +71,8 @@ const messageMock = {
   status: 'unapproved',
   type: 'testType',
   rawSig: undefined,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any as AbstractMessage;
 
 const coreMessageMock = {
@@ -90,14 +92,19 @@ const requestMock = {
 const createMessengerMock = () =>
   ({
     registerActionHandler: jest.fn(),
+    registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     call: jest.fn(),
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as jest.Mocked<SignatureControllerMessenger>);
 
 const addUnapprovedMessageMock = jest.fn();
 const waitForFinishStatusMock = jest.fn();
 const approveMessageMock = jest.fn();
 
+// TODO: Replace `any` with type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
   const messageManagerMock = Object.create(prototype);
 
@@ -156,6 +163,8 @@ describe('SignatureController', () => {
 
   const mockMessengerAction = (
     action: string,
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (actionName: string, ...args: any[]) => any,
   ) => {
     messengerMock.call.mockImplementation((actionName, ...rest) => {
@@ -226,8 +235,14 @@ describe('SignatureController', () => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       signatureController.update(() => ({
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedMsgs: { [messageIdMock]: messageMock } as any,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedPersonalMsgs: { [messageIdMock]: messageMock } as any,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedTypedMessages: { [messageIdMock]: messageMock } as any,
         unapprovedMsgCount: 1,
         unapprovedPersonalMsgCount: 2,
@@ -255,20 +270,32 @@ describe('SignatureController', () => {
       };
 
       messageManagerMock.getUnapprovedMessages.mockReturnValueOnce(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         messages as any,
       );
       personalMessageManagerMock.getUnapprovedMessages.mockReturnValueOnce(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         messages as any,
       );
       typedMessageManagerMock.getUnapprovedMessages.mockReturnValueOnce(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         messages as any,
       );
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       signatureController.update(() => ({
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedMsgs: messages as any,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedPersonalMsgs: messages as any,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedTypedMessages: messages as any,
       }));
     });
@@ -405,6 +432,8 @@ describe('SignatureController', () => {
       const listenerMock = jest.fn();
       signatureController.hub.on(`${messageIdMock}:signError`, listenerMock);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedMessage(
@@ -480,6 +509,8 @@ describe('SignatureController', () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
         .mockRejectedValueOnce({}); // ApprovalController:addRequest
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedPersonalMessage(
@@ -496,6 +527,8 @@ describe('SignatureController', () => {
         throw keyringErrorMock;
       });
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedPersonalMessage(
@@ -532,6 +565,8 @@ describe('SignatureController', () => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       signatureController.update(() => ({
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedTypedMessages: { [messageIdMock]: stateMessageMock } as any,
       }));
 
@@ -623,6 +658,8 @@ describe('SignatureController', () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
         .mockRejectedValueOnce({}); // ApprovalController:addRequest
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedTypedMessage(
@@ -643,6 +680,8 @@ describe('SignatureController', () => {
       typedMessageManagerMock.addUnapprovedMessage.mockResolvedValue(
         messageIdMock,
       );
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedTypedMessage(
@@ -891,11 +930,15 @@ describe('SignatureController', () => {
 
     it('updates state on message manager state change', async () => {
       await messageManagerMock.subscribe.mock.calls[0][0]({
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
         unapprovedMessagesCount: 3,
       });
 
       expect(await signatureController.state).toStrictEqual({
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedMsgs: { [messageIdMock]: stateMessageMock as any },
         unapprovedPersonalMsgs: {},
         unapprovedTypedMessages: {},
@@ -907,12 +950,16 @@ describe('SignatureController', () => {
 
     it('updates state on personal message manager state change', async () => {
       await personalMessageManagerMock.subscribe.mock.calls[0][0]({
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
         unapprovedMessagesCount: 4,
       });
 
       expect(await signatureController.state).toStrictEqual({
         unapprovedMsgs: {},
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedPersonalMsgs: { [messageIdMock]: stateMessageMock as any },
         unapprovedTypedMessages: {},
         unapprovedMsgCount: 0,
@@ -923,6 +970,8 @@ describe('SignatureController', () => {
 
     it('updates state on typed message manager state change', async () => {
       await typedMessageManagerMock.subscribe.mock.calls[0][0]({
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
         unapprovedMessagesCount: 5,
       });
@@ -930,6 +979,8 @@ describe('SignatureController', () => {
       expect(await signatureController.state).toStrictEqual({
         unapprovedMsgs: {},
         unapprovedPersonalMsgs: {},
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         unapprovedTypedMessages: { [messageIdMock]: stateMessageMock as any },
         unapprovedMsgCount: 0,
         unapprovedPersonalMsgCount: 0,

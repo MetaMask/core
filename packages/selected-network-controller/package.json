@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "3.1.1",
+  "version": "6.0.0",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/selected-network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/selected-network-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -30,13 +31,14 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.3",
-    "@metamask/json-rpc-engine": "^7.3.0",
-    "@metamask/network-controller": "^15.2.0",
-    "@metamask/swappable-obj-proxy": "^2.1.0"
+    "@metamask/base-controller": "^4.1.0",
+    "@metamask/json-rpc-engine": "^7.3.1",
+    "@metamask/network-controller": "^17.1.0",
+    "@metamask/swappable-obj-proxy": "^2.2.0",
+    "@metamask/utils": "^8.3.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -50,7 +52,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^15.2.0"
+    "@metamask/network-controller": "^17.1.0"
   },
   "engines": {
     "node": ">=16.0.0"
