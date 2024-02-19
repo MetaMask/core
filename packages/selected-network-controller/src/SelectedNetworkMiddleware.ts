@@ -18,19 +18,13 @@ export const createSelectedNetworkMiddleware = (
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       origin,
     );
-  const getNetworkClientIdForMetamask = () =>
-    messenger.call(
-      SelectedNetworkControllerActionTypes.getNetworkClientIdForMetamask,
-    );
 
   return (req: SelectedNetworkMiddlewareJsonRpcRequest, _, next) => {
     if (!req.origin) {
       throw new Error("Request object is lacking an 'origin'");
     }
 
-    req.networkClientId =
-      getNetworkClientIdForDomain(req.origin) ??
-      getNetworkClientIdForMetamask();
+    req.networkClientId = getNetworkClientIdForDomain(req.origin);
     return next();
   };
 };
