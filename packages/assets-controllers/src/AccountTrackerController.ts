@@ -272,9 +272,12 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
 
       const accountsForChain = { ...accountsByChainId[chainId] };
       for (const address of accountsToUpdate) {
-        accountsForChain[address] = {
-          balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
-        };
+        const balance = await this.getBalanceFromChain(address, ethQuery);
+        if (balance) {
+          accountsForChain[address] = {
+            balance: BNToHex(balance),
+          };
+        }
       }
 
       this.update({
