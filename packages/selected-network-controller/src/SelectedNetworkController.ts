@@ -8,7 +8,6 @@ import type {
   NetworkControllerStateChangeEvent,
   ProviderProxy,
 } from '@metamask/network-controller';
-import type { HasPermissions } from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
 
@@ -77,6 +76,11 @@ export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
   handler: SelectedNetworkController['setNetworkClientIdForDomain'];
 };
 
+type PermissionControllerHasPermissions = {
+  type: `PermissionController:hasPermissions`;
+  handler: (domain: string) => boolean;
+};
+
 export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetSelectedNetworkStateAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
@@ -86,7 +90,7 @@ export type SelectedNetworkControllerActions =
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
-  | HasPermissions;
+  | PermissionControllerHasPermissions;
 
 export type SelectedNetworkControllerEvents =
   SelectedNetworkControllerStateChangeEvent;
@@ -145,10 +149,7 @@ export class SelectedNetworkController extends BaseController<
       const { selectedNetworkClientId } = this.messagingSystem.call(
         'NetworkController:getState',
       );
-      this.setNetworkClientIdForDomain(
-        METAMASK_DOMAIN,
-        selectedNetworkClientId,
-      );
+      this.setNetworkClientIdForMetamask(selectedNetworkClientId);
     }
 
     this.messagingSystem.subscribe(
@@ -217,17 +218,15 @@ export class SelectedNetworkController extends BaseController<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
-    // Early return if perDomainNetwork is disabled and the domain is not Metamask, unless it's setting for Metamask specifically
     if (domain !== METAMASK_DOMAIN && !this.state.perDomainNetwork) {
       return;
     }
 
-    // Check and, if not a metamask request, return early if the domain lacks permissions
     if (domain !== METAMASK_DOMAIN && !this.#domainHasPermissions(domain)) {
       return;
     }
 
-    // If setting for Metamask and perDomainNetwork is disabled, update all domains to the Metamask networkClientId
+    // If setting for Metamask and perDomainNetwork is disabled, update all domains to the Metamask networkClientId in order to keep the proxies in sync
     if (domain === METAMASK_DOMAIN && !this.state.perDomainNetwork) {
       Object.entries(this.state.domains).forEach(
         ([entryDomain, networkClientIdForDomain]) => {
@@ -240,7 +239,7 @@ export class SelectedNetworkController extends BaseController<
         },
       );
     }
-    // Update the network client ID for the specified domain
+
     this.#setNetworkClientIdForDomain(domain, networkClientId);
   }
 
