@@ -200,8 +200,6 @@ export class JsonRpcEngine extends SafeEventEmitter {
     requests: (JsonRpcRequest<Params> | JsonRpcNotification<Params>)[],
   ): Promise<JsonRpcResponse<Result>[]>;
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handle(req: unknown, callback?: any) {
     this.#assertIsNotDestroyed();
 
@@ -246,15 +244,11 @@ export class JsonRpcEngine extends SafeEventEmitter {
         return next(async (handlerCallback) => {
           try {
             await JsonRpcEngine.#runReturnHandlers(returnHandlers);
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } catch (error: any) {
             return handlerCallback(error);
           }
           return handlerCallback();
         });
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         return end(error);
       }
@@ -433,8 +427,6 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
     try {
       await JsonRpcEngine.#processRequest(req, res, this.#middleware);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (_error: any) {
       // A request handler error, a re-thrown middleware error, or something
       // unexpected.
@@ -581,8 +573,6 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
       try {
         middleware(request, response, next, end);
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         end(error);
       }

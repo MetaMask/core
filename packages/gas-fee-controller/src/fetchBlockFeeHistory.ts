@@ -1,8 +1,6 @@
 import { query, fromHex, toHex } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
 
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EthQuery = any;
 
 /**

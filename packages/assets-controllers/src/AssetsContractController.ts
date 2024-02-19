@@ -1,7 +1,7 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -39,14 +39,6 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x10dAd7Ca3921471f616db788D9300DC97Db01783',
   [SupportedTokenDetectionNetworks.linea_mainnet]:
     '0xF62e6a41561b3650a69Bb03199C735e3E3328c0D',
-  [SupportedTokenDetectionNetworks.arbitrum]:
-    '0x151E24A486D7258dd7C33Fb67E4bB01919B7B32c',
-  [SupportedTokenDetectionNetworks.optimism]:
-    '0xB1c568e9C3E6bdaf755A60c7418C269eb11524FC',
-  [SupportedTokenDetectionNetworks.base]:
-    '0x6AA75276052D96696134252587894ef5FFA520af',
-  [SupportedTokenDetectionNetworks.zksync]:
-    '0x458fEd3144680a5b8bcfaa0F9594aa19B4Ea2D34',
 };
 
 export const MISSING_PROVIDER_ERROR =
@@ -62,8 +54,6 @@ export const MISSING_PROVIDER_ERROR =
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AssetsContractConfig extends BaseConfig {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   provider: any;
   ipfsGateway: string;
   chainId: Hex;
@@ -85,12 +75,10 @@ export interface BalanceMap {
 /**
  * Controller that interacts with contracts on mainnet through web3
  */
-export class AssetsContractController extends BaseControllerV1<
+export class AssetsContractController extends BaseController<
   AssetsContractConfig,
   BaseState
 > {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _provider?: any;
 
   /**
@@ -106,7 +94,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -115,14 +103,14 @@ export class AssetsContractController extends BaseControllerV1<
     {
       chainId: initialChainId,
       onPreferencesStateChange,
-      onNetworkDidChange,
+      onNetworkStateChange,
       getNetworkClientById,
     }: {
       chainId: Hex;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
-      onNetworkDidChange: (
+      onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
       getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -143,7 +131,7 @@ export class AssetsContractController extends BaseControllerV1<
       this.configure({ ipfsGateway });
     });
 
-    onNetworkDidChange((networkState) => {
+    onNetworkStateChange((networkState) => {
       if (this.config.chainId !== networkState.providerConfig.chainId) {
         this.configure({
           chainId: networkState.providerConfig.chainId,
@@ -159,8 +147,6 @@ export class AssetsContractController extends BaseControllerV1<
    *
    * @property provider - Provider used to create a new underlying Web3 instance
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   set provider(provider: any) {
     this._provider = provider;
   }

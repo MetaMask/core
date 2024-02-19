@@ -8,8 +8,6 @@
 export async function graphQL<T>(
   url: string,
   query: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   variables: Record<string, any>,
 ): Promise<T> {
   const body = JSON.stringify({

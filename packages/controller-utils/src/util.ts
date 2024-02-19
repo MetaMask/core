@@ -1,5 +1,4 @@
 import type EthQuery from '@metamask/eth-query';
-import { fromWei, toWei } from '@metamask/ethjs-unit';
 import type { Hex, Json } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import ensNamehash from 'eth-ens-namehash';
@@ -11,6 +10,7 @@ import {
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';
+import { fromWei, toWei } from 'ethjs-unit';
 import deepEqual from 'fast-deep-equal';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
@@ -42,8 +42,6 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @param inputBn - BN instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function BNToHex(inputBn: any) {
   return addHexPrefix(inputBn.toString(16));
 }
@@ -57,8 +55,6 @@ export function BNToHex(inputBn: any) {
  * @returns Product of the multiplication.
  */
 export function fractionBN(
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   targetBN: any,
   numerator: number | string,
   denominator: number | string,
@@ -112,7 +108,7 @@ export function gweiDecToWEIBN(n: number | string) {
  */
 export function weiHexToGweiDec(hex: string) {
   const hexWei = new BN(stripHexPrefix(hex), 16);
-  return fromWei(hexWei, 'gwei');
+  return fromWei(hexWei, 'gwei').toString(10);
 }
 
 /**
@@ -202,16 +198,15 @@ export function toHex(value: number | string | BN): Hex {
  *
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
- * @template Result - Type of the result of the async operation
  * @returns Promise resolving to the result of the async operation.
  */
-export async function safelyExecute<Result>(
-  operation: () => Promise<Result>,
+export async function safelyExecute(
+  operation: () => Promise<any>,
   logError = false,
-): Promise<Result | undefined> {
+) {
   try {
     return await operation();
-  } catch (error) {
+  } catch (error: any) {
     /* istanbul ignore next */
     if (logError) {
       console.error(error);
@@ -226,18 +221,17 @@ export async function safelyExecute<Result>(
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
  * @param timeout - Timeout to fail the operation.
- * @template Result - Type of the result of the async operation
  * @returns Promise resolving to the result of the async operation.
  */
-export async function safelyExecuteWithTimeout<Result>(
-  operation: () => Promise<Result>,
+export async function safelyExecuteWithTimeout(
+  operation: () => Promise<any>,
   logError = false,
   timeout = 500,
-): Promise<Result | undefined> {
+) {
   try {
     return await Promise.race([
       operation(),
-      new Promise<never>((_, reject) =>
+      new Promise<void>((_, reject) =>
         setTimeout(() => {
           reject(TIMEOUT_ERROR);
         }, timeout),
@@ -318,16 +312,11 @@ export function isSmartContractCode(code: string) {
  * @param options - Fetch options.
  * @returns The fetch response.
  */
-export async function successfulFetch(
-  request: URL | RequestInfo,
-  options?: RequestInit,
-) {
+export async function successfulFetch(request: string, options?: RequestInit) {
   const response = await fetch(request, options);
   if (!response.ok) {
     throw new Error(
-      `Fetch failed with status '${response.status}' for request '${String(
-        request,
-      )}'`,
+      `Fetch failed with status '${response.status}' for request '${request}'`,
     );
   }
   return response;
@@ -340,10 +329,7 @@ export async function successfulFetch(
  * @param options - The fetch options.
  * @returns The fetch response JSON data.
  */
-export async function handleFetch(
-  request: URL | RequestInfo,
-  options?: RequestInit,
-) {
+export async function handleFetch(request: string, options?: RequestInit) {
   const response = await successfulFetch(request, options);
   const object = await response.json();
   return object;
@@ -446,11 +432,7 @@ export function normalizeEnsName(ensName: string): string | null {
 export function query(
   ethQuery: EthQuery,
   method: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any[] = [],
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const cb = (error: unknown, result: unknown) => {
@@ -537,8 +519,6 @@ export function isValidJson(value: unknown): value is Json {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function logOrRethrowError(error: any, codesToCatch: number[] = []) {
   if (!error) {
     return;

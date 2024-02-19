@@ -276,16 +276,6 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', CorrectChangelogV
   atom_concat('../../scripts/validate-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
   \+ atom_concat(ExpectedPrefix, _, ChangelogValidationCommand).
 
-% The "changelog:update" script for each published package must run a common
-% script with the name of the package as the first argument.
-gen_enforced_field(WorkspaceCwd, 'scripts.changelog:update', CorrectChangelogUpdateCommand) :-
-  \+ workspace_field(WorkspaceCwd, 'private', true),
-  workspace_field(WorkspaceCwd, 'scripts.changelog:update', ChangelogUpdateCommand),
-  workspace_package_name(WorkspaceCwd, WorkspacePackageName),
-  atomic_list_concat(['../../scripts/update-changelog.sh ', WorkspacePackageName, ' [...]'], CorrectChangelogUpdateCommand),
-  atom_concat('../../scripts/update-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
-  \+ atom_concat(ExpectedPrefix, _, ChangelogUpdateCommand).
-
 % All non-root packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
@@ -359,6 +349,13 @@ gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npm
 % whatsoever.
 gen_enforced_field(WorkspaceCwd, 'publishConfig', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
+
+% nonce-tracker has an unlisted dependency on babel-runtime (via `ethjs-query`), so that package
+% needs to be present if nonce-tracker is present.
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'devDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
 
 % eth-method-registry has an unlisted dependency on babel-runtime (via `ethjs->ethjs-query`), so
 % that package needs to be present if eth-method-registry is present.

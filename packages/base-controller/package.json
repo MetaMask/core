@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-controller",
-  "version": "4.1.0",
+  "version": "3.2.3",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "MetaMask",
@@ -22,7 +22,6 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/base-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/base-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -31,11 +30,11 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^8.3.0",
+    "@metamask/utils": "^8.2.0",
     "immer": "^9.0.6"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^3.4.3",
     "@types/jest": "^27.4.1",
     "@types/sinon": "^9.0.10",
     "deepmerge": "^4.2.2",

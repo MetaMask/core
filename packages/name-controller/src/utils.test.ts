@@ -7,8 +7,6 @@ describe('Utils', () => {
     const VARIABLES_MOCK = { test: 'value' };
     const DATA_MOCK = { test2: 'value2' };
     const JSON_MOCK = { data: DATA_MOCK };
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const RESPONSE_MOCK = { ok: true, json: () => JSON_MOCK } as any;
 
     it('fetches URL with graphQL body', async () => {
@@ -44,8 +42,6 @@ describe('Utils', () => {
     it('throws if response is not ok', async () => {
       const mockFetch = jest.spyOn(global, 'fetch');
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockFetch.mockResolvedValueOnce({ ok: false, status: 500 } as any);
 
       await expect(

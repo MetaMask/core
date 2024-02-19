@@ -27,10 +27,6 @@ export function updateTransactionHistory(
   transactionMeta: TransactionMeta,
   note: string,
 ): void {
-  if (!transactionMeta.history) {
-    return;
-  }
-
   const currentState = snapshotFromTransactionMeta(transactionMeta);
   const previousState = replayHistory(
     transactionMeta.history as TransactionHistory,
@@ -52,8 +48,6 @@ export function updateTransactionHistory(
  * @returns An array of history operation.
  */
 function generateHistoryEntry(
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   previousState: any,
   currentState: TransactionMeta,
   note: string,
@@ -83,8 +77,6 @@ function replayHistory(
 ): TransactionMeta {
   const shortHistory = cloneDeep(transactionHistory);
   return shortHistory.reduce(
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (val, entry: any) => jsonDiffer.applyPatch(val, entry).newDocument,
   ) as TransactionMeta;
 }

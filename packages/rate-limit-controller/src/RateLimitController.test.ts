@@ -2,8 +2,10 @@ import { ControllerMessenger } from '@metamask/base-controller';
 
 import type {
   RateLimitControllerActions,
+  RateLimitStateChange,
   RateLimitMessenger,
-  RateLimitControllerEvents,
+  GetRateLimitState,
+  CallApi,
 } from './RateLimitController';
 import { RateLimitController } from './RateLimitController';
 
@@ -29,8 +31,8 @@ type RateLimitedApis = typeof implementations;
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    RateLimitControllerActions<RateLimitedApis>,
-    RateLimitControllerEvents<RateLimitedApis>
+    GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>,
+    RateLimitStateChange<RateLimitedApis>
   >();
 }
 
@@ -43,8 +45,13 @@ function getUnrestrictedMessenger() {
 function getRestrictedMessenger(
   controllerMessenger = getUnrestrictedMessenger(),
 ) {
-  return controllerMessenger.getRestricted<typeof name, never, never>({
+  return controllerMessenger.getRestricted<
+    typeof name,
+    RateLimitControllerActions<RateLimitedApis>['type'],
+    never
+  >({
     name,
+    allowedActions: ['RateLimitController:call'],
   }) as RateLimitMessenger<RateLimitedApis>;
 }
 

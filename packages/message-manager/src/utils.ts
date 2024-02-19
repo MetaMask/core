@@ -83,8 +83,6 @@ export function validateTypedSignMessageDataV1(
 
   try {
     // typedSignatureHash will throw if the data is invalid.
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     typedSignatureHash(messageData.data as any);
   } catch (e) {
     throw new Error(`Expected EIP712 typed data.`);

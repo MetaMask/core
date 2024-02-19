@@ -1,10 +1,7 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import { hasProperty } from '@metamask/utils';
+import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 
 /**
@@ -33,15 +30,15 @@ export type Notification = {
 
 const name = 'NotificationController';
 
-export type NotificationControllerStateChange = ControllerStateChangeEvent<
-  typeof name,
-  NotificationControllerState
->;
+export type NotificationControllerStateChange = {
+  type: `${typeof name}:stateChange`;
+  payload: [NotificationControllerState, Patch[]];
+};
 
-export type GetNotificationControllerState = ControllerGetStateAction<
-  typeof name,
-  NotificationControllerState
->;
+export type GetNotificationControllerState = {
+  type: `${typeof name}:getState`;
+  handler: () => NotificationControllerState;
+};
 
 export type ShowNotification = {
   type: `${typeof name}:show`;
@@ -89,7 +86,7 @@ const defaultState = {
 /**
  * Controller that handles storing notifications and showing them to the user
  */
-export class NotificationController extends BaseController<
+export class NotificationController extends BaseControllerV2<
   typeof name,
   NotificationControllerState,
   NotificationControllerMessenger

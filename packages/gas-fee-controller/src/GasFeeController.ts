@@ -1,8 +1,4 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import {
   convertHexToDecimal,
   safelyExecute,
@@ -14,12 +10,13 @@ import type {
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
-  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
+import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
@@ -219,28 +216,27 @@ export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
 
 const name = 'GasFeeController';
 
-export type GasFeeStateChange = ControllerStateChangeEvent<
-  typeof name,
-  GasFeeState
->;
+export type GasFeeStateChange = {
+  type: `${typeof name}:stateChange`;
+  payload: [GasFeeState, Patch[]];
+};
 
-export type GetGasFeeState = ControllerGetStateAction<typeof name, GasFeeState>;
-
-export type GasFeeControllerActions = GetGasFeeState;
-
-export type GasFeeControllerEvents = GasFeeStateChange;
-
-type AllowedActions =
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction;
+export type GetGasFeeState = {
+  type: `${typeof name}:getState`;
+  handler: () => GasFeeState;
+};
 
 type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
-  GasFeeControllerActions | AllowedActions,
-  GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
-  AllowedActions['type'],
-  NetworkControllerNetworkDidChangeEvent['type']
+  | GetGasFeeState
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetEIP1559CompatibilityAction,
+  GasFeeStateChange | NetworkControllerStateChangeEvent,
+  | NetworkControllerGetStateAction['type']
+  | NetworkControllerGetNetworkClientByIdAction['type']
+  | NetworkControllerGetEIP1559CompatibilityAction['type'],
+  NetworkControllerStateChangeEvent['type']
 >;
 
 const defaultState: GasFeeState = {
@@ -253,7 +249,7 @@ const defaultState: GasFeeState = {
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends StaticIntervalPollingController<
+export class GasFeeController extends PollingController<
   typeof name,
   GasFeeState,
   GasFeeMessenger
@@ -297,7 +293,7 @@ export class GasFeeController extends StaticIntervalPollingController<
    * account is EIP-1559 compatible.
    * @param options.getChainId - Returns the current chain ID.
    * @param options.getProvider - Returns a network provider for the current network.
-   * @param options.onNetworkDidChange - A function for registering an event handler for the
+   * @param options.onNetworkStateChange - A function for registering an event handler for the
    * network state change event.
    * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
    * testing purposes.
@@ -314,7 +310,7 @@ export class GasFeeController extends StaticIntervalPollingController<
     getChainId,
     getCurrentNetworkLegacyGasAPICompatibility,
     getProvider,
-    onNetworkDidChange,
+    onNetworkStateChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint,
     clientId,
@@ -327,7 +323,7 @@ export class GasFeeController extends StaticIntervalPollingController<
     getCurrentAccountEIP1559Compatibility?: () => boolean;
     getChainId?: () => Hex;
     getProvider: () => ProviderProxy;
-    onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
+    onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint: string;
     clientId?: string;
@@ -354,19 +350,19 @@ export class GasFeeController extends StaticIntervalPollingController<
 
     this.ethQuery = new EthQuery(this.#getProvider());
 
-    if (onNetworkDidChange && getChainId) {
+    if (onNetworkStateChange && getChainId) {
       this.currentChainId = getChainId();
-      onNetworkDidChange(async (networkControllerState) => {
-        await this.#onNetworkControllerDidChange(networkControllerState);
+      onNetworkStateChange(async (networkControllerState) => {
+        await this.#onNetworkControllerStateChange(networkControllerState);
       });
     } else {
       this.currentChainId = this.messagingSystem.call(
         'NetworkController:getState',
       ).providerConfig.chainId;
       this.messagingSystem.subscribe(
-        'NetworkController:networkDidChange',
+        'NetworkController:stateChange',
         async (networkControllerState) => {
-          await this.#onNetworkControllerDidChange(networkControllerState);
+          await this.#onNetworkControllerStateChange(networkControllerState);
         },
       );
     }
@@ -579,7 +575,7 @@ export class GasFeeController extends StaticIntervalPollingController<
     );
   }
 
-  async #onNetworkControllerDidChange(networkControllerState: NetworkState) {
+  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {

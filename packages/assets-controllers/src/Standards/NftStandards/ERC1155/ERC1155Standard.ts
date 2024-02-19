@@ -26,14 +26,14 @@ export class ERC1155Standard {
    * @param address - ERC1155 asset contract address.
    * @returns Promise resolving to whether the contract implements ERC1155 URI Metadata interface.
    */
-  async contractSupportsURIMetadataInterface(
+  contractSupportsURIMetadataInterface = async (
     address: string,
-  ): Promise<boolean> {
+  ): Promise<boolean> => {
     return this.contractSupportsInterface(
       address,
       ERC1155_METADATA_URI_INTERFACE_ID,
     );
-  }
+  };
 
   /**
    * Query if contract implements ERC1155 Token Receiver interface.
@@ -41,14 +41,14 @@ export class ERC1155Standard {
    * @param address - ERC1155 asset contract address.
    * @returns Promise resolving to whether the contract implements ERC1155 Token Receiver interface.
    */
-  async contractSupportsTokenReceiverInterface(
+  contractSupportsTokenReceiverInterface = async (
     address: string,
-  ): Promise<boolean> {
+  ): Promise<boolean> => {
     return this.contractSupportsInterface(
       address,
       ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
     );
-  }
+  };
 
   /**
    * Query if contract implements ERC1155 interface.
@@ -56,9 +56,11 @@ export class ERC1155Standard {
    * @param address - ERC1155 asset contract address.
    * @returns Promise resolving to whether the contract implements the base ERC1155 interface.
    */
-  async contractSupportsBase1155Interface(address: string): Promise<boolean> {
+  contractSupportsBase1155Interface = async (
+    address: string,
+  ): Promise<boolean> => {
     return this.contractSupportsInterface(address, ERC1155_INTERFACE_ID);
-  }
+  };
 
   /**
    * Query for tokenURI for a given asset.
@@ -67,10 +69,10 @@ export class ERC1155Standard {
    * @param tokenId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'tokenURI'.
    */
-  async getTokenURI(address: string, tokenId: string): Promise<string> {
+  getTokenURI = async (address: string, tokenId: string): Promise<string> => {
     const contract = new Contract(address, abiERC1155, this.provider);
     return contract.uri(tokenId);
-  }
+  };
 
   /**
    * Query for balance of a given ERC1155 token.
@@ -80,15 +82,15 @@ export class ERC1155Standard {
    * @param tokenId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'balanceOf'.
    */
-  async getBalanceOf(
+  getBalanceOf = async (
     contractAddress: string,
     address: string,
     tokenId: string,
-  ): Promise<BN> {
+  ): Promise<BN> => {
     const contract = new Contract(contractAddress, abiERC1155, this.provider);
     const balance = await contract.balanceOf(address, tokenId);
     return ethersBigNumberToBN(balance);
-  }
+  };
 
   /**
    * Transfer single ERC1155 token.
@@ -102,13 +104,13 @@ export class ERC1155Standard {
    * @param value - Number of tokens to be sent.
    * @returns Promise resolving to the 'transferSingle'.
    */
-  async transferSingle(
+  transferSingle = async (
     operator: string,
     from: string,
     to: string,
     id: string,
     value: string,
-  ): Promise<void> {
+  ): Promise<void> => {
     const contract = new Contract(operator, abiERC1155, this.provider);
     return new Promise<void>((resolve, reject) => {
       contract.transferSingle(
@@ -127,7 +129,7 @@ export class ERC1155Standard {
         },
       );
     });
-  }
+  };
 
   /**
    * Query for symbol for a given asset.
@@ -135,7 +137,7 @@ export class ERC1155Standard {
    * @param address - ERC1155 asset contract address.
    * @returns Promise resolving to the 'symbol'.
    */
-  async getAssetSymbol(address: string): Promise<string> {
+  getAssetSymbol = async (address: string): Promise<string> => {
     const contract = new Contract(
       address,
       // Contract ABI fragment containing only the symbol method to fetch the symbol of the contract.
@@ -152,7 +154,7 @@ export class ERC1155Standard {
       this.provider,
     );
     return contract.symbol();
-  }
+  };
 
   /**
    * Query for name for a given asset.
@@ -160,7 +162,7 @@ export class ERC1155Standard {
    * @param address - ERC1155 asset contract address.
    * @returns Promise resolving to the 'name'.
    */
-  async getAssetName(address: string): Promise<string> {
+  getAssetName = async (address: string): Promise<string> => {
     const contract = new Contract(
       address,
       // Contract ABI fragment containing only the name method to fetch the name of the contract.
@@ -177,7 +179,7 @@ export class ERC1155Standard {
       this.provider,
     );
     return contract.name();
-  }
+  };
 
   /**
    * Query if a contract implements an interface.
@@ -186,13 +188,13 @@ export class ERC1155Standard {
    * @param interfaceId - Interface identifier.
    * @returns Promise resolving to whether the contract implements `interfaceID`.
    */
-  private async contractSupportsInterface(
+  private readonly contractSupportsInterface = async (
     address: string,
     interfaceId: string,
-  ): Promise<boolean> {
+  ): Promise<boolean> => {
     const contract = new Contract(address, abiERC1155, this.provider);
     return contract.supportsInterface(interfaceId);
-  }
+  };
 
   /**
    * Query if a contract implements an interface.
@@ -202,7 +204,7 @@ export class ERC1155Standard {
    * @param tokenId - tokenId of a given token in the contract.
    * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
    */
-  async getDetails(
+  getDetails = async (
     address: string,
     ipfsGateway: string,
     tokenId?: string,
@@ -212,7 +214,7 @@ export class ERC1155Standard {
     image: string | undefined;
     name: string | undefined;
     symbol: string | undefined;
-  }> {
+  }> => {
     const isERC1155 = await this.contractSupportsBase1155Interface(address);
 
     if (!isERC1155) {
@@ -235,7 +237,7 @@ export class ERC1155Standard {
         : undefined,
     ]);
 
-    if (tokenURI) {
+    if (tokenId) {
       try {
         const response = await timeoutFetch(tokenURI);
         const object = await response.json();
@@ -244,8 +246,7 @@ export class ERC1155Standard {
           image = getFormattedIpfsUrl(ipfsGateway, image, true);
         }
       } catch {
-        // Catch block should be kept empty to ignore exceptions, and
-        // pass as much information as possible to the return statement
+        // ignore
       }
     }
 
@@ -257,5 +258,5 @@ export class ERC1155Standard {
       symbol,
       name,
     };
-  }
+  };
 }

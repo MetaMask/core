@@ -9,7 +9,6 @@ module.exports = {
     'docs',
     'coverage',
     'merged-packages',
-    'package-template',
   ],
   overrides: [
     {
@@ -42,9 +41,6 @@ module.exports = {
         project: ['./tsconfig.packages.json'],
       },
       rules: {
-        // Enable rules that are disabled in `@metamask/eslint-config-typescript`
-        '@typescript-eslint/no-explicit-any': 'error',
-
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
 
@@ -83,13 +79,6 @@ module.exports = {
       rules: {
         // All scripts will have shebangs.
         'n/shebang': 'off',
-      },
-    },
-    {
-      files: ['**/jest.environment.js'],
-      rules: {
-        // These files run under Node, and thus `require(...)` is expected.
-        'n/global-require': 'off',
       },
     },
   ],

@@ -24,9 +24,9 @@ The `./scripts/migrate-tags.sh` script automates the process of enumerating the 
 - `-t`, `--tag-prefix-before-package-rename` (optional)
   - Default if omitted: `<package-name>` supplied in the first argument.
 - `-d`, `--tmp-dir` (optional)
-  - Default if omitted: `/tmp`
+  - Default if ommited: `/tmp`
   - Specifies the temporary directory where `git-filter-repo` was applied to a clone of the original repo.
-- `-p`, `--sed-pattern` (optional): sed pattern for extracting version numbers from the original repo's tag names.
+- `-p`, `--sed-pattern` (optional): sed pattern for extracting verson numbers from the original repo's tag names.
   - Default if omitted: `'s/^v//'`
   - If the original tag names follow a different naming scheme than `v[major].[minor].[patch]`, adjust this setting.
 - `--no-dry-run` (optional):

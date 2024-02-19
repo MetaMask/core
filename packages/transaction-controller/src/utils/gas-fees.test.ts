@@ -25,8 +25,6 @@ const UPDATE_GAS_FEES_REQUEST_MOCK = {
   txMeta: {
     txParams: {},
   },
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any as UpdateGasFeesRequest;
 
 function toHex(value: number) {
@@ -39,16 +37,12 @@ describe('gas-fees', () => {
 
   function mockGetGasFeeEstimates(
     estimateType: (typeof GAS_ESTIMATE_TYPES)[keyof typeof GAS_ESTIMATE_TYPES],
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     gasEstimates: any,
   ) {
     updateGasFeeRequest.getGasFeeEstimates.mockReset();
     updateGasFeeRequest.getGasFeeEstimates.mockResolvedValue({
       gasEstimateType: estimateType,
       gasFeeEstimates: gasEstimates,
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
   }
 

@@ -41,8 +41,6 @@ describe('mergeMiddleware', () => {
       mergeMiddleware([
         (_request, response, next, _end) => {
           next((callback) => {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (response as any).copy = response.result;
             callback();
           });
@@ -78,8 +76,6 @@ describe('mergeMiddleware', () => {
       mergeMiddleware([
         function (request, response, _next, end) {
           originalRequest = request;
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (response as any).xyz = true;
           response.result = true;
           end();
@@ -95,8 +91,6 @@ describe('mergeMiddleware', () => {
         expect(res).toBeDefined();
         expect(originalRequest.id).toStrictEqual(res.id);
         expect(originalRequest.jsonrpc).toStrictEqual(res.jsonrpc);
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((res as any).xyz).toBe(true);
         resolve();
       });
@@ -111,8 +105,6 @@ describe('mergeMiddleware', () => {
       mergeMiddleware([
         function (request, response, _next, end) {
           originalRequest = request;
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (request as any).xyz = true;
           response.result = true;
           end();
@@ -128,8 +120,6 @@ describe('mergeMiddleware', () => {
         expect(response).toBeDefined();
         expect(originalRequest.id).toStrictEqual(response.id);
         expect(originalRequest.jsonrpc).toStrictEqual(response.jsonrpc);
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((originalRequest as any).xyz).toBe(true);
         resolve();
       });
@@ -163,8 +153,6 @@ describe('mergeMiddleware', () => {
       mergeMiddleware([
         (_request, response, next, _end) => {
           next((callback) => {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (response as any).copy = response.result;
             callback();
           });

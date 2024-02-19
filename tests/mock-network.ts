@@ -32,8 +32,6 @@ import { NetworkClientType } from '../packages/network-controller/src/types';
 type JsonRpcRequestMock = {
   request: {
     method: string;
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params?: any[];
   };
   delay?: number;
@@ -41,8 +39,6 @@ type JsonRpcRequestMock = {
   beforeCompleting?: () => void | Promise<void>;
 } & (
   | {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       response: ({ result: any } | { error: string }) & { httpStatus?: number };
     }
   | {
@@ -164,12 +160,8 @@ class MockedNetwork {
           : 200;
       newNockScope = nockInterceptor.reply(
         httpStatus,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (_uri: any, requestBody: JsonRpcRequest<any>) => {
           const baseResponse = { id: requestBody.id, jsonrpc: '2.0' as const };
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           let completeResponse: JsonRpcResponse<any> | undefined;
 
           if ('response' in requestMock) {

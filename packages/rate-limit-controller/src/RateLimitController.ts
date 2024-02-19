@@ -1,11 +1,7 @@
-import type {
-  ActionConstraint,
-  RestrictedControllerMessenger,
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { Patch } from 'immer';
 
 /**
  * @type RateLimitedApi
@@ -14,7 +10,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
  * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
  */
 export type RateLimitedApi = {
-  method: ActionConstraint['handler'];
+  method: (...args: any[]) => any;
   rateLimitTimeout?: number;
   rateLimitCount?: number;
 };
@@ -33,11 +29,17 @@ const name = 'RateLimitController';
 
 export type RateLimitStateChange<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = ControllerStateChangeEvent<typeof name, RateLimitedApis>;
+> = {
+  type: `${typeof name}:stateChange`;
+  payload: [RateLimitState<RateLimitedApis>, Patch[]];
+};
 
 export type GetRateLimitState<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = ControllerGetStateAction<typeof name, RateLimitedApis>;
+> = {
+  type: `${typeof name}:getState`;
+  handler: () => RateLimitState<RateLimitedApis>;
+};
 
 export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
   type: `${typeof name}:call`;
@@ -48,16 +50,12 @@ export type RateLimitControllerActions<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>;
 
-export type RateLimitControllerEvents<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
-> = RateLimitStateChange<RateLimitedApis>;
-
 export type RateLimitMessenger<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = RestrictedControllerMessenger<
   typeof name,
   RateLimitControllerActions<RateLimitedApis>,
-  RateLimitControllerEvents<RateLimitedApis>,
+  RateLimitStateChange<RateLimitedApis>,
   never,
   never
 >;
@@ -123,11 +121,11 @@ export class RateLimitController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:call` as const,
-      (
+      ((
         origin: string,
         type: keyof RateLimitedApis,
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
-      ) => this.call(origin, type, ...args),
+      ) => this.call(origin, type, ...args)) as any,
     );
   }
 
@@ -137,6 +135,7 @@ export class RateLimitController<
    * @param origin - The requesting origin.
    * @param type - The type of API call to make.
    * @param args - Arguments for the API call.
+   * @returns `false` if rate-limited, and `true` otherwise.
    */
   async call<ApiType extends keyof RateLimitedApis>(
     origin: string,
@@ -156,9 +155,7 @@ export class RateLimitController<
       throw new Error('Invalid api type');
     }
 
-    return implementation(...args) as ReturnType<
-      RateLimitedApis[ApiType]['method']
-    >;
+    return implementation(...args);
   }
 
   /**
@@ -184,11 +181,7 @@ export class RateLimitController<
     const rateLimitTimeout =
       this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const previous = (state as any).requests[api][origin] ?? 0;
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (state as any).requests[api][origin] = previous + 1;
 
       if (previous === 0) {
@@ -205,8 +198,6 @@ export class RateLimitController<
    */
   private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (state as any).requests[api][origin] = 0;
     });
   }

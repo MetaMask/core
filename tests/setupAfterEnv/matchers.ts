@@ -30,8 +30,6 @@ expect.extend({
    * @param promise - The promise to test.
    * @returns The result of the matcher.
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async toBeFulfilled(promise: Promise<any>) {
     if (this.isNot) {
       throw new Error(
@@ -39,8 +37,6 @@ expect.extend({
       );
     }
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let rejectionValue: any = UNRESOLVED;
     try {
       await promise;
@@ -73,8 +69,6 @@ expect.extend({
    * @param promise - The promise to test.
    * @returns The result of the matcher.
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async toNeverResolve(promise: Promise<any>) {
     if (this.isNot) {
       throw new Error(
@@ -84,11 +78,7 @@ expect.extend({
       );
     }
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let resolutionValue: any;
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let rejectionValue: any;
     try {
       resolutionValue = await Promise.race([

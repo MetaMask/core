@@ -1,8 +1,4 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -10,9 +6,10 @@ import type {
   NetworkState,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import type { Patch } from 'immer';
 
 import {
   isTokenListSupportedForNetwork,
@@ -52,30 +49,21 @@ export type TokenListState = {
   preventPollingOnNetworkRestart: boolean;
 };
 
-export type TokenListStateChange = ControllerStateChangeEvent<
+export type TokenListStateChange = {
+  type: `${typeof name}:stateChange`;
+  payload: [TokenListState, Patch[]];
+};
+
+export type GetTokenListState = {
+  type: `${typeof name}:getState`;
+  handler: () => TokenListState;
+};
+type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
-  TokenListState
->;
-
-export type TokenListControllerEvents = TokenListStateChange;
-
-export type GetTokenListState = ControllerGetStateAction<
-  typeof name,
-  TokenListState
->;
-
-export type TokenListControllerActions = GetTokenListState;
-
-type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
-
-type AllowedEvents = NetworkControllerStateChangeEvent;
-
-export type TokenListControllerMessenger = RestrictedControllerMessenger<
-  typeof name,
-  TokenListControllerActions | AllowedActions,
-  TokenListControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
+  TokenListStateChange | NetworkControllerStateChangeEvent,
+  NetworkControllerGetNetworkClientByIdAction['type'],
+  TokenListStateChange['type'] | NetworkControllerStateChangeEvent['type']
 >;
 
 const metadata = {
@@ -84,21 +72,19 @@ const metadata = {
   preventPollingOnNetworkRestart: { persist: true, anonymous: true },
 };
 
-export const getDefaultTokenListState = (): TokenListState => {
-  return {
-    tokenList: {},
-    tokensChainsCache: {},
-    preventPollingOnNetworkRestart: false,
-  };
+const defaultState: TokenListState = {
+  tokenList: {},
+  tokensChainsCache: {},
+  preventPollingOnNetworkRestart: false,
 };
 
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends StaticIntervalPollingController<
+export class TokenListController extends PollingController<
   typeof name,
   TokenListState,
-  TokenListControllerMessenger
+  TokenListMessenger
 > {
   private readonly mutex = new Mutex();
 
@@ -140,14 +126,14 @@ export class TokenListController extends StaticIntervalPollingController<
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
-    messenger: TokenListControllerMessenger;
+    messenger: TokenListMessenger;
     state?: Partial<TokenListState>;
   }) {
     super({
       name,
       metadata,
       messenger,
-      state: { ...getDefaultTokenListState(), ...state },
+      state: { ...defaultState, ...state },
     });
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
@@ -274,7 +260,7 @@ export class TokenListController extends StaticIntervalPollingController<
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
-      const cachedTokens = await safelyExecute(() =>
+      const cachedTokens: TokenListMap = await safelyExecute(() =>
         this.#fetchFromCache(chainId),
       );
       if (cachedTokens) {
@@ -282,14 +268,9 @@ export class TokenListController extends StaticIntervalPollingController<
         tokenList = { ...cachedTokens };
       } else {
         // Fetch fresh token list
-        const tokensFromAPI = await safelyExecute(
-          () =>
-            fetchTokenListByChainId(
-              chainId,
-              this.abortController.signal,
-            ) as Promise<TokenListToken[]>,
-        );
-
+        const tokensFromAPI: TokenListToken[] = await safelyExecute(() => {
+          return fetchTokenListByChainId(chainId, this.abortController.signal);
+        });
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
           tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
@@ -302,7 +283,26 @@ export class TokenListController extends StaticIntervalPollingController<
           });
           return;
         }
-        for (const token of tokensFromAPI) {
+        // Filtering out tokens with less than 3 occurrences and native tokens
+        const filteredTokenList = tokensFromAPI.filter(
+          (token) =>
+            token.occurrences &&
+            token.occurrences >= 3 &&
+            token.address !== '0x0000000000000000000000000000000000000000',
+        );
+        // Removing the tokens with symbol conflicts
+        const symbolsList = filteredTokenList.map((token) => token.symbol);
+        const duplicateSymbols = [
+          ...new Set(
+            symbolsList.filter(
+              (symbol, index) => symbolsList.indexOf(symbol) !== index,
+            ),
+          ),
+        ];
+        const uniqueTokenList = filteredTokenList.filter(
+          (token) => !duplicateSymbols.includes(token.symbol),
+        );
+        for (const token of uniqueTokenList) {
           const formattedToken: TokenListToken = {
             ...token,
             aggregators: formatAggregatorNames(token.aggregators),

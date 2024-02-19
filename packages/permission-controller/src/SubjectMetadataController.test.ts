@@ -34,11 +34,14 @@ function getSubjectMetadataControllerMessenger() {
   return [
     controllerMessenger.getRestricted<
       typeof controllerName,
-      HasPermissions['type'],
-      never
+      SubjectMetadataControllerActions['type'] | HasPermissions['type'],
+      SubjectMetadataControllerEvents['type']
     >({
       name: controllerName,
-      allowedActions: ['PermissionController:hasPermissions'],
+      allowedActions: [
+        'PermissionController:hasPermissions',
+        'SubjectMetadataController:getState',
+      ],
     }) as SubjectMetadataControllerMessenger,
     hasPermissionsSpy,
   ] as const;
@@ -278,68 +281,6 @@ describe('SubjectMetadataController', () => {
           D: getSubjectMetadata('D', 'd'),
         },
       });
-    });
-  });
-
-  describe('controller actions', () => {
-    it(':getSubjectMetadata returns the subject metadata', () => {
-      const [messenger, hasPermissionsSpy] =
-        getSubjectMetadataControllerMessenger();
-      const controller = new SubjectMetadataController({
-        messenger,
-        subjectCacheLimit: 100,
-      });
-      hasPermissionsSpy.mockImplementationOnce(() => true);
-
-      controller.addSubjectMetadata(
-        getSubjectMetadata('foo.com', 'foo', SubjectType.Snap),
-      );
-
-      controller.addSubjectMetadata(
-        getSubjectMetadata('bar.io', 'bar', SubjectType.Website),
-      );
-
-      expect(
-        messenger.call(
-          'SubjectMetadataController:getSubjectMetadata',
-          'foo.com',
-        ),
-      ).toStrictEqual(getSubjectMetadata('foo.com', 'foo', SubjectType.Snap));
-
-      expect(
-        messenger.call(
-          'SubjectMetadataController:getSubjectMetadata',
-          'bar.io',
-        ),
-      ).toStrictEqual(getSubjectMetadata('bar.io', 'bar', SubjectType.Website));
-    });
-
-    it(':addSubjectMetadata adds passed subject metadata', () => {
-      const [messenger, hasPermissionsSpy] =
-        getSubjectMetadataControllerMessenger();
-      const controller = new SubjectMetadataController({
-        messenger,
-        subjectCacheLimit: 100,
-      });
-      hasPermissionsSpy.mockImplementationOnce(() => true);
-
-      messenger.call(
-        'SubjectMetadataController:addSubjectMetadata',
-        getSubjectMetadata('foo.com', 'foo', SubjectType.Snap),
-      );
-
-      messenger.call(
-        'SubjectMetadataController:addSubjectMetadata',
-        getSubjectMetadata('bar.io', 'bar', SubjectType.Website),
-      );
-
-      expect(controller.getSubjectMetadata('foo.com')).toStrictEqual(
-        getSubjectMetadata('foo.com', 'foo', SubjectType.Snap),
-      );
-
-      expect(controller.getSubjectMetadata('bar.io')).toStrictEqual(
-        getSubjectMetadata('bar.io', 'bar', SubjectType.Website),
-      );
     });
   });
 });

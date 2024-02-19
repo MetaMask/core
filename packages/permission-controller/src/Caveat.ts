@@ -82,16 +82,10 @@ export type CaveatDecorator<ParentCaveat extends CaveatConstraint> = (
  * @template Decorator - The {@link CaveatDecorator} to extract a caveat value
  * type from.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExtractCaveatValueFromDecorator<Decorator extends CaveatDecorator<any>> =
   Decorator extends (
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     decorated: any,
     caveat: infer ParentCaveat,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => AsyncRestrictedMethod<any, any>
     ? ParentCaveat extends CaveatConstraint
       ? ParentCaveat['value']
@@ -129,8 +123,6 @@ export type CaveatSpecificationBase = {
    * performed. Although caveats can also be validated by permission validators,
    * validating caveat values separately is strongly recommended.
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validator?: CaveatValidator<any>;
 };
 
@@ -140,8 +132,6 @@ export type RestrictedMethodCaveatSpecificationConstraint =
      * The decorator function used to apply the caveat to restricted method
      * requests.
      */
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     decorator: CaveatDecorator<any>;
   };
 
@@ -180,8 +170,6 @@ type CaveatSpecificationBuilderOptions<
  * tailored to their requirements.
  */
 export type CaveatSpecificationBuilder<
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Options extends CaveatSpecificationBuilderOptions<any, any>,
   Specification extends CaveatSpecificationConstraint,
 > = (options: Options) => Specification;
@@ -192,8 +180,6 @@ export type CaveatSpecificationBuilder<
  */
 export type CaveatSpecificationBuilderExportConstraint = {
   specificationBuilder: CaveatSpecificationBuilder<
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     CaveatSpecificationBuilderOptions<any, any>,
     CaveatSpecificationConstraint
   >;
@@ -220,8 +206,6 @@ export type CaveatSpecificationMap<
  */
 export type ExtractCaveats<
   CaveatSpecification extends CaveatSpecificationConstraint,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 > = CaveatSpecification extends any
   ? CaveatSpecification extends RestrictedMethodCaveatSpecificationConstraint
     ? Caveat<

@@ -6,8 +6,8 @@ import {
   getAnonymizedState,
   getPersistentState,
 } from './BaseControllerV2';
+import type { RestrictedControllerMessenger } from './ControllerMessenger';
 import { ControllerMessenger } from './ControllerMessenger';
-import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
 const countControllerName = 'CountController';
 
@@ -294,64 +294,6 @@ describe('BaseController', () => {
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
     ]);
-  });
-
-  it('should notify a subscriber with a selector of state changes', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener = sinon.stub();
-    controllerMessenger.subscribe(
-      'CountController:stateChange',
-      listener,
-      ({ count }) => {
-        // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
-      },
-    );
-
-    controller.update(() => {
-      return { count: 10 };
-    });
-
-    expect(listener.callCount).toBe(1);
-    expect(listener.firstCall.args).toStrictEqual([1, 0]);
-  });
-
-  it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener = sinon.stub();
-    controllerMessenger.subscribe(
-      'CountController:stateChange',
-      listener,
-      ({ count }) => {
-        // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
-      },
-    );
-
-    controller.update(() => {
-      // Note that this rounds down to zero, so the selected value is still zero
-      return { count: 1 };
-    });
-
-    expect(listener.callCount).toBe(0);
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {

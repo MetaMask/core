@@ -11,8 +11,6 @@ jest.mock('@spruceid/siwe-parser');
 
 describe('siwe', () => {
   describe('detectSIWE', () => {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parsedMessageMock = ParsedMessage as any;
     it('returns an object with isSIWEMessage set to true and parsedMessage', () => {
       parsedMessageMock.mockReturnValue(mockedParsedMessage);

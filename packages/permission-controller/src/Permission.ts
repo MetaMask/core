@@ -118,9 +118,7 @@ export type ValidPermission<
  */
 type ExtractArrayMembers<ArrayType> = ArrayType extends []
   ? never
-  : // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ArrayType extends any[] | readonly any[]
+  : ArrayType extends any[] | readonly any[]
   ? ArrayType[number]
   : never;
 
@@ -209,8 +207,6 @@ export type RequestedPermissions = Record<TargetName, RequestedPermission>;
  */
 type RestrictedMethodContext = Readonly<{
   origin: OriginString;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }>;
 
@@ -265,8 +261,6 @@ export type RestrictedMethod<
   | AsyncRestrictedMethod<Params, Result>;
 
 export type ValidRestrictedMethod<
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   MethodImplementation extends RestrictedMethod<any, any>,
 > = MethodImplementation extends (args: infer Options) => Json | Promise<Json>
   ? Options extends RestrictedMethodOptions<RestrictedMethodParameters>
@@ -404,8 +398,6 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    * used, and the validator function (if specified) will be called on newly
    * constructed permissions.
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   factory?: PermissionFactory<any, Record<string, unknown>>;
 
   /**
@@ -423,8 +415,6 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    *
    * If the side-effect action fails, the permission that triggered it is revoked.
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sideEffect?: PermissionSideEffect<any, any>;
 
   /**
@@ -449,8 +439,6 @@ export type RestrictedMethodSpecificationConstraint =
      * The implementation of the restricted method that the permission
      * corresponds to.
      */
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     methodImplementation: RestrictedMethod<any, any>;
   };
 
@@ -469,8 +457,6 @@ export type EndowmentSpecificationConstraint =
      * permission is invoked, after which the host can apply the endowments to
      * the requesting subject in the intended manner.
      */
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     endowmentGetter: EndowmentGetter<any>;
   };
 
@@ -511,8 +497,6 @@ type PermissionSpecificationBuilderOptions<
  */
 export type PermissionSpecificationBuilder<
   Type extends PermissionType,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Options extends PermissionSpecificationBuilderOptions<any, any, any>,
   Specification extends PermissionSpecificationConstraint & {
     permissionType: Type;
@@ -527,8 +511,6 @@ export type PermissionSpecificationBuilderExportConstraint = {
   targetName: string;
   specificationBuilder: PermissionSpecificationBuilder<
     PermissionType,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     PermissionSpecificationBuilderOptions<any, any, any>,
     PermissionSpecificationConstraint
   >;

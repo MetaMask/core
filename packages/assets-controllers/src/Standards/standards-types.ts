@@ -5,8 +5,6 @@ import type {
 } from '@metamask/metamask-eth-abis';
 
 type Contract = {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   at(address: string): any;
 };
 

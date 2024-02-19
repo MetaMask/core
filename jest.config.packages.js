@@ -34,7 +34,7 @@ module.exports = {
   coverageProvider: 'babel',
 
   // A list of reporter names that Jest uses when writing coverage reports
-  coverageReporters: ['text', 'html', 'json-summary', 'lcov'],
+  coverageReporters: ['text', 'html', 'json-summary'],
 
   // An object that configures minimum threshold enforcement for coverage results
   // (Each package defines this separately)
@@ -175,9 +175,6 @@ module.exports = {
 
   // This option allows use of a custom test runner
   // testRunner: "jest-circus/runner",
-
-  // Default timeout of a test in milliseconds.
-  testTimeout: 30000,
 
   // This option sets the URL for the jsdom environment. It is reflected in properties such as location.href
   // testURL: "http://localhost",

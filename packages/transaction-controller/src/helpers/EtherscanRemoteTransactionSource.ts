@@ -10,7 +10,7 @@ import type {
   RemoteTransactionSourceRequest,
   TransactionMeta,
 } from '../types';
-import { TransactionStatus, TransactionType } from '../types';
+import { TransactionStatus } from '../types';
 import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
@@ -177,7 +177,6 @@ export class EtherscanRemoteTransactionSource
         to: txMeta.to,
         value: BNToHex(new BN(txMeta.value)),
       },
-      type: TransactionType.incoming,
       verifiedOnBlockchain: false,
     };
   }

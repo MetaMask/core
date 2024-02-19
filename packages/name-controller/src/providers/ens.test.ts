@@ -11,8 +11,6 @@ const REVERSE_LOOKUP_MOCK = () => DOMAIN_MOCK;
 
 const CONSTRUCTOR_ARGS_MOCK = {
   reverseLookup: REVERSE_LOOKUP_MOCK,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 describe('ENSNameProvider', () => {

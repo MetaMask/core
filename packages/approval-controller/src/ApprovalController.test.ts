@@ -4,13 +4,10 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 
 import type {
-  AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
-  ErrorOptions,
   StartFlowOptions,
-  SuccessOptions,
 } from './ApprovalController';
 import {
   APPROVAL_TYPE_RESULT_ERROR,
@@ -40,28 +37,19 @@ const ERROR_MOCK = new Error('TestError');
 const FLOW_ID_MOCK = 'TestFlowId';
 const MESSAGE_MOCK = 'TestMessage';
 const ERROR_MESSAGE_MOCK = 'TestErrorMessage';
-const TITLE_MOCK = 'TestTitle';
-const ICON_MOCK = 'TestIcon';
-
 const RESULT_COMPONENT_MOCK = {
   key: 'testKey',
   name: 'TestComponentName',
   properties: { testProp: 'testPropValue' },
   children: ['testChild1', 'testChild2'],
 };
-
 const SUCCESS_OPTIONS_MOCK = {
   message: MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
-  title: TITLE_MOCK,
-  icon: ICON_MOCK,
 };
-
 const ERROR_OPTIONS_MOCK = {
   error: ERROR_MESSAGE_MOCK,
   header: [RESULT_COMPONENT_MOCK],
-  title: TITLE_MOCK,
-  icon: ICON_MOCK,
 };
 
 const controllerName = 'ApprovalController';
@@ -209,15 +197,13 @@ function getApprovalCountParamsError() {
  * @returns An Error.
  */
 function getError(message: string, code?: number) {
-  const err = {
+  const err: any = {
     name: 'Error',
     message,
-  } as { name: string; message: string; code?: number };
-
+  };
   if (code !== undefined) {
     err.code = code;
   }
-
   return err;
 }
 
@@ -246,10 +232,7 @@ describe('approval controller', () => {
   let showApprovalRequest: jest.Mock;
 
   beforeEach(() => {
-    jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
-
     showApprovalRequest = jest.fn();
-
     approvalController = new ApprovalController({
       messenger: getRestrictedMessenger(),
       showApprovalRequest,
@@ -259,21 +242,15 @@ describe('approval controller', () => {
   describe('add', () => {
     it('validates input', () => {
       expect(() =>
-        approvalController.add({
-          id: null,
-          origin: 'bar.baz',
-        } as unknown as AddApprovalOptions),
+        approvalController.add({ id: null, origin: 'bar.baz' } as any),
       ).toThrow(getInvalidIdError());
 
-      expect(() =>
-        approvalController.add({ id: 'foo' } as unknown as AddApprovalOptions),
-      ).toThrow(getInvalidOriginError());
+      expect(() => approvalController.add({ id: 'foo' } as any)).toThrow(
+        getInvalidOriginError(),
+      );
 
       expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: true,
-        } as unknown as AddApprovalOptions),
+        approvalController.add({ id: 'foo', origin: true } as any),
       ).toThrow(getInvalidOriginError());
 
       expect(() =>
@@ -281,7 +258,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: {},
-        } as unknown as AddApprovalOptions),
+        } as any),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -289,7 +266,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           type: '',
-        } as unknown as AddApprovalOptions),
+        } as any),
       ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
@@ -298,7 +275,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestData: 'foo',
-        } as unknown as AddApprovalOptions),
+        } as any),
       ).toThrow(getInvalidRequestDataError());
 
       expect(() =>
@@ -307,7 +284,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           type: 'type',
           requestState: 'foo',
-        } as unknown as AddApprovalOptions),
+        } as any),
       ).toThrow(getInvalidRequestStateError());
     });
 
@@ -516,15 +493,17 @@ describe('approval controller', () => {
 
       expect(approvalController.get('fizz')).toBeUndefined();
 
-      expect(approvalController.get({} as never)).toBeUndefined();
+      expect((approvalController as any).get()).toBeUndefined();
+
+      expect(approvalController.get({} as any)).toBeUndefined();
     });
   });
 
   describe('getApprovalCount', () => {
-    let addWithCatch: (args: AddApprovalOptions) => void;
+    let addWithCatch: (args: any) => void;
 
     beforeEach(() => {
-      addWithCatch = (args: AddApprovalOptions) => {
+      addWithCatch = (args: any) => {
         approvalController.add(args).catch(() => undefined);
       };
     });
@@ -539,11 +518,11 @@ describe('approval controller', () => {
       );
 
       expect(() =>
-        approvalController.getApprovalCount({ origin: null } as never),
+        approvalController.getApprovalCount({ origin: null } as any),
       ).toThrow(getApprovalCountParamsError());
 
       expect(() =>
-        approvalController.getApprovalCount({ type: false } as never),
+        approvalController.getApprovalCount({ type: false } as any),
       ).toThrow(getApprovalCountParamsError());
     });
 
@@ -657,7 +636,7 @@ describe('approval controller', () => {
     it('gets the total approval count', () => {
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: AddApprovalOptions) => {
+      const addWithCatch = (args: any) => {
         approvalController.add(args).catch(() => undefined);
       };
 
@@ -685,7 +664,7 @@ describe('approval controller', () => {
       });
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: AddApprovalOptions) => {
+      const addWithCatch = (args: any) => {
         approvalController.add(args).catch(() => undefined);
       };
 
@@ -713,20 +692,20 @@ describe('approval controller', () => {
         getInvalidHasParamsError(),
       );
 
-      expect(() => approvalController.has({ id: true } as never)).toThrow(
+      expect(() => approvalController.has({ id: true } as any)).toThrow(
         getInvalidHasIdError(),
       );
 
-      expect(() => approvalController.has({ origin: true } as never)).toThrow(
+      expect(() => approvalController.has({ origin: true } as any)).toThrow(
         getInvalidHasOriginError(),
       );
 
-      expect(() => approvalController.has({ type: true } as never)).toThrow(
+      expect(() => approvalController.has({ type: true } as any)).toThrow(
         getInvalidHasTypeError(),
       );
 
       expect(() =>
-        approvalController.has({ origin: 'foo', type: true } as never),
+        approvalController.has({ origin: 'foo', type: true } as any),
       ).toThrow(getInvalidHasTypeError());
     });
 
@@ -1362,7 +1341,7 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function endsSpecifiedFlowTemplate(
-      methodCallback: (flowId: string) => Promise<unknown>,
+      methodCallback: (flowId: string) => Promise<any>,
     ) {
       approvalController.startFlow({ id: FLOW_ID_MOCK });
 
@@ -1386,8 +1365,10 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfAddingRequestFails(
-      methodCallback: () => Promise<unknown>,
+      methodCallback: () => Promise<any>,
     ) {
+      jest.spyOn(global.console, 'info');
+
       methodCallback();
 
       // Second call will fail as mocked nanoid will generate the same ID.
@@ -1408,8 +1389,10 @@ describe('approval controller', () => {
      * @param methodCallback - A callback to invoke the result method.
      */
     async function doesNotThrowIfEndFlowFails(
-      methodCallback: () => Promise<unknown>,
+      methodCallback: () => Promise<any>,
     ) {
+      jest.spyOn(global.console, 'info');
+
       const promise = methodCallback();
 
       const resultRequestId = Object.values(
@@ -1438,16 +1421,14 @@ describe('approval controller', () => {
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
           message: undefined,
           header: undefined,
-          title: undefined,
-          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        approvalController.success({
+        (approvalController as any).success({
           ...SUCCESS_OPTIONS_MOCK,
           extra: 'testValue',
-        } as SuccessOptions);
+        });
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1498,16 +1479,14 @@ describe('approval controller', () => {
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
           error: undefined,
           header: undefined,
-          title: undefined,
-          icon: undefined,
         });
       });
 
       it('only includes relevant options in request data', async () => {
-        approvalController.error({
+        (approvalController as any).error({
           ...ERROR_OPTIONS_MOCK,
           extra: 'testValue',
-        } as ErrorOptions);
+        });
 
         const { requestData } = Object.values(
           approvalController.state[PENDING_APPROVALS_STORE_KEY],

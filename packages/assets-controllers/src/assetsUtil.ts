@@ -1,30 +1,16 @@
 import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
+  isValidHexAddress,
   GANACHE_CHAIN_ID,
-  toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { CID } from 'multiformats/cid';
 
-import type {
-  Nft,
-  NftMetadata,
-  OpenSeaV2Collection,
-  OpenSeaV2Contract,
-  OpenSeaV2DetailedNft,
-  OpenSeaV2Nft,
-} from './NftController';
-import type { ApiNft, ApiNftContract } from './NftDetectionController';
-import type { AbstractTokenPricesService } from './token-prices-service';
-import { type ContractExchangeRates } from './TokenRatesController';
-
-/**
- * The maximum number of token addresses that should be sent to the Price API in
- * a single request.
- */
-export const TOKEN_PRICES_BATCH_SIZE = 30;
+import type { Nft, NftMetadata } from './NftController';
+import type { Token } from './TokenRatesController';
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -118,6 +104,40 @@ export const formatIconUrlWithProxy = ({
 };
 
 /**
+ * Validates a ERC20 token to be added with EIP747.
+ *
+ * @param token - Token object to validate.
+ */
+export function validateTokenToWatch(token: Token) {
+  const { address, symbol, decimals } = token;
+  if (!address || !symbol || typeof decimals === 'undefined') {
+    throw rpcErrors.invalidParams(
+      `Must specify address, symbol, and decimals.`,
+    );
+  }
+
+  if (typeof symbol !== 'string') {
+    throw rpcErrors.invalidParams(`Invalid symbol: not a string.`);
+  }
+
+  if (symbol.length > 11) {
+    throw rpcErrors.invalidParams(
+      `Invalid symbol "${symbol}": longer than 11 characters.`,
+    );
+  }
+  const numDecimals = parseInt(decimals as unknown as string, 10);
+  if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
+    throw rpcErrors.invalidParams(
+      `Invalid decimals "${decimals}": must be 0 <= 36.`,
+    );
+  }
+
+  if (!isValidHexAddress(address)) {
+    throw rpcErrors.invalidParams(`Invalid address "${address}".`);
+  }
+}
+
+/**
  * Networks where token detection is supported - Values are in decimal format
  */
 export enum SupportedTokenDetectionNetworks {
@@ -128,10 +148,6 @@ export enum SupportedTokenDetectionNetworks {
   aurora = '0x4e454152', // decimal: 1313161554
   linea_goerli = '0xe704', // decimal: 59140
   linea_mainnet = '0xe708', // decimal: 59144
-  arbitrum = '0xa4b1', // decimal: 42161
-  optimism = '0xa', // decimal: 10
-  base = '0x2105', // decimal: 8453
-  zksync = '0x144', // decimal: 324
 }
 
 /**
@@ -244,219 +260,4 @@ export function addUrlProtocolPrefix(urlString: string): string {
  */
 export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
   return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
-}
-
-/**
- * Partitions a list of values into groups that are at most `batchSize` in
- * length.
- *
- * @param values - The list of values.
- * @param args - The remaining arguments.
- * @param args.batchSize - The desired maximum number of values per batch.
- * @returns The list of batches.
- */
-export function divideIntoBatches<Value>(
-  values: Value[],
-  { batchSize }: { batchSize: number },
-): Value[][] {
-  const batches = [];
-  for (let i = 0; i < values.length; i += batchSize) {
-    batches.push(values.slice(i, i + batchSize));
-  }
-  return batches;
-}
-
-/**
- * Constructs an object from processing batches of the given values
- * sequentially.
- *
- * @param args - The arguments to this function.
- * @param args.values - A list of values to iterate over.
- * @param args.batchSize - The maximum number of values in each batch.
- * @param args.eachBatch - A function to call for each batch. This function is
- * similar to the function that `Array.prototype.reduce` takes, in that it
- * receives the object that is being built, each batch in the list of batches
- * and the index, and should return an updated version of the object.
- * @param args.initialResult - The initial value of the final data structure,
- * i.e., the value that will be fed into the first call of `eachBatch`.
- * @returns The built object.
- */
-export async function reduceInBatchesSerially<
-  Value,
-  Result extends Record<PropertyKey, unknown>,
->({
-  values,
-  batchSize,
-  eachBatch,
-  initialResult,
-}: {
-  values: Value[];
-  batchSize: number;
-  eachBatch: (
-    workingResult: Partial<Result>,
-    batch: Value[],
-    index: number,
-  ) => Partial<Result> | Promise<Partial<Result>>;
-  initialResult: Partial<Result>;
-}): Promise<Result> {
-  const batches = divideIntoBatches(values, { batchSize });
-  let workingResult = initialResult;
-  for (const [index, batch] of batches.entries()) {
-    workingResult = await eachBatch(workingResult, batch, index);
-  }
-  // There's no way around this — we have to assume that in the end, the result
-  // matches the intended type.
-  const finalResult = workingResult as Result;
-  return finalResult;
-}
-
-/**
- * Maps an OpenSea V2 NFT to the V1 schema.
- * @param nft - The V2 NFT to map.
- * @returns The NFT in the V1 schema.
- */
-export function mapOpenSeaNftV2ToV1(nft: OpenSeaV2Nft): ApiNft {
-  return {
-    token_id: nft.identifier,
-    num_sales: null,
-    background_color: null,
-    image_url: nft.image_url ?? null,
-    image_preview_url: null,
-    image_thumbnail_url: null,
-    image_original_url: null,
-    animation_url: null,
-    animation_original_url: null,
-    name: nft.name,
-    description: nft.description,
-    external_link: null,
-    asset_contract: {
-      address: nft.contract,
-      asset_contract_type: null,
-      created_date: null,
-      schema_name: nft.token_standard.toUpperCase(),
-      symbol: null,
-      total_supply: null,
-      description: nft.description,
-      external_link: null,
-      collection: {
-        name: nft.collection,
-        image_url: null,
-      },
-    },
-    creator: {
-      user: { username: '' },
-      profile_img_url: '',
-      address: '',
-    },
-    last_sale: null,
-  };
-}
-
-/**
- * Maps an OpenSea V2 detailed NFT to the V1 schema.
- * @param nft - The V2 detailed NFT to map.
- * @returns The NFT in the V1 schema.
- */
-export function mapOpenSeaDetailedNftV2ToV1(nft: OpenSeaV2DetailedNft): ApiNft {
-  const mapped = mapOpenSeaNftV2ToV1(nft);
-  return {
-    ...mapped,
-    animation_url: nft.animation_url ?? null,
-    creator: {
-      ...mapped.creator,
-      address: nft.creator,
-    },
-  };
-}
-
-/**
- * Maps an OpenSea V2 contract to the V1 schema.
- * @param contract - The v2 contract data.
- * @param collection - The v2 collection data.
- * @returns The contract in the v1 schema.
- */
-export function mapOpenSeaContractV2ToV1(
-  contract: OpenSeaV2Contract,
-  collection?: OpenSeaV2Collection,
-): ApiNftContract {
-  return {
-    address: contract.address,
-    asset_contract_type: null,
-    created_date: null,
-    schema_name: contract.contract_standard.toUpperCase(),
-    symbol: null,
-    total_supply:
-      collection?.total_supply?.toString() ??
-      contract.total_supply?.toString() ??
-      null,
-    description: collection?.description ?? null,
-    external_link: collection?.project_url ?? null,
-    collection: {
-      name: collection?.name ?? contract.name,
-      image_url: collection?.image_url,
-    },
-  };
-}
-
-/**
- * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
- *
- * @param args - The arguments to function.
- * @param args.tokenPricesService - An object in charge of retrieving token prices.
- * @param args.nativeCurrency - The native currency to request price in.
- * @param args.tokenAddresses - The list of contract addresses.
- * @param args.chainId - The chainId of the tokens.
- * @returns The prices for the requested tokens.
- */
-export async function fetchTokenContractExchangeRates({
-  tokenPricesService,
-  nativeCurrency,
-  tokenAddresses,
-  chainId,
-}: {
-  tokenPricesService: AbstractTokenPricesService;
-  nativeCurrency: string;
-  tokenAddresses: Hex[];
-  chainId: Hex;
-}): Promise<ContractExchangeRates> {
-  const isChainIdSupported =
-    tokenPricesService.validateChainIdSupported(chainId);
-  const isCurrencySupported =
-    tokenPricesService.validateCurrencySupported(nativeCurrency);
-
-  if (!isChainIdSupported || !isCurrencySupported) {
-    return {};
-  }
-
-  const tokenPricesByTokenAddress = await reduceInBatchesSerially<
-    Hex,
-    Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
-  >({
-    values: [...tokenAddresses].sort(),
-    batchSize: TOKEN_PRICES_BATCH_SIZE,
-    eachBatch: async (allTokenPricesByTokenAddress, batch) => {
-      const tokenPricesByTokenAddressForBatch =
-        await tokenPricesService.fetchTokenPrices({
-          tokenAddresses: batch,
-          chainId,
-          currency: nativeCurrency,
-        });
-
-      return {
-        ...allTokenPricesByTokenAddress,
-        ...tokenPricesByTokenAddressForBatch,
-      };
-    },
-    initialResult: {},
-  });
-
-  return Object.entries(tokenPricesByTokenAddress).reduce(
-    (obj, [tokenAddress, tokenPrice]) => {
-      return {
-        ...obj,
-        [toChecksumHexAddress(tokenAddress)]: tokenPrice?.value,
-      };
-    },
-    {},
-  );
 }

@@ -8,8 +8,6 @@ import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
 const RECENT_HISTORY_BLOCK_RANGE = 10;
 
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.status,
   (txMeta) => txMeta.txParams.gasUsed,
@@ -146,8 +144,6 @@ export class IncomingTransactionHelper {
             fromBlock,
             limit: this.#transactionLimit,
           });
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         log('Error while fetching remote transactions', error);
         return;
@@ -289,7 +285,7 @@ export class IncomingTransactionHelper {
 
   #getBlockNumberKey(additionalKeys: string[]): string {
     const currentChainId = this.#getCurrentChainId();
-    const currentAccount = this.#getCurrentAccount()?.toLowerCase();
+    const currentAccount = this.#getCurrentAccount().toLowerCase();
 
     return [currentChainId, currentAccount, ...additionalKeys].join('#');
   }

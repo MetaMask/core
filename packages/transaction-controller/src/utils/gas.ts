@@ -12,7 +12,6 @@ import type { ProviderConfig } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { addHexPrefix } from 'ethereumjs-util';
 
-import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionParams } from '../types';
 
@@ -69,8 +68,6 @@ export async function estimateGas(
 
   try {
     estimatedGas = await query(ethQuery, 'estimateGas', [request]);
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     simulationFails = {
       reason: error.message,
@@ -142,15 +139,10 @@ async function getGas(
     return [estimatedGas, simulationFails];
   }
 
-  const bufferMultiplier =
-    GAS_BUFFER_CHAIN_OVERRIDES[
-      providerConfig.chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
-    ] ?? DEFAULT_GAS_MULTIPLIER;
-
   const bufferedGas = addGasBuffer(
     estimatedGas,
     blockGasLimit,
-    bufferMultiplier,
+    DEFAULT_GAS_MULTIPLIER,
   );
 
   return [bufferedGas, simulationFails];
@@ -167,13 +159,17 @@ async function requiresFixedGas({
     txParams: { to, data },
   } = txMeta;
 
-  if (isCustomNetwork || !to || data) {
+  if (isCustomNetwork) {
     return false;
+  }
+
+  if (!to) {
+    return true;
   }
 
   const code = await getCode(ethQuery, to);
 
-  return !code || code === '0x';
+  return !data && (!code || code === '0x');
 }
 
 async function getCode(

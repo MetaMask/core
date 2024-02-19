@@ -5,6 +5,7 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../controller-utils" },
     { "path": "../json-rpc-engine" }
   ],
   "include": ["../../types", "./src", "./tests"]

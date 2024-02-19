@@ -40,7 +40,7 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   },
   [CHAIN_IDS.LINEA_GOERLI]: {
     domain: 'lineascan.build',
-    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli`,
+    subdomain: 'goerli',
   },
   [CHAIN_IDS.LINEA_MAINNET]: {
     domain: 'lineascan.build',
@@ -102,9 +102,4 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
     domain: 'gnosisscan.io',
     subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-gnosis`,
   },
-};
-
-export const GAS_BUFFER_CHAIN_OVERRIDES = {
-  [CHAIN_IDS.OPTIMISM]: 1,
-  [CHAIN_IDS.OPTIMISM_TESTNET]: 1,
 };

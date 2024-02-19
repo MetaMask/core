@@ -36,8 +36,6 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
    */
   sendAsync = (
     req: JsonRpcRequest,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
     this.#engine.handle(req, callback);
@@ -55,8 +53,6 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
    */
   send = (
     req: JsonRpcRequest,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
     if (typeof callback !== 'function') {

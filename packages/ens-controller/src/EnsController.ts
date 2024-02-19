@@ -4,7 +4,7 @@ import type {
 } from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
@@ -77,7 +77,7 @@ const ZERO_X_ERROR_ADDRESS = '0x';
  * Controller that manages a list ENS names and their resolved addresses
  * by chainId. A null address indicates an unresolved ENS name.
  */
-export class EnsController extends BaseController<
+export class EnsController extends BaseControllerV2<
   typeof name,
   EnsControllerState,
   EnsControllerMessenger
@@ -91,18 +91,19 @@ export class EnsController extends BaseController<
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.provider - Provider instance.
-   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
+   * @param options.onNetworkStateChange - Allows registering an event handler for
+   * when the network controller state updated.
    */
   constructor({
     messenger,
     state = {},
     provider,
-    onNetworkDidChange,
+    onNetworkStateChange,
   }: {
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
-    onNetworkDidChange?: (
+    onNetworkStateChange?: (
       listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
     ) => void;
   }) {
@@ -116,8 +117,8 @@ export class EnsController extends BaseController<
       },
     });
 
-    if (provider && onNetworkDidChange) {
-      onNetworkDidChange((networkState) => {
+    if (provider && onNetworkStateChange) {
+      onNetworkStateChange((networkState) => {
         this.resetState();
         const currentChainId = networkState.providerConfig.chainId;
         if (this.#getChainEnsSupport(currentChainId)) {

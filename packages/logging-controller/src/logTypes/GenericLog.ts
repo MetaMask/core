@@ -7,7 +7,5 @@ import type { LogType } from './LogType';
  */
 export type GenericLog = {
   type: LogType.GenericLog;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 };

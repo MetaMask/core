@@ -15,11 +15,7 @@ jest.mock('@metamask/controller-utils');
 describe('updateSwapsTransaction', () => {
   let transactionMeta: TransactionMeta;
   let transactionType: TransactionType;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let swaps: any;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let request: any;
 
   beforeEach(() => {
@@ -70,8 +66,6 @@ describe('updateSwapsTransaction', () => {
   it('should cancel transaction if simulation fails', async () => {
     transactionMeta.simulationFails = {
       reason: 'Simulation failed',
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     await expect(
       updateSwapsTransaction(transactionMeta, transactionType, swaps, request),
@@ -175,8 +169,6 @@ describe('updateSwapsTransaction', () => {
 describe('updatePostTransactionBalance', () => {
   const queryMock = jest.mocked(query);
   let transactionMeta: TransactionMeta;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let request: any;
 
   beforeEach(() => {
@@ -189,8 +181,6 @@ describe('updatePostTransactionBalance', () => {
       destinationTokenAddress:
         SWAPS_CHAINID_DEFAULT_TOKEN_MAP[CHAIN_IDS.MAINNET].address,
       chainId: CHAIN_IDS.MAINNET,
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     request = {
       ethQuery: {},

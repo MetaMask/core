@@ -1,10 +1,7 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
+import type { Patch } from 'immer';
 
 import type {
   GenericPermissionController,
@@ -56,30 +53,24 @@ const defaultState: SubjectMetadataControllerState = {
   subjectMetadata: {},
 };
 
-export type GetSubjectMetadataState = ControllerGetStateAction<
-  typeof controllerName,
-  SubjectMetadataControllerState
->;
+export type GetSubjectMetadataState = {
+  type: `${typeof controllerName}:getState`;
+  handler: () => SubjectMetadataControllerState;
+};
 
 export type GetSubjectMetadata = {
   type: `${typeof controllerName}:getSubjectMetadata`;
   handler: (origin: SubjectOrigin) => SubjectMetadata | undefined;
 };
 
-export type AddSubjectMetadata = {
-  type: `${typeof controllerName}:addSubjectMetadata`;
-  handler: (metadata: SubjectMetadataToAdd) => void;
-};
-
 export type SubjectMetadataControllerActions =
   | GetSubjectMetadataState
-  | GetSubjectMetadata
-  | AddSubjectMetadata;
+  | GetSubjectMetadata;
 
-export type SubjectMetadataStateChange = ControllerStateChangeEvent<
-  typeof controllerName,
-  SubjectMetadataControllerState
->;
+export type SubjectMetadataStateChange = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [SubjectMetadataControllerState, Patch[]];
+};
 
 export type SubjectMetadataControllerEvents = SubjectMetadataStateChange;
 
@@ -103,7 +94,7 @@ type SubjectMetadataControllerOptions = {
  * A controller for storing metadata associated with permission subjects. More
  * or less, a cache.
  */
-export class SubjectMetadataController extends BaseController<
+export class SubjectMetadataController extends BaseControllerV2<
   typeof controllerName,
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger
@@ -145,11 +136,6 @@ export class SubjectMetadataController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getSubjectMetadata`,
       this.getSubjectMetadata.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${this.name}:addSubjectMetadata`,
-      this.addSubjectMetadata.bind(this),
     );
   }
 
@@ -211,8 +197,6 @@ export class SubjectMetadataController extends BaseController<
 
     this.update((draftState) => {
       // Typecast: ts(2589)
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       draftState.subjectMetadata[origin] = newMetadata as any;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
@@ -237,8 +221,6 @@ export class SubjectMetadataController extends BaseController<
     this.update((draftState) => {
       return SubjectMetadataController.getTrimmedState(
         // Typecast: ts(2589)
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         draftState as any,
         this.subjectHasPermissions,
       );

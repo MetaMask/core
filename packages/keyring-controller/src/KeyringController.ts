@@ -4,28 +4,14 @@ import type {
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
-import {
-  KeyringController as EthKeyringController,
-  KeyringType,
-} from '@metamask/eth-keyring-controller';
-import type {
-  ExportableKeyEncryptor,
-  GenericEncryptor,
-} from '@metamask/eth-keyring-controller/dist/types';
-import type {
-  EthBaseTransaction,
-  EthBaseUserOperation,
-  EthKeyring,
-  EthUserOperation,
-  EthUserOperationPatch,
-} from '@metamask/keyring-api';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
 import type { PreferencesController } from '@metamask/preferences-controller';
-import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
+import type { Eip1024EncryptedData, Hex, Keyring, Json } from '@metamask/utils';
 import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import {
@@ -52,7 +38,7 @@ export enum KeyringTypes {
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
-  custody = 'Custody - JSONRPC',
+  custody = 'Custody',
 }
 
 /**
@@ -129,21 +115,6 @@ export type KeyringControllerPersistAllKeyringsAction = {
   handler: KeyringController['persistAllKeyrings'];
 };
 
-export type KeyringControllerPrepareUserOperationAction = {
-  type: `${typeof name}:prepareUserOperation`;
-  handler: KeyringController['prepareUserOperation'];
-};
-
-export type KeyringControllerPatchUserOperationAction = {
-  type: `${typeof name}:patchUserOperation`;
-  handler: KeyringController['patchUserOperation'];
-};
-
-export type KeyringControllerSignUserOperationAction = {
-  type: `${typeof name}:signUserOperation`;
-  handler: KeyringController['signUserOperation'];
-};
-
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -179,10 +150,7 @@ export type KeyringControllerActions =
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetKeyringForAccountAction
-  | KeyringControllerPersistAllKeyringsAction
-  | KeyringControllerPrepareUserOperationAction
-  | KeyringControllerPatchUserOperationAction
-  | KeyringControllerSignUserOperationAction;
+  | KeyringControllerPersistAllKeyringsAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -204,19 +172,12 @@ export type KeyringControllerOptions = {
   updateIdentities: PreferencesController['updateIdentities'];
   setSelectedAddress: PreferencesController['setSelectedAddress'];
   setAccountLabel?: PreferencesController['setAccountLabel'];
-  keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
+  encryptor?: any;
+  keyringBuilders?: { (): Keyring<Json>; type: string }[];
+  cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
-} & (
-  | {
-      cacheEncryptionKey: true;
-      encryptor?: ExportableKeyEncryptor;
-    }
-  | {
-      cacheEncryptionKey?: false;
-      encryptor?: GenericEncryptor | ExportableKeyEncryptor;
-    }
-);
+};
 
 /**
  * @type KeyringObject
@@ -262,8 +223,8 @@ const defaultState: KeyringControllerState = {
  * @throws When the keyring does not have a mnemonic
  */
 function assertHasUint8ArrayMnemonic(
-  keyring: EthKeyring<Json>,
-): asserts keyring is EthKeyring<Json> & { mnemonic: Uint8Array } {
+  keyring: Keyring<Json>,
+): asserts keyring is Keyring<Json> & { mnemonic: Uint8Array } {
   if (
     !(
       hasProperty(keyring, 'mnemonic') && keyring.mnemonic instanceof Uint8Array
@@ -282,7 +243,7 @@ function assertHasUint8ArrayMnemonic(
  * with the internal keyring controller and handling certain complex operations that involve the
  * keyrings.
  */
-export class KeyringController extends BaseController<
+export class KeyringController extends BaseControllerV2<
   typeof name,
   KeyringControllerState,
   KeyringControllerMessenger
@@ -306,28 +267,28 @@ export class KeyringController extends BaseController<
   /**
    * Creates a KeyringController instance.
    *
-   * @param options - Initial options used to configure this controller
-   * @param options.syncIdentities - Sync identities with the given list of addresses.
-   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param options.setSelectedAddress - Set the selected address.
-   * @param options.setAccountLabel - Set a new name for account.
-   * @param options.encryptor - An optional object for defining encryption schemes.
-   * @param options.keyringBuilders - Set a new name for account.
-   * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
-   * @param options.messenger - A restricted controller messenger.
-   * @param options.state - Initial state to set on this controller.
+   * @param opts - Initial options used to configure this controller
+   * @param opts.syncIdentities - Sync identities with the given list of addresses.
+   * @param opts.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param opts.setSelectedAddress - Set the selected address.
+   * @param opts.setAccountLabel - Set a new name for account.
+   * @param opts.encryptor - An optional object for defining encryption schemes.
+   * @param opts.keyringBuilders - Set a new name for account.
+   * @param opts.cacheEncryptionKey - Whether to cache or not encryption key.
+   * @param opts.messenger - A restricted controller messenger.
+   * @param opts.state - Initial state to set on this controller.
    */
-  constructor(options: KeyringControllerOptions) {
-    const {
-      syncIdentities,
-      updateIdentities,
-      setSelectedAddress,
-      setAccountLabel,
-      keyringBuilders,
-      messenger,
-      state,
-    } = options;
-
+  constructor({
+    syncIdentities,
+    updateIdentities,
+    setSelectedAddress,
+    setAccountLabel,
+    encryptor,
+    keyringBuilders,
+    cacheEncryptionKey = false,
+    messenger,
+    state,
+  }: KeyringControllerOptions) {
     super({
       name,
       metadata: {
@@ -344,21 +305,12 @@ export class KeyringController extends BaseController<
       },
     });
 
-    if (options.cacheEncryptionKey) {
-      this.#keyring = new EthKeyringController({
-        initState: state,
-        encryptor: options.encryptor,
-        keyringBuilders,
-        cacheEncryptionKey: options.cacheEncryptionKey,
-      });
-    } else {
-      this.#keyring = new EthKeyringController({
-        initState: state,
-        encryptor: options.encryptor,
-        keyringBuilders,
-        cacheEncryptionKey: options.cacheEncryptionKey ?? false,
-      });
-    }
+    this.#keyring = new EthKeyringController({
+      initState: state,
+      encryptor,
+      keyringBuilders,
+      cacheEncryptionKey,
+    });
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));
@@ -428,7 +380,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to keyring current state and added account
    */
   async addNewAccountForKeyring(
-    keyring: EthKeyring<Json>,
+    keyring: Keyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
     const oldAccounts = await this.getAccounts();
@@ -491,13 +443,7 @@ export class KeyringController extends BaseController<
 
     try {
       this.updateIdentities([]);
-      await this.#keyring.createNewVaultWithKeyring(password, {
-        type: KeyringType.HD,
-        opts: {
-          mnemonic: seed,
-          numberOfAccounts: 1,
-        },
-      });
+      await this.#keyring.createNewVaultAndRestore(password, seed);
       this.updateIdentities(await this.#keyring.getAccounts());
       return this.#getMemState();
     } finally {
@@ -516,9 +462,7 @@ export class KeyringController extends BaseController<
     try {
       const accounts = await this.getAccounts();
       if (!accounts.length) {
-        await this.#keyring.createNewVaultWithKeyring(password, {
-          type: KeyringType.HD,
-        });
+        await this.#keyring.createNewVaultAndKeychain(password);
         this.updateIdentities(await this.getAccounts());
       }
       return this.#getMemState();
@@ -676,8 +620,6 @@ export class KeyringController extends BaseController<
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
   ): Promise<{
     keyringState: KeyringControllerMemState;
@@ -838,49 +780,6 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Convert a base transaction to a base UserOperation.
-   *
-   * @param from - Address of the sender.
-   * @param transactions - Base transactions to include in the UserOperation.
-   * @returns A pseudo-UserOperation that can be used to construct a real.
-   */
-  async prepareUserOperation(
-    from: string,
-    transactions: EthBaseTransaction[],
-  ): Promise<EthBaseUserOperation> {
-    return await this.#keyring.prepareUserOperation(from, transactions);
-  }
-
-  /**
-   * Patches properties of a UserOperation. Currently, only the
-   * `paymasterAndData` can be patched.
-   *
-   * @param from - Address of the sender.
-   * @param userOp - UserOperation to patch.
-   * @returns A patch to apply to the UserOperation.
-   */
-  async patchUserOperation(
-    from: string,
-    userOp: EthUserOperation,
-  ): Promise<EthUserOperationPatch> {
-    return await this.#keyring.patchUserOperation(from, userOp);
-  }
-
-  /**
-   * Signs an UserOperation.
-   *
-   * @param from - Address of the sender.
-   * @param userOp - UserOperation to sign.
-   * @returns The signature of the UserOperation.
-   */
-  async signUserOperation(
-    from: string,
-    userOp: EthUserOperation,
-  ): Promise<string> {
-    return await this.#keyring.signUserOperation(from, userOp);
-  }
-
-  /**
    * Attempts to decrypt the current vault and load its keyrings,
    * using the given encryption key and salt.
    *
@@ -956,7 +855,7 @@ export class KeyringController extends BaseController<
     const hdKeyring = hdKeyringBuilder();
     // @ts-expect-error @metamask/eth-hd-keyring correctly handles
     // Uint8Array seed phrases in the `deserialize` method.
-    await hdKeyring.deserialize({
+    hdKeyring.deserialize({
       mnemonic: seedWords,
       numberOfAccounts: accounts.length,
     });
@@ -999,8 +898,6 @@ export class KeyringController extends BaseController<
     return this.getQRKeyring() || (await this.#addQRKeyring());
   }
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
     (await this.getOrAddQRKeyring()).deserialize(serialized);
     await this.#keyring.persistAllKeyrings();
@@ -1058,8 +955,6 @@ export class KeyringController extends BaseController<
         default:
           accounts = await keyring.getFirstPage();
       }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return accounts.map((account: any) => {
         return {
           ...account,
@@ -1082,7 +977,7 @@ export class KeyringController extends BaseController<
     // @metamask/utils, but we can use the `addNewAccount` method
     // as it internally calls `addAccounts` from on the keyring instance,
     // which is supported by QRKeyring API.
-    await this.#keyring.addNewAccount(keyring as unknown as EthKeyring<Json>);
+    await this.#keyring.addNewAccount(keyring as unknown as Keyring<Json>);
     const newAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(newAccounts);
     newAccounts.forEach((address: string) => {
@@ -1100,20 +995,14 @@ export class KeyringController extends BaseController<
     return (await this.#keyring.getKeyringForAccount(account)).type;
   }
 
-  async forgetQRDevice(): Promise<{
-    removedAccounts: string[];
-    remainingAccounts: string[];
-  }> {
+  async forgetQRDevice(): Promise<void> {
     const keyring = await this.getOrAddQRKeyring();
-    const allAccounts = (await this.#keyring.getAccounts()) as string[];
     keyring.forgetDevice();
-    const remainingAccounts = (await this.#keyring.getAccounts()) as string[];
-    const removedAccounts = allAccounts.filter(
-      (address: string) => !remainingAccounts.includes(address),
-    );
-    this.updateIdentities(remainingAccounts);
+    const accounts = (await this.#keyring.getAccounts()) as string[];
+    accounts.forEach((account) => {
+      this.setSelectedAddress(account);
+    });
     await this.#keyring.persistAllKeyrings();
-    return { removedAccounts, remainingAccounts };
   }
 
   /**
@@ -1164,21 +1053,6 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:persistAllKeyrings`,
       this.persistAllKeyrings.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${name}:prepareUserOperation`,
-      this.prepareUserOperation.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${name}:patchUserOperation`,
-      this.patchUserOperation.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${name}:signUserOperation`,
-      this.signUserOperation.bind(this),
     );
   }
 
