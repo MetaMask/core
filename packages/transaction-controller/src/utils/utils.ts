@@ -1,5 +1,9 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { add0x, getKnownPropertyNames, isHexString } from '@metamask/utils';
+import {
+  add0x,
+  getKnownPropertyNames,
+  isStrictHexString,
+} from '@metamask/utils';
 
 import type {
   GasPriceValue,
@@ -78,7 +82,7 @@ export const validateGasValues = (
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = (gasValues as any)[key];
-    if (typeof value !== 'string' || !isHexString(value)) {
+    if (typeof value !== 'string' || !isStrictHexString(value)) {
       throw new TypeError(
         `expected hex string for ${key} but received: ${value}`,
       );
