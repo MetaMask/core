@@ -58,7 +58,7 @@ describe('createSelectedNetworkMiddleware', () => {
     expect(req.networkClientId).toBe('mockNetworkClientId');
   });
 
-  it('puts metamask selected networkClientId on request if requesting origin does not have one set', async () => {
+  it('puts metamask selected networkClientId on the request object if the requesting origin does not have one set', async () => {
     const messenger = buildMessenger();
     const middleware = createSelectedNetworkMiddleware(messenger);
 
