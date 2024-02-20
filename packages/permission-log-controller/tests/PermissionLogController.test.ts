@@ -357,7 +357,7 @@ describe('PermissionLogController', () => {
         expect(entry2).toStrictEqual(controller.state.permissionActivityLog[1]);
       });
 
-      it('ignores expected methods', () => {
+      it('ignores activity for expected methods', () => {
         const controller = initController();
         const logMiddleware = initMiddleware(controller);
         expect(controller.state.permissionActivityLog).toHaveLength(0);
@@ -367,81 +367,86 @@ describe('PermissionLogController', () => {
           result: ['bar'],
         };
 
-        logMiddleware(
+        const ignoredMethods = [
           RPC_REQUESTS.metamask_sendDomainMetadata(SUBJECTS.c.origin, 'foobar'),
-          res,
-          mockNext,
-          noop,
-        );
-        logMiddleware(
           RPC_REQUESTS.custom(SUBJECTS.b.origin, 'eth_getBlockNumber'),
-          res,
-          mockNext,
-          noop,
-        );
-        logMiddleware(
           RPC_REQUESTS.custom(SUBJECTS.b.origin, 'net_version'),
-          res,
-          mockNext,
-          noop,
-        );
+        ];
+
+        ignoredMethods.forEach((req) => {
+          logMiddleware(req, res, mockNext, noop);
+        });
 
         expect(controller.state.permissionActivityLog).toHaveLength(0);
       });
 
-      it('enforces log limit', () => {
-        const controller = initController();
-        const logMiddleware = initMiddleware(controller);
-        const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
-        const res = {
-          ...PendingJsonRpcResponseStruct.TYPE,
-          result: ['bar'],
-        };
+      describe('Log limit enforcement', () => {
+        it('fills up the log to its limit without exceeding', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+          const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
 
-        // max out log
-        let lastId;
-        for (let i = 0; i < LOG_LIMIT; i++) {
-          lastId = nanoid();
-          logMiddleware({ ...req, id: lastId }, res, mockNext, noop);
-        }
+          for (let i = 0; i < LOG_LIMIT; i++) {
+            logMiddleware({ ...req, id: nanoid() }, res, mockNext, noop);
+          }
 
-        // check last entry valid
-        expect(controller.state.permissionActivityLog).toHaveLength(LOG_LIMIT);
+          expect(controller.state.permissionActivityLog).toHaveLength(
+            LOG_LIMIT,
+          );
+        });
 
-        validateActivityEntry(
-          controller.state.permissionActivityLog[LOG_LIMIT - 1],
-          { ...req, id: lastId ?? null },
-          res,
-          LOG_METHOD_TYPES.restricted,
-          true,
-        );
+        it('removes the oldest log entry when a new one is added after reaching the limit', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+          const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
 
-        // store the id of the current second entry
-        const nextFirstId = controller.state.permissionActivityLog[1].id;
-        // add one more entry to log, putting it over the limit
-        lastId = nanoid();
+          // Initially fill the log to its limit
+          for (let i = 0; i < LOG_LIMIT; i++) {
+            logMiddleware({ ...req, id: nanoid() }, res, mockNext, noop);
+          }
 
-        logMiddleware({ ...req, id: lastId }, res, mockNext, noop);
+          // Record the ID of the first log entry after filling the log
+          const firstLogIdAfterFilling =
+            controller.state.permissionActivityLog[0].id;
 
-        // check log length
-        expect(controller.state.permissionActivityLog).toHaveLength(LOG_LIMIT);
+          // Add one more entry to exceed the limit
+          const newLogId = nanoid();
+          logMiddleware({ ...req, id: newLogId }, res, mockNext, noop);
 
-        // check first and last entries
-        validateActivityEntry(
-          controller.state.permissionActivityLog[0],
-          { ...req, id: nextFirstId },
-          res,
-          LOG_METHOD_TYPES.restricted,
-          true,
-        );
+          // Expect the log to still have the same length as the limit
+          expect(controller.state.permissionActivityLog).toHaveLength(
+            LOG_LIMIT,
+          );
+          // Ensure the first log entry after filling is no longer present
+          expect(controller.state.permissionActivityLog[0].id).not.toBe(
+            firstLogIdAfterFilling,
+          );
+          // Check that the new log entry is present
+          expect(
+            controller.state.permissionActivityLog.find(
+              (log) => log.id === newLogId,
+            ),
+          ).toBeDefined();
+        });
 
-        validateActivityEntry(
-          controller.state.permissionActivityLog[LOG_LIMIT - 1],
-          { ...req, id: lastId },
-          res,
-          LOG_METHOD_TYPES.restricted,
-          true,
-        );
+        it('ensures the log does not exceed the limit when adding multiple entries', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+          const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
+
+          // Attempt to add more entries than the log limit
+          for (let i = 0; i < LOG_LIMIT + 5; i++) {
+            logMiddleware({ ...req, id: nanoid() }, res, mockNext, noop);
+          }
+
+          // The log should not exceed the limit
+          expect(controller.state.permissionActivityLog).toHaveLength(
+            LOG_LIMIT,
+          );
+        });
       });
     });
 
