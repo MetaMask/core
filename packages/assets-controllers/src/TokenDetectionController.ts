@@ -521,7 +521,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       ).map((value) => (typeof value === 'string' ? value : value.address)),
     );
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(tokenList)) {
+    for (const tokenAddress of Object.keys(tokenListUsed)) {
       if (
         [tokensAddresses, detectedTokensAddresses, ignoredTokensAddreses].every(
           (addresses) =>
