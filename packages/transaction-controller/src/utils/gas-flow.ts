@@ -13,7 +13,7 @@ import {
   type GasFeeEstimates as TransactionGasFeeEstimates,
   type GasFeeFlow,
   type TransactionMeta,
-  type GasFeeEstimatesLevel,
+  type GasFeeEstimatesForLevel,
   GasFeeEstimateLevel,
 } from '../types';
 
@@ -94,7 +94,7 @@ export function mergeGasFeeEstimates({
  */
 function mergeFeeMarketEstimate(
   gasFeeControllerEstimate: Eip1559GasFee,
-  transactionGasFeeEstimate: GasFeeEstimatesLevel,
+  transactionGasFeeEstimate: GasFeeEstimatesForLevel,
 ): Eip1559GasFee {
   return {
     ...gasFeeControllerEstimate,
@@ -113,7 +113,7 @@ function mergeFeeMarketEstimate(
  * @returns The legacy gas fee estimate.
  */
 function getLegacyEstimate(
-  transactionGasFeeEstimate: GasFeeEstimatesLevel,
+  transactionGasFeeEstimate: GasFeeEstimatesForLevel,
 ): string {
   return weiHexToGweiDec(transactionGasFeeEstimate.maxFeePerGas);
 }

@@ -976,24 +976,12 @@ export type SecurityAlertResponse = {
 };
 
 /** Gas fee estimates for a specific priority level. */
-export type GasFeeEstimatesLevel = {
+export type GasFeeEstimatesForLevel = {
   /** Maximum amount to pay per gas. */
   maxFeePerGas: Hex;
 
   /** Maximum amount per gas to give to the validator as an incentive. */
   maxPriorityFeePerGas: Hex;
-};
-
-/** Gas fee estimates for a transaction. */
-export type GasFeeEstimates = {
-  /** The gas fee estimate for a low priority transaction. */
-  low: GasFeeEstimatesLevel;
-
-  /** The gas fee estimate for a medium priority transaction. */
-  medium: GasFeeEstimatesLevel;
-
-  /** The gas fee estimate for a high priority transaction. */
-  high: GasFeeEstimatesLevel;
 };
 
 /** Alternate priority levels for which values are provided in gas fee estimates. */
@@ -1002,6 +990,18 @@ export enum GasFeeEstimateLevel {
   medium = 'medium',
   high = 'high',
 }
+
+/** Gas fee estimates for a transaction. */
+export type GasFeeEstimates = {
+  /** The gas fee estimate for a low priority transaction. */
+  [GasFeeEstimateLevel.low]: GasFeeEstimatesForLevel;
+
+  /** The gas fee estimate for a medium priority transaction. */
+  [GasFeeEstimateLevel.medium]: GasFeeEstimatesForLevel;
+
+  /** The gas fee estimate for a high priority transaction. */
+  [GasFeeEstimateLevel.high]: GasFeeEstimatesForLevel;
+};
 
 /** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {

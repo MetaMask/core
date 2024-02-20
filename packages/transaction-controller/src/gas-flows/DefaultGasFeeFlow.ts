@@ -8,7 +8,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { projectLogger } from '../logger';
 import type {
   GasFeeEstimates,
-  GasFeeEstimatesLevel,
+  GasFeeEstimatesForLevel,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
@@ -75,7 +75,7 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
     level,
   }:
     | FeeMarketGetEstimateLevelRequest
-    | LegacyGetEstimateLevelRequest): GasFeeEstimatesLevel {
+    | LegacyGetEstimateLevelRequest): GasFeeEstimatesForLevel {
     if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
       return this.#getFeeMarketLevel(gasFeeEstimates, level);
     }
@@ -86,7 +86,7 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
   #getFeeMarketLevel(
     gasFeeEstimates: FeeMarketGasPriceEstimate,
     level: GasFeeEstimateLevel,
-  ): GasFeeEstimatesLevel {
+  ): GasFeeEstimatesForLevel {
     const maxFeePerGas = gweiDecimalToWeiHex(
       gasFeeEstimates[level].suggestedMaxFeePerGas,
     );
@@ -104,7 +104,7 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
   #getLegacyLevel(
     gasFeeEstimates: LegacyGasPriceEstimate,
     level: GasFeeEstimateLevel,
-  ): GasFeeEstimatesLevel {
+  ): GasFeeEstimatesForLevel {
     const gasPrice = gweiDecimalToWeiHex(gasFeeEstimates[level]);
 
     return {
