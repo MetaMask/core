@@ -32,8 +32,8 @@ import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type {
   GetTokenListState,
+  TokenListMap,
   TokenListStateChange,
-  TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type {
@@ -63,25 +63,23 @@ export function isEqualCaseInsensitive(
   return value1.toLowerCase() === value2.toLowerCase();
 }
 
-type LegacyToken = Omit<
-  Token,
-  'aggregators' | 'image' | 'balanceError' | 'isERC721'
-> & {
+type LegacyToken = {
   name: string;
-  logo: string;
+  logo: `${string}.svg`;
+  symbol: string;
+  decimals: number;
   erc20?: boolean;
   erc721?: boolean;
 };
 
+type TokenDetectionMap = {
+  [P in keyof TokenListMap]: Omit<TokenListMap[P], 'occurrences'>;
+};
+
 export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
   contractMap,
-).reduce<
-  Record<
-    string,
-    Partial<TokenListToken> & Pick<Token, 'address' | 'symbol' | 'decimals'>
-  >
->((acc, [base, contract]) => {
-  const { logo, ...tokenMetadata } = contract;
+).reduce<TokenDetectionMap>((acc, [base, contract]) => {
+  const { logo, erc20, erc721, ...tokenMetadata } = contract;
   return {
     ...acc,
     [base.toLowerCase()]: {
@@ -167,6 +165,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   #addressAgainstWhichToDetect: string;
 
   #networkClientIdAgainstWhichToDetect: NetworkClientId;
+
+  #tokenList: TokenDetectionMap = {};
 
   #disabled: boolean;
 

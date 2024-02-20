@@ -1852,17 +1852,12 @@ describe('TokenDetectionController', () => {
           expect(callActionSpy).toHaveBeenLastCalledWith(
             'TokensController:addDetectedTokens',
             Object.values(STATIC_MAINNET_TOKEN_LIST).map((token) => {
-              const newToken = {
-                ...token,
+              const { iconUrl, ...tokenMetadata } = token;
+              return {
+                ...tokenMetadata,
                 image: token.iconUrl,
                 isERC721: false,
               };
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              delete (newToken as any).erc20;
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              delete (newToken as any).erc721;
-              delete newToken.iconUrl;
-              return newToken;
             }),
             {
               selectedAddress,
