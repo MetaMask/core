@@ -1,25 +1,35 @@
-import { gweiDecToWEIBN, toHex } from '@metamask/controller-utils';
 import type {
   LegacyGasPriceEstimate,
   GasFeeEstimates as FeeMarketGasPriceEstimate,
 } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
-import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, Hex } from '@metamask/utils';
 
+import { gweiDecToWEIBN, toHex } from '@metamask/controller-utils';
 import { projectLogger } from '../logger';
 import type {
   GasFeeEstimates,
-  GasFeeEstimatesLevel,
+  GasFeeEstimatesForLevel,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
 } from '../types';
+import { GasFeeEstimateLevel } from '../types';
 
 const log = createModuleLogger(projectLogger, 'default-gas-fee-flow');
 
-type Level = keyof GasFeeEstimates;
+type FeeMarketGetEstimateLevelRequest = {
+  gasEstimateType: 'fee-market';
+  gasFeeEstimates: FeeMarketGasPriceEstimate;
+  level: GasFeeEstimateLevel;
+};
+
+type LegacyGetEstimateLevelRequest = {
+  gasEstimateType: 'legacy';
+  gasFeeEstimates: LegacyGasPriceEstimate;
+  level: GasFeeEstimateLevel;
+};
 
 /**
  * The standard implementation of a gas fee flow that obtains gas fee estimates using only the GasFeeController.
@@ -31,49 +41,51 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
     const { getGasFeeControllerEstimates } = request;
-    const response = await getGasFeeControllerEstimates();
 
-    if (response.gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
-      return this.#getFeeMarketGasFees(response.gasFeeEstimates);
-    } else if (response.gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
-      return this.#getLegacyGasFees(response.gasFeeEstimates);
+    const { gasEstimateType, gasFeeEstimates } =
+      await getGasFeeControllerEstimates();
+
+    if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
+      log('Using fee market estimates', gasFeeEstimates);
+    } else if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
+      log('Using legacy estimates', gasFeeEstimates);
+    } else {
+      throw new Error(`'No gas fee estimates available`);
     }
 
-    throw new Error('No gas fee estimates available');
+    const estimates = Object.values(GasFeeEstimateLevel).reduce(
+      (result, level) => ({
+        ...result,
+        [level]: this.#getEstimateLevel({
+          gasEstimateType,
+          gasFeeEstimates,
+          level,
+        } as FeeMarketGetEstimateLevelRequest | LegacyGetEstimateLevelRequest),
+      }),
+      {} as GasFeeEstimates,
+    );
+
+    return { estimates };
   }
 
-  #getFeeMarketGasFees(
-    gasFeeEstimates: FeeMarketGasPriceEstimate,
-  ): GasFeeFlowResponse {
-    log('Using fee market estimates', gasFeeEstimates);
+  #getEstimateLevel({
+    gasEstimateType,
+    gasFeeEstimates,
+    level,
+  }:
+    | FeeMarketGetEstimateLevelRequest
+    | LegacyGetEstimateLevelRequest): GasFeeEstimatesForLevel {
+    if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
+      return this.#getFeeMarketLevel(gasFeeEstimates, level);
+    }
 
-    return {
-      estimates: {
-        low: this.#getFeeMarketLevel(gasFeeEstimates, 'low'),
-        medium: this.#getFeeMarketLevel(gasFeeEstimates, 'medium'),
-        high: this.#getFeeMarketLevel(gasFeeEstimates, 'high'),
-      },
-    };
-  }
-
-  #getLegacyGasFees(
-    gasFeeEstimates: LegacyGasPriceEstimate,
-  ): GasFeeFlowResponse {
-    log('Using legacy estimates', gasFeeEstimates);
-
-    return {
-      estimates: {
-        low: this.#getLegacyLevel(gasFeeEstimates, 'low'),
-        medium: this.#getLegacyLevel(gasFeeEstimates, 'medium'),
-        high: this.#getLegacyLevel(gasFeeEstimates, 'high'),
-      },
-    };
+    return this.#getLegacyLevel(gasFeeEstimates, level);
   }
 
   #getFeeMarketLevel(
     gasFeeEstimates: FeeMarketGasPriceEstimate,
-    level: Level,
-  ): GasFeeEstimatesLevel {
+    level: GasFeeEstimateLevel,
+  ): GasFeeEstimatesForLevel {
     const maxFeePerGas = this.#gweiDecimalToWeiHex(
       gasFeeEstimates[level].suggestedMaxFeePerGas,
     );
@@ -90,8 +102,8 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
 
   #getLegacyLevel(
     gasFeeEstimates: LegacyGasPriceEstimate,
-    level: Level,
-  ): GasFeeEstimatesLevel {
+    level: GasFeeEstimateLevel,
+  ): GasFeeEstimatesForLevel {
     const gasPrice = this.#gweiDecimalToWeiHex(gasFeeEstimates[level]);
 
     return {
