@@ -511,7 +511,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messagingSystem.call('TokensController:getState');
-    const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddreses] = [
+    const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddresses] = [
       allTokens,
       allDetectedTokens,
       allIgnoredTokens,
@@ -523,7 +523,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const tokensToDetect: string[] = [];
     for (const tokenAddress of Object.keys(tokenListUsed)) {
       if (
-        [tokensAddresses, detectedTokensAddresses, ignoredTokensAddreses].every(
+        [
+          tokensAddresses,
+          detectedTokensAddresses,
+          ignoredTokensAddresses,
+        ].every(
           (addresses) =>
             !addresses.find((address) =>
               isEqualCaseInsensitive(address, tokenAddress),
