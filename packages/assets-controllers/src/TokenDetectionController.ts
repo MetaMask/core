@@ -507,11 +507,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
-    const tokenList =
-      tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
-    const tokenListUsed = isTokenDetectionInactiveInMainnet
+
+    const tokenList = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
-      : tokenList;
+      : tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messagingSystem.call('TokensController:getState');
@@ -525,7 +524,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       ).map((value) => (typeof value === 'string' ? value : value.address)),
     );
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(tokenListUsed)) {
+    for (const tokenAddress of Object.keys(tokenList)) {
       if (
         [
           tokensAddresses,
@@ -562,7 +561,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         const eventTokensDetails: string[] = [];
         for (const nonZeroTokenAddress of Object.keys(balances)) {
           const { decimals, symbol, aggregators, iconUrl, name } =
-            tokenListUsed[nonZeroTokenAddress];
+            tokenList[nonZeroTokenAddress];
           eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
           tokensWithBalance.push({
             address: nonZeroTokenAddress,
