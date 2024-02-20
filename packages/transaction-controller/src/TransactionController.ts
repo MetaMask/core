@@ -73,6 +73,7 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
+import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
@@ -685,6 +686,13 @@ export class TransactionController extends BaseControllerV1<
     };
 
     await this.updateGasProperties(transactionMeta);
+
+    transactionMeta.simulationData = await getSimulationData({
+      chainId,
+      ...txParams,
+    });
+
+    log('Retrieved simulation data', transactionMeta.simulationData);
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {

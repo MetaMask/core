@@ -62,6 +62,7 @@ jest.mock('uuid', () => {
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/swaps');
+jest.mock('./utils/simulation');
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1097,6 +1098,7 @@ describe('TransactionController', () => {
         origin: undefined,
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
+        simulationData: undefined,
         status: TransactionStatus.unapproved as const,
         time: expect.any(Number),
         txParams: expect.anything(),
