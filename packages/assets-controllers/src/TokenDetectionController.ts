@@ -462,9 +462,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messagingSystem.call('TokensController:getState');
-    const tokens = allTokens[chainId]?.[selectedAddress] || [];
-    const detectedTokens = allDetectedTokens[chainId]?.[selectedAddress] || [];
-    const ignoredTokens = allIgnoredTokens[chainId]?.[selectedAddress] || [];
+    const tokens = allTokens[chainId]?.[selectedAddress] ?? [];
+    const detectedTokens = allDetectedTokens[chainId]?.[selectedAddress] ?? [];
+    const ignoredTokens = allIgnoredTokens[chainId]?.[selectedAddress] ?? [];
 
     const tokensToDetect: string[] = [];
     for (const tokenAddress of Object.keys(tokenListUsed)) {
