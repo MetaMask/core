@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Removed
-
-- **BREAKING:** Remove the deprecated `subscribe` class field from `BaseControllerV2` ([#3904](https://github.com/MetaMask/core/pull/3904))
-  - Replaced by the `isBaseController` type guard in `@metamask/composable-controller`.
-
 ## [4.1.1]
 
 ### Changed
