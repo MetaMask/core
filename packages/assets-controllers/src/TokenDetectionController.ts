@@ -454,7 +454,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
-    const tokenList = tokensChainsCache[chainId]?.data || {};
+    const tokenList = tokensChainsCache[chainId]?.data ?? {};
 
     const tokenListUsed = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
