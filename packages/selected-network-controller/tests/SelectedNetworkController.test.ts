@@ -9,7 +9,6 @@ import type {
   SelectedNetworkControllerMessenger,
 } from '../src/SelectedNetworkController';
 import {
-  METAMASK_DOMAIN,
   SelectedNetworkController,
   controllerName,
 } from '../src/SelectedNetworkController';
@@ -137,7 +136,7 @@ describe('SelectedNetworkController', () => {
     it('can be instantiated with default values', () => {
       const { controller } = setup({ state: undefined });
       expect(controller.state).toStrictEqual({
-        domains: { metamask: 'mainnet' },
+        domains: {},
         perDomainNetwork: false,
       });
     });
@@ -145,94 +144,36 @@ describe('SelectedNetworkController', () => {
       const { controller } = setup({
         state: {
           perDomainNetwork: true,
-          domains: { metamask: 'sepolia', networkClientId: 'goerli' },
+          domains: { networkClientId: 'goerli' },
         },
       });
       expect(controller.state).toStrictEqual({
-        domains: { metamask: 'sepolia', networkClientId: 'goerli' },
+        domains: { networkClientId: 'goerli' },
         perDomainNetwork: true,
       });
-    });
-    it('changes the networkClientId for the metamask domain when selectedNetworkClientId in networkController state changes', () => {
-      const { controller, messenger } = setup({
-        state: {
-          perDomainNetwork: true,
-          domains: { metamask: 'mainnet' },
-        },
-      });
-      expect(controller.state.domains.metamask).toBe('mainnet');
-      messenger.publish(
-        'NetworkController:stateChange',
-        {
-          providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
-          selectedNetworkClientId: 'goerli',
-          networkConfigurations: {},
-          networksMetadata: {},
-        },
-        [],
-      );
-      expect(controller.state.domains.metamask).toBe('goerli');
     });
   });
 
   describe('setNetworkClientIdForDomain', () => {
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+    it('should throw an error when passed "metamask" as domain arg', () => {
+      const { controller } = setup();
+      expect(() => {
+        controller.setNetworkClientIdForDomain('metamask', 'mainnet');
+      }).toThrow(
+        'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController',
+      );
+      expect(controller.state.domains.metamask).toBeUndefined();
+    });
     describe('when the perDomainNetwork state is false', () => {
-      describe('when the requesting domain is metamask', () => {
-        it('sets the networkClientId for the metamask domain', () => {
-          const { controller } = setup();
-
-          const networkClientId = 'network2';
-          controller.setNetworkClientIdForDomain(
-            METAMASK_DOMAIN,
-            networkClientId,
-          );
-          expect(controller.state.domains.metamask).toBe(networkClientId);
-        });
-
-        it('updates the networkClientId for all domains in state', () => {
-          const { controller } = setup({
-            state: {
-              perDomainNetwork: false,
-              domains: {
-                metamask: 'mainnet',
-                '1.com': '1',
-                '2.com': '2',
-              },
-            },
-          });
-
-          controller.setNetworkClientIdForMetamask('foo');
-          Object.entries(controller.state.domains).forEach(([domain]) =>
-            expect(controller.state.domains[domain]).toBe('foo'),
-          );
-        });
-      });
-
       describe('when the requesting domain is not metamask', () => {
-        it('does not update the networkClientId for the metamask domain', () => {
+        it('updates the networkClientId for domain in state', () => {
           const { controller } = setup({
-            hasPermissions: false,
-            state: {
-              perDomainNetwork: false,
-              domains: { metamask: 'mainnet' },
-            },
-          });
-
-          const networkClientId = 'network2';
-          controller.setNetworkClientIdForDomain(
-            'not-metamask',
-            networkClientId,
-          );
-          expect(controller.state.domains.metamask).toBe('mainnet');
-        });
-
-        it('does not update the networkClientId for all domains in state', () => {
-          const { controller } = setup({
-            hasPermissions: false,
             state: {
               perDomainNetwork: false,
               domains: {
-                metamask: 'mainnet',
                 '1.com': 'mainnet',
                 '2.com': 'mainnet',
                 '3.com': 'mainnet',
@@ -246,8 +187,9 @@ describe('SelectedNetworkController', () => {
             controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
           );
 
-          expect(controller.state.domains['1.com']).toBe('mainnet');
-          expect(controller.state.domains['2.com']).toBe('mainnet');
+          expect(controller.state.domains['1.com']).toBe('1');
+          expect(controller.state.domains['2.com']).toBe('2');
+          expect(controller.state.domains['3.com']).toBe('3');
         });
       });
     });
@@ -294,7 +236,7 @@ describe('SelectedNetworkController', () => {
       });
 
       describe('when the requesting domain does not have permissions', () => {
-        it('does not set the networkClientId for the passed in domain', () => {
+        it('throw an error and does not set the networkClientId for the passed in domain', () => {
           const { controller } = setup({
             state: { perDomainNetwork: true, domains: {} },
             hasPermissions: false,
@@ -302,7 +244,11 @@ describe('SelectedNetworkController', () => {
 
           const domain = 'example.com';
           const networkClientId = 'network1';
-          controller.setNetworkClientIdForDomain(domain, networkClientId);
+          expect(() => {
+            controller.setNetworkClientIdForDomain(domain, networkClientId);
+          }).toThrow(
+            'NetworkClientId for domain cannot be called with a domain that has not yet been granted permissions',
+          );
           expect(controller.state.domains[domain]).toBeUndefined();
         });
       });
@@ -311,17 +257,19 @@ describe('SelectedNetworkController', () => {
 
   describe('getNetworkClientIdForDomain', () => {
     describe('when the perDomainNetwork state is false', () => {
-      it('returns undefined if not no networkClientId is set for requested domain', () => {
+      it('returns the selectedNetworkClientId from the NetworkController if not no networkClientId is set for requested domain', () => {
         const { controller } = setup();
-        const result = controller.getNetworkClientIdForDomain('example.com');
-        expect(result).toBeUndefined();
+        expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
+          'mainnet',
+        );
       });
-      it('returns undefined if a networkClientId is set for the requested domain', () => {
+      it('returns the selectedNetworkClientId from the NetworkController if a networkClientId is set for the requested domain', () => {
         const { controller } = setup();
         const networkClientId = 'network3';
         controller.setNetworkClientIdForDomain('example.com', networkClientId);
-        const result = controller.getNetworkClientIdForDomain('example.com');
-        expect(result).toBeUndefined();
+        expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
+          'mainnet',
+        );
       });
       it('returns the networkClientId for the metamask domain when passed "metamask"', () => {
         const { controller } = setup();
@@ -346,93 +294,99 @@ describe('SelectedNetworkController', () => {
         expect(result2).toBe(networkClientId2);
       });
 
-      it('returns undefined when no networkClientId has been set for the domain requested', () => {
+      it('returns the selectedNetworkClientId from the NetworkController when no networkClientId has been set for the domain requested', () => {
         const { controller } = setup({
           state: { perDomainNetwork: true, domains: {} },
           hasPermissions: true,
         });
-        const result = controller.getNetworkClientIdForDomain('example.com');
-        expect(result).toBeUndefined();
+        expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
+          'mainnet',
+        );
       });
     });
   });
 
   describe('getProviderAndBlockTracker', () => {
-    it('returns a proxy provider and block tracker when there is one already', () => {
-      const { controller } = setup();
-      controller.setNetworkClientIdForDomain('example.com', 'network7');
-      const result = controller.getProviderAndBlockTracker('example.com');
-      expect(result).toBeDefined();
-    });
+    describe('when perDomainNetwork is true', () => {
+      it('returns a proxy provider and block tracker when a networkClientId has been set for the requested domain', () => {
+        const { controller } = setup({
+          state: {
+            perDomainNetwork: true,
+            domains: {},
+          },
+        });
+        controller.setNetworkClientIdForDomain('example.com', 'network7');
+        const result = controller.getProviderAndBlockTracker('example.com');
+        expect(result).toBeDefined();
+      });
 
-    it('creates a new proxy provider and block tracker when there isnt one already', () => {
-      const { controller } = setup();
-      expect(
-        controller.getNetworkClientIdForDomain('test.com'),
-      ).toBeUndefined();
-      const result = controller.getProviderAndBlockTracker('test.com');
-      expect(result).toBeDefined();
+      it('creates a new proxy provider and block tracker when there isnt one already', () => {
+        const { controller } = setup({
+          state: {
+            perDomainNetwork: true,
+            domains: {
+              'test.com': 'mainnet',
+            },
+          },
+        });
+        const result = controller.getProviderAndBlockTracker('test.com');
+        expect(result).toBeDefined();
+      });
+
+      it('throws and error when a networkClientId has not been set for the requested domain', () => {
+        const { controller } = setup({
+          state: {
+            perDomainNetwork: true,
+            domains: {},
+          },
+        });
+
+        expect(() => {
+          controller.getProviderAndBlockTracker('test.com');
+        }).toThrow('NetworkClientId has not been set for the requested domain');
+      });
+    });
+    describe('when perDomainNetwork is false', () => {
+      it('throws and error when a networkClientId has been been set for the requested domain', () => {
+        const { controller } = setup({
+          state: {
+            perDomainNetwork: false,
+            domains: {},
+          },
+        });
+
+        expect(() => {
+          controller.getProviderAndBlockTracker('test.com');
+        }).toThrow(
+          'Provider and BlockTracker should be fetched from NetworkController when perDomainNetwork is false',
+        );
+      });
     });
   });
 
   describe('setPerDomainNetwork', () => {
     describe('when toggling from false to true', () => {
-      it('updates proxies for each domain', () => {
-        const {
-          controller,
-          createEventEmitterProxyMock,
-          mockProviderProxy,
-          mockBlockTrackerProxy,
-        } = setup({
+      it('should update perDomainNetwork state to true', () => {
+        const { controller } = setup({
           state: {
             perDomainNetwork: false,
-            domains: {
-              metamask: 'mainnet',
-              'example.com': 'network7',
-              'test.com': 'network8',
-            },
+            domains: {},
           },
         });
         controller.setPerDomainNetwork(true);
-        // createEventEmitterProxy is constructed twice (once for provider and once for blockTracker) for each of the domains in state
-        expect(createEventEmitterProxyMock).toHaveBeenCalledTimes(6);
-
-        // after the proxies have been created, the setTarget method on the proxy is called on each of them on subsequent setPerDomainNetwork calls
-        controller.setPerDomainNetwork(false);
-        expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(3);
-        expect(mockBlockTrackerProxy.setTarget).toHaveBeenCalledTimes(3);
+        expect(controller.state.perDomainNetwork).toBe(true);
       });
     });
     describe('when toggling from true to false', () => {
-      it('updates the networkClientId and proxies for each domain to match the metamask domain', () => {
-        const {
-          controller,
-          createEventEmitterProxyMock,
-          mockProviderProxy,
-          mockBlockTrackerProxy,
-        } = setup({
+      it('should update perDomainNetwork state to false', () => {
+        const { controller } = setup({
           state: {
             perDomainNetwork: true,
-            domains: {
-              metamask: 'mainnet',
-              'example.com': 'network7',
-              'test.com': 'network8',
-            },
+            domains: {},
           },
         });
         controller.setPerDomainNetwork(false);
-        expect(controller.state.domains).toStrictEqual({
-          metamask: 'mainnet',
-          'example.com': 'mainnet',
-          'test.com': 'mainnet',
-        });
-        // createEventEmitterProxy is constructed twice (once for provider and once for blockTracker) for each of the domains in state
-        expect(createEventEmitterProxyMock).toHaveBeenCalledTimes(6);
-
-        // after the proxies have been created, the setTarget method on the proxy is called on each of them on subsequent setPerDomainNetwork calls
-        controller.setPerDomainNetwork(true);
-        expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(3);
-        expect(mockBlockTrackerProxy.setTarget).toHaveBeenCalledTimes(3);
+        expect(controller.state.perDomainNetwork).toBe(false);
       });
     });
   });

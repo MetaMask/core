@@ -31,8 +31,6 @@ export const SelectedNetworkControllerActionTypes = {
   getState: `${controllerName}:getState` as const,
   getNetworkClientIdForDomain:
     `${controllerName}:getNetworkClientIdForDomain` as const,
-  getNetworkClientIdForMetamask:
-    `${controllerName}:getNetworkClientIdForMetamask` as const,
   setNetworkClientIdForDomain:
     `${controllerName}:setNetworkClientIdForDomain` as const,
 };
@@ -66,11 +64,6 @@ export type SelectedNetworkControllerGetNetworkClientIdForDomainAction = {
   handler: SelectedNetworkController['getNetworkClientIdForDomain'];
 };
 
-export type SelectedNetworkControllerGetNetworkClientIdForMetamaskAction = {
-  type: typeof SelectedNetworkControllerActionTypes.getNetworkClientIdForMetamask;
-  handler: SelectedNetworkController['getNetworkClientIdForMetamask'];
-};
-
 export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
   type: typeof SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain;
   handler: SelectedNetworkController['setNetworkClientIdForDomain'];
@@ -84,7 +77,6 @@ type PermissionControllerHasPermissions = {
 export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetSelectedNetworkStateAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-  | SelectedNetworkControllerGetNetworkClientIdForMetamaskAction
   | SelectedNetworkControllerSetNetworkClientIdForDomainAction;
 
 export type AllowedActions =
@@ -143,23 +135,6 @@ export class SelectedNetworkController extends BaseController<
       state,
     });
     this.#registerMessageHandlers();
-
-    // if the network for metamask is not set, set it to the currently selected network upon initialization
-    if (this.state.domains[METAMASK_DOMAIN] === undefined) {
-      const { selectedNetworkClientId } = this.messagingSystem.call(
-        'NetworkController:getState',
-      );
-      this.setNetworkClientIdForMetamask(selectedNetworkClientId);
-    }
-
-    this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
-      ({ selectedNetworkClientId }) => {
-        if (this.getNetworkClientIdForMetamask() !== selectedNetworkClientId) {
-          this.setNetworkClientIdForMetamask(selectedNetworkClientId);
-        }
-      },
-    );
   }
 
   #registerMessageHandlers(): void {
@@ -168,17 +143,9 @@ export class SelectedNetworkController extends BaseController<
       this.getNetworkClientIdForDomain.bind(this),
     );
     this.messagingSystem.registerActionHandler(
-      SelectedNetworkControllerActionTypes.getNetworkClientIdForMetamask,
-      this.getNetworkClientIdForMetamask.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
       SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
       this.setNetworkClientIdForDomain.bind(this),
     );
-  }
-
-  setNetworkClientIdForMetamask(networkClientId: NetworkClientId) {
-    this.setNetworkClientIdForDomain(METAMASK_DOMAIN, networkClientId);
   }
 
   #setNetworkClientIdForDomain(
@@ -218,50 +185,28 @@ export class SelectedNetworkController extends BaseController<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
-    if (domain !== METAMASK_DOMAIN && !this.state.perDomainNetwork) {
-      return;
+    if (domain === METAMASK_DOMAIN) {
+      throw new Error(
+        'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController',
+      );
     }
 
-    if (domain !== METAMASK_DOMAIN && !this.#domainHasPermissions(domain)) {
-      return;
-    }
-
-    // If setting for Metamask and perDomainNetwork is disabled, update all domains to the Metamask networkClientId in order to keep the proxies in sync
-    if (domain === METAMASK_DOMAIN && !this.state.perDomainNetwork) {
-      Object.entries(this.state.domains).forEach(
-        ([entryDomain, networkClientIdForDomain]) => {
-          if (
-            networkClientIdForDomain !== networkClientId &&
-            entryDomain !== domain
-          ) {
-            this.#setNetworkClientIdForDomain(entryDomain, networkClientId);
-          }
-        },
+    if (!this.#domainHasPermissions(domain)) {
+      throw new Error(
+        'NetworkClientId for domain cannot be called with a domain that has not yet been granted permissions',
       );
     }
 
     this.#setNetworkClientIdForDomain(domain, networkClientId);
   }
 
-  getNetworkClientIdForDomain(domain: Domain): NetworkClientId | undefined {
-    if (domain === METAMASK_DOMAIN) {
-      return this.getNetworkClientIdForMetamask();
-    }
+  getNetworkClientIdForDomain(domain: Domain): NetworkClientId {
+    const { selectedNetworkClientId: metamaskSelectedNetworkClientId } =
+      this.messagingSystem.call('NetworkController:getState');
     if (!this.state.perDomainNetwork) {
-      return undefined;
+      return metamaskSelectedNetworkClientId;
     }
-    return this.state.domains[domain];
-  }
-
-  getNetworkClientIdForMetamask(): NetworkClientId {
-    return this.state.domains[METAMASK_DOMAIN];
-  }
-
-  #getNetworkClientIdForDomainOrMetamask(domain: Domain): NetworkClientId {
-    return (
-      this.getNetworkClientIdForDomain(domain) ??
-      this.getNetworkClientIdForMetamask()
-    );
+    return this.state.domains[domain] ?? metamaskSelectedNetworkClientId;
   }
 
   /**
@@ -271,11 +216,22 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
+    if (!this.state.perDomainNetwork) {
+      throw new Error(
+        'Provider and BlockTracker should be fetched from NetworkController when perDomainNetwork is false',
+      );
+    }
+    const networkClientId = this.state.domains[domain];
+    if (!networkClientId) {
+      throw new Error(
+        'NetworkClientId has not been set for the requested domain',
+      );
+    }
     let networkProxy = this.#proxies.get(domain);
     if (networkProxy === undefined) {
       const networkClient = this.messagingSystem.call(
         'NetworkController:getNetworkClientById',
-        this.#getNetworkClientIdForDomainOrMetamask(domain),
+        networkClientId,
       );
       networkProxy = {
         provider: createEventEmitterProxy(networkClient.provider),
@@ -293,16 +249,6 @@ export class SelectedNetworkController extends BaseController<
     this.update((state) => {
       state.perDomainNetwork = enabled;
       return state;
-    });
-    // when perDomainNetwork is toggled on or off we need to update the proxies for all domains
-    // when toggled on all domains should have their own proxies
-    // when toggled off all domains should use the same proxies as the metamask domain
-    Object.keys(this.state.domains).forEach((domain) => {
-      this.setNetworkClientIdForDomain(
-        domain,
-        // when perDomainNetwork is false, getNetworkClientIdForDomainOrMetamask always returns the networkClientId for the domain 'metamask'
-        this.#getNetworkClientIdForDomainOrMetamask(domain),
-      );
     });
   }
 }
