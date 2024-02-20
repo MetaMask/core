@@ -187,7 +187,7 @@ export class SelectedNetworkController extends BaseController<
   ) {
     if (domain === METAMASK_DOMAIN) {
       throw new Error(
-        'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController ',
+        'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController',
       );
     }
 
@@ -216,7 +216,12 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
-    const networkClientId = this.getNetworkClientIdForDomain(domain);
+    if (!this.state.perDomainNetwork) {
+      throw new Error(
+        'Provider and BlockTracker should be fetched from NetworkController when perDomainNetwork is false',
+      );
+    }
+    const networkClientId = this.state.domains[domain];
     if (!networkClientId) {
       throw new Error(
         'NetworkClientId has not been set for the requested domain',
