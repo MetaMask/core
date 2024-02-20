@@ -512,37 +512,25 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     ) {
       return;
     }
-    const { tokenList, slicesOfTokensToDetect } =
-      this.#getTokenListAndSlicesOfTokensToDetect();
-    for (const tokensSlice of slicesOfTokensToDetect) {
-      if (tokensSlice.length === 0) {
-        break;
-      }
-      await this.#addDetectedTokens({
-        tokenList,
-        tokensSlice,
-      });
-    }
-  }
-
-  #getTokenListAndSlicesOfTokensToDetect(): {
-    tokenList: Record<
-      string,
-      Pick<TokenListToken, 'address' | 'decimals' | 'symbol'>
-    >;
-    slicesOfTokensToDetect: string[][];
-  } {
     const isTokenDetectionInactiveInMainnet =
       !this.#isDetectionEnabledFromPreferences &&
       this.#chainIdAgainstWhichToDetect === ChainId.mainnet;
     const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
-
-    const tokenList = isTokenDetectionInactiveInMainnet
+    this.#tokenList = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
       : tokensChainsCache[this.#chainIdAgainstWhichToDetect]?.data ?? {};
 
+    for (const tokensSlice of this.#getSlicesOfTokensToDetect()) {
+      if (tokensSlice.length === 0) {
+        break;
+      }
+      await this.#addDetectedTokens(tokensSlice);
+    }
+  }
+
+  #getSlicesOfTokensToDetect(): string[][] {
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messagingSystem.call('TokensController:getState');
     const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddresses] = [
@@ -558,7 +546,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     );
 
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(tokenList)) {
+    for (const tokenAddress of Object.keys(this.#tokenList)) {
       if (
         [
           tokensAddresses,
@@ -582,19 +570,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       tokensToDetect.length - 1,
     );
 
-    return { tokenList, slicesOfTokensToDetect };
+    return slicesOfTokensToDetect;
   }
 
-  async #addDetectedTokens({
-    tokenList,
-    tokensSlice,
-  }: {
-    tokenList: Record<
-      string,
-      Partial<TokenListToken> & Pick<Token, 'address' | 'symbol' | 'decimals'>
-    >;
-    tokensSlice: string[];
-  }): Promise<void> {
+  async #addDetectedTokens(tokensSlice: string[]): Promise<void> {
     await safelyExecute(async () => {
       const balances = await this.#getBalancesInSingleCall(
         this.#addressAgainstWhichToDetect,
@@ -606,7 +585,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
         const { decimals, symbol, aggregators, iconUrl, name } =
-          tokenList[nonZeroTokenAddress];
+          this.#tokenList[nonZeroTokenAddress];
         eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
         tokensWithBalance.push({
           address: nonZeroTokenAddress,
