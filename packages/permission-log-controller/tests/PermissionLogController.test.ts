@@ -18,6 +18,7 @@ import {
   type Permission,
   type JsonRpcRequestWithOrigin,
   type PermissionActivityLog,
+  type PermissionHistory,
   PermissionLogController,
 } from '../src/PermissionLogController';
 import { constants, getters, noop } from './helpers';
@@ -43,23 +44,21 @@ class CustomError extends Error {
 
 const name = 'PermissionLogController';
 
-/**
- * Constructs a restricted controller messenger.
- *
- * @returns A restricted controller messenger.
- */
-function getMessenger() {
-  return new ControllerMessenger().getRestricted<typeof name, never, never>({
-    name,
-  });
-}
-
-const initPermissionLogController = (state = {}): PermissionLogController => {
-  const messenger = getMessenger();
+const initController = (
+  permissionHistory?: PermissionHistory,
+): PermissionLogController => {
   return new PermissionLogController({
-    messenger,
+    messenger: new ControllerMessenger().getRestricted<
+      typeof name,
+      never,
+      never
+    >({
+      name,
+    }),
     restrictedMethods: RESTRICTED_METHODS,
-    state,
+    state: {
+      permissionHistory: permissionHistory || {},
+    },
   });
 };
 
@@ -112,39 +111,27 @@ function validateActivityEntry(
   methodType: LOG_METHOD_TYPES,
   success: boolean,
 ) {
-  expect(entry).toBeDefined();
+  expect(entry).toMatchObject({
+    id: req.id,
+    method: req.method,
+    origin: req.origin,
+    methodType,
+    success: res ? success : null,
+    requestTime: expect.any(Number),
+    responseTime: res ? expect.any(Number) : null,
+  });
 
-  expect(entry.id).toStrictEqual(req.id);
-  expect(entry.method).toStrictEqual(req.method);
-  expect(entry.origin).toStrictEqual(req.origin);
-  expect(entry.methodType).toStrictEqual(methodType);
-
-  expect(Number.isInteger(entry.requestTime)).toBe(true);
   if (res) {
-    expect(Number.isInteger(entry.responseTime)).toBe(true);
-    expect(entry.requestTime <= (entry.responseTime as number)).toBe(true);
-    expect(entry.success).toStrictEqual(success);
-  } else {
-    expect(entry.requestTime > 0).toBe(true);
-    expect(entry).toMatchObject({
-      responseTime: null,
-      success: null,
-    });
+    expect(entry.requestTime).toBeLessThanOrEqual(entry.responseTime as number);
   }
 }
 
 describe('PermissionLogController', () => {
   describe('createMiddleware', () => {
     describe('restricted method activity log', () => {
-      let controller: PermissionLogController;
-      let logMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
-
-      beforeEach(() => {
-        controller = initPermissionLogController();
-        logMiddleware = initMiddleware(controller);
-      });
-
       it('records activity for restricted methods', () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         let req: JsonRpcRequestWithOrigin, res: PendingJsonRpcResponse<Json>;
 
         // test_method, success
@@ -240,6 +227,8 @@ describe('PermissionLogController', () => {
       });
 
       it('handles responses added out of order', () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const handlerArray: JsonRpcEngineReturnHandler[] = [];
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
 
@@ -322,6 +311,8 @@ describe('PermissionLogController', () => {
       });
 
       it('handles a lack of response', () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         let req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         req.id = REQUEST_IDS.a;
         let res = {
@@ -367,6 +358,8 @@ describe('PermissionLogController', () => {
       });
 
       it('ignores expected methods', () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         expect(controller.state.permissionActivityLog).toHaveLength(0);
 
         const res = {
@@ -397,6 +390,8 @@ describe('PermissionLogController', () => {
       });
 
       it('enforces log limit', () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         const res = {
           ...PendingJsonRpcResponseStruct.TYPE,
@@ -451,12 +446,7 @@ describe('PermissionLogController', () => {
     });
 
     describe('permission history log', () => {
-      let permissionLogController: PermissionLogController;
-      let logMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
-
       beforeEach(() => {
-        permissionLogController = initPermissionLogController();
-        logMiddleware = initMiddleware(permissionLogController);
         initClock();
       });
 
@@ -465,6 +455,8 @@ describe('PermissionLogController', () => {
       });
 
       it('only updates history on responses', () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.test_method,
@@ -477,19 +469,19 @@ describe('PermissionLogController', () => {
         // noop => no response
         logMiddleware(req, res, noop, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          {},
-        );
+        expect(controller.state.permissionHistory).toStrictEqual({});
 
         // response => records granted permissions
         logMiddleware(req, res, mockNext, noop);
 
-        const permHistory = permissionLogController.state.permissionHistory;
-        expect(Object.keys(permHistory)).toHaveLength(1);
-        expect(permHistory[SUBJECTS.a.origin]).toBeDefined();
+        const { permissionHistory } = controller.state;
+        expect(Object.keys(permissionHistory)).toHaveLength(1);
+        expect(permissionHistory[SUBJECTS.a.origin]).toBeDefined();
       });
 
       it('ignores malformed permissions requests', () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.test_method,
@@ -510,12 +502,12 @@ describe('PermissionLogController', () => {
           noop,
         );
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
-          {},
-        );
+        expect(controller.state.permissionHistory).toStrictEqual({});
       });
 
       it('records and updates account history as expected', async () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -527,7 +519,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[0],
         );
 
@@ -537,12 +529,14 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[1],
         );
       });
 
       it('handles eth_accounts response without caveats', async () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -555,12 +549,14 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case2[0],
         );
       });
 
       it('handles extra caveats for eth_accounts', async () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -574,7 +570,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[0],
         );
       });
@@ -582,6 +578,8 @@ describe('PermissionLogController', () => {
       // wallet_requestPermissions returns all permissions approved for the
       // requesting origin, including old ones
       it('handles unrequested permissions on the response', async () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -596,12 +594,14 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case1[0],
         );
       });
 
       it('does not update history if no new permissions are approved', async () => {
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
         let req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.test_method,
@@ -613,7 +613,7 @@ describe('PermissionLogController', () => {
 
         logMiddleware(req, res, mockNext, noop);
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case4[0],
         );
 
@@ -633,14 +633,16 @@ describe('PermissionLogController', () => {
         logMiddleware(req, res, mockNext, noop);
 
         // history should be unmodified
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case4[0],
         );
       });
 
       it('records and updates history for multiple origins, regardless of response order', async () => {
-        // make first round of requests
+        const controller = initController();
+        const logMiddleware = initMiddleware(controller);
 
+        // make first round of requests
         const round1: {
           req: JsonRpcRequest;
           res: PendingJsonRpcResponse<Permission[]>;
@@ -695,7 +697,7 @@ describe('PermissionLogController', () => {
           handlers1[i](noop);
         }
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case3[0],
         );
 
@@ -739,7 +741,7 @@ describe('PermissionLogController', () => {
           logMiddleware(x.req, x.res, mockNext, noop);
         });
 
-        expect(permissionLogController.state.permissionHistory).toStrictEqual(
+        expect(controller.state.permissionHistory).toStrictEqual(
           EXPECTED_HISTORIES.case3[1],
         );
       });
@@ -756,7 +758,7 @@ describe('PermissionLogController', () => {
     });
 
     it('does nothing if the list of accounts is empty', () => {
-      const controller = initPermissionLogController();
+      const controller = initController();
 
       controller.updateAccountsHistory('foo.com', []);
 
@@ -764,15 +766,13 @@ describe('PermissionLogController', () => {
     });
 
     it('updates the account history', () => {
-      const controller = initPermissionLogController({
-        permissionHistory: {
-          'foo.com': {
-            [PERM_NAMES.eth_accounts]: {
-              accounts: {
-                '0x1': 1,
-              },
-              lastApproved: 1,
+      const controller = initController({
+        'foo.com': {
+          [PERM_NAMES.eth_accounts]: {
+            accounts: {
+              '0x1': 1,
             },
+            lastApproved: 1,
           },
         },
       });
