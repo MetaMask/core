@@ -129,101 +129,112 @@ function validateActivityEntry(
 describe('PermissionLogController', () => {
   describe('createMiddleware', () => {
     describe('restricted method activity log', () => {
-      it('records activity for restricted methods', () => {
-        const controller = initController();
-        const logMiddleware = initMiddleware(controller);
-        let req: JsonRpcRequestWithOrigin, res: PendingJsonRpcResponse<Json>;
+      describe('recording Activity for restricted methods', () => {
+        it('records activity for a successful restricted method request', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+          const res = {
+            ...PendingJsonRpcResponseStruct.TYPE,
+            result: ['bar'],
+          };
 
-        // test_method, success
-        req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
-        req.id = REQUEST_IDS.a;
-        res = {
-          ...PendingJsonRpcResponseStruct.TYPE,
-          result: ['bar'],
-        };
+          logMiddleware(req, res, mockNext, noop);
 
-        logMiddleware(req, res, mockNext, noop);
+          expect(controller.state.permissionActivityLog).toHaveLength(1);
+          const entry = controller.state.permissionActivityLog[0];
+          validateActivityEntry(
+            entry,
+            req,
+            res,
+            LOG_METHOD_TYPES.restricted,
+            true,
+          );
+        });
 
-        expect(controller.state.permissionActivityLog).toHaveLength(1);
-        const entry1 = controller.state.permissionActivityLog[0];
-        validateActivityEntry(
-          entry1,
-          req,
-          res,
-          LOG_METHOD_TYPES.restricted,
-          true,
-        );
+        it('records activity for a failed restricted method request', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
+          const res: PendingJsonRpcResponse<Json> = {
+            id: REQUEST_IDS.a,
+            jsonrpc: '2.0',
+            error: new CustomError('Unauthorized.', 1),
+          };
 
-        // eth_accounts, failure
-        req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
-        req.id = REQUEST_IDS.b;
-        res = {
-          id: REQUEST_IDS.a,
-          jsonrpc: '2.0',
-          error: new CustomError('Unauthorized.', 1),
-        };
+          logMiddleware(req, res, mockNext, noop);
 
-        logMiddleware(req, res, mockNext, noop);
+          expect(controller.state.permissionActivityLog).toHaveLength(1);
+          const entry = controller.state.permissionActivityLog[0];
+          validateActivityEntry(
+            entry,
+            req,
+            res,
+            LOG_METHOD_TYPES.restricted,
+            false,
+          );
+        });
 
-        expect(controller.state.permissionActivityLog).toHaveLength(2);
-        const entry2 = controller.state.permissionActivityLog[1];
-        validateActivityEntry(
-          entry2,
-          req,
-          res,
-          LOG_METHOD_TYPES.restricted,
-          false,
-        );
+        it('records activity for a restricted method request with successful eth_requestAccounts', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.c.origin);
+          const res = {
+            ...PendingJsonRpcResponseStruct.TYPE,
+            result: ACCOUNTS.c.permitted,
+          };
 
-        // eth_requestAccounts, success
-        req = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.c.origin);
-        req.id = REQUEST_IDS.c;
-        res = {
-          ...PendingJsonRpcResponseStruct.TYPE,
-          result: ACCOUNTS.c.permitted,
-        };
+          logMiddleware(req, res, mockNext, noop);
 
-        logMiddleware(req, res, mockNext, noop);
+          expect(controller.state.permissionActivityLog).toHaveLength(1);
+          const entry = controller.state.permissionActivityLog[0];
+          validateActivityEntry(
+            entry,
+            req,
+            res,
+            LOG_METHOD_TYPES.restricted,
+            true,
+          );
+        });
 
-        expect(controller.state.permissionActivityLog).toHaveLength(3);
-        const entry3 = controller.state.permissionActivityLog[2];
-        validateActivityEntry(
-          entry3,
-          req,
-          res,
-          LOG_METHOD_TYPES.restricted,
-          true,
-        );
+        it('handles a restricted method request without a response', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+          // Simulating a scenario where no response is received
+          // @ts-expect-error We are intentionally passing bad input.
+          const res: PendingJsonRpcResponse<Json> = null;
 
-        // test_method, no response
-        req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
-        req.id = REQUEST_IDS.a;
-        // @ts-expect-error We are intentionally passing bad input.
-        res = null;
+          logMiddleware(req, res, mockNext, noop);
 
-        logMiddleware(req, res, mockNext, noop);
+          expect(controller.state.permissionActivityLog).toHaveLength(1);
+          const entry = controller.state.permissionActivityLog[0];
+          // Since there's no response, success is marked as false to indicate an unresolved request
+          validateActivityEntry(
+            entry,
+            req,
+            null,
+            LOG_METHOD_TYPES.restricted,
+            false,
+          );
+        });
 
-        expect(controller.state.permissionActivityLog).toHaveLength(4);
-        const entry4 = controller.state.permissionActivityLog[3];
-        validateActivityEntry(
-          entry4,
-          { ...req },
-          null,
-          LOG_METHOD_TYPES.restricted,
-          false,
-        );
+        it('ensures that "request" and "response" properties are not present in log entries', () => {
+          const controller = initController();
+          const logMiddleware = initMiddleware(controller);
+          const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
+          const res = {
+            ...PendingJsonRpcResponseStruct.TYPE,
+            result: ['bar'],
+          };
 
-        // Validate final state
-        expect(entry1).toStrictEqual(controller.state.permissionActivityLog[0]);
-        expect(entry2).toStrictEqual(controller.state.permissionActivityLog[1]);
-        expect(entry3).toStrictEqual(controller.state.permissionActivityLog[2]);
-        expect(entry4).toStrictEqual(controller.state.permissionActivityLog[3]);
+          logMiddleware(req, res, mockNext, noop);
 
-        // Regression test: ensure "response" and "request" properties
-        // are not present
-        controller.state.permissionActivityLog.forEach((entry) =>
-          expect('request' in entry && 'response' in entry).toBe(false),
-        );
+          controller.state.permissionActivityLog.forEach((entry) => {
+            expect(entry).not.toHaveProperty('request');
+            expect(entry).not.toHaveProperty('response');
+          });
+        });
       });
 
       it('handles responses added out of order', () => {
@@ -380,7 +391,7 @@ describe('PermissionLogController', () => {
         expect(controller.state.permissionActivityLog).toHaveLength(0);
       });
 
-      describe('Log limit enforcement', () => {
+      describe('log limit enforcement', () => {
         it('fills up the log to its limit without exceeding', () => {
           const controller = initController();
           const logMiddleware = initMiddleware(controller);
