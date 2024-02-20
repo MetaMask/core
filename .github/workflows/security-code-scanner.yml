@@ -24,5 +24,8 @@ jobs:
             '**/*.test.js'
             '**/*.test.ts'
             node_modules
+            merged-packages/
+            **/test/
+            **/jest.environment.js
           mixpanel_project_token: ${{secrets.SECURITY_CODE_SCANNER_MIXPANEL_TOKEN}}
           slack_webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
