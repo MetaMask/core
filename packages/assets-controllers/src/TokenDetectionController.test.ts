@@ -13,6 +13,8 @@ import {
   type NetworkState,
   type NetworkConfiguration,
   type NetworkController,
+  ProviderConfig,
+  NetworkClientId,
 } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
@@ -1986,10 +1988,14 @@ function getTokensPath(chainId: Hex) {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  mockGetSelectedAccount,
   mockKeyringGetState,
   mockTokensGetState,
   mockTokenListGetState,
   mockPreferencesGetState,
+  mockFindNetworkClientIdByChainId,
+  mockGetNetworkConfigurationByNetworkClientId,
+  mockGetProviderConfig,
   callActionSpy,
   triggerKeyringUnlock,
   triggerKeyringLock,
@@ -1999,13 +2005,19 @@ type WithControllerCallback<ReturnValue> = ({
   triggerNetworkDidChange,
 }: {
   controller: TokenDetectionController;
+  mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
   mockTokensGetState: (state: TokensState) => void;
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
+  mockFindNetworkClientIdByChainId: (
+    chainId: Hex,
+    networkClientId?: NetworkClientId,
+  ) => void;
   mockGetNetworkConfigurationByNetworkClientId: (
     handler: (networkClientId: string) => NetworkConfiguration,
   ) => void;
+  mockGetProviderConfig: (config: ProviderConfig) => void;
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
@@ -2042,12 +2054,24 @@ async function withController<ReturnValue>(
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
 
+  const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
+  controllerMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount.mockReturnValue({
+      address: '0x1',
+    } as InternalAccount),
+  );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
   controllerMessenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: isKeyringUnlocked ?? true,
     } as KeyringControllerState),
+  );
+  const mockFindNetworkClientIdByChainId = jest.fn<NetworkClientId, [Hex]>();
+  controllerMessenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    mockFindNetworkClientIdByChainId.mockReturnValue(NetworkType.mainnet),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
@@ -2060,6 +2084,14 @@ async function withController<ReturnValue>(
         return mockNetworkConfigurations[networkClientId];
       },
     ),
+  );
+  const mockGetProviderConfig = jest.fn<ProviderConfig, []>();
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getProviderConfig',
+    mockGetProviderConfig.mockReturnValue({
+      type: NetworkType.mainnet,
+      chainId: '0x1',
+    } as unknown as ProviderConfig),
   );
   const mockTokensState = jest.fn<TokensState, []>();
   controllerMessenger.registerActionHandler(
@@ -2099,6 +2131,9 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      mockGetSelectedAccount: (address: string) => {
+        mockGetSelectedAccount.mockReturnValue({ address } as InternalAccount);
+      },
       mockKeyringGetState: (state: KeyringControllerState) => {
         mockKeyringState.mockReturnValue(state);
       },
@@ -2111,12 +2146,24 @@ async function withController<ReturnValue>(
       mockTokenListGetState: (state: TokenListState) => {
         mockTokenListState.mockReturnValue(state);
       },
+      mockFindNetworkClientIdByChainId: (
+        chainId: Hex,
+        networkClientId?: NetworkClientId,
+      ) => {
+        mockFindNetworkClientIdByChainId.mockReturnValue(
+          networkClientId ??
+            (chainId === '0x1' ? NetworkType.mainnet : NetworkType.goerli),
+        );
+      },
       mockGetNetworkConfigurationByNetworkClientId: (
         handler: (networkClientId: string) => NetworkConfiguration,
       ) => {
         mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
           handler,
         );
+      },
+      mockGetProviderConfig: (config: ProviderConfig) => {
+        mockGetProviderConfig.mockReturnValue(config);
       },
       callActionSpy,
       triggerKeyringUnlock: () => {
