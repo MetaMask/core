@@ -14,7 +14,7 @@ export const controllerName = 'ComposableController';
 /**
  * A type encompassing all controller instances that extend from `BaseControllerV1`.
  */
-type BaseControllerV1Instance =
+export type BaseControllerV1Instance =
   // `any` is used to include all `BaseControllerV1` instances.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   BaseControllerV1<any, any>;
@@ -27,7 +27,7 @@ type BaseControllerV1Instance =
  *
  * Instead, we look for an object with the `BaseController` properties that we use in the ComposableController (name and state).
  */
-type BaseControllerV2Instance = {
+export type BaseControllerV2Instance = {
   name: string;
   state: Record<string, Json>;
 };
@@ -36,7 +36,9 @@ type BaseControllerV2Instance = {
 /**
  * A type encompassing all controller instances that extend from `BaseControllerV1` or `BaseController`.
  */
-type ControllerInstance = BaseControllerV1Instance | BaseControllerV2Instance;
+export type ControllerInstance =
+  | BaseControllerV1Instance
+  | BaseControllerV2Instance;
 
 /**
  * Determines if the given controller is an instance of BaseControllerV1
