@@ -433,7 +433,6 @@ export class TransactionController extends BaseControllerV1<
   }
 
   #multichainTrackingHelper: MultichainTrackingHelper
-  // #multichainTrackingHelper: MultichainTrackingHelper
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -498,8 +497,6 @@ export class TransactionController extends BaseControllerV1<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
-    // // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
-    // this.registry = new MethodRegistry({ provider });
     
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
@@ -625,6 +622,17 @@ export class TransactionController extends BaseControllerV1<
     this.onBootCleanup();
   }
 
+  /**
+   * Initializes `registry`, `nonceTracker`, `#multichainTrackingHelper`,
+   * `incomingTransactionHelper`, `pendingTransactionTracker`, and passes a
+   * callback to `onNetworkStateChange`.
+   *
+   * This relies on the provider and block tracker being defined which may not
+   * have been the case at the time the Transaction Controller was instantiated.
+   *
+   * @param passedProvider - Reference to the provider proxy object
+   * @param passedBlockTracker - Reference to the block tracker proxy object
+   */
   delayedInit(passedProvider: Provider, passedBlockTracker: BlockTracker) {
     // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
     this.registry = new MethodRegistry({ provider: passedProvider });
