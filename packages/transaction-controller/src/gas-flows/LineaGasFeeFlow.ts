@@ -125,9 +125,10 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     value: Hex,
     multipliers: { low: number; medium: number; high: number },
   ): FeesByLevel {
-    const low = hexToBN(value).muln(multipliers.low);
-    const medium = low.muln(multipliers.medium);
-    const high = low.muln(multipliers.high);
+    const base = hexToBN(value);
+    const low = base.muln(multipliers.low);
+    const medium = base.muln(multipliers.medium);
+    const high = base.muln(multipliers.high);
 
     return {
       low,
