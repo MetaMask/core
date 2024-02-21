@@ -44,7 +44,7 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
  * This metadata describes which parts of state should be persisted, and how to
  * get an anonymized representation of the state.
  */
-export type StateMetadata<T extends Record<string, Json>> = {
+export type StateMetadata<T extends StateConstraint> = {
   [P in keyof T]: StatePropertyMetadata<T[P]>;
 };
 
@@ -98,7 +98,7 @@ export type ControllerEvents<
  */
 export class BaseController<
   ControllerName extends string,
-  ControllerState extends Record<string, Json>,
+  ControllerState extends StateConstraint,
   messenger extends RestrictedControllerMessenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,
@@ -251,12 +251,10 @@ export class BaseController<
  * anonymized state.
  * @returns The anonymized controller state.
  */
-export function getAnonymizedState<
-  ControllerState extends Record<string, Json>,
->(
+export function getAnonymizedState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
-): Record<string, Json> {
+): StateConstraint {
   return deriveStateFromMetadata(state, metadata, 'anonymous');
 }
 
@@ -267,12 +265,10 @@ export function getAnonymizedState<
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
  * @returns The subset of controller state that should be persisted.
  */
-export function getPersistentState<
-  ControllerState extends Record<string, Json>,
->(
+export function getPersistentState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
-): Record<string, Json> {
+): StateConstraint {
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
 
@@ -284,11 +280,11 @@ export function getPersistentState<
  * @param metadataProperty - The metadata property to use to derive state.
  * @returns The metadata-derived controller state.
  */
-function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
+function deriveStateFromMetadata<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
   metadataProperty: 'anonymous' | 'persist',
-): Record<string, Json> {
+): StateConstraint {
   return (Object.keys(state) as (keyof ControllerState)[]).reduce<
     Partial<Record<keyof ControllerState, Json>>
   >((persistedState, key) => {
