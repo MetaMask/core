@@ -281,9 +281,9 @@ function deriveStateFromMetadata<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
   metadataProperty: 'anonymous' | 'persist',
-): StateConstraint {
+): Record<keyof ControllerState, Json> {
   return (Object.keys(state) as (keyof ControllerState)[]).reduce<
-    Partial<Record<keyof ControllerState, Json>>
+    Record<keyof ControllerState, Json>
   >((persistedState, key) => {
     try {
       const stateMetadata = metadata[key];
@@ -306,5 +306,5 @@ function deriveStateFromMetadata<ControllerState extends StateConstraint>(
       });
       return persistedState;
     }
-  }, {}) as Record<keyof ControllerState, Json>;
+  }, {} as never);
 }

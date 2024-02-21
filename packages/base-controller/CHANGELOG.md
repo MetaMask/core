@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Narrow the generic constraint of the `ControllerState` parameter from `Record<string, unknown>` to `Record<string, Json>` for types `ControllerGetStateAction`, `ControllerStateChangeEvent`, `ControllerActions`, `ControllerEvents`.
+- **BREAKING:** Narrow the return type of the function `deriveStateFromMetadata<ControllerState>` from `Record<string, Json>` to `Record<keyof ControllerState, Json>`.
 - Convert interface `StatePropertyMetadata<T extends Json>` into a type.
 
 ### Removed
