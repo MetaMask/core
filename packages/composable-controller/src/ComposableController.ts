@@ -10,22 +10,24 @@ import { isValidJson, type Json } from '@metamask/utils';
 export const controllerName = 'ComposableController';
 
 /*
- * This type encompasses controllers based on either BaseControllerV1 or
+ * The following three types encompass controllers based on either BaseControllerV1 or
  * BaseController. The BaseController type can't be included directly
  * because the generic parameters it expects require knowing the exact state
  * shape, so instead we look for an object with the BaseController properties
  * that we use in the ComposableController (name and state).
  */
+// As explained above, `any` is used to include all `BaseControllerV1` instances.
+// TODO: Remove this type once `BaseControllerV2` migrations are completed for all controllers.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BaseControllerV1Instance = BaseControllerV1<any, any>;
+
+type BaseControllerV2Instance = { name: string; state: Record<string, Json> };
+
 type ControllerInstance =
   // As explained above, `any` is used to include all `BaseControllerV1` instances.
-  // TODO: Remove first union member once `BaseControllerV2` migrations are completed for all controllers.
+  // TODO: Remove `BaseControllerV1Instance` once `BaseControllerV2` migrations are completed for all controllers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BaseControllerV1<any, any> | { name: string; state: Record<string, Json> };
-
-/**
- * List of child controller instances
- */
-export type ControllerList = ControllerInstance[];
+  BaseControllerV1Instance | BaseControllerV2Instance;
 
 /**
  * Determines if the given controller is an instance of BaseControllerV1
@@ -119,7 +121,7 @@ export class ComposableController extends BaseController<
     controllers,
     messenger,
   }: {
-    controllers: ControllerList;
+    controllers: ControllerInstance[];
     messenger: ComposableControllerMessenger;
   }) {
     if (messenger === undefined) {
