@@ -1375,7 +1375,7 @@ export class NetworkController extends BaseController<
    */
   findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
     if (this.state.providerConfig.chainId === chainId) {
-      return this.state.selectedNetworkClientId;
+      return this.state.providerConfig.id ?? this.state.providerConfig.type;
     }
 
     const networkClients = this.getNetworkClientRegistry();

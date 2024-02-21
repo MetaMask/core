@@ -1130,8 +1130,7 @@ describe('NetworkController', () => {
               other: { id: 'other', chainId, rpcUrl: '', ticker: '' },
               current: { id: 'current', chainId, rpcUrl: '', ticker: '' },
             },
-            providerConfig: { chainId, type: 'rpc', ticker: '', rpcUrl: '' },
-            selectedNetworkClientId: 'current',
+            providerConfig: { chainId, id: 'current', type: 'rpc', ticker: '' },
           },
         },
         async ({ controller }) =>
