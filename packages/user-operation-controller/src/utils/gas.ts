@@ -1,7 +1,7 @@
 import { hexToBN } from '@metamask/controller-utils';
 import { BN, addHexPrefix } from 'ethereumjs-util';
 
-import { VALUE_ZERO } from '../constants';
+import { VALUE_ZERO, VALUE_ONE } from '../constants';
 import { Bundler } from '../helpers/Bundler';
 import { createModuleLogger, projectLogger } from '../logger';
 import type {
@@ -27,7 +27,13 @@ export async function updateGas(
   prepareResponse: PrepareUserOperationResponse,
   entrypoint: string,
 ) {
-  const { userOperation } = metadata;
+  const { userOperation, transactionParams } = metadata;
+  let gasPrice, maxFeePerGas, maxPriorityFeePerGas;
+  if (transactionParams) {
+    gasPrice = transactionParams.gasPrice;
+    maxFeePerGas = transactionParams.maxFeePerGas;
+    maxPriorityFeePerGas = transactionParams.maxPriorityFeePerGas;
+  }
 
   if (prepareResponse.gas) {
     userOperation.callGasLimit = prepareResponse.gas.callGasLimit;
@@ -46,8 +52,8 @@ export async function updateGas(
 
   const payload = {
     ...userOperation,
-    maxFeePerGas: VALUE_ZERO,
-    maxPriorityFeePerGas: VALUE_ZERO,
+    maxFeePerGas: maxFeePerGas || gasPrice || VALUE_ONE,
+    maxPriorityFeePerGas: maxPriorityFeePerGas || gasPrice || VALUE_ONE,
     callGasLimit: VALUE_ZERO,
     preVerificationGas: VALUE_ZERO,
     verificationGasLimit: '0xF4240',
