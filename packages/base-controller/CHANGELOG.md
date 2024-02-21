@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add and export type `StateConstraint`, which is an alias for `Record<string, Json>`, and represents the narrowest supertype encompassing the state of all controllers.
+
 ### Removed
 
 - **BREAKING:** Remove the deprecated `subscribe` class field from `BaseControllerV2`.

@@ -8,6 +8,13 @@ import type { RestrictedControllerMessenger } from './RestrictedControllerMessen
 enablePatches();
 
 /**
+ * A type that constrains the state of all controllers.
+ *
+ * In other words, the narrowest supertype encompassing all controller state.
+ */
+export type StateConstraint = Record<string, Json>;
+
+/**
  * A state change listener.
  *
  * This function will get called for each state change, and is given a copy of
