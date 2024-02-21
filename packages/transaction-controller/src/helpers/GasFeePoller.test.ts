@@ -59,7 +59,7 @@ function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
 
 /**
  * Creates a mock Layer1GasFeeFlow.
- * @returns The mock GasFeeFlow.
+ * @returns The mock Layer1GasFeeFlow.
  */
 function createLayer1GasFeeFlowMock(): jest.Mocked<Layer1GasFeeFlow> {
   return {
