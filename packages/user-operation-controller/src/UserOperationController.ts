@@ -51,6 +51,7 @@ import {
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
 } from './utils/validation';
+import { errorWithPrefix } from './utils/errors';
 
 const controllerName = 'UserOperationController';
 
@@ -729,9 +730,13 @@ export class UserOperationController extends BaseController<
     }
 
     const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
+    try {
+      const result = determineTransactionType(transaction, ethQuery);
 
-    return (await result).type;
+      return (await result).type;
+    } catch (error) {
+      throw errorWithPrefix(error, 'Failed to determine transaction type');
+    }
   }
 
   async #getProvider(

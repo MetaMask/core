@@ -11,6 +11,7 @@ import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
 import { Bundler } from './Bundler';
+import { errorWithPrefix } from 'src/utils/errors';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
 
@@ -152,18 +153,21 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
 
     log('User operation confirmed', id, transactionHash);
 
-    const { baseFeePerGas } = await query(
-      new EthQuery(provider),
-      'getBlockByHash',
-      [blockHash, false],
-    );
+    try {
+      const { baseFeePerGas } = await query(
+        new EthQuery(provider),
+        'getBlockByHash',
+        [blockHash, false],
+      );
 
-    metadata.actualGasCost = actualGasCost;
-    metadata.actualGasUsed = actualGasUsed;
-    metadata.baseFeePerGas = baseFeePerGas;
-    metadata.status = UserOperationStatus.Confirmed;
-    metadata.transactionHash = transactionHash;
-
+      metadata.actualGasCost = actualGasCost;
+      metadata.actualGasUsed = actualGasUsed;
+      metadata.baseFeePerGas = baseFeePerGas;
+      metadata.status = UserOperationStatus.Confirmed;
+      metadata.transactionHash = transactionHash;
+    } catch (error) {
+      throw errorWithPrefix(error, 'Failed to get block for user operation');
+    }
     this.#updateUserOperation(metadata);
 
     this.hub.emit('user-operation-confirmed', metadata);

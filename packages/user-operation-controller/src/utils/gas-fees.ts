@@ -19,6 +19,7 @@ import { EMPTY_BYTES } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { UserOperation, UserOperationMetadata } from '../types';
 import type { AddUserOperationRequest } from '../UserOperationController';
+import { errorWithPrefix } from './errors';
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
 
@@ -264,19 +265,24 @@ async function getSuggestedGasFees(
     log('Failed to get estimate', error);
   }
 
-  const gasPriceDecimal = (await query(new EthQuery(provider), 'gasPrice')) as
-    | number
-    | undefined;
+  try {
+    const gasPriceDecimal = (await query(
+      new EthQuery(provider),
+      'gasPrice',
+    )) as number | undefined;
 
-  if (!gasPriceDecimal) {
-    return {};
+    if (!gasPriceDecimal) {
+      return {};
+    }
+
+    const maxFeePerGas = addHexPrefix(gasPriceDecimal.toString(16)) as Hex;
+
+    log('Using gasPrice from network as fallback', maxFeePerGas);
+
+    return { maxFeePerGas };
+  } catch (error) {
+    throw errorWithPrefix(error, 'Failed to get gas price from network');
   }
-
-  const maxFeePerGas = addHexPrefix(gasPriceDecimal.toString(16)) as Hex;
-
-  log('Using gasPrice from network as fallback', maxFeePerGas);
-
-  return { maxFeePerGas };
 }
 
 /**
