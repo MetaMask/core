@@ -187,7 +187,7 @@ export class SelectedNetworkController extends BaseController<
   ) {
     if (domain === METAMASK_DOMAIN) {
       throw new Error(
-        `NetworkClientId for domain ${METAMASK_DOMAIN} cannot be set on the SelectedNetworkController`,
+        `NetworkClientId for domain "${METAMASK_DOMAIN}" cannot be set on the SelectedNetworkController`,
       );
     }
 

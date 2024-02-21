@@ -7,6 +7,7 @@ import type {
   SelectedNetworkControllerActions,
   SelectedNetworkControllerEvents,
   SelectedNetworkControllerMessenger,
+  SelectedNetworkControllerState,
 } from '../src/SelectedNetworkController';
 import {
   SelectedNetworkController,
@@ -76,7 +77,10 @@ jest.mock('@metamask/swappable-obj-proxy');
 
 const setup = ({
   hasPermissions = true,
-  state = { perDomainNetwork: false, domains: {} },
+  state,
+}: {
+  hasPermissions?: boolean;
+  state?: SelectedNetworkControllerState;
 } = {}) => {
   const mockProviderProxy = {
     setTarget: jest.fn(),
@@ -134,7 +138,7 @@ describe('SelectedNetworkController', () => {
   });
   describe('constructor', () => {
     it('can be instantiated with default values', () => {
-      const { controller } = setup({ state: undefined });
+      const { controller } = setup();
       expect(controller.state).toStrictEqual({
         domains: {},
         perDomainNetwork: false,
