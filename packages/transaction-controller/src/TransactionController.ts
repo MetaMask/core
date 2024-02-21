@@ -330,6 +330,7 @@ export class TransactionController extends BaseControllerV1<
   private readonly inProcessOfSigning: Set<string> = new Set();
 
   private readonly nonceTracker: NonceTracker;
+  // private nonceTracker: NonceTracker;
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -365,12 +366,19 @@ export class TransactionController extends BaseControllerV1<
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
+  // private incomingTransactionHelper: IncomingTransactionHelper;
 
   private readonly securityProviderRequest?: SecurityProviderRequest;
 
   readonly #pendingTransactionOptions: PendingTransactionOptions;
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
+  // private pendingTransactionTracker: PendingTransactionTracker;
+
+  // private readonly onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+  // private readonly isMultichainEnabled: boolean;
+  // private readonly incomingTransactions: IncomingTransactionOptions;
+  // private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
@@ -427,7 +435,8 @@ export class TransactionController extends BaseControllerV1<
     return { registryMethod, parsedRegistryMethod };
   }
 
-  #multichainTrackingHelper: MultichainTrackingHelper;
+  #multichainTrackingHelper: MultichainTrackingHelper
+  // #multichainTrackingHelper: MultichainTrackingHelper
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -492,8 +501,9 @@ export class TransactionController extends BaseControllerV1<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
-    // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
-    this.registry = new MethodRegistry({ provider });
+    // // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
+    // this.registry = new MethodRegistry({ provider });
+    
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility ?? (() => Promise.resolve(true));
@@ -610,7 +620,81 @@ export class TransactionController extends BaseControllerV1<
       this.onBootCleanup();
     });
 
+    // this.onNetworkStateChange = onNetworkStateChange;
+    // this.isMultichainEnabled = isMultichainEnabled;
+    // this.incomingTransactions = incomingTransactions;
+    // this.getNetworkClientRegistry = getNetworkClientRegistry;
+
     this.onBootCleanup();
+  }
+
+  delayedInit(passedProvider: Provider, passedBlockTracker: BlockTracker) {
+    // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
+    this.registry = new MethodRegistry({ provider: passedProvider });
+
+    // this.nonceTracker = this.#createNonceTracker({
+    //   provider: passedProvider,
+    //   blockTracker: passedBlockTracker,
+    // });
+
+    // this.#multichainTrackingHelper = new MultichainTrackingHelper({
+    //   isMultichainEnabled: this.isMultichainEnabled,
+    //   provider: passedProvider,
+    //   nonceTracker: this.nonceTracker,
+    //   incomingTransactionOptions: this.incomingTransactions,
+    //   findNetworkClientIdByChainId: (chainId: Hex) => {
+    //     return this.messagingSystem.call(
+    //       `NetworkController:findNetworkClientIdByChainId`,
+    //       chainId,
+    //     );
+    //   },
+    //   getNetworkClientById: ((networkClientId: NetworkClientId) => {
+    //     return this.messagingSystem.call(
+    //       `NetworkController:getNetworkClientById`,
+    //       networkClientId,
+    //     );
+    //   }) as NetworkController['getNetworkClientById'],
+    //   getNetworkClientRegistry: this.getNetworkClientRegistry,
+    //   removeIncomingTransactionHelperListeners:
+    //     this.#removeIncomingTransactionHelperListeners.bind(this),
+    //   removePendingTransactionTrackerListeners:
+    //     this.#removePendingTransactionTrackerListeners.bind(this),
+    //   createNonceTracker: this.#createNonceTracker.bind(this),
+    //   createIncomingTransactionHelper:
+    //     this.#createIncomingTransactionHelper.bind(this),
+    //   createPendingTransactionTracker:
+    //     this.#createPendingTransactionTracker.bind(this),
+    //   onNetworkStateChange: (listener) => {
+    //     this.messagingSystem.subscribe(
+    //       'NetworkController:stateChange',
+    //       listener,
+    //     );
+    //   },
+    // });
+    // this.#multichainTrackingHelper.initialize();
+
+    // const etherscanRemoteTransactionSource =
+    //   new EtherscanRemoteTransactionSource({
+    //     includeTokenTransfers: this.incomingTransactions.includeTokenTransfers,
+    //   });
+
+    // this.incomingTransactionHelper = this.#createIncomingTransactionHelper({
+    //   blockTracker: passedBlockTracker,
+    //   etherscanRemoteTransactionSource,
+    // });
+
+    // this.pendingTransactionTracker = this.#createPendingTransactionTracker({
+    //   provider: passedProvider,
+    //   blockTracker: passedBlockTracker,
+    // });
+
+    // // TODO once v2 is merged make sure this only runs when
+    // // selectedNetworkClientId changes
+    // this.onNetworkStateChange(() => {
+    //   log('Detected network change', this.getChainId());
+    //   this.pendingTransactionTracker.startIfPendingTransactions();
+    //   this.onBootCleanup();
+    // });
   }
 
   /**
