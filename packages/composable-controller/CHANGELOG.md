@@ -14,12 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
-- Throws an error if a non-controller is passed into the `controllers` constructor option ([#3904](https://github.com/MetaMask/core/pull/3904))
+- **BREAKING:** Passing a non-controller into `controllers` constructor option now throws an error ([#3904](https://github.com/MetaMask/core/pull/3904))
+- **BREAKING:** The `AllowedActions` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions. ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ### Removed
-
-- **BREAKING:** The `AllowedActions` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions. ([#3904](https://github.com/MetaMask/core/pull/3904))
 - **BREAKING:** Remove `ControllerList` as an exported type. ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ## [5.0.1]
