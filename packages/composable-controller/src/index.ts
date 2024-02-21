@@ -1,5 +1,4 @@
 export type {
-  ControllerList,
   ComposableControllerState,
   ComposableControllerStateChangeEvent,
   ComposableControllerEvents,
