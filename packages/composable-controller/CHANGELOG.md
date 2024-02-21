@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
+- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ChildControllers` in the form of a union of the controllers passed into the `controllers` array constructor option ([#3941](https://github.com/MetaMask/core/pull/3941))
+  - Child controllers that extend `BaseControllerV1` must have an overridden `name` property that is defined using the `as const` assertion for the `ComposableController` class to be typed correctly.
+  - The controller state is now constrained by a `ComposedControllerState` generic argument, which is automaticallly derived from the `ChildControllers` argument without needing to be passed in by the user.
+  - The `messenger` constructor option is constrained by a `ComposedControllerMessenger` generic argument which is also automatically derived, and is required to contain the `stateChange` events for all child controllers in its `Events` and `AllowedEvents` parameters, as well as the composable controller instance in its `Events` parameter.
 - Throws an error if a non-controller is passed into the `controllers` constructor option ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ### Removed

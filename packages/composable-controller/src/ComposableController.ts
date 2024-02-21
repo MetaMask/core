@@ -4,6 +4,7 @@ import type {
   RestrictedControllerMessenger,
   BaseState,
   BaseConfig,
+  EventConstraint,
   StateMetadata,
 } from '@metamask/base-controller';
 import { isValidJson, type Json } from '@metamask/utils';
@@ -102,13 +103,43 @@ export type ComposableControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
+type GetStateChangeEventsUnion<Controller extends ControllerInstance> =
+  Controller extends ControllerInstance
+    ? Controller extends BaseControllerV2Instance
+      ? ControllerStateChangeEvent<Controller['name'], Controller['state']>
+      : never
+    : never;
+
 /**
  * Controller that can be used to compose multiple controllers together.
  */
-export class ComposableController extends BaseController<
+export class ComposableController<
+  ChildControllers extends ControllerInstance,
+  ComposedControllerState extends ComposableControllerState = {
+    [P in ChildControllers as P['name']]: P extends ControllerInstance
+      ? P['state']
+      : never;
+  },
+  ComposedControllerStateChangeEvent extends EventConstraint & {
+    type: `${typeof controllerName}:stateChange`;
+  } = ControllerStateChangeEvent<
+    typeof controllerName,
+    ComposedControllerState
+  >,
+  ChildControllersStateChangeEvents extends EventConstraint & {
+    type: `${string}:stateChange`;
+  } = GetStateChangeEventsUnion<ChildControllers>,
+  ComposedControllerMessenger extends ComposableControllerMessenger = RestrictedControllerMessenger<
+    typeof controllerName,
+    never,
+    ComposedControllerStateChangeEvent | ChildControllersStateChangeEvents,
+    never,
+    ChildControllersStateChangeEvents['type']
+  >,
+> extends BaseController<
   typeof controllerName,
-  ComposableControllerState,
-  ComposableControllerMessenger
+  ComposedControllerState,
+  ComposedControllerMessenger
 > {
   /**
    * Creates a ComposableController instance.
@@ -122,8 +153,8 @@ export class ComposableController extends BaseController<
     controllers,
     messenger,
   }: {
-    controllers: ControllerInstance[];
-    messenger: ComposableControllerMessenger;
+    controllers: ChildControllers[];
+    messenger: ComposedControllerMessenger;
   }) {
     if (messenger === undefined) {
       throw new Error(`Messaging system is required`);
@@ -131,20 +162,20 @@ export class ComposableController extends BaseController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
+      metadata: controllers.reduce<StateMetadata<ComposedControllerState>>(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
             ? controller.metadata
             : { persist: true, anonymous: true },
         }),
-        {},
+        {} as never,
       ),
-      state: controllers.reduce<ComposableControllerState>(
+      state: controllers.reduce<ComposedControllerState>(
         (state, controller) => {
           return { ...state, [controller.name]: controller.state };
         },
-        {},
+        {} as never,
       ),
       messenger,
     });
@@ -163,18 +194,24 @@ export class ComposableController extends BaseController<
     const { name } = controller;
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState) => {
-        this.update((state) => ({
-          ...state,
-          [name]: childState,
-        }));
+        this.update(
+          (state) =>
+            ({
+              ...state,
+              [name]: childState,
+            } as ComposedControllerState),
+        );
       });
     } else if (isBaseController(controller)) {
       this.messagingSystem.subscribe(`${name}:stateChange`, (childState) => {
         if (isValidJson(childState)) {
-          this.update((state) => ({
-            ...state,
-            [name]: childState,
-          }));
+          this.update(
+            (state) =>
+              ({
+                ...state,
+                [name]: childState,
+              } as ComposedControllerState),
+          );
         }
       });
     } else {
