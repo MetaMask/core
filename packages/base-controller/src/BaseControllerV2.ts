@@ -59,13 +59,10 @@ export type StateMetadata<T extends StateConstraint> = {
  * identifiable), or is set to a function that returns an anonymized
  * representation of this state.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface StatePropertyMetadata<T extends Json> {
+export type StatePropertyMetadata<T extends Json> = {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
-}
+};
 
 export type ControllerGetStateAction<
   ControllerName extends string,
