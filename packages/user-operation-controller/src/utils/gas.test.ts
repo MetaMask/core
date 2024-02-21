@@ -1,6 +1,7 @@
+import type { TransactionParams } from '@metamask/transaction-controller';
 import { cloneDeep } from 'lodash';
 
-import { VALUE_ZERO } from '../constants';
+import { VALUE_ZERO, VALUE_ONE } from '../constants';
 import type { BundlerEstimateUserOperationGasResponse } from '../helpers/Bundler';
 import { Bundler } from '../helpers/Bundler';
 import type {
@@ -95,8 +96,59 @@ describe('gas', () => {
         expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
           {
             ...metadata.userOperation,
-            maxFeePerGas: VALUE_ZERO,
-            maxPriorityFeePerGas: VALUE_ZERO,
+            maxFeePerGas: VALUE_ONE,
+            maxPriorityFeePerGas: VALUE_ONE,
+            callGasLimit: VALUE_ZERO,
+            preVerificationGas: VALUE_ZERO,
+            verificationGasLimit: '0xF4240',
+          },
+          ENTRYPOINT_MOCK,
+        );
+      });
+
+      it('uses maxFeePerGas and maxPriorityFeePerGas if defined in transactionParams', async () => {
+        metadata.transactionParams = {
+          maxFeePerGas: '0x5',
+          maxPriorityFeePerGas: '0x6',
+        } as Required<TransactionParams>;
+
+        bundlerMock.estimateUserOperationGas.mockResolvedValue(
+          ESTIMATE_RESPONSE_DECIMAL_MOCK,
+        );
+
+        await callUpdateGas();
+
+        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledTimes(1);
+        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
+          {
+            ...metadata.userOperation,
+            maxFeePerGas: '0x5',
+            maxPriorityFeePerGas: '0x6',
+            callGasLimit: VALUE_ZERO,
+            preVerificationGas: VALUE_ZERO,
+            verificationGasLimit: '0xF4240',
+          },
+          ENTRYPOINT_MOCK,
+        );
+      });
+
+      it('uses gasPrice if maxFeePerGas, maxPriorityFeePerGas are not defined in transactionParams', async () => {
+        metadata.transactionParams = {
+          gasPrice: '0x5',
+        } as Required<TransactionParams>;
+
+        bundlerMock.estimateUserOperationGas.mockResolvedValue(
+          ESTIMATE_RESPONSE_DECIMAL_MOCK,
+        );
+
+        await callUpdateGas();
+
+        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledTimes(1);
+        expect(bundlerMock.estimateUserOperationGas).toHaveBeenCalledWith(
+          {
+            ...metadata.userOperation,
+            maxFeePerGas: '0x5',
+            maxPriorityFeePerGas: '0x5',
             callGasLimit: VALUE_ZERO,
             preVerificationGas: VALUE_ZERO,
             verificationGasLimit: '0xF4240',
