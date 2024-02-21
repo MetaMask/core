@@ -58,6 +58,7 @@ import { projectLogger as log } from './logger';
 import type {
   Events,
   DappSuggestedGasFees,
+  Layer1GasFeeFlow,
   SavedGasFees,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
@@ -80,6 +81,7 @@ import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
 } from './utils/history';
+import { getLayer1GasFeeFlow } from './utils/layer1-gas-fee-flow';
 import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
@@ -360,6 +362,8 @@ export class TransactionController extends BaseControllerV1<
     chainId?: string,
   ) => NonceTrackerTransaction[];
 
+  private readonly layer1GasFeeFlows: Layer1GasFeeFlow[];
+
   private readonly messagingSystem: TransactionControllerMessenger;
 
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
@@ -578,6 +582,7 @@ export class TransactionController extends BaseControllerV1<
     });
 
     this.gasFeeFlows = this.#getGasFeeFlows();
+    this.layer1GasFeeFlows = this.#getLayer1GasFeeFlows();
 
     const gasFeePoller = new GasFeePoller({
       // Default gas fee polling is not yet supported by the clients
@@ -589,6 +594,7 @@ export class TransactionController extends BaseControllerV1<
         }),
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
       getTransactions: () => this.state.transactions,
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
       onStateChange: (listener) => {
         this.subscribe(listener);
       },
@@ -758,6 +764,7 @@ export class TransactionController extends BaseControllerV1<
       networkClientId,
     };
 
+    await this.#updateTransactionLayer1GasFee(ethQuery, transactionMeta);
     await this.updateGasProperties(transactionMeta);
 
     // Checks if a transaction already exists with a given actionId
@@ -1622,14 +1629,17 @@ export class TransactionController extends BaseControllerV1<
     ) as TransactionParams;
 
     const updatedTransaction = merge(transactionMeta, editableParams);
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId: transactionMeta.networkClientId,
+      chainId: transactionMeta.chainId,
+    });
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
-      this.#multichainTrackingHelper.getEthQuery({
-        networkClientId: transactionMeta.networkClientId,
-        chainId: transactionMeta.chainId,
-      }),
+      ethQuery,
     );
     updatedTransaction.type = type;
+
+    await this.#updateTransactionLayer1GasFee(ethQuery, updatedTransaction);
 
     this.updateTransaction(
       updatedTransaction,
@@ -2009,11 +2019,13 @@ export class TransactionController extends BaseControllerV1<
         ).configuration.type === NetworkClientType.Custom
       : this.getNetworkState().providerConfig.type === NetworkType.rpc;
 
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId,
+      chainId,
+    });
+
     await updateGas({
-      ethQuery: this.#multichainTrackingHelper.getEthQuery({
-        networkClientId,
-        chainId,
-      }),
+      ethQuery,
       chainId,
       isCustomNetwork,
       txMeta: transactionMeta,
@@ -2021,10 +2033,7 @@ export class TransactionController extends BaseControllerV1<
 
     await updateGasFees({
       eip1559: isEIP1559Compatible,
-      ethQuery: this.#multichainTrackingHelper.getEthQuery({
-        networkClientId,
-        chainId,
-      }),
+      ethQuery,
       gasFeeFlows: this.gasFeeFlows,
       getGasFeeEstimates: this.getGasFeeEstimates,
       getSavedGasFees: this.getSavedGasFees.bind(this),
@@ -3072,8 +3081,39 @@ export class TransactionController extends BaseControllerV1<
     );
   }
 
+  async #updateTransactionLayer1GasFee(
+    ethQuery: EthQuery,
+    transactionMeta: TransactionMeta,
+  ) {
+    const layer1GasFeeFlow = getLayer1GasFeeFlow(
+      transactionMeta,
+      this.layer1GasFeeFlows,
+    );
+    if (!layer1GasFeeFlow) {
+      log(
+        'Skipping update as no layer 1 gas fee flow found',
+        transactionMeta.id,
+      );
+      return;
+    }
+
+    try {
+      const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({
+        ethQuery,
+        transactionMeta,
+      });
+      transactionMeta.layer1GasFee = layer1Fee;
+    } catch (error) {
+      log('Failed to get layer 1 gas fee', transactionMeta.id, error);
+    }
+  }
+
   #getGasFeeFlows(): GasFeeFlow[] {
     return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
+  }
+
+  #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
+    return [];
   }
 
   #updateTransactionInternal(
