@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ### Removed
+
 - **BREAKING:** Remove `ControllerList` as an exported type. ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ## [5.0.1]

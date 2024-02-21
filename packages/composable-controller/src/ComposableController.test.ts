@@ -7,10 +7,10 @@ import {
   BaseControllerV1,
   ControllerMessenger,
 } from '@metamask/base-controller';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
 
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { ComposableControllerEvents } from './ComposableController';
 import { ComposableController } from './ComposableController';
 
