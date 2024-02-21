@@ -10,7 +10,7 @@ import {
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
 
-import { JsonRpcEngine } from '../../json-rpc-engine/src/JsonRpcEngine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { ComposableControllerEvents } from './ComposableController';
 import { ComposableController } from './ComposableController';
 

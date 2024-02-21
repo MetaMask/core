@@ -9,20 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add exports `isBaseControllerV1` and `isBaseController`, which are type guards for validating controller instances ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Add and export functions `isBaseControllerV1` and `isBaseController`, which are type guards for validating controller instances ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Add and export types `BaseControllerV1Instance`, `BaseControllerV2Instance`, `ControllerInstance` which are the narrowest supertypes for all controllers extending from, respectively, `BaseControllerV1`, `BaseController`, and both ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ### Changed
 
-- **BREAKING:** Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
-- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ChildControllers` in the form of a union of the controllers passed into the `controllers` array constructor option ([#3941](https://github.com/MetaMask/core/pull/3941))
-  - Child controllers that extend `BaseControllerV1` must have an overridden `name` property that is defined using the `as const` assertion for the `ComposableController` class to be typed correctly.
-  - The controller state is now constrained by a `ComposedControllerState` generic argument, which is automaticallly derived from the `ChildControllers` argument without needing to be passed in by the user.
-  - The `messenger` constructor option is constrained by a `ComposedControllerMessenger` generic argument which is also automatically derived, and is required to contain the `stateChange` events for all child controllers in its `Events` and `AllowedEvents` parameters, as well as the composable controller instance in its `Events` parameter.
-- Throws an error if a non-controller is passed into the `controllers` constructor option ([#3904](https://github.com/MetaMask/core/pull/3904))
+- **BREAKING:** Passing a non-controller into `controllers` constructor option now throws an error ([#3904](https://github.com/MetaMask/core/pull/3904))
+- **BREAKING:** The `AllowedActions` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions. ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ### Removed
 
-- **BREAKING:** The `AllowedActions` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions. ([#3904](https://github.com/MetaMask/core/pull/3904))
 - **BREAKING:** Remove `ControllerList` as an exported type. ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ## [5.0.1]
