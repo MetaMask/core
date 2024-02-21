@@ -4,6 +4,7 @@ import type {
   RestrictedControllerMessenger,
   BaseState,
   BaseConfig,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { isValidJson, type Json } from '@metamask/utils';
 
@@ -130,7 +131,15 @@ export class ComposableController extends BaseController<
 
     super({
       name: controllerName,
-      metadata: {},
+      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
+        (metadata, controller) => ({
+          ...metadata,
+          [controller.name]: isBaseController(controller)
+            ? controller.metadata
+            : { persist: true, anonymous: true },
+        }),
+        {},
+      ),
       state: controllers.reduce<ComposableControllerState>(
         (state, controller) => {
           return { ...state, [controller.name]: controller.state };
