@@ -155,8 +155,7 @@ export class ComposableController extends BaseController<
   }
 
   /**
-   * Constructor helper that adds a child controller instance to composable controller state
-   * and subscribes to child controller state changes.
+   * Constructor helper that subscribes to child controller state changes.
    * @param controller - Controller instance to update
    * TODO: Remove `isBaseControllerV1` branch once `BaseControllerV2` migrations are completed for all controllers.
    */
