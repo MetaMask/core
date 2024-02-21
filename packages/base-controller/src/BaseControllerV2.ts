@@ -114,17 +114,6 @@ export class BaseController<
   public readonly metadata: StateMetadata<ControllerState>;
 
   /**
-   * The existence of the `subscribe` property is how the ComposableController used to detect
-   * whether a controller extends the old BaseController or the new one. We set it to `undefined` here to
-   * ensure the ComposableController never mistakes them for an older style controller.
-   *
-   * This property is no longer used, and will be removed in a future release.
-   *
-   * @deprecated This will be removed in a future release
-   */
-  public readonly subscribe: undefined;
-
-  /**
    * Creates a BaseController instance.
    *
    * @param options - Controller options.
