@@ -10,25 +10,33 @@ import { isValidJson, type Json } from '@metamask/utils';
 
 export const controllerName = 'ComposableController';
 
-/*
- * The following three types encompass controllers based on either BaseControllerV1 or
- * BaseController. The BaseController type can't be included directly
- * because the generic parameters it expects require knowing the exact state
- * shape, so instead we look for an object with the BaseController properties
- * that we use in the ComposableController (name and state).
- */
-// As explained above, `any` is used to include all `BaseControllerV1` instances.
 // TODO: Remove this type once `BaseControllerV2` migrations are completed for all controllers.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type BaseControllerV1Instance = BaseControllerV1<any, any>;
-
-type BaseControllerV2Instance = { name: string; state: Record<string, Json> };
-
-type ControllerInstance =
-  // As explained above, `any` is used to include all `BaseControllerV1` instances.
-  // TODO: Remove `BaseControllerV1Instance` once `BaseControllerV2` migrations are completed for all controllers.
+/**
+ * A type encompassing all controller instances that extend from `BaseControllerV1`.
+ */
+type BaseControllerV1Instance =
+  // `any` is used to include all `BaseControllerV1` instances.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BaseControllerV1Instance | BaseControllerV2Instance;
+  BaseControllerV1<any, any>;
+
+/**
+ * A type encompassing all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
+ *
+ * The `BaseController` class itself can't be used directly as a type representing all of its subclasses,
+ * because the generic parameters it expects require knowing the exact shape of the controller's state and messenger.
+ *
+ * Instead, we look for an object with the `BaseController` properties that we use in the ComposableController (name and state).
+ */
+type BaseControllerV2Instance = {
+  name: string;
+  state: Record<string, Json>;
+};
+
+// TODO: Remove `BaseControllerV1Instance` member once `BaseControllerV2` migrations are completed for all controllers.
+/**
+ * A type encompassing all controller instances that extend from `BaseControllerV1` or `BaseController`.
+ */
+type ControllerInstance = BaseControllerV1Instance | BaseControllerV2Instance;
 
 /**
  * Determines if the given controller is an instance of BaseControllerV1
