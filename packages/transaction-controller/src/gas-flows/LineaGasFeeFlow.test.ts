@@ -1,6 +1,5 @@
 import { query } from '@metamask/controller-utils';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
 import { CHAIN_IDS } from '../constants';
 import type {
@@ -9,8 +8,8 @@ import type {
   TransactionMeta,
 } from '../types';
 import { TransactionStatus } from '../types';
-import { LineaGasFeeFlow } from './LineaGasFeeFlow';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+import { LineaGasFeeFlow } from './LineaGasFeeFlow';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -28,27 +27,9 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
 };
 
 const LINEA_RESPONSE_MOCK = {
-  baseFeePerGas: '0x1',
-  priorityFeePerGas: '0x2',
+  baseFeePerGas: '0x111111111',
+  priorityFeePerGas: '0x222222222',
 };
-
-const GAS_FEE_CONTROLLER_RESPONSE_MOCK: GasFeeState = {
-  gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
-  gasFeeEstimates: {
-    low: {
-      suggestedMaxFeePerGas: '1',
-      suggestedMaxPriorityFeePerGas: '2',
-    },
-    medium: {
-      suggestedMaxFeePerGas: '3',
-      suggestedMaxPriorityFeePerGas: '4',
-    },
-    high: {
-      suggestedMaxFeePerGas: '5',
-      suggestedMaxPriorityFeePerGas: '6',
-    },
-  },
-} as GasFeeState;
 
 const RESPONSE_MOCK: GasFeeFlowResponse = {
   estimates: {
@@ -78,11 +59,6 @@ describe('LineaGasFeeFlow', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    getGasFeeControllerEstimatesMock = jest.fn();
-    getGasFeeControllerEstimatesMock.mockResolvedValue(
-      GAS_FEE_CONTROLLER_RESPONSE_MOCK,
-    );
-
     request = {
       ethQuery: {},
       getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
@@ -109,7 +85,7 @@ describe('LineaGasFeeFlow', () => {
   });
 
   describe('getGasFees', () => {
-    it('returns priority fees using custom RPC method and gas fee controller estimate differences', async () => {
+    it('returns priority fees using custom RPC method and static priority fee multipliers', async () => {
       const flow = new LineaGasFeeFlow();
       const response = await flow.getGasFees(request);
 
@@ -117,39 +93,20 @@ describe('LineaGasFeeFlow', () => {
         Object.values(response.estimates).map(
           (level) => level.maxPriorityFeePerGas,
         ),
-      ).toStrictEqual(['0x2', '0x77359402', '0xee6b2802']);
+      ).toStrictEqual([
+        LINEA_RESPONSE_MOCK.priorityFeePerGas,
+        '0x23a3d70a3',
+        '0x25658bf25',
+      ]);
     });
 
-    it('returns max fees using custom RPC method and base fee multipliers', async () => {
+    it('returns max fees using custom RPC method and static base fee multipliers', async () => {
       const flow = new LineaGasFeeFlow();
       const response = await flow.getGasFees(request);
 
       expect(
         Object.values(response.estimates).map((level) => level.maxFeePerGas),
-      ).toStrictEqual(['0x3', '0x77359403', '0xee6b2803']);
-    });
-
-    it('uses default flow if gas fee estimate type is not fee market', async () => {
-      jest
-        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
-        .mockResolvedValue(RESPONSE_MOCK);
-
-      const defaultGasFeeFlowGetGasFeesMock = jest.mocked(
-        DefaultGasFeeFlow.prototype.getGasFees,
-      );
-
-      getGasFeeControllerEstimatesMock.mockResolvedValue({
-        ...GAS_FEE_CONTROLLER_RESPONSE_MOCK,
-        gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
-      } as GasFeeState);
-
-      const flow = new LineaGasFeeFlow();
-      const response = await flow.getGasFees(request);
-
-      expect(response).toStrictEqual(RESPONSE_MOCK);
-
-      expect(defaultGasFeeFlowGetGasFeesMock).toHaveBeenCalledTimes(1);
-      expect(defaultGasFeeFlowGetGasFeesMock).toHaveBeenCalledWith(request);
+      ).toStrictEqual(['0x333333333', '0x3a7ae1479', '0x42428f5c1']);
     });
 
     it('uses default flow if error', async () => {
