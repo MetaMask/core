@@ -69,7 +69,7 @@ export interface StatePropertyMetadata<T extends Json> {
 
 export type ControllerGetStateAction<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = {
   type: `${ControllerName}:getState`;
   handler: () => ControllerState;
@@ -77,7 +77,7 @@ export type ControllerGetStateAction<
 
 export type ControllerStateChangeEvent<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = {
   type: `${ControllerName}:stateChange`;
   payload: [ControllerState, Patch[]];
@@ -85,12 +85,12 @@ export type ControllerStateChangeEvent<
 
 export type ControllerActions<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = ControllerGetStateAction<ControllerName, ControllerState>;
 
 export type ControllerEvents<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = ControllerStateChangeEvent<ControllerName, ControllerState>;
 
 /**
