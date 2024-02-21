@@ -18,6 +18,7 @@ export const controllerName = 'ComposableController';
  */
 type ControllerInstance =
   // As explained above, `any` is used to include all `BaseControllerV1` instances.
+  // TODO: Remove first union member once `BaseControllerV2` migrations are completed for all controllers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   BaseControllerV1<any, any> | { name: string; state: Record<string, Json> };
 
@@ -30,6 +31,7 @@ export type ControllerList = ControllerInstance[];
  * Determines if the given controller is an instance of BaseControllerV1
  * @param controller - Controller instance to check
  * @returns True if the controller is an instance of BaseControllerV1
+ * TODO: Deprecate once `BaseControllerV2` migrations are completed for all controllers.
  */
 export function isBaseControllerV1(
   controller: ControllerInstance,
@@ -70,6 +72,7 @@ export function isBaseController(
 export type ComposableControllerState = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
   // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
+  // TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: Record<string, any>;
 };
@@ -144,6 +147,7 @@ export class ComposableController extends BaseController<
    * Constructor helper that adds a child controller instance to composable controller state
    * and subscribes to child controller state changes.
    * @param controller - Controller instance to update
+   * TODO: Remove `isBaseControllerV1` branch once `BaseControllerV2` migrations are completed for all controllers.
    */
   #updateChildController(controller: ControllerInstance): void {
     const { name } = controller;
