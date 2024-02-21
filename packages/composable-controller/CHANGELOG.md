@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add exports `isBaseControllerV1` and `isBaseController`, which are type guards for validating controller instances ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Add and export functions `isBaseControllerV1` and `isBaseController`, which are type guards for validating controller instances ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Add and export types `BaseControllerV1Instance`, `BaseControllerV2Instance`, `ControllerInstance` which are the narrowest supertypes for all controllers extending from, respectively, `BaseControllerV1`, `BaseController`, and both ([#3904](https://github.com/MetaMask/core/pull/3904))
 
 ### Changed
 
