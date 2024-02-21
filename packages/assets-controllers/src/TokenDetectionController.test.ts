@@ -8,14 +8,14 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
-import {
-  defaultState as defaultNetworkState,
-  type NetworkState,
-  type NetworkConfiguration,
-  type NetworkController,
+import type {
+  NetworkState,
+  NetworkConfiguration,
+  NetworkController,
   ProviderConfig,
   NetworkClientId,
 } from '@metamask/network-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -343,7 +343,16 @@ describe('TokenDetectionController', () => {
             selectedAddress,
           },
         },
-        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+        async ({
+          controller,
+          mockGetProviderConfig,
+          mockTokenListGetState,
+          callActionSpy,
+        }) => {
+          mockGetProviderConfig({
+            chainId: '0x89',
+          } as unknown as ProviderConfig);
+
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -2011,8 +2020,7 @@ type WithControllerCallback<ReturnValue> = ({
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
   mockFindNetworkClientIdByChainId: (
-    chainId: Hex,
-    networkClientId?: NetworkClientId,
+    handler: (chainId: Hex) => NetworkClientId,
   ) => void;
   mockGetNetworkConfigurationByNetworkClientId: (
     handler: (networkClientId: string) => NetworkConfiguration,
@@ -2080,7 +2088,7 @@ async function withController<ReturnValue>(
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
     mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
-      (networkClientId: string) => {
+      (networkClientId: NetworkClientId) => {
         return mockNetworkConfigurations[networkClientId];
       },
     ),
@@ -2147,16 +2155,12 @@ async function withController<ReturnValue>(
         mockTokenListState.mockReturnValue(state);
       },
       mockFindNetworkClientIdByChainId: (
-        chainId: Hex,
-        networkClientId?: NetworkClientId,
+        handler: (chainId: Hex) => NetworkClientId,
       ) => {
-        mockFindNetworkClientIdByChainId.mockReturnValue(
-          networkClientId ??
-            (chainId === '0x1' ? NetworkType.mainnet : NetworkType.goerli),
-        );
+        mockFindNetworkClientIdByChainId.mockImplementation(handler);
       },
       mockGetNetworkConfigurationByNetworkClientId: (
-        handler: (networkClientId: string) => NetworkConfiguration,
+        handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
       ) => {
         mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
           handler,
