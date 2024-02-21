@@ -140,6 +140,9 @@ export function validateUpdateUserOperationResponse(
   const ValidResponse = optional(
     object({
       paymasterAndData: optional(HexOrEmptyBytes),
+      callGasLimit: optional(HexOrEmptyBytes),
+      preVerificationGas: optional(HexOrEmptyBytes),
+      verificationGasLimit: optional(HexOrEmptyBytes),
     }),
   );
 
