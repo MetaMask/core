@@ -41,6 +41,7 @@ import type {
   UserOperationMetadata,
 } from './types';
 import { UserOperationStatus } from './types';
+import { errorWithPrefix } from './utils/errors';
 import { updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
@@ -51,7 +52,6 @@ import {
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
 } from './utils/validation';
-import { errorWithPrefix } from './utils/errors';
 
 const controllerName = 'UserOperationController';
 

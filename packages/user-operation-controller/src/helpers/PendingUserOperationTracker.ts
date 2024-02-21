@@ -5,13 +5,13 @@ import { BlockTrackerPollingControllerOnly } from '@metamask/polling-controller'
 import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
+import { errorWithPrefix } from 'src/utils/errors';
 
 import { projectLogger } from '../logger';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
 import { Bundler } from './Bundler';
-import { errorWithPrefix } from 'src/utils/errors';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
 
