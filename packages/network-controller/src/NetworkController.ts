@@ -481,6 +481,7 @@ export type NetworkControllerOptions = {
   trackMetaMetricsEvent: () => void;
   infuraProjectId: string;
   state?: Partial<NetworkState>;
+  onboardingCompleted: Boolean;
 };
 
 export const defaultState: NetworkState = {
@@ -556,11 +557,14 @@ export class NetworkController extends BaseController<
 
   #autoManagedNetworkClientRegistry?: AutoManagedNetworkClientRegistry;
 
+  onboardingCompleted: Boolean;
+
   constructor({
     messenger,
     state,
     infuraProjectId,
     trackMetaMetricsEvent,
+    onboardingCompleted,
   }: NetworkControllerOptions) {
     super({
       name,
@@ -635,6 +639,8 @@ export class NetworkController extends BaseController<
     );
 
     this.#previousProviderConfig = this.state.providerConfig;
+
+    this.onboardingCompleted = onboardingCompleted;
   }
 
   /**
@@ -1259,7 +1265,9 @@ export class NetworkController extends BaseController<
           chainId,
           rpcUrl,
           ticker,
-        });
+        },
+        this.onboardingCompleted,
+        );
     }
 
     this.update((state) => {
@@ -1418,6 +1426,7 @@ export class NetworkController extends BaseController<
       ) => {
         const autoManagedNetworkClient = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          this.onboardingCompleted
         );
         if (networkClientId in registry[networkClientType]) {
           return registry;

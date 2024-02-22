@@ -65,6 +65,7 @@ export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
 >(
   networkClientConfiguration: Configuration,
+  onboardingCompleted: Boolean,
 ): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
 
@@ -76,7 +77,7 @@ export function createAutoManagedNetworkClient<
         return networkClient?.provider;
       }
 
-      networkClient ??= createNetworkClient(networkClientConfiguration);
+      networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
       if (networkClient === undefined) {
         throw new Error(
           "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
@@ -113,7 +114,7 @@ export function createAutoManagedNetworkClient<
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
-      networkClient ??= createNetworkClient(networkClientConfiguration);
+      networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
       const { provider } = networkClient;
       return propertyName in provider;
     },
@@ -129,7 +130,7 @@ export function createAutoManagedNetworkClient<
           return networkClient?.blockTracker;
         }
 
-        networkClient ??= createNetworkClient(networkClientConfiguration);
+        networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
         if (networkClient === undefined) {
           throw new Error(
             "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
@@ -166,7 +167,7 @@ export function createAutoManagedNetworkClient<
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;
         }
-        networkClient ??= createNetworkClient(networkClientConfiguration);
+        networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
         const { blockTracker } = networkClient;
         return propertyName in blockTracker;
       },
