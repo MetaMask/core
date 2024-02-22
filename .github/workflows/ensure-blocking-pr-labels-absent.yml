@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: yarn --immutable
       - name: Run command
-        uses: actions/github-scripts@v7
+        uses: actions/github-script@v7
         with:
           script: |
             if (context.payload.pull_request.labels.include("DO-NOT-MERGE")) {
