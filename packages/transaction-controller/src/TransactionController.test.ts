@@ -2068,6 +2068,11 @@ describe('TransactionController', () => {
           },
         ],
       });
+
+      const testProvider = MAINNET_PROVIDER;
+      const testBlockTracker = buildMockBlockTracker('0x102833C');
+      controller.delayedInit(testProvider, testBlockTracker);
+
       const registry = await controller.handleMethodData('0xf39b5b9b');
 
       expect(registry.parsedRegistryMethod).toStrictEqual({
@@ -2108,6 +2113,10 @@ describe('TransactionController', () => {
           },
         ],
       });
+
+      const testProvider = MAINNET_PROVIDER;
+      const testBlockTracker = buildMockBlockTracker('0x102833C');
+      controller.delayedInit(testProvider, testBlockTracker);
 
       await controller.handleMethodData('0xf39b5b9b');
 
