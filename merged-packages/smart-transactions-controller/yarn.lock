@@ -1071,12 +1071,12 @@ __metadata:
   linkType: hard
 
 "@metamask/rpc-errors@npm:^6.0.0, @metamask/rpc-errors@npm:^6.1.0":
-  version: 6.1.0
-  resolution: "@metamask/rpc-errors@npm:6.1.0"
+  version: 6.2.0
+  resolution: "@metamask/rpc-errors@npm:6.2.0"
   dependencies:
-    "@metamask/utils": ^8.1.0
+    "@metamask/utils": ^8.3.0
     fast-safe-stringify: ^2.0.6
-  checksum: 9f4821d804e2fcaa8987b0958d02c6d829b7c7db49740c811cb593f381d0c4b00dabb7f1802907f1b2f6126f7c0d83ec34219183d29650f5d24df014ac72906a
+  checksum: 1db3065d3f391916ef958531f4e1101a9c3abd0794f446a8b938165bd6e2ddb706f174ad4fdd5a04bfe4eb6b2bb4dd638957cb9bc321f6835cb0431264327087
   languageName: node
   linkType: hard
 
