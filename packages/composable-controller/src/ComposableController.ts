@@ -1,12 +1,13 @@
 import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
-  ControllerStateChangeEvent,
   RestrictedControllerMessenger,
   BaseState,
   BaseConfig,
   StateMetadata,
+  StateConstraint,
 } from '@metamask/base-controller';
-import { isValidJson, type Json } from '@metamask/utils';
+import { isValidJson } from '@metamask/utils';
+import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
 
@@ -29,7 +30,7 @@ export type BaseControllerV1Instance =
  */
 export type BaseControllerV2Instance = {
   name: string;
-  state: Record<string, Json>;
+  state: StateConstraint;
 };
 
 // TODO: Remove `BaseControllerV1Instance` member once `BaseControllerV2` migrations are completed for all controllers.
@@ -90,17 +91,17 @@ export type ComposableControllerState = {
   [name: string]: Record<string, any>;
 };
 
-export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  Record<string, unknown>
->;
+export type ComposableControllerStateChangeEvent = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [ComposableControllerState, Patch[]];
+};
 
 export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
 
-type AnyControllerStateChangeEvent = ControllerStateChangeEvent<
-  string,
-  Record<string, unknown>
->;
+type AnyControllerStateChangeEvent = {
+  type: `${string}:stateChange`;
+  payload: [ControllerInstance['state'], Patch[]];
+};
 
 type AllowedEvents = AnyControllerStateChangeEvent;
 
@@ -179,14 +180,17 @@ export class ComposableController extends BaseController<
         }));
       });
     } else if (isBaseController(controller)) {
-      this.messagingSystem.subscribe(`${name}:stateChange`, (childState) => {
-        if (isValidJson(childState)) {
-          this.update((state) => ({
-            ...state,
-            [name]: childState,
-          }));
-        }
-      });
+      this.messagingSystem.subscribe(
+        `${name}:stateChange`,
+        (childState: StateConstraint) => {
+          if (isValidJson(childState)) {
+            this.update((state) => ({
+              ...state,
+              [name]: childState,
+            }));
+          }
+        },
+      );
     } else {
       throw new Error(
         'Invalid controller: controller must extend from BaseController or BaseControllerV1',
