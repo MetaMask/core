@@ -9,11 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 
-### Uncategorized
+### Changed
 
-- Fix `SelectedNetworkController` state corruption when networkClients are removed ([#3926](https://github.com/MetaMask/core.git/pull/3926))
-- Fix issue with `selectedNetworkMiddlware` where all domains are added to state regardless of whether they have permissions ([#3908](https://github.com/MetaMask/core.git/pull/3908))
-- Ensure selectedNetworkController always returns a networkClientId whe… ([#3884](https://github.com/MetaMask/core.git/pull/3884))
+- **BREAKING:** `setNetworkClientIdForDomain` now throws an error if passed `metamask` as its first (`domain`) argument ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** `setNetworkClientIdForDomain` now includes a check that the requesting `domain` has already been granted permissions in the `PermissionsController` before adding it to `domains` state and throws an error if the domain does not have permissions ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** the `domains` state now no longer contains a `metamask` domain key Consumers should instead use the `selectedNetworkClientId` from the `NetworkController` to get the selected network for the `metamask` domain ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with any domain while the `perDomainNetwork` flag is false. Consumers should instead use the `provider` and `blockTracker` from the `NetworkController` when the `perDomainNetwork` flag is false ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with a domain that is not in domains state ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** `getNetworkClientIdForDomain` now returns the `selectedNetworkClientId` for the globally selected network if the `perDomainNetwork` flag is false and if the domain is not in the `domains` state ([#3908](https://github.com/MetaMask/core/pull/3908)).
+
+### Removed
+
+- **BREAKING:** Remove logic in `selectedNetworkMiddleware` to set a default `networkClientId` for the requesting origin when not already set. Now if no `networkClientId` is already set for the requesting origin, the middleware will not add the origin to `domains` state but will add the `networkClientId` currently set for the `selectedNetworkClient` from the `NetworkController` to the request object ([#3908](https://github.com/MetaMask/core/pull/3908)).
+
+### Fixed
+
+- The `SelectedNetworkController` now listens for `networkConfiguration` removal events on the `NetworkController` and if a removed `networkClientId` matches the set `networkClientId` for any domains in its state, it updates them to the globally selected `networkClientId` and repoints the proxies accordingly.
+  ([#3926](https://github.com/MetaMask/core/pull/3926))
 
 ## [7.0.1]
 
@@ -114,17 +126,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@8.0.0...HEAD
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@7.0.1...@metamask/selected-network-controller@8.0.0
-[7.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@7.0.0...@metamask/selected-network-controller@7.0.1
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@6.0.0...@metamask/selected-network-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@5.0.0...@metamask/selected-network-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@4.0.0...@metamask/selected-network-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.1.2...@metamask/selected-network-controller@4.0.0
-[3.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.1.1...@metamask/selected-network-controller@3.1.2
-[3.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.1.0...@metamask/selected-network-controller@3.1.1
-[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.0.0...@metamask/selected-network-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@2.0.1...@metamask/selected-network-controller@3.0.0
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@2.0.0...@metamask/selected-network-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@1.0.0...@metamask/selected-network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/selected-network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@7.0.1...@metamask/selected-network-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@7.0.0...@metamask/selected-network-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@6.0.0...@metamask/selected-network-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@5.0.0...@metamask/selected-network-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@4.0.0...@metamask/selected-network-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.1.2...@metamask/selected-network-controller@4.0.0
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.1.1...@metamask/selected-network-controller@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.1.0...@metamask/selected-network-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.0.0...@metamask/selected-network-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@2.0.1...@metamask/selected-network-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@2.0.0...@metamask/selected-network-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@1.0.0...@metamask/selected-network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/selected-network-controller@1.0.0
