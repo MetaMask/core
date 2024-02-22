@@ -48,6 +48,7 @@ import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
@@ -376,6 +377,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
+  private readonly provider: Provider;
+
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
   private readonly afterSign: (
@@ -512,6 +515,7 @@ export class TransactionController extends BaseControllerV1<
     this.securityProviderRequest = securityProviderRequest;
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
+    this.provider = provider;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -598,6 +602,7 @@ export class TransactionController extends BaseControllerV1<
       onStateChange: (listener) => {
         this.subscribe(listener);
       },
+      provider,
     });
 
     gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
@@ -764,7 +769,7 @@ export class TransactionController extends BaseControllerV1<
       networkClientId,
     };
 
-    await this.#updateTransactionLayer1GasFee(ethQuery, transactionMeta);
+    await this.#updateTransactionLayer1GasFee(this.provider, transactionMeta);
     await this.updateGasProperties(transactionMeta);
 
     // Checks if a transaction already exists with a given actionId
@@ -1639,7 +1644,10 @@ export class TransactionController extends BaseControllerV1<
     );
     updatedTransaction.type = type;
 
-    await this.#updateTransactionLayer1GasFee(ethQuery, updatedTransaction);
+    await this.#updateTransactionLayer1GasFee(
+      this.provider,
+      updatedTransaction,
+    );
 
     this.updateTransaction(
       updatedTransaction,
@@ -3082,7 +3090,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   async #updateTransactionLayer1GasFee(
-    ethQuery: EthQuery,
+    provider: Provider,
     transactionMeta: TransactionMeta,
   ) {
     const layer1GasFeeFlow = getLayer1GasFeeFlow(
@@ -3099,7 +3107,7 @@ export class TransactionController extends BaseControllerV1<
 
     try {
       const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({
-        ethQuery,
+        provider,
         transactionMeta,
       });
       transactionMeta.layer1GasFee = layer1Fee;
@@ -3113,7 +3121,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
-    return [];
+    return [new OptimismLayer1GasFeeFlow()];
   }
 
   #updateTransactionInternal(

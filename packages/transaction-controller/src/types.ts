@@ -4,7 +4,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
+import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -1047,8 +1047,8 @@ export type GasFeeFlow = {
 
 /** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
 export type Layer1GasFeeFlowRequest = {
-  /** An EthQuery instance to enable queries to the associated RPC provider. */
-  ethQuery: EthQuery;
+  /** The provider used to create the underlying EthQuery instance. */
+  provider: Provider;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;

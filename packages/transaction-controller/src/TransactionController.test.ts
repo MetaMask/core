@@ -29,8 +29,10 @@ import * as NonceTrackerPackage from 'nonce-tracker';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
+import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
@@ -61,6 +63,7 @@ const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
 
 jest.mock('./gas-flows/DefaultGasFeeFlow');
 jest.mock('./gas-flows/LineaGasFeeFlow');
+jest.mock('./gas-flows/OptimismLayer1GasFeeFlow');
 jest.mock('./helpers/GasFeePoller');
 jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
@@ -535,6 +538,9 @@ describe('TransactionController', () => {
   );
   const defaultGasFeeFlowClassMock = jest.mocked(DefaultGasFeeFlow);
   const lineaGasFeeFlowClassMock = jest.mocked(LineaGasFeeFlow);
+  const optimismLayer1GasFeeFlowClassMock = jest.mocked(
+    OptimismLayer1GasFeeFlow,
+  );
   const gasFeePollerClassMock = jest.mocked(GasFeePoller);
 
   let resultCallbacksMock: AcceptResultCallbacks;
@@ -783,6 +789,12 @@ describe('TransactionController', () => {
         matchesTransaction: () => false,
       } as unknown as jest.Mocked<LineaGasFeeFlow>;
       return lineaGasFeeFlowMock;
+    });
+
+    optimismLayer1GasFeeFlowClassMock.mockImplementation(() => {
+      return {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<OptimismLayer1GasFeeFlow>;
     });
 
     gasFeePollerClassMock.mockImplementation(() => {
@@ -1637,6 +1649,52 @@ describe('TransactionController', () => {
         getSavedGasFees: expect.any(Function),
         txMeta: expect.any(Object),
       });
+    });
+
+    it('updates layer 1 gas fee properties', async () => {
+      const LAYER_1_FEE_MOCK = '0x123456';
+      const getLayer1GasFeeListener = jest.fn().mockResolvedValue({
+        layer1Fee: LAYER_1_FEE_MOCK,
+      });
+      optimismLayer1GasFeeFlowClassMock.mockImplementationOnce(() => {
+        return {
+          matchesTransaction: () => true,
+          getLayer1Fee: getLayer1GasFeeListener,
+        } as unknown as jest.Mocked<OptimismLayer1GasFeeFlow>;
+      });
+
+      const controller = newController();
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+        chainId: CHAIN_IDS.OPTIMISM,
+      });
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(getLayer1GasFeeListener).toHaveBeenCalledTimes(1);
+      expect(transactionMeta.layer1GasFee).toBe(LAYER_1_FEE_MOCK);
+    });
+
+    it('should not fail if layer 1 gas fee request fails', async () => {
+      const getLayer1GasFeeListener = jest.fn().mockRejectedValueOnce({});
+      optimismLayer1GasFeeFlowClassMock.mockImplementationOnce(() => {
+        return {
+          matchesTransaction: () => true,
+          getLayer1Fee: getLayer1GasFeeListener,
+        } as unknown as jest.Mocked<OptimismLayer1GasFeeFlow>;
+      });
+
+      const controller = newController();
+
+      expect(() =>
+        controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          chainId: CHAIN_IDS.OPTIMISM,
+        }),
+      ).not.toThrow();
     });
 
     describe('on approve', () => {
@@ -5060,6 +5118,40 @@ describe('TransactionController', () => {
       );
 
       expect(updatedTransaction?.txParams).toStrictEqual(params);
+    });
+
+    it('calls layer1GasFee api with updated parameters and updates layer1Gasfee property', async () => {
+      const LAYER_1_FEE_MOCK = '0x123456';
+      const getLayer1GasFeeListener = jest.fn().mockResolvedValue({
+        layer1Fee: LAYER_1_FEE_MOCK,
+      });
+      optimismLayer1GasFeeFlowClassMock.mockImplementationOnce(() => {
+        return {
+          matchesTransaction: () => true,
+          getLayer1Fee: getLayer1GasFeeListener,
+        } as unknown as jest.Mocked<OptimismLayer1GasFeeFlow>;
+      });
+
+      const controller = newController();
+      controller.state.transactions.push({
+        ...transactionMeta,
+        chainId: CHAIN_IDS.OPTIMISM,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.layer1GasFee).toStrictEqual(LAYER_1_FEE_MOCK);
+
+      expect(getLayer1GasFeeListener).toHaveBeenCalledTimes(1);
+      expect(getLayer1GasFeeListener).toHaveBeenCalledWith({
+        provider: expect.any(Object),
+        transactionMeta: expect.objectContaining({
+          txParams: params,
+        }),
+      });
     });
 
     it('throws an error if no transaction metadata is found', async () => {
