@@ -46,7 +46,10 @@ import type {
 } from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
+import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
+import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
@@ -63,6 +66,7 @@ import type {
   TransactionReceipt,
   WalletDevice,
   SecurityAlertResponse,
+  GasFeeFlow,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -333,6 +337,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly mutex = new Mutex();
 
+  private readonly gasFeeFlows: GasFeeFlow[];
+
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
   private readonly getNetworkState: () => NetworkState;
@@ -570,6 +576,27 @@ export class TransactionController extends BaseControllerV1<
       provider,
       blockTracker,
     });
+
+    this.gasFeeFlows = this.#getGasFeeFlows();
+
+    const gasFeePoller = new GasFeePoller({
+      // Default gas fee polling is not yet supported by the clients
+      gasFeeFlows: this.gasFeeFlows.slice(0, -1),
+      getEthQuery: (chainId, networkClientId) =>
+        this.#multichainTrackingHelper.getEthQuery({
+          networkClientId,
+          chainId,
+        }),
+      getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getTransactions: () => this.state.transactions,
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+      },
+    });
+
+    gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
+      this.#updateTransactionInternal(transactionMeta, { skipHistory: true }),
+    );
 
     // when transactionsController state changes
     // check for pending transactions and start polling if there are any
@@ -1214,15 +1241,10 @@ export class TransactionController extends BaseControllerV1<
    * @param note - A note or update reason to include in the transaction history.
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
-    const { transactions } = this.state;
-    transactionMeta.txParams = normalizeTxParams(transactionMeta.txParams);
-    validateTxParams(transactionMeta.txParams);
-    if (!this.isHistoryDisabled) {
-      updateTransactionHistory(transactionMeta, note);
-    }
-    const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
-    transactions[index] = transactionMeta;
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.#updateTransactionInternal(transactionMeta, {
+      note,
+      skipHistory: this.isHistoryDisabled,
+    });
   }
 
   /**
@@ -2003,8 +2025,9 @@ export class TransactionController extends BaseControllerV1<
         networkClientId,
         chainId,
       }),
+      gasFeeFlows: this.gasFeeFlows,
+      getGasFeeEstimates: this.getGasFeeEstimates,
       getSavedGasFees: this.getSavedGasFees.bind(this),
-      getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
       txMeta: transactionMeta,
     });
   }
@@ -3047,5 +3070,29 @@ export class TransactionController extends BaseControllerV1<
       error?.message?.includes('nonce too low') ||
       error?.data?.message?.includes('nonce too low')
     );
+  }
+
+  #getGasFeeFlows(): GasFeeFlow[] {
+    return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
+  }
+
+  #updateTransactionInternal(
+    transactionMeta: TransactionMeta,
+    { note, skipHistory }: { note?: string; skipHistory?: boolean },
+  ) {
+    const { transactions } = this.state;
+
+    transactionMeta.txParams = normalizeTxParams(transactionMeta.txParams);
+
+    validateTxParams(transactionMeta.txParams);
+
+    if (skipHistory !== true) {
+      updateTransactionHistory(transactionMeta, note ?? 'Transaction updated');
+    }
+
+    const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
+    transactions[index] = transactionMeta;
+
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 }
