@@ -839,6 +839,8 @@ export class TransactionController extends BaseController<
       ]);
     } catch (error) {
       estimateGasError = ESTIMATE_GAS_ERROR;
+      // Fallback to 95% of the block gasLimit.
+      gasHex = estimatedTransaction.gas;
     }
     // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
     // a custom network then return the eth_estimateGas value.
