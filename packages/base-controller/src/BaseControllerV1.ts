@@ -36,12 +36,12 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
   /**
    * Default options used to configure this controller
    */
-  defaultConfig: C = {} as C;
+  defaultConfig: C = {} as never;
 
   /**
    * Default state set on this controller
    */
-  defaultState: S = {} as S;
+  defaultState: S = {} as never;
 
   /**
    * Determines if listeners are notified of state changes
@@ -70,10 +70,7 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
-  constructor(config: Partial<C> = {} as C, state: Partial<S> = {} as S) {
-    // Use assign since generics can't be spread: https://git.io/vpRhY
-    this.initialState = state as S;
-    this.initialConfig = config as C;
+  constructor(config: Partial<C> = {}, state: Partial<S> = {}) {
   }
 
   /**
