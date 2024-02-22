@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Convert `BaseConfig`, `BaseState` interfaces to types.
+  - As types, `BaseConfig`, `BaseState` now extend `Record` and have an index signature of `string`.
+
 ## [4.1.1]
 
 ### Changed
