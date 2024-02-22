@@ -1,0 +1,30 @@
+name: 'Check for PR labels that block merging'
+on:
+  pull_request:
+    types:
+      - opened
+      - labeled
+      - unlabeled
+
+jobs:
+  ensure-blocking-pr-labels-absent:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          cache: yarn
+      - name: Install dependencies
+        run: yarn --immutable
+      - name: Run command
+        uses: actions/github-scripts@v7
+        with:
+          script: |
+            if (context.payload.pull_request.labels.include("DO-NOT-MERGE")) {
+              core.setFailed(
+                "PR cannot be merged because it contains the label 'DO-NOT-MERGE'."
+              )
+            }
