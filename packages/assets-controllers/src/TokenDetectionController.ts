@@ -451,16 +451,21 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }
     const isTokenDetectionInactiveInMainnet =
       !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
-    const { tokenList } = this.messagingSystem.call(
+    const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
+    const tokenList = tokensChainsCache[chainId]?.data ?? {};
+
     const tokenListUsed = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
       : tokenList;
 
-    const { tokens, detectedTokens, ignoredTokens } = this.messagingSystem.call(
-      'TokensController:getState',
-    );
+    const { allTokens, allDetectedTokens, allIgnoredTokens } =
+      this.messagingSystem.call('TokensController:getState');
+    const tokens = allTokens[chainId]?.[selectedAddress] ?? [];
+    const detectedTokens = allDetectedTokens[chainId]?.[selectedAddress] ?? [];
+    const ignoredTokens = allIgnoredTokens[chainId]?.[selectedAddress] ?? [];
+
     const tokensToDetect: string[] = [];
     for (const tokenAddress of Object.keys(tokenListUsed)) {
       if (
