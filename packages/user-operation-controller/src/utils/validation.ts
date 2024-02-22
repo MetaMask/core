@@ -1,5 +1,5 @@
 import { TransactionType } from '@metamask/transaction-controller';
-import { isStrictHexString } from '@metamask/utils';
+import { HexStruct, isStrictHexString } from '@metamask/utils';
 import type { Struct, StructError } from 'superstruct';
 import {
   assert,
@@ -140,9 +140,9 @@ export function validateUpdateUserOperationResponse(
   const ValidResponse = optional(
     object({
       paymasterAndData: optional(HexOrEmptyBytes),
-      callGasLimit: optional(HexOrEmptyBytes),
-      preVerificationGas: optional(HexOrEmptyBytes),
-      verificationGasLimit: optional(HexOrEmptyBytes),
+      callGasLimit: optional(HexStruct),
+      preVerificationGas: optional(HexStruct),
+      verificationGasLimit: optional(HexStruct),
     }),
   );
 
