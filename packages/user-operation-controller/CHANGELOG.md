@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump `@metamask/rpc-errors` to `^6.2.0` ([#3954](https://github.com/MetaMask/core.git/pull/3954))
-
 ## [4.0.0]
 
 ### Changed
@@ -53,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@4.0.0...HEAD
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@3.0.0...@metamask/user-operation-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@2.0.0...@metamask/user-operation-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@1.0.0...@metamask/user-operation-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/user-operation-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@3.0.0...@metamask/user-operation-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@2.0.0...@metamask/user-operation-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@1.0.0...@metamask/user-operation-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/user-operation-controller@1.0.0

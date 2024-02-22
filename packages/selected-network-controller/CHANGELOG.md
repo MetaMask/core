@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
 ### Uncategorized
 
 - Fix `SelectedNetworkController` state corruption when networkClients are removed ([#3926](https://github.com/MetaMask/core.git/pull/3926))
@@ -112,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@7.0.1...@metamask/selected-network-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@7.0.0...@metamask/selected-network-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@6.0.0...@metamask/selected-network-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@5.0.0...@metamask/selected-network-controller@6.0.0

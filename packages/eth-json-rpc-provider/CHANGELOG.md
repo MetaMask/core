@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core.git/pull/3850))
-
 ## [2.3.2]
 
 ### Changed
@@ -80,12 +76,12 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@2.3.2...HEAD
-[2.3.2]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@2.3.1...@metamask/eth-json-rpc-provider@2.3.2
-[2.3.1]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@2.3.0...@metamask/eth-json-rpc-provider@2.3.1
-[2.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@2.2.0...@metamask/eth-json-rpc-provider@2.3.0
-[2.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@2.1.0...@metamask/eth-json-rpc-provider@2.2.0
-[2.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@2.0.0...@metamask/eth-json-rpc-provider@2.1.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@1.0.1...@metamask/eth-json-rpc-provider@2.0.0
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/eth-json-rpc-provider@1.0.0...@metamask/eth-json-rpc-provider@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/eth-json-rpc-provider@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@2.3.2...HEAD
+[2.3.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@2.3.1...@metamask/eth-json-rpc-provider@2.3.2
+[2.3.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@2.3.0...@metamask/eth-json-rpc-provider@2.3.1
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@2.2.0...@metamask/eth-json-rpc-provider@2.3.0
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@2.1.0...@metamask/eth-json-rpc-provider@2.2.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@2.0.0...@metamask/eth-json-rpc-provider@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@1.0.1...@metamask/eth-json-rpc-provider@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@1.0.0...@metamask/eth-json-rpc-provider@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eth-json-rpc-provider@1.0.0
