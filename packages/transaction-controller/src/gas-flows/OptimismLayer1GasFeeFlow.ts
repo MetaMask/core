@@ -37,7 +37,7 @@ const OPTIMISM_GAS_PRICE_ORACLE_ADDRESS =
   '0x420000000000000000000000000000000000000F';
 
 /**
- * Optimism layer 1 gas fee flow that obtains gas fee estimate using Optimisim oracle API.
+ * Optimism layer 1 gas fee flow that obtains gas fee estimate using Optimisim oracle contract.
  */
 export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
   matchesTransaction(transactionMeta: TransactionMeta): boolean {
