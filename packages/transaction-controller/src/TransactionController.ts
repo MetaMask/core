@@ -372,9 +372,14 @@ export class TransactionController extends BaseControllerV1<
 
   private pendingTransactionTracker: PendingTransactionTracker;
 
-  private readonly onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+  private readonly onNetworkStateChange: (
+    listener: (state: NetworkState) => void,
+  ) => void;
+
   private readonly isMultichainEnabled: boolean;
+
   private readonly incomingTransactions: IncomingTransactionOptions;
+
   private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
@@ -432,7 +437,7 @@ export class TransactionController extends BaseControllerV1<
     return { registryMethod, parsedRegistryMethod };
   }
 
-  #multichainTrackingHelper: MultichainTrackingHelper
+  #multichainTrackingHelper: MultichainTrackingHelper;
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -497,7 +502,7 @@ export class TransactionController extends BaseControllerV1<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
-    
+
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility ?? (() => Promise.resolve(true));
