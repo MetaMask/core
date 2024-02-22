@@ -20,12 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove logic in `selectedNetworkMiddleware` to set a default `networkClientId` for the requesting origin when not already set. Now if no `networkClientId` is already set for the requesting origin, the middleware will not add the origin to `domains` state but will add the `networkClientId` currently set for the `selectedNetworkClient` from the `NetworkController` to the request object ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** Remove logic in `selectedNetworkMiddleware` to set a default `networkClientId` for the requesting origin in the `SelectedNetworkController` when not already set. Now if `networkClientId` is not already set for the requesting origin, the middleware will not set a default `networkClientId` for that origin in the `SelectedNetworkController` but will continue to add the `selectedNetworkClientId` from the `NetworkController` to the `networkClientId` property on the request object ([#3908](https://github.com/MetaMask/core/pull/3908)).
 
 ### Fixed
 
-- The `SelectedNetworkController` now listens for `networkConfiguration` removal events on the `NetworkController` and if a removed `networkClientId` matches the set `networkClientId` for any domains in its state, it updates them to the globally selected `networkClientId` and repoints the proxies accordingly.
-  ([#3926](https://github.com/MetaMask/core/pull/3926))
+- The `SelectedNetworkController` now listens for `networkConfiguration` removal events on the `NetworkController` and updates domains pointed at a removed `networkClientId` to the `selectedNetworkClientId` ([#3926](https://github.com/MetaMask/core/pull/3926)).
 
 ## [7.0.1]
 
