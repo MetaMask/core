@@ -135,6 +135,28 @@ export class SelectedNetworkController extends BaseController<
       state,
     });
     this.#registerMessageHandlers();
+
+    this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      ({ selectedNetworkClientId }, patches) => {
+        patches.forEach(({ op, path }) => {
+          // if a network is removed, update the networkClientId for all domains that were using it to the selected network
+          if (op === 'remove' && path[0] === 'networkConfigurations') {
+            const removedNetworkClientId = path[1] as NetworkClientId;
+            Object.entries(this.state.domains).forEach(
+              ([domain, networkClientIdForDomain]) => {
+                if (networkClientIdForDomain === removedNetworkClientId) {
+                  this.setNetworkClientIdForDomain(
+                    domain,
+                    selectedNetworkClientId,
+                  );
+                }
+              },
+            );
+          }
+        });
+      },
+    );
   }
 
   #registerMessageHandlers(): void {
