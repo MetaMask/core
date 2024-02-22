@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Bump `@metamask/rpc-errors` to `^6.2.0` ([#3954](https://github.com/MetaMask/core.git/pull/3954))
+- Support updated Linea gas fee estimation ([#3913](https://github.com/MetaMask/core.git/pull/3913))
+
 ## [23.0.0]
 
 ### Added
@@ -532,42 +537,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...HEAD
-[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@22.0.0...@metamask/transaction-controller@23.0.0
-[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.2.0...@metamask/transaction-controller@22.0.0
-[21.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.1.0...@metamask/transaction-controller@21.2.0
-[21.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.1...@metamask/transaction-controller@21.1.0
-[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.0...@metamask/transaction-controller@21.0.1
-[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@20.0.0...@metamask/transaction-controller@21.0.0
-[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@19.0.1...@metamask/transaction-controller@20.0.0
-[19.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@19.0.0...@metamask/transaction-controller@19.0.1
-[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.1...@metamask/transaction-controller@19.0.0
-[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.3.0...@metamask/transaction-controller@18.3.1
-[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.2.0...@metamask/transaction-controller@18.3.0
-[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.1.0...@metamask/transaction-controller@18.2.0
-[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@18.0.0...@metamask/transaction-controller@18.1.0
-[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@17.0.0...@metamask/transaction-controller@18.0.0
-[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@16.0.0...@metamask/transaction-controller@17.0.0
-[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@15.0.0...@metamask/transaction-controller@16.0.0
-[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@14.0.0...@metamask/transaction-controller@15.0.0
-[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...@metamask/transaction-controller@14.0.0
-[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@12.0.0...@metamask/transaction-controller@13.0.0
-[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.1.0...@metamask/transaction-controller@12.0.0
-[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.0.0...@metamask/transaction-controller@11.1.0
-[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@10.0.0...@metamask/transaction-controller@11.0.0
-[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.2.0...@metamask/transaction-controller@10.0.0
-[9.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.1.0...@metamask/transaction-controller@9.2.0
-[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.0...@metamask/transaction-controller@9.1.0
-[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.1...@metamask/transaction-controller@9.0.0
-[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.0...@metamask/transaction-controller@8.0.1
-[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.1.0...@metamask/transaction-controller@8.0.0
-[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.0.0...@metamask/transaction-controller@7.1.0
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@6.1.0...@metamask/transaction-controller@7.0.0
-[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@6.0.0...@metamask/transaction-controller@6.1.0
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@5.0.0...@metamask/transaction-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.1...@metamask/transaction-controller@5.0.0
-[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.0...@metamask/transaction-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/transaction-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@22.0.0...@metamask/transaction-controller@23.0.0
+[22.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@21.2.0...@metamask/transaction-controller@22.0.0
+[21.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@21.1.0...@metamask/transaction-controller@21.2.0
+[21.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@21.0.1...@metamask/transaction-controller@21.1.0
+[21.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@21.0.0...@metamask/transaction-controller@21.0.1
+[21.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@20.0.0...@metamask/transaction-controller@21.0.0
+[20.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@19.0.1...@metamask/transaction-controller@20.0.0
+[19.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@19.0.0...@metamask/transaction-controller@19.0.1
+[19.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@18.3.1...@metamask/transaction-controller@19.0.0
+[18.3.1]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@18.3.0...@metamask/transaction-controller@18.3.1
+[18.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@18.2.0...@metamask/transaction-controller@18.3.0
+[18.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@18.1.0...@metamask/transaction-controller@18.2.0
+[18.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@18.0.0...@metamask/transaction-controller@18.1.0
+[18.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@17.0.0...@metamask/transaction-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@16.0.0...@metamask/transaction-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@15.0.0...@metamask/transaction-controller@16.0.0
+[15.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@14.0.0...@metamask/transaction-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@13.0.0...@metamask/transaction-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@12.0.0...@metamask/transaction-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@11.1.0...@metamask/transaction-controller@12.0.0
+[11.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@11.0.0...@metamask/transaction-controller@11.1.0
+[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@10.0.0...@metamask/transaction-controller@11.0.0
+[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@9.2.0...@metamask/transaction-controller@10.0.0
+[9.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@9.1.0...@metamask/transaction-controller@9.2.0
+[9.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@9.0.0...@metamask/transaction-controller@9.1.0
+[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@8.0.1...@metamask/transaction-controller@9.0.0
+[8.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@8.0.0...@metamask/transaction-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@7.1.0...@metamask/transaction-controller@8.0.0
+[7.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@7.0.0...@metamask/transaction-controller@7.1.0
+[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@6.1.0...@metamask/transaction-controller@7.0.0
+[6.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@6.0.0...@metamask/transaction-controller@6.1.0
+[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@5.0.0...@metamask/transaction-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@4.0.1...@metamask/transaction-controller@5.0.0
+[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@4.0.0...@metamask/transaction-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/transaction-controller@1.0.0
