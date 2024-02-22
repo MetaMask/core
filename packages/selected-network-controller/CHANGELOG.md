@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `setNetworkClientIdForDomain` now throws an error if passed `metamask` as its first (`domain`) argument ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** `setNetworkClientIdForDomain` now throws an error if passed `metamask` for the domain param ([#3908](https://github.com/MetaMask/core/pull/3908)).
 - **BREAKING:** `setNetworkClientIdForDomain` now includes a check that the requesting `domain` has already been granted permissions in the `PermissionsController` before adding it to `domains` state and throws an error if the domain does not have permissions ([#3908](https://github.com/MetaMask/core/pull/3908)).
 - **BREAKING:** the `domains` state now no longer contains a `metamask` domain key Consumers should instead use the `selectedNetworkClientId` from the `NetworkController` to get the selected network for the `metamask` domain ([#3908](https://github.com/MetaMask/core/pull/3908)).
 - **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with any domain while the `perDomainNetwork` flag is false. Consumers should instead use the `provider` and `blockTracker` from the `NetworkController` when the `perDomainNetwork` flag is false ([#3908](https://github.com/MetaMask/core/pull/3908)).
