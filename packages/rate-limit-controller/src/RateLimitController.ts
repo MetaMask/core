@@ -140,11 +140,11 @@ export class RateLimitController<
     this.rateLimitCount = rateLimitCount;
 
     this.messagingSystem.registerActionHandler(
-      `${name}:call` as const,
+      `${name}:call`,
       (
         origin: string,
         type: keyof RateLimitedApis,
-        ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
+        ...args: Parameters<RateLimitedApis[typeof type]['method']>
       ) => this.call(origin, type, ...args),
     );
   }
