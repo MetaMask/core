@@ -423,7 +423,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     );
     const newNetworkClientId = this.messagingSystem.call(
       'NetworkController:findNetworkClientIdByChainId',
-      this.#chainId,
+      chainId,
     );
     return {
       chainId,
