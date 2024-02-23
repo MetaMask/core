@@ -1,7 +1,7 @@
 import type EthQuery from '@metamask/eth-query';
 import { fromWei, toWei } from '@metamask/ethjs-unit';
-import type { Hex, Json } from '@metamask/utils';
-import { isStrictHexString } from '@metamask/utils';
+import type { Hex, Json, JsonRpcSuccess } from '@metamask/utils';
+import { isJsonRpcSuccess, isStrictHexString } from '@metamask/utils';
 import ensNamehash from 'eth-ens-namehash';
 import {
   addHexPrefix,
@@ -446,19 +446,19 @@ export function normalizeEnsName(ensName: string): string | null {
 export function query(
   ethQuery: EthQuery,
   method: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  args: any[] = [],
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> {
+  args: Json[] = [],
+): Promise<JsonRpcSuccess<Json>> {
   return new Promise((resolve, reject) => {
     const cb = (error: unknown, result: unknown) => {
       if (error) {
         reject(error);
         return;
       }
-      resolve(result);
+      if (isJsonRpcSuccess(result)) {
+        resolve(result);
+        return;
+      }
+      throw result;
     };
 
     // Using `in` rather than `hasProperty` so that we look up the prototype
