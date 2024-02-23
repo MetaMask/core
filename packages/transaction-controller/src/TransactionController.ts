@@ -81,7 +81,7 @@ import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
 } from './utils/history';
-import { getLayer1GasFeeFlow } from './utils/layer1-gas-fee-flow';
+import { updateTransactionLayer1GasFee } from './utils/layer1-gas-fee-flow';
 import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
@@ -376,6 +376,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
+  private readonly provider: Provider;
+
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
   private readonly afterSign: (
@@ -512,6 +514,7 @@ export class TransactionController extends BaseControllerV1<
     this.securityProviderRequest = securityProviderRequest;
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
+    this.provider = provider;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -598,6 +601,7 @@ export class TransactionController extends BaseControllerV1<
       onStateChange: (listener) => {
         this.subscribe(listener);
       },
+      provider: this.provider,
     });
 
     gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
@@ -764,7 +768,6 @@ export class TransactionController extends BaseControllerV1<
       networkClientId,
     };
 
-    await this.#updateTransactionLayer1GasFee(ethQuery, transactionMeta);
     await this.updateGasProperties(transactionMeta);
 
     // Checks if a transaction already exists with a given actionId
@@ -1639,7 +1642,11 @@ export class TransactionController extends BaseControllerV1<
     );
     updatedTransaction.type = type;
 
-    await this.#updateTransactionLayer1GasFee(ethQuery, updatedTransaction);
+    await updateTransactionLayer1GasFee({
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider: this.provider,
+      transactionMeta: updatedTransaction,
+    });
 
     this.updateTransaction(
       updatedTransaction,
@@ -2038,6 +2045,12 @@ export class TransactionController extends BaseControllerV1<
       getGasFeeEstimates: this.getGasFeeEstimates,
       getSavedGasFees: this.getSavedGasFees.bind(this),
       txMeta: transactionMeta,
+    });
+
+    await updateTransactionLayer1GasFee({
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider: this.provider,
+      transactionMeta,
     });
   }
 
@@ -3079,33 +3092,6 @@ export class TransactionController extends BaseControllerV1<
       error?.message?.includes('nonce too low') ||
       error?.data?.message?.includes('nonce too low')
     );
-  }
-
-  async #updateTransactionLayer1GasFee(
-    ethQuery: EthQuery,
-    transactionMeta: TransactionMeta,
-  ) {
-    const layer1GasFeeFlow = getLayer1GasFeeFlow(
-      transactionMeta,
-      this.layer1GasFeeFlows,
-    );
-    if (!layer1GasFeeFlow) {
-      log(
-        'Skipping update as no layer 1 gas fee flow found',
-        transactionMeta.id,
-      );
-      return;
-    }
-
-    try {
-      const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({
-        ethQuery,
-        transactionMeta,
-      });
-      transactionMeta.layer1GasFee = layer1Fee;
-    } catch (error) {
-      log('Failed to get layer 1 gas fee', transactionMeta.id, error);
-    }
   }
 
   #getGasFeeFlows(): GasFeeFlow[] {

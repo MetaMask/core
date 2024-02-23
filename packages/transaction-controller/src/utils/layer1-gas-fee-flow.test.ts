@@ -1,43 +1,122 @@
-import { CHAIN_IDS } from '../constants';
-import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
-import { getLayer1GasFeeFlow } from './layer1-gas-fee-flow';
+import type { Provider } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 
-const MOCK_UNSUPPORTED_CHAIN_ID = '0xunsupported';
+import {
+  TransactionStatus,
+  type Layer1GasFeeFlow,
+  type TransactionMeta,
+} from '../types';
+import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
 
-describe('getLayer1GasFeeFlow', () => {
-  const mockLayer1GasFeeFlows = [
-    {
-      matchesTransaction: (transactionMeta: TransactionMeta) =>
-        transactionMeta.chainId === CHAIN_IDS.OPTIMISM,
-    },
-    {
-      matchesTransaction: (transactionMeta: TransactionMeta) =>
-        transactionMeta.chainId === CHAIN_IDS.BASE,
-    },
-  ] as Layer1GasFeeFlow[];
+const LAYER1_GAS_FEE_VALUE_MATCH_MOCK: Hex = '0x1';
+const LAYER1_GAS_FEE_VALUE_UNMATCH_MOCK: Hex = '0x2';
 
-  it('should return the correct Layer1GasFeeFlow based on the transactionMeta', () => {
-    const transactionMetaOptimism = {
-      chainId: CHAIN_IDS.OPTIMISM,
-    } as unknown as TransactionMeta;
-    const transactionMetaBase = {
-      chainId: CHAIN_IDS.BASE,
-    } as unknown as TransactionMeta;
+/**
+ * Creates a mock Layer1GasFeeFlow.
+ * @param request - The request bag to create the mock
+ * @param request.match - The value to return when calling matchesTransaction
+ * @param request.layer1Fee - The value to return when calling getLayer1Fee
+ * @returns The mock Layer1GasFeeFlow.
+ */
+function createLayer1GasFeeFlowMock({
+  match,
+  layer1Fee,
+}: {
+  match: boolean;
+  layer1Fee: Hex;
+}): jest.Mocked<Layer1GasFeeFlow> {
+  return {
+    matchesTransaction: jest.fn().mockReturnValue(match),
+    getLayer1Fee: jest.fn().mockResolvedValue({ layer1Fee }),
+  };
+}
 
-    expect(
-      getLayer1GasFeeFlow(transactionMetaOptimism, mockLayer1GasFeeFlows),
-    ).toBe(mockLayer1GasFeeFlows[0]);
-    expect(
-      getLayer1GasFeeFlow(transactionMetaBase, mockLayer1GasFeeFlows),
-    ).toBe(mockLayer1GasFeeFlows[1]);
+describe('updateTransactionLayer1GasFee', () => {
+  let layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]>;
+  let providerMock: Provider;
+  let transactionMetaMock: TransactionMeta;
+
+  beforeEach(() => {
+    layer1GasFeeFlowsMock = [
+      createLayer1GasFeeFlowMock({
+        match: false,
+        layer1Fee: LAYER1_GAS_FEE_VALUE_UNMATCH_MOCK,
+      }),
+      createLayer1GasFeeFlowMock({
+        match: true,
+        layer1Fee: LAYER1_GAS_FEE_VALUE_MATCH_MOCK,
+      }),
+    ];
+    transactionMetaMock = {
+      id: '1',
+      chainId: '0x123',
+      status: TransactionStatus.unapproved,
+      time: 0,
+      txParams: {
+        from: '0x123',
+      },
+    };
+    providerMock = {} as Provider;
   });
 
-  it('should return undefined if no Layer1GasFeeFlow matches the transactionMeta', () => {
-    const transactionMetaUnsupported = {
-      chainId: MOCK_UNSUPPORTED_CHAIN_ID,
-    } as unknown as TransactionMeta;
-    expect(
-      getLayer1GasFeeFlow(transactionMetaUnsupported, mockLayer1GasFeeFlows),
-    ).toBeUndefined();
+  it('updates given transaction layer1GasFee property', async () => {
+    await updateTransactionLayer1GasFee({
+      provider: providerMock,
+      transactionMeta: transactionMetaMock,
+      layer1GasFeeFlows: layer1GasFeeFlowsMock,
+    });
+
+    const [unmatchingLayer1GasFeeFlow, matchingLayer1GasFeeFlow] =
+      layer1GasFeeFlowsMock;
+
+    expect(unmatchingLayer1GasFeeFlow.getLayer1Fee).not.toHaveBeenCalled();
+
+    expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
+      provider: providerMock,
+      transactionMeta: transactionMetaMock,
+    });
+
+    expect(transactionMetaMock.layer1GasFee).toStrictEqual(
+      LAYER1_GAS_FEE_VALUE_MATCH_MOCK,
+    );
+  });
+
+  describe('does not set layer1GasFee property', () => {
+    it('if error occurs while getting layer 1 gas fee', async () => {
+      const [, matchingLayer1GasFeeFlow] = layer1GasFeeFlowsMock;
+
+      const mockError = new Error('Error getting layer 1 gas fee');
+      (matchingLayer1GasFeeFlow.getLayer1Fee as jest.Mock).mockRejectedValue(
+        mockError,
+      );
+
+      await updateTransactionLayer1GasFee({
+        provider: providerMock,
+        transactionMeta: transactionMetaMock,
+        layer1GasFeeFlows: layer1GasFeeFlowsMock,
+      });
+
+      expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
+        provider: providerMock,
+        transactionMeta: transactionMetaMock,
+      });
+      expect(transactionMetaMock.layer1GasFee).toBeUndefined();
+    });
+
+    it('when could not find any matching layer 1 gas fee flow', async () => {
+      const unmatchingLayer1GasFeeFlow = createLayer1GasFeeFlowMock({
+        match: false,
+        layer1Fee: LAYER1_GAS_FEE_VALUE_UNMATCH_MOCK,
+      });
+      layer1GasFeeFlowsMock = [unmatchingLayer1GasFeeFlow];
+
+      await updateTransactionLayer1GasFee({
+        provider: providerMock,
+        transactionMeta: transactionMetaMock,
+        layer1GasFeeFlows: layer1GasFeeFlowsMock,
+      });
+
+      expect(unmatchingLayer1GasFeeFlow.getLayer1Fee).not.toHaveBeenCalled();
+    });
   });
 });
