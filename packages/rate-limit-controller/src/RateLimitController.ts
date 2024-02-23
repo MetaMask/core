@@ -202,16 +202,19 @@ export class RateLimitController<
     const rateLimitTimeout =
       this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const previous = (state as any).requests[api][origin] ?? 0;
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (state as any).requests[api][origin] = previous + 1;
-
+      const previous =
+        (state as unknown as RateLimitState<RateLimitedApis>).requests[api][
+          origin
+        ] ?? 0;
       if (previous === 0) {
         setTimeout(() => this.resetRequestCount(api, origin), rateLimitTimeout);
       }
+      return Object.assign(state, {
+        requests: {
+          ...(state.requests as RateLimitedRequests<RateLimitedApis>),
+          [api]: { [origin]: previous + 1 },
+        },
+      });
     });
   }
 
@@ -223,9 +226,12 @@ export class RateLimitController<
    */
   private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (state as any).requests[api][origin] = 0;
+      return Object.assign(state, {
+        requests: {
+          ...(state.requests as RateLimitedRequests<RateLimitedApis>),
+          [api]: { [origin]: 0 },
+        },
+      });
     });
   }
 }
