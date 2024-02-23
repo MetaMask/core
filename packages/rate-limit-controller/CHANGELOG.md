@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Rename types to align with conventions followed by other controllers. ([#3963](https://github.com/MetaMask/core/pull/3963))
+  - `GetRateLimitState` is now `RateLimitControllerGetStateAction`.
+  - `RateLimitStateChange` is now `RateLimitControllerStateChangeEvent`.
+  - `CallApi` is now `RateLimitControllerCallApiAction`.
+
 ### Fixed
 
 - **BREAKING:** Fix `GetRateLimitState`, `RateLimitStateChange` types by replacing `RateLimitedApis` with `RateLimitState<RateLimitedApis>` as the state type passed in as generic arguments to `ControllerGetStateAction` and `ControllerStateChangeEvent` ([#3949](https://github.com/MetaMask/core/pull/3949))

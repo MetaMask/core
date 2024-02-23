@@ -31,26 +31,27 @@ export type RateLimitState<
 
 const name = 'RateLimitController';
 
-export type RateLimitStateChange<
+export type RateLimitControllerStateChangeEvent<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = ControllerStateChangeEvent<typeof name, RateLimitState<RateLimitedApis>>;
 
-export type GetRateLimitState<
+export type RateLimitControllerGetStateAction<
   RateLimitedApis extends Record<string, RateLimitedApi>,
 > = ControllerGetStateAction<typeof name, RateLimitState<RateLimitedApis>>;
 
-export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
+export type RateLimitControllerCallApiAction<RateLimitedApis extends Record<string, RateLimitedApi>> = {
   type: `${typeof name}:call`;
   handler: RateLimitController<RateLimitedApis>['call'];
 };
 
 export type RateLimitControllerActions<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
-> = GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>;
+> =
+  | RateLimitControllerGetStateAction<RateLimitedApis>
+  | RateLimitControllerCallApiAction<RateLimitedApis>;
 
 export type RateLimitControllerEvents<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = RateLimitStateChange<RateLimitedApis>;
+> = RateLimitControllerStateChangeEvent<RateLimitedApis>;
 
 export type RateLimitMessenger<
   RateLimitedApis extends Record<string, RateLimitedApi>,
