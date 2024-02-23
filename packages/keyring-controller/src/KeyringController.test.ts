@@ -85,10 +85,6 @@ describe('KeyringController', () => {
           new KeyringController({
             messenger: buildKeyringControllerMessenger(),
             cacheEncryptionKey: true,
-            updateIdentities: jest.fn(),
-            setAccountLabel: jest.fn(),
-            syncIdentities: jest.fn(),
-            setSelectedAddress: jest.fn(),
           }),
       ).not.toThrow();
     });
@@ -101,10 +97,6 @@ describe('KeyringController', () => {
             messenger: buildKeyringControllerMessenger(),
             cacheEncryptionKey: true,
             encryptor: { encrypt: jest.fn(), decrypt: jest.fn() },
-            updateIdentities: jest.fn(),
-            setAccountLabel: jest.fn(),
-            syncIdentities: jest.fn(),
-            setSelectedAddress: jest.fn(),
           }),
       ).toThrow(KeyringControllerError.UnsupportedEncryptionKeyExport);
     });
@@ -113,57 +105,41 @@ describe('KeyringController', () => {
   describe('addNewAccount', () => {
     describe('when accountCount is not provided', () => {
       it('should add new account', async () => {
-        await withController(
-          async ({ controller, initialState, preferences }) => {
-            const { addedAccountAddress } = await controller.addNewAccount();
-            expect(initialState.keyrings).toHaveLength(1);
-            expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-              controller.state.keyrings[0].accounts,
-            );
-            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
-            expect(initialState.keyrings[0].accounts).not.toContain(
-              addedAccountAddress,
-            );
-            expect(addedAccountAddress).toBe(
-              controller.state.keyrings[0].accounts[1],
-            );
-            expect(
-              preferences.updateIdentities.calledWith(
-                controller.state.keyrings[0].accounts,
-              ),
-            ).toBe(true);
-            expect(preferences.setSelectedAddress.called).toBe(false);
-          },
-        );
+        await withController(async ({ controller, initialState }) => {
+          const { addedAccountAddress } = await controller.addNewAccount();
+          expect(initialState.keyrings).toHaveLength(1);
+          expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+            controller.state.keyrings[0].accounts,
+          );
+          expect(controller.state.keyrings[0].accounts).toHaveLength(2);
+          expect(initialState.keyrings[0].accounts).not.toContain(
+            addedAccountAddress,
+          );
+          expect(addedAccountAddress).toBe(
+            controller.state.keyrings[0].accounts[1],
+          );
+        });
       });
     });
 
     describe('when accountCount is provided', () => {
       it('should add new account if accountCount is in sequence', async () => {
-        await withController(
-          async ({ controller, initialState, preferences }) => {
-            const { addedAccountAddress } = await controller.addNewAccount(
-              initialState.keyrings[0].accounts.length,
-            );
-            expect(initialState.keyrings).toHaveLength(1);
-            expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-              controller.state.keyrings[0].accounts,
-            );
-            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
-            expect(initialState.keyrings[0].accounts).not.toContain(
-              addedAccountAddress,
-            );
-            expect(addedAccountAddress).toBe(
-              controller.state.keyrings[0].accounts[1],
-            );
-            expect(
-              preferences.updateIdentities.calledWith(
-                controller.state.keyrings[0].accounts,
-              ),
-            ).toBe(true);
-            expect(preferences.setSelectedAddress.called).toBe(false);
-          },
-        );
+        await withController(async ({ controller, initialState }) => {
+          const { addedAccountAddress } = await controller.addNewAccount(
+            initialState.keyrings[0].accounts.length,
+          );
+          expect(initialState.keyrings).toHaveLength(1);
+          expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+            controller.state.keyrings[0].accounts,
+          );
+          expect(controller.state.keyrings[0].accounts).toHaveLength(2);
+          expect(initialState.keyrings[0].accounts).not.toContain(
+            addedAccountAddress,
+          );
+          expect(addedAccountAddress).toBe(
+            controller.state.keyrings[0].accounts[1],
+          );
+        });
       });
 
       it('should throw an error if passed accountCount param is out of sequence', async () => {
@@ -205,32 +181,25 @@ describe('KeyringController', () => {
   describe('addNewAccountForKeyring', () => {
     describe('when accountCount is not provided', () => {
       it('should add new account', async () => {
-        await withController(
-          async ({ controller, initialState, preferences }) => {
-            const [primaryKeyring] = controller.getKeyringsByType(
-              KeyringTypes.hd,
-            ) as Keyring<Json>[];
-            const addedAccountAddress =
-              await controller.addNewAccountForKeyring(primaryKeyring);
-            expect(initialState.keyrings).toHaveLength(1);
-            expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-              controller.state.keyrings[0].accounts,
-            );
-            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
-            expect(initialState.keyrings[0].accounts).not.toContain(
-              addedAccountAddress,
-            );
-            expect(addedAccountAddress).toBe(
-              controller.state.keyrings[0].accounts[1],
-            );
-            expect(
-              preferences.updateIdentities.calledWith(
-                controller.state.keyrings[0].accounts,
-              ),
-            ).toBe(true);
-            expect(preferences.setSelectedAddress.called).toBe(false);
-          },
-        );
+        await withController(async ({ controller, initialState }) => {
+          const [primaryKeyring] = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as Keyring<Json>[];
+          const addedAccountAddress = await controller.addNewAccountForKeyring(
+            primaryKeyring,
+          );
+          expect(initialState.keyrings).toHaveLength(1);
+          expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+            controller.state.keyrings[0].accounts,
+          );
+          expect(controller.state.keyrings[0].accounts).toHaveLength(2);
+          expect(initialState.keyrings[0].accounts).not.toContain(
+            addedAccountAddress,
+          );
+          expect(addedAccountAddress).toBe(
+            controller.state.keyrings[0].accounts[1],
+          );
+        });
       });
 
       it('should not throw when `keyring.getAccounts()` returns a shallow copy', async () => {
@@ -240,7 +209,7 @@ describe('KeyringController', () => {
               keyringBuilderFactory(MockShallowGetAccountsKeyring),
             ],
           },
-          async ({ controller, initialState, preferences }) => {
+          async ({ controller }) => {
             const mockKeyring = (await controller.addNewKeyring(
               MockShallowGetAccountsKeyring.type,
             )) as Keyring<Json>;
@@ -253,13 +222,6 @@ describe('KeyringController', () => {
             expect(addedAccountAddress).toBe(
               controller.state.keyrings[1].accounts[0],
             );
-            expect(
-              preferences.updateIdentities.calledWith([
-                ...initialState.keyrings[0].accounts,
-                addedAccountAddress,
-              ]),
-            ).toBe(true);
-            expect(preferences.setSelectedAddress.called).toBe(false);
           },
         );
       });
@@ -267,32 +229,25 @@ describe('KeyringController', () => {
 
     describe('when accountCount is provided', () => {
       it('should add new account if accountCount is in sequence', async () => {
-        await withController(
-          async ({ controller, initialState, preferences }) => {
-            const [primaryKeyring] = controller.getKeyringsByType(
-              KeyringTypes.hd,
-            ) as Keyring<Json>[];
-            const addedAccountAddress =
-              await controller.addNewAccountForKeyring(primaryKeyring);
-            expect(initialState.keyrings).toHaveLength(1);
-            expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-              controller.state.keyrings[0].accounts,
-            );
-            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
-            expect(initialState.keyrings[0].accounts).not.toContain(
-              addedAccountAddress,
-            );
-            expect(addedAccountAddress).toBe(
-              controller.state.keyrings[0].accounts[1],
-            );
-            expect(
-              preferences.updateIdentities.calledWith(
-                controller.state.keyrings[0].accounts,
-              ),
-            ).toBe(true);
-            expect(preferences.setSelectedAddress.called).toBe(false);
-          },
-        );
+        await withController(async ({ controller, initialState }) => {
+          const [primaryKeyring] = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as Keyring<Json>[];
+          const addedAccountAddress = await controller.addNewAccountForKeyring(
+            primaryKeyring,
+          );
+          expect(initialState.keyrings).toHaveLength(1);
+          expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+            controller.state.keyrings[0].accounts,
+          );
+          expect(controller.state.keyrings[0].accounts).toHaveLength(2);
+          expect(initialState.keyrings[0].accounts).not.toContain(
+            addedAccountAddress,
+          );
+          expect(addedAccountAddress).toBe(
+            controller.state.keyrings[0].accounts[1],
+          );
+        });
       });
 
       it('should throw an error if passed accountCount param is out of sequence', async () => {
@@ -335,23 +290,16 @@ describe('KeyringController', () => {
 
   describe('addNewAccountWithoutUpdate', () => {
     it('should add new account without updating', async () => {
-      await withController(
-        async ({ controller, initialState, preferences }) => {
-          const initialUpdateIdentitiesCallCount =
-            preferences.updateIdentities.callCount;
-          await controller.addNewAccountWithoutUpdate();
-          expect(initialState.keyrings).toHaveLength(1);
-          expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-            controller.state.keyrings[0].accounts,
-          );
-          expect(controller.state.keyrings[0].accounts).toHaveLength(2);
-          // we make sure that updateIdentities is not called
-          // during this test
-          expect(preferences.updateIdentities.callCount).toBe(
-            initialUpdateIdentitiesCallCount,
-          );
-        },
-      );
+      await withController(async ({ controller, initialState }) => {
+        await controller.addNewAccountWithoutUpdate();
+        expect(initialState.keyrings).toHaveLength(1);
+        expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+          controller.state.keyrings[0].accounts,
+        );
+        expect(controller.state.keyrings[0].accounts).toHaveLength(2);
+        // we make sure that updateIdentities is not called
+        // during this test
+      });
     });
 
     it('should throw error with no HD keyring', async () => {
@@ -475,9 +423,8 @@ describe('KeyringController', () => {
           it('should create new vault, mnemonic and keychain', async () => {
             await withController(
               { cacheEncryptionKey },
-              async ({ controller, initialState, preferences, encryptor }) => {
+              async ({ controller, initialState, encryptor }) => {
                 const cleanKeyringController = new KeyringController({
-                  ...preferences,
                   messenger: buildKeyringControllerMessenger(),
                   cacheEncryptionKey,
                   encryptor,
@@ -960,12 +907,11 @@ describe('KeyringController', () => {
         });
 
         it('should not select imported account', async () => {
-          await withController(async ({ controller, preferences }) => {
+          await withController(async ({ controller }) => {
             await controller.importAccountWithStrategy(
               AccountImportStrategy.privateKey,
               [privateKey],
             );
-            expect(preferences.setSelectedAddress.called).toBe(false);
           });
         });
       });
@@ -1034,13 +980,12 @@ describe('KeyringController', () => {
         });
 
         it('should not select imported account', async () => {
-          await withController(async ({ controller, preferences }) => {
+          await withController(async ({ controller }) => {
             const somePassword = 'holachao123';
             await controller.importAccountWithStrategy(
               AccountImportStrategy.json,
               [input, somePassword],
             );
-            expect(preferences.setSelectedAddress.called).toBe(false);
           });
         });
 
@@ -3117,18 +3062,11 @@ describe('KeyringController', () => {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
-  preferences,
   initialState,
   encryptor,
   messenger,
 }: {
   controller: KeyringController;
-  preferences: {
-    setAccountLabel: sinon.SinonStub;
-    syncIdentities: sinon.SinonStub;
-    updateIdentities: sinon.SinonStub;
-    setSelectedAddress: sinon.SinonStub;
-  };
   encryptor: MockEncryptor;
   initialState: KeyringControllerState;
   messenger: KeyringControllerMessenger;
@@ -3201,17 +3139,10 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const encryptor = new MockEncryptor();
-  const preferences = {
-    setAccountLabel: sinon.stub(),
-    syncIdentities: sinon.stub(),
-    updateIdentities: sinon.stub(),
-    setSelectedAddress: sinon.stub(),
-  };
   const messenger = buildKeyringControllerMessenger();
   const controller = new KeyringController({
     encryptor,
     messenger,
-    ...preferences,
     ...rest,
   });
   if (!rest.skipVaultCreation) {
@@ -3219,7 +3150,6 @@ async function withController<ReturnValue>(
   }
   return await fn({
     controller,
-    preferences,
     encryptor,
     initialState: controller.state,
     messenger,

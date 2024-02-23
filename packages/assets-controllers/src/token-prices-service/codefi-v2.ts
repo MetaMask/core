@@ -356,7 +356,9 @@ export class CodefiTokenPricesServiceV2
     const pricesByCurrencyByTokenAddress: SpotPricesEndpointData<
       Lowercase<Hex>,
       Lowercase<SupportedCurrency>
-    > = await this.#tokenPricePolicy.execute(() => handleFetch(url));
+    > = await this.#tokenPricePolicy.execute(() =>
+      handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+    );
 
     return tokenAddresses.reduce(
       (
