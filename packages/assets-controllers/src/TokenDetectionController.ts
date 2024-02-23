@@ -329,6 +329,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
         const { chainId: newChainId } =
           this.#getCorrectChainIdAndNetworkClientId(selectedNetworkClientId);
+        this.#chainId = newChainId;
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
 
