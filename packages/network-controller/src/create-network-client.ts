@@ -53,7 +53,7 @@ export type NetworkClient = {
  */
 export function createNetworkClient(
   networkConfig: NetworkClientConfiguration,
-  onboardingCompleted: Boolean
+  customFeatureRpcApiMiddlewares: JsonRpcMiddleware<JsonRpcParams, Json>[]
 ): NetworkClient {
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
@@ -69,7 +69,12 @@ export function createNetworkClient(
           rpcUrl: networkConfig.rpcUrl,
         });
 
-  const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
+  const enrichedRpcApiMiddleware = mergeMiddleware([
+    ...customFeatureRpcApiMiddlewares,
+    rpcApiMiddleware,
+  ]);
+
+  const rpcProvider = providerFromMiddleware(enrichedRpcApiMiddleware);
 
   const blockTrackerOpts =
     // eslint-disable-next-line n/no-process-env
@@ -87,13 +92,12 @@ export function createNetworkClient(
           blockTracker,
           network: networkConfig.network,
           rpcProvider,
-          rpcApiMiddleware,
-          onboardingCompleted
+          rpcApiMiddleware: enrichedRpcApiMiddleware
         })
       : createCustomNetworkMiddleware({
           blockTracker,
           chainId: networkConfig.chainId,
-          rpcApiMiddleware,
+          rpcApiMiddleware: enrichedRpcApiMiddleware,
         });
 
   const engine = new JsonRpcEngine();
@@ -124,13 +128,11 @@ function createInfuraNetworkMiddleware({
   network,
   rpcProvider,
   rpcApiMiddleware,
-  onboardingCompleted
 }: {
   blockTracker: PollingBlockTracker;
   network: InfuraNetworkType;
   rpcProvider: SafeEventEmitterProvider;
   rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
-  onboardingCompleted: Boolean;
 }) {
   return mergeMiddleware([
     createNetworkAndChainIdMiddleware({ network }),
@@ -139,8 +141,7 @@ function createInfuraNetworkMiddleware({
     createBlockRefMiddleware({ blockTracker, provider: rpcProvider }),
     createRetryOnEmptyMiddleware({ blockTracker, provider: rpcProvider }),
     createBlockTrackerInspectorMiddleware({ blockTracker }),
-    rpcApiMiddleware,
-    onboardingCompletedMiddleware({ onboardingCompleted }),
+    rpcApiMiddleware
   ]);
 }
 
@@ -205,21 +206,6 @@ function createCustomNetworkMiddleware({
     createBlockTrackerInspectorMiddleware({ blockTracker }),
     rpcApiMiddleware,
   ]);
-}
-interface onboardingCompletedMiddlewareOptions {
-  onboardingCompleted: Boolean;
-}
-
-function onboardingCompletedMiddleware(
-  onboardingCompleted: onboardingCompletedMiddlewareOptions
-): JsonRpcMiddleware<JsonRpcParams, Json> {
-  return (async (req, res, next, end) => {
-    if (onboardingCompleted) {
-      return end();
-    }
-
-    return next();
-  });
 }
 
 /**

@@ -17,7 +17,7 @@ import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 import {
   assertIsStrictHexString,
   hasProperty,
@@ -41,6 +41,7 @@ import type {
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
 } from './types';
+import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -481,7 +482,7 @@ export type NetworkControllerOptions = {
   trackMetaMetricsEvent: () => void;
   infuraProjectId: string;
   state?: Partial<NetworkState>;
-  onboardingCompleted: Boolean;
+  customFeatureRpcApiMiddlewares?: JsonRpcMiddleware<JsonRpcParams, Json>[];
 };
 
 export const defaultState: NetworkState = {
@@ -557,14 +558,14 @@ export class NetworkController extends BaseController<
 
   #autoManagedNetworkClientRegistry?: AutoManagedNetworkClientRegistry;
 
-  onboardingCompleted: Boolean;
+  customFeatureRpcApiMiddlewares: JsonRpcMiddleware<JsonRpcParams, Json>[];
 
   constructor({
     messenger,
     state,
     infuraProjectId,
     trackMetaMetricsEvent,
-    onboardingCompleted,
+    customFeatureRpcApiMiddlewares = [],
   }: NetworkControllerOptions) {
     super({
       name,
@@ -640,7 +641,7 @@ export class NetworkController extends BaseController<
 
     this.#previousProviderConfig = this.state.providerConfig;
 
-    this.onboardingCompleted = onboardingCompleted;
+    this.customFeatureRpcApiMiddlewares = customFeatureRpcApiMiddlewares;
   }
 
   /**
@@ -1266,7 +1267,7 @@ export class NetworkController extends BaseController<
           rpcUrl,
           ticker,
         },
-        this.onboardingCompleted,
+        this.customFeatureRpcApiMiddlewares,
         );
     }
 
@@ -1426,8 +1427,8 @@ export class NetworkController extends BaseController<
       ) => {
         const autoManagedNetworkClient = createAutoManagedNetworkClient(
           networkClientConfiguration,
-          this.onboardingCompleted
-        );
+          this.customFeatureRpcApiMiddlewares
+          );
         if (networkClientId in registry[networkClientType]) {
           return registry;
         }

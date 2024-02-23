@@ -1,3 +1,4 @@
+import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
 import type {
@@ -5,6 +6,7 @@ import type {
   NetworkClientConfiguration,
   Provider,
 } from './types';
+import { Json, JsonRpcParams } from '@metamask/utils';
 
 /**
  * The name of the method on both the provider and block tracker proxy which can
@@ -65,7 +67,7 @@ export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
 >(
   networkClientConfiguration: Configuration,
-  onboardingCompleted: Boolean,
+  customFeatureRpcApiMiddlewares: JsonRpcMiddleware<JsonRpcParams, Json>[],
 ): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
 
@@ -77,7 +79,7 @@ export function createAutoManagedNetworkClient<
         return networkClient?.provider;
       }
 
-      networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
+      networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
       if (networkClient === undefined) {
         throw new Error(
           "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
@@ -114,7 +116,7 @@ export function createAutoManagedNetworkClient<
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
-      networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
+      networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
       const { provider } = networkClient;
       return propertyName in provider;
     },
@@ -130,7 +132,7 @@ export function createAutoManagedNetworkClient<
           return networkClient?.blockTracker;
         }
 
-        networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
+        networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
         if (networkClient === undefined) {
           throw new Error(
             "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
@@ -167,7 +169,7 @@ export function createAutoManagedNetworkClient<
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;
         }
-        networkClient ??= createNetworkClient(networkClientConfiguration, onboardingCompleted);
+        networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
         const { blockTracker } = networkClient;
         return propertyName in blockTracker;
       },
