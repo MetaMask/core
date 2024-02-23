@@ -439,7 +439,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }
     await this.detectTokens({
       networkClientId,
-      accountAddress: options.address,
+      selectedAddress: options.address,
     });
   }
 
@@ -457,7 +457,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }: { selectedAddress?: string; networkClientId?: string } = {}) {
     await this.detectTokens({
       networkClientId,
-      accountAddress: selectedAddress,
+      selectedAddress,
     });
     this.setIntervalLength(DEFAULT_INTERVAL);
   }
@@ -468,20 +468,21 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    *
    * @param options - Options for token detection.
    * @param options.networkClientId - The ID of the network client to use.
-   * @param options.accountAddress - the selectedAddress against which to detect for token balances.
+   * @param options.selectedAddress - the selectedAddress against which to detect for token balances.
    */
   async detectTokens({
     networkClientId,
-    accountAddress,
+    selectedAddress,
   }: {
     networkClientId?: NetworkClientId;
-    accountAddress?: string;
+    selectedAddress?: string;
   } = {}): Promise<void> {
     if (!this.isActive) {
       return;
     }
 
-    const addressAgainstWhichToDetect = accountAddress ?? this.#selectedAddress;
+    const addressAgainstWhichToDetect =
+      selectedAddress ?? this.#selectedAddress;
     const {
       chainId: chainIdAgainstWhichToDetect,
       networkClientId: networkClientIdAgainstWhichToDetect,

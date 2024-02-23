@@ -1762,19 +1762,19 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: 0 });
 
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
           ]);
 
           await advanceTime({ clock, duration: DEFAULT_INTERVAL });
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
           ]);
         },
       );
@@ -1807,7 +1807,7 @@ describe('TokenDetectionController', () => {
           });
           await controller.detectTokens({
             networkClientId: NetworkType.goerli,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
@@ -1847,7 +1847,7 @@ describe('TokenDetectionController', () => {
           });
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
             'TokensController:addDetectedTokens',
@@ -1910,7 +1910,7 @@ describe('TokenDetectionController', () => {
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -1965,7 +1965,7 @@ describe('TokenDetectionController', () => {
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
 
           expect(mockTrackMetaMetricsEvent).toHaveBeenCalledWith({

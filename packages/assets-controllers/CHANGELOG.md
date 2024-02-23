@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo. ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923))
+- **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo. ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923)), ([#3938](https://github.com/MetaMask/core/pull/3938))
   - **BREAKING:** `TokenDetectionController` now resets its polling interval to the default value of 3 minutes when token detection is triggered by external controller events `KeyringController:unlock`, `TokenListController:stateChange`, `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`.
   - **BREAKING:** `TokenDetectionController` now refetches tokens on `NetworkController:networkDidChange` if the `networkClientId` is changed instead of `chainId`.
   - **BREAKING:** `TokenDetectionController` cannot initiate polling or token detection if `KeyringController` state is locked.
+  - **BREAKING:** The `detectTokens` method input option `accountAddress` has been renamed to `selectedAddress`.
   - **BREAKING:** The `detectTokens` method now excludes tokens that are already included in the `TokensController`'s `detectedTokens` list from the batch of incoming tokens it sends to the `TokensController` `addDetectedTokens` method.
   - **BREAKING:** The constructor for `TokenDetectionController` expects a new required proprerty `trackMetaMetricsEvent`, which defines the callback that is called in the `detectTokens` method.
   - The constructor option `selectedAddress` no longer defaults to `''` if omitted. Instead, the correct address is assigned using the `AccountsController:getSelectedAccount` messenger action.
