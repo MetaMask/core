@@ -8,6 +8,10 @@ import type {
   NetworkControllerStateChangeEvent,
   ProviderProxy,
 } from '@metamask/network-controller';
+import type {
+  PermissionControllerStateChange,
+  GetSubjects as PermissionControllerGetSubjectsAction,
+} from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
 
@@ -82,12 +86,15 @@ export type SelectedNetworkControllerActions =
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
-  | PermissionControllerHasPermissions;
+  | PermissionControllerHasPermissions
+  | PermissionControllerGetSubjectsAction;
 
 export type SelectedNetworkControllerEvents =
   SelectedNetworkControllerStateChangeEvent;
 
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | PermissionControllerStateChange;
 
 export type SelectedNetworkControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -135,6 +142,48 @@ export class SelectedNetworkController extends BaseController<
       state,
     });
     this.#registerMessageHandlers();
+
+    this.messagingSystem
+      .call('PermissionController:getSubjectNames')
+      .filter(
+        (domain) =>
+          this.state.domains[domain] === undefined &&
+          this.state.domains[domain] === undefined,
+      )
+      .forEach((domain) =>
+        this.setNetworkClientIdForDomain(
+          domain,
+          this.messagingSystem.call('NetworkController:getState')
+            .selectedNetworkClientId,
+        ),
+      );
+
+    this.messagingSystem.subscribe(
+      'PermissionController:stateChange',
+      (_, patches) => {
+        patches.forEach(({ op, path }) => {
+          const isChangingSubject =
+            path[0] === 'subjects' && path[1] !== undefined;
+          if (isChangingSubject && typeof path[1] === 'string') {
+            const domain = path[1];
+            if (op === 'add' && this.state.domains[domain] === undefined) {
+              this.setNetworkClientIdForDomain(
+                domain,
+                this.messagingSystem.call('NetworkController:getState')
+                  .selectedNetworkClientId,
+              );
+            } else if (
+              op === 'remove' &&
+              this.state.domains[domain] !== undefined
+            ) {
+              this.update(({ domains }) => {
+                delete domains[domain];
+              });
+            }
+          }
+        });
+      },
+    );
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
