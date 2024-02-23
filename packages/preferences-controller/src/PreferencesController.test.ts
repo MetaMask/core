@@ -325,6 +325,13 @@ describe('PreferencesController', () => {
     expect(controller.state.selectedAddress).toBe('0x00');
   });
 
+  it('should throw error when syncing identities with empty array', () => {
+    const controller = setupPreferencesController();
+    expect(() => {
+      controller.syncIdentities([]);
+    }).toThrow('Expected non-empty array of addresses');
+  });
+
   it('should add new identities', () => {
     const controller = setupPreferencesController();
     controller.updateIdentities(['0x00', '0x01']);

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove callbacks `updateIdentities`, `syncIdentities`, `setSelectedAddress`, `setAccountLabel` from constructor options of the `KeyringController` class. These were previously used to update `PreferencesController` state, but are now replaced with `PreferencesController`'s subscription to the `KeyringController:stateChange` event. ([#3853](https://github.com/MetaMask/core/pull/3853))
+  - Class methods `addNewAccount`, `addNewAccountForKeyring`, `createNewVaultAndRestore`, `createNewVaultAndKeychain`, `importAccountWithStrategy`, `restoreQRKeyring`, `unlockQRHardwareWalletAccount`, `forgetQRDevice` no longer directly updates `PreferencesController` state by calling the `updateIdentities` callback.
+  - Class method `submitPassword` no longer directly updates `PreferencesController` state by calling the `syncIdentities` callback.
+  - Class method `unlockQRHardwareWalletAccount` no longer directly updates `PreferencesController` state by calling the `setAccountLabel`, `setSelectedAddress` callbacks.
+
 ## [12.2.0]
 
 ### Added

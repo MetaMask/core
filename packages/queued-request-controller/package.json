@@ -1,6 +1,6 @@
 {
   "name": "@metamask/queued-request-controller",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Includes a controller and middleware that implements a request queue",
   "keywords": [
     "MetaMask",
@@ -34,7 +34,7 @@
     "@metamask/base-controller": "^4.1.1",
     "@metamask/controller-utils": "^8.0.3",
     "@metamask/json-rpc-engine": "^7.3.2",
-    "@metamask/rpc-errors": "^6.1.0",
+    "@metamask/rpc-errors": "^6.2.0",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^8.3.0"
   },
@@ -42,7 +42,7 @@
     "@metamask/approval-controller": "^5.1.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^17.2.0",
-    "@metamask/selected-network-controller": "^7.0.1",
+    "@metamask/selected-network-controller": "^8.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -58,7 +58,7 @@
   "peerDependencies": {
     "@metamask/approval-controller": "^5.1.2",
     "@metamask/network-controller": "^17.2.0",
-    "@metamask/selected-network-controller": "^7.0.1"
+    "@metamask/selected-network-controller": "^8.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
