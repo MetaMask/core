@@ -26,6 +26,8 @@ export type BaseControllerV1Instance =
  * because the generic parameters it expects require knowing the exact shape of the controller's state and messenger.
  *
  * Instead, we look for an object with the `BaseController` properties that we use in the ComposableController (name and state).
+ *
+ * Note that this type is not sufficiently type-safe for general use, and is only intended for use within the ComposableController.
  */
 export type BaseControllerV2Instance = {
   name: string;
@@ -35,6 +37,8 @@ export type BaseControllerV2Instance = {
 // TODO: Remove `BaseControllerV1Instance` member once `BaseControllerV2` migrations are completed for all controllers.
 /**
  * A type encompassing all controller instances that extend from `BaseControllerV1` or `BaseController`.
+ *
+ * Note that this type is not sufficiently type-safe for general use, and is only intended for use within the ComposableController.
  */
 export type ControllerInstance =
   | BaseControllerV1Instance
