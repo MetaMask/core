@@ -10,7 +10,6 @@ import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
 
-// TODO: Remove this type once `BaseControllerV2` migrations are completed for all controllers.
 /**
  * A type encompassing all controller instances that extend from `BaseControllerV1`.
  */
@@ -34,7 +33,6 @@ export type BaseControllerV2Instance = {
   state: StateConstraint;
 };
 
-// TODO: Remove `BaseControllerV1Instance` member once `BaseControllerV2` migrations are completed for all controllers.
 /**
  * A type encompassing all controller instances that extend from `BaseControllerV1` or `BaseController`.
  *
@@ -48,7 +46,6 @@ export type ControllerInstance =
  * Determines if the given controller is an instance of BaseControllerV1
  * @param controller - Controller instance to check
  * @returns True if the controller is an instance of BaseControllerV1
- * TODO: Deprecate once `BaseControllerV2` migrations are completed for all controllers.
  */
 export function isBaseControllerV1(
   controller: ControllerInstance,
@@ -86,10 +83,10 @@ export function isBaseController(
   );
 }
 
+// TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
 export type ComposableControllerState = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
   // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
-  // TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: Record<string, any>;
 };
@@ -171,7 +168,6 @@ export class ComposableController extends BaseController<
   /**
    * Constructor helper that subscribes to child controller state changes.
    * @param controller - Controller instance to update
-   * TODO: Remove `isBaseControllerV1` branch once `BaseControllerV2` migrations are completed for all controllers.
    */
   #updateChildController(controller: ControllerInstance): void {
     if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
