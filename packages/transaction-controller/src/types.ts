@@ -1072,7 +1072,7 @@ export type Layer1GasFeeFlow = {
   /**
    * Get layer 1 gas fee estimates for a specific transaction.
    * @param request - The gas fee flow request.
-   * @returns The gas fee flow response containing the gas fee estimates.
+   * @returns The gas fee flow response containing the layer 1 gas fee estimate.
    */
   getLayer1Fee: (
     request: Layer1GasFeeFlowRequest,
