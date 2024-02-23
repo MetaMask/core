@@ -118,7 +118,10 @@ const setup = ({
   });
   const messenger = buildMessenger();
   const selectedNetworkControllerMessenger =
-    buildSelectedNetworkControllerMessenger({ messenger, hasPermissions });
+    buildSelectedNetworkControllerMessenger({
+      messenger,
+      hasPermissions,
+    });
   const controller = new SelectedNetworkController({
     messenger: selectedNetworkControllerMessenger,
     state,
@@ -154,6 +157,41 @@ describe('SelectedNetworkController', () => {
       expect(controller.state).toStrictEqual({
         domains: { networkClientId: 'goerli' },
         perDomainNetwork: true,
+      });
+    });
+  });
+
+  describe('It updates domain state when the network controller state changes', () => {
+    describe('when a networkClient is deleted from the network controller state', () => {
+      it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
+        const { controller, messenger } = setup({
+          state: {
+            perDomainNetwork: true,
+            domains: {
+              metamask: 'goerli',
+              'example.com': 'test-network-client-id',
+              'test.com': 'test-network-client-id',
+            },
+          },
+        });
+
+        messenger.publish(
+          'NetworkController:stateChange',
+          {
+            providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
+            selectedNetworkClientId: 'goerli',
+            networkConfigurations: {},
+            networksMetadata: {},
+          },
+          [
+            {
+              op: 'remove',
+              path: ['networkConfigurations', 'test-network-client-id'],
+            },
+          ],
+        );
+        expect(controller.state.domains['example.com']).toBe('goerli');
+        expect(controller.state.domains['test.com']).toBe('goerli');
       });
     });
   });
