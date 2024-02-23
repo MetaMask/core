@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Passing a non-controller into `controllers` constructor option now throws an error ([#3904](https://github.com/MetaMask/core/pull/3904))
 - **BREAKING:** The `AllowedActions` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions. ([#3904](https://github.com/MetaMask/core/pull/3904))
 - Add `@metamask/utils` ^8.3.0 as a dependency. ([#3904](https://github.com/MetaMask/core/pull/3904))
+- Subscribe to the `stateChange` events of `BaseControllerV1` controllers that have a `messagingSystem` class field with an assigned instance of the `RestrictedControllerMessenger` class. ([#3964](https://github.com/MetaMask/core/pull/3964))
 
 ### Removed
 

@@ -1,12 +1,11 @@
 import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
-  RestrictedControllerMessenger,
   BaseState,
   BaseConfig,
+  RestrictedControllerMessenger,
   StateMetadata,
   StateConstraint,
 } from '@metamask/base-controller';
-import { isValidJson } from '@metamask/utils';
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
@@ -171,6 +170,12 @@ export class ComposableController extends BaseController<
    * TODO: Remove `isBaseControllerV1` branch once `BaseControllerV2` migrations are completed for all controllers.
    */
   #updateChildController(controller: ControllerInstance): void {
+    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
+      throw new Error(
+        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
+      );
+    }
+
     const { name } = controller;
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState) => {
@@ -179,21 +184,19 @@ export class ComposableController extends BaseController<
           [name]: childState,
         }));
       });
-    } else if (isBaseController(controller)) {
+    }
+    if (
+      (isBaseControllerV1(controller) && 'messagingSystem' in controller) ||
+      isBaseController(controller)
+    ) {
       this.messagingSystem.subscribe(
         `${name}:stateChange`,
         (childState: StateConstraint) => {
-          if (isValidJson(childState)) {
-            this.update((state) => ({
-              ...state,
-              [name]: childState,
-            }));
-          }
+          this.update((state) => ({
+            ...state,
+            [name]: childState,
+          }));
         },
-      );
-    } else {
-      throw new Error(
-        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
       );
     }
   }
