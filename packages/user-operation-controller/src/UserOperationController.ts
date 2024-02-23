@@ -41,6 +41,7 @@ import type {
   UserOperationMetadata,
 } from './types';
 import { UserOperationStatus } from './types';
+import { errorWithPrefix } from './utils/errors';
 import { updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
@@ -729,9 +730,13 @@ export class UserOperationController extends BaseController<
     }
 
     const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
+    try {
+      const result = determineTransactionType(transaction, ethQuery);
 
-    return (await result).type;
+      return (await result).type;
+    } catch (error) {
+      throw errorWithPrefix(error, 'Failed to determine transaction type');
+    }
   }
 
   async #getProvider(

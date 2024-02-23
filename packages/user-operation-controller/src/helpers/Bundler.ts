@@ -2,6 +2,7 @@
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type { UserOperation, UserOperationReceipt } from '../types';
+import { errorWithPrefix } from '../utils/errors';
 
 const log = createModuleLogger(projectLogger, 'bundler');
 
@@ -88,14 +89,16 @@ export class Bundler {
       entrypoint,
     });
 
-    const hash: string = await this.#query('eth_sendUserOperation', [
-      userOperation,
-      entrypoint,
-    ]);
-
-    log('Sent user operation', hash);
-
-    return hash;
+    try {
+      const hash: string = await this.#query('eth_sendUserOperation', [
+        userOperation,
+        entrypoint,
+      ]);
+      log('Sent user operation', hash);
+      return hash;
+    } catch (error) {
+      throw errorWithPrefix(error, 'Failed to send user operation to bundler');
+    }
   }
 
   async #query<T>(method: string, params: unknown[]): Promise<T> {
