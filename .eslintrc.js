@@ -5,11 +5,11 @@ module.exports = {
     '!.eslintrc.js',
     '!jest.config.js',
     'node_modules',
-    'dist',
-    'docs',
-    'coverage',
+    '**/dist',
+    '**/docs',
+    '**/coverage',
     'merged-packages',
-    'package-template',
+    'scripts/create-package/package-template',
   ],
   overrides: [
     {
