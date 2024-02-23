@@ -110,13 +110,13 @@ export class GasFeePoller {
   }
 
   async #onTimeout() {
-    await this.#updateUnapprovedTransactions();
+    await this.#updateTransactionGasFeeEstimates();
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
   }
 
-  async #updateUnapprovedTransactions() {
+  async #updateTransactionGasFeeEstimates() {
     const unapprovedTransactions = this.#getUnapprovedTransactions();
 
     log('Found unapproved transactions', {
