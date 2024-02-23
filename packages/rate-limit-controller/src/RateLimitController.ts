@@ -8,7 +8,8 @@ import { BaseController } from '@metamask/base-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 
 /**
- * @type RateLimitedApi
+ * A rate-limited API endpoint.
+ * @typedef RateLimitedApi
  * @property method - The method that is rate-limited.
  * @property rateLimitTimeout - The time window in which the rate limit is applied (in ms).
  * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
@@ -20,48 +21,64 @@ export type RateLimitedApi = {
 };
 
 /**
- * @type RateLimitState
- * @property requests - Object containing number of requests in a given interval for each origin and api type combination
+ * A map of rate-limited API types to APIs.
+ * @typedef RateLimitedApiMap
  */
-export type RateLimitState<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
-> = {
-  requests: Record<keyof RateLimitedApis, Record<string, number>>;
+export type RateLimitedApiMap = Record<string, RateLimitedApi>;
+
+/**
+ * A map of rate-limited API types to the number of requests made in a given interval for each origin and api type combination.
+ * @typedef RateLimitedRequests
+ * @template RateLimitedApis - A {@link RateLimitedApiMap} containing the rate-limited API endpoints that is used by the {@link RateLimitController}.
+ */
+export type RateLimitedRequests<RateLimitedApis extends RateLimitedApiMap> =
+  Record<keyof RateLimitedApis, Record<string, number>>;
+
+/**
+ * The state of the {@link RateLimitController}.
+ * @typedef RateLimitState
+ * @template RateLimitedApis - A {@link RateLimitedApiMap} containing the rate-limited API endpoints that is used by the {@link RateLimitController}.
+ * @property requests {@link RateLimitedRequests} - An object containing the number of requests made in a given interval for each origin and api type combination.
+ */
+export type RateLimitState<RateLimitedApis extends RateLimitedApiMap> = {
+  requests: RateLimitedRequests<RateLimitedApis>;
 };
 
 const name = 'RateLimitController';
 
 export type RateLimitControllerStateChangeEvent<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
+  RateLimitedApis extends RateLimitedApiMap,
 > = ControllerStateChangeEvent<typeof name, RateLimitState<RateLimitedApis>>;
 
 export type RateLimitControllerGetStateAction<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
+  RateLimitedApis extends RateLimitedApiMap,
 > = ControllerGetStateAction<typeof name, RateLimitState<RateLimitedApis>>;
 
-export type RateLimitControllerCallApiAction<RateLimitedApis extends Record<string, RateLimitedApi>> = {
+export type RateLimitControllerCallApiAction<
+  RateLimitedApis extends RateLimitedApiMap,
+> = {
   type: `${typeof name}:call`;
   handler: RateLimitController<RateLimitedApis>['call'];
 };
 
 export type RateLimitControllerActions<
+  RateLimitedApis extends RateLimitedApiMap,
 > =
   | RateLimitControllerGetStateAction<RateLimitedApis>
   | RateLimitControllerCallApiAction<RateLimitedApis>;
 
 export type RateLimitControllerEvents<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
+  RateLimitedApis extends RateLimitedApiMap,
 > = RateLimitControllerStateChangeEvent<RateLimitedApis>;
 
-export type RateLimitMessenger<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
-> = RestrictedControllerMessenger<
-  typeof name,
-  RateLimitControllerActions<RateLimitedApis>,
-  RateLimitControllerEvents<RateLimitedApis>,
-  never,
-  never
->;
+export type RateLimitMessenger<RateLimitedApis extends RateLimitedApiMap> =
+  RestrictedControllerMessenger<
+    typeof name,
+    RateLimitControllerActions<RateLimitedApis>,
+    RateLimitControllerEvents<RateLimitedApis>,
+    never,
+    never
+  >;
 
 const metadata = {
   requests: { persist: false, anonymous: false },
@@ -71,7 +88,7 @@ const metadata = {
  * Controller with logic for rate-limiting API endpoints per requesting origin.
  */
 export class RateLimitController<
-  RateLimitedApis extends Record<string, RateLimitedApi>,
+  RateLimitedApis extends RateLimitedApiMap,
 > extends BaseController<
   typeof name,
   RateLimitState<RateLimitedApis>,

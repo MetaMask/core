@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add and export types `RateLimitedApiMap`, `RateLimitedRequests`. ([#3963](https://github.com/MetaMask/core/pull/3963))
+  - `RateLimitedApiMap` represents the type of the `RateLimitedApis` generic parameter used throughout the controller.
+  - `RateLimitedRequests` represents the type of the `request` property of `RateLimitState`.
+
 ### Changed
 
 - **BREAKING:** Rename types to align with conventions followed by other controllers. ([#3963](https://github.com/MetaMask/core/pull/3963))
