@@ -124,9 +124,11 @@ export class RateLimitController<
     implementations: RateLimitedApis;
   }) {
     const defaultState = {
-      requests: Object.keys(implementations).reduce(
+      requests: (
+        Object.keys(implementations) as (keyof RateLimitedApis)[]
+      ).reduce<RateLimitedRequests<RateLimitedApis>>(
         (acc, key) => ({ ...acc, [key]: {} }),
-        {} as Record<keyof RateLimitedApis, Record<string, number>>,
+        {} as never,
       ),
     };
     super({
