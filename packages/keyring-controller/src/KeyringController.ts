@@ -218,10 +218,6 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type KeyringControllerOptions = {
-  syncIdentities: (addresses: string[]) => string;
-  updateIdentities: (addresses: string[]) => void;
-  setSelectedAddress: (selectedAddress: string) => void;
-  setAccountLabel?: (address: string, label: string) => void;
   keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string };
@@ -495,14 +491,6 @@ export class KeyringController extends BaseController<
 > {
   private readonly mutex = new Mutex();
 
-  private readonly syncIdentities: (addresses: string[]) => string;
-
-  private readonly updateIdentities: (addresses: string[]) => void;
-
-  private readonly setSelectedAddress: (selectedAddress: string) => void;
-
-  private readonly setAccountLabel?: (address: string, label: string) => void;
-
   #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
 
   #keyrings: EthKeyring<Json>[];
@@ -523,10 +511,6 @@ export class KeyringController extends BaseController<
    * Creates a KeyringController instance.
    *
    * @param options - Initial options used to configure this controller
-   * @param options.syncIdentities - Sync identities with the given list of addresses.
-   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param options.setSelectedAddress - Set the selected address.
-   * @param options.setAccountLabel - Set a new name for account.
    * @param options.encryptor - An optional object for defining encryption schemes.
    * @param options.keyringBuilders - Set a new name for account.
    * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
@@ -535,10 +519,6 @@ export class KeyringController extends BaseController<
    */
   constructor(options: KeyringControllerOptions) {
     const {
-      syncIdentities,
-      updateIdentities,
-      setSelectedAddress,
-      setAccountLabel,
       encryptor = encryptorUtils,
       keyringBuilders,
       messenger,
@@ -575,11 +555,6 @@ export class KeyringController extends BaseController<
     if (this.#cacheEncryptionKey) {
       assertIsExportableKeyEncryptor(encryptor);
     }
-
-    this.syncIdentities = syncIdentities;
-    this.updateIdentities = updateIdentities;
-    this.setSelectedAddress = setSelectedAddress;
-    this.setAccountLabel = setAccountLabel;
 
     this.#registerMessageHandlers();
   }
@@ -621,8 +596,6 @@ export class KeyringController extends BaseController<
     );
     await this.verifySeedPhrase();
 
-    this.updateIdentities(await this.getAccounts());
-
     return {
       keyringState: this.#getMemState(),
       addedAccountAddress,
@@ -660,8 +633,6 @@ export class KeyringController extends BaseController<
       (selectedAddress) => !oldAccounts.includes(selectedAddress),
     );
     assertIsStrictHexString(addedAccountAddress);
-
-    this.updateIdentities(await this.getAccounts());
 
     return addedAccountAddress;
   }
@@ -703,7 +674,6 @@ export class KeyringController extends BaseController<
     }
 
     try {
-      this.updateIdentities([]);
       await this.#createNewVaultWithKeyring(password, {
         type: KeyringTypes.hd,
         opts: {
@@ -711,7 +681,6 @@ export class KeyringController extends BaseController<
           numberOfAccounts: 1,
         },
       });
-      this.updateIdentities(await this.getAccounts());
       return this.#getMemState();
     } finally {
       releaseLock();
@@ -732,7 +701,6 @@ export class KeyringController extends BaseController<
         await this.#createNewVaultWithKeyring(password, {
           type: KeyringTypes.hd,
         });
-        this.updateIdentities(await this.getAccounts());
       }
       return this.#getMemState();
     } finally {
@@ -1095,8 +1063,6 @@ export class KeyringController extends BaseController<
       privateKey,
     ])) as EthKeyring<Json>;
     const accounts = await newKeyring.getAccounts();
-    const allAccounts = await this.getAccounts();
-    this.updateIdentities(allAccounts);
     return {
       keyringState: this.#getMemState(),
       importedAccountAddress: accounts[0],
@@ -1379,8 +1345,6 @@ export class KeyringController extends BaseController<
     this.#keyrings = await this.#unlockKeyrings(password);
     this.#setUnlocked();
 
-    const accounts = await this.getAccounts();
-
     const qrKeyring = this.getQRKeyring();
     if (qrKeyring) {
       // if there is a QR keyring, we need to subscribe
@@ -1388,7 +1352,6 @@ export class KeyringController extends BaseController<
       this.#subscribeToQRKeyringEvents(qrKeyring);
     }
 
-    await this.syncIdentities(accounts);
     return this.#getMemState();
   }
 
@@ -1467,7 +1430,6 @@ export class KeyringController extends BaseController<
   async restoreQRKeyring(serialized: any): Promise<void> {
     (await this.getOrAddQRKeyring()).deserialize(serialized);
     await this.persistAllKeyrings();
-    this.updateIdentities(await this.getAccounts());
   }
 
   async resetQRKeyringState(): Promise<void> {
@@ -1540,22 +1502,11 @@ export class KeyringController extends BaseController<
     const keyring = await this.getOrAddQRKeyring();
 
     keyring.setAccountToUnlock(index);
-    const oldAccounts = await this.getAccounts();
     // QRKeyring is not yet compatible with Keyring from
     // @metamask/utils, but we can use the `addNewAccount` method
     // as it internally calls `addAccounts` from on the keyring instance,
     // which is supported by QRKeyring API.
     await this.addNewAccountForKeyring(keyring as unknown as EthKeyring<Json>);
-    const newAccounts = await this.getAccounts();
-    this.updateIdentities(newAccounts);
-    newAccounts.forEach((address: string) => {
-      if (!oldAccounts.includes(address)) {
-        if (this.setAccountLabel) {
-          this.setAccountLabel(address, `${keyring.getName()} ${index}`);
-        }
-        this.setSelectedAddress(address);
-      }
-    });
     await this.persistAllKeyrings();
   }
 
@@ -1577,7 +1528,6 @@ export class KeyringController extends BaseController<
     const removedAccounts = allAccounts.filter(
       (address: string) => !remainingAccounts.includes(address),
     );
-    this.updateIdentities(remainingAccounts);
     await this.persistAllKeyrings();
     return { removedAccounts, remainingAccounts };
   }
