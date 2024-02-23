@@ -28,7 +28,7 @@ export type BaseControllerV1Instance =
  *
  * Note that this type is not sufficiently type-safe for general use, and is only intended for use within the ComposableController.
  */
-export type BaseControllerV2Instance = {
+export type BaseControllerInstance = {
   name: string;
   state: StateConstraint;
 };
@@ -40,7 +40,7 @@ export type BaseControllerV2Instance = {
  */
 export type ControllerInstance =
   | BaseControllerV1Instance
-  | BaseControllerV2Instance;
+  | BaseControllerInstance;
 
 /**
  * Determines if the given controller is an instance of BaseControllerV1
