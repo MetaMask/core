@@ -131,12 +131,14 @@ export class GasFeePoller {
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
     if (!gasFeeFlow) {
-      log('Skipping update as no gas fee flow found', transactionMeta.id);
-
-      return;
+      log('No gas fee flow found', transactionMeta.id);
+    } else {
+      log(
+        'Found gas fee flow',
+        gasFeeFlow.constructor.name,
+        transactionMeta.id,
+      );
     }
-
-    log('Found gas fee flow', gasFeeFlow.constructor.name, transactionMeta.id);
 
     const request: GasFeeFlowRequest = {
       ethQuery,
@@ -144,14 +146,21 @@ export class GasFeePoller {
       transactionMeta,
     };
 
-    try {
-      const response = await gasFeeFlow.getGasFees(request);
+    if (gasFeeFlow) {
+      try {
+        const response = await gasFeeFlow.getGasFees(request);
 
-      transactionMeta.gasFeeEstimates = response.estimates;
-    } catch (error) {
-      log('Failed to get suggested gas fees', transactionMeta.id, error);
+        transactionMeta.gasFeeEstimates = response.estimates;
+      } catch (error) {
+        log('Failed to get suggested gas fees', transactionMeta.id, error);
+      }
+    }
+
+    if (!gasFeeFlow && transactionMeta.gasFeeEstimatesLoaded) {
       return;
     }
+
+    transactionMeta.gasFeeEstimatesLoaded = true;
 
     this.hub.emit(
       'transaction-updated',

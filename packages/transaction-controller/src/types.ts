@@ -44,13 +44,16 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
   verifiedOnBlockchain?: boolean;
 
+  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
+  gasFeeEstimates?: GasFeeEstimates;
+
+  /** Whether the gas fee estimates have been checked at least once. */
+  gasFeeEstimatesLoaded?: boolean;
+
   /**
    * Response from security validator.
    */
   securityAlertResponse?: SecurityAlertResponse;
-
-  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
-  gasFeeEstimates?: GasFeeEstimates;
 };
 
 /**
