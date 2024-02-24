@@ -1,5 +1,5 @@
 import { query, fromHex, toHex } from '@metamask/controller-utils';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

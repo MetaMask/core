@@ -46,7 +46,7 @@ import {
 } from '@metamask/message-manager';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { bufferToHex } from 'ethereumjs-util';
+import { bytesToHex } from '@metamask/utils';
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
 
@@ -861,7 +861,7 @@ export class SignatureController extends BaseController<
       return data;
     }
     // data is unicode, convert to hex
-    return bufferToHex(Buffer.from(data, 'utf8'));
+    return bytesToHex(Buffer.from(data, 'utf8'));
   }
 
   #getMessage(messageId: string): StateMessage {

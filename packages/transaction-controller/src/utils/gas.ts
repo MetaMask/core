@@ -8,8 +8,7 @@ import {
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
-import { addHexPrefix } from 'ethereumjs-util';
+import { add0x, createModuleLogger } from '@metamask/utils';
 
 import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
@@ -60,7 +59,7 @@ export async function estimateGas(
 
   const gasLimitBN = hexToBN(gasLimitHex);
 
-  request.data = data ? addHexPrefix(data) : data;
+  request.data = data ? add0x(data) : data;
   request.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
   request.value = value || '0x0';
 
@@ -101,18 +100,18 @@ export function addGasBuffer(
   const paddedGasBN = estimatedGasBN.muln(multiplier);
 
   if (estimatedGasBN.gt(maxGasBN)) {
-    const estimatedGasHex = addHexPrefix(estimatedGas);
+    const estimatedGasHex = add0x(estimatedGas);
     log('Using estimated value', estimatedGasHex);
     return estimatedGasHex;
   }
 
   if (paddedGasBN.lt(maxGasBN)) {
-    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
+    const paddedHex = add0x(BNToHex(paddedGasBN));
     log('Using padded estimate', paddedHex, multiplier);
     return paddedHex;
   }
 
-  const maxHex = addHexPrefix(BNToHex(maxGasBN));
+  const maxHex = add0x(BNToHex(maxGasBN));
   log('Using 90% of block gas limit', maxHex);
   return maxHex;
 }

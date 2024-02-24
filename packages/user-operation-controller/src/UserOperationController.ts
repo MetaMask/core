@@ -24,7 +24,7 @@ import {
   type TransactionParams,
   type TransactionType,
 } from '@metamask/transaction-controller';
-import { addHexPrefix } from 'ethereumjs-util';
+import { add0x } from '@metamask/utils';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -758,11 +758,11 @@ export class UserOperationController extends BaseController<
     const { userOperation } = metadata;
     const usingPaymaster = userOperation.paymasterAndData !== EMPTY_BYTES;
 
-    const updatedMaxFeePerGas = addHexPrefix(
+    const updatedMaxFeePerGas = add0x(
       updatedTransaction.txParams.maxFeePerGas as string,
     );
 
-    const updatedMaxPriorityFeePerGas = addHexPrefix(
+    const updatedMaxPriorityFeePerGas = add0x(
       updatedTransaction.txParams.maxPriorityFeePerGas as string,
     );
 

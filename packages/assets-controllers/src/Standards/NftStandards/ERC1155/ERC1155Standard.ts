@@ -9,7 +9,7 @@ import {
   timeoutFetch,
 } from '@metamask/controller-utils';
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
-import type { BN } from 'ethereumjs-util';
+import type * as BN from 'bn.js';
 
 import { getFormattedIpfsUrl, ethersBigNumberToBN } from '../../../assetsUtil';
 
