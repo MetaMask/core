@@ -49,11 +49,13 @@ export type NetworkClient = {
  * Create a JSON RPC network client for a specific network.
  *
  * @param networkConfig - The network configuration.
+ * @param customFeatureRpcApiMiddlewares - An array of middlewares to be added
+ * to the JSON RPC engine.
  * @returns The network client.
  */
 export function createNetworkClient(
   networkConfig: NetworkClientConfiguration,
-  customFeatureRpcApiMiddlewares: JsonRpcMiddleware<JsonRpcParams, Json>[]
+  customFeatureRpcApiMiddlewares: JsonRpcMiddleware<JsonRpcParams, Json>[],
 ): NetworkClient {
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
@@ -92,7 +94,7 @@ export function createNetworkClient(
           blockTracker,
           network: networkConfig.network,
           rpcProvider,
-          rpcApiMiddleware: enrichedRpcApiMiddleware
+          rpcApiMiddleware: enrichedRpcApiMiddleware,
         })
       : createCustomNetworkMiddleware({
           blockTracker,
@@ -141,7 +143,7 @@ function createInfuraNetworkMiddleware({
     createBlockRefMiddleware({ blockTracker, provider: rpcProvider }),
     createRetryOnEmptyMiddleware({ blockTracker, provider: rpcProvider }),
     createBlockTrackerInspectorMiddleware({ blockTracker }),
-    rpcApiMiddleware
+    rpcApiMiddleware,
   ]);
 }
 

@@ -1,4 +1,6 @@
-import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { Json, JsonRpcParams } from '@metamask/utils';
+
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
 import type {
@@ -6,7 +8,6 @@ import type {
   NetworkClientConfiguration,
   Provider,
 } from './types';
-import { Json, JsonRpcParams } from '@metamask/utils';
 
 /**
  * The name of the method on both the provider and block tracker proxy which can
@@ -61,6 +62,8 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  *
  * @param networkClientConfiguration - The configuration object that will be
  * used to instantiate the network client when it is needed.
+ * @param customFeatureRpcApiMiddlewares - An array of middlewares to be added
+ * to the JSON RPC engine.
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
@@ -79,7 +82,10 @@ export function createAutoManagedNetworkClient<
         return networkClient?.provider;
       }
 
-      networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
+      networkClient ??= createNetworkClient(
+        networkClientConfiguration,
+        customFeatureRpcApiMiddlewares,
+      );
       if (networkClient === undefined) {
         throw new Error(
           "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
@@ -116,7 +122,10 @@ export function createAutoManagedNetworkClient<
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
-      networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
+      networkClient ??= createNetworkClient(
+        networkClientConfiguration,
+        customFeatureRpcApiMiddlewares,
+      );
       const { provider } = networkClient;
       return propertyName in provider;
     },
@@ -132,7 +141,10 @@ export function createAutoManagedNetworkClient<
           return networkClient?.blockTracker;
         }
 
-        networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
+        networkClient ??= createNetworkClient(
+          networkClientConfiguration,
+          customFeatureRpcApiMiddlewares,
+        );
         if (networkClient === undefined) {
           throw new Error(
             "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
@@ -169,7 +181,10 @@ export function createAutoManagedNetworkClient<
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;
         }
-        networkClient ??= createNetworkClient(networkClientConfiguration, customFeatureRpcApiMiddlewares);
+        networkClient ??= createNetworkClient(
+          networkClientConfiguration,
+          customFeatureRpcApiMiddlewares,
+        );
         const { blockTracker } = networkClient;
         return propertyName in blockTracker;
       },

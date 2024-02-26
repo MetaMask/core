@@ -14,6 +14,7 @@ import {
   isInfuraNetworkType,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
@@ -41,7 +42,6 @@ import type {
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
 } from './types';
-import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -1261,13 +1261,14 @@ export class NetworkController extends BaseController<
       shouldDestroyExistingNetworkClient
     ) {
       customNetworkClientRegistry[networkClientId] =
-        createAutoManagedNetworkClient({
-          type: NetworkClientType.Custom,
-          chainId,
-          rpcUrl,
-          ticker,
-        },
-        this.customFeatureRpcApiMiddlewares,
+        createAutoManagedNetworkClient(
+          {
+            type: NetworkClientType.Custom,
+            chainId,
+            rpcUrl,
+            ticker,
+          },
+          this.customFeatureRpcApiMiddlewares,
         );
     }
 
@@ -1427,8 +1428,8 @@ export class NetworkController extends BaseController<
       ) => {
         const autoManagedNetworkClient = createAutoManagedNetworkClient(
           networkClientConfiguration,
-          this.customFeatureRpcApiMiddlewares
-          );
+          this.customFeatureRpcApiMiddlewares,
+        );
         if (networkClientId in registry[networkClientType]) {
           return registry;
         }
