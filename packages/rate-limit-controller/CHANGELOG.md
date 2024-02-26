@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **BREAKING:** Fix `GetRateLimitState`, `RateLimitStateChange` types by replacing `RateLimitedApis` with `RateLimitState<RateLimitedApis>` as the state type passed in as generic arguments to `ControllerGetStateAction` and `ControllerStateChangeEvent` ([#3949](https://github.com/MetaMask/core/pull/3949))
+  - This bug was introduced in v4.0.0.
 
 ## [4.0.2]
 
