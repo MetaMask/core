@@ -42,7 +42,7 @@
     "@metamask/gas-fee-controller": "^13.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",
     "@metamask/network-controller": "^17.2.0",
-    "@metamask/rpc-errors": "^6.2.0",
+    "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
     "bn.js": "^5.2.1",
