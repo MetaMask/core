@@ -53,9 +53,9 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
    */
   name = 'BaseController';
 
-  private readonly initialConfig: C;
+  private readonly initialConfig: Partial<C>;
 
-  private readonly initialState: S;
+  private readonly initialState: Partial<S>;
 
   private internalConfig: C = this.defaultConfig;
 
@@ -71,8 +71,8 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
    * @param state - Initial state to set on this controller.
    */
   constructor(config: Partial<C> = {}, state: Partial<S> = {}) {
-    this.initialState = { ...(state as S) };
-    this.initialConfig = { ...(config as C) };
+    this.initialState = state;
+    this.initialConfig = config;
   }
 
   /**
