@@ -1489,7 +1489,7 @@ __metadata:
     "@metamask/keyring-controller": ^12.2.0
     "@metamask/snaps-controllers": ^4.0.0
     "@metamask/snaps-sdk": ^1.3.2
-    "@metamask/snaps-utils": ^5.1.2
+    "@metamask/snaps-utils": ^7.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
@@ -2417,26 +2417,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/permission-controller@npm:^7.0.0, @metamask/permission-controller@npm:^7.1.0":
-  version: 7.1.0
-  resolution: "@metamask/permission-controller@npm:7.1.0"
-  dependencies:
-    "@metamask/base-controller": ^4.0.1
-    "@metamask/controller-utils": ^8.0.1
-    "@metamask/json-rpc-engine": ^7.3.1
-    "@metamask/rpc-errors": ^6.1.0
-    "@metamask/utils": ^8.2.0
-    "@types/deep-freeze-strict": ^1.1.0
-    deep-freeze-strict: ^1.1.1
-    immer: ^9.0.6
-    nanoid: ^3.1.31
-  peerDependencies:
-    "@metamask/approval-controller": ^5.1.1
-  checksum: 889213cca32cbf5b32b7e71c70ded0aeea32eae169ec67fb0d0bc8dcaa183b222f9d5417f657e331d7fb21ecb71f250cf1c932110d4b1e2167972b30bd012098
-  languageName: node
-  linkType: hard
-
-"@metamask/permission-controller@workspace:packages/permission-controller":
+"@metamask/permission-controller@^8.0.1, @metamask/permission-controller@workspace:packages/permission-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
@@ -2462,6 +2443,25 @@ __metadata:
     "@metamask/approval-controller": ^5.1.2
   languageName: unknown
   linkType: soft
+
+"@metamask/permission-controller@npm:^7.0.0, @metamask/permission-controller@npm:^7.1.0":
+  version: 7.1.0
+  resolution: "@metamask/permission-controller@npm:7.1.0"
+  dependencies:
+    "@metamask/base-controller": ^4.0.1
+    "@metamask/controller-utils": ^8.0.1
+    "@metamask/json-rpc-engine": ^7.3.1
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/utils": ^8.2.0
+    "@types/deep-freeze-strict": ^1.1.0
+    deep-freeze-strict: ^1.1.1
+    immer: ^9.0.6
+    nanoid: ^3.1.31
+  peerDependencies:
+    "@metamask/approval-controller": ^5.1.1
+  checksum: 889213cca32cbf5b32b7e71c70ded0aeea32eae169ec67fb0d0bc8dcaa183b222f9d5417f657e331d7fb21ecb71f250cf1c932110d4b1e2167972b30bd012098
+  languageName: node
+  linkType: hard
 
 "@metamask/permission-log-controller@workspace:packages/permission-log-controller":
   version: 0.0.0-use.local
@@ -2856,7 +2856,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-utils@npm:^5.0.0, @metamask/snaps-utils@npm:^5.1.1, @metamask/snaps-utils@npm:^5.1.2, @metamask/snaps-utils@npm:^5.2.0":
+"@metamask/snaps-sdk@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@metamask/snaps-sdk@npm:3.0.0"
+  dependencies:
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/providers": ^14.0.2
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/utils": ^8.3.0
+    fast-xml-parser: ^4.3.4
+    superstruct: ^1.0.3
+  checksum: c5cf658ac1908cb92a941feefdee6883df502d2ba95a0166d61acce4e7f4f3678a4b85b5e7d9b9ba505f9803147bfff5cfadc5d425233e11780f2ebd7029f226
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-utils@npm:^5.0.0, @metamask/snaps-utils@npm:^5.1.1, @metamask/snaps-utils@npm:^5.2.0":
   version: 5.2.0
   resolution: "@metamask/snaps-utils@npm:5.2.0"
   dependencies:
@@ -2883,6 +2897,35 @@ __metadata:
     superstruct: ^1.0.3
     validate-npm-package-name: ^5.0.0
   checksum: 33aab97f4f4b56123b3a74f264f6480950ff7580c8828604dd20f004f69a09608f98fffcf9cb105fd833e8b20a717a67ec7b7fdf59f78a5a8e7841a8383f16c6
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-utils@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "@metamask/snaps-utils@npm:7.0.0"
+  dependencies:
+    "@babel/core": ^7.23.2
+    "@babel/types": ^7.23.0
+    "@metamask/base-controller": ^4.1.0
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/permission-controller": ^8.0.1
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/slip44": ^3.1.0
+    "@metamask/snaps-registry": ^3.0.0
+    "@metamask/snaps-sdk": ^3.0.0
+    "@metamask/utils": ^8.3.0
+    "@noble/hashes": ^1.3.1
+    "@scure/base": ^1.1.1
+    chalk: ^4.1.2
+    cron-parser: ^4.5.0
+    fast-deep-equal: ^3.1.3
+    fast-json-stable-stringify: ^2.1.0
+    rfdc: ^1.3.0
+    semver: ^7.5.4
+    ses: ^1.1.0
+    superstruct: ^1.0.3
+    validate-npm-package-name: ^5.0.0
+  checksum: 6200cb90f7e2975e4ff86c10363acd7331b25b2444e24646d4c64ac2e072028d5e85a07591b2a8015a0d612c8e86fe360432edccf66b47cff0bece9e14d699e0
   languageName: node
   linkType: hard
 
@@ -6286,6 +6329,17 @@ __metadata:
   bin:
     fxparser: src/cli/cli.js
   checksum: d8b0c9e04756f6c43fa0399428f30149acadae21350e42e26e8fe98e24e6afa6b9b00aa554453795036b00e9fee974a1b556fe2ba18be391d51a9bf1ab790e7c
+  languageName: node
+  linkType: hard
+
+"fast-xml-parser@npm:^4.3.4":
+  version: 4.3.5
+  resolution: "fast-xml-parser@npm:4.3.5"
+  dependencies:
+    strnum: ^1.0.5
+  bin:
+    fxparser: src/cli/cli.js
+  checksum: 852064985ca56aa2078be02c92509a675408b57bb9862f696689301bf7df786f9ce9116b812b032c627979a4de5755f9cbfeecc4b90ed9d56be76deccd97c0c6
   languageName: node
   linkType: hard
 
