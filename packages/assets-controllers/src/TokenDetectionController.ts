@@ -16,9 +16,9 @@ import type {
 } from '@metamask/keyring-controller';
 import type {
   NetworkClientId,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
-  NetworkControllerGetProviderConfigAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -105,9 +105,9 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
-  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetStateAction
   | GetTokenListState
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
@@ -427,16 +427,18 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         };
       }
     }
-    const { chainId } = this.messagingSystem.call(
-      'NetworkController:getProviderConfig',
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
     );
-    const newNetworkClientId = this.messagingSystem.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
     );
     return {
       chainId,
-      networkClientId: newNetworkClientId,
+      networkClientId: selectedNetworkClientId,
     };
   }
 
