@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+
+### Fixed
+
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3954](https://github.com/MetaMask/core/pull/3954), [#3970](https://github.com/MetaMask/core/pull/3970))
+
 ## [8.0.0]
 
 ### Changed
@@ -179,7 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.0...@metamask/permission-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...@metamask/permission-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.0.0...@metamask/permission-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@6.0.0...@metamask/permission-controller@7.0.0
