@@ -9,9 +9,12 @@ export type Listener<T> = (state: T) => void;
  * Base controller configuration
  * @property disabled - Determines if this controller is enabled
  */
-export type BaseConfig = {
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+export interface BaseConfig {
   disabled?: boolean;
-};
+}
 
 /**
  * @type BaseState
@@ -19,9 +22,12 @@ export type BaseConfig = {
  * Base state representation
  * @property name - Unique name for this controller
  */
-export type BaseState = {
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+export interface BaseState {
   name?: string;
-};
+}
 
 /**
  * @deprecated This class has been renamed to BaseControllerV1 and is no longer recommended for use for controllers. Please use BaseController (formerly BaseControllerV2) instead.
