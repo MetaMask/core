@@ -139,6 +139,35 @@ describe('PreferencesController', () => {
       expect(controller.state.selectedAddress).toBe('0x00');
     });
 
+    it('should maintain existing identities when no accounts are present in keyrings', () => {
+      const identitiesState = {
+        '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
+        '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
+        '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
+      };
+      const messenger = getControllerMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: cloneDeep(identitiesState),
+            selectedAddress: '0x00',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [{ accounts: [], type: 'CustomKeyring' }],
+        },
+        [],
+      );
+
+      expect(controller.state.identities).toStrictEqual(identitiesState);
+    });
+
     it('should not update existing identities', () => {
       const identitiesState = {
         '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
