@@ -139,7 +139,7 @@ describe('QueuedRequestController', () => {
         await expect(() =>
           controller.enqueueRequest(requestWithError),
         ).rejects.toThrow(new Error('Request failed'));
-        expect(controller.length()).toBe(0);
+        expect(controller.state.queuedRequestCount).toBe(0);
       });
 
       it('correctly updates the request queue count upon failure', async () => {
@@ -189,60 +189,6 @@ describe('QueuedRequestController', () => {
         expect(request2).toHaveBeenCalled();
         expect(request3).toHaveBeenCalled();
       });
-    });
-  });
-
-  describe('length', () => {
-    it('returns the correct queue length', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-
-      const controller = new QueuedRequestController(options);
-
-      // Initially, the queue length should be 0
-      expect(controller.length()).toBe(0);
-
-      const promise = controller.enqueueRequest(async () => {
-        expect(controller.length()).toBe(1);
-        return Promise.resolve();
-      });
-      expect(controller.length()).toBe(1);
-      await promise;
-      expect(controller.length()).toBe(0);
-    });
-
-    it('correctly reflects increasing queue length as requests are enqueued', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-
-      const controller = new QueuedRequestController(options);
-
-      expect(controller.length()).toBe(0);
-
-      controller.enqueueRequest(async () => {
-        expect(controller.length()).toBe(1);
-        return Promise.resolve();
-      });
-      expect(controller.length()).toBe(1);
-
-      const req2 = controller.enqueueRequest(async () => {
-        expect(controller.length()).toBe(2);
-        return Promise.resolve();
-      });
-      expect(controller.length()).toBe(2);
-
-      const req3 = controller.enqueueRequest(async () => {
-        // if we dont wait for the outter enqueueRequest to be complete, the count might not be updated when by the time this nextTick occurs.
-        await req2;
-        expect(controller.length()).toBe(1);
-        return Promise.resolve();
-      });
-
-      expect(controller.length()).toBe(3);
-      await req3;
-      expect(controller.length()).toBe(0);
     });
   });
 });
