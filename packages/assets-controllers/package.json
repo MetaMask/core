@@ -31,6 +31,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@ethereumjs/util": "^8.1.0",
     "@ethersproject/address": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
@@ -47,12 +48,13 @@
     "@metamask/network-controller": "^17.2.0",
     "@metamask/polling-controller": "^5.0.0",
     "@metamask/preferences-controller": "^7.0.0",
-    "@metamask/rpc-errors": "^6.1.0",
+    "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
+    "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
+    "bn.js": "^5.2.1",
     "cockatiel": "^3.1.2",
-    "ethereumjs-util": "^7.0.10",
     "lodash": "^4.17.21",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",

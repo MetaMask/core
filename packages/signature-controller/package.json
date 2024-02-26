@@ -37,9 +37,8 @@
     "@metamask/keyring-controller": "^12.2.0",
     "@metamask/logging-controller": "^2.0.2",
     "@metamask/message-manager": "^7.3.8",
-    "@metamask/rpc-errors": "^6.1.0",
+    "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
-    "ethereumjs-util": "^7.0.10",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

@@ -31,6 +31,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@ethereumjs/util": "^8.1.0",
     "@metamask/base-controller": "^4.1.1",
     "@metamask/eth-snap-keyring": "^2.1.1",
     "@metamask/keyring-api": "^3.0.0",
@@ -38,7 +39,7 @@
     "@metamask/snaps-utils": "^5.1.2",
     "@metamask/utils": "^8.3.0",
     "deepmerge": "^4.2.2",
-    "ethereumjs-util": "^7.0.10",
+    "ethereum-cryptography": "^2.1.2",
     "immer": "^9.0.6",
     "uuid": "^8.3.2"
   },

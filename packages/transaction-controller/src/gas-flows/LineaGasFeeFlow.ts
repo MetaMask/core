@@ -1,7 +1,7 @@
 import { ChainId, hexToBN, query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { createModuleLogger, type Hex } from '@metamask/utils';
-import type { BN } from 'ethereumjs-util';
+import type BN from 'bn.js';
 
 import { projectLogger } from '../logger';
 import type {
