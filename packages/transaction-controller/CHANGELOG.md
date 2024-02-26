@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.1.0]
+
+### Added
+
+- Add `gasFeeEstimatesLoaded` property to `TransactionMeta` ([#3948](https://github.com/MetaMask/core/pull/3948))
+- Add `gasFeeEstimates` property to `TransactionMeta` to be automatically populated on unapproved transactions ([#3913](https://github.com/MetaMask/core/pull/3913))
+
+### Changed
+
+- Use the `linea_estimateGas` RPC method to provide transaction specific gas fee estimates on Linea networks ([#3913](https://github.com/MetaMask/core/pull/3913))
+
 ## [23.0.0]
 
 ### Added
@@ -532,7 +543,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...@metamask/transaction-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@22.0.0...@metamask/transaction-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.2.0...@metamask/transaction-controller@22.0.0
 [21.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.1.0...@metamask/transaction-controller@21.2.0
