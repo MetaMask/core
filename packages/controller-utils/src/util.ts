@@ -535,25 +535,24 @@ export function isValidJson(value: unknown): value is Json {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function logOrRethrowError(error: any, codesToCatch: number[] = []) {
+function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
   if (!error) {
     return;
   }
 
-  const includesErrorCodeToCatch = codesToCatch.some((code) =>
-    error.message?.includes(`Fetch failed with status '${code}'`),
-  );
+  if (error instanceof Error) {
+    const includesErrorCodeToCatch = codesToCatch.some((code) =>
+      error.message?.includes(`Fetch failed with status '${code}'`),
+    );
 
-  if (
-    error instanceof Error &&
-    (includesErrorCodeToCatch ||
+    if (
+      includesErrorCodeToCatch ||
       error.message?.includes('Failed to fetch') ||
-      error === TIMEOUT_ERROR)
-  ) {
-    console.error(error);
-  } else {
-    throw error;
+      error === TIMEOUT_ERROR
+    ) {
+      console.error(error);
+    } else {
+      throw error;
+    }
   }
 }
