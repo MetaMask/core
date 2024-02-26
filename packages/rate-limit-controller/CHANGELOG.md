@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
+- Bump `@metamask/rpc-errors` to `^6.2.0` ([#3954](https://github.com/MetaMask/core/pull/3954))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+
 ## [4.0.2]
 
 ### Changed

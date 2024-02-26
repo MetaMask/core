@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- deps: upgrade from ethereumjs-util ([#3943](https://github.com/MetaMask/core/pull/3943))
+
 ## [8.0.3]
 
 ### Changed
