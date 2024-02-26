@@ -130,7 +130,7 @@ export interface TransactionState extends BaseState {
 /**
  * Multiplier used to determine a transaction's increased gas fee during cancellation
  */
-export const CANCEL_RATE = 1.5;
+export const CANCEL_RATE = 1.1;
 
 /**
  * Multiplier used to determine a transaction's increased gas fee during speed up
@@ -816,6 +816,8 @@ export class TransactionController extends BaseController<
       ]);
     } catch (error) {
       estimateGasError = ESTIMATE_GAS_ERROR;
+      // Fallback to 95% of the block gasLimit.
+      gasHex = estimatedTransaction.gas;
     }
     // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
     // a custom network then return the eth_estimateGas value.
