@@ -1,11 +1,11 @@
+import { toUtf8 } from '@ethereumjs/util';
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import { decodeSingle } from '@metamask/abi-utils';
 import { ERC20 } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { assertIsStrictHexString } from '@metamask/utils';
-import { toUtf8 } from 'ethereumjs-util';
-import type { BN } from 'ethereumjs-util';
+import type BN from 'bn.js';
 
 import { ethersBigNumberToBN } from '../assetsUtil';
 

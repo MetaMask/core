@@ -92,6 +92,7 @@ describe('GasFeePoller', () => {
         expect(listener).toHaveBeenCalledWith({
           ...TRANSACTION_META_MOCK,
           gasFeeEstimates: GAS_FEE_FLOW_RESPONSE_MOCK.estimates,
+          gasFeeEstimatesLoaded: true,
         });
       });
 
@@ -174,10 +175,14 @@ describe('GasFeePoller', () => {
         expect(listener).toHaveBeenCalledTimes(0);
       });
 
-      it('no gas fee flow matches transaction', async () => {
+      it('no gas fee flow matches transaction and already loaded', async () => {
         const listener = jest.fn();
 
         gasFeeFlowMock.matchesTransaction.mockReturnValue(false);
+
+        getTransactionsMock.mockReturnValue([
+          { ...TRANSACTION_META_MOCK, gasFeeEstimatesLoaded: true },
+        ]);
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
         gasFeePoller.hub.on('transaction-updated', listener);
@@ -188,10 +193,14 @@ describe('GasFeePoller', () => {
         expect(listener).toHaveBeenCalledTimes(0);
       });
 
-      it('gas fee flow throws', async () => {
+      it('gas fee flow throws and already loaded', async () => {
         const listener = jest.fn();
 
         gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
+
+        getTransactionsMock.mockReturnValue([
+          { ...TRANSACTION_META_MOCK, gasFeeEstimatesLoaded: true },
+        ]);
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
         gasFeePoller.hub.on('transaction-updated', listener);

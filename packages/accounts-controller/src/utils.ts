@@ -1,5 +1,6 @@
+import { toBuffer } from '@ethereumjs/util';
 import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
-import { sha256FromString } from 'ethereumjs-util';
+import { sha256 } from 'ethereum-cryptography/sha256';
 import { v4 as uuid } from 'uuid';
 
 /**
@@ -50,7 +51,7 @@ export function keyringTypeToName(keyringType: string): string {
  */
 export function getUUIDFromAddressOfNormalAccount(address: string): string {
   const v4options = {
-    random: sha256FromString(address).slice(0, 16),
+    random: sha256(toBuffer(address)).slice(0, 16),
   };
 
   return uuid(v4options);

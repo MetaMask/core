@@ -22,7 +22,7 @@ import {
   ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
   ETHERSCAN_TOKEN_TRANSACTION_MOCK,
   ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
-} from '../test/EtherscanMocks';
+} from '../tests/EtherscanMocks';
 import {
   buildEthGasPriceRequestMock,
   buildEthBlockNumberRequestMock,
@@ -33,7 +33,7 @@ import {
   buildEthGetBlockByHashRequestMock,
   buildEthSendRawTransactionRequestMock,
   buildEthGetTransactionReceiptRequestMock,
-} from '../test/JsonRpcRequestMocks';
+} from '../tests/JsonRpcRequestMocks';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { TransactionStatus, TransactionType } from './types';
