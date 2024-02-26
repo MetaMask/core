@@ -300,13 +300,16 @@ describe('NetworkController', () => {
 
               await controller.initializeProvider();
 
-              expect(createNetworkClientMock).toHaveBeenCalledWith({
-                network: networkType,
-                infuraProjectId: 'some-infura-project-id',
-                type: NetworkClientType.Infura,
-                chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                ticker: BUILT_IN_NETWORKS[networkType].ticker,
-              });
+              expect(createNetworkClientMock).toHaveBeenCalledWith(
+                {
+                  network: networkType,
+                  infuraProjectId: 'some-infura-project-id',
+                  type: NetworkClientType.Infura,
+                  chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                  ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                },
+                [],
+              );
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
           );
@@ -407,12 +410,15 @@ describe('NetworkController', () => {
 
               await controller.initializeProvider();
 
-              expect(createNetworkClientMock).toHaveBeenCalledWith({
-                chainId: toHex(1),
-                rpcUrl: 'https://test.network.1',
-                type: NetworkClientType.Custom,
-                ticker: 'TEST',
-              });
+              expect(createNetworkClientMock).toHaveBeenCalledWith(
+                {
+                  chainId: toHex(1),
+                  rpcUrl: 'https://test.network.1',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                },
+                [],
+              );
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
           );
@@ -511,12 +517,15 @@ describe('NetworkController', () => {
 
               await controller.initializeProvider();
 
-              expect(createNetworkClientMock).toHaveBeenCalledWith({
-                chainId: toHex(1),
-                rpcUrl: 'https://test.network',
-                type: NetworkClientType.Custom,
-                ticker: 'TEST',
-              });
+              expect(createNetworkClientMock).toHaveBeenCalledWith(
+                {
+                  chainId: toHex(1),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                },
+                [],
+              );
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
           );
@@ -614,12 +623,15 @@ describe('NetworkController', () => {
 
               await controller.initializeProvider();
 
-              expect(createNetworkClientMock).toHaveBeenCalledWith({
-                chainId: toHex(1),
-                rpcUrl: 'https://test.network',
-                type: NetworkClientType.Custom,
-                ticker: 'TEST',
-              });
+              expect(createNetworkClientMock).toHaveBeenCalledWith(
+                {
+                  chainId: toHex(1),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                },
+                [],
+              );
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
           );
@@ -710,12 +722,15 @@ describe('NetworkController', () => {
 
                 await controller.initializeProvider();
 
-                expect(createNetworkClientMock).toHaveBeenCalledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'http://example.com',
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                });
+                expect(createNetworkClientMock).toHaveBeenCalledWith(
+                  {
+                    chainId: toHex(1337),
+                    rpcUrl: 'http://example.com',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                );
                 expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
               },
             );
@@ -965,20 +980,26 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  chainId: '0x1337',
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    chainId: '0x1337',
+                    rpcUrl: 'https://mock-rpc-url',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: networkType,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                  chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                  ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                })
+                .calledWith(
+                  {
+                    network: networkType,
+                    infuraProjectId: 'some-infura-project-id',
+                    type: NetworkClientType.Infura,
+                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
               const { provider } = controller.getProviderAndBlockTracker();
@@ -1061,20 +1082,26 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[1]),
             ];
             mockCreateNetworkClient()
-              .calledWith({
-                network: NetworkType.goerli,
-                infuraProjectId: 'some-infura-project-id',
-                type: NetworkClientType.Infura,
-                chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-                ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-              })
+              .calledWith(
+                {
+                  network: NetworkType.goerli,
+                  infuraProjectId: 'some-infura-project-id',
+                  type: NetworkClientType.Infura,
+                  chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                },
+                [],
+              )
               .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                chainId: '0x1337',
-                rpcUrl: 'https://mock-rpc-url',
-                type: NetworkClientType.Custom,
-                ticker: 'ABC',
-              })
+              .calledWith(
+                {
+                  chainId: '0x1337',
+                  rpcUrl: 'https://mock-rpc-url',
+                  type: NetworkClientType.Custom,
+                  ticker: 'ABC',
+                },
+                [],
+              )
               .mockReturnValue(fakeNetworkClients[1]);
             await controller.initializeProvider();
             const { provider } = controller.getProviderAndBlockTracker();
@@ -2149,20 +2176,26 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[1]),
                   ];
                   mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      type: NetworkClientType.Infura,
-                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    })
+                    .calledWith(
+                      {
+                        network: networkType,
+                        infuraProjectId: 'some-infura-project-id',
+                        type: NetworkClientType.Infura,
+                        chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                        ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                      },
+                      [],
+                    )
                     .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                      ticker: 'ABC',
-                    })
+                    .calledWith(
+                      {
+                        chainId: toHex(1337),
+                        rpcUrl: 'https://mock-rpc-url',
+                        type: NetworkClientType.Custom,
+                        ticker: 'ABC',
+                      },
+                      [],
+                    )
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
                   expect(
@@ -2250,20 +2283,26 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[1]),
                   ];
                   mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      type: NetworkClientType.Infura,
-                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    })
+                    .calledWith(
+                      {
+                        network: networkType,
+                        infuraProjectId: 'some-infura-project-id',
+                        type: NetworkClientType.Infura,
+                        chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                        ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                      },
+                      [],
+                    )
                     .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                      ticker: 'ABC',
-                    })
+                    .calledWith(
+                      {
+                        chainId: toHex(1337),
+                        rpcUrl: 'https://mock-rpc-url',
+                        type: NetworkClientType.Custom,
+                        ticker: 'ABC',
+                      },
+                      [],
+                    )
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
                   expect(
@@ -2344,20 +2383,26 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[1]),
                   ];
                   mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                      type: NetworkClientType.Infura,
-                    })
+                    .calledWith(
+                      {
+                        network: networkType,
+                        infuraProjectId: 'some-infura-project-id',
+                        chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                        ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                        type: NetworkClientType.Infura,
+                      },
+                      [],
+                    )
                     .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                      ticker: 'ABC',
-                    })
+                    .calledWith(
+                      {
+                        chainId: toHex(1337),
+                        rpcUrl: 'https://mock-rpc-url',
+                        type: NetworkClientType.Custom,
+                        ticker: 'ABC',
+                      },
+                      [],
+                    )
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
                   const promiseForInfuraIsUnblockedEvents =
@@ -2458,20 +2503,26 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    chainId: toHex(1337),
+                    rpcUrl: 'https://mock-rpc-url',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                  type: NetworkClientType.Infura,
-                })
+                .calledWith(
+                  {
+                    network: NetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                    type: NetworkClientType.Infura,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
               expect(
@@ -2552,20 +2603,26 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    chainId: toHex(1337),
+                    rpcUrl: 'https://mock-rpc-url',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                  type: NetworkClientType.Infura,
-                })
+                .calledWith(
+                  {
+                    network: NetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                    type: NetworkClientType.Infura,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
               expect(
@@ -2641,20 +2698,26 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    chainId: toHex(1337),
+                    rpcUrl: 'https://mock-rpc-url',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                  type: NetworkClientType.Infura,
-                })
+                .calledWith(
+                  {
+                    network: NetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                    type: NetworkClientType.Infura,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
               const promiseForNoInfuraIsUnblockedEvents =
@@ -3071,12 +3134,15 @@ describe('NetworkController', () => {
           const fakeProvider = buildFakeProvider();
           const fakeNetworkClient = buildFakeClient(fakeProvider);
           mockCreateNetworkClient()
-            .calledWith({
-              rpcUrl: 'https://mock-rpc-url',
-              chainId: toHex(111),
-              type: NetworkClientType.Custom,
-              ticker: 'TEST',
-            })
+            .calledWith(
+              {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                type: NetworkClientType.Custom,
+                ticker: 'TEST',
+              },
+              [],
+            )
             .mockReturnValue(fakeNetworkClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
@@ -3119,12 +3185,15 @@ describe('NetworkController', () => {
           const fakeProvider = buildFakeProvider();
           const fakeNetworkClient = buildFakeClient(fakeProvider);
           mockCreateNetworkClient()
-            .calledWith({
-              rpcUrl: 'https://mock-rpc-url',
-              chainId: toHex(111),
-              type: NetworkClientType.Custom,
-              ticker: 'TEST',
-            })
+            .calledWith(
+              {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                type: NetworkClientType.Custom,
+                ticker: 'TEST',
+              },
+              [],
+            )
             .mockReturnValue(fakeNetworkClient);
 
           await controller.setActiveNetwork(testNetworkClientId);
@@ -3227,12 +3296,15 @@ describe('NetworkController', () => {
           const fakeProvider = buildFakeProvider();
           const fakeNetworkClient = buildFakeClient(fakeProvider);
           mockCreateNetworkClient()
-            .calledWith({
-              rpcUrl: 'https://mock-rpc-url',
-              chainId: toHex(111),
-              type: NetworkClientType.Custom,
-              ticker: 'TEST',
-            })
+            .calledWith(
+              {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                type: NetworkClientType.Custom,
+                ticker: 'TEST',
+              },
+              [],
+            )
             .mockReturnValue(fakeNetworkClient);
 
           await messenger.call(
@@ -3953,12 +4025,15 @@ describe('NetworkController', () => {
             mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
               infuraProjectId: 'some-infura-project-id',
             })
-              .calledWith({
-                chainId: toHex(111),
-                rpcUrl: 'https://test.network',
-                type: NetworkClientType.Custom,
-                ticker: 'TICKER',
-              })
+              .calledWith(
+                {
+                  chainId: toHex(111),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TICKER',
+                },
+                [],
+              )
               .mockReturnValue(newCustomNetworkClient);
 
             await controller.upsertNetworkConfiguration(
@@ -3998,12 +4073,15 @@ describe('NetworkController', () => {
             mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
               infuraProjectId: 'some-infura-project-id',
             })
-              .calledWith({
-                chainId: toHex(111),
-                rpcUrl: 'https://test.network',
-                type: NetworkClientType.Custom,
-                ticker: 'TICKER',
-              })
+              .calledWith(
+                {
+                  chainId: toHex(111),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TICKER',
+                },
+                [],
+              )
               .mockReturnValue(newCustomNetworkClient);
 
             await waitForStateChanges({
@@ -4108,12 +4186,15 @@ describe('NetworkController', () => {
                 builtInNetworkClient,
                 infuraProjectId: 'some-infura-project-id',
               })
-                .calledWith({
-                  chainId: toHex(111),
-                  rpcUrl: 'https://test.network',
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    chainId: toHex(111),
+                    rpcUrl: 'https://test.network',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(newCustomNetworkClient);
               // Will use mainnet by default
               await controller.initializeProvider();
@@ -4223,12 +4304,15 @@ describe('NetworkController', () => {
                 builtInNetworkClient,
                 infuraProjectId: 'some-infura-project-id',
               })
-                .calledWith({
-                  chainId: toHex(111),
-                  rpcUrl: 'https://test.network',
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    chainId: toHex(111),
+                    rpcUrl: 'https://test.network',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(newCustomNetworkClient);
               // Will use mainnet by default
               await controller.initializeProvider();
@@ -4269,12 +4353,15 @@ describe('NetworkController', () => {
             uuidV4Mock.mockReturnValue('AAAA-AAAA-AAAA-AAAA');
             const newCustomNetworkClient = buildFakeClient();
             mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients()
-              .calledWith({
-                chainId: toHex(111),
-                rpcUrl: 'https://test.network',
-                type: NetworkClientType.Custom,
-                ticker: 'TICKER',
-              })
+              .calledWith(
+                {
+                  chainId: toHex(111),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TICKER',
+                },
+                [],
+              )
               .mockReturnValue(newCustomNetworkClient);
 
             await controller.upsertNetworkConfiguration(
@@ -4521,12 +4608,15 @@ describe('NetworkController', () => {
                 mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
                   infuraProjectId: 'some-infura-project-id',
                 })
-                  .calledWith({
-                    chainId: toHex(111),
-                    rpcUrl: 'https://test.network',
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      chainId: toHex(111),
+                      rpcUrl: 'https://test.network',
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(newCustomNetworkClient);
                 const networkClientToDestroy = Object.values(
                   controller.getNetworkClientRegistry(),
@@ -4589,12 +4679,15 @@ describe('NetworkController', () => {
                 mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
                   infuraProjectId: 'some-infura-project-id',
                 })
-                  .calledWith({
-                    chainId: toHex(999),
-                    rpcUrl: newRpcUrl,
-                    type: NetworkClientType.Custom,
-                    ticker: 'TICKER',
-                  })
+                  .calledWith(
+                    {
+                      chainId: toHex(999),
+                      rpcUrl: newRpcUrl,
+                      type: NetworkClientType.Custom,
+                      ticker: 'TICKER',
+                    },
+                    [],
+                  )
                   .mockReturnValue(newCustomNetworkClient);
 
                 await controller.upsertNetworkConfiguration(
@@ -4647,12 +4740,15 @@ describe('NetworkController', () => {
                 mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
                   infuraProjectId: 'some-infura-project-id',
                 })
-                  .calledWith({
-                    chainId: toHex(111),
-                    rpcUrl: 'https://test.network',
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      chainId: toHex(111),
+                      rpcUrl: 'https://test.network',
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(newCustomNetworkClient);
                 const networkClientsBefore =
                   controller.getNetworkClientRegistry();
@@ -4997,12 +5093,15 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients()
-              .calledWith({
-                chainId: toHex(111),
-                rpcUrl: 'https://test.network',
-                type: NetworkClientType.Custom,
-                ticker: 'TEST',
-              })
+              .calledWith(
+                {
+                  chainId: toHex(111),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                },
+                [],
+              )
               .mockReturnValue(buildFakeClient());
             const networkClientToDestroy = Object.values(
               controller.getNetworkClientRegistry(),
@@ -5220,20 +5319,26 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[1]),
                 ];
                 mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      rpcUrl: 'https://mock-rpc-url',
+                      chainId: toHex(1337),
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    infuraProjectId: 'some-infura-project-id',
-                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    type: NetworkClientType.Infura,
-                  })
+                  .calledWith(
+                    {
+                      network: networkType,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                      type: NetworkClientType.Infura,
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
                 expect(controller.state.providerConfig).toStrictEqual({
@@ -5294,20 +5399,26 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[1]),
                 ];
                 mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      rpcUrl: 'https://mock-rpc-url',
+                      chainId: toHex(1337),
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    infuraProjectId: 'some-infura-project-id',
-                    type: NetworkClientType.Infura,
-                  })
+                  .calledWith(
+                    {
+                      network: networkType,
+                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
                 expect(
@@ -5376,20 +5487,26 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[1]),
                 ];
                 mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      rpcUrl: 'https://mock-rpc-url',
+                      chainId: toHex(1337),
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    infuraProjectId: 'some-infura-project-id',
-                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    type: NetworkClientType.Infura,
-                  })
+                  .calledWith(
+                    {
+                      network: networkType,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      type: NetworkClientType.Infura,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
 
@@ -5438,20 +5555,26 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[1]),
                 ];
                 mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      rpcUrl: 'https://mock-rpc-url',
+                      chainId: toHex(1337),
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    infuraProjectId: 'some-infura-project-id',
-                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    type: NetworkClientType.Infura,
-                  })
+                  .calledWith(
+                    {
+                      network: networkType,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      type: NetworkClientType.Infura,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
                 const { provider: providerBefore } =
@@ -5501,20 +5624,26 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[1]),
                 ];
                 mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      rpcUrl: 'https://mock-rpc-url',
+                      chainId: toHex(1337),
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    infuraProjectId: 'some-infura-project-id',
-                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    type: NetworkClientType.Infura,
-                  })
+                  .calledWith(
+                    {
+                      network: networkType,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      type: NetworkClientType.Infura,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
                 const promiseForNoInfuraIsUnblockedEvents =
@@ -5580,20 +5709,26 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[1]),
                 ];
                 mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      rpcUrl: 'https://mock-rpc-url',
+                      chainId: toHex(1337),
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    infuraProjectId: 'some-infura-project-id',
-                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    type: NetworkClientType.Infura,
-                  })
+                  .calledWith(
+                    {
+                      network: networkType,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      type: NetworkClientType.Infura,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
                 expect(
@@ -5664,20 +5799,26 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[1]),
                 ];
                 mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                    ticker: 'TEST',
-                  })
+                  .calledWith(
+                    {
+                      rpcUrl: 'https://mock-rpc-url',
+                      chainId: toHex(1337),
+                      type: NetworkClientType.Custom,
+                      ticker: 'TEST',
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    infuraProjectId: 'some-infura-project-id',
-                    chainId: BUILT_IN_NETWORKS[networkType].chainId,
-                    ticker: BUILT_IN_NETWORKS[networkType].ticker,
-                    type: NetworkClientType.Infura,
-                  })
+                  .calledWith(
+                    {
+                      network: networkType,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId: BUILT_IN_NETWORKS[networkType].chainId,
+                      type: NetworkClientType.Infura,
+                      ticker: BUILT_IN_NETWORKS[networkType].ticker,
+                    },
+                    [],
+                  )
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
                 expect(
@@ -5792,20 +5933,27 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                })
+                .calledWith(
+                  {
+                    network: InfuraNetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    type: NetworkClientType.Infura,
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: toHex(1337),
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
               expect(controller.state.providerConfig).toStrictEqual({
@@ -5866,20 +6014,27 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                })
+                .calledWith(
+                  {
+                    network: InfuraNetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    type: NetworkClientType.Infura,
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: toHex(1337),
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
               expect(
@@ -5946,20 +6101,27 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                })
+                .calledWith(
+                  {
+                    network: InfuraNetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    type: NetworkClientType.Infura,
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: toHex(1337),
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
 
@@ -5999,20 +6161,27 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                })
+                .calledWith(
+                  {
+                    network: InfuraNetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    type: NetworkClientType.Infura,
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: toHex(1337),
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
               const { provider: providerBefore } =
@@ -6046,20 +6215,27 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                  type: NetworkClientType.Infura,
-                })
+                .calledWith(
+                  {
+                    network: InfuraNetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                    type: NetworkClientType.Infura,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: toHex(1337),
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
 
@@ -6112,20 +6288,27 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                  type: NetworkClientType.Infura,
-                })
+                .calledWith(
+                  {
+                    network: InfuraNetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                    type: NetworkClientType.Infura,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: toHex(1337),
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
               expect(
@@ -6184,20 +6367,27 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[1]),
               ];
               mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                  ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-                  type: NetworkClientType.Infura,
-                })
+                .calledWith(
+                  {
+                    network: InfuraNetworkType.goerli,
+                    infuraProjectId: 'some-infura-project-id',
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                    type: NetworkClientType.Infura,
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                  ticker: 'TEST',
-                })
+                .calledWith(
+                  {
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: toHex(1337),
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                  [],
+                )
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
               expect(
@@ -6307,29 +6497,38 @@ function mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
   infuraProjectId = 'infura-project-id',
 } = {}) {
   return mockCreateNetworkClient()
-    .calledWith({
-      network: NetworkType.mainnet,
-      infuraProjectId,
-      type: NetworkClientType.Infura,
-      chainId: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
-      ticker: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
-    })
+    .calledWith(
+      {
+        network: NetworkType.mainnet,
+        infuraProjectId,
+        type: NetworkClientType.Infura,
+        chainId: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+        ticker: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
+      },
+      [],
+    )
     .mockReturnValue(builtInNetworkClient)
-    .calledWith({
-      network: NetworkType.goerli,
-      infuraProjectId,
-      chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-      ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
-      type: NetworkClientType.Infura,
-    })
+    .calledWith(
+      {
+        network: NetworkType.goerli,
+        infuraProjectId,
+        chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+        ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+        type: NetworkClientType.Infura,
+      },
+      [],
+    )
     .mockReturnValue(builtInNetworkClient)
-    .calledWith({
-      network: NetworkType.sepolia,
-      infuraProjectId,
-      chainId: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
-      ticker: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
-      type: NetworkClientType.Infura,
-    })
+    .calledWith(
+      {
+        network: NetworkType.sepolia,
+        infuraProjectId,
+        chainId: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+        ticker: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
+        type: NetworkClientType.Infura,
+      },
+      [],
+    )
     .mockReturnValue(builtInNetworkClient);
 }
 
@@ -6428,12 +6627,15 @@ function refreshNetworkTests({
 
           await operation(controller);
 
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
-            chainId: expectedProviderConfig.chainId,
-            rpcUrl: expectedProviderConfig.rpcUrl,
-            type: NetworkClientType.Custom,
-            ticker: expectedProviderConfig.ticker,
-          });
+          expect(createNetworkClientMock).toHaveBeenCalledWith(
+            {
+              chainId: expectedProviderConfig.chainId,
+              rpcUrl: expectedProviderConfig.rpcUrl,
+              type: NetworkClientType.Custom,
+              ticker: expectedProviderConfig.ticker,
+            },
+            [],
+          );
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
@@ -6472,13 +6674,16 @@ function refreshNetworkTests({
 
           await operation(controller);
 
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
-            network: expectedProviderConfig.type,
-            infuraProjectId: 'infura-project-id',
-            chainId: BUILT_IN_NETWORKS[expectedProviderConfig.type].chainId,
-            ticker: BUILT_IN_NETWORKS[expectedProviderConfig.type].ticker,
-            type: NetworkClientType.Infura,
-          });
+          expect(createNetworkClientMock).toHaveBeenCalledWith(
+            {
+              network: expectedProviderConfig.type,
+              infuraProjectId: 'infura-project-id',
+              chainId: BUILT_IN_NETWORKS[expectedProviderConfig.type].chainId,
+              ticker: BUILT_IN_NETWORKS[expectedProviderConfig.type].ticker,
+              type: NetworkClientType.Infura,
+            },
+            [],
+          );
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
@@ -6549,9 +6754,9 @@ function refreshNetworkTests({
                 type: NetworkClientType.Infura,
               };
         mockCreateNetworkClient()
-          .calledWith(initializationNetworkClientOptions)
+          .calledWith(initializationNetworkClientOptions, [])
           .mockReturnValue(fakeNetworkClients[0])
-          .calledWith(operationNetworkClientOptions)
+          .calledWith(operationNetworkClientOptions, [])
           .mockReturnValue(fakeNetworkClients[1]);
         await controller.initializeProvider();
         const { provider: providerBefore } =

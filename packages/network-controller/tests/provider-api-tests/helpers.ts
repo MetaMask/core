@@ -480,19 +480,25 @@ export async function withNetworkClient(
   delete process.env.IN_TEST;
   const clientUnderTest =
     providerType === 'infura'
-      ? createNetworkClient({
-          network: infuraNetwork,
-          infuraProjectId: MOCK_INFURA_PROJECT_ID,
-          type: NetworkClientType.Infura,
-          chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
-          ticker: BUILT_IN_NETWORKS[infuraNetwork].ticker,
-        })
-      : createNetworkClient({
-          chainId: customChainId,
-          rpcUrl: customRpcUrl,
-          type: NetworkClientType.Custom,
-          ticker: customTicker,
-        });
+      ? createNetworkClient(
+          {
+            network: infuraNetwork,
+            infuraProjectId: MOCK_INFURA_PROJECT_ID,
+            type: NetworkClientType.Infura,
+            chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
+            ticker: BUILT_IN_NETWORKS[infuraNetwork].ticker,
+          },
+          [],
+        )
+      : createNetworkClient(
+          {
+            chainId: customChainId,
+            rpcUrl: customRpcUrl,
+            type: NetworkClientType.Custom,
+            ticker: customTicker,
+          },
+          [],
+        );
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 

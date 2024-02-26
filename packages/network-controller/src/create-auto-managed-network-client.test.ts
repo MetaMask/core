@@ -29,11 +29,13 @@ describe('createAutoManagedNetworkClient', () => {
       ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
     } as const,
   ];
+
   for (const networkClientConfiguration of networkClientConfigurations) {
     describe(`given configuration for a ${networkClientConfiguration.type} network client`, () => {
       it('allows the network client configuration to be accessed', () => {
         const { configuration } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
 
         expect(configuration).toStrictEqual(networkClientConfiguration);
@@ -42,13 +44,14 @@ describe('createAutoManagedNetworkClient', () => {
       it('does not make any network requests initially', () => {
         // If unexpected requests occurred, then Nock would throw
         expect(() => {
-          createAutoManagedNetworkClient(networkClientConfiguration);
+          createAutoManagedNetworkClient(networkClientConfiguration, []);
         }).not.toThrow();
       });
 
       it('returns a provider proxy that has the same interface as a provider', () => {
         const { provider } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
 
         // This also tests the `has` trap in the proxy
@@ -89,6 +92,7 @@ describe('createAutoManagedNetworkClient', () => {
 
         const { provider } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
 
         const { result } = await promisify(provider.sendAsync).call(provider, {
@@ -123,6 +127,7 @@ describe('createAutoManagedNetworkClient', () => {
 
         const { provider } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
 
         await promisify(provider.sendAsync).call(provider, {
@@ -140,12 +145,14 @@ describe('createAutoManagedNetworkClient', () => {
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
         expect(createNetworkClientMock).toHaveBeenCalledWith(
           networkClientConfiguration,
+          [],
         );
       });
 
       it('returns a block tracker proxy that has the same interface as a block tracker', () => {
         const { blockTracker } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
 
         // This also tests the `has` trap in the proxy
@@ -198,6 +205,7 @@ describe('createAutoManagedNetworkClient', () => {
 
         const { blockTracker } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
 
         const blockNumberViaLatest = await new Promise((resolve) => {
@@ -253,6 +261,7 @@ describe('createAutoManagedNetworkClient', () => {
 
         const { blockTracker } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
 
         await new Promise((resolve) => {
@@ -266,6 +275,7 @@ describe('createAutoManagedNetworkClient', () => {
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
         expect(createNetworkClientMock).toHaveBeenCalledWith(
           networkClientConfiguration,
+          [],
         );
       });
 
@@ -286,6 +296,7 @@ describe('createAutoManagedNetworkClient', () => {
         });
         const { blockTracker, destroy } = createAutoManagedNetworkClient(
           networkClientConfiguration,
+          [],
         );
         // Start the block tracker
         blockTracker.on('latest', () => {
