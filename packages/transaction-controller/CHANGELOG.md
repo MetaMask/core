@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `gasFeeEstimatesLoaded` property to `TransactionMeta` ([#3948](https://github.com/MetaMask/core/pull/3948))
-- Add the `gasFeeEstimates` property to `TransactionMeta` to be automatically populated on unapproved transactions ([#3913](https://github.com/MetaMask/core/pull/3913))
+- Add `gasFeeEstimates` property to `TransactionMeta` to be automatically populated on unapproved transactions ([#3913](https://github.com/MetaMask/core/pull/3913))
 
 ### Changed
 
