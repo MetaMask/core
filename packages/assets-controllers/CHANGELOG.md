@@ -7,21 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
-- deps: upgrade from ethereumjs-util ([#3943](https://github.com/MetaMask/core/pull/3943))
-- fix: price api cache control ([#3939](https://github.com/MetaMask/core/pull/3939))
-- Bump `@metamask/rpc-errors` to `^6.2.0` ([#3954](https://github.com/MetaMask/core/pull/3954))
-- Fix TokenDetectionController.detectTokens() used tokens states when passed networkClientId ([#3914](https://github.com/MetaMask/core/pull/3914))
-- Release 116.0.0 ([#3915](https://github.com/MetaMask/core/pull/3915))
-- fix: NFT detection running too many times ([#3917](https://github.com/MetaMask/core/pull/3917))
-- fix: fix import ERC20 on network 1337 ([#3777](https://github.com/MetaMask/core/pull/3777))
-- [token-detection-controller] Add tests for API changes from merge with `DetectTokensController` ([#3867](https://github.com/MetaMask/core/pull/3867))
-- any type in asset-controller classes have been fixed with a proper types ([#3818](https://github.com/MetaMask/core/pull/3818))
-- deps: bump @metamask/ethjs- packages to latest ([#3897](https://github.com/MetaMask/core/pull/3897))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
-
 ### Added
 
 - **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).

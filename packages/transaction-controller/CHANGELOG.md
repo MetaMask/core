@@ -7,14 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [23.1.0]
 
-- Use fixed multipliers to generate Linea priority fees ([#3948](https://github.com/MetaMask/core/pull/3948))
-- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
-- deps: upgrade from ethereumjs-util ([#3943](https://github.com/MetaMask/core/pull/3943))
-- [transaction-controller] Rename test directory to tests ([#3950](https://github.com/MetaMask/core/pull/3950))
-- Bump `@metamask/rpc-errors` to `^6.2.0` ([#3954](https://github.com/MetaMask/core/pull/3954))
-- Support updated Linea gas fee estimation ([#3913](https://github.com/MetaMask/core/pull/3913))
+### Added
+
+- Add `gasFeeEstimatesLoaded` property to `TransactionMeta` ([#3948](https://github.com/MetaMask/core/pull/3948))
+- Add the `gasFeeEstimates` property to `TransactionMeta` to be automatically populated on unapproved transactions ([#3913](https://github.com/MetaMask/core/pull/3913))
+
+### Changed
+
+- Use the `linea_estimateGas` RPC method to provide transaction specific gas fee estimates on Linea networks ([#3913](https://github.com/MetaMask/core/pull/3913))
 
 ## [23.0.0]
 
@@ -541,7 +543,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...@metamask/transaction-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@22.0.0...@metamask/transaction-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.2.0...@metamask/transaction-controller@22.0.0
 [21.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.1.0...@metamask/transaction-controller@21.2.0
