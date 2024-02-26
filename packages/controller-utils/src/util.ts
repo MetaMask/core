@@ -44,9 +44,7 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @param inputBn - BN instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function BNToHex(inputBn: any) {
+export function BNToHex(inputBn: BN) {
   return add0x(inputBn.toString(16));
 }
 
@@ -59,9 +57,7 @@ export function BNToHex(inputBn: any) {
  * @returns Product of the multiplication.
  */
 export function fractionBN(
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetBN: any,
+  targetBN: BN,
   numerator: number | string,
   denominator: number | string,
 ) {
