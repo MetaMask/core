@@ -15,6 +15,8 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
+import type { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -44,9 +46,6 @@ import {
 } from './TokenListController';
 import type { TokensController, TokensState } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
-import { NetworkClient } from '@metamask/network-controller';
-import { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
-import { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -357,7 +356,7 @@ describe('TokenDetectionController', () => {
             selectedNetworkClientId: 'polygon',
           });
           mockGetNetworkClientById(
-            (networkClientId) =>
+            () =>
               ({
                 configuration: { chainId: '0x89' },
               } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
@@ -2089,16 +2088,14 @@ async function withController<ReturnValue>(
   >();
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    mockGetNetworkClientById.mockImplementation(
-      (networkClientId: NetworkClientId) => {
-        return {
-          configuration: { chainId: '0x1' },
-          provider: {},
-          destroy: {},
-          blockTracker: {},
-        } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
-      },
-    ),
+    mockGetNetworkClientById.mockImplementation(() => {
+      return {
+        configuration: { chainId: '0x1' },
+        provider: {},
+        destroy: {},
+        blockTracker: {},
+      } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+    }),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
