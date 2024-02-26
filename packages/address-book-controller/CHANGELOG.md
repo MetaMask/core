@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 116.0.0 ([#3915](https://github.com/MetaMask/core/pull/3915))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+
 ## [3.1.7]
 
 ### Changed

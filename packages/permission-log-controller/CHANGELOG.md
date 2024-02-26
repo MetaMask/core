@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Refactor PermissionLogController tests ([#3937](https://github.com/MetaMask/core/pull/3937))
+
 [Unreleased]: https://github.com/MetaMask/core/

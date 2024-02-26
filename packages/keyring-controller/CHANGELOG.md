@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- deps: upgrade from ethereumjs-util ([#3943](https://github.com/MetaMask/core/pull/3943))
+- devDeps: @lavamoat/allow-scripts@^2.3.1->^3.0.2 ([#3940](https://github.com/MetaMask/core/pull/3940))
+- fix: add wildcard for custody keyring ([#3899](https://github.com/MetaMask/core/pull/3899))
+- Merge `EthKeyringController` into `KeyringController` ([#3830](https://github.com/MetaMask/core/pull/3830))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+- Add tests for KeyringController edge cases ([#3847](https://github.com/MetaMask/core/pull/3847))
+- Refactor user operations tests ([#3832](https://github.com/MetaMask/core/pull/3832))
+- Add coverage for unsupported keyring methods ([#3831](https://github.com/MetaMask/core/pull/3831))
+
 ### Removed
 
 - **BREAKING:** Remove callbacks `updateIdentities`, `syncIdentities`, `setSelectedAddress`, `setAccountLabel` from constructor options of the `KeyringController` class. These were previously used to update `PreferencesController` state, but are now replaced with `PreferencesController`'s subscription to the `KeyringController:stateChange` event. ([#3853](https://github.com/MetaMask/core/pull/3853))
