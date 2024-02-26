@@ -27,7 +27,6 @@ export type QueuedRequestControllerEnqueueRequestAction = {
 };
 
 export const QueuedRequestControllerEventTypes = {
-  countChanged: `${controllerName}:countChanged` as const,
   stateChange: `${controllerName}:stateChange` as const,
 };
 
@@ -37,19 +36,8 @@ export type QueuedRequestControllerStateChangeEvent =
     QueuedRequestControllerState
   >;
 
-/**
- * This event is fired when the number of queued requests changes.
- *
- * @deprecated Use the `QueuedRequestController:stateChange` event instead
- */
-export type QueuedRequestControllerCountChangedEvent = {
-  type: typeof QueuedRequestControllerEventTypes.countChanged;
-  payload: [number];
-};
-
 export type QueuedRequestControllerEvents =
-  | QueuedRequestControllerCountChangedEvent
-  | QueuedRequestControllerStateChangeEvent;
+  QueuedRequestControllerStateChangeEvent;
 
 export type QueuedRequestControllerActions =
   | QueuedRequestControllerGetStateAction
@@ -113,27 +101,10 @@ export class QueuedRequestController extends BaseController<
     );
   }
 
-  /**
-   * Gets the current count of enqueued requests in the request queue. This count represents the number of
-   * pending requests that are waiting to be processed sequentially.
-   *
-   * @returns The current count of enqueued requests. This count reflects the number of pending
-   * requests in the queue, which are yet to be processed. It allows you to monitor the queue's workload
-   * and assess the volume of requests awaiting execution.
-   * @deprecated This method is deprecated; use `state.queuedRequestCount` directly instead.
-   */
-  length() {
-    return this.state.queuedRequestCount;
-  }
-
   #updateCount(change: -1 | 1) {
     this.update((state) => {
       state.queuedRequestCount += change;
     });
-    this.messagingSystem.publish(
-      'QueuedRequestController:countChanged',
-      this.state.queuedRequestCount,
-    );
   }
 
   /**

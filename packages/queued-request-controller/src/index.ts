@@ -1,6 +1,5 @@
 export type {
   QueuedRequestControllerState,
-  QueuedRequestControllerCountChangedEvent,
   QueuedRequestControllerEnqueueRequestAction,
   QueuedRequestControllerGetStateAction,
   QueuedRequestControllerStateChangeEvent,
