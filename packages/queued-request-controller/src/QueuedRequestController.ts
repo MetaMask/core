@@ -27,7 +27,6 @@ export type QueuedRequestControllerEnqueueRequestAction = {
 };
 
 export const QueuedRequestControllerEventTypes = {
-  countChanged: `${controllerName}:countChanged` as const,
   stateChange: `${controllerName}:stateChange` as const,
 };
 
@@ -37,19 +36,8 @@ export type QueuedRequestControllerStateChangeEvent =
     QueuedRequestControllerState
   >;
 
-/**
- * This event is fired when the number of queued requests changes.
- *
- * @deprecated Use the `QueuedRequestController:stateChange` event instead
- */
-export type QueuedRequestControllerCountChangedEvent = {
-  type: typeof QueuedRequestControllerEventTypes.countChanged;
-  payload: [number];
-};
-
 export type QueuedRequestControllerEvents =
-  | QueuedRequestControllerCountChangedEvent
-  | QueuedRequestControllerStateChangeEvent;
+  QueuedRequestControllerStateChangeEvent;
 
 export type QueuedRequestControllerActions =
   | QueuedRequestControllerGetStateAction
@@ -130,10 +118,6 @@ export class QueuedRequestController extends BaseController<
     this.update((state) => {
       state.queuedRequestCount += change;
     });
-    this.messagingSystem.publish(
-      'QueuedRequestController:countChanged',
-      this.state.queuedRequestCount,
-    );
   }
 
   /**

@@ -192,45 +192,6 @@ describe('QueuedRequestController', () => {
     });
   });
 
-  describe('countChanged event', () => {
-    it('gets emitted when the queue length changes', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-
-      const controller = new QueuedRequestController(options);
-
-      // Mock the event listener
-      const eventListener = jest.fn();
-
-      // Subscribe to the countChanged event
-      options.messenger.subscribe(
-        'QueuedRequestController:countChanged',
-        eventListener,
-      );
-
-      // Enqueue a request, which should increase the count
-      controller.enqueueRequest(
-        async () => new Promise((resolve) => setTimeout(resolve, 10)),
-      );
-      expect(eventListener).toHaveBeenNthCalledWith(1, 1);
-
-      // Enqueue another request, which should increase the count
-      controller.enqueueRequest(
-        async () => new Promise((resolve) => setTimeout(resolve, 10)),
-      );
-      expect(eventListener).toHaveBeenNthCalledWith(2, 2);
-
-      // Resolve the first request, which should decrease the count
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(eventListener).toHaveBeenNthCalledWith(3, 1);
-
-      // Resolve the second request, which should decrease the count
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(eventListener).toHaveBeenNthCalledWith(4, 0);
-    });
-  });
-
   describe('length', () => {
     it('returns the correct queue length', async () => {
       const options: QueuedRequestControllerOptions = {
