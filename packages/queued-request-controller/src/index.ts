@@ -2,6 +2,8 @@ export type {
   QueuedRequestControllerState,
   QueuedRequestControllerCountChangedEvent,
   QueuedRequestControllerEnqueueRequestAction,
+  QueuedRequestControllerGetStateAction,
+  QueuedRequestControllerStateChangeEvent,
   QueuedRequestControllerEvents,
   QueuedRequestControllerActions,
   QueuedRequestControllerMessenger,
