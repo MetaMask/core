@@ -1,6 +1,7 @@
 import { errorCodes } from '@metamask/rpc-errors';
 import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 
+import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { createQueuedRequestMiddleware } from './QueuedRequestMiddleware';
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
@@ -21,8 +22,13 @@ const getPendingResponseDefault = (): PendingJsonRpcResponse<Json> => {
   };
 };
 
-const getMockEnqueueRequest = (error?: unknown) =>
-  jest.fn().mockImplementation((_origin, requestNext) => requestNext(error));
+const getMockEnqueueRequest = () =>
+  jest
+    .fn<
+      ReturnType<QueuedRequestControllerEnqueueRequestAction['handler']>,
+      Parameters<QueuedRequestControllerEnqueueRequestAction['handler']>
+    >()
+    .mockImplementation((_origin, requestNext) => requestNext());
 
 describe('createQueuedRequestMiddleware', () => {
   it('throws if not provided an origin', async () => {
