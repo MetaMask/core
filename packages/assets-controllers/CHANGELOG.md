@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
-- **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, `KeyringController:unlock` events, and allows messenger actions `AccountsController:getSelectedAccount`, `NetworkController:getNetworkClientById`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getState`, `KeyringController:getState`, `PreferencesController:getState`, `TokenListController:getState`, `TokensController:getState`, `TokensController:addDetectedTokens`. ([#3775](https://github.com/MetaMask/core/pull/3775/)), ([#3923](https://github.com/MetaMask/core/pull/3923/), [#3938](https://github.com/MetaMask/core/pull/3938))
+- **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, `KeyringController:unlock` events, and allows messenger actions `AccountsController:getSelectedAccount`, `NetworkController:getNetworkClientById`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getState`, `KeyringController:getState`, `PreferencesController:getState`, `TokenListController:getState`, `TokensController:getState`, `TokensController:addDetectedTokens`. ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923/), [#3938](https://github.com/MetaMask/core/pull/3938))
 - `TokensController` now exports `TokensControllerActions`, `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerEvents`, `TokensControllerStateChangeEvent`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
 
 ### Changed
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The constructor option `selectedAddress` no longer defaults to `''` if omitted. Instead, the correct address is assigned using the `AccountsController:getSelectedAccount` messenger action.
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
   - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
-    - This is breaking because it could affect how this type is used with other types, such as `Json`, which does not support TypeScript interfaces.
+    - `TokensState` now extends the `Record` types, and it has an index signature of `string`, making it compatible with the `BaseControllerV2` state object constraint of `Record<string, Json>`.
 
 ### Removed
 
