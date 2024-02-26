@@ -222,7 +222,7 @@ export class QueuedRequestController extends BaseController<
    */
   async enqueueRequest(
     request: QueuedRequestMiddlewareJsonRpcRequest,
-    requestNext: (...arg: unknown[]) => Promise<unknown>,
+    requestNext: () => Promise<void>,
   ) {
     this.#updateCount(1);
     if (this.state.queuedRequestCount > 1) {

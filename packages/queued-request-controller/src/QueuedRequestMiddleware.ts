@@ -75,14 +75,7 @@ export const createQueuedRequestMiddleware = ({
     }
 
     try {
-      await enqueueRequest(req, async (error: unknown) => {
-        if (error) {
-          res.error = serializeError(error);
-          return undefined;
-        }
-
-        return await next();
-      });
+      await enqueueRequest(req, next);
     } catch (error: unknown) {
       res.error = serializeError(error);
     }
