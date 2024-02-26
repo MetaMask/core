@@ -254,7 +254,7 @@ describe('QueuedRequestController', () => {
         );
       });
 
-      it('rejects all requests that require a switch the if selected network network configuration is missing', async () => {
+      it('rejects all requests that require a switch if the selected network network configuration is missing', async () => {
         const mockSetActiveNetwork = jest.fn();
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
