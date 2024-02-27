@@ -525,9 +525,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       : tokensChainsCache[this.#chainIdAgainstWhichToDetect]?.data ?? {};
 
     for (const tokensSlice of this.#getSlicesOfTokensToDetect()) {
-      if (tokensSlice.length === 0) {
-        break;
-      }
       await this.#addDetectedTokens(tokensSlice);
     }
   }
