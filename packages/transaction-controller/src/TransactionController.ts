@@ -25,6 +25,7 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   BlockTracker,
   NetworkState,
@@ -43,6 +44,8 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { GasFeePoller } from './helpers/GasFeePoller';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { determineTransactionType } from './transaction-type';
@@ -55,6 +58,7 @@ import type {
   SendFlowHistoryEntry,
   WalletDevice,
   SubmitHistoryEntry,
+  GasFeeFlow,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
 import {
@@ -193,6 +197,10 @@ export class TransactionController extends BaseController<
 
   private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
 
+  private readonly gasFeeFlows: GasFeeFlow[];
+
+  private readonly getGasFeeEstimates: () => Promise<GasFeeState>;
+
   private readonly messagingSystem: TransactionControllerMessenger;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
@@ -243,6 +251,7 @@ export class TransactionController extends BaseController<
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+   * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
@@ -263,6 +272,7 @@ export class TransactionController extends BaseController<
       disableSendFlowHistory,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
+      getGasFeeEstimates,
       getNetworkState,
       getSelectedAddress,
       incomingTransactions = {},
@@ -275,6 +285,7 @@ export class TransactionController extends BaseController<
       disableSendFlowHistory: boolean;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+      getGasFeeEstimates: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
@@ -308,6 +319,7 @@ export class TransactionController extends BaseController<
 
     this.provider = provider;
     this.messagingSystem = messenger;
+    this.getGasFeeEstimates = getGasFeeEstimates;
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
@@ -354,6 +366,24 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper.hub.on(
       'updatedLastFetchedBlockNumbers',
       this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
+
+    this.gasFeeFlows = this.getGasFeeFlows();
+
+    const gasFeePoller = new GasFeePoller({
+      gasFeeFlows: this.gasFeeFlows,
+      getChainIds: () => [this.getNetworkState().providerConfig.chainId],
+      getEthQuery: () => this.ethQuery,
+      getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getTransactions: () => this.state.transactions,
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+      },
+    });
+
+    gasFeePoller.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
     );
 
     onNetworkStateChange(() => {
@@ -1961,6 +1991,10 @@ export class TransactionController extends BaseController<
     }
 
     this.update({ submitHistory });
+  }
+
+  private getGasFeeFlows(): GasFeeFlow[] {
+    return [new LineaGasFeeFlow()];
   }
 }
 

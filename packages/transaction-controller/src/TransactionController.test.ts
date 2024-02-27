@@ -17,6 +17,7 @@ import { errorCodes } from '@metamask/rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
+import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   TransactionControllerMessenger,
@@ -135,6 +136,7 @@ jest.mock('@metamask/eth-query', () =>
 );
 
 jest.mock('./IncomingTransactionHelper');
+jest.mock('./helpers/GasFeePoller');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -421,6 +423,8 @@ describe('TransactionController', () => {
       typeof IncomingTransactionHelper
     >;
 
+  const gasFeePollerHelperClassMock = jest.mocked(GasFeePoller);
+
   /**
    * Create a new instance of the TransactionController.
    *
@@ -527,6 +531,12 @@ describe('TransactionController', () => {
     incomingTransactionHelperClassMock.mockReturnValue(
       incomingTransactionHelperMock,
     );
+
+    gasFeePollerHelperClassMock.mockReturnValue({
+      hub: {
+        on: jest.fn(),
+      },
+    } as unknown as GasFeePoller);
   });
 
   afterEach(() => {
