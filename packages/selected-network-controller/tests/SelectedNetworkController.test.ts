@@ -95,11 +95,8 @@ const setup = ({
 }: {
   hasPermissions?: boolean;
   state?: SelectedNetworkControllerState;
-<<<<<<< HEAD
   getSubjectNames?: string[];
-=======
   getUseRequestQueue?: GetUseRequestQueue;
->>>>>>> babf753f (remove redundant perDomainNetwork state)
 } = {}) => {
   const mockProviderProxy = {
     setTarget: jest.fn(),
