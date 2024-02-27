@@ -34,6 +34,7 @@
     "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/gas-fee-controller": "workspace:^",
     "@metamask/network-controller": "workspace:^",
     "@metamask/utils": "^5.0.2",
     "async-mutex": "^0.2.6",
@@ -61,6 +62,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "workspace:^",
+    "@metamask/gas-fee-controller": "workspace:^",
     "@metamask/network-controller": "workspace:^"
   },
   "engines": {
