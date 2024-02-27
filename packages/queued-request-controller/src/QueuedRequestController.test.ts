@@ -218,7 +218,7 @@ describe('QueuedRequestController', () => {
         await expect(() =>
           controller.enqueueRequest(buildRequest(), requestWithError),
         ).rejects.toThrow(new Error('Request failed'));
-        expect(controller.length()).toBe(0);
+        expect(controller.state.queuedRequestCount).toBe(0);
       });
 
       it('rejects requests that require a switch if they are missing network configuration', async () => {
@@ -337,113 +337,6 @@ describe('QueuedRequestController', () => {
         expect(request2).toHaveBeenCalled();
         expect(request3).toHaveBeenCalled();
       });
-    });
-  });
-
-  describe('countChanged event', () => {
-    it('gets emitted when the queue length changes', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-
-      const controller = new QueuedRequestController(options);
-
-      // Mock the event listener
-      const eventListener = jest.fn();
-
-      // Subscribe to the countChanged event
-      options.messenger.subscribe(
-        'QueuedRequestController:countChanged',
-        eventListener,
-      );
-
-      // Enqueue a request, which should increase the count
-      controller.enqueueRequest(
-        buildRequest(),
-        async () => new Promise((resolve) => setTimeout(resolve, 10)),
-      );
-      expect(eventListener).toHaveBeenNthCalledWith(1, 1);
-
-      // Enqueue another request, which should increase the count
-      controller.enqueueRequest(
-        buildRequest(),
-        async () => new Promise((resolve) => setTimeout(resolve, 100)),
-      );
-      expect(eventListener).toHaveBeenNthCalledWith(2, 2);
-
-      // Resolve the first request, which should decrease the count
-      await new Promise((resolve) => setTimeout(resolve, 15));
-      expect(eventListener).toHaveBeenNthCalledWith(3, 1);
-
-      // Resolve the second request, which should decrease the count
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      expect(eventListener).toHaveBeenNthCalledWith(4, 0);
-    });
-  });
-
-  describe('length', () => {
-    it('returns the correct queue length', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-
-      const controller = new QueuedRequestController(options);
-
-      // Initially, the queue length should be 0
-      expect(controller.length()).toBe(0);
-
-      const promise = controller.enqueueRequest(buildRequest(), async () => {
-        expect(controller.length()).toBe(1);
-        return Promise.resolve();
-      });
-      expect(controller.length()).toBe(1);
-      await promise;
-      expect(controller.length()).toBe(0);
-    });
-
-    it('correctly reflects increasing queue length as requests are enqueued', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-
-      const controller = new QueuedRequestController(options);
-
-      expect(controller.length()).toBe(0);
-
-      const firstRequest = controller.enqueueRequest(
-        { ...buildRequest(), id: '1' },
-        async () => {
-          expect(controller.length()).toBe(3);
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        },
-      );
-      expect(controller.length()).toBe(1);
-
-      const secondRequest = controller.enqueueRequest(
-        { ...buildRequest(), id: '2' },
-        async () => {
-          expect(controller.length()).toBe(2);
-          await new Promise((resolve) => setTimeout(resolve, 20));
-        },
-      );
-      expect(controller.length()).toBe(2);
-
-      const thirdRequest = controller.enqueueRequest(
-        { ...buildRequest(), id: '3' },
-        async () => {
-          // TODO: This should be 1, but it's 2 because requests 2 and 3 get run in parallel
-          // Bug tracked here: https://github.com/MetaMask/core/issues/3967
-          expect(controller.length()).toBe(2);
-          await new Promise((resolve) => setTimeout(resolve, 30));
-        },
-      );
-
-      expect(controller.length()).toBe(3);
-      await thirdRequest;
-      expect(controller.length()).toBe(0);
-
-      await firstRequest;
-      await secondRequest;
     });
   });
 });
