@@ -191,11 +191,7 @@ export class ComposableController extends BaseController<
     ) {
       this.messagingSystem.subscribe(
         `${name}:stateChange`,
-        (childState: StateConstraint) => {
-          this.update((state) => ({
-            ...state,
-            [name]: childState,
-          }));
+        (childState: Record<string, unknown>) => {
         },
       );
     }
