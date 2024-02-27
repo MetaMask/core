@@ -88,16 +88,15 @@ type QueuedRequest = {
 };
 
 /**
- * Controller for request queueing. The QueuedRequestController manages the orderly execution of enqueued requests
- * to prevent concurrency issues and ensure proper handling of asynchronous operations.
+ * Queue requests for processing in batches, by request origin.
  *
- * @param options - The controller options, including the restricted controller messenger for the QueuedRequestController.
- * @param options.messenger - The restricted controller messenger that facilitates communication with the QueuedRequestController.
+ * Processing requests in batches allows us to completely separate sets of requests that originate
+ * from different origins. This ensures that our UI will not display those requests as a set, which
+ * could mislead users into thinking they are related.
  *
- * The QueuedRequestController maintains a count of enqueued requests, allowing you to monitor the queue's workload.
- * It processes requests sequentially, ensuring that each request is executed one after the other. The class offers
- * an `enqueueRequest` method for adding requests to the queue. The controller initializes with a count of zero and
- * registers message handlers for request enqueuing. It also publishes count changes to inform external observers.
+ * Queuing requests in batches also allows us to ensure the globally selected network matches the
+ * dapp-selected network, before the confirmation UI is rendered. This is important because the
+ * data shown on some confirmation screens is only collected for the globally selected network.
  */
 export class QueuedRequestController extends BaseController<
   typeof controllerName,
@@ -124,9 +123,10 @@ export class QueuedRequestController extends BaseController<
   #processingRequestCount = 0;
 
   /**
-   * Constructs a QueuedRequestController, responsible for managing and processing enqueued requests sequentially.
-   * @param options - The controller options, including the restricted controller messenger for the QueuedRequestController.
-   * @param options.messenger - The restricted controller messenger that facilitates communication with the QueuedRequestController.
+   * Construct a QueuedRequestController.
+   *
+   * @param options - Controller options.
+   * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
    */
   constructor({ messenger }: QueuedRequestControllerOptions) {
     super({
