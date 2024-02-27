@@ -296,7 +296,7 @@ export type NftControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   AllowedActions,
   never,
-  AllowedActions['type'],
+  AllowedActions['type'] | never,
   never
 >;
 

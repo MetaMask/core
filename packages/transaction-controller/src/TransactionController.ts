@@ -299,8 +299,8 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   AllowedActions,
   AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AllowedActions['type'] | never,
+  AllowedEvents['type'] | never
 >;
 
 // This interface was created before this ESLint rule was added.

@@ -239,7 +239,7 @@ type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
   GasFeeControllerActions | AllowedActions,
   GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
-  AllowedActions['type'],
+  AllowedActions['type'] | never,
   NetworkControllerNetworkDidChangeEvent['type']
 >;
 

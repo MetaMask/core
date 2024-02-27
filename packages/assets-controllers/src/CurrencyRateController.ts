@@ -58,7 +58,7 @@ type CurrencyRateMessenger = RestrictedControllerMessenger<
   typeof name,
   CurrencyRateControllerActions | AllowedActions,
   CurrencyRateControllerEvents,
-  AllowedActions['type'],
+  AllowedActions['type'] | never,
   never
 >;
 

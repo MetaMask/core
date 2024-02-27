@@ -116,7 +116,7 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   SignatureControllerActions | AllowedActions,
   SignatureControllerEvents,
-  AllowedActions['type'],
+  never,
   never
 >;
 

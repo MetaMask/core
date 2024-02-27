@@ -74,8 +74,8 @@ export type TokenListControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   TokenListControllerActions | AllowedActions,
   TokenListControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AllowedActions['type'] | never,
+  AllowedEvents['type'] | never
 >;
 
 const metadata = {

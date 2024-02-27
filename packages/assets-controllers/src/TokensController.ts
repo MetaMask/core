@@ -147,8 +147,8 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   TokensControllerActions | AllowedActions,
   TokensControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AllowedActions['type'] | never,
+  AllowedEvents['type'] | never
 >;
 
 export const getDefaultTokensState = (): TokensState => {
