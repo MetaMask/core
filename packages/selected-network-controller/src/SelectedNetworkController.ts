@@ -139,6 +139,7 @@ export class SelectedNetworkController extends BaseController<
     });
     this.#registerMessageHandlers();
 
+    // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and adding them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
     this.messagingSystem
       .call('PermissionController:getSubjectNames')
       .filter((domain) => this.state.domains[domain] === undefined)
