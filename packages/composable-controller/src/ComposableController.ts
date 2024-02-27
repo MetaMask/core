@@ -12,22 +12,25 @@ import type { Patch } from 'immer';
 export const controllerName = 'ComposableController';
 
 /**
- * A type encompassing all controller instances that extend from `BaseControllerV1`.
+ * A universal subtype of all controller instances that extend from `BaseControllerV1`.
+ * Any `BaseControllerV1` instance can be assigned to this type.
+ *
+ * Note that this type is not the greatest subtype or narrowest supertype of all `BaseControllerV1` instances.
+ * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type BaseControllerV1Instance =
-  // `any` is used to include all `BaseControllerV1` instances.
+  // `any` is used so that all `BaseControllerV1` instances are assignable to this type.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   BaseControllerV1<any, any>;
 
 /**
- * A type encompassing all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
+ * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
+ * Any `BaseController` instance can be assigned to this type.
  *
- * The `BaseController` class itself can't be used directly as a type representing all of its subclasses,
- * because the generic parameters it expects require knowing the exact shape of the controller's state and messenger.
+ * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` instances.
+ * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  *
- * Instead, we look for an object with the `BaseController` properties that we use in the ComposableController (name and state).
- *
- * Note that this type is not sufficiently type-safe for general use, and is only intended for use within the ComposableController.
+ * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
  */
 export type BaseControllerInstance = {
   name: string;
@@ -35,18 +38,20 @@ export type BaseControllerInstance = {
 };
 
 /**
- * A type encompassing all controller instances that extend from `BaseControllerV1` or `BaseController`.
+ * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
+ * Any `BaseController` or `BaseControllerV1` instance can be assigned to this type.
  *
- * Note that this type is not sufficiently type-safe for general use, and is only intended for use within the ComposableController.
+ * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
+ * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type ControllerInstance =
   | BaseControllerV1Instance
   | BaseControllerInstance;
 
 /**
- * Determines if the given controller is an instance of BaseControllerV1
+ * Determines if the given controller is an instance of `BaseControllerV1`
  * @param controller - Controller instance to check
- * @returns True if the controller is an instance of BaseControllerV1
+ * @returns True if the controller is an instance of `BaseControllerV1`
  */
 export function isBaseControllerV1(
   controller: ControllerInstance,
@@ -68,9 +73,9 @@ export function isBaseControllerV1(
 }
 
 /**
- * Determines if the given controller is an instance of BaseController
+ * Determines if the given controller is an instance of `BaseController`
  * @param controller - Controller instance to check
- * @returns True if the controller is an instance of BaseController
+ * @returns True if the controller is an instance of `BaseController`
  */
 export function isBaseController(
   controller: ControllerInstance,
