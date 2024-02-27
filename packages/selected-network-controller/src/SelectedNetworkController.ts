@@ -11,6 +11,7 @@ import type {
 import type {
   PermissionControllerStateChange,
   GetSubjects as PermissionControllerGetSubjectsAction,
+  HasPermissions as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
@@ -71,11 +72,6 @@ export type SelectedNetworkControllerGetNetworkClientIdForDomainAction = {
 export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
   type: typeof SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain;
   handler: SelectedNetworkController['setNetworkClientIdForDomain'];
-};
-
-type PermissionControllerHasPermissions = {
-  type: `PermissionController:hasPermissions`;
-  handler: (domain: string) => boolean;
 };
 
 export type SelectedNetworkControllerActions =
