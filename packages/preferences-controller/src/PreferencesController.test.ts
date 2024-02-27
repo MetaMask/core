@@ -369,6 +369,16 @@ describe('PreferencesController', () => {
     );
   });
 
+  it('should set featureFlags', () => {
+    const controller = setupPreferencesController();
+    controller.setFeatureFlag('Feature A', true);
+    controller.setFeatureFlag('Feature B', false);
+    expect(controller.state.featureFlags).toStrictEqual({
+      'Feature A': true,
+      'Feature B': false,
+    });
+  });
+
   it('should set securityAlertsEnabled', () => {
     const controller = setupPreferencesController();
     controller.setSecurityAlertsEnabled(true);
