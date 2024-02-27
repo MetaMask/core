@@ -147,8 +147,7 @@ export class SelectedNetworkController extends BaseController<
       .call('PermissionController:getSubjectNames')
       .filter(
         (domain) =>
-          this.state.domains[domain] === undefined &&
-          this.state.domains[domain] === undefined,
+          this.state.domains[domain] === undefined
       )
       .forEach((domain) =>
         this.setNetworkClientIdForDomain(
