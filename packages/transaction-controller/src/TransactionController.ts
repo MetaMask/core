@@ -38,6 +38,7 @@ import {
 } from '@metamask/approval-controller';
 import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import { Hex } from '@metamask/utils';
+import { GasFeeState } from '@metamask/gas-fee-controller';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -53,6 +54,7 @@ import {
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import {
+  GasFeeFlow,
   SecurityAlertResponse,
   SubmitHistoryEntry,
   Transaction,
@@ -60,6 +62,8 @@ import {
   TransactionStatus,
   WalletDevice,
 } from './types';
+import { GasFeePoller } from './helpers/GasFeePoller';
+import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 
 const HARDFORK = 'london';
 const SUBMIT_HISTORY_LIMIT = 100;
@@ -173,6 +177,10 @@ export class TransactionController extends BaseController<
 
   private mutex = new Mutex();
 
+  private readonly gasFeeFlows: GasFeeFlow[];
+
+  private readonly getGasFeeEstimates: () => Promise<GasFeeState>;
+
   private getNetworkState: () => NetworkState;
 
   private messagingSystem: TransactionControllerMessenger;
@@ -218,6 +226,7 @@ export class TransactionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
+   * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
@@ -234,6 +243,7 @@ export class TransactionController extends BaseController<
   constructor(
     {
       blockTracker,
+      getGasFeeEstimates,
       getNetworkState,
       getSelectedAddress,
       incomingTransactions = {},
@@ -242,6 +252,7 @@ export class TransactionController extends BaseController<
       provider,
     }: {
       blockTracker: BlockTracker;
+      getGasFeeEstimates: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
@@ -274,6 +285,7 @@ export class TransactionController extends BaseController<
     this.initialize();
     this.provider = provider;
     this.messagingSystem = messenger;
+    this.getGasFeeEstimates = getGasFeeEstimates;
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
@@ -315,6 +327,24 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper.hub.on(
       'updatedLastFetchedBlockNumbers',
       this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
+
+    this.gasFeeFlows = this.getGasFeeFlows();
+
+    const gasFeePoller = new GasFeePoller({
+      gasFeeFlows: this.gasFeeFlows,
+      getChainIds: () => [this.getNetworkState().providerConfig.chainId],
+      getEthQuery: () => this.ethQuery,
+      getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getTransactions: () => this.state.transactions,
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+      },
+    });
+
+    gasFeePoller.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
     );
 
     onNetworkStateChange(() => {
@@ -1438,6 +1468,10 @@ export class TransactionController extends BaseController<
     }
 
     this.update({ submitHistory });
+  }
+
+  private getGasFeeFlows(): GasFeeFlow[] {
+    return [new LineaGasFeeFlow()];
   }
 }
 
