@@ -1,9 +1,10 @@
 import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
-  BaseState,
+  ActionConstraint,
   BaseConfig,
+  BaseState,
+  EventConstraint,
   RestrictedControllerMessenger,
-  StateMetadata,
   StateConstraint,
 } from '@metamask/base-controller';
 import type { Patch } from 'immer';
@@ -73,7 +74,17 @@ export function isBaseControllerV1(
  */
 export function isBaseController(
   controller: ControllerInstance,
-): controller is BaseController<never, never, never> {
+): controller is BaseController<
+  string,
+  StateConstraint,
+  RestrictedControllerMessenger<
+    string,
+    ActionConstraint,
+    EventConstraint,
+    string,
+    string
+  >
+> {
   return (
     'name' in controller &&
     typeof controller.name === 'string' &&
