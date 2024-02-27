@@ -42,12 +42,12 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
   /**
    * Default options used to configure this controller
    */
-  defaultConfig: C = {} as C;
+  defaultConfig: C = {} as never;
 
   /**
    * Default state set on this controller
    */
-  defaultState: S = {} as S;
+  defaultState: S = {} as never;
 
   /**
    * Determines if listeners are notified of state changes
@@ -59,9 +59,9 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
    */
   name = 'BaseController';
 
-  private readonly initialConfig: C;
+  private readonly initialConfig: Partial<C>;
 
-  private readonly initialState: S;
+  private readonly initialState: Partial<S>;
 
   private internalConfig: C = this.defaultConfig;
 
@@ -76,10 +76,9 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
-  constructor(config: Partial<C> = {} as C, state: Partial<S> = {} as S) {
-    // Use assign since generics can't be spread: https://git.io/vpRhY
-    this.initialState = state as S;
-    this.initialConfig = config as C;
+  constructor(config: Partial<C> = {}, state: Partial<S> = {}) {
+    this.initialState = state;
+    this.initialConfig = config;
   }
 
   /**
@@ -128,21 +127,19 @@ export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
         ? (config as C)
         : Object.assign(this.internalConfig, config);
 
-      for (const [key, value] of Object.entries(this.internalConfig)) {
+      for (const key of Object.keys(this.internalConfig) as (keyof C)[]) {
+        const value = this.internalConfig[key];
         if (value !== undefined) {
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any)[key] = value;
+          (this as unknown as C)[key] = value;
         }
       }
     } else {
       for (const key of Object.keys(config) as (keyof C)[]) {
         /* istanbul ignore else */
-        if (typeof this.internalConfig[key] !== 'undefined') {
-          this.internalConfig[key] = (config as C)[key];
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this as any)[key] = config[key];
+        if (this.internalConfig[key] !== undefined) {
+          const value = (config as C)[key];
+          this.internalConfig[key] = value;
+          (this as unknown as C)[key] = value;
         }
       }
     }

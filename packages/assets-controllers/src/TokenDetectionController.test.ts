@@ -8,18 +8,20 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
-import {
-  defaultState as defaultNetworkState,
-  type NetworkState,
-  type NetworkConfiguration,
-  type NetworkController,
+import type {
+  NetworkState,
+  NetworkConfiguration,
+  NetworkController,
+  ProviderConfig,
+  NetworkClientId,
 } from '@metamask/network-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -138,8 +140,11 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
+      'AccountsController:getSelectedAccount',
       'KeyringController:getState',
+      'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
+      'NetworkController:getProviderConfig',
       'TokensController:getState',
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
@@ -338,7 +343,16 @@ describe('TokenDetectionController', () => {
             selectedAddress,
           },
         },
-        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+        async ({
+          controller,
+          mockGetProviderConfig,
+          mockTokenListGetState,
+          callActionSpy,
+        }) => {
+          mockGetProviderConfig({
+            chainId: '0x89',
+          } as unknown as ProviderConfig);
+
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -1748,19 +1762,19 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: 0 });
 
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
           ]);
 
           await advanceTime({ clock, duration: DEFAULT_INTERVAL });
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
           ]);
         },
       );
@@ -1793,7 +1807,7 @@ describe('TokenDetectionController', () => {
           });
           await controller.detectTokens({
             networkClientId: NetworkType.goerli,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
@@ -1833,7 +1847,7 @@ describe('TokenDetectionController', () => {
           });
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
             'TokensController:addDetectedTokens',
@@ -1896,7 +1910,7 @@ describe('TokenDetectionController', () => {
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -1951,7 +1965,7 @@ describe('TokenDetectionController', () => {
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
 
           expect(mockTrackMetaMetricsEvent).toHaveBeenCalledWith({
@@ -1983,10 +1997,14 @@ function getTokensPath(chainId: Hex) {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  mockGetSelectedAccount,
   mockKeyringGetState,
   mockTokensGetState,
   mockTokenListGetState,
   mockPreferencesGetState,
+  mockFindNetworkClientIdByChainId,
+  mockGetNetworkConfigurationByNetworkClientId,
+  mockGetProviderConfig,
   callActionSpy,
   triggerKeyringUnlock,
   triggerKeyringLock,
@@ -1996,13 +2014,18 @@ type WithControllerCallback<ReturnValue> = ({
   triggerNetworkDidChange,
 }: {
   controller: TokenDetectionController;
+  mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
   mockTokensGetState: (state: TokensState) => void;
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
+  mockFindNetworkClientIdByChainId: (
+    handler: (chainId: Hex) => NetworkClientId,
+  ) => void;
   mockGetNetworkConfigurationByNetworkClientId: (
     handler: (networkClientId: string) => NetworkConfiguration,
   ) => void;
+  mockGetProviderConfig: (config: ProviderConfig) => void;
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
@@ -2039,12 +2062,24 @@ async function withController<ReturnValue>(
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
 
+  const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
+  controllerMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount.mockReturnValue({
+      address: '0x1',
+    } as InternalAccount),
+  );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
   controllerMessenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: isKeyringUnlocked ?? true,
     } as KeyringControllerState),
+  );
+  const mockFindNetworkClientIdByChainId = jest.fn<NetworkClientId, [Hex]>();
+  controllerMessenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    mockFindNetworkClientIdByChainId.mockReturnValue(NetworkType.mainnet),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
@@ -2053,10 +2088,18 @@ async function withController<ReturnValue>(
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
     mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
-      (networkClientId: string) => {
+      (networkClientId: NetworkClientId) => {
         return mockNetworkConfigurations[networkClientId];
       },
     ),
+  );
+  const mockGetProviderConfig = jest.fn<ProviderConfig, []>();
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getProviderConfig',
+    mockGetProviderConfig.mockReturnValue({
+      type: NetworkType.mainnet,
+      chainId: '0x1',
+    } as unknown as ProviderConfig),
   );
   const mockTokensState = jest.fn<TokensState, []>();
   controllerMessenger.registerActionHandler(
@@ -2096,6 +2139,9 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      mockGetSelectedAccount: (address: string) => {
+        mockGetSelectedAccount.mockReturnValue({ address } as InternalAccount);
+      },
       mockKeyringGetState: (state: KeyringControllerState) => {
         mockKeyringState.mockReturnValue(state);
       },
@@ -2108,12 +2154,20 @@ async function withController<ReturnValue>(
       mockTokenListGetState: (state: TokenListState) => {
         mockTokenListState.mockReturnValue(state);
       },
+      mockFindNetworkClientIdByChainId: (
+        handler: (chainId: Hex) => NetworkClientId,
+      ) => {
+        mockFindNetworkClientIdByChainId.mockImplementation(handler);
+      },
       mockGetNetworkConfigurationByNetworkClientId: (
-        handler: (networkClientId: string) => NetworkConfiguration,
+        handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
       ) => {
         mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
           handler,
         );
+      },
+      mockGetProviderConfig: (config: ProviderConfig) => {
+        mockGetProviderConfig.mockReturnValue(config);
       },
       callActionSpy,
       triggerKeyringUnlock: () => {

@@ -1,6 +1,6 @@
 import { query, fromHex, toHex } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import { when } from 'jest-when';
 
 import { FakeProvider } from '../../../tests/fake-provider';

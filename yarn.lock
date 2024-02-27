@@ -1481,6 +1481,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
+    "@ethereumjs/util": ^8.1.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
     "@metamask/eth-snap-keyring": ^2.1.1
@@ -1493,7 +1494,7 @@ __metadata:
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
+    ethereum-cryptography: ^2.1.2
     immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
@@ -1558,7 +1559,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1576,6 +1577,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
+    "@ethereumjs/util": ^8.1.0
     "@ethersproject/address": ^5.7.0
     "@ethersproject/bignumber": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
@@ -1595,16 +1597,17 @@ __metadata:
     "@metamask/network-controller": ^17.2.0
     "@metamask/polling-controller": ^5.0.0
     "@metamask/preferences-controller": ^7.0.0
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
+    "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
     "@types/lodash": ^4.14.191
     "@types/node": ^16.18.54
     "@types/uuid": ^8.3.0
     async-mutex: ^0.2.6
+    bn.js: ^5.2.1
     cockatiel: ^3.1.2
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
     lodash: ^4.17.21
@@ -1733,6 +1736,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
+    "@ethereumjs/util": ^8.1.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
@@ -1742,7 +1746,6 @@ __metadata:
     bn.js: ^5.2.1
     deepmerge: ^4.2.2
     eth-ens-namehash: ^2.0.8
-    ethereumjs-util: ^7.0.10
     fast-deep-equal: ^3.1.3
     jest: ^27.5.1
     nock: ^13.3.1
@@ -2123,11 +2126,12 @@ __metadata:
     "@metamask/network-controller": ^17.2.0
     "@metamask/polling-controller": ^5.0.0
     "@metamask/utils": ^8.3.0
+    "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
     "@types/uuid": ^8.3.0
+    bn.js: ^5.2.1
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     jest: ^27.5.1
     jest-when: ^3.4.2
     nock: ^13.3.1
@@ -2148,7 +2152,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": ^3.0.2
     "@metamask/auto-changelog": ^3.4.4
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2234,6 +2238,7 @@ __metadata:
   dependencies:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
+    "@ethereumjs/util": ^8.1.0
     "@keystonehq/bc-ur-registry-eth": ^0.9.0
     "@keystonehq/metamask-airgapped-keyring": ^0.13.1
     "@lavamoat/allow-scripts": ^3.0.2
@@ -2250,7 +2255,6 @@ __metadata:
     "@types/jest": ^27.4.1
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     ethereumjs-wallet: ^1.0.1
     immer: ^9.0.6
     jest: ^27.5.1
@@ -2294,7 +2298,6 @@ __metadata:
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     jest: ^27.5.1
     jsonschema: ^1.2.4
     ts-jest: ^27.1.4
@@ -2343,7 +2346,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": ^2.3.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/json-rpc-engine": ^7.3.2
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2414,6 +2417,33 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/permission-controller@^8.0.1, @metamask/permission-controller@workspace:packages/permission-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
+  dependencies:
+    "@metamask/approval-controller": ^5.1.2
+    "@metamask/auto-changelog": ^3.4.4
+    "@metamask/base-controller": ^4.1.1
+    "@metamask/controller-utils": ^8.0.3
+    "@metamask/json-rpc-engine": ^7.3.2
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/utils": ^8.3.0
+    "@types/deep-freeze-strict": ^1.1.0
+    "@types/jest": ^27.4.1
+    deep-freeze-strict: ^1.1.1
+    deepmerge: ^4.2.2
+    immer: ^9.0.6
+    jest: ^27.5.1
+    nanoid: ^3.1.31
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
+  peerDependencies:
+    "@metamask/approval-controller": ^5.1.2
+  languageName: unknown
+  linkType: soft
+
 "@metamask/permission-controller@npm:^7.0.0, @metamask/permission-controller@npm:^7.1.0":
   version: 7.1.0
   resolution: "@metamask/permission-controller@npm:7.1.0"
@@ -2432,33 +2462,6 @@ __metadata:
   checksum: 889213cca32cbf5b32b7e71c70ded0aeea32eae169ec67fb0d0bc8dcaa183b222f9d5417f657e331d7fb21ecb71f250cf1c932110d4b1e2167972b30bd012098
   languageName: node
   linkType: hard
-
-"@metamask/permission-controller@workspace:packages/permission-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
-  dependencies:
-    "@metamask/approval-controller": ^5.1.2
-    "@metamask/auto-changelog": ^3.4.4
-    "@metamask/base-controller": ^4.1.1
-    "@metamask/controller-utils": ^8.0.3
-    "@metamask/json-rpc-engine": ^7.3.2
-    "@metamask/rpc-errors": ^6.2.0
-    "@metamask/utils": ^8.3.0
-    "@types/deep-freeze-strict": ^1.1.0
-    "@types/jest": ^27.4.1
-    deep-freeze-strict: ^1.1.1
-    deepmerge: ^4.2.2
-    immer: ^9.0.6
-    jest: ^27.5.1
-    nanoid: ^3.1.31
-    ts-jest: ^27.1.4
-    typedoc: ^0.24.8
-    typedoc-plugin-missing-exports: ^2.0.0
-    typescript: ~4.8.4
-  peerDependencies:
-    "@metamask/approval-controller": ^5.1.2
-  languageName: unknown
-  linkType: soft
 
 "@metamask/permission-log-controller@workspace:packages/permission-log-controller":
   version: 0.0.0-use.local
@@ -2589,7 +2592,7 @@ __metadata:
     "@metamask/controller-utils": ^8.0.3
     "@metamask/json-rpc-engine": ^7.3.2
     "@metamask/network-controller": ^17.2.0
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/selected-network-controller": ^8.0.0
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
@@ -2617,7 +2620,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2628,13 +2631,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/rpc-errors@npm:^6.0.0, @metamask/rpc-errors@npm:^6.1.0, @metamask/rpc-errors@npm:^6.2.0":
-  version: 6.2.0
-  resolution: "@metamask/rpc-errors@npm:6.2.0"
+"@metamask/rpc-errors@npm:^6.0.0, @metamask/rpc-errors@npm:^6.1.0, @metamask/rpc-errors@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "@metamask/rpc-errors@npm:6.2.1"
   dependencies:
     "@metamask/utils": ^8.3.0
     fast-safe-stringify: ^2.0.6
-  checksum: 1db3065d3f391916ef958531f4e1101a9c3abd0794f446a8b938165bd6e2ddb706f174ad4fdd5a04bfe4eb6b2bb4dd638957cb9bc321f6835cb0431264327087
+  checksum: a9223c3cb9ab05734ea0dda990597f90a7cdb143efa0c026b1a970f2094fe5fa3c341ed39b1e7623be13a96b98fb2c697ef51a2e2b87d8f048114841d35ee0a9
   languageName: node
   linkType: hard
 
@@ -2670,6 +2673,7 @@ __metadata:
     "@metamask/base-controller": ^4.1.1
     "@metamask/json-rpc-engine": ^7.3.2
     "@metamask/network-controller": ^17.2.0
+    "@metamask/permission-controller": ^8.0.1
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2699,11 +2703,10 @@ __metadata:
     "@metamask/keyring-controller": ^12.2.0
     "@metamask/logging-controller": ^2.0.2
     "@metamask/message-manager": ^7.3.8
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     jest: ^27.5.1
     lodash: ^4.17.21
     ts-jest: ^27.1.4
@@ -2891,13 +2894,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^23.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@^23.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
     "@babel/runtime": ^7.23.9
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
+    "@ethereumjs/util": ^8.1.0
     "@ethersproject/abi": ^5.7.0
     "@metamask/approval-controller": ^5.1.2
     "@metamask/auto-changelog": ^3.4.4
@@ -2908,14 +2912,15 @@ __metadata:
     "@metamask/gas-fee-controller": ^13.0.1
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^17.2.0
-    "@metamask/rpc-errors": ^6.2.0
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
+    "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.54
     async-mutex: ^0.2.6
+    bn.js: ^5.2.1
     deepmerge: ^4.2.2
     eth-method-registry: ^4.0.0
-    ethereumjs-util: ^7.0.10
     fast-json-patch: ^3.1.1
     jest: ^27.5.1
     lodash: ^4.17.21
@@ -2948,12 +2953,12 @@ __metadata:
     "@metamask/keyring-controller": ^12.2.0
     "@metamask/network-controller": ^17.2.0
     "@metamask/polling-controller": ^5.0.0
-    "@metamask/rpc-errors": ^6.2.0
-    "@metamask/transaction-controller": ^23.0.0
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/transaction-controller": ^23.1.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
+    bn.js: ^5.2.1
     deepmerge: ^4.2.2
-    ethereumjs-util: ^7.0.10
     immer: ^9.0.6
     jest: ^27.5.1
     lodash: ^4.17.21
@@ -3371,12 +3376,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/bn.js@npm:^5.1.0":
-  version: 5.1.1
-  resolution: "@types/bn.js@npm:5.1.1"
+"@types/bn.js@npm:^5.1.0, @types/bn.js@npm:^5.1.5":
+  version: 5.1.5
+  resolution: "@types/bn.js@npm:5.1.5"
   dependencies:
     "@types/node": "*"
-  checksum: e50ed2dd3abe997e047caf90e0352c71e54fc388679735217978b4ceb7e336e51477791b715f49fd77195ac26dd296c7bad08a3be9750e235f9b2e1edb1b51c2
+  checksum: c87b28c4af74545624f8a3dae5294b16aa190c222626e8d4b2e327b33b1a3f1eeb43e7a24d914a9774bca43d8cd6e1cb0325c1f4b3a244af6693a024e1d918e6
   languageName: node
   linkType: hard
 
@@ -6030,7 +6035,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethereumjs-util@npm:^7.0.10, ethereumjs-util@npm:^7.0.8, ethereumjs-util@npm:^7.1.2":
+"ethereumjs-util@npm:^7.0.8, ethereumjs-util@npm:^7.1.2":
   version: 7.1.5
   resolution: "ethereumjs-util@npm:7.1.5"
   dependencies:
