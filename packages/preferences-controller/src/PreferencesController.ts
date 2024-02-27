@@ -240,7 +240,9 @@ export class PreferencesController extends BaseController<
             accounts.add(account);
           }
         }
-        this.#syncIdentities(Array.from(accounts));
+        if (accounts.size > 0) {
+          this.#syncIdentities(Array.from(accounts));
+        }
       },
     );
   }
@@ -321,10 +323,6 @@ export class PreferencesController extends BaseController<
    * @param addresses - List of addresses corresponding to identities to sync.
    */
   #syncIdentities(addresses: string[]) {
-    if (!addresses.length) {
-      return;
-    }
-
     addresses = addresses.map((address: string) =>
       toChecksumHexAddress(address),
     );
