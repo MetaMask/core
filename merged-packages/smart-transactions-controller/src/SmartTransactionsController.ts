@@ -549,21 +549,14 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     >;
 
     Object.entries(data).forEach(([uuid, stxStatus]) => {
-      const transactionHash = stxStatus?.minedHash;
-      this.eventEmitter.emit(`${uuid}:status`, stxStatus);
-      if (transactionHash) {
-        this.eventEmitter.emit(`${uuid}:transaction-hash`, transactionHash);
-      }
-
-      this.#updateSmartTransaction(
-        {
-          statusMetadata: stxStatus,
-          status: calculateStatus(stxStatus),
-          cancellable: isSmartTransactionCancellable(stxStatus),
-          uuid,
-        },
-        { chainId, ethQuery },
-      );
+      const smartTransaction = {
+        statusMetadata: stxStatus,
+        status: calculateStatus(stxStatus),
+        cancellable: isSmartTransactionCancellable(stxStatus),
+        uuid,
+      };
+      this.eventEmitter.emit(`${uuid}:smartTransaction`, smartTransaction);
+      this.#updateSmartTransaction(smartTransaction, { chainId, ethQuery });
     });
 
     return data;
