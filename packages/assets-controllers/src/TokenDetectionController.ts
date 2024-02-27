@@ -566,11 +566,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }
 
     const slicesOfTokensToDetect = [];
-    slicesOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
-    slicesOfTokensToDetect[1] = tokensToDetect.slice(
-      1000,
-      tokensToDetect.length - 1,
-    );
+    for (let i = 0, size = 1000; i < tokensToDetect.length; i += size) {
+      slicesOfTokensToDetect.push(tokensToDetect.slice(i, i + size));
+    }
 
     return slicesOfTokensToDetect;
   }
