@@ -361,6 +361,14 @@ describe('PreferencesController', () => {
     expect(controller.state.useNftDetection).toBe(true);
   });
 
+  it('should throw an error when useNftDetection is set and openSeaEnabled is false', () => {
+    const controller = setupPreferencesController();
+    controller.setOpenSeaEnabled(false);
+    expect(() => controller.setUseNftDetection(true)).toThrow(
+      'useNftDetection cannot be enabled if openSeaEnabled is false',
+    );
+  });
+
   it('should set securityAlertsEnabled', () => {
     const controller = setupPreferencesController();
     controller.setSecurityAlertsEnabled(true);
