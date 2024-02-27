@@ -1,22 +1,21 @@
+import { hexlify } from '@ethersproject/bytes';
+import { BigNumber } from 'bignumber.js';
 import jsonDiffer from 'fast-json-patch';
 import _ from 'lodash';
-import { BigNumber } from 'bignumber.js';
-import { hexlify } from '@ethersproject/bytes';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import packageJson from '../package.json';
-
+import { API_BASE_URL } from './constants';
+import type { SmartTransaction, SmartTransactionsStatus } from './types';
 import {
   APIType,
-  SmartTransaction,
-  SmartTransactionsStatus,
   SmartTransactionStatuses,
   SmartTransactionCancellationReason,
   SmartTransactionMinedTx,
   cancellationReasonToStatusMap,
 } from './types';
-import { API_BASE_URL } from './constants';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import packageJson from '../package.json';
 
 export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
   return smartTransaction.status === SmartTransactionStatuses.PENDING;

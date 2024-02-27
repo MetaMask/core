@@ -1,22 +1,19 @@
+import { convertHexToDecimal } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
-import { NetworkState } from '@metamask/network-controller';
-import { convertHexToDecimal } from '@metamask/controller-utils';
+
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import packageJson from '../package.json';
-
+import { API_BASE_URL, CHAIN_IDS } from './constants';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';
-import { API_BASE_URL, CHAIN_IDS } from './constants';
-import {
-  SmartTransaction,
-  SmartTransactionStatuses,
-  UnsignedTransaction,
-} from './types';
-import * as utils from './utils';
 import { flushPromises, advanceTime } from './test-helpers';
+import type { SmartTransaction, UnsignedTransaction } from './types';
+import { SmartTransactionStatuses } from './types';
+import * as utils from './utils';
+import packageJson from '../package.json';
 
 jest.mock('@ethersproject/bytes', () => ({
   ...jest.requireActual('@ethersproject/bytes'),
@@ -397,7 +394,7 @@ describe('SmartTransactionsController', () => {
     it('calls poll if there is no pending transaction and pending transactions', () => {
       const pollSpy = jest
         .spyOn(smartTransactionsController, 'poll')
-        .mockImplementation(() => {
+        .mockImplementation(async () => {
           return new Promise(() => ({}));
         });
       const { smartTransactionsState } = smartTransactionsController.state;
@@ -445,7 +442,7 @@ describe('SmartTransactionsController', () => {
     it('calls fetchSmartTransactionsStatus if there are pending transactions', () => {
       const fetchSmartTransactionsStatusSpy = jest
         .spyOn(smartTransactionsController, 'fetchSmartTransactionsStatus')
-        .mockImplementation(() => {
+        .mockImplementation(async () => {
           return new Promise(() => ({}));
         });
       const { smartTransactionsState } = smartTransactionsController.state;
@@ -527,7 +524,7 @@ describe('SmartTransactionsController', () => {
         approvalTxFees: getFeesApiResponse.txs[0],
         tradeTxFees: getFeesApiResponse.txs[1],
       });
-      await smartTransactionsController.clearFees();
+      smartTransactionsController.clearFees();
       expect(
         smartTransactionsController.state.smartTransactionsState.fees,
       ).toStrictEqual({

@@ -1,5 +1,5 @@
-import SmartTransactionsController from './SmartTransactionsController';
 import DefaultExport from '.';
+import SmartTransactionsController from './SmartTransactionsController';
 
 describe('default export', () => {
   it('exports SmartTransactionsController', () => {

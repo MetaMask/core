@@ -1,15 +1,14 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import packageJson from '../package.json';
-
-import * as utils from './utils';
+import { API_BASE_URL, CHAIN_IDS } from './constants';
 import {
   SmartTransactionMinedTx,
   APIType,
   SmartTransactionStatuses,
   SmartTransactionCancellationReason,
 } from './types';
-import { API_BASE_URL, CHAIN_IDS } from './constants';
+import * as utils from './utils';
+import packageJson from '../package.json';
 
 describe('src/utils.js', () => {
   describe('isSmartTransactionPending', () => {

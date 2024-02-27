@@ -3,7 +3,7 @@
  * This method is used for async tests that use fake timers.
  * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
  */
-export const flushPromises = () => {
+export const flushPromises = async () => {
   return new Promise(jest.requireActual('timers').setImmediate);
 };
 

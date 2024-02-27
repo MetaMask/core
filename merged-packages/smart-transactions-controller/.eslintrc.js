@@ -7,8 +7,14 @@ module.exports = {
     {
       files: ['*.ts'],
       extends: ['@metamask/eslint-config-typescript'],
+      rules: {
+        '@typescript-eslint/naming-convention': 0,
+        '@typescript-eslint/no-floating-promises': 1,
+        '@typescript-eslint/prefer-enum-initializers': 0,
+        '@typescript-eslint/restrict-template-expressions': 1,
+        'no-restricted-syntax': 0,
+      },
     },
-
     {
       files: ['*.js'],
       parserOptions: {
@@ -19,6 +25,10 @@ module.exports = {
 
     {
       files: ['*.test.ts', '*.test.js'],
+      parserOptions: {
+        project: ['./tsconfig.test.json'],
+        tsconfigRootDir: __dirname,
+      },
       extends: ['@metamask/eslint-config-jest'],
     },
   ],
