@@ -6,8 +6,9 @@
   "references": [
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
+    { "path": "../gas-fee-controller" },
     { "path": "../network-controller" },
     { "path": "../approval-controller" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src/**/*"]
 }

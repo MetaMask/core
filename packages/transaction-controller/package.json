@@ -35,6 +35,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/eth-query": "^3.0.1",
+    "@metamask/gas-fee-controller": "workspace:^",
     "@metamask/network-controller": "workspace:^",
     "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
