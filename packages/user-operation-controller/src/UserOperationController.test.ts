@@ -824,7 +824,7 @@ describe('UserOperationController', () => {
       expect(prepareMock).toHaveBeenCalledTimes(1);
     });
 
-    it('uses gas limits suggested by snap during #addPaymasterData', async () => {
+    it('uses gas limits suggested by smart contract account during #addPaymasterData', async () => {
       const controller = new UserOperationController(optionsMock);
       const UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK: UpdateUserOperationResponse =
         {
