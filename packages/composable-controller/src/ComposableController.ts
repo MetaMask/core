@@ -179,10 +179,9 @@ export class ComposableController extends BaseController<
     const { name } = controller;
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState) => {
-        this.update((state) => ({
-          ...state,
-          [name]: childState,
-        }));
+        this.update((state) => {
+          Object.assign(state, { [name]: childState });
+        });
       });
     }
     if (
@@ -192,6 +191,9 @@ export class ComposableController extends BaseController<
       this.messagingSystem.subscribe(
         `${name}:stateChange`,
         (childState: Record<string, unknown>) => {
+          this.update((state) => {
+            Object.assign(state, { [name]: childState });
+          });
         },
       );
     }
