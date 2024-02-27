@@ -158,7 +158,7 @@ export class ComposableController extends BaseController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
+      metadata: controllers.reduce(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
@@ -167,12 +167,9 @@ export class ComposableController extends BaseController<
         }),
         {},
       ),
-      state: controllers.reduce<ComposableControllerState>(
-        (state, controller) => {
-          return { ...state, [controller.name]: controller.state };
-        },
-        {},
-      ),
+      state: controllers.reduce((state, controller) => {
+        return { ...state, [controller.name]: controller.state };
+      }, {}),
       messenger,
     });
 
