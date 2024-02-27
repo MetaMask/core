@@ -329,7 +329,7 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly inProcessOfSigning: Set<string> = new Set();
 
-  private nonceTracker: NonceTracker;
+  private nonceTracker!: NonceTracker;
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -337,7 +337,7 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly mutex = new Mutex();
 
-  private readonly gasFeeFlows: GasFeeFlow[];
+  private gasFeeFlows!: GasFeeFlow[];
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
@@ -364,13 +364,13 @@ export class TransactionController extends BaseControllerV1<
 
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
 
-  private incomingTransactionHelper: IncomingTransactionHelper;
+  private incomingTransactionHelper!: IncomingTransactionHelper;
 
   private readonly securityProviderRequest?: SecurityProviderRequest;
 
   readonly #pendingTransactionOptions: PendingTransactionOptions;
 
-  private pendingTransactionTracker: PendingTransactionTracker;
+  private pendingTransactionTracker!: PendingTransactionTracker;
 
   private readonly onNetworkStateChange: (
     listener: (state: NetworkState) => void,
@@ -437,7 +437,7 @@ export class TransactionController extends BaseControllerV1<
     return { registryMethod, parsedRegistryMethod };
   }
 
-  #multichainTrackingHelper: MultichainTrackingHelper;
+  #multichainTrackingHelper!: MultichainTrackingHelper;
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -530,101 +530,10 @@ export class TransactionController extends BaseControllerV1<
     this.publish =
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
-    this.nonceTracker = this.#createNonceTracker({
-      provider,
-      blockTracker,
-    });
-
-    this.#multichainTrackingHelper = new MultichainTrackingHelper({
-      isMultichainEnabled,
-      provider,
-      nonceTracker: this.nonceTracker,
-      incomingTransactionOptions: incomingTransactions,
-      findNetworkClientIdByChainId: (chainId: Hex) => {
-        return this.messagingSystem.call(
-          `NetworkController:findNetworkClientIdByChainId`,
-          chainId,
-        );
-      },
-      getNetworkClientById: ((networkClientId: NetworkClientId) => {
-        return this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        );
-      }) as NetworkController['getNetworkClientById'],
-      getNetworkClientRegistry,
-      removeIncomingTransactionHelperListeners:
-        this.#removeIncomingTransactionHelperListeners.bind(this),
-      removePendingTransactionTrackerListeners:
-        this.#removePendingTransactionTrackerListeners.bind(this),
-      createNonceTracker: this.#createNonceTracker.bind(this),
-      createIncomingTransactionHelper:
-        this.#createIncomingTransactionHelper.bind(this),
-      createPendingTransactionTracker:
-        this.#createPendingTransactionTracker.bind(this),
-      onNetworkStateChange: (listener) => {
-        this.messagingSystem.subscribe(
-          'NetworkController:stateChange',
-          listener,
-        );
-      },
-    });
-    this.#multichainTrackingHelper.initialize();
-
-    const etherscanRemoteTransactionSource =
-      new EtherscanRemoteTransactionSource({
-        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
-      });
-
-    this.incomingTransactionHelper = this.#createIncomingTransactionHelper({
-      blockTracker,
-      etherscanRemoteTransactionSource,
-    });
-
-    this.pendingTransactionTracker = this.#createPendingTransactionTracker({
-      provider,
-      blockTracker,
-    });
-
-    this.gasFeeFlows = this.#getGasFeeFlows();
-
-    const gasFeePoller = new GasFeePoller({
-      // Default gas fee polling is not yet supported by the clients
-      gasFeeFlows: this.gasFeeFlows.slice(0, -1),
-      getEthQuery: (chainId, networkClientId) =>
-        this.#multichainTrackingHelper.getEthQuery({
-          networkClientId,
-          chainId,
-        }),
-      getGasFeeControllerEstimates: this.getGasFeeEstimates,
-      getTransactions: () => this.state.transactions,
-      onStateChange: (listener) => {
-        this.subscribe(listener);
-      },
-    });
-
-    gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
-      this.#updateTransactionInternal(transactionMeta, { skipHistory: true }),
-    );
-
-    // when transactionsController state changes
-    // check for pending transactions and start polling if there are any
-    this.subscribe(this.#checkForPendingTransactionAndStartPolling);
-
-    // TODO once v2 is merged make sure this only runs when
-    // selectedNetworkClientId changes
-    onNetworkStateChange(() => {
-      log('Detected network change', this.getChainId());
-      this.pendingTransactionTracker.startIfPendingTransactions();
-      this.onBootCleanup();
-    });
-
     this.onNetworkStateChange = onNetworkStateChange;
     this.isMultichainEnabled = isMultichainEnabled;
     this.incomingTransactions = incomingTransactions;
     this.getNetworkClientRegistry = getNetworkClientRegistry;
-
-    this.onBootCleanup();
   }
 
   /**
@@ -698,6 +607,31 @@ export class TransactionController extends BaseControllerV1<
       blockTracker: passedBlockTracker,
     });
 
+    this.gasFeeFlows = this.#getGasFeeFlows();
+
+    const gasFeePoller = new GasFeePoller({
+      // Default gas fee polling is not yet supported by the clients
+      gasFeeFlows: this.gasFeeFlows.slice(0, -1),
+      getEthQuery: (chainId, networkClientId) =>
+        this.#multichainTrackingHelper.getEthQuery({
+          networkClientId,
+          chainId,
+        }),
+      getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getTransactions: () => this.state.transactions,
+      onStateChange: (listener) => {
+        this.subscribe(listener);
+      },
+    });
+
+    gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
+      this.#updateTransactionInternal(transactionMeta, { skipHistory: true }),
+    );
+
+    // when transactionsController state changes
+    // check for pending transactions and start polling if there are any
+    this.subscribe(this.#checkForPendingTransactionAndStartPolling);
+
     // TODO once v2 is merged make sure this only runs when
     // selectedNetworkClientId changes
     this.onNetworkStateChange(() => {
@@ -705,6 +639,8 @@ export class TransactionController extends BaseControllerV1<
       this.pendingTransactionTracker.startIfPendingTransactions();
       this.onBootCleanup();
     });
+
+    this.onBootCleanup();
   }
 
   /**
