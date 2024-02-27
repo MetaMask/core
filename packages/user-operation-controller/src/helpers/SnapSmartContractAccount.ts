@@ -65,12 +65,16 @@ export class SnapSmartContractAccount implements SmartContractAccount {
     const { userOperation } = request;
     const { sender } = userOperation;
 
-    const { paymasterAndData: responsePaymasterAndData } =
-      await this.#messenger.call(
-        'KeyringController:patchUserOperation',
-        sender,
-        userOperation,
-      );
+    const {
+      paymasterAndData: responsePaymasterAndData,
+      verificationGasLimit,
+      preVerificationGas,
+      callGasLimit,
+    } = await this.#messenger.call(
+      'KeyringController:patchUserOperation',
+      sender,
+      userOperation,
+    );
 
     const paymasterAndData =
       responsePaymasterAndData === EMPTY_BYTES
@@ -79,6 +83,9 @@ export class SnapSmartContractAccount implements SmartContractAccount {
 
     return {
       paymasterAndData,
+      verificationGasLimit,
+      preVerificationGas,
+      callGasLimit,
     };
   }
 
