@@ -8,6 +8,11 @@ import type {
   NetworkControllerStateChangeEvent,
   ProviderProxy,
 } from '@metamask/network-controller';
+import type {
+  PermissionControllerStateChange,
+  GetSubjects as PermissionControllerGetSubjectsAction,
+  HasPermissions as PermissionControllerHasPermissions,
+} from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
 
@@ -69,11 +74,6 @@ export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
   handler: SelectedNetworkController['setNetworkClientIdForDomain'];
 };
 
-type PermissionControllerHasPermissions = {
-  type: `PermissionController:hasPermissions`;
-  handler: (domain: string) => boolean;
-};
-
 export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetSelectedNetworkStateAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
@@ -82,12 +82,15 @@ export type SelectedNetworkControllerActions =
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
-  | PermissionControllerHasPermissions;
+  | PermissionControllerHasPermissions
+  | PermissionControllerGetSubjectsAction;
 
 export type SelectedNetworkControllerEvents =
   SelectedNetworkControllerStateChangeEvent;
 
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | PermissionControllerStateChange;
 
 export type SelectedNetworkControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -135,6 +138,45 @@ export class SelectedNetworkController extends BaseController<
       state,
     });
     this.#registerMessageHandlers();
+
+    // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
+    this.messagingSystem
+      .call('PermissionController:getSubjectNames')
+      .filter((domain) => this.state.domains[domain] === undefined)
+      .forEach((domain) =>
+        this.setNetworkClientIdForDomain(
+          domain,
+          this.messagingSystem.call('NetworkController:getState')
+            .selectedNetworkClientId,
+        ),
+      );
+
+    this.messagingSystem.subscribe(
+      'PermissionController:stateChange',
+      (_, patches) => {
+        patches.forEach(({ op, path }) => {
+          const isChangingSubject =
+            path[0] === 'subjects' && path[1] !== undefined;
+          if (isChangingSubject && typeof path[1] === 'string') {
+            const domain = path[1];
+            if (op === 'add' && this.state.domains[domain] === undefined) {
+              this.setNetworkClientIdForDomain(
+                domain,
+                this.messagingSystem.call('NetworkController:getState')
+                  .selectedNetworkClientId,
+              );
+            } else if (
+              op === 'remove' &&
+              this.state.domains[domain] !== undefined
+            ) {
+              this.update(({ domains }) => {
+                delete domains[domain];
+              });
+            }
+          }
+        });
+      },
+    );
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',

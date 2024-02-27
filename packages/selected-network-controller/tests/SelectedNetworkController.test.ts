@@ -32,6 +32,7 @@ function buildMessenger() {
  * @param options - The options bag.
  * @param options.messenger - A controller messenger.
  * @param options.hasPermissions - Whether the requesting domain has permissions.
+ * @param options.getSubjectNames - Permissions controller list of domains with permissions
  * @returns The network controller restricted messenger.
  */
 export function buildSelectedNetworkControllerMessenger({
@@ -40,12 +41,14 @@ export function buildSelectedNetworkControllerMessenger({
     SelectedNetworkControllerEvents | AllowedEvents
   >(),
   hasPermissions,
+  getSubjectNames,
 }: {
   messenger?: ControllerMessenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >;
   hasPermissions?: boolean;
+  getSubjectNames?: string[];
 } = {}): SelectedNetworkControllerMessenger {
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
@@ -62,14 +65,22 @@ export function buildSelectedNetworkControllerMessenger({
     'PermissionController:hasPermissions',
     jest.fn().mockReturnValue(hasPermissions),
   );
+  messenger.registerActionHandler(
+    'PermissionController:getSubjectNames',
+    jest.fn().mockReturnValue(getSubjectNames),
+  );
   return messenger.getRestricted({
     name: controllerName,
     allowedActions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'PermissionController:hasPermissions',
+      'PermissionController:getSubjectNames',
     ],
-    allowedEvents: ['NetworkController:stateChange'],
+    allowedEvents: [
+      'NetworkController:stateChange',
+      'PermissionController:stateChange',
+    ],
   });
 }
 
@@ -77,10 +88,12 @@ jest.mock('@metamask/swappable-obj-proxy');
 
 const setup = ({
   hasPermissions = true,
+  getSubjectNames = [],
   state,
 }: {
   hasPermissions?: boolean;
   state?: SelectedNetworkControllerState;
+  getSubjectNames?: string[];
 } = {}) => {
   const mockProviderProxy = {
     setTarget: jest.fn(),
@@ -121,6 +134,7 @@ const setup = ({
     buildSelectedNetworkControllerMessenger({
       messenger,
       hasPermissions,
+      getSubjectNames,
     });
   const controller = new SelectedNetworkController({
     messenger: selectedNetworkControllerMessenger,
@@ -430,6 +444,73 @@ describe('SelectedNetworkController', () => {
         controller.setPerDomainNetwork(false);
         expect(controller.state.perDomainNetwork).toBe(false);
       });
+    });
+  });
+  describe('When a permission is added or removed', () => {
+    it('should add new domain to domains list on permission add', async () => {
+      const { controller, messenger } = setup();
+      const mockPermission = {
+        parentCapability: 'eth_accounts',
+        id: 'example.com',
+        date: Date.now(),
+        caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
+      };
+
+      messenger.publish('PermissionController:stateChange', { subjects: {} }, [
+        {
+          op: 'add',
+          path: ['subjects', 'example.com', 'permissions'],
+          value: mockPermission,
+        },
+      ]);
+
+      const { domains } = controller.state;
+      expect(domains['example.com']).toBeDefined();
+    });
+
+    it('should remove domain from domains list on permission removal', async () => {
+      const { controller, messenger } = setup({
+        state: { perDomainNetwork: true, domains: { 'example.com': 'foo' } },
+      });
+
+      messenger.publish('PermissionController:stateChange', { subjects: {} }, [
+        {
+          op: 'remove',
+          path: ['subjects', 'example.com', 'permissions'],
+        },
+      ]);
+
+      const { domains } = controller.state;
+      expect(domains['example.com']).toBeUndefined();
+    });
+  });
+  describe('Constructor checks for domains in permissions', () => {
+    it('should set networkClientId for domains not already in state', async () => {
+      const getSubjectNamesMock = ['newdomain.com'];
+      const { controller } = setup({
+        state: { perDomainNetwork: true, domains: {} },
+        getSubjectNames: getSubjectNamesMock,
+      });
+
+      // Now, 'newdomain.com' should have the selectedNetworkClientId set
+      expect(controller.state.domains['newdomain.com']).toBe('mainnet');
+    });
+
+    it('should not modify domains already in state', async () => {
+      const { controller } = setup({
+        state: {
+          perDomainNetwork: true,
+          domains: {
+            'existingdomain.com': 'initialNetworkId',
+          },
+        },
+        getSubjectNames: ['existingdomain.com'],
+      });
+
+      // The 'existingdomain.com' should retain its initial networkClientId
+      expect(controller.state.domains['existingdomain.com']).toBe(
+        'initialNetworkId',
+      );
     });
   });
 });
