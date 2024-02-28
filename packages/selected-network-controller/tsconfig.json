@@ -13,6 +13,9 @@
     },
     {
       "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../permission-controller"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
