@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: remove updateIdentities and make syncIdentities private in preferences controller ([#3976](https://github.com/MetaMask/core/pull/3976))
+- fix(preferences-controller): skip sync when locking ([#3946](https://github.com/MetaMask/core/pull/3946))
+- Release 116.0.0 ([#3915](https://github.com/MetaMask/core/pull/3915))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/core/pull/3850))
+
 ## [7.0.0]
 
 ### Changed
