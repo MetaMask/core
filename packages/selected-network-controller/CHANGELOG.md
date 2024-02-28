@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- remove redundant perDomainNetwork state ([#3989](https://github.com/MetaMask/core/pull/3989))
-- Listen to permissions changes and add/remove `domains` ([#3969](https://github.com/MetaMask/core/pull/3969))
-
 ## [8.0.0]
 
 ### Changed

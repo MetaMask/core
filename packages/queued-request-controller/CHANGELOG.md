@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor(queued-request-controller): Refactor request processing ([#3968](https://github.com/MetaMask/core/pull/3968))
-- chore(queued-request-controller): Remove `countChanged` event ([#3985](https://github.com/MetaMask/core/pull/3985))
-- fix(queued-request-controller): Add missing type exports ([#3984](https://github.com/MetaMask/core/pull/3984))
-- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
-
 ## [0.5.0]
 
 ### Changed
