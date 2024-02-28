@@ -17,7 +17,7 @@ import type { TransactionParams, TransactionMeta } from './types';
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
 const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
-  data: (data: string) => addHexPrefix(data),
+  data: (data: string) => addHexPrefix(padHexToEvenLength(data)),
   from: (from: string) => addHexPrefix(from).toLowerCase(),
   gas: (gas: string) => addHexPrefix(gas),
   gasLimit: (gas: string) => addHexPrefix(gas),
@@ -39,7 +39,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  * @param txParams - The transaction params to normalize.
  * @returns Normalized transaction params.
  */
-export function normalizeTxParams(txParams: TransactionParams) {
+export function normalizeTransactionParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
   let key: keyof TransactionParams;
   for (key in NORMALIZERS) {
@@ -243,4 +243,19 @@ export function validateIfTransactionUnapproved(
       Current tx status: ${transactionMeta?.status}`,
     );
   }
+}
+
+/**
+ * Ensure a hex string is of even length by adding a leading 0 if necessary.
+ * Any existing `0x` prefix is preserved but is not added if missing.
+ *
+ * @param hex - The hex string to ensure is even.
+ * @returns The hex string with an even length.
+ */
+export function padHexToEvenLength(hex: string) {
+  const prefix = hex.toLowerCase().startsWith('0x') ? hex.slice(0, 2) : '';
+  const data = prefix ? hex.slice(2) : hex;
+  const evenData = data.length % 2 === 0 ? data : `0${data}`;
+
+  return prefix + evenData;
 }
