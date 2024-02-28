@@ -2593,7 +2593,7 @@ __metadata:
     "@metamask/json-rpc-engine": ^7.3.2
     "@metamask/network-controller": ^17.2.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/selected-network-controller": ^8.0.0
+    "@metamask/selected-network-controller": ^9.0.0
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2610,7 +2610,7 @@ __metadata:
   peerDependencies:
     "@metamask/approval-controller": ^5.1.2
     "@metamask/network-controller": ^17.2.0
-    "@metamask/selected-network-controller": ^8.0.0
+    "@metamask/selected-network-controller": ^9.0.0
   languageName: unknown
   linkType: soft
 
@@ -2665,22 +2665,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@npm:^8.0.0":
-  version: 8.0.0
-  resolution: "@metamask/selected-network-controller@npm:8.0.0"
-  dependencies:
-    "@metamask/base-controller": ^4.1.1
-    "@metamask/json-rpc-engine": ^7.3.2
-    "@metamask/network-controller": ^17.2.0
-    "@metamask/swappable-obj-proxy": ^2.2.0
-    "@metamask/utils": ^8.3.0
-  peerDependencies:
-    "@metamask/network-controller": ^17.2.0
-  checksum: e2a2ba3e8ebc773b794579b558735a8ec33dc91d78d887b126d9c7f6f5744e5e0e31daca8ac5e58bc9db095aeebdd092cd170ac5170e1c33bee42f4dfc3b5cd6
-  languageName: node
-  linkType: hard
-
-"@metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@^9.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
