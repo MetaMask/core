@@ -42,7 +42,7 @@ import { Hex } from '@metamask/utils';
 import { GasFeeState } from '@metamask/gas-fee-controller';
 import {
   getAndFormatTransactionsForNonceTracker,
-  normalizeTransaction,
+  normalizeTransactionParams,
   validateTransaction,
   getIncreasedPriceFromExisting,
   isGasPriceValue,
@@ -422,7 +422,7 @@ export class TransactionController extends BaseController<
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
-    transaction = normalizeTransaction(transaction);
+    transaction = normalizeTransactionParams(transaction);
     validateTransaction(transaction);
 
     const transactionMeta: TransactionMeta = {
@@ -887,7 +887,7 @@ export class TransactionController extends BaseController<
    */
   updateTransaction(transactionMeta: TransactionMeta) {
     const { transactions } = this.state;
-    transactionMeta.transaction = normalizeTransaction(
+    transactionMeta.transaction = normalizeTransactionParams(
       transactionMeta.transaction,
     );
     validateTransaction(transactionMeta.transaction);
