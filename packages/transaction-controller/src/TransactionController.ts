@@ -57,7 +57,7 @@ import type {
 import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
-  normalizeTransaction,
+  normalizeTransactionParams,
   validateTransaction,
   getIncreasedPriceFromExisting,
   isEIP1559Transaction,
@@ -423,7 +423,7 @@ export class TransactionController extends BaseController<
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
-    transaction = normalizeTransaction(transaction);
+    transaction = normalizeTransactionParams(transaction);
     validateTransaction(transaction);
 
     const transactionMeta: TransactionMeta = {
@@ -885,7 +885,7 @@ export class TransactionController extends BaseController<
    */
   updateTransaction(transactionMeta: TransactionMeta) {
     const { transactions } = this.state;
-    transactionMeta.transaction = normalizeTransaction(
+    transactionMeta.transaction = normalizeTransactionParams(
       transactionMeta.transaction,
     );
     validateTransaction(transactionMeta.transaction);
