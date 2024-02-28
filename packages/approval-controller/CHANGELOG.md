@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/controllers/pull/3970))
-- Bump `@metamask/rpc-errors` to `^6.2.0` ([#3954](https://github.com/MetaMask/controllers/pull/3954))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/controllers/pull/3850))
-
 ## [5.1.2]
 
 ### Changed
@@ -163,25 +157,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@5.1.2...HEAD
-[5.1.2]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@5.1.1...@metamask/approval-controller@5.1.2
-[5.1.1]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@5.1.0...@metamask/approval-controller@5.1.1
-[5.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@5.0.0...@metamask/approval-controller@5.1.0
-[5.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@4.1.0...@metamask/approval-controller@5.0.0
-[4.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@4.0.1...@metamask/approval-controller@4.1.0
-[4.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@4.0.0...@metamask/approval-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.5.2...@metamask/approval-controller@4.0.0
-[3.5.2]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.5.1...@metamask/approval-controller@3.5.2
-[3.5.1]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.5.0...@metamask/approval-controller@3.5.1
-[3.5.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.4.0...@metamask/approval-controller@3.5.0
-[3.4.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.3.0...@metamask/approval-controller@3.4.0
-[3.3.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.2.0...@metamask/approval-controller@3.3.0
-[3.2.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.1.0...@metamask/approval-controller@3.2.0
-[3.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@3.0.0...@metamask/approval-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@2.1.1...@metamask/approval-controller@3.0.0
-[2.1.1]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@2.1.0...@metamask/approval-controller@2.1.1
-[2.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@2.0.0...@metamask/approval-controller@2.1.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@1.1.0...@metamask/approval-controller@2.0.0
-[1.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@1.0.1...@metamask/approval-controller@1.1.0
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/approval-controller@1.0.0...@metamask/approval-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/approval-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.2...HEAD
+[5.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.1...@metamask/approval-controller@5.1.2
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.0...@metamask/approval-controller@5.1.1
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.0.0...@metamask/approval-controller@5.1.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.1.0...@metamask/approval-controller@5.0.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.0.1...@metamask/approval-controller@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.0.0...@metamask/approval-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.2...@metamask/approval-controller@4.0.0
+[3.5.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.1...@metamask/approval-controller@3.5.2
+[3.5.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.0...@metamask/approval-controller@3.5.1
+[3.5.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.4.0...@metamask/approval-controller@3.5.0
+[3.4.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.3.0...@metamask/approval-controller@3.4.0
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.2.0...@metamask/approval-controller@3.3.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.1.0...@metamask/approval-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.0.0...@metamask/approval-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.1...@metamask/approval-controller@3.0.0
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.0...@metamask/approval-controller@2.1.1
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.0.0...@metamask/approval-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.1.0...@metamask/approval-controller@2.0.0
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.0.1...@metamask/approval-controller@1.1.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.0.0...@metamask/approval-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/approval-controller@1.0.0

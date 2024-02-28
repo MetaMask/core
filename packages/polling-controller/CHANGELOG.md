@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 116.0.0 ([#3915](https://github.com/MetaMask/controllers/pull/3915))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/controllers/pull/3850))
-
 ## [5.0.0]
 
 ### Changed
@@ -93,13 +88,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@5.0.0...HEAD
-[5.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@4.0.0...@metamask/polling-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@3.0.0...@metamask/polling-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@2.0.0...@metamask/polling-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@1.0.2...@metamask/polling-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@1.0.1...@metamask/polling-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@1.0.0...@metamask/polling-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@0.2.0...@metamask/polling-controller@1.0.0
-[0.2.0]: https://github.com/MetaMask/controllers/compare/@metamask/polling-controller@0.1.0...@metamask/polling-controller@0.2.0
-[0.1.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/polling-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@4.0.0...@metamask/polling-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@3.0.0...@metamask/polling-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@2.0.0...@metamask/polling-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.2...@metamask/polling-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.1...@metamask/polling-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@1.0.0...@metamask/polling-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.2.0...@metamask/polling-controller@1.0.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.1.0...@metamask/polling-controller@0.2.0
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/polling-controller@0.1.0

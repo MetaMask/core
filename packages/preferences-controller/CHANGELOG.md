@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: remove updateIdentities and make syncIdentities private in preferences controller ([#3976](https://github.com/MetaMask/controllers/pull/3976))
-- fix(preferences-controller): skip sync when locking ([#3946](https://github.com/MetaMask/controllers/pull/3946))
-- Release 116.0.0 ([#3915](https://github.com/MetaMask/controllers/pull/3915))
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/controllers/pull/3850))
-
 ## [7.0.0]
 
 ### Changed
@@ -164,22 +157,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@7.0.0...HEAD
-[7.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@6.0.0...@metamask/preferences-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@5.0.1...@metamask/preferences-controller@6.0.0
-[5.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@5.0.0...@metamask/preferences-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.4.3...@metamask/preferences-controller@5.0.0
-[4.4.3]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.4.2...@metamask/preferences-controller@4.4.3
-[4.4.2]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.4.1...@metamask/preferences-controller@4.4.2
-[4.4.1]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.4.0...@metamask/preferences-controller@4.4.1
-[4.4.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.3.0...@metamask/preferences-controller@4.4.0
-[4.3.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.2.0...@metamask/preferences-controller@4.3.0
-[4.2.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.1.0...@metamask/preferences-controller@4.2.0
-[4.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@4.0.0...@metamask/preferences-controller@4.1.0
-[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@3.0.0...@metamask/preferences-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@2.1.0...@metamask/preferences-controller@3.0.0
-[2.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@2.0.0...@metamask/preferences-controller@2.1.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@1.0.2...@metamask/preferences-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@1.0.1...@metamask/preferences-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/preferences-controller@1.0.0...@metamask/preferences-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/preferences-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@6.0.0...@metamask/preferences-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.1...@metamask/preferences-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.0...@metamask/preferences-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.3...@metamask/preferences-controller@5.0.0
+[4.4.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.2...@metamask/preferences-controller@4.4.3
+[4.4.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.1...@metamask/preferences-controller@4.4.2
+[4.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.4.0...@metamask/preferences-controller@4.4.1
+[4.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.3.0...@metamask/preferences-controller@4.4.0
+[4.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.2.0...@metamask/preferences-controller@4.3.0
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.1.0...@metamask/preferences-controller@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@4.0.0...@metamask/preferences-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@3.0.0...@metamask/preferences-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@2.1.0...@metamask/preferences-controller@3.0.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@2.0.0...@metamask/preferences-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@1.0.2...@metamask/preferences-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@1.0.1...@metamask/preferences-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@1.0.0...@metamask/preferences-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/preferences-controller@1.0.0

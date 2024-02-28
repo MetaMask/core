@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/controllers/pull/3850))
-
 ## [1.0.2]
 
 ### Changed
@@ -29,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/build-utils@1.0.2...HEAD
-[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/build-utils@1.0.1...@metamask/build-utils@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/build-utils@1.0.0...@metamask/build-utils@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/build-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.2...HEAD
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.1...@metamask/build-utils@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.0...@metamask/build-utils@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/build-utils@1.0.0

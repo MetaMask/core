@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/controllers/pull/3850))
-
 ## [4.0.2]
 
 ### Changed
@@ -96,16 +92,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@4.0.2...HEAD
-[4.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@4.0.1...@metamask/notification-controller@4.0.2
-[4.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@4.0.0...@metamask/notification-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@3.1.3...@metamask/notification-controller@4.0.0
-[3.1.3]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@3.1.2...@metamask/notification-controller@3.1.3
-[3.1.2]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@3.1.1...@metamask/notification-controller@3.1.2
-[3.1.1]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@3.1.0...@metamask/notification-controller@3.1.1
-[3.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@3.0.0...@metamask/notification-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@2.0.0...@metamask/notification-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@1.0.2...@metamask/notification-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@1.0.1...@metamask/notification-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/notification-controller@1.0.0...@metamask/notification-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/notification-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.2...HEAD
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.1...@metamask/notification-controller@4.0.2
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.0...@metamask/notification-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.3...@metamask/notification-controller@4.0.0
+[3.1.3]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.2...@metamask/notification-controller@3.1.3
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.1...@metamask/notification-controller@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.0...@metamask/notification-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.0.0...@metamask/notification-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@2.0.0...@metamask/notification-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@1.0.2...@metamask/notification-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@1.0.1...@metamask/notification-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@1.0.0...@metamask/notification-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/notification-controller@1.0.0
