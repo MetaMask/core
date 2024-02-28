@@ -11,7 +11,7 @@ import { Transaction, TransactionStatus, TransactionMeta } from './types';
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
-  data: (data: string) => addHexPrefix(data),
+  data: (data: string) => addHexPrefix(padHexToEvenLength(data)),
   from: (from: string) => addHexPrefix(from).toLowerCase(),
   gas: (gas: string) => addHexPrefix(gas),
   gasPrice: (gasPrice: string) => addHexPrefix(gasPrice),
@@ -59,7 +59,7 @@ export function getEtherscanApiUrl(
  * @param transaction - Transaction object to normalize.
  * @returns Normalized Transaction object.
  */
-export function normalizeTransaction(transaction: Transaction) {
+export function normalizeTransactionParams(transaction: Transaction) {
   const normalizedTransaction: Transaction = { from: '' };
   let key: keyof Transaction;
   for (key in NORMALIZERS) {
@@ -236,4 +236,19 @@ export function getAndFormatTransactionsForNonceTracker(
         },
       };
     });
+}
+
+/**
+ * Ensure a hex string is of even length by adding a leading 0 if necessary.
+ * Any existing `0x` prefix is preserved but is not added if missing.
+ *
+ * @param hex - The hex string to ensure is even.
+ * @returns The hex string with an even length.
+ */
+export function padHexToEvenLength(hex: string) {
+  const prefix = hex.toLowerCase().startsWith('0x') ? hex.slice(0, 2) : '';
+  const data = prefix ? hex.slice(2) : hex;
+  const evenData = data.length % 2 === 0 ? data : `0${data}`;
+
+  return prefix + evenData;
 }
