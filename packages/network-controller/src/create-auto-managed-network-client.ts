@@ -70,7 +70,7 @@ export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
 >(
   networkClientConfiguration: Configuration,
-  customFeatureRpcApiMiddlewares: JsonRpcMiddleware<JsonRpcParams, Json>[],
+  customFeatureRpcApiMiddlewares: JsonRpcMiddleware<JsonRpcParams, Json>[] = [],
 ): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
 
