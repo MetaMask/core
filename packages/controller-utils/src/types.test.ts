@@ -10,6 +10,7 @@ describe('types', () => {
     expect(isNetworkType(NetworkType.goerli)).toBe(true);
     expect(isNetworkType(NetworkType.sepolia)).toBe(true);
     expect(isNetworkType(NetworkType['linea-goerli'])).toBe(true);
+    expect(isNetworkType(NetworkType['linea-sepolia'])).toBe(true);
     expect(isNetworkType(NetworkType['linea-mainnet'])).toBe(true);
     expect(isNetworkType(NetworkType.rpc)).toBe(true);
   });

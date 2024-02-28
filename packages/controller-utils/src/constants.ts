@@ -47,6 +47,7 @@ export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   SEPOLIA: 'SepoliaETH',
   LINEA_GOERLI: 'LineaETH',
+  LINEA_SEPOLIA: 'LineaETH',
 };
 
 /**
@@ -79,6 +80,13 @@ export const BUILT_IN_NETWORKS = {
     ticker: NetworksTicker['linea-goerli'],
     rpcPrefs: {
       blockExplorerUrl: 'https://goerli.lineascan.build',
+    },
+  },
+  [NetworkType['linea-sepolia']]: {
+    chainId: ChainId['linea-sepolia'],
+    ticker: NetworksTicker['linea-sepolia'],
+    rpcPrefs: {
+      blockExplorerUrl: 'https://sepolia.lineascan.build',
     },
   },
   [NetworkType['linea-mainnet']]: {
@@ -137,6 +145,7 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId.sepolia]: BuiltInNetworkName.Sepolia,
   [ChainId.mainnet]: BuiltInNetworkName.Mainnet,
   [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
+  [ChainId['linea-sepolia']]: BuiltInNetworkName.LineaSepolia,
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
   [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };
