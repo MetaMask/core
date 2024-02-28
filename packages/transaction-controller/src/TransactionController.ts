@@ -62,8 +62,8 @@ import type {
 import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
+  normalizeTransactionParams,
   getIncreasedPriceFromExisting,
-  normalizeTxParams,
   isEIP1559Transaction,
   isFeeMarketEIP1559Values,
   isGasPriceValue,
@@ -455,7 +455,7 @@ export class TransactionController extends BaseController<
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
     const { transactions } = this.state;
-    txParams = normalizeTxParams(txParams);
+    txParams = normalizeTransactionParams(txParams);
     validateTxParams(txParams);
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
@@ -939,7 +939,9 @@ export class TransactionController extends BaseController<
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
     const { transactions } = this.state;
-    transactionMeta.txParams = normalizeTxParams(transactionMeta.txParams);
+    transactionMeta.txParams = normalizeTransactionParams(
+      transactionMeta.txParams,
+    );
     validateTxParams(transactionMeta.txParams);
     if (!this.isHistoryDisabled) {
       updateTransactionHistory(transactionMeta, note);
