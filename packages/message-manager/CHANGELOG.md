@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- deps: upgrade from ethereumjs-util ([#3943](https://github.com/MetaMask/controllers/pull/3943))
+- Release 116.0.0 ([#3915](https://github.com/MetaMask/controllers/pull/3915))
+- Use Prettier to format changelogs ([#3850](https://github.com/MetaMask/controllers/pull/3850))
+
 ## [7.3.8]
 
 ### Changed
@@ -202,29 +208,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.8...HEAD
-[7.3.8]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.7...@metamask/message-manager@7.3.8
-[7.3.7]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.6...@metamask/message-manager@7.3.7
-[7.3.6]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.5...@metamask/message-manager@7.3.6
-[7.3.5]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.4...@metamask/message-manager@7.3.5
-[7.3.4]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.3...@metamask/message-manager@7.3.4
-[7.3.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.2...@metamask/message-manager@7.3.3
-[7.3.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.1...@metamask/message-manager@7.3.2
-[7.3.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.0...@metamask/message-manager@7.3.1
-[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.2.0...@metamask/message-manager@7.3.0
-[7.2.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.1.0...@metamask/message-manager@7.2.0
-[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.2...@metamask/message-manager@7.1.0
-[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.1...@metamask/message-manager@7.0.2
-[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.0...@metamask/message-manager@7.0.1
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@6.0.0...@metamask/message-manager@7.0.0
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@5.0.0...@metamask/message-manager@6.0.0
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@4.0.0...@metamask/message-manager@5.0.0
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.1.1...@metamask/message-manager@4.0.0
-[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.1.0...@metamask/message-manager@3.1.1
-[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.0.0...@metamask/message-manager@3.1.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@2.1.0...@metamask/message-manager@3.0.0
-[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@2.0.0...@metamask/message-manager@2.1.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.2...@metamask/message-manager@2.0.0
-[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.1...@metamask/message-manager@1.0.2
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.0...@metamask/message-manager@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/message-manager@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.8...HEAD
+[7.3.8]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.7...@metamask/message-manager@7.3.8
+[7.3.7]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.6...@metamask/message-manager@7.3.7
+[7.3.6]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.5...@metamask/message-manager@7.3.6
+[7.3.5]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.4...@metamask/message-manager@7.3.5
+[7.3.4]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.3...@metamask/message-manager@7.3.4
+[7.3.3]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.2...@metamask/message-manager@7.3.3
+[7.3.2]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.1...@metamask/message-manager@7.3.2
+[7.3.1]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.3.0...@metamask/message-manager@7.3.1
+[7.3.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.2.0...@metamask/message-manager@7.3.0
+[7.2.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.1.0...@metamask/message-manager@7.2.0
+[7.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.0.2...@metamask/message-manager@7.1.0
+[7.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.0.1...@metamask/message-manager@7.0.2
+[7.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@7.0.0...@metamask/message-manager@7.0.1
+[7.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@6.0.0...@metamask/message-manager@7.0.0
+[6.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@5.0.0...@metamask/message-manager@6.0.0
+[5.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@4.0.0...@metamask/message-manager@5.0.0
+[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@3.1.1...@metamask/message-manager@4.0.0
+[3.1.1]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@3.1.0...@metamask/message-manager@3.1.1
+[3.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@3.0.0...@metamask/message-manager@3.1.0
+[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@2.1.0...@metamask/message-manager@3.0.0
+[2.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@2.0.0...@metamask/message-manager@2.1.0
+[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@1.0.2...@metamask/message-manager@2.0.0
+[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@1.0.1...@metamask/message-manager@1.0.2
+[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/message-manager@1.0.0...@metamask/message-manager@1.0.1
+[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/message-manager@1.0.0
