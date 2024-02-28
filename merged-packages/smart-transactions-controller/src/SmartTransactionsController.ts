@@ -15,7 +15,11 @@ import { BigNumber } from 'bignumber.js';
 import { EventEmitter } from 'events';
 import cloneDeep from 'lodash/cloneDeep';
 
-import { CHAIN_IDS } from './constants';
+import {
+  CHAIN_IDS,
+  MetaMetricsEventCategory,
+  MetaMetricsEventName,
+} from './constants';
 import type {
   SmartTransaction,
   SignedTransaction,
@@ -285,8 +289,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     };
 
     this.trackMetaMetricsEvent({
-      event: 'STX Status Updated',
-      category: 'swaps',
+      event: MetaMetricsEventName.StxStatusUpdated,
+      category: MetaMetricsEventCategory.Transactions,
       sensitiveProperties,
     });
   }
@@ -507,8 +511,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         );
 
         this.trackMetaMetricsEvent({
-          event: 'STX Confirmed',
-          category: 'swaps',
+          event: MetaMetricsEventName.StxConfirmed,
+          category: MetaMetricsEventCategory.Transactions,
         });
 
         this.#updateSmartTransaction(
@@ -521,8 +525,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       }
     } catch (error) {
       this.trackMetaMetricsEvent({
-        event: 'STX Confirmation Failed',
-        category: 'swaps',
+        event: MetaMetricsEventName.StxConfirmationFailed,
+        category: MetaMetricsEventCategory.Transactions,
       });
       console.error('confirm error', error);
     }

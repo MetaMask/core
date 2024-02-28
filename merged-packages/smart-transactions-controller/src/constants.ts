@@ -5,3 +5,13 @@ export const CHAIN_IDS = {
   RINKEBY: '0x4',
   BSC: '0x38',
 } as const;
+
+export enum MetaMetricsEventName {
+  StxStatusUpdated = 'STX Status Updated',
+  StxConfirmed = 'STX Confirmed',
+  StxConfirmationFailed = 'STX Confirmation Failed',
+}
+
+export enum MetaMetricsEventCategory {
+  Transactions = 'Transactions',
+}
