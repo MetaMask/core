@@ -43,7 +43,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  * @param txParams - The transaction params to normalize.
  * @returns Normalized transaction params.
  */
-export function normalizeTxParams(txParams: TransactionParams) {
+export function normalizeTransactionParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
 
   for (const key of getKnownPropertyNames(NORMALIZERS)) {
