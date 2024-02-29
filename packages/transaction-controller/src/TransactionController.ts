@@ -634,7 +634,7 @@ export class TransactionController extends BaseController<
     const newTransactionMeta = {
       ...transactionMeta,
       error: normalizeTxError(error),
-      status: TransactionStatus.failed,
+      status: TransactionStatus.failed as const,
     };
     this.messagingSystem.publish(`${controllerName}:transactionFailed`, {
       actionId,
@@ -1005,7 +1005,7 @@ export class TransactionController extends BaseController<
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
 
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
-    let addedTransactionMeta: TransactionMeta = existingTransactionMeta
+    let addedTransactionMeta = existingTransactionMeta
       ? { ...existingTransactionMeta }
       : {
           // Add actionId to txMeta to check if same actionId is seen again
@@ -1016,7 +1016,7 @@ export class TransactionController extends BaseController<
           id: random(),
           origin,
           securityAlertResponse,
-          status: TransactionStatus.unapproved as TransactionStatus.unapproved,
+          status: TransactionStatus.unapproved as const,
           time: Date.now(),
           txParams,
           userEditedGasLimit: false,
@@ -1248,7 +1248,7 @@ export class TransactionController extends BaseController<
       transactionMeta,
     );
 
-    const cancelTransactionMeta: TransactionMeta = {
+    const cancelTransactionMeta = {
       actionId,
       chainId: transactionMeta.chainId,
       networkClientId: transactionMeta.networkClientId,
@@ -1256,9 +1256,9 @@ export class TransactionController extends BaseController<
       hash,
       id: random(),
       originalGasEstimate: transactionMeta.txParams.gas,
-      status: TransactionStatus.submitted,
+      status: TransactionStatus.submitted as const,
       time: Date.now(),
-      type: TransactionType.cancel,
+      type: TransactionType.cancel as const,
       txParams: newTxParams,
     };
 
@@ -1419,7 +1419,7 @@ export class TransactionController extends BaseController<
       transactionMeta,
     );
 
-    const baseTransactionMeta: TransactionMeta = {
+    const baseTransactionMeta = {
       ...transactionMetaWithRsv,
       estimatedBaseFee,
       id: random(),
@@ -1427,7 +1427,7 @@ export class TransactionController extends BaseController<
       hash,
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
-      type: TransactionType.retry,
+      type: TransactionType.retry as const,
       originalType: transactionMeta.type,
     };
 
@@ -1618,9 +1618,9 @@ export class TransactionController extends BaseController<
       const transactionId = newTransactionMeta.id;
 
       // Make sure status is confirmed and define gasUsed as in receipt.
-      const updatedTransactionMeta: TransactionMeta = {
+      const updatedTransactionMeta = {
         ...newTransactionMeta,
-        status: TransactionStatus.confirmed,
+        status: TransactionStatus.confirmed as const,
         txReceipt: transactionReceipt,
       };
       if (baseFeePerGas) {
@@ -2481,7 +2481,7 @@ export class TransactionController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
-    const updatedTransactionMeta: TransactionMeta = { ...transactionMeta };
+    const updatedTransactionMeta = { ...transactionMeta };
 
     const {
       txParams: { from },
@@ -2659,9 +2659,9 @@ export class TransactionController extends BaseController<
       );
       state.transactions = this.trimTransactionsForState(transactions);
     });
-    const updatedTransactionMeta: TransactionMeta = {
+    const updatedTransactionMeta = {
       ...transactionMeta,
-      status: TransactionStatus.rejected,
+      status: TransactionStatus.rejected as const,
     };
     this.messagingSystem.publish(
       `${controllerName}:transactionFinished`,
@@ -3020,9 +3020,9 @@ export class TransactionController extends BaseController<
    * @param transactionMeta - TransactionMeta of transaction to be marked as dropped.
    */
   private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
-    const updatedTransactionMeta: TransactionMeta = {
+    const updatedTransactionMeta = {
       ...transactionMeta,
-      status: TransactionStatus.dropped,
+      status: TransactionStatus.dropped as const,
     };
     this.messagingSystem.publish(`${controllerName}:transactionDropped`, {
       transactionMeta: updatedTransactionMeta,
@@ -3137,9 +3137,9 @@ export class TransactionController extends BaseController<
       return undefined;
     }
 
-    const transactionMetaWithRsv: TransactionMeta = {
+    const transactionMetaWithRsv = {
       ...(await this.updateTransactionMetaRSV(transactionMeta, signedTx)),
-      status: TransactionStatus.signed,
+      status: TransactionStatus.signed as const,
     };
 
     this.updateTransaction(
@@ -3448,7 +3448,7 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     { note, skipHistory }: { note?: string; skipHistory?: boolean },
   ) {
-    const normalizedTransaction: TransactionMeta = {
+    const normalizedTransaction = {
       ...transactionMeta,
       txParams: normalizeTxParams(transactionMeta.txParams),
     };
