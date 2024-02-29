@@ -351,7 +351,7 @@ function updateSwapApprovalTransaction(
     sourceTokenSymbol,
   }) as Partial<TransactionMeta>;
 
-  return { ...transactionMeta, ...swapApprovalTransaction };
+  return merge({}, transactionMeta, swapApprovalTransaction);
 }
 
 /**
