@@ -93,7 +93,8 @@ export class ERC20Standard {
     try {
       const utf8 = toUtf8(result);
       if (utf8.length > 0) {
-        return utf8;
+        // This utf8 returns unicode characters, wee need to replace it
+        return utf8.replace(/[\u0000\u0003\u0020]/g, '');
       }
     } catch {
       // Ignore error

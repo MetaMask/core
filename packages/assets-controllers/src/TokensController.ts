@@ -24,11 +24,10 @@ import {
   ERC20,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
-import type { AssetsContractController } from './AssetsContractController';
 import {
   TokenListMap,
-  TokenListState,
   TokenListToken,
+  TokenListState,
 } from './TokenListController';
 import {
   formatAggregatorNames,
@@ -39,6 +38,7 @@ import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
+import type { AssetsContractController } from './AssetsContractController';
 
 /**
  * @type TokensConfig
@@ -126,6 +126,8 @@ export class TokensController extends BaseController<
 
   private messagingSystem: TokensControllerMessenger;
 
+  private getERC20TokenName: AssetsContractController['getERC20TokenName'];
+
   /**
    * Fetch metadata for a token.
    *
@@ -163,8 +165,6 @@ export class TokensController extends BaseController<
    */
   override name = 'TokensController';
 
-  private getERC20TokenName: AssetsContractController['getERC20TokenName'];
-
   /**
    * Creates a TokensController instance.
    *
@@ -177,6 +177,7 @@ export class TokensController extends BaseController<
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
+   * @param options.getERC20TokenName - Allows fetch an ERC-20 token name
    */
   constructor({
     chainId: initialChainId,

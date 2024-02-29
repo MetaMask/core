@@ -35,11 +35,12 @@ export interface PreferencesState extends BaseState {
   selectedAddress: string;
   useTokenDetection: boolean;
   useNftDetection: boolean;
-  openSeaEnabled: boolean;
-  isMultiAccountBalancesEnabled: boolean;
+  displayNftMedia: boolean;
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
   };
+  isMultiAccountBalancesEnabled: boolean;
+  isIpfsGatewayEnabled: boolean;
   showTestNetworks: boolean;
 }
 
@@ -71,11 +72,12 @@ export class PreferencesController extends BaseController<
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      openSeaEnabled: false,
-      isMultiAccountBalancesEnabled: true,
+      displayNftMedia: true,
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
+      isMultiAccountBalancesEnabled: true,
+      isIpfsGatewayEnabled: true,
       showTestNetworks: false,
     };
     this.initialize();
@@ -250,9 +252,9 @@ export class PreferencesController extends BaseController<
    * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
   setUseNftDetection(useNftDetection: boolean) {
-    if (useNftDetection && !this.state.openSeaEnabled) {
+    if (useNftDetection && !this.state.displayNftMedia) {
       throw new Error(
-        'useNftDetection cannot be enabled if openSeaEnabled is false',
+        'useNftDetection cannot be enabled if displayNftMedia is false',
       );
     }
     this.update({ useNftDetection });
@@ -260,12 +262,13 @@ export class PreferencesController extends BaseController<
 
   /**
    * Toggle the opensea enabled setting.
+   * DONT USE THIS OF THIS BRANCH ON A CLIENT REPO.
    *
-   * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
+   * @param displayNftMedia - Boolean indicating user preference on using OpenSea's API.
    */
-  setOpenSeaEnabled(openSeaEnabled: boolean) {
-    this.update({ openSeaEnabled });
-    if (!openSeaEnabled) {
+  setDisplayNftMedia(displayNftMedia: boolean) {
+    this.update({ displayNftMedia });
+    if (!displayNftMedia) {
       this.update({ useNftDetection: false });
     }
   }

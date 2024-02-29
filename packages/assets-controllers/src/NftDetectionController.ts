@@ -8,12 +8,23 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   OPENSEA_PROXY_URL,
-  OPENSEA_API_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
+  safelyExecute,
+  timeoutFetch,
 } from '@metamask/controller-utils';
-import type { NftController, NftState, NftMetadata } from './NftController';
+import { mapOpenSeaNftV2ToV1 } from './assetsUtil';
+import {
+  OpenSeaV2ChainIds,
+  type OpenSeaV2GetNftResponse,
+} from './NftController';
+import type {
+  NftController,
+  NftState,
+  NftMetadata,
+  OpenSeaV2ListNftsResponse,
+} from './NftController';
 import { Source } from './constants';
 
 const DEFAULT_INTERVAL = 180000;
@@ -139,54 +150,56 @@ export class NftDetectionController extends BaseController<
 
   private getOwnerNftApi({
     address,
-    offset,
-    useProxy,
+    next,
   }: {
     address: string;
-    offset: number;
-    useProxy: boolean;
+    next?: string;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
-      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
+    return `${OPENSEA_PROXY_URL}/chain/${
+      OpenSeaV2ChainIds.ethereum
+    }/account/${address}/nfts?limit=200&next=${next ?? ''}`;
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: { assets: ApiNft[] };
+    let nftApiResponse: OpenSeaV2ListNftsResponse;
     let nfts: ApiNft[] = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
-    let offset = 0;
-    let pagingFinish = false;
-    /* istanbul ignore if */
+    let next;
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset, useProxy: true }),
+        url: this.getOwnerNftApi({ address, next }),
         timeout: 15000,
       });
-
-      if (openSeaApiKey && !nftApiResponse) {
-        nftApiResponse = await fetchWithErrorHandling({
-          url: this.getOwnerNftApi({
-            address,
-            offset,
-            useProxy: false,
-          }),
-          options: { headers: { 'X-API-KEY': openSeaApiKey } },
-          timeout: 15000,
-          // catch 403 errors (in case API key is down we don't want to blow up)
-          errorCodesToCatch: [403],
-        });
-      }
 
       if (!nftApiResponse) {
         return nfts;
       }
+      const newNfts = await Promise.all(
+        nftApiResponse.nfts.map(async (nftV2) => {
+          const nftV1 = mapOpenSeaNftV2ToV1(nftV2);
 
-      nftApiResponse?.assets?.length !== 0
-        ? (nfts = [...nfts, ...nftApiResponse.assets])
-        : (pagingFinish = true);
-      offset += 50;
-    } while (!pagingFinish);
+          // If the image hasn't been processed into OpenSea's CDN, the image_url will be null.
+          // Try fetching the NFT individually, which returns the original image url from metadata if available.
+          if (!nftV1.image_url && nftV2.metadata_url) {
+            const nftDetails: OpenSeaV2GetNftResponse | undefined =
+              await safelyExecute(() =>
+                timeoutFetch(
+                  this.getNftApi({
+                    contractAddress: nftV2.contract,
+                    tokenId: nftV2.identifier,
+                  }),
+                  undefined,
+                  1000,
+                ).then((r) => r.json()),
+              );
+
+            nftV1.image_original_url = nftDetails?.nft?.image_url ?? null;
+          }
+          return nftV1;
+        }),
+      );
+
+      nfts = [...nfts, ...newNfts];
+    } while ((next = nftApiResponse.next));
 
     return nfts;
   }
@@ -200,6 +213,8 @@ export class NftDetectionController extends BaseController<
 
   private addNft: NftController['addNft'];
 
+  private getNftApi: NftController['getNftApi'];
+
   private getNftState: () => NftState;
 
   /**
@@ -212,6 +227,7 @@ export class NftDetectionController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
    * @param options.addNft - Add an NFT.
+   * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
    * @param options.getNftState - Gets the current state of the Assets controller.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -223,6 +239,7 @@ export class NftDetectionController extends BaseController<
       onNetworkStateChange,
       getOpenSeaApiKey,
       addNft,
+      getNftApi,
       getNftState,
     }: {
       chainId: Hex;
@@ -235,6 +252,7 @@ export class NftDetectionController extends BaseController<
       ) => void;
       getOpenSeaApiKey: () => string | undefined;
       addNft: NftController['addNft'];
+      getNftApi: NftController['getNftApi'];
       getNftState: () => NftState;
     },
     config?: Partial<NftDetectionConfig>,
@@ -276,6 +294,7 @@ export class NftDetectionController extends BaseController<
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.addNft = addNft;
+    this.getNftApi = getNftApi;
   }
 
   /**

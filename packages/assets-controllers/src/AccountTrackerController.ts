@@ -6,13 +6,15 @@ import {
   BaseController,
   BaseState,
 } from '@metamask/base-controller';
-import { assert } from '@metamask/utils';
+import { Hex, assert } from '@metamask/utils';
 import { PreferencesState } from '@metamask/preferences-controller';
 import {
   BNToHex,
   query,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import { NetworkState } from '@metamask/network-controller';
+import { cloneDeep } from 'lodash';
 
 /**
  * @type AccountInformation
@@ -43,6 +45,12 @@ export interface AccountTrackerConfig extends BaseConfig {
  */
 export interface AccountTrackerState extends BaseState {
   accounts: { [address: string]: AccountInformation };
+  accountsByChainId: Record<
+    string,
+    {
+      [address: string]: AccountInformation;
+    }
+  >;
 }
 
 /**
@@ -58,10 +66,18 @@ export class AccountTrackerController extends BaseController<
 
   private handle?: ReturnType<typeof setTimeout>;
 
-  private syncAccounts() {
+  private syncAccounts(newChainId: Hex) {
     const { accounts } = this.state;
+    const accountsByChainId = cloneDeep(this.state.accountsByChainId);
     const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
+    if (!accountsByChainId[newChainId]) {
+      accountsByChainId[newChainId] = {};
+      existing.forEach((address) => {
+        accountsByChainId[newChainId][address] = { balance: '0x0' };
+      });
+    }
+
     const newAddresses = addresses.filter(
       (address) => existing.indexOf(address) === -1,
     );
@@ -71,11 +87,22 @@ export class AccountTrackerController extends BaseController<
     newAddresses.forEach((address) => {
       accounts[address] = { balance: '0x0' };
     });
-
+    Object.keys(accountsByChainId).forEach((chainId) => {
+      newAddresses.forEach((address) => {
+        accountsByChainId[chainId][address] = {
+          balance: '0x0',
+        };
+      });
+    });
     oldAddresses.forEach((address) => {
       delete accounts[address];
     });
-    this.update({ accounts: { ...accounts } });
+    Object.keys(accountsByChainId).forEach((chainId) => {
+      oldAddresses.forEach((address) => {
+        delete accountsByChainId[chainId][address];
+      });
+    });
+    this.update({ accounts: { ...accounts }, accountsByChainId });
   }
 
   /**
@@ -89,6 +116,8 @@ export class AccountTrackerController extends BaseController<
 
   private getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
 
+  getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
+
   /**
    * Creates an AccountTracker instance.
    *
@@ -97,6 +126,7 @@ export class AccountTrackerController extends BaseController<
    * @param options.getIdentities - Gets the identities from the Preferences store.
    * @param options.getSelectedAddress - Gets the selected address from the Preferences store.
    * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
+   * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -106,6 +136,7 @@ export class AccountTrackerController extends BaseController<
       getIdentities,
       getSelectedAddress,
       getMultiAccountBalancesEnabled,
+      getCurrentChainId,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -113,6 +144,7 @@ export class AccountTrackerController extends BaseController<
       getIdentities: () => PreferencesState['identities'];
       getSelectedAddress: () => PreferencesState['selectedAddress'];
       getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
+      getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
     },
     config?: Partial<AccountTrackerConfig>,
     state?: Partial<AccountTrackerState>,
@@ -121,7 +153,12 @@ export class AccountTrackerController extends BaseController<
     this.defaultConfig = {
       interval: 10000,
     };
-    this.defaultState = { accounts: {} };
+    this.defaultState = {
+      accounts: {},
+      accountsByChainId: {
+        [getCurrentChainId()]: {},
+      },
+    };
     this.initialize();
     this.getIdentities = getIdentities;
     this.getSelectedAddress = getSelectedAddress;
@@ -129,6 +166,7 @@ export class AccountTrackerController extends BaseController<
     onPreferencesStateChange(() => {
       this.refresh();
     });
+    this.getCurrentChainId = getCurrentChainId;
     this.poll();
   }
 
@@ -167,10 +205,15 @@ export class AccountTrackerController extends BaseController<
    * Refreshes the balances of the accounts depending on the multi-account setting.
    * If multi-account is disabled, only updates the selected account balance.
    * If multi-account is enabled, updates balances for all accounts.
+   *
+   * @async
    */
   refresh = async () => {
-    this.syncAccounts();
+    const chainId = this.getCurrentChainId();
+    this.syncAccounts(chainId);
     const accounts = { ...this.state.accounts };
+    const accountsByChainId = Object.assign({}, this.state.accountsByChainId);
+    const accountsForChain = Object.assign({}, accountsByChainId[chainId]);
     const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
 
     const accountsToUpdate = isMultiAccountBalancesEnabled
@@ -178,12 +221,25 @@ export class AccountTrackerController extends BaseController<
       : [this.getSelectedAddress()];
 
     for (const address of accountsToUpdate) {
+      const balance = await this.getBalanceFromChain(address);
+      if (!balance) {
+        continue;
+      }
+      const hexBalance = BNToHex(balance);
       accounts[address] = {
-        balance: BNToHex(await this.getBalanceFromChain(address)),
+        balance: hexBalance,
+      };
+      accountsForChain[address] = {
+        balance: hexBalance,
       };
     }
 
-    this.update({ accounts });
+    this.update({
+      accounts,
+      accountsByChainId: Object.assign(Object.assign({}, accountsByChainId), {
+        [chainId]: accountsForChain,
+      }),
+    });
   };
 
   /**
