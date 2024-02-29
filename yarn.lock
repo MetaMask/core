@@ -2689,6 +2689,7 @@ __metadata:
     typescript: ~4.8.4
   peerDependencies:
     "@metamask/network-controller": ^17.2.0
+    "@metamask/permission-controller": ^8.0.1
   languageName: unknown
   linkType: soft
 
