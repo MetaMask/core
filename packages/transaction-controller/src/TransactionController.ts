@@ -645,9 +645,7 @@ export class TransactionController extends BaseController<
       newTransactionMeta,
       'TransactionController#failTransaction - Add error message and set status to failed',
     );
-    this.messagingSystem.publish(`${controllerName}:transactionStatusUpdated`, {
-      transactionMeta: newTransactionMeta,
-    });
+    this.onTransactionStatusChange(newTransactionMeta);
     this.messagingSystem.publish(
       `${controllerName}:transactionFinished`,
       newTransactionMeta,
