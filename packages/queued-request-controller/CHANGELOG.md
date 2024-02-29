@@ -9,9 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0]
 
+### Added
+
+- Export `QueuedRequestControllerGetStateAction` and `QueuedRequestControllerStateChangeEvent` ([#3984](https://github.com/MetaMask/core/pull/3984))
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/selected-network-controller` peer dependency to `^9.0.0` ([#3996](https://github.com/MetaMask/core/pull/3996))
+- **BREAKING**: Remove the `QueuedRequestController:countChanged` event ([#3985](https://github.com/MetaMask/core/pull/3985))
+  - The number of queued requests is now tracked in controller state, as the `queuedRequestCount` property. Use the `QueuedRequestController:stateChange` event to be notified of count changes instead.
+- **BREAKING**: Remove the `length` method ([#3985](https://github.com/MetaMask/core/pull/3985))
+  - The number of queued requests is now tracked in controller state, as the `queuedRequestCount` property.
+- **BREAKING:** The `QueuedRequestController` method `enqueueRequest` is now responsible for switching the network before processing a request, rather than the `QueuedRequestMiddleware` ([#3986](https://github.com/MetaMask/core/pull/3986))
+  - Functionally the behavior is the same: before processing each request, we compare the request network client with the current selected network client, and we switch the current selected network client if necessary.
+  - The `QueuedRequestController` messenger has four additional allowed actions:
+    - `NetworkController:getState`
+    - `NetworkController:setActiveNetwork`
+    - `NetworkController:getNetworkConfigurationByNetworkClientId`
+    - `ApprovalController:addRequest`
+  - The `QueuedRequestController` method `enqueueRequest` now takes one additional parameter, the request object
+  - The `QueuedRequestMiddleware` no longer has a controller messenger. Instead it takes the `enqueueRequest` method as a parameter.
+- Bump `@metamask/rpc-errors` from `^6.2.0` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
 
 ## [0.5.0]
 
