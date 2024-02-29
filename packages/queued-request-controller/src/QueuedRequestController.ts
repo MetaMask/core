@@ -178,12 +178,12 @@ export class QueuedRequestController extends BaseController<
       networkSwitchError = error;
     }
 
-    batch.map(async (processRequest) => {
+    for (const processRequest of batch) {
       // These promises are handled as the return value of `#enqueueRequest`
       // We don't need to handle them here
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       processRequest(networkSwitchError);
-    });
+    }
     this.#updateCount();
   }
 
