@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** remove redundant perDomainNetwork state ([#3989](https://github.com/MetaMask/controllers/pull/3989))
+- **BREAKING** remove `perDomainNetwork` from state ([#3989](https://github.com/MetaMask/controllers/pull/3989))
 
 ### Added
 
