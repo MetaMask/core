@@ -252,11 +252,9 @@ describe('QueuedRequestController', () => {
         messenger: buildQueuedRequestControllerMessenger(),
       };
       const controller = new QueuedRequestController(options);
-      const executionOrder: string[] = [];
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
         async () => {
-          executionOrder.push('Request 1 Start');
           await new Promise((resolve) => setTimeout(resolve, 10));
         },
       );
