@@ -469,6 +469,193 @@ describe('TransactionController', () => {
     >;
 
   /**
+   * Constructs an instance of the TransactionController and supporting data for
+   * use in tests.
+   *
+   * @param args - The arguments to this function.
+   * @param args.options - TransactionController options.
+   * @param args.network - The mock network to use with the controller.
+   * @param args.messengerOptions - Options to build the mock unrestricted
+   * messenger.
+   * @param args.messengerOptions.addTransactionApprovalRequest - Options to mock
+   * the `ApprovalController:addRequest` action call for transactions.
+   * @returns The new TransactionController instance.
+   */
+  function setupController({
+    options: givenOptions = {},
+    network = MOCK_NETWORK,
+    messengerOptions = {},
+  }: {
+    options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
+    network?: MockNetwork;
+    messengerOptions?: {
+      addTransactionApprovalRequest?: Parameters<
+        typeof mockAddTransactionApprovalRequest
+      >[1];
+    };
+  } = {}) {
+    const unrestrictedMessenger: UnrestrictedControllerMessenger =
+      new ControllerMessenger();
+
+    const { addTransactionApprovalRequest = { state: 'pending' } } =
+      messengerOptions;
+    const mockTransactionApprovalRequest = mockAddTransactionApprovalRequest(
+      unrestrictedMessenger,
+      addTransactionApprovalRequest,
+    );
+
+    const { messenger: givenRestrictedMessenger, ...otherOptions } = {
+      blockTracker: network.blockTracker,
+      disableHistory: false,
+      disableSendFlowHistory: false,
+      disableSwaps: false,
+      getCurrentNetworkEIP1559Compatibility: async () => false,
+      getNetworkState: () => network.state,
+      // TODO: Replace with a real type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      getNetworkClientRegistry: () => ({} as any),
+      getPermittedAccounts: async () => [ACCOUNT_MOCK],
+      getSelectedAddress: () => ACCOUNT_MOCK,
+      isMultichainEnabled: false,
+      hooks: {},
+      onNetworkStateChange: network.subscribe,
+      provider: network.provider,
+      sign: async (transaction: TypedTransaction) => transaction,
+      txHistoryLimit: 40,
+      ...givenOptions,
+    };
+
+    const restrictedMessenger =
+      givenRestrictedMessenger ??
+      unrestrictedMessenger.getRestricted({
+        name: 'TransactionController',
+        allowedActions: [
+          'ApprovalController:addRequest',
+          'NetworkController:getNetworkClientById',
+          'NetworkController:findNetworkClientIdByChainId',
+        ],
+      });
+
+    const controller = new TransactionController({
+      ...otherOptions,
+      messenger: restrictedMessenger,
+    });
+
+    return {
+      controller,
+      messenger: unrestrictedMessenger,
+      mockTransactionApprovalRequest,
+    };
+  }
+
+  /**
+   * Mocks the `ApprovalController:addRequest` action that the
+   * TransactionController calls as it creates transactions.
+   *
+   * This helper allows the `addRequest` action to be in one of three states:
+   * approved, rejected, or pending. In the approved state, the promise which the
+   * action returns is resolved ahead of time, and in the rejected state, the
+   * promise is rejected ahead of time. Otherwise, in the pending state, the
+   * promise is unresolved and it is assumed that the test will resolve or reject
+   * the promise.
+   *
+   * @param messenger - The unrestricted messenger.
+   * @param options - Options for the mock. `state` controls the state of the
+   * promise as outlined above. Note, if the `state` is approved, then its
+   * `result` may be specified; if the `state` is rejected, then its `error` may
+   * be specified.
+   * @returns An object which contains the aforementioned promise, functions to
+   * manually approve or reject the approval (and therefore the promise), and
+   * finally the mocked version of the action handler itself.
+   */
+  function mockAddTransactionApprovalRequest(
+    messenger: UnrestrictedControllerMessenger,
+    options:
+      | {
+          state: 'approved';
+          result?: Partial<AddResult>;
+        }
+      | {
+          state: 'rejected';
+          error?: unknown;
+        }
+      | {
+          state: 'pending';
+        },
+  ): {
+    promise: Promise<AddResult>;
+    approve: (approvalResult?: Partial<AddResult>) => void;
+    reject: (rejectionError: unknown) => void;
+    actionHandlerMock: jest.Mock<
+      ReturnType<AddApprovalRequest['handler']>,
+      Parameters<AddApprovalRequest['handler']>
+    >;
+  } {
+    const { promise, resolve, reject } = createDeferredPromise<AddResult>();
+
+    const approveTransaction = (approvalResult?: Partial<AddResult>) => {
+      resolve({
+        resultCallbacks: {
+          success() {
+            // do nothing
+          },
+          error() {
+            // do nothing
+          },
+        },
+        ...approvalResult,
+      });
+    };
+
+    const rejectTransaction = (
+      rejectionError: unknown = {
+        code: errorCodes.provider.userRejectedRequest,
+      },
+    ) => {
+      reject(rejectionError);
+    };
+
+    const actionHandlerMock: jest.Mock<
+      ReturnType<AddApprovalRequest['handler']>,
+      Parameters<AddApprovalRequest['handler']>
+    > = jest.fn().mockReturnValue(promise);
+
+    if (options.state === 'approved') {
+      approveTransaction(options.result);
+    } else if (options.state === 'rejected') {
+      rejectTransaction(options.error);
+    }
+
+    messenger.registerActionHandler(
+      'ApprovalController:addRequest',
+      actionHandlerMock,
+    );
+
+    return {
+      promise,
+      approve: approveTransaction,
+      reject: rejectTransaction,
+      actionHandlerMock,
+    };
+  }
+
+  /**
+   * Builds a network client that is only used in tests to get a chain ID.
+   *
+   * @param networkClient - The properties in the desired network client.
+   * Only needs to contain `configuration`.
+   * @param networkClient.configuration - The desired network client
+   * configuration. Only needs to contain `chainId`>
+   * @returns The network client.
+   */
+  function buildMockNetworkClient(networkClient: {
+    configuration: NetworkClientConfiguration;
+  }): NetworkClient {
+    // Type assertion: We don't expect anything but the configuration to get used.
+    return networkClient as unknown as NetworkClient;
+  }
+
+  /**
    * Wait for a specified number of milliseconds.
    *
    * @param ms - The number of milliseconds to wait.
@@ -5180,190 +5367,3 @@ describe('TransactionController', () => {
     });
   });
 });
-
-/**
- * Constructs an instance of the TransactionController and supporting data for
- * use in tests.
- *
- * @param args - The arguments to this function.
- * @param args.options - TransactionController options.
- * @param args.network - The mock network to use with the controller.
- * @param args.messengerOptions - Options to build the mock unrestricted
- * messenger.
- * @param args.messengerOptions.addTransactionApprovalRequest - Options to mock
- * the `ApprovalController:addRequest` action call for transactions.
- * @returns The new TransactionController instance.
- */
-function setupController({
-  options: givenOptions = {},
-  network = MOCK_NETWORK,
-  messengerOptions = {},
-}: {
-  options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
-  network?: MockNetwork;
-  messengerOptions?: {
-    addTransactionApprovalRequest?: Parameters<
-      typeof mockAddTransactionApprovalRequest
-    >[1];
-  };
-} = {}) {
-  const unrestrictedMessenger: UnrestrictedControllerMessenger =
-    new ControllerMessenger();
-
-  const { addTransactionApprovalRequest = { state: 'pending' } } =
-    messengerOptions;
-  const mockTransactionApprovalRequest = mockAddTransactionApprovalRequest(
-    unrestrictedMessenger,
-    addTransactionApprovalRequest,
-  );
-
-  const { messenger: givenRestrictedMessenger, ...otherOptions } = {
-    blockTracker: network.blockTracker,
-    disableHistory: false,
-    disableSendFlowHistory: false,
-    disableSwaps: false,
-    getCurrentNetworkEIP1559Compatibility: async () => false,
-    getNetworkState: () => network.state,
-    // TODO: Replace with a real type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getNetworkClientRegistry: () => ({} as any),
-    getPermittedAccounts: async () => [ACCOUNT_MOCK],
-    getSelectedAddress: () => ACCOUNT_MOCK,
-    isMultichainEnabled: false,
-    hooks: {},
-    onNetworkStateChange: network.subscribe,
-    provider: network.provider,
-    sign: async (transaction: TypedTransaction) => transaction,
-    txHistoryLimit: 40,
-    ...givenOptions,
-  };
-
-  const restrictedMessenger =
-    givenRestrictedMessenger ??
-    unrestrictedMessenger.getRestricted({
-      name: 'TransactionController',
-      allowedActions: [
-        'ApprovalController:addRequest',
-        'NetworkController:getNetworkClientById',
-        'NetworkController:findNetworkClientIdByChainId',
-      ],
-    });
-
-  const controller = new TransactionController({
-    ...otherOptions,
-    messenger: restrictedMessenger,
-  });
-
-  return {
-    controller,
-    messenger: unrestrictedMessenger,
-    mockTransactionApprovalRequest,
-  };
-}
-
-/**
- * Mocks the `ApprovalController:addRequest` action that the
- * TransactionController calls as it creates transactions.
- *
- * This helper allows the `addRequest` action to be in one of three states:
- * approved, rejected, or pending. In the approved state, the promise which the
- * action returns is resolved ahead of time, and in the rejected state, the
- * promise is rejected ahead of time. Otherwise, in the pending state, the
- * promise is unresolved and it is assumed that the test will resolve or reject
- * the promise.
- *
- * @param messenger - The unrestricted messenger.
- * @param options - Options for the mock. `state` controls the state of the
- * promise as outlined above. Note, if the `state` is approved, then its
- * `result` may be specified; if the `state` is rejected, then its `error` may
- * be specified.
- * @returns An object which contains the aforementioned promise, functions to
- * manually approve or reject the approval (and therefore the promise), and
- * finally the mocked version of the action handler itself.
- */
-function mockAddTransactionApprovalRequest(
-  messenger: UnrestrictedControllerMessenger,
-  options:
-    | {
-        state: 'approved';
-        result?: Partial<AddResult>;
-      }
-    | {
-        state: 'rejected';
-        error?: unknown;
-      }
-    | {
-        state: 'pending';
-      },
-): {
-  promise: Promise<AddResult>;
-  approve: (approvalResult?: Partial<AddResult>) => void;
-  reject: (rejectionError: unknown) => void;
-  actionHandlerMock: jest.Mock<
-    ReturnType<AddApprovalRequest['handler']>,
-    Parameters<AddApprovalRequest['handler']>
-  >;
-} {
-  const { promise, resolve, reject } = createDeferredPromise<AddResult>();
-
-  const approveTransaction = (approvalResult?: Partial<AddResult>) => {
-    resolve({
-      resultCallbacks: {
-        success() {
-          // do nothing
-        },
-        error() {
-          // do nothing
-        },
-      },
-      ...approvalResult,
-    });
-  };
-
-  const rejectTransaction = (
-    rejectionError: unknown = {
-      code: errorCodes.provider.userRejectedRequest,
-    },
-  ) => {
-    reject(rejectionError);
-  };
-
-  const actionHandlerMock: jest.Mock<
-    ReturnType<AddApprovalRequest['handler']>,
-    Parameters<AddApprovalRequest['handler']>
-  > = jest.fn().mockReturnValue(promise);
-
-  if (options.state === 'approved') {
-    approveTransaction(options.result);
-  } else if (options.state === 'rejected') {
-    rejectTransaction(options.error);
-  }
-
-  messenger.registerActionHandler(
-    'ApprovalController:addRequest',
-    actionHandlerMock,
-  );
-
-  return {
-    promise,
-    approve: approveTransaction,
-    reject: rejectTransaction,
-    actionHandlerMock,
-  };
-}
-
-/**
- * Builds a network client that is only used in tests to get a chain ID.
- *
- * @param networkClient - The properties in the desired network client.
- * Only needs to contain `configuration`.
- * @param networkClient.configuration - The desired network client
- * configuration. Only needs to contain `chainId`>
- * @returns The network client.
- */
-function buildMockNetworkClient(networkClient: {
-  configuration: NetworkClientConfiguration;
-}): NetworkClient {
-  // Type assertion: We don't expect anything but the configuration to get used.
-  return networkClient as unknown as NetworkClient;
-}
