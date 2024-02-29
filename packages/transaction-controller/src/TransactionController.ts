@@ -33,10 +33,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
-import type {
-  CustomNetworkClientConfiguration,
-  NetworkClientConfiguration,
-} from '@metamask/network-controller/src/types';
+import type { NetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
@@ -250,6 +247,9 @@ export type TransactionControllerOptions = {
     chainId?: string,
   ) => NonceTrackerTransaction[];
   getGasFeeEstimates?: () => Promise<GasFeeState>;
+  getGlobalProviderAndBlockTracker: () =>
+    | { provider: Provider; blockTracker: BlockTracker }
+    | undefined;
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
@@ -334,17 +334,11 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly inProcessOfSigning: Set<string> = new Set();
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly registry: any;
-
   private readonly mutex = new Mutex();
 
   private readonly gasFeeFlows: GasFeeFlow[];
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
-
-  private readonly getNetworkState: () => NetworkState;
 
   private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
 
@@ -473,6 +467,7 @@ export class TransactionController extends BaseControllerV1<
       getCurrentNetworkEIP1559Compatibility,
       getExternalPendingTransactions,
       getGasFeeEstimates,
+      getGlobalProviderAndBlockTracker,
       getNetworkState,
       getPermittedAccounts,
       getSavedGasFees,
@@ -502,7 +497,6 @@ export class TransactionController extends BaseControllerV1<
     };
     this.initialize();
     this.messagingSystem = messenger;
-    this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
@@ -542,6 +536,8 @@ export class TransactionController extends BaseControllerV1<
           chainId,
         );
       },
+      getGlobalProviderAndBlockTracker,
+      getGlobalProviderConfig: () => getNetworkState()?.providerConfig,
       getNetworkClientById: ((networkClientId: NetworkClientId) => {
         return this.messagingSystem.call(
           `NetworkController:getNetworkClientById`,
@@ -549,8 +545,6 @@ export class TransactionController extends BaseControllerV1<
         );
       }) as NetworkController['getNetworkClientById'],
       getNetworkClientRegistry,
-      getSelectedNetworkClientId: () =>
-        getNetworkState()?.selectedNetworkClientId,
       removeIncomingTransactionHelperListeners:
         this.#removeIncomingTransactionHelperListeners.bind(this),
       removePendingTransactionTrackerListeners:
@@ -2783,8 +2777,6 @@ export class TransactionController extends BaseControllerV1<
 
     this.inProcessOfSigning.add(transactionMeta.id);
 
-    log('Signing Test', unsignedEthTx, txParams);
-
     const signedTx = await new Promise<TypedTransaction>((resolve, reject) => {
       this.sign?.(
         unsignedEthTx,
@@ -3156,7 +3148,7 @@ export class TransactionController extends BaseControllerV1<
   }
 
   #getSelectedNetworkClientConfiguration():
-    | CustomNetworkClientConfiguration
+    | NetworkClientConfiguration
     | undefined {
     return this.#multichainTrackingHelper.getSelectedNetworkClient()
       ?.configuration;

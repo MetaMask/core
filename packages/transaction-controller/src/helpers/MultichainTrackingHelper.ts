@@ -1,3 +1,4 @@
+import { NetworkType } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
@@ -6,12 +7,16 @@ import type {
   BlockTracker,
   Provider,
   NetworkControllerStateChangeEvent,
+  ProviderConfig,
 } from '@metamask/network-controller';
-import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
+import {
+  NetworkClientType,
+  type NetworkClientConfiguration,
+} from '@metamask/network-controller';
 import type {
-  CustomNetworkClientConfiguration,
-  NetworkClientConfiguration,
-} from '@metamask/network-controller/src/types';
+  AutoManagedNetworkClient,
+  ProxyWithAccessibleTarget,
+} from '@metamask/network-controller/src/create-auto-managed-network-client';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { NonceLock, NonceTracker } from 'nonce-tracker';
@@ -38,9 +43,12 @@ export type MultichainTrackingHelperOptions = {
   incomingTransactionOptions: IncomingTransactionOptions;
 
   findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
+  getGlobalProviderAndBlockTracker: () =>
+    | { provider: Provider; blockTracker: BlockTracker }
+    | undefined;
+  getGlobalProviderConfig: () => ProviderConfig | undefined;
   getNetworkClientById: NetworkController['getNetworkClientById'];
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-  getSelectedNetworkClientId: () => string | undefined;
 
   removeIncomingTransactionHelperListeners: (
     IncomingTransactionHelper: IncomingTransactionHelper,
@@ -74,15 +82,21 @@ export type MultichainTrackingHelperOptions = {
 export class MultichainTrackingHelper {
   #isMultichainEnabled: boolean;
 
+  #globalNonceTracker: NonceTracker | undefined;
+
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
 
   readonly #findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
 
+  readonly #getGlobalProviderConfig: () => ProviderConfig | undefined;
+
+  readonly #getGlobalProviderAndBlockTracker: () =>
+    | { provider: Provider; blockTracker: BlockTracker }
+    | undefined;
+
   readonly #getNetworkClientById: NetworkController['getNetworkClientById'];
 
   readonly #getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-
-  readonly #getSelectedNetworkClientId: () => string | undefined;
 
   readonly #removeIncomingTransactionHelperListeners: (
     IncomingTransactionHelper: IncomingTransactionHelper,
@@ -131,9 +145,10 @@ export class MultichainTrackingHelper {
     isMultichainEnabled,
     incomingTransactionOptions,
     findNetworkClientIdByChainId,
+    getGlobalProviderConfig,
+    getGlobalProviderAndBlockTracker,
     getNetworkClientById,
     getNetworkClientRegistry,
-    getSelectedNetworkClientId,
     removeIncomingTransactionHelperListeners,
     removePendingTransactionTrackerListeners,
     createNonceTracker,
@@ -145,9 +160,10 @@ export class MultichainTrackingHelper {
     this.#incomingTransactionOptions = incomingTransactionOptions;
 
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
+    this.#getGlobalProviderAndBlockTracker = getGlobalProviderAndBlockTracker;
+    this.#getGlobalProviderConfig = getGlobalProviderConfig;
     this.#getNetworkClientById = getNetworkClientById;
     this.#getNetworkClientRegistry = getNetworkClientRegistry;
-    this.#getSelectedNetworkClientId = getSelectedNetworkClientId;
 
     this.#removeIncomingTransactionHelperListeners =
       removeIncomingTransactionHelperListeners;
@@ -266,7 +282,8 @@ export class MultichainTrackingHelper {
     let nonceTracker: NonceTracker | undefined;
 
     if (!networkClientId || !this.#isMultichainEnabled) {
-      nonceTracker = this.#getSelectedNonceTracker();
+      this.#globalNonceTracker ??= this.#getSelectedNonceTracker();
+      nonceTracker = this.#globalNonceTracker;
     }
 
     if (networkClientId && this.#isMultichainEnabled) {
@@ -355,22 +372,35 @@ export class MultichainTrackingHelper {
   }
 
   getSelectedNetworkClient():
-    | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
+    | AutoManagedNetworkClient<NetworkClientConfiguration>
     | undefined {
-    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
+    const providerBlockTracker = this.#getGlobalProviderAndBlockTracker();
+    const providerConfig = this.#getGlobalProviderConfig();
 
-    if (!selectedNetworkClientId) {
-      log('Cannot get selected client as no selected network client ID');
+    if (!providerBlockTracker || !providerConfig) {
+      log('Cannot get global network client as provider is unavailable');
       return undefined;
     }
 
-    const selectedNetworkClient = this.#getNetworkClientById(
-      selectedNetworkClientId,
+    log(
+      'Retrieved global network client',
+      providerConfig.chainId,
+      providerConfig.type,
     );
 
-    log('Retrieved selected network client', selectedNetworkClientId);
+    const { blockTracker, provider } = providerBlockTracker;
 
-    return selectedNetworkClient;
+    return {
+      provider: provider as ProxyWithAccessibleTarget<Provider>,
+      blockTracker: blockTracker as ProxyWithAccessibleTarget<BlockTracker>,
+      configuration: {
+        chainId: providerConfig.chainId,
+        type:
+          providerConfig.type === NetworkType.rpc
+            ? NetworkClientType.Custom
+            : NetworkClientType.Infura,
+      },
+    } as AutoManagedNetworkClient<NetworkClientConfiguration>;
   }
 
   #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
