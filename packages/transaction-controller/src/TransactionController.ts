@@ -105,6 +105,8 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { ProxyWithAccessibleTarget } from '@metamask/network-controller/src/create-auto-managed-network-client';
 
 export const HARDFORK = Hardfork.London;
 
@@ -372,15 +374,15 @@ export class TransactionController extends BaseControllerV1<
 
   private pendingTransactionTracker!: PendingTransactionTracker;
 
-  private readonly onNetworkStateChange: (
+  readonly #onNetworkStateChange: (
     listener: (state: NetworkState) => void,
   ) => void;
 
-  private readonly isMultichainEnabled: boolean;
+  readonly #isMultichainEnabled: boolean;
 
-  private readonly incomingTransactions: IncomingTransactionOptions;
+  readonly #incomingTransactions: IncomingTransactionOptions;
 
-  private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
+  readonly #getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
@@ -530,10 +532,10 @@ export class TransactionController extends BaseControllerV1<
     this.publish =
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
-    this.onNetworkStateChange = onNetworkStateChange;
-    this.isMultichainEnabled = isMultichainEnabled;
-    this.incomingTransactions = incomingTransactions;
-    this.getNetworkClientRegistry = getNetworkClientRegistry;
+    this.#onNetworkStateChange = onNetworkStateChange;
+    this.#isMultichainEnabled = isMultichainEnabled;
+    this.#incomingTransactions = incomingTransactions;
+    this.#getNetworkClientRegistry = getNetworkClientRegistry;
   }
 
   /**
@@ -543,24 +545,23 @@ export class TransactionController extends BaseControllerV1<
    *
    * This relies on the provider and block tracker being defined which may not
    * have been the case at the time the Transaction Controller was instantiated.
-   *
-   * @param passedProvider - Reference to the provider proxy object
-   * @param passedBlockTracker - Reference to the block tracker proxy object
    */
-  delayedInit(passedProvider: Provider, passedBlockTracker: BlockTracker) {
+  initialization() {
+    const { provider, blockTracker } = this.getProviderAndBlockTracker()
+
     // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
-    this.registry = new MethodRegistry({ provider: passedProvider });
+    this.registry = new MethodRegistry({ provider });
 
     this.nonceTracker = this.#createNonceTracker({
-      provider: passedProvider,
-      blockTracker: passedBlockTracker,
+      provider,
+      blockTracker,
     });
 
     this.#multichainTrackingHelper = new MultichainTrackingHelper({
-      isMultichainEnabled: this.isMultichainEnabled,
-      provider: passedProvider,
+      isMultichainEnabled: this.#isMultichainEnabled,
+      provider,
       nonceTracker: this.nonceTracker,
-      incomingTransactionOptions: this.incomingTransactions,
+      incomingTransactionOptions: this.#incomingTransactions,
       findNetworkClientIdByChainId: (chainId: Hex) => {
         return this.messagingSystem.call(
           `NetworkController:findNetworkClientIdByChainId`,
@@ -573,7 +574,7 @@ export class TransactionController extends BaseControllerV1<
           networkClientId,
         );
       }) as NetworkController['getNetworkClientById'],
-      getNetworkClientRegistry: this.getNetworkClientRegistry,
+      getNetworkClientRegistry: this.#getNetworkClientRegistry,
       removeIncomingTransactionHelperListeners:
         this.#removeIncomingTransactionHelperListeners.bind(this),
       removePendingTransactionTrackerListeners:
@@ -594,17 +595,17 @@ export class TransactionController extends BaseControllerV1<
 
     const etherscanRemoteTransactionSource =
       new EtherscanRemoteTransactionSource({
-        includeTokenTransfers: this.incomingTransactions.includeTokenTransfers,
+        includeTokenTransfers: this.#incomingTransactions.includeTokenTransfers,
       });
 
     this.incomingTransactionHelper = this.#createIncomingTransactionHelper({
-      blockTracker: passedBlockTracker,
+      blockTracker,
       etherscanRemoteTransactionSource,
     });
 
     this.pendingTransactionTracker = this.#createPendingTransactionTracker({
-      provider: passedProvider,
-      blockTracker: passedBlockTracker,
+      provider,
+      blockTracker,
     });
 
     this.gasFeeFlows = this.#getGasFeeFlows();
@@ -634,13 +635,37 @@ export class TransactionController extends BaseControllerV1<
 
     // TODO once v2 is merged make sure this only runs when
     // selectedNetworkClientId changes
-    this.onNetworkStateChange(() => {
+    this.#onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       this.pendingTransactionTracker.startIfPendingTransactions();
       this.onBootCleanup();
     });
 
     this.onBootCleanup();
+  }
+
+  /**
+   * Get the relevant provider and blockTracker instance.
+   *
+   * @returns Provider and BlockTracker instances.
+   */
+  getProviderAndBlockTracker(): { provider: Provider, blockTracker: BlockTracker } {
+    const selectedNetworkClientId = this.getNetworkState().selectedNetworkClientId;
+    const networkClient = this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          selectedNetworkClientId,
+    )
+    const provider = networkClient.provider;
+
+    if (provider === undefined) {
+      const MISSING_PROVIDER_ERROR = 'TransactionController failed to set the provider correctly. A provider must be set for this method to be available';
+
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
+
+    const blockTracker = networkClient.blockTracker;
+
+    return { provider, blockTracker };
   }
 
   /**
