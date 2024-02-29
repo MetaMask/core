@@ -1,4 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
+import { providerErrors } from '@metamask/rpc-errors';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
@@ -18,7 +19,7 @@ const log = createModuleLogger(projectLogger, 'nonce');
  */
 export async function getNextNonce(
   txMeta: TransactionMeta,
-  getNonceLock: (address: string) => Promise<NonceLock>,
+  getNonceLock: (address: string) => Promise<NonceLock | undefined>,
 ): Promise<[string, (() => void) | undefined]> {
   const {
     customNonceValue,
@@ -38,6 +39,11 @@ export async function getNextNonce(
   }
 
   const nonceLock = await getNonceLock(from);
+
+  if (!nonceLock) {
+    throw providerErrors.chainDisconnected();
+  }
+
   const nonce = toHex(nonceLock.nextNonce);
   const releaseLock = nonceLock.releaseLock.bind(nonceLock);
 
