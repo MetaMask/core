@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0]
 
+#### Added
+
+- Add `queuedRequestCount` state ([#3919](https://github.com/MetaMask/core/pull/3919))
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/selected-network-controller` peer dependency to `^8.0.0` ([#3958](https://github.com/MetaMask/core/pull/3958))
+- Deprecate the `length` method in favor of the `queuedRequestCount` state ([#3919](https://github.com/MetaMask/core/pull/3919))
+- Deprecate the `countChanged` event in favor of the `stateChange` event ([#3919](https://github.com/MetaMask/core/pull/3919))
 
 ## [0.4.0]
 
