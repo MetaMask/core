@@ -67,7 +67,7 @@ describe('QueuedRequestController', () => {
       await firstRequest;
     });
 
-    it('switches network if a request comes in for a different selected chain', async () => {
+    it('switches network if a request comes in for a different network client', async () => {
       const mockSetActiveNetwork = jest.fn();
       const mockAddRequest = jest.fn();
       const { messenger } = buildControllerMessenger({
@@ -98,7 +98,7 @@ describe('QueuedRequestController', () => {
       expect(mockAddRequest).toHaveBeenCalled();
     });
 
-    it('does not switch networks if a request comes in for the same selected chain', async () => {
+    it('does not switch networks if a request comes in for the same network client', async () => {
       const mockSetActiveNetwork = jest.fn();
       const mockAddRequest = jest.fn();
       const { messenger } = buildControllerMessenger({
@@ -407,7 +407,7 @@ describe('QueuedRequestController', () => {
       ]);
     });
 
-    it('switches network if a new batch has a different selected chain', async () => {
+    it('switches network if a new batch has a different network client', async () => {
       const mockSetActiveNetwork = jest.fn();
       const mockApprovalControllerAddRequest = jest.fn();
       const { messenger } = buildControllerMessenger({
@@ -459,7 +459,7 @@ describe('QueuedRequestController', () => {
       expect(mockApprovalControllerAddRequest).toHaveBeenCalled();
     });
 
-    it('does not switch networks if a new batch has the same selected chain', async () => {
+    it('does not switch networks if a new batch has the same network client', async () => {
       const mockSetActiveNetwork = jest.fn();
       const mockApprovalControllerAddRequest = jest.fn();
       const { messenger } = buildControllerMessenger({
