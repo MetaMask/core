@@ -99,7 +99,7 @@ describe('updateSwapsTransaction', () => {
     expect(messenger.call).not.toHaveBeenCalled();
   });
 
-  it('should update swap transaction and emit newSwap event', async () => {
+  it('should update swap transaction and publish TransactionController:transactionNewSwap', async () => {
     const sourceTokenSymbol = 'ETH';
     const destinationTokenSymbol = 'DAI';
     const type = TransactionType.swap;
@@ -190,6 +190,33 @@ describe('updateSwapsTransaction', () => {
       swapTokenValue,
       estimatedBaseFee,
       approvalTxId,
+    });
+  });
+
+  it('should update swap approval transaction and publish TransactionController:transactionNewSwapApproval', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const type = TransactionType.swapApproval;
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      type,
+    };
+    transactionType = TransactionType.swapApproval;
+
+    const transactionNewSwapApprovalEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewSwapApproval',
+      transactionNewSwapApprovalEventListener,
+    );
+
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
+    expect(transactionNewSwapApprovalEventListener).toHaveBeenCalledTimes(1);
+    expect(transactionNewSwapApprovalEventListener).toHaveBeenCalledWith({
+      transactionMeta: {
+        ...transactionMeta,
+        sourceTokenSymbol,
+        type,
+      },
     });
   });
 
