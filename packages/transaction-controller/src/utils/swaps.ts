@@ -1,6 +1,6 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { pickBy } from 'lodash';
+import { merge, pickBy } from 'lodash';
 
 import { CHAIN_IDS } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
@@ -322,7 +322,7 @@ function updateSwapTransaction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   swapTransaction = pickBy(swapTransaction) as any;
 
-  return { ...transactionMeta, ...swapTransaction };
+  return merge({}, transactionMeta, swapTransaction);
 }
 
 /**
