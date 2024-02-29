@@ -2703,8 +2703,8 @@ export class TransactionController extends BaseController<
         const { chainId, status, txParams, time } = tx;
 
         if (txParams) {
-          const key = `${String(txParams.nonce)}-${String(
-            convertHexToDecimal(chainId),
+          const key = `${txParams.nonce ?? ''}-${convertHexToDecimal(
+            chainId,
           )}-${new Date(time).toDateString()}`;
 
           if (nonceNetworkSet.has(key)) {
