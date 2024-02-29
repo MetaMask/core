@@ -2653,14 +2653,12 @@ export class TransactionController extends BaseController<
     if (!transactionMeta) {
       return;
     }
-
     this.update((state) => {
       const transactions = state.transactions.filter(
         ({ id }) => id !== transactionId,
       );
       state.transactions = this.trimTransactionsForState(transactions);
     });
-
     const updatedTransactionMeta: TransactionMeta = {
       ...transactionMeta,
       status: TransactionStatus.rejected,
@@ -2724,7 +2722,6 @@ export class TransactionController extends BaseController<
       });
 
     txsToKeep.reverse(); // Ascending time order
-
     return txsToKeep;
   }
 
@@ -2862,6 +2859,7 @@ export class TransactionController extends BaseController<
           return updatedTransaction ?? originalTransaction;
         }),
       ];
+
       state.transactions = this.trimTransactionsForState(updatedTransactions);
     });
   }
