@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING** remove `perDomainNetwork` from state ([#3989](https://github.com/MetaMask/controllers/pull/3989))
+- **BREAKING** Add dependency and peer dependency on `@metamask/permission-controller` ^8.0.1 ([#4000](https://github.com/MetaMask/controllers/pull/4000))
 
 ### Added
 
