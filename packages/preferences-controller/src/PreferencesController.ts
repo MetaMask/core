@@ -241,7 +241,7 @@ export class PreferencesController extends BaseController<
           }
         }
         if (accounts.size > 0) {
-          this.syncIdentities(Array.from(accounts));
+          this.#syncIdentities(Array.from(accounts));
         }
       },
     );
@@ -321,14 +321,8 @@ export class PreferencesController extends BaseController<
    * Synchronizes the current identity list with new identities.
    *
    * @param addresses - List of addresses corresponding to identities to sync.
-   * @returns Newly-selected address after syncing.
-   * @deprecated This will be removed in a future release
    */
-  syncIdentities(addresses: string[]) {
-    if (!addresses.length) {
-      throw new Error('Expected non-empty array of addresses');
-    }
-
+  #syncIdentities(addresses: string[]) {
     addresses = addresses.map((address: string) =>
       toChecksumHexAddress(address),
     );
@@ -355,38 +349,6 @@ export class PreferencesController extends BaseController<
         state.selectedAddress = addresses[0];
       });
     }
-
-    return this.state.selectedAddress;
-  }
-
-  /**
-   * Generates and stores a new list of stored identities based on address. If the selected address
-   * is unset, or if it refers to an identity that was removed, it will be set to the first
-   * identity.
-   *
-   * @param addresses - List of addresses to use as a basis for each identity.
-   */
-  updateIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) =>
-      toChecksumHexAddress(address),
-    );
-    this.update((state) => {
-      const identities = addresses.reduce(
-        (ids: { [address: string]: Identity }, address, index) => {
-          ids[address] = state.identities[address] || {
-            address,
-            name: `Account ${index + 1}`,
-            importTime: Date.now(),
-          };
-          return ids;
-        },
-        {},
-      );
-      state.identities = identities;
-      if (!Object.keys(identities).includes(state.selectedAddress)) {
-        state.selectedAddress = Object.keys(identities)[0];
-      }
-    });
   }
 
   /**

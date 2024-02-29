@@ -1,15 +1,14 @@
-import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
 import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import contractMap from '@metamask/contract-metadata';
-import {
-  ChainId,
-  safelyExecute,
-  toChecksumHexAddress,
-} from '@metamask/controller-utils';
+import { ChainId, safelyExecute } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -17,8 +16,10 @@ import type {
 } from '@metamask/keyring-controller';
 import type {
   NetworkClientId,
-  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetProviderConfigAction,
+  NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
@@ -43,13 +44,23 @@ import type {
 const DEFAULT_INTERVAL = 180000;
 
 /**
- * Finds a case insensitive match in an array of strings
- * @param source - An array of strings to search.
- * @param target - The target string to search for.
- * @returns The first match that is found.
+ * Compare 2 given strings and return boolean
+ * eg: "foo" and "FOO" => true
+ * eg: "foo" and "bar" => false
+ * eg: "foo" and 123 => false
+ *
+ * @param value1 - first string to compare
+ * @param value2 - first string to compare
+ * @returns true if 2 strings are identical when they are lowercase
  */
-function findCaseInsensitiveMatch(source: string[], target: string) {
-  return source.find((e: string) => e.toLowerCase() === target.toLowerCase());
+export function isEqualCaseInsensitive(
+  value1: string,
+  value2: string,
+): boolean {
+  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
+    return false;
+  }
+  return value1.toLowerCase() === value2.toLowerCase();
 }
 
 type LegacyToken = Omit<
@@ -95,7 +106,10 @@ export type TokenDetectionControllerActions =
   TokenDetectionControllerGetStateAction;
 
 export type AllowedActions =
+  | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerGetProviderConfigAction
   | GetTokenListState
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
@@ -182,7 +196,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    */
   constructor({
     networkClientId,
-    selectedAddress = '',
+    selectedAddress,
     interval = DEFAULT_INTERVAL,
     disabled = true,
     getBalancesInSingleCall,
@@ -216,8 +230,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.setIntervalLength(interval);
 
     this.#networkClientId = networkClientId;
-    this.#selectedAddress = selectedAddress;
-    this.#chainId = this.#getCorrectChainId(networkClientId);
+    this.#selectedAddress =
+      selectedAddress ??
+      this.messagingSystem.call('AccountsController:getSelectedAccount')
+        .address;
+    const { chainId } =
+      this.#getCorrectChainIdAndNetworkClientId(networkClientId);
+    this.#chainId = chainId;
 
     const { useTokenDetection: defaultUseTokenDetection } =
       this.messagingSystem.call('PreferencesController:getState');
@@ -308,7 +327,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         const isNetworkClientIdChanged =
           this.#networkClientId !== selectedNetworkClientId;
 
-        const newChainId = this.#getCorrectChainId(selectedNetworkClientId);
+        const { chainId: newChainId } =
+          this.#getCorrectChainIdAndNetworkClientId(selectedNetworkClientId);
+        this.#chainId = newChainId;
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
 
@@ -381,13 +402,33 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }, this.getIntervalLength());
   }
 
-  #getCorrectChainId(networkClientId?: NetworkClientId) {
-    const { chainId } =
-      this.messagingSystem.call(
+  #getCorrectChainIdAndNetworkClientId(networkClientId?: NetworkClientId): {
+    chainId: Hex;
+    networkClientId: NetworkClientId;
+  } {
+    if (networkClientId) {
+      const networkConfiguration = this.messagingSystem.call(
         'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId ?? this.#networkClientId,
-      ) ?? {};
-    return chainId ?? this.#chainId;
+        networkClientId,
+      );
+      if (networkConfiguration) {
+        return {
+          chainId: networkConfiguration.chainId,
+          networkClientId,
+        };
+      }
+    }
+    const { chainId } = this.messagingSystem.call(
+      'NetworkController:getProviderConfig',
+    );
+    const newNetworkClientId = this.messagingSystem.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      chainId,
+    );
+    return {
+      chainId,
+      networkClientId: newNetworkClientId,
+    };
   }
 
   async _executePoll(
@@ -399,7 +440,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }
     await this.detectTokens({
       networkClientId,
-      accountAddress: options.address,
+      selectedAddress: options.address,
     });
   }
 
@@ -417,7 +458,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   }: { selectedAddress?: string; networkClientId?: string } = {}) {
     await this.detectTokens({
       networkClientId,
-      accountAddress: selectedAddress,
+      selectedAddress,
     });
     this.setIntervalLength(DEFAULT_INTERVAL);
   }
@@ -428,114 +469,110 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    *
    * @param options - Options for token detection.
    * @param options.networkClientId - The ID of the network client to use.
-   * @param options.accountAddress - the selectedAddress against which to detect for token balances.
+   * @param options.selectedAddress - the selectedAddress against which to detect for token balances.
    */
   async detectTokens({
     networkClientId,
-    accountAddress,
+    selectedAddress,
   }: {
     networkClientId?: NetworkClientId;
-    accountAddress?: string;
+    selectedAddress?: string;
   } = {}): Promise<void> {
-    if (!this.isActive || !this.#isDetectionEnabledForNetwork) {
+    if (!this.isActive) {
       return;
     }
-    const selectedAddress = accountAddress ?? this.#selectedAddress;
-    const chainId = this.#getCorrectChainId(networkClientId);
+
+    const addressAgainstWhichToDetect =
+      selectedAddress ?? this.#selectedAddress;
+    const {
+      chainId: chainIdAgainstWhichToDetect,
+      networkClientId: networkClientIdAgainstWhichToDetect,
+    } = this.#getCorrectChainIdAndNetworkClientId(networkClientId);
+
+    if (!isTokenDetectionSupportedForNetwork(chainIdAgainstWhichToDetect)) {
+      return;
+    }
 
     if (
       !this.#isDetectionEnabledFromPreferences &&
-      chainId !== ChainId.mainnet
+      chainIdAgainstWhichToDetect !== ChainId.mainnet
     ) {
       return;
     }
     const isTokenDetectionInactiveInMainnet =
-      !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
+      !this.#isDetectionEnabledFromPreferences &&
+      chainIdAgainstWhichToDetect === ChainId.mainnet;
     const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
-    const tokenList = tokensChainsCache[chainId]?.data ?? {};
-
+    const tokenList =
+      tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
     const tokenListUsed = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
       : tokenList;
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messagingSystem.call('TokensController:getState');
-    const tokens = allTokens[chainId]?.[selectedAddress] ?? [];
-    const detectedTokens = allDetectedTokens[chainId]?.[selectedAddress] ?? [];
-    const ignoredTokens = allIgnoredTokens[chainId]?.[selectedAddress] ?? [];
-
+    const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddresses] = [
+      allTokens,
+      allDetectedTokens,
+      allIgnoredTokens,
+    ].map((tokens) =>
+      (
+        tokens[chainIdAgainstWhichToDetect]?.[addressAgainstWhichToDetect] ?? []
+      ).map((value) => (typeof value === 'string' ? value : value.address)),
+    );
     const tokensToDetect: string[] = [];
     for (const tokenAddress of Object.keys(tokenListUsed)) {
       if (
-        !findCaseInsensitiveMatch(
-          tokens.map(({ address }) => address),
-          tokenAddress,
-        ) &&
-        !findCaseInsensitiveMatch(
-          detectedTokens.map(({ address }) => address),
-          tokenAddress,
+        [
+          tokensAddresses,
+          detectedTokensAddresses,
+          ignoredTokensAddresses,
+        ].every(
+          (addresses) =>
+            !addresses.find((address) =>
+              isEqualCaseInsensitive(address, tokenAddress),
+            ),
         )
       ) {
         tokensToDetect.push(tokenAddress);
       }
     }
-    const sliceOfTokensToDetect = [];
-    sliceOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
-    sliceOfTokensToDetect[1] = tokensToDetect.slice(
+    const slicesOfTokensToDetect = [];
+    slicesOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
+    slicesOfTokensToDetect[1] = tokensToDetect.slice(
       1000,
       tokensToDetect.length - 1,
     );
-
-    /* istanbul ignore else */
-    if (!selectedAddress) {
-      return;
-    }
-
-    for (const tokensSlice of sliceOfTokensToDetect) {
+    for (const tokensSlice of slicesOfTokensToDetect) {
       if (tokensSlice.length === 0) {
         break;
       }
 
       await safelyExecute(async () => {
         const balances = await this.#getBalancesInSingleCall(
-          selectedAddress,
+          addressAgainstWhichToDetect,
           tokensSlice,
+          networkClientIdAgainstWhichToDetect,
         );
-        const tokensToAdd: Token[] = [];
+        const tokensWithBalance: Token[] = [];
         const eventTokensDetails: string[] = [];
-        let ignored;
-        for (const tokenAddress of Object.keys(balances)) {
-          if (ignoredTokens.length) {
-            ignored = ignoredTokens.find(
-              (ignoredTokenAddress) =>
-                ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
-            );
-          }
-          const caseInsensitiveTokenKey =
-            findCaseInsensitiveMatch(
-              Object.keys(tokenListUsed),
-              tokenAddress,
-            ) ?? '';
-
-          if (ignored === undefined) {
-            const { decimals, symbol, aggregators, iconUrl, name } =
-              tokenListUsed[caseInsensitiveTokenKey];
-            eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
-            tokensToAdd.push({
-              address: tokenAddress,
-              decimals,
-              symbol,
-              aggregators,
-              image: iconUrl,
-              isERC721: false,
-              name,
-            });
-          }
+        for (const nonZeroTokenAddress of Object.keys(balances)) {
+          const { decimals, symbol, aggregators, iconUrl, name } =
+            tokenListUsed[nonZeroTokenAddress];
+          eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
+          tokensWithBalance.push({
+            address: nonZeroTokenAddress,
+            decimals,
+            symbol,
+            aggregators,
+            image: iconUrl,
+            isERC721: false,
+            name,
+          });
         }
-
-        if (tokensToAdd.length) {
+        if (tokensWithBalance.length) {
           this.#trackMetaMetricsEvent({
             event: 'Token Detected',
             category: 'Wallet',
@@ -547,10 +584,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           });
           await this.messagingSystem.call(
             'TokensController:addDetectedTokens',
-            tokensToAdd,
+            tokensWithBalance,
             {
-              selectedAddress,
-              chainId,
+              selectedAddress: addressAgainstWhichToDetect,
+              chainId: chainIdAgainstWhichToDetect,
             },
           );
         }

@@ -6,7 +6,7 @@ import EventEmitter from 'events';
 
 import type { NetworkClientId } from '../../../network-controller/src';
 import { projectLogger } from '../logger';
-import type { GasFeeFlow, GasFeeFlowRequest } from '../types';
+import type { GasFeeEstimates, GasFeeFlow, GasFeeFlowRequest } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 
@@ -125,12 +125,14 @@ export class GasFeePoller {
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
     if (!gasFeeFlow) {
-      log('Skipping update as no gas fee flow found', transactionMeta.id);
-
-      return;
+      log('No gas fee flow found', transactionMeta.id);
+    } else {
+      log(
+        'Found gas fee flow',
+        gasFeeFlow.constructor.name,
+        transactionMeta.id,
+      );
     }
-
-    log('Found gas fee flow', gasFeeFlow.constructor.name, transactionMeta.id);
 
     const request: GasFeeFlowRequest = {
       ethQuery,
@@ -138,14 +140,23 @@ export class GasFeePoller {
       transactionMeta,
     };
 
-    try {
-      const response = await gasFeeFlow.getGasFees(request);
+    let gasFeeEstimates: GasFeeEstimates | undefined;
 
-      transactionMeta.gasFeeEstimates = response.estimates;
-    } catch (error) {
-      log('Failed to get suggested gas fees', transactionMeta.id, error);
+    if (gasFeeFlow) {
+      try {
+        const response = await gasFeeFlow.getGasFees(request);
+        gasFeeEstimates = response.estimates;
+      } catch (error) {
+        log('Failed to get suggested gas fees', transactionMeta.id, error);
+      }
+    }
+
+    if (!gasFeeEstimates && transactionMeta.gasFeeEstimatesLoaded) {
       return;
     }
+
+    transactionMeta.gasFeeEstimates = gasFeeEstimates;
+    transactionMeta.gasFeeEstimatesLoaded = true;
 
     this.hub.emit('transaction-updated', transactionMeta);
 

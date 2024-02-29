@@ -2417,26 +2417,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/permission-controller@npm:^7.0.0, @metamask/permission-controller@npm:^7.1.0":
-  version: 7.1.0
-  resolution: "@metamask/permission-controller@npm:7.1.0"
-  dependencies:
-    "@metamask/base-controller": ^4.0.1
-    "@metamask/controller-utils": ^8.0.1
-    "@metamask/json-rpc-engine": ^7.3.1
-    "@metamask/rpc-errors": ^6.1.0
-    "@metamask/utils": ^8.2.0
-    "@types/deep-freeze-strict": ^1.1.0
-    deep-freeze-strict: ^1.1.1
-    immer: ^9.0.6
-    nanoid: ^3.1.31
-  peerDependencies:
-    "@metamask/approval-controller": ^5.1.1
-  checksum: 889213cca32cbf5b32b7e71c70ded0aeea32eae169ec67fb0d0bc8dcaa183b222f9d5417f657e331d7fb21ecb71f250cf1c932110d4b1e2167972b30bd012098
-  languageName: node
-  linkType: hard
-
-"@metamask/permission-controller@workspace:packages/permission-controller":
+"@metamask/permission-controller@^8.0.1, @metamask/permission-controller@workspace:packages/permission-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
@@ -2462,6 +2443,25 @@ __metadata:
     "@metamask/approval-controller": ^5.1.2
   languageName: unknown
   linkType: soft
+
+"@metamask/permission-controller@npm:^7.0.0, @metamask/permission-controller@npm:^7.1.0":
+  version: 7.1.0
+  resolution: "@metamask/permission-controller@npm:7.1.0"
+  dependencies:
+    "@metamask/base-controller": ^4.0.1
+    "@metamask/controller-utils": ^8.0.1
+    "@metamask/json-rpc-engine": ^7.3.1
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/utils": ^8.2.0
+    "@types/deep-freeze-strict": ^1.1.0
+    deep-freeze-strict: ^1.1.1
+    immer: ^9.0.6
+    nanoid: ^3.1.31
+  peerDependencies:
+    "@metamask/approval-controller": ^5.1.1
+  checksum: 889213cca32cbf5b32b7e71c70ded0aeea32eae169ec67fb0d0bc8dcaa183b222f9d5417f657e331d7fb21ecb71f250cf1c932110d4b1e2167972b30bd012098
+  languageName: node
+  linkType: hard
 
 "@metamask/permission-log-controller@workspace:packages/permission-log-controller":
   version: 0.0.0-use.local
@@ -2673,6 +2673,7 @@ __metadata:
     "@metamask/base-controller": ^4.1.1
     "@metamask/json-rpc-engine": ^7.3.2
     "@metamask/network-controller": ^17.2.0
+    "@metamask/permission-controller": ^8.0.1
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2893,7 +2894,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^23.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@^23.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -2953,7 +2954,7 @@ __metadata:
     "@metamask/network-controller": ^17.2.0
     "@metamask/polling-controller": ^5.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/transaction-controller": ^23.0.0
+    "@metamask/transaction-controller": ^23.1.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     bn.js: ^5.2.1
