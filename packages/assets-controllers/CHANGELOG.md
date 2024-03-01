@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
 ### Added
 
 - **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
@@ -26,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
   - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
     - This is breaking because it could affect how this type is used with other types, such as `Json`, which does not support TypeScript interfaces.
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^13.0.0`
 
 ### Removed
 
@@ -33,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `TokenDetectionController` no longer allows the `NetworkController:stateChange` event. The `NetworkController:networkDidChange` event can be used instead. ([#3775](https://github.com/MetaMask/core/pull/3775/))
 - **BREAKING:** `TokensController` constructor no longer accepts options `onPreferencesStateChange`, `onNetworkDidChange`, `onTokenListStateChange`, `getNetworkClientById`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
 - **BREAKING:** `TokenBalancesController` constructor no longer accepts options `onTokensStateChange`, `getSelectedAddress`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
+
+## Fixed
+
+- Fix `TokenDetectionController.detectTokens()` used tokens states when passed networkClientId ([#3914](https://github.com/MetaMask/core/pull/3914))
+- Fix import ERC20 on network 1337 ([#3777](https://github.com/MetaMask/core/pull/3777))
+- Fix price api cache control ([#3939](https://github.com/MetaMask/core/pull/3939))
+- Fix NFT detection running too many times ([#3917](https://github.com/MetaMask/core/pull/3917))
 
 ## [25.0.0]
 
@@ -675,7 +685,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...@metamask/assets-controllers@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...@metamask/assets-controllers@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.0.0...@metamask/assets-controllers@23.1.0

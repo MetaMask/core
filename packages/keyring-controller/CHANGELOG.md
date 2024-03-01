@@ -7,12 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Added
+
+- Added `keyringBuilderFactory` util ([#3830](https://github.com/MetaMask/core/pull/3830))
+- Added `GenericEncryptor`, `ExportableKeyEncryptor` and `SerializedKeyring` types ([#3830](https://github.com/MetaMask/core/pull/3830))
+
 ### Removed
 
 - **BREAKING:** Remove callbacks `updateIdentities`, `syncIdentities`, `setSelectedAddress`, `setAccountLabel` from constructor options of the `KeyringController` class. These were previously used to update `PreferencesController` state, but are now replaced with `PreferencesController`'s subscription to the `KeyringController:stateChange` event. ([#3853](https://github.com/MetaMask/core/pull/3853))
   - Class methods `addNewAccount`, `addNewAccountForKeyring`, `createNewVaultAndRestore`, `createNewVaultAndKeychain`, `importAccountWithStrategy`, `restoreQRKeyring`, `unlockQRHardwareWalletAccount`, `forgetQRDevice` no longer directly updates `PreferencesController` state by calling the `updateIdentities` callback.
   - Class method `submitPassword` no longer directly updates `PreferencesController` state by calling the `syncIdentities` callback.
   - Class method `unlockQRHardwareWalletAccount` no longer directly updates `PreferencesController` state by calling the `setAccountLabel`, `setSelectedAddress` callbacks.
+
+### Fixed
+
+- Add wildcard for custody keyring ([#3899](https://github.com/MetaMask/core/pull/3899))
 
 ## [12.2.0]
 
@@ -358,7 +369,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.1.0...@metamask/keyring-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.0.0...@metamask/keyring-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@11.0.0...@metamask/keyring-controller@12.0.0

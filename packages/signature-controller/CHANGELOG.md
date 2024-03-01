@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+## Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^13.0.0`
+
 ## [12.0.0]
 
 ### Changed
@@ -189,7 +195,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@12.0.0...@metamask/signature-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@11.0.0...@metamask/signature-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@10.0.0...@metamask/signature-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@9.0.0...@metamask/signature-controller@10.0.0
