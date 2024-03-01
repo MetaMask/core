@@ -22,8 +22,8 @@ const log = createProjectLogger('ens-controller');
 
 const name = 'EnsController';
 
-// Map of chainIDs and contract addresses
-const ENS_NETWORK_MAP: Record<number, string> = {
+// Map of chainIDs and ENS registry contract addresses
+const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
   // Mainnet
   1: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
   // Ropsten
@@ -33,7 +33,6 @@ const ENS_NETWORK_MAP: Record<number, string> = {
   // Goerli
   5: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
 };
-
 
 /**
  * @type EnsEntry
@@ -96,21 +95,26 @@ export class EnsController extends BaseController<
 > {
   #ethProvider: Web3Provider | null = null;
 
+  #registriesByChainId: Record<number, Hex>;
+
   /**
    * Creates an EnsController instance.
    *
    * @param options - Constructor options.
+   * @param options.registriesByChainId - Map between chain IDs and ENS contract addresses.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.provider - Provider instance.
    * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    */
   constructor({
+    registriesByChainId = DEFAULT_ENS_NETWORK_MAP,
     messenger,
     state = {},
     provider,
     onNetworkDidChange,
   }: {
+    registriesByChainId: Record<number, Hex>;
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
@@ -128,6 +132,7 @@ export class EnsController extends BaseController<
       },
     });
 
+    this.#registriesByChainId = registriesByChainId;
     if (provider && onNetworkDidChange) {
       onNetworkDidChange((networkState) => {
         this.resetState();
@@ -138,7 +143,7 @@ export class EnsController extends BaseController<
             name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
               currentChainId as ChainId
             ],
-            ensAddress: ENS_NETWORK_MAP[parseInt(currentChainId, 16)],
+            ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
           });
         } else {
           this.#ethProvider = null;
@@ -269,7 +274,7 @@ export class EnsController extends BaseController<
    * @returns Boolean indicating if the chain supports ENS.
    */
   #getChainEnsSupport(chainId: string) {
-    return Boolean(ENS_NETWORK_MAP[parseInt(chainId, 16)]);
+    return Boolean(this.#registriesByChainId[parseInt(chainId, 16)]);
   }
 
   /**
