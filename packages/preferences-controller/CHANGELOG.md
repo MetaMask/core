@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` dependency and peer dependency to `^13.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
+### Removed
+
+- **BREAKING:** Move `syncIdentities` to private, as it's only used internally to update state on `KeyringController:stateChange` event ([#3976](https://github.com/MetaMask/core/pull/3976))
+- **BREAKING:** Remove `updateIdentities`, as it's not in use anymore ([#3976](https://github.com/MetaMask/core/pull/3976))
+
+### Fixed
+
+- Fix KeyringController state listener to not sync identities when the wallet is locked (which clears the list of accounts) to avoid setting the selected address to `undefined` ([#3946](https://github.com/MetaMask/core/pull/3946))
+
 ## [7.0.0]
 
 ### Changed
@@ -157,7 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@7.0.0...@metamask/preferences-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@6.0.0...@metamask/preferences-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.1...@metamask/preferences-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.0...@metamask/preferences-controller@5.0.1

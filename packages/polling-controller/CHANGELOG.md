@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/network-controller` to `^17.2.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
 ## [5.0.0]
 
 ### Changed
@@ -88,7 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.0...@metamask/polling-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@4.0.0...@metamask/polling-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@3.0.0...@metamask/polling-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@2.0.0...@metamask/polling-controller@3.0.0
