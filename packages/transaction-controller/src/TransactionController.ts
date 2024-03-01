@@ -34,6 +34,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
+import SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -250,6 +251,7 @@ export type TransactionControllerOptions = {
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   getSelectedAddress: () => string;
+  getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
   incomingTransactions?: IncomingTransactionOptions;
   messenger: TransactionControllerMessenger;
   onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
@@ -355,6 +357,8 @@ export class TransactionController extends BaseControllerV1<
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
   private readonly getSelectedAddress: () => string;
+
+  private readonly getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
 
   private readonly getExternalPendingTransactions: (
     address: string,
@@ -463,6 +467,7 @@ export class TransactionController extends BaseControllerV1<
       getPermittedAccounts,
       getSavedGasFees,
       getSelectedAddress,
+      getSmartTransactionFeeEstimates,
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
@@ -504,6 +509,7 @@ export class TransactionController extends BaseControllerV1<
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
+    this.getSmartTransactionFeeEstimates = getSmartTransactionFeeEstimates;
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
@@ -589,6 +595,7 @@ export class TransactionController extends BaseControllerV1<
           chainId,
         }),
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getSmartTransactionFeeEstimates: this.getSmartTransactionFeeEstimates,
       getTransactions: () => this.state.transactions,
       onStateChange: (listener) => {
         this.subscribe(listener);

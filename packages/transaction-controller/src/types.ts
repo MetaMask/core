@@ -5,6 +5,7 @@ import type {
   GasFeeState,
 } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
+import SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -201,6 +202,11 @@ type TransactionMetaBase = {
    * Generated UUID associated with this transaction.
    */
   id: string;
+
+  /**
+   * Whether the transaction is a smart contract interaction.
+   */
+  isSmartTransaction?: boolean;
 
   /**
    * Whether the transaction is a transfer.
@@ -1004,6 +1010,9 @@ export type GasFeeEstimates = {
 
   /** The gas fee estimate for a high priority transaction. */
   [GasFeeEstimateLevel.high]: GasFeeEstimatesForLevel;
+
+  /** The gas fee estimates for smart transactions */
+  smartTransactionFees?: ReturnType<SmartTransactionsController['getFees']>;
 };
 
 /** Request to a gas fee flow to obtain gas fee estimates. */
@@ -1018,6 +1027,9 @@ export type GasFeeFlowRequest = {
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
+
+  /** Callback to get the smart transaction fee estimates. */
+  getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
 };
 
 /** Response from a gas fee flow containing gas fee estimates. */
