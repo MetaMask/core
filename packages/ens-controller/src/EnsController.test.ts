@@ -79,6 +79,26 @@ describe('EnsController', () => {
     expect(controller.state).toStrictEqual(defaultState);
   });
 
+  it('should return registry address for `.`', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
+    expect(controller.get('0x1', '.')).toStrictEqual({
+      ensName: '.',
+      address: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+      chainId: '0x1',
+    });
+  });
+
+  it('should not return registry address for unrecognized chains', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
+    expect(controller.get('0x666', '.')).toBeNull();
+  });
+
   it('should add a new ENS entry and return true', () => {
     const messenger = getMessenger();
     const controller = new EnsController({
