@@ -16,12 +16,24 @@ import {
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
-import ensNetworkMap from 'ethereum-ens-network-map';
 import { toASCII } from 'punycode/';
 
 const log = createProjectLogger('ens-controller');
 
 const name = 'EnsController';
+
+// Map of chainIDs and contract addresses
+const ENS_NETWORK_MAP: Record<number, string> = {
+  // Mainnet
+  1: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Ropsten
+  3: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Rinkeby
+  4: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Goerli
+  5: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+};
+
 
 /**
  * @type EnsEntry
@@ -126,7 +138,7 @@ export class EnsController extends BaseController<
             name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
               currentChainId as ChainId
             ],
-            ensAddress: ensNetworkMap[parseInt(currentChainId, 16)],
+            ensAddress: ENS_NETWORK_MAP[parseInt(currentChainId, 16)],
           });
         } else {
           this.#ethProvider = null;
@@ -257,7 +269,7 @@ export class EnsController extends BaseController<
    * @returns Boolean indicating if the chain supports ENS.
    */
   #getChainEnsSupport(chainId: string) {
-    return Boolean(ensNetworkMap[parseInt(chainId, 16)]);
+    return Boolean(ENS_NETWORK_MAP[parseInt(chainId, 16)]);
   }
 
   /**
