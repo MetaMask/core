@@ -288,8 +288,6 @@ export const constants = deepFreeze({
 
   PERM_NAMES: { ...PERM_NAMES },
 
-  RESTRICTED_METHODS: new Set(['eth_accounts', 'test_method']),
-
   /**
    * Mock permissions history objects.
    */

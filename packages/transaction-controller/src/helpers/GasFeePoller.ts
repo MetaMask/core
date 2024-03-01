@@ -6,7 +6,7 @@ import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
-import type { GasFeeFlow, GasFeeFlowRequest, Layer1GasFeeFlow } from '../types';
+import type { GasFeeEstimates, GasFeeFlow, GasFeeFlowRequest, Layer1GasFeeFlow } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { updateTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
@@ -139,12 +139,14 @@ export class GasFeePoller {
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
     if (!gasFeeFlow) {
-      log('Skipping update as no gas fee flow found', transactionMeta.id);
-
-      return;
+      log('No gas fee flow found', transactionMeta.id);
+    } else {
+      log(
+        'Found gas fee flow',
+        gasFeeFlow.constructor.name,
+        transactionMeta.id,
+      );
     }
-
-    log('Found gas fee flow', gasFeeFlow.constructor.name, transactionMeta.id);
 
     const request: GasFeeFlowRequest = {
       ethQuery,
@@ -152,14 +154,23 @@ export class GasFeePoller {
       transactionMeta,
     };
 
-    try {
-      const response = await gasFeeFlow.getGasFees(request);
+    let gasFeeEstimates: GasFeeEstimates | undefined;
 
-      transactionMeta.gasFeeEstimates = response.estimates;
-    } catch (error) {
-      log('Failed to get suggested gas fees', transactionMeta.id, error);
+    if (gasFeeFlow) {
+      try {
+        const response = await gasFeeFlow.getGasFees(request);
+        gasFeeEstimates = response.estimates;
+      } catch (error) {
+        log('Failed to get suggested gas fees', transactionMeta.id, error);
+      }
+    }
+
+    if (!gasFeeEstimates && transactionMeta.gasFeeEstimatesLoaded) {
       return;
     }
+
+    transactionMeta.gasFeeEstimates = gasFeeEstimates;
+    transactionMeta.gasFeeEstimatesLoaded = true;
 
     this.hub.emit('transaction-updated', transactionMeta);
 

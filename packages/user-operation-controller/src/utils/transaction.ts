@@ -8,7 +8,8 @@ import {
   UserFeeLevel,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { BN, addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
+import { add0x, remove0x } from '@metamask/utils';
+import BN from 'bn.js';
 
 import { EMPTY_BYTES, VALUE_ZERO } from '../constants';
 import { UserOperationStatus } from '../types';
@@ -46,9 +47,9 @@ export function getTransactionMetadata(
   // effectiveGasPrice = actualGasCost / actualGasUsed
   const effectiveGasPrice =
     actualGasCost && actualGasUsed
-      ? addHexPrefix(
-          new BN(stripHexPrefix(actualGasCost), 16)
-            .div(new BN(stripHexPrefix(actualGasUsed), 16))
+      ? add0x(
+          new BN(remove0x(actualGasCost), 16)
+            .div(new BN(remove0x(actualGasUsed), 16))
             .toString(16),
         )
       : undefined;
@@ -152,8 +153,8 @@ function addHex(...values: (string | undefined)[]) {
       continue;
     }
 
-    total.iadd(new BN(stripHexPrefix(value), 16));
+    total.iadd(new BN(remove0x(value), 16));
   }
 
-  return addHexPrefix(total.toString(16));
+  return add0x(total.toString(16));
 }

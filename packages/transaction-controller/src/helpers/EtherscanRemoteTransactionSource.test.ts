@@ -11,7 +11,7 @@ import {
   EXPECTED_NORMALISED_TOKEN_TRANSACTION,
   ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK,
-} from '../../test/EtherscanMocks';
+} from '../../tests/EtherscanMocks';
 import { CHAIN_IDS } from '../constants';
 import {
   fetchEtherscanTokenTransactions,

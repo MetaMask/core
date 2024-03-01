@@ -121,6 +121,7 @@ describe('GasFeePoller', () => {
           ...TRANSACTION_META_MOCK,
           gasFeeEstimates: GAS_FEE_FLOW_RESPONSE_MOCK.estimates,
           layer1GasFee: LAYER1_GAS_FEE_MOCK,
+          gasFeeEstimatesLoaded: true,
         });
       });
 
@@ -224,13 +225,17 @@ describe('GasFeePoller', () => {
         expect(listener).toHaveBeenCalledTimes(0);
       });
 
-      it('no fee flow matches transaction', async () => {
+      it('no gas fee flow matches transaction and already loaded', async () => {
         const listener = jest.fn();
 
         gasFeeFlowMock.matchesTransaction.mockReturnValue(false);
         updateTransactionLayer1GasFeeMock.mockImplementation(() => {
           return Promise.resolve();
         });
+
+        getTransactionsMock.mockReturnValue([
+          { ...TRANSACTION_META_MOCK, gasFeeEstimatesLoaded: true },
+        ]);
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
         gasFeePoller.hub.on('transaction-updated', listener);
@@ -241,7 +246,7 @@ describe('GasFeePoller', () => {
         expect(listener).toHaveBeenCalledTimes(0);
       });
 
-      it('gas fee flow throws', async () => {
+      it('gas fee flow throws and already loaded', async () => {
         const listener = jest.fn();
 
         // to make sure update will be called by gas fee flow
@@ -250,6 +255,10 @@ describe('GasFeePoller', () => {
         });
 
         gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
+
+        getTransactionsMock.mockReturnValue([
+          { ...TRANSACTION_META_MOCK, gasFeeEstimatesLoaded: true },
+        ]);
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
         gasFeePoller.hub.on('transaction-updated', listener);

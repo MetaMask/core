@@ -1,5 +1,5 @@
+import { remove0x } from '@metamask/utils';
 import { ParsedMessage } from '@spruceid/siwe-parser';
-import { isHexPrefixed } from 'ethereumjs-util';
 
 import { projectLogger, createModuleLogger } from './logger';
 
@@ -7,15 +7,16 @@ const log = createModuleLogger(projectLogger, 'detect-siwe');
 
 /**
  * This function strips the hex prefix from a string if it has one.
+ * If the input is not a string, return it unmodified.
  *
  * @param str - The string to check
  * @returns The string without the hex prefix
  */
-function stripHexPrefix(str: string) {
+function safeStripHexPrefix(str: string) {
   if (typeof str !== 'string') {
     return str;
   }
-  return isHexPrefixed(str) ? str.slice(2) : str;
+  return remove0x(str);
 }
 
 /**
@@ -26,7 +27,7 @@ function stripHexPrefix(str: string) {
  */
 function msgHexToText(hex: string): string {
   try {
-    const stripped = stripHexPrefix(hex);
+    const stripped = safeStripHexPrefix(hex);
     const buff = Buffer.from(stripped, 'hex');
     return buff.length === 32 ? hex : buff.toString('utf8');
   } catch (e) {

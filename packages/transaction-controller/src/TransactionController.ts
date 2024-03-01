@@ -1,6 +1,7 @@
 import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
+import { bufferToHex } from '@ethereumjs/util';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -34,9 +35,9 @@ import type {
 import { NetworkClientType } from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
-import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { mapValues, merge, pickBy, sortBy } from 'lodash';
 import { NonceTracker } from 'nonce-tracker';
@@ -93,7 +94,7 @@ import {
 import { determineTransactionType } from './utils/transaction-type';
 import {
   getIncreasedPriceFromExisting,
-  normalizeTxParams,
+  normalizeTransactionParams,
   isEIP1559Transaction,
   isFeeMarketEIP1559Values,
   isGasPriceValue,
@@ -708,7 +709,7 @@ export class TransactionController extends BaseControllerV1<
   ): Promise<Result> {
     log('Adding transaction', txParams);
 
-    txParams = normalizeTxParams(txParams);
+    txParams = normalizeTransactionParams(txParams);
     if (
       networkClientId &&
       !this.#multichainTrackingHelper.has(networkClientId)
@@ -1715,7 +1716,7 @@ export class TransactionController extends BaseControllerV1<
         : undefined;
 
       const nonce = nonceLock
-        ? addHexPrefix(nonceLock.nextNonce.toString(16))
+        ? add0x(nonceLock.nextNonce.toString(16))
         : initialTx.nonce;
 
       if (nonceLock) {
@@ -1948,7 +1949,8 @@ export class TransactionController extends BaseControllerV1<
       throw new Error('No sign method defined.');
     }
 
-    const normalizedTransactionParams = normalizeTxParams(transactionParams);
+    const normalizedTransactionParams =
+      normalizeTransactionParams(transactionParams);
     const type = isEIP1559Transaction(normalizedTransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
@@ -2740,7 +2742,7 @@ export class TransactionController extends BaseControllerV1<
         continue;
       }
 
-      transactionMeta[key] = addHexPrefix(value.toString(16));
+      transactionMeta[key] = add0x(value.toString(16));
     }
   }
 
@@ -3108,7 +3110,9 @@ export class TransactionController extends BaseControllerV1<
   ) {
     const { transactions } = this.state;
 
-    transactionMeta.txParams = normalizeTxParams(transactionMeta.txParams);
+    transactionMeta.txParams = normalizeTransactionParams(
+      transactionMeta.txParams,
+    );
 
     validateTxParams(transactionMeta.txParams);
 

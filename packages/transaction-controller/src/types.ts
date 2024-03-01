@@ -181,6 +181,12 @@ type TransactionMetaBase = {
    */
   firstRetryBlockNumber?: string;
 
+  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
+  gasFeeEstimates?: GasFeeEstimates;
+
+  /** Whether the gas fee estimates have been checked at least once. */
+  gasFeeEstimatesLoaded?: boolean;
+
   /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
@@ -339,9 +345,6 @@ type TransactionMetaBase = {
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
-
-  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
-  gasFeeEstimates?: GasFeeEstimates;
 
   /**
    * The symbol of the token being swapped.
