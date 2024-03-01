@@ -323,6 +323,20 @@ describe('EnsController', () => {
     expect(controller.state).toStrictEqual(defaultState);
   });
 
+  it('should remove chain entries completely when all entries are removed', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.delete('0x1', '.')).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name1].address).toBe(
+      address1Checksum,
+    );
+    expect(controller.delete('0x1', name1)).toBe(true);
+    expect(controller.state.ensEntries['0x1']).toBeUndefined();
+  });
+
   it('should return false if an ENS entry was NOT deleted', () => {
     const messenger = getMessenger();
     const controller = new EnsController({
