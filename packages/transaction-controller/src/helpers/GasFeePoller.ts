@@ -6,7 +6,12 @@ import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
-import type { GasFeeEstimates, GasFeeFlow, GasFeeFlowRequest, Layer1GasFeeFlow } from '../types';
+import type {
+  GasFeeEstimates,
+  GasFeeFlow,
+  GasFeeFlowRequest,
+  Layer1GasFeeFlow,
+} from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { updateTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
