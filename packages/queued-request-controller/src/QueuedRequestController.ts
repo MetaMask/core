@@ -186,7 +186,7 @@ export class QueuedRequestController extends BaseController<
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       processRequest(networkSwitchError);
     }
-    this.#updateCount();
+    this.#updateQueuedRequestCount();
   }
 
   /**
@@ -227,7 +227,7 @@ export class QueuedRequestController extends BaseController<
   /**
    * Update the queued request count.
    */
-  #updateCount() {
+  #updateQueuedRequestCount() {
     this.update((state) => {
       state.queuedRequestCount = this.#requestQueue.length;
     });
@@ -276,7 +276,7 @@ export class QueuedRequestController extends BaseController<
             }
           },
         });
-        this.#updateCount();
+        this.#updateQueuedRequestCount();
 
         await waitForDequeue;
       } else {
