@@ -10,10 +10,12 @@ import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
-  SimulationBalanceChanges,
+  SimulationBalanceChange,
   SimulationData,
-  SimulationEvents,
+  SimulationTokenBalanceChange,
+  SimulationToken,
 } from '../types';
+import { SimulationTokenStandard } from '../types';
 
 const log = createModuleLogger(projectLogger, 'simulation');
 
@@ -24,13 +26,23 @@ const URLS_BY_CHAIN_ID: Record<Hex, string> = {
   '0x5': 'https://tx-sentinel-ethereum-goerli.api.cx.metamask.io/',
 };
 
+export type GetSimulationDataRequest = {
+  chainId: Hex;
+  from: Hex;
+  to?: Hex;
+  value?: Hex;
+  data?: Hex;
+};
+
+type SimulationRequestTransaction = {
+  from: Hex;
+  to?: Hex;
+  value?: Hex;
+  data?: Hex;
+};
+
 type SimulationRequest = {
-  transactions: {
-    from: string;
-    to?: string;
-    value?: string;
-    data?: string;
-  }[];
+  transactions: SimulationRequestTransaction[];
   overrides?: {
     [address: Hex]: {
       stateDiff: {
@@ -55,6 +67,7 @@ type SimulationResponseCallTrace = {
 
 type SimulationResponse = {
   transactions: {
+    return: Hex;
     callTrace: SimulationResponseCallTrace;
     stateDiff: {
       pre: {
@@ -79,64 +92,73 @@ type SimulationResponse = {
   }[];
 };
 
-export async function getSimulationData({
-  chainId,
-  from,
-  to,
-  value,
-  data,
-}: {
-  chainId: Hex;
-  from: string;
-  to?: string;
-  value?: string;
-  data?: string;
-}): Promise<SimulationData> {
-  const response = await simulateTransactions(chainId, {
-    transactions: [{ from, to, value, data }],
-    withCallTrace: true,
-    withLogs: true,
-  });
+type ParsedEvent = {
+  contractAddress: Hex;
+  tokenStandard: SimulationTokenStandard;
+  name: string;
+  data: Record<string, Hex>;
+  abi: any;
+};
 
-  const balanceChanges = getBalanceChanges(response);
-  const events = getEvents(response);
+export async function getSimulationData(
+  request: GetSimulationDataRequest,
+): Promise<SimulationData | undefined> {
+  const { chainId, from, to, value, data } = request;
+
+  log('Getting simulation data', request);
+
+  try {
+    const response = await simulateTransactions(chainId, {
+      transactions: [{ from, to, value, data }],
+      withCallTrace: true,
+      withLogs: true,
+    });
+
+    log('Simulation response', response);
+
+    const nativeBalanceChange = getNativeBalanceChange(request.from, response);
+    const events = getEvents(response);
+
+    log('Parsed events', events);
+
+    const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
+
+    return {
+      nativeBalanceChange,
+      tokenBalanceChanges,
+    };
+  } catch (error) {
+    log('Failed to get simulation data', error, request);
+    return undefined;
+  }
+}
+
+function getNativeBalanceChange(
+  userAddress: Hex,
+  response: SimulationResponse,
+): SimulationBalanceChange | undefined {
+  const { stateDiff } = response.transactions[0] ?? { pre: {}, post: {} };
+
+  const previousBalance = stateDiff.pre[userAddress].balance;
+  const newBalance = stateDiff.post[userAddress].balance;
+
+  if (!previousBalance || !newBalance) {
+    return undefined;
+  }
+
+  const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
+  const isDecrease = differenceBN.isNeg();
+  const difference = toHex(differenceBN.abs());
 
   return {
-    balanceChanges,
-    events,
+    previousBalance,
+    newBalance,
+    difference,
+    isDecrease,
   };
 }
 
-function getBalanceChanges(
-  response: SimulationResponse,
-): SimulationBalanceChanges {
-  const { stateDiff } = response.transactions[0] ?? { pre: {}, post: {} };
-
-  return Object.keys(stateDiff.pre).reduce((result, address) => {
-    const addressHex = address as Hex;
-    const before = stateDiff.pre[addressHex].balance;
-    const after = stateDiff.post[addressHex].balance;
-
-    if (!before || !after) {
-      return result;
-    }
-
-    const differenceBN = hexToBN(after).sub(hexToBN(before));
-    const isDecrease = differenceBN.isNeg();
-    const difference = toHex(differenceBN.abs());
-
-    result[addressHex] = {
-      before,
-      after,
-      difference,
-      isDecrease,
-    };
-
-    return result;
-  }, {} as SimulationBalanceChanges);
-}
-
-function getEvents(response: SimulationResponse): SimulationEvents {
+function getEvents(response: SimulationResponse): ParsedEvent[] {
   const logs = getLogs(response.transactions[0]?.callTrace);
 
   log('Extracted logs', logs);
@@ -145,48 +167,152 @@ function getEvents(response: SimulationResponse): SimulationEvents {
   const erc721Interface = new Interface(abiERC721);
   const erc1155Interface = new Interface(abiERC1155);
 
-  return logs.reduce((result, currentLog) => {
-    const event = parseLog(
-      currentLog,
-      erc20Interface,
-      erc721Interface,
-      erc1155Interface,
-    );
+  return logs
+    .map((currentLog) => {
+      const event = parseLog(
+        currentLog,
+        erc20Interface,
+        erc721Interface,
+        erc1155Interface,
+      );
 
-    if (!event) {
-      log('Failed to parse log', currentLog);
+      if (!event) {
+        log('Failed to parse log', currentLog);
+        return undefined;
+      }
+
+      const inputs = event.abi.find((e: any) => e.name === event.name)?.inputs;
+
+      if (!inputs) {
+        log('Failed to find inputs for event', event);
+        return undefined;
+      }
+
+      const args = event.args.reduce(
+        (argsResult, arg, index) => ({
+          ...argsResult,
+          [inputs[index].name.replace('_', '')]: (arg.toHexString
+            ? arg.toHexString()
+            : arg
+          ).toLowerCase(),
+        }),
+        {},
+      );
+
+      return {
+        contractAddress: currentLog.address,
+        tokenStandard: event.standard,
+        name: event.name,
+        data: args,
+        abi: event.abi,
+      };
+    })
+    .filter((e) => e !== undefined) as ParsedEvent[];
+}
+
+async function getTokenBalanceChanges(
+  request: GetSimulationDataRequest,
+  events: ParsedEvent[],
+): Promise<SimulationTokenBalanceChange[]> {
+  const balanceTransactionsByToken = getTokenBalanceTransactions(
+    request,
+    events,
+  );
+
+  const balanceTransactions = [...balanceTransactionsByToken.values()];
+
+  log('Generated balance transactions', balanceTransactions);
+
+  if (!balanceTransactions.length) {
+    return [];
+  }
+
+  const response = await simulateTransactions(request.chainId as Hex, {
+    transactions: [...balanceTransactions, request, ...balanceTransactions],
+  });
+
+  log('Balance simulation response', response);
+
+  return [...balanceTransactionsByToken.keys()].map((token, index) => {
+    const previousBalance = response.transactions[index]?.return;
+
+    const newBalance =
+      response.transactions[index + balanceTransactions.length + 1]?.return;
+
+    const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
+    const difference = toHex(differenceBN);
+    const isDecrease = differenceBN.isNeg();
+
+    return {
+      ...token,
+      previousBalance,
+      newBalance,
+      difference,
+      isDecrease,
+    };
+  });
+}
+
+function getTokenBalanceTransactions(
+  request: GetSimulationDataRequest,
+  events: ParsedEvent[],
+): Map<SimulationToken, SimulationRequestTransaction> {
+  return events.reduce((result, event) => {
+    if (
+      !['Transfer', 'TransferSingle', 'TransferBatch'].includes(event.name) ||
+      ![event.data.from, event.data.to].includes(request.from)
+    ) {
+      log('Ignoring event', event);
       return result;
     }
 
-    const inputs = event.abi.find((e: any) => e.name === event.name)?.inputs;
+    let tokenIds: (Hex | undefined)[] = [undefined];
 
-    if (!inputs) {
-      log('Failed to find inputs for event', event);
-      return result;
+    if (event.tokenStandard === SimulationTokenStandard.erc721) {
+      tokenIds = [event.data.tokenId];
     }
 
-    const args = event.args.reduce(
-      (argsResult, arg, index) => ({
-        ...argsResult,
-        [inputs[index].name.replace('_', '')]: (arg.toHexString
-          ? arg.toHexString()
-          : arg
-        ).toLowerCase(),
-      }),
-      {},
-    );
+    if (
+      event.tokenStandard === SimulationTokenStandard.erc1155 &&
+      event.name === 'TransferSingle'
+    ) {
+      tokenIds = [event.data.id];
+    }
 
-    const key = `${event.standard}${event.name}` as keyof SimulationEvents;
+    if (
+      event.tokenStandard === SimulationTokenStandard.erc1155 &&
+      event.name === 'TransferBatch'
+    ) {
+      tokenIds = event.data.ids as unknown as Hex[];
+    }
 
-    result[key] = (result[key] as any) ?? [];
+    log('Extracted token ids', tokenIds);
 
-    (result[key] as any).push({
-      contractAddress: currentLog.address,
-      ...args,
-    });
+    for (const tokenId of tokenIds) {
+      const simulationToken: SimulationToken = {
+        address: event.contractAddress,
+        standard: event.tokenStandard,
+        id: tokenId,
+      };
+
+      const parameters = [request.from];
+
+      if (event.tokenStandard === SimulationTokenStandard.erc1155) {
+        parameters.push(tokenId as Hex);
+      }
+
+      result.set(simulationToken, {
+        from: request.from,
+        to: event.contractAddress,
+        data: new Interface(event.abi).encodeFunctionData(
+          'balanceOf',
+          parameters,
+        ) as Hex,
+      });
+    }
 
     return result;
-  }, {} as SimulationEvents);
+  }, new Map<SimulationToken, SimulationRequestTransaction>());
 }
 
 function parseLog(
@@ -194,27 +320,37 @@ function parseLog(
   erc20: Interface,
   erc721: Interface,
   erc1155: Interface,
-): (LogDescription & { abi: any; standard: string }) | undefined {
-  try {
-    return { ...erc20.parseLog(eventLog), abi: abiERC20, standard: 'erc20' };
-  } catch (e) {
-    // Intentionally empty
-  }
-
-  try {
-    return { ...erc721.parseLog(eventLog), abi: abiERC721, standard: 'erc721' };
-  } catch (e) {
-    // Intentionally empty
-  }
-
-  try {
-    return {
-      ...erc1155.parseLog(eventLog),
+):
+  | (LogDescription & { abi: any; standard: SimulationTokenStandard })
+  | undefined {
+  const abisByStandard = [
+    {
+      abi: abiERC20,
+      contractInterface: erc20,
+      standard: SimulationTokenStandard.erc20,
+    },
+    {
+      abi: abiERC721,
+      contractInterface: erc721,
+      standard: SimulationTokenStandard.erc721,
+    },
+    {
       abi: abiERC1155,
-      standard: 'erc1155',
-    };
-  } catch (e) {
-    // Intentionally empty
+      contractInterface: erc1155,
+      standard: SimulationTokenStandard.erc1155,
+    },
+  ];
+
+  for (const { abi, contractInterface, standard } of abisByStandard) {
+    try {
+      return {
+        ...contractInterface.parseLog(eventLog),
+        abi,
+        standard,
+      };
+    } catch (e) {
+      // Intentionally empty
+    }
   }
 
   return undefined;

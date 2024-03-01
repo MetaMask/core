@@ -689,7 +689,10 @@ export class TransactionController extends BaseControllerV1<
 
     transactionMeta.simulationData = await getSimulationData({
       chainId,
-      ...txParams,
+      from: txParams.from as Hex,
+      to: txParams.to as Hex,
+      value: txParams.value as Hex,
+      data: txParams.data as Hex,
     });
 
     log('Retrieved simulation data', transactionMeta.simulationData);

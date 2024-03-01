@@ -963,83 +963,29 @@ export type SecurityAlertResponse = {
   providerRequestsCount?: Record<string, number>;
 };
 
-export type SimulationBalanceChanges = {
-  [address: Hex]: {
-    before: Hex;
-    after: Hex;
-    difference: Hex;
-    isDecrease: boolean;
-  };
+export type SimulationBalanceChange = {
+  previousBalance: Hex;
+  newBalance: Hex;
+  difference: Hex;
+  isDecrease: boolean;
 };
 
-export type SimulationEvents = {
-  erc20Transfer?: SimulationERC20TransferEvent[];
-  erc20Approval?: SimulationERC20ApprovalEvent[];
-  erc721Transfer?: SimulationERC721TransferEvent[];
-  erc721Approval?: SimulationERC721ApprovalEvent[];
-  erc721ApprovalForAll?: SimulationERC721ApprovalForAllEvent[];
-  erc1155TransferSingle?: SimulationERC1155TransferSingleEvent[];
-  erc1155TransferBatch?: SimulationERC1155TransferBatchEvent[];
-  erc1155ApprovalForAll?: SimulationERC1155ApprovalForAllEvent[];
+export enum SimulationTokenStandard {
+  erc20 = 'erc20',
+  erc721 = 'erc721',
+  erc1155 = 'erc1155',
+}
+
+export type SimulationToken = {
+  address: Hex;
+  standard: SimulationTokenStandard;
+  id?: Hex;
 };
 
-export type SimulationEvent = {
-  contractAddress: Hex;
-};
-
-export type SimulationERC20TransferEvent = SimulationEvent & {
-  from: Hex;
-  to: Hex;
-  value: Hex;
-};
-
-export type SimulationERC20ApprovalEvent = SimulationEvent & {
-  owner: Hex;
-  spender: Hex;
-  value: Hex;
-};
-
-export type SimulationERC721TransferEvent = SimulationEvent & {
-  from: Hex;
-  to: Hex;
-  tokenId: Hex;
-};
-
-export type SimulationERC721ApprovalEvent = SimulationEvent & {
-  owner: Hex;
-  approved: Hex;
-  tokenId: Hex;
-};
-
-export type SimulationERC721ApprovalForAllEvent = SimulationEvent & {
-  owner: Hex;
-  operator: Hex;
-  approved: Hex;
-};
-
-export type SimulationERC1155TransferSingleEvent = SimulationEvent & {
-  operator: Hex;
-  from: Hex;
-  to: Hex;
-  id: Hex;
-  value: Hex;
-};
-
-export type SimulationERC1155TransferBatchEvent = SimulationEvent & {
-  operator: Hex;
-  from: Hex;
-  to: Hex;
-  ids: Hex[];
-  values: Hex[];
-};
-
-export type SimulationERC1155ApprovalForAllEvent = SimulationEvent & {
-  account: Hex;
-  operator: Hex;
-  approved: boolean;
-};
+export type SimulationTokenBalanceChange = SimulationToken &
+  SimulationBalanceChange;
 
 export type SimulationData = {
-  balanceChanges: SimulationBalanceChanges;
-  events: SimulationEvents;
+  nativeBalanceChange?: SimulationBalanceChange;
+  tokenBalanceChanges: SimulationTokenBalanceChange[];
 };
