@@ -12,6 +12,7 @@ import {
   toChecksumHexAddress,
   CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
+  toHex,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -23,7 +24,7 @@ const log = createProjectLogger('ens-controller');
 const name = 'EnsController';
 
 // Map of chainIDs and ENS registry contract addresses
-const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
+export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
   // Mainnet
   1: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
   // Ropsten
@@ -32,9 +33,9 @@ const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
   4: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
   // Goerli
   5: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-   // Holesky
+  // Holesky
   17000: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-   // Sepolia
+  // Sepolia
   11155111: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
 };
 
@@ -99,8 +100,6 @@ export class EnsController extends BaseController<
 > {
   #ethProvider: Web3Provider | null = null;
 
-  #registriesByChainId: Record<number, Hex>;
-
   /**
    * Creates an EnsController instance.
    *
@@ -118,7 +117,7 @@ export class EnsController extends BaseController<
     provider,
     onNetworkDidChange,
   }: {
-    registriesByChainId: Record<number, Hex>;
+    registriesByChainId?: Record<number, Hex>;
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
@@ -132,11 +131,22 @@ export class EnsController extends BaseController<
       messenger,
       state: {
         ...defaultState,
+        ensEntries: Object.fromEntries(
+          Object.entries(registriesByChainId).map(([chainId, address]) => [
+            toHex(chainId),
+            {
+              '.': {
+                address,
+                chainId: toHex(chainId),
+                ensName: '.',
+              },
+            },
+          ]),
+        ),
         ...state,
       },
     });
 
-    this.#registriesByChainId = registriesByChainId;
     if (provider && onNetworkDidChange) {
       onNetworkDidChange((networkState) => {
         this.resetState();
@@ -277,8 +287,8 @@ export class EnsController extends BaseController<
    * @param chainId - chain id.
    * @returns Boolean indicating if the chain supports ENS.
    */
-  #getChainEnsSupport(chainId: string) {
-    return Boolean(this.#registriesByChainId[parseInt(chainId, 16)]);
+  #getChainEnsSupport(chainId: Hex) {
+    return Boolean(this.state.ensEntries[chainId]);
   }
 
   /**
