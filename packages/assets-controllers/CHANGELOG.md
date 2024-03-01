@@ -52,9 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `TokenDetectionController.detectTokens()` now reads the chain ID keyed state properties from `TokenListController` and `TokensController` rather than incorrectly using the globally selected state properties when a network client ID is passed ([#3914](https://github.com/MetaMask/core/pull/3914))
-- Fix PreferencesController state listener in NftDetectionController so that NFT detection is not run when any preference changes but only when NFT detection is enabled ([#3917](https://github.com/MetaMask/core/pull/3917))
+- Fix `PreferencesController` state listener in `NftDetectionController` so that NFT detection is not run when any preference changes, but only when NFT detection is enabled ([#3917](https://github.com/MetaMask/core/pull/3917))
 - Fix `isTokenListSupportedForNetwork` so that it returns false for chain 1337 ([#3777](https://github.com/MetaMask/core/pull/3777))
-  - When used in combination with TokensController, this makes it possible to import an ERC-20 token on a locally run chain.
+  - When used in combination with `TokensController`, this makes it possible to import an ERC-20 token on a locally run chain.
 
 ## [25.0.0]
 
