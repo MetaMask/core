@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable jsdoc/require-jsdoc */
 
-import type { LogDescription } from '@ethersproject/abi';
+import type { LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
-import { JsonRpcProvider } from '@ethersproject/providers';
 import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
@@ -16,15 +15,15 @@ import type {
   SimulationToken,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
+import type {
+  SimulationLog,
+  SimulationRequestTransaction,
+  SimulationResponse,
+  SimulationResponseCallTrace,
+} from './simulation-api';
+import { simulateTransactions } from './simulation-api';
 
 const log = createModuleLogger(projectLogger, 'simulation');
-
-const RPC_METHOD = 'infura_simulateTransactions';
-
-const URLS_BY_CHAIN_ID: Record<Hex, string> = {
-  '0x1': 'https://tx-sentinel-ethereum-mainnet.api.cx.metamask.io/',
-  '0x5': 'https://tx-sentinel-ethereum-goerli.api.cx.metamask.io/',
-};
 
 export type GetSimulationDataRequest = {
   chainId: Hex;
@@ -32,64 +31,6 @@ export type GetSimulationDataRequest = {
   to?: Hex;
   value?: Hex;
   data?: Hex;
-};
-
-type SimulationRequestTransaction = {
-  from: Hex;
-  to?: Hex;
-  value?: Hex;
-  data?: Hex;
-};
-
-type SimulationRequest = {
-  transactions: SimulationRequestTransaction[];
-  overrides?: {
-    [address: Hex]: {
-      stateDiff: {
-        [slot: Hex]: Hex;
-      };
-    };
-  };
-  withCallTrace?: boolean;
-  withLogs?: boolean;
-};
-
-type SimulationLog = {
-  address: Hex;
-  data: Hex;
-  topics: Hex[];
-};
-
-type SimulationResponseCallTrace = {
-  calls: SimulationResponseCallTrace[];
-  logs: SimulationLog[];
-};
-
-type SimulationResponse = {
-  transactions: {
-    return: Hex;
-    callTrace: SimulationResponseCallTrace;
-    stateDiff: {
-      pre: {
-        [address: Hex]: {
-          balance?: Hex;
-          nonce?: Hex;
-          storage?: {
-            [slot: Hex]: Hex;
-          };
-        };
-      };
-      post: {
-        [address: Hex]: {
-          balance?: Hex;
-          nonce?: Hex;
-          storage?: {
-            [slot: Hex]: Hex;
-          };
-        };
-      };
-    };
-  }[];
 };
 
 type ParsedEvent = {
@@ -121,7 +62,9 @@ export async function getSimulationData(
 
     log('Parsed events', events);
 
-    const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
+    const tokenBalanceChanges = events.length
+      ? await getTokenBalanceChanges(request, events)
+      : [];
 
     return {
       nativeBalanceChange,
@@ -139,8 +82,8 @@ function getNativeBalanceChange(
 ): SimulationBalanceChange | undefined {
   const { stateDiff } = response.transactions[0] ?? { pre: {}, post: {} };
 
-  const previousBalance = stateDiff.pre[userAddress].balance;
-  const newBalance = stateDiff.post[userAddress].balance;
+  const previousBalance = stateDiff.pre[userAddress]?.balance;
+  const newBalance = stateDiff.post[userAddress]?.balance;
 
   if (!previousBalance || !newBalance) {
     return undefined;
@@ -188,16 +131,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         return undefined;
       }
 
-      const args = event.args.reduce(
-        (argsResult, arg, index) => ({
-          ...argsResult,
-          [inputs[index].name.replace('_', '')]: (arg.toHexString
-            ? arg.toHexString()
-            : arg
-          ).toLowerCase(),
-        }),
-        {},
-      );
+      const args = parseEventArgs(event.args, inputs);
 
       return {
         contractAddress: currentLog.address,
@@ -208,6 +142,31 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
       };
     })
     .filter((e) => e !== undefined) as ParsedEvent[];
+}
+
+function parseEventArgs(args: Result, abiInputs: { name: string }[]) {
+  return args.reduce((result, arg, index) => {
+    const name = abiInputs[index].name.replace('_', '');
+    const value = parseEventArgValue(arg);
+
+    result[name] = value;
+
+    return result;
+  }, {});
+}
+
+function parseEventArgValue(value: any): any {
+  if (Array.isArray(value)) {
+    return value.map(parseEventArgValue);
+  }
+
+  let parsedValue = value;
+
+  if (parsedValue.toHexString) {
+    parsedValue = value.toHexString();
+  }
+
+  return parsedValue.toLowerCase();
 }
 
 async function getTokenBalanceChanges(
@@ -240,8 +199,8 @@ async function getTokenBalanceChanges(
       response.transactions[index + balanceTransactions.length + 1]?.return;
 
     const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
-    const difference = toHex(differenceBN);
     const isDecrease = differenceBN.isNeg();
+    const difference = toHex(differenceBN.abs());
 
     return {
       ...token,
@@ -257,6 +216,8 @@ function getTokenBalanceTransactions(
   request: GetSimulationDataRequest,
   events: ParsedEvent[],
 ): Map<SimulationToken, SimulationRequestTransaction> {
+  const tokenKeys = new Set();
+
   return events.reduce((result, event) => {
     if (
       !['Transfer', 'TransferSingle', 'TransferBatch'].includes(event.name) ||
@@ -294,6 +255,22 @@ function getTokenBalanceTransactions(
         standard: event.tokenStandard,
         id: tokenId,
       };
+
+      const tokenKey = JSON.stringify(simulationToken);
+
+      if (tokenKeys.has(tokenKey)) {
+        log(
+          'Ignoring additional event with same contract and token ID',
+          simulationToken,
+        );
+        continue;
+      }
+
+      tokenKeys.add(tokenKey);
+
+      if (result.has(simulationToken)) {
+        continue;
+      }
 
       const parameters = [request.from];
 
@@ -364,21 +341,4 @@ function getLogs(call: SimulationResponseCallTrace): SimulationLog[] {
     ...logs,
     ...nestedCalls.map((nestedCall) => getLogs(nestedCall)).flat(),
   ];
-}
-
-async function simulateTransactions(
-  chainId: Hex,
-  request: SimulationRequest,
-): Promise<SimulationResponse> {
-  const url = URLS_BY_CHAIN_ID[chainId];
-
-  if (!url) {
-    throw new Error(`Chain does not support simulations: ${chainId}`);
-  }
-
-  const jsonRpc = new JsonRpcProvider(url);
-
-  const response = await jsonRpc.send(RPC_METHOD, [request]);
-
-  return response;
 }
