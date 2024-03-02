@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, `addDetectedTokens`. ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/))
+- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `networkClientId`, `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, `addDetectedTokens`. ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/), [#3938](https://github.com/MetaMask/core/pull/3938))
 - **BREAKING:** `TokenDetectionController` no longer allows the `NetworkController:stateChange` event. The `NetworkController:networkDidChange` event can be used instead. ([#3775](https://github.com/MetaMask/core/pull/3775/))
 - **BREAKING:** `TokensController` constructor no longer accepts options `onPreferencesStateChange`, `onNetworkDidChange`, `onTokenListStateChange`, `getNetworkClientById`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
 - **BREAKING:** `TokenBalancesController` constructor no longer accepts options `onTokensStateChange`, `getSelectedAddress`. ([#3690](https://github.com/MetaMask/core/pull/3690/))

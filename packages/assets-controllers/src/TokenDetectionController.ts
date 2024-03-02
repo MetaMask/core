@@ -195,13 +195,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.messenger - The controller messaging system.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
-   * @param options.networkClientId - The selected network client ID of the current network
    * @param options.selectedAddress - Vault selected address
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    */
   constructor({
-    networkClientId,
     selectedAddress,
     interval = DEFAULT_INTERVAL,
     disabled = true,
@@ -209,7 +207,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     trackMetaMetricsEvent,
     messenger,
   }: {
-    networkClientId: NetworkClientId;
     selectedAddress?: string;
     interval?: number;
     disabled?: boolean;
@@ -241,11 +238,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         .address;
     this.#addressAgainstWhichToDetect = this.#selectedAddress;
 
-    const { chainId, networkClientId: correctNetworkClientId } =
-      this.#getCorrectChainIdAndNetworkClientId(networkClientId);
+    const { chainId, networkClientId } =
+      this.#getCorrectChainIdAndNetworkClientId();
     this.#chainId = chainId;
     this.#chainIdAgainstWhichToDetect = this.#chainId;
-    this.#networkClientId = correctNetworkClientId;
+    this.#networkClientId = networkClientId;
     this.#networkClientIdAgainstWhichToDetect = this.#networkClientId;
 
     const { useTokenDetection: defaultUseTokenDetection } =
