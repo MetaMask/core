@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
   - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
     - `TokensState` now extends the `Record` types, and it has an index signature of `string`, making it compatible with the `BaseControllerV2` state object constraint of `Record<string, Json>`.
-  - The `detectTokens` method can now process an arbitrary number of tokens in batches of 1000.
+  - The `detectTokens` method can now process an arbitrary number of tokens in batches of 1000. ([#3938](https://github.com/MetaMask/core/pull/3938))
 
 ### Removed
 
