@@ -139,7 +139,6 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
  * @property intervalId - Polling interval used to fetch new token rates
- * @property chainId - The chain ID of the current network
  * @property selectedAddress - Vault selected address
  * @property networkClientId - The network client ID of the current selected network
  * @property disabled - Boolean to track if network requests are blocked
@@ -153,8 +152,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   TokenDetectionControllerMessenger
 > {
   #intervalId?: ReturnType<typeof setTimeout>;
-
-  #chainId: Hex;
 
   #selectedAddress: string;
 
@@ -233,15 +230,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     const { chainId, networkClientId } =
       this.#getCorrectChainIdAndNetworkClientId();
-    this.#chainId = chainId;
     this.#networkClientId = networkClientId;
 
     const { useTokenDetection: defaultUseTokenDetection } =
       this.messagingSystem.call('PreferencesController:getState');
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
-    this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
-      this.#chainId,
-    );
+    this.#isDetectionEnabledForNetwork =
+      isTokenDetectionSupportedForNetwork(chainId);
 
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
 
@@ -327,7 +322,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
         const { chainId: newChainId } =
           this.#getCorrectChainIdAndNetworkClientId(selectedNetworkClientId);
-        this.#chainId = newChainId;
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
 
