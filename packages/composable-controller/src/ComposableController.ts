@@ -7,6 +7,7 @@ import type {
   RestrictedControllerMessenger,
   StateConstraint,
   StateMetadata,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Patch } from 'immer';
 
@@ -140,7 +141,10 @@ export class ComposableController<
   },
   ComposedControllerStateChangeEvent extends EventConstraint & {
     type: `${typeof controllerName}:stateChange`;
-  },
+  } = ControllerStateChangeEvent<
+    typeof controllerName,
+    ComposedControllerState
+  >,
   ChildControllersStateChangeEvents extends EventConstraint & {
     type: `${string}:stateChange`;
   },
