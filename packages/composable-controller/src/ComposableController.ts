@@ -132,10 +132,26 @@ export type ComposableControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller that can be used to compose multiple controllers together.
  */
-export class ComposableController extends BaseController<
+export class ComposableController<
+  ChildControllers extends ControllerInstance,
+  ComposedControllerState extends ComposableControllerState,
+  ComposedControllerStateChangeEvent extends EventConstraint & {
+    type: `${typeof controllerName}:stateChange`;
+  },
+  ChildControllersStateChangeEvents extends EventConstraint & {
+    type: `${string}:stateChange`;
+  },
+  ComposedControllerMessenger extends ComposableControllerMessenger = RestrictedControllerMessenger<
+    typeof controllerName,
+    never,
+    ComposedControllerStateChangeEvent | ChildControllersStateChangeEvents,
+    never,
+    ChildControllersStateChangeEvents['type']
+  >,
+> extends BaseController<
   typeof controllerName,
-  ComposableControllerState,
-  ComposableControllerMessenger
+  ComposedControllerState,
+  ComposedControllerMessenger
 > {
   /**
    * Creates a ComposableController instance.
@@ -149,8 +165,8 @@ export class ComposableController extends BaseController<
     controllers,
     messenger,
   }: {
-    controllers: ControllerInstance[];
-    messenger: ComposableControllerMessenger;
+    controllers: ChildControllers[];
+    messenger: ComposedControllerMessenger;
   }) {
     if (messenger === undefined) {
       throw new Error(`Messaging system is required`);
