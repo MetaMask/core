@@ -131,6 +131,14 @@ export type ComposableControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
+type GetStateChangeEvents<Controller extends ControllerInstance> =
+  Controller extends BaseControllerV1Instance
+    ? {
+        type: `${Controller['name']}:stateChange`;
+        payload: [Controller['state'], Patch[]];
+      }
+    : ControllerStateChangeEvent<Controller['name'], Controller['state']>;
+
 /**
  * Controller that can be used to compose multiple controllers together.
  */
@@ -147,7 +155,7 @@ export class ComposableController<
   >,
   ChildControllersStateChangeEvents extends EventConstraint & {
     type: `${string}:stateChange`;
-  },
+  } = GetStateChangeEvents<ChildControllers>,
   ComposedControllerMessenger extends ComposableControllerMessenger = RestrictedControllerMessenger<
     typeof controllerName,
     never,
