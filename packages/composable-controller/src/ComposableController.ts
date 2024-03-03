@@ -6,6 +6,7 @@ import type {
   EventConstraint,
   RestrictedControllerMessenger,
   StateConstraint,
+  StateMetadata,
 } from '@metamask/base-controller';
 import type { Patch } from 'immer';
 
@@ -174,18 +175,21 @@ export class ComposableController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce(
+      metadata: controllers.reduce<StateMetadata<ComposedControllerState>>(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
             ? controller.metadata
             : { persist: true, anonymous: true },
         }),
-        {},
+        {} as never,
       ),
-      state: controllers.reduce((state, controller) => {
-        return { ...state, [controller.name]: controller.state };
-      }, {}),
+      state: controllers.reduce<ComposedControllerState>(
+        (state, controller) => {
+          return { ...state, [controller.name]: controller.state };
+        },
+        {} as never,
+      ),
       messenger,
     });
 
