@@ -135,7 +135,9 @@ export type ComposableControllerMessenger = RestrictedControllerMessenger<
  */
 export class ComposableController<
   ChildControllers extends ControllerInstance,
-  ComposedControllerState extends ComposableControllerState,
+  ComposedControllerState extends ComposableControllerState = {
+    [P in ChildControllers as P['name']]: P['state'];
+  },
   ComposedControllerStateChangeEvent extends EventConstraint & {
     type: `${typeof controllerName}:stateChange`;
   },
