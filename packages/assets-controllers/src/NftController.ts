@@ -159,6 +159,11 @@ export interface Nft extends NftMetadata {
   isCurrentlyOwned?: boolean;
 }
 
+export type NftUpdate = {
+  nft: Nft;
+  newMetadata: NftMetadata;
+};
+
 /**
  * @type NftContract
  *
@@ -1484,6 +1489,56 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         chainId,
         userAddress,
         source,
+      );
+    }
+  }
+
+  /**
+   * Refetches NFT metadata and updates the state.
+   *
+   * @param nfts - Array of nfts
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param userAddress - The current user address
+   */
+  async updateNftMetadata(
+    nfts: Nft[],
+    networkClientId?: NetworkClientId,
+    userAddress = this.config.selectedAddress,
+  ) {
+    const chainId = this.getCorrectChainId({ networkClientId });
+    const nftsWithChecksumAdr = nfts.map((nft: Nft) => {
+      return {
+        ...nft,
+        address: toChecksumHexAddress(nft.address),
+      };
+    });
+    const nftMetadataResults = await Promise.allSettled(
+      nftsWithChecksumAdr.map(async (nft) => {
+        const resMetadata = await this.getNftInformation(
+          nft.address,
+          nft.tokenId,
+          networkClientId,
+        );
+        return {
+          nft,
+          newMetadata: resMetadata,
+        };
+      }),
+    );
+
+    // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
+    const success = nftMetadataResults.filter(
+      (promise) => promise.status === 'fulfilled',
+    ) as { status: 'fulfilled'; value: NftUpdate }[];
+
+    if (success.length !== 0) {
+      success.map((elm) =>
+        this.updateNft(
+          elm.value.nft,
+          elm.value.newMetadata,
+          userAddress,
+          chainId,
+        ),
       );
     }
   }
