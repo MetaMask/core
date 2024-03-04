@@ -5023,7 +5023,7 @@ describe('TransactionController', () => {
   describe('updateEditableParams', () => {
     const transactionId = '1';
     const params = {
-      data: '0x0',
+      data: '0x12',
       from: ACCOUNT_2_MOCK,
       gas: '0x0',
       gasPrice: '0x50fd51da',

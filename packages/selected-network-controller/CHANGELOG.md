@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
+### Added
+
+- Listen to permissions changes and add/remove `domains` ([#3969](https://github.com/MetaMask/core/pull/3969))
+
+### Changed
+
+- **BREAKING** remove `perDomainNetwork` from state ([#3989](https://github.com/MetaMask/core/pull/3989))
+- **BREAKING** Add dependency and peer dependency on `@metamask/permission-controller` ^8.0.1 ([#4000](https://github.com/MetaMask/core/pull/4000))
+
 ## [8.0.0]
 
 ### Changed
@@ -30,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Selected network controller should update all domains when perDomainNetwork feature flag is off ([#3834](https://github.com/MetaMask/controllers/pull/3834))
+- Selected network controller should update all domains when perDomainNetwork feature flag is off ([#3834](https://github.com/MetaMask/core/pull/3834))
 
 ## [7.0.0]
 
@@ -125,7 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@8.0.0...@metamask/selected-network-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@7.0.1...@metamask/selected-network-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@7.0.0...@metamask/selected-network-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@6.0.0...@metamask/selected-network-controller@7.0.0

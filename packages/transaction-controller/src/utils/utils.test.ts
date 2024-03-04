@@ -11,29 +11,30 @@ const GAS_PRICE = 'gasPrice';
 const FAIL = 'lol';
 const PASS = '0x1';
 
+const TRANSACTION_PARAMS_MOCK: TransactionParams = {
+  data: 'data',
+  from: 'FROM',
+  gas: 'gas',
+  gasPrice: 'gasPrice',
+  nonce: 'nonce',
+  to: 'TO',
+  value: 'value',
+  maxFeePerGas: 'maxFeePerGas',
+  maxPriorityFeePerGas: 'maxPriorityFeePerGas',
+  estimatedBaseFee: 'estimatedBaseFee',
+};
+
 describe('utils', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('normalizeTxParams', () => {
-    const commonInput = {
-      data: 'data',
-      from: 'FROM',
-      gas: 'gas',
-      gasPrice: 'gasPrice',
-      nonce: 'nonce',
-      to: 'TO',
-      value: 'value',
-      maxFeePerGas: 'maxFeePerGas',
-      maxPriorityFeePerGas: 'maxPriorityFeePerGas',
-      estimatedBaseFee: 'estimatedBaseFee',
-    };
+  describe('normalizeTransactionParams', () => {
+    it('normalizes properties', () => {
+      const normalized = util.normalizeTransactionParams(
+        TRANSACTION_PARAMS_MOCK,
+      );
 
-    it('normalizeTransaction', () => {
-      const normalized = util.normalizeTxParams({
-        ...commonInput,
-      });
       expect(normalized).toStrictEqual({
         data: '0xdata',
         from: '0xfrom',
@@ -48,31 +49,35 @@ describe('utils', () => {
       });
     });
 
-    it('normalizeTransaction if type is zero', () => {
-      const normalized = util.normalizeTxParams({
-        ...commonInput,
-        type: '0x0',
-      });
-      expect(normalized).toStrictEqual({
-        data: '0xdata',
-        from: '0xfrom',
-        gas: '0xgas',
-        gasPrice: '0xgasPrice',
-        nonce: '0xnonce',
-        to: '0xto',
-        value: '0xvalue',
-        maxFeePerGas: '0xmaxFeePerGas',
-        maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
-        estimatedBaseFee: '0xestimatedBaseFee',
-        type: '0x0',
-      });
+    it('retains legacy type if specified', () => {
+      expect(
+        util.normalizeTransactionParams({
+          ...TRANSACTION_PARAMS_MOCK,
+          type: '0x0',
+        }),
+      ).toStrictEqual(
+        expect.objectContaining({
+          type: '0x0',
+        }),
+      );
     });
 
     it('sets value if not specified', () => {
-      expect(util.normalizeTxParams({ from: '0xfrom' })).toStrictEqual({
-        from: '0xfrom',
-        value: '0x0',
-      });
+      expect(
+        util.normalizeTransactionParams({
+          ...TRANSACTION_PARAMS_MOCK,
+          value: undefined,
+        }),
+      ).toStrictEqual(expect.objectContaining({ value: '0x0' }));
+    });
+
+    it('ensures data is even length prefixed hex string', () => {
+      expect(
+        util.normalizeTransactionParams({
+          ...TRANSACTION_PARAMS_MOCK,
+          data: '123',
+        }),
+      ).toStrictEqual(expect.objectContaining({ data: '0x0123' }));
     });
   });
 
@@ -246,6 +251,32 @@ describe('utils', () => {
         maxFeePerGas: undefined,
         maxPriorityFeePerGas: undefined,
       });
+    });
+  });
+
+  describe('padHexToEvenLength', () => {
+    it('returns same value if already even length and has prefix', () => {
+      expect(util.padHexToEvenLength('0x1234')).toBe('0x1234');
+    });
+
+    it('returns same value if already even length and no prefix', () => {
+      expect(util.padHexToEvenLength('1234')).toBe('1234');
+    });
+
+    it('returns padded value if not even length and has prefix', () => {
+      expect(util.padHexToEvenLength('0x123')).toBe('0x0123');
+    });
+
+    it('returns padded value if not even length and no prefix', () => {
+      expect(util.padHexToEvenLength('123')).toBe('0123');
+    });
+
+    it('returns same value if prefix only', () => {
+      expect(util.padHexToEvenLength('0x')).toBe('0x');
+    });
+
+    it('returns padded value if zero', () => {
+      expect(util.padHexToEvenLength('0x0')).toBe('0x00');
     });
   });
 });

@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.2]
+
+### Changed
+
+- Replace `ethereumjs-util` with `bn.js` ([#3943](https://github.com/MetaMask/core/pull/3943))
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/ethjs-unit` to `^0.3.0` ([#3897](https://github.com/MetaMask/core/pull/3897))
+- Bump `@metamask/network-controller` to `^17.2.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/polling-controller` to `^5.0.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
 ## [13.0.1]
 
 ### Changed
 
-- Bump `@metamask/ethjs-unit` to `^0.3.0` ([#3897](https://github.com/MetaMask/core/pull/3897))
 - Bump `@metamask/controller-utils` to `^8.0.3` ([#3915](https://github.com/MetaMask/core/pull/3915))
 
 ## [13.0.0]
@@ -208,7 +217,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.2...HEAD
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.1...@metamask/gas-fee-controller@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.0...@metamask/gas-fee-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@12.0.0...@metamask/gas-fee-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@11.0.0...@metamask/gas-fee-controller@12.0.0

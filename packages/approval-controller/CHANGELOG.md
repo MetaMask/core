@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.3]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3954](https://github.com/MetaMask/core/pull/3954))
+
 ## [5.1.2]
 
 ### Changed
@@ -157,7 +163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.3...HEAD
+[5.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.2...@metamask/approval-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.1...@metamask/approval-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.0...@metamask/approval-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.0.0...@metamask/approval-controller@5.1.0
