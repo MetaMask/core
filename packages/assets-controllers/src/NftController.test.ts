@@ -3450,9 +3450,7 @@ describe('NftController', () => {
         networkClientId: testNetworkClientId,
       });
       sinon
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .stub(nftController, 'getNftInformation' as any)
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
         .returns({
           name: 'name pudgy',
           image: 'url pudgy',
@@ -3472,7 +3470,10 @@ describe('NftController', () => {
         },
       ];
 
-      await nftController.updateNftMetadata(testInputNfts, testNetworkClientId);
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+        networkClientId: testNetworkClientId,
+      });
       expect(spy).toHaveBeenCalledTimes(1);
 
       expect(
@@ -3505,9 +3506,7 @@ describe('NftController', () => {
         networkClientId: testNetworkClientId,
       });
       sinon
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .stub(nftController, 'getNftInformation' as any)
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
         .rejects(new Error('Error'));
       const testInputNfts: Nft[] = [
         {
@@ -3522,7 +3521,10 @@ describe('NftController', () => {
         },
       ];
 
-      await nftController.updateNftMetadata(testInputNfts, testNetworkClientId);
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+        networkClientId: testNetworkClientId,
+      });
 
       expect(spy).toHaveBeenCalledTimes(0);
       expect(
@@ -3573,9 +3575,7 @@ describe('NftController', () => {
         networkClientId: testNetworkClientId,
       });
       sinon
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .stub(nftController, 'getNftInformation' as any)
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
         .onFirstCall()
         .returns({
           name: 'name pudgy 1',
@@ -3624,7 +3624,10 @@ describe('NftController', () => {
         },
       ];
 
-      await nftController.updateNftMetadata(testInputNfts, testNetworkClientId);
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+        networkClientId: testNetworkClientId,
+      });
 
       expect(spy).toHaveBeenCalledTimes(2);
       expect(

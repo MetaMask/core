@@ -1494,19 +1494,24 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   }
 
   /**
-   * Refetches NFT metadata and updates the state.
+   * Refetches NFT metadata and updates the state
    *
-   * @param nfts - Array of nfts
-   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
-   * @param userAddress - The current user address
+   * @param options - Options for refetching NFT metadata
+   * @param options.nfts - Array of nfts
+   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options.userAddress - The current user address
    */
-  async updateNftMetadata(
-    nfts: Nft[],
-    networkClientId?: NetworkClientId,
+  async updateNftMetadata({
+    nfts,
+    networkClientId,
     userAddress = this.config.selectedAddress,
-  ) {
+  }: {
+    nfts: Nft[];
+    networkClientId?: NetworkClientId;
+    userAddress?: string;
+  }) {
     const chainId = this.getCorrectChainId({ networkClientId });
-    const nftsWithChecksumAdr = nfts.map((nft: Nft) => {
+    const nftsWithChecksumAdr = nfts.map((nft) => {
       return {
         ...nft,
         address: toChecksumHexAddress(nft.address),
@@ -1526,13 +1531,12 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       }),
     );
 
-    // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
-    const success = nftMetadataResults.filter(
-      (promise) => promise.status === 'fulfilled',
-    ) as { status: 'fulfilled'; value: NftUpdate }[];
-
-    if (success.length !== 0) {
-      success.map((elm) =>
+    nftMetadataResults
+      .filter(
+        (result): result is PromiseFulfilledResult<NftUpdate> =>
+          result.status === 'fulfilled',
+      )
+      .forEach((elm) =>
         this.updateNft(
           elm.value.nft,
           elm.value.newMetadata,
@@ -1540,7 +1544,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           chainId,
         ),
       );
-    }
   }
 
   /**
