@@ -41,7 +41,7 @@
     "@metamask/network-controller": "^17.2.1",
     "@metamask/polling-controller": "^5.0.1",
     "@metamask/rpc-errors": "^6.2.1",
-    "@metamask/transaction-controller": "^23.2.0",
+    "@metamask/transaction-controller": "^24.0.0",
     "@metamask/utils": "^8.3.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
@@ -64,7 +64,7 @@
     "@metamask/gas-fee-controller": "^13.0.0",
     "@metamask/keyring-controller": "^13.0.0",
     "@metamask/network-controller": "^17.2.0",
-    "@metamask/transaction-controller": "^23.0.0"
+    "@metamask/transaction-controller": "^24.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

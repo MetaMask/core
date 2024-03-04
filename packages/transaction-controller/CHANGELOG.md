@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [23.2.0]
+## [24.0.0]
 
 ### Added
 
@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: Remove support for retrieving transactions via Etherscan for Optimism Goerli; add support for Optimism Sepolia instead ([#3999](https://github.com/MetaMask/core/pull/3999))
 - Normalize `data` property into an even length hex string ([#3990](https://github.com/MetaMask/core/pull/3990))
 - Bump `@metamask/approval-controller` to `^5.1.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
 - Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))

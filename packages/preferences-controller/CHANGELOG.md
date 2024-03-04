@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/keyring-controller` dependency and peer dependency to `^13.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- **BREAKING:** Remove support for Optimism Goerli, add support for Optimism Sepolia ([#3999](https://github.com/MetaMask/core/pull/3999))
+  - Replace `OPTIMISM_TESTNET` with `OPTIMISM_SEPOLIA` in `ETHERSCAN_SUPPORTED_CHAIN_IDS` and `EtherscanSupportedChains`.
+  - Replace `0x1a4` with `0xaa37dc` in `EtherscanSupportedHexChainId`.
+  - Replace `0x1a4` with `0xaa37dc` in default `showIncomingTransactions` state.
+  - Update `setEnabledNetworkIncomingTransactions` to ignore a chain ID of `0x1a4`; add support for `0xaa37dc` instead.
+  - You will likely want to write a migration to transfer the value of `0x1a4` for `0xaa37dc` for the `showIncomingTransactions` state property.
 - Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
 
 ### Removed
