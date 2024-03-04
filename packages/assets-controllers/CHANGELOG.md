@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `@metamask/accounts-controller` `^11.0.0` as dependency and peer dependency ([#3775](https://github.com/MetaMask/core/pull/3775/), [#4007](https://github.com/MetaMask/core/pull/4007))
 - **BREAKING:** Add `@metamask/keyring-controller` `^13.0.0` as dependency and peer dependency ([#3775](https://github.com/MetaMask/core/pull/3775), [#4007](https://github.com/MetaMask/core/pull/4007))
-- **BREAKING:** Bump `@metamask/preferences-controller` dependency and peer dependency to ^8.0.0 ([#4007](https://github.com/MetaMask/core/pull/4007))
+- **BREAKING:** Bump `@metamask/preferences-controller` dependency and peer dependency to `^8.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
 - **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923)), ([#3938](https://github.com/MetaMask/core/pull/3938))
   - **BREAKING:** `TokenDetectionController` now resets its polling interval to the default value of 3 minutes when token detection is triggered by external controller events `KeyringController:unlock`, `TokenListController:stateChange`, `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`.
   - **BREAKING:** `TokenDetectionController` now refetches tokens on `NetworkController:networkDidChange` if the `networkClientId` is changed instead of `chainId`.
