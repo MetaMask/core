@@ -21,7 +21,7 @@ export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
-  data: (data: string) => add0x(data),
+  data: (data: string) => add0x(padHexToEvenLength(data)),
   from: (from: string) => add0x(from).toLowerCase(),
   gas: (gas: string) => add0x(gas),
   gasLimit: (gas: string) => add0x(gas),
@@ -43,7 +43,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  * @param txParams - The transaction params to normalize.
  * @returns Normalized transaction params.
  */
-export function normalizeTxParams(txParams: TransactionParams) {
+export function normalizeTransactionParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
 
   for (const key of getKnownPropertyNames(NORMALIZERS)) {
@@ -190,4 +190,19 @@ export function normalizeGasFeeValues(
     maxFeePerGas: normalize(gasFeeValues.maxFeePerGas),
     maxPriorityFeePerGas: normalize(gasFeeValues.maxPriorityFeePerGas),
   };
+}
+
+/**
+ * Ensure a hex string is of even length by adding a leading 0 if necessary.
+ * Any existing `0x` prefix is preserved but is not added if missing.
+ *
+ * @param hex - The hex string to ensure is even.
+ * @returns The hex string with an even length.
+ */
+export function padHexToEvenLength(hex: string) {
+  const prefix = hex.toLowerCase().startsWith('0x') ? hex.slice(0, 2) : '';
+  const data = prefix ? hex.slice(2) : hex;
+  const evenData = data.length % 2 === 0 ? data : `0${data}`;
+
+  return prefix + evenData;
 }
