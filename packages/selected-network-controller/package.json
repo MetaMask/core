@@ -32,8 +32,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^4.1.1",
-    "@metamask/json-rpc-engine": "^7.3.2",
-    "@metamask/network-controller": "^17.2.0",
+    "@metamask/json-rpc-engine": "^7.3.3",
+    "@metamask/network-controller": "^17.2.1",
     "@metamask/permission-controller": "^8.0.1",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^8.3.0"
