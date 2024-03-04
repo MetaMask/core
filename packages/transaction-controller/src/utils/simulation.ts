@@ -80,7 +80,10 @@ function getNativeBalanceChange(
   userAddress: Hex,
   response: SimulationResponse,
 ): SimulationBalanceChange | undefined {
-  const { stateDiff } = response.transactions[0] ?? { pre: {}, post: {} };
+  /* istanbul ignore next */
+  const { stateDiff } = response.transactions[0] ?? {
+    stateDiff: { pre: {}, post: {} },
+  };
 
   const previousBalance = stateDiff.pre[userAddress]?.balance;
   const newBalance = stateDiff.post[userAddress]?.balance;
@@ -102,7 +105,8 @@ function getNativeBalanceChange(
 }
 
 function getEvents(response: SimulationResponse): ParsedEvent[] {
-  const logs = getLogs(response.transactions[0]?.callTrace);
+  /* istanbul ignore next */
+  const logs = getLogs(response.transactions[0]?.callTrace ?? {});
 
   log('Extracted logs', logs);
 
@@ -124,8 +128,10 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         return undefined;
       }
 
+      /* istanbul ignore next */
       const inputs = event.abi.find((e: any) => e.name === event.name)?.inputs;
 
+      /* istanbul ignore if */
       if (!inputs) {
         log('Failed to find inputs for event', event);
         return undefined;
@@ -190,13 +196,17 @@ async function getTokenBalanceChanges(
     transactions: [...balanceTransactions, request, ...balanceTransactions],
   });
 
+  if (response.transactions.length !== balanceTransactions.length * 2 + 1) {
+    throw new Error('Invalid response from simulation API');
+  }
+
   log('Balance simulation response', response);
 
   return [...balanceTransactionsByToken.keys()].map((token, index) => {
-    const previousBalance = response.transactions[index]?.return;
+    const previousBalance = response.transactions[index].return;
 
     const newBalance =
-      response.transactions[index + balanceTransactions.length + 1]?.return;
+      response.transactions[index + balanceTransactions.length + 1].return;
 
     const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
     const isDecrease = differenceBN.isNeg();
@@ -268,10 +278,6 @@ function getTokenBalanceTransactions(
 
       tokenKeys.add(tokenKey);
 
-      if (result.has(simulationToken)) {
-        continue;
-      }
-
       const parameters = [request.from];
 
       if (event.tokenStandard === SimulationTokenStandard.erc1155) {
@@ -334,7 +340,10 @@ function parseLog(
 }
 
 function getLogs(call: SimulationResponseCallTrace): SimulationLog[] {
+  /* istanbul ignore next */
   const logs = call.logs ?? [];
+
+  /* istanbul ignore next */
   const nestedCalls = call.calls ?? [];
 
   return [
