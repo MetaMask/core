@@ -147,8 +147,11 @@ export class BaseController<
   }) {
     this.messagingSystem = messenger;
     this.name = name;
-    // NOTE: We cannot assign this a type of `Immutable<...>` because Immer's
-    // `Immutable` type does not handle recursive types such as our `Json` type
+    // Here we use `freeze` from Immer to enforce that the state is deeply
+    // immutable. Note that this is a runtime check, not a compile-time check.
+    // That is, unlike `Object.freeze`, this does not narrow the type
+    // recursively to `Readonly`. The equivalent in Immer is `Immutable`, but
+    // `Immutable` does not handle recursive types such as our `Json` type.
     this.#internalState = freeze(state, true);
     this.metadata = metadata;
 
