@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/keyring-controller` dependency and peer dependency to `^13.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
-- **BREAKING:** Bump `@metamask/transaction-controller` dependency and peer - dependency to `^24.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- **BREAKING:** Bump `@metamask/transaction-controller` dependency and peer dependency to `^24.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
 - Bump `@metamask/approval-controller` to `^5.1.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
 - Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
 - Bump `@metamask/gas-fee-controller` to `^13.0.2` ([#4007](https://github.com/MetaMask/core/pull/4007))
