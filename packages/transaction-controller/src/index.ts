@@ -30,8 +30,6 @@ export {
   CANCEL_RATE,
   TransactionController,
 } from './TransactionController';
-export type { EtherscanTransactionMeta } from './utils/etherscan';
-export { isEIP1559Transaction } from './utils/utils';
 export type {
   DappSuggestedGasFees,
   DefaultGasEstimates,
@@ -57,5 +55,10 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types';
+export type { EtherscanTransactionMeta } from './utils/etherscan';
 export { determineTransactionType } from './utils/transaction-type';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
+export {
+  isEIP1559Transaction,
+  normalizeTransactionParams,
+} from './utils/utils';

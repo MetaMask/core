@@ -91,7 +91,7 @@ import {
 import { determineTransactionType } from './utils/transaction-type';
 import {
   getIncreasedPriceFromExisting,
-  normalizeTxParams,
+  normalizeTransactionParams,
   isEIP1559Transaction,
   isFeeMarketEIP1559Values,
   isGasPriceValue,
@@ -963,7 +963,7 @@ export class TransactionController extends BaseController<
   ): Promise<Result> {
     log('Adding transaction', txParams);
 
-    txParams = normalizeTxParams(txParams);
+    txParams = normalizeTransactionParams(txParams);
     if (
       networkClientId &&
       !this.#multichainTrackingHelper.has(networkClientId)
@@ -2226,7 +2226,8 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const normalizedTransactionParams = normalizeTxParams(transactionParams);
+    const normalizedTransactionParams =
+      normalizeTransactionParams(transactionParams);
     const type = isEIP1559Transaction(normalizedTransactionParams)
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
@@ -3450,7 +3451,7 @@ export class TransactionController extends BaseController<
   ) {
     const normalizedTransaction = {
       ...transactionMeta,
-      txParams: normalizeTxParams(transactionMeta.txParams),
+      txParams: normalizeTransactionParams(transactionMeta.txParams),
     };
 
     validateTxParams(normalizedTransaction.txParams);
