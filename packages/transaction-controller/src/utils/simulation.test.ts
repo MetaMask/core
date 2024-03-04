@@ -262,6 +262,19 @@ describe('Simulation Utils', () => {
           });
         },
       );
+
+      it('unless balance is unchanged', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse(BALANCE_1_MOCK, BALANCE_1_MOCK),
+        );
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          nativeBalanceChange: undefined,
+          tokenBalanceChanges: [],
+        });
+      });
     });
 
     describe('returns token balance changes', () => {
@@ -455,6 +468,27 @@ describe('Simulation Utils', () => {
         simulateTransactionsMock.mockResolvedValueOnce(
           createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
         );
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          nativeBalanceChange: undefined,
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('as empty if balance has not changed', async () => {
+        mockParseLog({
+          erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK,
+        });
+
+        simulateTransactionsMock
+          .mockResolvedValueOnce(
+            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+          )
+          .mockResolvedValueOnce(
+            createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_1_MOCK]),
+          );
 
         const simulationData = await getSimulationData(REQUEST_MOCK);
 

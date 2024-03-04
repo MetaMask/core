@@ -1,8 +1,13 @@
-import * as JsonRpcProviderModule from '@ethersproject/providers';
+import { JsonRpcProvider } from '@ethersproject/providers';
 
 import { CHAIN_IDS } from '../constants';
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
+
+jest.mock('@ethersproject/providers', () => ({
+  ...jest.requireActual('@ethersproject/providers'),
+  JsonRpcProvider: jest.fn(),
+}));
 
 const CHAIN_ID_MOCK = '0x1';
 
@@ -43,18 +48,27 @@ const RESPONSE_MOCK: SimulationResponse = {
   ],
 };
 
+/**
+ * Creates a mock of the JSON-RPC provider.
+ * @returns The JSON-RPC provider mock.
+ */
+function createJsonRpcProviderMock() {
+  return {
+    send: jest.fn(),
+  } as unknown as jest.Mocked<JsonRpcProvider>;
+}
+
 describe('Simulation API Utils', () => {
-  let jsonSendMock: jest.SpyInstance;
+  const jsonRpcProviderClassMock = jest.mocked(JsonRpcProvider);
+  let jsonRpcProviderMock: jest.Mocked<JsonRpcProvider>;
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    jsonSendMock = jest.spyOn(
-      JsonRpcProviderModule.JsonRpcProvider.prototype,
-      'send',
-    );
+    jsonRpcProviderMock = createJsonRpcProviderMock();
+    jsonRpcProviderMock.send.mockResolvedValueOnce(RESPONSE_MOCK);
 
-    jsonSendMock.mockResolvedValueOnce(RESPONSE_MOCK);
+    jsonRpcProviderClassMock.mockReturnValue(jsonRpcProviderMock);
   });
 
   describe('simulateTransactions', () => {
@@ -67,9 +81,11 @@ describe('Simulation API Utils', () => {
     it('sends request to RPC provider', async () => {
       await simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK);
 
-      expect(jsonSendMock).toHaveBeenCalledWith('infura_simulateTransactions', [
-        REQUEST_MOCK,
-      ]);
+      expect(jsonRpcProviderMock.send).toHaveBeenCalledTimes(1);
+      expect(jsonRpcProviderMock.send).toHaveBeenCalledWith(
+        'infura_simulateTransactions',
+        [REQUEST_MOCK],
+      );
     });
 
     it('throws if chain ID not supported', async () => {
@@ -81,14 +97,9 @@ describe('Simulation API Utils', () => {
     });
 
     it('uses URL specific to chain ID', async () => {
-      const rpcProviderConstructorMock = jest.spyOn(
-        JsonRpcProviderModule,
-        'JsonRpcBatchProvider',
-      );
-
       await simulateTransactions(CHAIN_IDS.GOERLI, REQUEST_MOCK);
 
-      expect(rpcProviderConstructorMock).toHaveBeenCalledWith(
+      expect(jsonRpcProviderClassMock).toHaveBeenCalledWith(
         'https://tx-sentinel-ethereum-goerli.api.cx.metamask.io/',
       );
     });

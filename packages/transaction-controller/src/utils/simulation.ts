@@ -92,16 +92,7 @@ function getNativeBalanceChange(
     return undefined;
   }
 
-  const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
-  const isDecrease = differenceBN.isNeg();
-  const difference = toHex(differenceBN.abs());
-
-  return {
-    previousBalance,
-    newBalance,
-    difference,
-    isDecrease,
-  };
+  return getSimulationBalanceChange(previousBalance, newBalance);
 }
 
 function getEvents(response: SimulationResponse): ParsedEvent[] {
@@ -202,24 +193,28 @@ async function getTokenBalanceChanges(
 
   log('Balance simulation response', response);
 
-  return [...balanceTransactionsByToken.keys()].map((token, index) => {
-    const previousBalance = response.transactions[index].return;
+  return [...balanceTransactionsByToken.keys()]
+    .map((token, index) => {
+      const previousBalance = response.transactions[index].return;
 
-    const newBalance =
-      response.transactions[index + balanceTransactions.length + 1].return;
+      const newBalance =
+        response.transactions[index + balanceTransactions.length + 1].return;
 
-    const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
-    const isDecrease = differenceBN.isNeg();
-    const difference = toHex(differenceBN.abs());
+      const balanceChange = getSimulationBalanceChange(
+        previousBalance,
+        newBalance,
+      );
 
-    return {
-      ...token,
-      previousBalance,
-      newBalance,
-      difference,
-      isDecrease,
-    };
-  });
+      if (!balanceChange) {
+        return undefined;
+      }
+
+      return {
+        ...token,
+        ...balanceChange,
+      };
+    })
+    .filter((change) => change !== undefined) as SimulationTokenBalanceChange[];
 }
 
 function getTokenBalanceTransactions(
@@ -350,4 +345,25 @@ function getLogs(call: SimulationResponseCallTrace): SimulationLog[] {
     ...logs,
     ...nestedCalls.map((nestedCall) => getLogs(nestedCall)).flat(),
   ];
+}
+
+function getSimulationBalanceChange(
+  previousBalance: Hex,
+  newBalance: Hex,
+): SimulationBalanceChange | undefined {
+  const differenceBN = hexToBN(newBalance).sub(hexToBN(previousBalance));
+  const isDecrease = differenceBN.isNeg();
+  const difference = toHex(differenceBN.abs());
+
+  if (differenceBN.isZero()) {
+    log('Balance change is zero');
+    return undefined;
+  }
+
+  return {
+    previousBalance,
+    newBalance,
+    difference,
+    isDecrease,
+  };
 }
