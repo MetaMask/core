@@ -275,7 +275,10 @@ export class RestrictedControllerMessenger<
   >(
     eventType: EventType,
     handler: SelectorEventHandler<SelectorReturnValue>,
-    selector: SelectorFunction<Event, SelectorReturnValue, EventType>,
+    selector: SelectorFunction<
+      ExtractEventPayload<Event, EventType>,
+      SelectorReturnValue
+    >,
   ): void;
 
   subscribe<
@@ -286,7 +289,10 @@ export class RestrictedControllerMessenger<
   >(
     event: EventType,
     handler: ExtractEventHandler<Event, EventType>,
-    selector?: SelectorFunction<Event, SelectorReturnValue, EventType>,
+    selector?: SelectorFunction<
+      ExtractEventPayload<Event, EventType>,
+      SelectorReturnValue
+    >,
   ) {
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);

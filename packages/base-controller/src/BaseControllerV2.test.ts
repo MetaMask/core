@@ -639,7 +639,7 @@ describe('BaseController', () => {
     controllerMessenger.subscribe(
       'CountController:stateChange',
       listener,
-      (state) => {
+      (state: CountControllerState) => {
         // Selector rounds down to nearest multiple of 10
         return Math.floor(state.people.count / 10);
       },
@@ -680,7 +680,7 @@ describe('BaseController', () => {
     controllerMessenger.subscribe(
       'CountController:stateChange',
       listener,
-      (state, _patches) => {
+      (state: CountControllerState) => {
         // Selector rounds down to nearest multiple of 10
         return Math.floor(state.people.count / 10);
       },
