@@ -11,6 +11,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
+import type SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
@@ -33,6 +34,7 @@ export type UpdateGasFeesRequest = {
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
+  getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
   getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
   txMeta: TransactionMeta;
 };
@@ -282,8 +284,14 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
 async function getSuggestedGasFees(
   request: UpdateGasFeesRequest,
 ): Promise<SuggestedGasFees> {
-  const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
-    request;
+  const {
+    eip1559,
+    ethQuery,
+    gasFeeFlows,
+    getGasFeeEstimates,
+    getSmartTransactionFeeEstimates,
+    txMeta,
+  } = request;
 
   if (
     (!eip1559 && txMeta.txParams.gasPrice) ||
@@ -300,6 +308,7 @@ async function getSuggestedGasFees(
     const response = await gasFeeFlow.getGasFees({
       ethQuery,
       getGasFeeControllerEstimates: getGasFeeEstimates,
+      getSmartTransactionFeeEstimates,
       transactionMeta: txMeta,
     });
 

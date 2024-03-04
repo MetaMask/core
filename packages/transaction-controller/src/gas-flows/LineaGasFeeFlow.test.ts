@@ -63,6 +63,7 @@ describe('LineaGasFeeFlow', () => {
     request = {
       ethQuery: {} as EthQuery,
       getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
+      getSmartTransactionFeeEstimates: jest.fn(),
       transactionMeta: TRANSACTION_META_MOCK,
     };
 

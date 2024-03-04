@@ -1,8 +1,8 @@
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import SmartTransactionsController from '@metamask/smart-transactions-controller';
 import EventEmitter from 'events';
 
 import type { NetworkClientId } from '../../../network-controller/src';

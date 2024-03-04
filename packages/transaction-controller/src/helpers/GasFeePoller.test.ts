@@ -70,6 +70,7 @@ describe('GasFeePoller', () => {
       gasFeeFlows: [gasFeeFlowMock],
       getEthQuery: () => ({} as EthQuery),
       getGasFeeControllerEstimates: jest.fn(),
+      getSmartTransactionFeeEstimates: jest.fn(),
       getTransactions: getTransactionsMock,
       onStateChange: (listener: () => void) => {
         triggerOnStateChange = listener;
@@ -110,6 +111,7 @@ describe('GasFeePoller', () => {
           ethQuery: expect.any(Object),
           getGasFeeControllerEstimates:
             constructorOptions.getGasFeeControllerEstimates,
+          getSmartTransactionFeeEstimates: expect.any(Function),
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });

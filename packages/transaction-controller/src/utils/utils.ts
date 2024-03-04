@@ -191,3 +191,24 @@ export function normalizeGasFeeValues(
     maxPriorityFeePerGas: normalize(gasFeeValues.maxPriorityFeePerGas),
   };
 }
+
+/**
+ * Picks the middle element from an array of gas fees.
+ *
+ * @param fees - An array of gas fees.
+ * @returns The middle element from the array.
+ */
+export function pickMiddleFeeElement(
+  fees: { maxFeePerGas: number; maxPriorityFeePerGas: number }[],
+) {
+  // Ascending order
+  const sortedArr = fees
+    .slice()
+    .sort((a, b) => a.maxFeePerGas - b.maxFeePerGas);
+
+  // Calculate the index of the middle element.
+  // For even lengths, this will pick the element on the right side of the middle.
+  const middleIndex = Math.ceil((sortedArr.length - 1) / 2);
+
+  return sortedArr[middleIndex];
+}

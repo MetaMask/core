@@ -248,4 +248,53 @@ describe('utils', () => {
       });
     });
   });
+
+  describe('pickMiddleFeeElement', () => {
+    it('picks the middle element from an array with an odd length', () => {
+      const fees = [
+        { maxFeePerGas: 300, maxPriorityFeePerGas: 30 },
+        { maxFeePerGas: 100, maxPriorityFeePerGas: 10 },
+        { maxFeePerGas: 200, maxPriorityFeePerGas: 20 },
+      ];
+      const expected = { maxFeePerGas: 200, maxPriorityFeePerGas: 20 };
+      expect(util.pickMiddleFeeElement(fees)).toStrictEqual(expected);
+    });
+
+    it('picks the middle-right element from an array with an even length', () => {
+      const fees = [
+        { maxFeePerGas: 400, maxPriorityFeePerGas: 40 },
+        { maxFeePerGas: 100, maxPriorityFeePerGas: 10 },
+        { maxFeePerGas: 300, maxPriorityFeePerGas: 30 },
+        { maxFeePerGas: 200, maxPriorityFeePerGas: 20 },
+      ];
+      const expected = { maxFeePerGas: 300, maxPriorityFeePerGas: 30 };
+      expect(util.pickMiddleFeeElement(fees)).toStrictEqual(expected);
+    });
+
+    it('handles an array with a single element', () => {
+      const fees = [{ maxFeePerGas: 100, maxPriorityFeePerGas: 10 }];
+      const expected = { maxFeePerGas: 100, maxPriorityFeePerGas: 10 };
+      expect(util.pickMiddleFeeElement(fees)).toStrictEqual(expected);
+    });
+
+    it('handles an empty array', () => {
+      const fees = [] as {
+        maxFeePerGas: number;
+        maxPriorityFeePerGas: number;
+      }[];
+      expect(util.pickMiddleFeeElement(fees)).toBeUndefined();
+    });
+
+    it('correctly sorts the array before picking the middle element', () => {
+      const fees = [
+        { maxFeePerGas: 500, maxPriorityFeePerGas: 50 },
+        { maxFeePerGas: 100, maxPriorityFeePerGas: 10 },
+        { maxFeePerGas: 400, maxPriorityFeePerGas: 40 },
+        { maxFeePerGas: 200, maxPriorityFeePerGas: 20 },
+        { maxFeePerGas: 300, maxPriorityFeePerGas: 30 },
+      ];
+      const expected = { maxFeePerGas: 300, maxPriorityFeePerGas: 30 };
+      expect(util.pickMiddleFeeElement(fees)).toStrictEqual(expected);
+    });
+  });
 });
