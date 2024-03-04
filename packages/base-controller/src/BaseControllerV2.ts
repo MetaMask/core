@@ -1,5 +1,5 @@
 import type { Json } from '@metamask/utils';
-import { enablePatches, produceWithPatches, applyPatches } from 'immer';
+import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
 import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
@@ -147,7 +147,9 @@ export class BaseController<
   }) {
     this.messagingSystem = messenger;
     this.name = name;
-    this.#internalState = state;
+    // NOTE: We cannot assign this a type of `Immutable<...>` because Immer's
+    // `Immutable` type does not handle recursive types such as our `Json` type
+    this.#internalState = freeze(state, true);
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(

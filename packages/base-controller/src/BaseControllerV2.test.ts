@@ -1,6 +1,10 @@
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from './BaseControllerV2';
 import {
   BaseController,
   getAnonymizedState,
@@ -12,20 +16,30 @@ import type { RestrictedControllerMessenger } from './RestrictedControllerMessen
 const countControllerName = 'CountController';
 
 type CountControllerState = {
-  count: number;
+  people: {
+    count: number;
+  };
+  animals: {
+    count: number;
+    all: { name: string }[];
+  };
 };
-type CountControllerAction = {
-  type: `${typeof countControllerName}:getState`;
-  handler: () => CountControllerState;
-};
+type CountControllerAction = ControllerGetStateAction<
+  typeof countControllerName,
+  CountControllerState
+>;
 
-type CountControllerEvent = {
-  type: `${typeof countControllerName}:stateChange`;
-  payload: [CountControllerState, Patch[]];
-};
+type CountControllerEvent = ControllerStateChangeEvent<
+  typeof countControllerName,
+  CountControllerState
+>;
 
 const countControllerStateMetadata = {
-  count: {
+  people: {
+    persist: true,
+    anonymous: true,
+  },
+  animals: {
     persist: true,
     anonymous: true,
   },
@@ -57,7 +71,11 @@ function getCountMessenger(
       CountControllerEvent
     >();
   }
-  return controllerMessenger.getRestricted<'CountController', never, never>({
+  return controllerMessenger.getRestricted<
+    typeof countControllerName,
+    never,
+    never
+  >({
     name: countControllerName,
   });
 }
@@ -94,11 +112,27 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: countControllerName,
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
-    expect(controller.state).toStrictEqual({ count: 0 });
+    expect(controller.state).toStrictEqual({
+      people: {
+        count: 1,
+      },
+      animals: {
+        count: 0,
+        all: [],
+      },
+    });
   });
 
   it('should allow getting state via the getState action', () => {
@@ -109,12 +143,24 @@ describe('BaseController', () => {
     new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: countControllerName,
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     expect(controllerMessenger.call('CountController:getState')).toStrictEqual({
-      count: 0,
+      people: { count: 0 },
+      animals: {
+        count: 0,
+        all: [],
+      },
     });
   });
 
@@ -122,78 +168,202 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     expect(controller.metadata).toStrictEqual(countControllerStateMetadata);
   });
 
-  it('should not allow mutating state directly', () => {
+  it('should not allow reassigning the `state` property', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     expect(() => {
-      controller.state = { count: 1 };
+      controller.state = {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 1,
+          all: [{ name: 'giraffe' }],
+        },
+      };
     }).toThrow(
       "Controller state cannot be directly mutated; use 'update' method instead.",
     );
+  });
+
+  it('should not allow reassigning an object property deep in state', () => {
+    const controller = new CountController({
+      messenger: getCountMessenger(),
+      name: countControllerName,
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
+      metadata: countControllerStateMetadata,
+    });
+
+    expect(() => {
+      controller.state.people.count = 3;
+    }).toThrow(
+      "Cannot assign to read only property 'count' of object '#<Object>'",
+    );
+  });
+
+  it('should not allow pushing a value onto an array property deep in state', () => {
+    const controller = new CountController({
+      messenger: getCountMessenger(),
+      name: countControllerName,
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
+      metadata: countControllerStateMetadata,
+    });
+
+    expect(() => {
+      controller.state.animals.all.push({ name: 'giraffe' });
+    }).toThrow('Cannot add property 0, object is not extensible');
   });
 
   it('should allow updating state by modifying draft', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     controller.update((draft) => {
-      draft.count += 1;
+      draft.people.count += 1;
     });
 
-    expect(controller.state).toStrictEqual({ count: 1 });
+    expect(controller.state).toStrictEqual({
+      people: {
+        count: 1,
+      },
+      animals: {
+        count: 0,
+        all: [],
+      },
+    });
   });
 
   it('should allow updating state by return a value', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     controller.update(() => {
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 1,
+          all: [{ name: 'giraffe' }],
+        },
+      };
     });
 
-    expect(controller.state).toStrictEqual({ count: 1 });
+    expect(controller.state).toStrictEqual({
+      people: {
+        count: 1,
+      },
+      animals: {
+        count: 1,
+        all: [{ name: 'giraffe' }],
+      },
+    });
   });
 
   it('should return next state, patches and inverse patches after an update', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     const returnObj = controller.update((draft) => {
-      draft.count += 1;
+      draft.people.count += 1;
     });
 
     expect(returnObj).toBeDefined();
-    expect(returnObj.nextState).toStrictEqual({ count: 1 });
+    expect(returnObj.nextState).toStrictEqual({
+      people: {
+        count: 1,
+      },
+      animals: {
+        count: 0,
+        all: [],
+      },
+    });
     expect(returnObj.patches).toStrictEqual([
-      { op: 'replace', path: ['count'], value: 1 },
+      { op: 'replace', path: ['people', 'count'], value: 1 },
     ]);
 
     expect(returnObj.inversePatches).toStrictEqual([
-      { op: 'replace', path: ['count'], value: 0 },
+      { op: 'replace', path: ['people', 'count'], value: 0 },
     ]);
   });
 
@@ -201,14 +371,30 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     expect(() => {
       controller.update((draft) => {
-        draft.count += 1;
-        return { count: 10 };
+        draft.people.count += 1;
+        return {
+          people: {
+            count: 10,
+          },
+          animals: {
+            count: 0,
+            all: [],
+          },
+        };
       });
     }).toThrow(
       '[Immer] An immer producer returned a new value *and* modified its draft. Either return a new value *or* modify the draft.',
@@ -219,17 +405,33 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
 
     const returnObj = controller.update((draft) => {
-      draft.count += 1;
+      draft.people.count += 1;
     });
 
     controller.applyPatches(returnObj.inversePatches);
 
-    expect(controller.state).toStrictEqual({ count: 0 });
+    expect(controller.state).toStrictEqual({
+      people: {
+        count: 0,
+      },
+      animals: {
+        count: 0,
+        all: [],
+      },
+    });
   });
 
   it('should inform subscribers of state changes as a result of applying patches', () => {
@@ -240,27 +442,87 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
     controllerMessenger.subscribe('CountController:stateChange', listener1);
     const { inversePatches } = controller.update(() => {
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     controller.applyPatches(inversePatches);
 
     expect(listener1.callCount).toBe(2);
     expect(listener1.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
+      {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
+      [
+        {
+          op: 'replace',
+          path: [],
+          value: {
+            people: {
+              count: 1,
+            },
+            animals: {
+              count: 0,
+              all: [],
+            },
+          },
+        },
+      ],
     ]);
 
     expect(listener1.secondCall.args).toStrictEqual([
-      { count: 0 },
-      [{ op: 'replace', path: [], value: { count: 0 } }],
+      {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
+      [
+        {
+          op: 'replace',
+          path: [],
+          value: {
+            people: {
+              count: 0,
+            },
+            animals: {
+              count: 0,
+              all: [],
+            },
+          },
+        },
+      ],
     ]);
   });
 
@@ -272,7 +534,15 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
@@ -281,18 +551,70 @@ describe('BaseController', () => {
     controllerMessenger.subscribe('CountController:stateChange', listener1);
     controllerMessenger.subscribe('CountController:stateChange', listener2);
     controller.update(() => {
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     expect(listener1.callCount).toBe(1);
     expect(listener1.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
+      {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
+      [
+        {
+          op: 'replace',
+          path: [],
+          value: {
+            people: {
+              count: 1,
+            },
+            animals: {
+              count: 0,
+              all: [],
+            },
+          },
+        },
+      ],
     ]);
     expect(listener2.callCount).toBe(1);
     expect(listener2.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
+      {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
+      [
+        {
+          op: 'replace',
+          path: [],
+          value: {
+            people: {
+              count: 1,
+            },
+            animals: {
+              count: 0,
+              all: [],
+            },
+          },
+        },
+      ],
     ]);
   });
 
@@ -304,21 +626,33 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: { count: 0 },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener = sinon.stub();
     controllerMessenger.subscribe(
       'CountController:stateChange',
       listener,
-      ({ count }) => {
+      (state) => {
         // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
+        return Math.floor(state.people.count / 10);
       },
     );
 
     controller.update(() => {
-      return { count: 10 };
+      return {
+        people: { count: 10 },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     expect(listener.callCount).toBe(1);
@@ -327,28 +661,42 @@ describe('BaseController', () => {
 
   it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
     const controllerMessenger = new ControllerMessenger<
-      never,
+      CountControllerAction,
       CountControllerEvent
     >();
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: { count: 0 },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener = sinon.stub();
     controllerMessenger.subscribe(
       'CountController:stateChange',
       listener,
-      ({ count }) => {
+      (state, _patches) => {
         // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
+        return Math.floor(state.people.count / 10);
       },
     );
 
     controller.update(() => {
       // Note that this rounds down to zero, so the selected value is still zero
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     expect(listener.callCount).toBe(0);
@@ -362,7 +710,15 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
@@ -371,13 +727,43 @@ describe('BaseController', () => {
     controllerMessenger.subscribe('CountController:stateChange', listener1);
 
     controller.update(() => {
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     expect(listener1.callCount).toBe(1);
     expect(listener1.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
+      {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
+      [
+        {
+          op: 'replace',
+          path: [],
+          value: {
+            people: {
+              count: 1,
+            },
+            animals: {
+              count: 0,
+              all: [],
+            },
+          },
+        },
+      ],
     ]);
   });
 
@@ -389,7 +775,13 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: { count: 0 },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
@@ -397,7 +789,15 @@ describe('BaseController', () => {
     controllerMessenger.subscribe('CountController:stateChange', listener1);
     controllerMessenger.unsubscribe('CountController:stateChange', listener1);
     controller.update(() => {
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     expect(listener1.callCount).toBe(0);
@@ -411,7 +811,15 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: {
+          count: 0,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
@@ -420,7 +828,15 @@ describe('BaseController', () => {
     controllerMessenger.subscribe('CountController:stateChange', listener1);
     controllerMessenger.unsubscribe('CountController:stateChange', listener1);
     controller.update(() => {
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     expect(listener1.callCount).toBe(0);
@@ -434,7 +850,13 @@ describe('BaseController', () => {
     new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: { count: 0 },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
@@ -452,7 +874,13 @@ describe('BaseController', () => {
     const controller = new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
-      state: { count: 0 },
+      state: {
+        people: { count: 0 },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
@@ -462,7 +890,15 @@ describe('BaseController', () => {
     controllerMessenger.subscribe('CountController:stateChange', listener2);
     controller.destroy();
     controller.update(() => {
-      return { count: 1 };
+      return {
+        people: {
+          count: 1,
+        },
+        animals: {
+          count: 0,
+          all: [],
+        },
+      };
     });
 
     expect(listener1.callCount).toBe(0);
