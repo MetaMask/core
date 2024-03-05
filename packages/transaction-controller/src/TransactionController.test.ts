@@ -50,11 +50,11 @@ import {
 } from './types';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
+import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
-import { getSimulationData } from './utils/simulation';
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
