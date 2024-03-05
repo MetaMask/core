@@ -521,7 +521,7 @@ describe('TransactionController', () => {
       onNetworkStateChange: network.subscribe,
       provider: network.provider,
       sign: async (transaction: TypedTransaction) => transaction,
-      txHistoryLimit: 40,
+      transactionHistoryLimit: 40,
       ...givenOptions,
     };
 
@@ -2754,7 +2754,7 @@ describe('TransactionController', () => {
     it('allows transaction count to exceed txHistorylimit', async () => {
       const { controller } = setupController({
         options: {
-          txHistoryLimit: 1,
+          transactionHistoryLimit: 1,
         },
         messengerOptions: {
           addTransactionApprovalRequest: {
@@ -3537,7 +3537,7 @@ describe('TransactionController', () => {
 
     it('limits max transactions when adding to state', async () => {
       const { controller } = setupController({
-        options: { txHistoryLimit: 1 },
+        options: { transactionHistoryLimit: 1 },
       });
 
       // TODO: Replace `any` with type

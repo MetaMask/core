@@ -259,7 +259,7 @@ export type PendingTransactionOptions = {
  * @property hooks.publish - Alternate logic to publish a transaction.
  * @property sign - Function used to sign transactions.
  * @property state - Initial state to set on this controller.
- * @property txHistoryLimit - Transaction history limit.
+ * @property transactionHistoryLimit - Transaction history limit.
  */
 export type TransactionControllerOptions = {
   blockTracker: BlockTracker;
@@ -308,7 +308,7 @@ export type TransactionControllerOptions = {
     transactionMeta?: TransactionMeta,
   ) => Promise<TypedTransaction>;
   state?: Partial<TransactionControllerState>;
-  txHistoryLimit: number;
+  transactionHistoryLimit: number;
 };
 
 /**
@@ -600,7 +600,7 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
-  #txHistoryLimit: number;
+  #transactionHistoryLimit: number;
 
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
@@ -706,7 +706,7 @@ export class TransactionController extends BaseController<
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.sign - Function used to sign transactions.
    * @param options.state - Initial state to set on this controller.
-   * @param options.txHistoryLimit - Transaction history limit.
+   * @param options.transactionHistoryLimit - Transaction history limit.
    */
   constructor({
     blockTracker,
@@ -732,7 +732,7 @@ export class TransactionController extends BaseController<
     hooks,
     sign,
     state,
-    txHistoryLimit = 40,
+    transactionHistoryLimit = 40,
   }: TransactionControllerOptions) {
     super({
       name: controllerName,
@@ -765,7 +765,7 @@ export class TransactionController extends BaseController<
     this.securityProviderRequest = securityProviderRequest;
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
-    this.#txHistoryLimit = txHistoryLimit;
+    this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
@@ -2711,7 +2711,7 @@ export class TransactionController extends BaseController<
           if (nonceNetworkSet.has(key)) {
             return true;
           } else if (
-            nonceNetworkSet.size < this.#txHistoryLimit ||
+            nonceNetworkSet.size < this.#transactionHistoryLimit ||
             !this.isFinalState(status)
           ) {
             nonceNetworkSet.add(key);
@@ -3270,7 +3270,7 @@ export class TransactionController extends BaseController<
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: etherscanRemoteTransactionSource,
-      transactionLimit: this.#txHistoryLimit,
+      transactionLimit: this.#transactionHistoryLimit,
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
 

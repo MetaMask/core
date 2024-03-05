@@ -172,7 +172,7 @@ const setupController = async (
     },
     provider,
     sign: async (transaction: TypedTransaction) => transaction,
-    txHistoryLimit: 40,
+    transactionHistoryLimit: 40,
     ...givenOptions,
   };
 
