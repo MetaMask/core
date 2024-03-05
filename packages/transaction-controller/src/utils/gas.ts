@@ -2,15 +2,13 @@
 
 import {
   BNToHex,
-  NetworkType,
   fractionBN,
   hexToBN,
   query,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { ProviderConfig } from '@metamask/network-controller';
-import { createModuleLogger } from '@metamask/utils';
-import { addHexPrefix } from 'ethereumjs-util';
+import type { Hex } from '@metamask/utils';
+import { add0x, createModuleLogger } from '@metamask/utils';
 
 import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
@@ -18,7 +16,8 @@ import type { TransactionMeta, TransactionParams } from '../types';
 
 export type UpdateGasRequest = {
   ethQuery: EthQuery;
-  providerConfig: ProviderConfig;
+  isCustomNetwork: boolean;
+  chainId: Hex;
   txMeta: TransactionMeta;
 };
 
@@ -60,7 +59,7 @@ export async function estimateGas(
 
   const gasLimitBN = hexToBN(gasLimitHex);
 
-  request.data = data ? addHexPrefix(data) : data;
+  request.data = data ? add0x(data) : data;
   request.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
   request.value = value || '0x0';
 
@@ -101,18 +100,18 @@ export function addGasBuffer(
   const paddedGasBN = estimatedGasBN.muln(multiplier);
 
   if (estimatedGasBN.gt(maxGasBN)) {
-    const estimatedGasHex = addHexPrefix(estimatedGas);
+    const estimatedGasHex = add0x(estimatedGas);
     log('Using estimated value', estimatedGasHex);
     return estimatedGasHex;
   }
 
   if (paddedGasBN.lt(maxGasBN)) {
-    const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
+    const paddedHex = add0x(BNToHex(paddedGasBN));
     log('Using padded estimate', paddedHex, multiplier);
     return paddedHex;
   }
 
-  const maxHex = addHexPrefix(BNToHex(maxGasBN));
+  const maxHex = add0x(BNToHex(maxGasBN));
   log('Using 90% of block gas limit', maxHex);
   return maxHex;
 }
@@ -120,7 +119,7 @@ export function addGasBuffer(
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?]> {
-  const { providerConfig, txMeta } = request;
+  const { isCustomNetwork, chainId, txMeta } = request;
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
@@ -137,14 +136,14 @@ async function getGas(
     request.ethQuery,
   );
 
-  if (providerConfig.type === NetworkType.rpc) {
+  if (isCustomNetwork) {
     log('Using original estimate as custom network');
     return [estimatedGas, simulationFails];
   }
 
   const bufferMultiplier =
     GAS_BUFFER_CHAIN_OVERRIDES[
-      providerConfig.chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
+      chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
     ] ?? DEFAULT_GAS_MULTIPLIER;
 
   const bufferedGas = addGasBuffer(
@@ -159,10 +158,8 @@ async function getGas(
 async function requiresFixedGas({
   ethQuery,
   txMeta,
-  providerConfig,
+  isCustomNetwork,
 }: UpdateGasRequest): Promise<boolean> {
-  const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-
   const {
     txParams: { to, data },
   } = txMeta;

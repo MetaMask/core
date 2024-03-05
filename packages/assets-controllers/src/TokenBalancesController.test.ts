@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 
 import { flushPromises } from '../../../tests/helpers';
 import type {

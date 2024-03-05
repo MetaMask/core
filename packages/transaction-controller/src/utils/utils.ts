@@ -1,6 +1,9 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import { getKnownPropertyNames } from '@metamask/utils';
-import { addHexPrefix, isHexString } from 'ethereumjs-util';
+import {
+  add0x,
+  getKnownPropertyNames,
+  isStrictHexString,
+} from '@metamask/utils';
 
 import type {
   GasPriceValue,
@@ -18,20 +21,20 @@ export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
-  data: (data: string) => addHexPrefix(data),
-  from: (from: string) => addHexPrefix(from).toLowerCase(),
-  gas: (gas: string) => addHexPrefix(gas),
-  gasLimit: (gas: string) => addHexPrefix(gas),
-  gasPrice: (gasPrice: string) => addHexPrefix(gasPrice),
-  nonce: (nonce: string) => addHexPrefix(nonce),
-  to: (to: string) => addHexPrefix(to).toLowerCase(),
-  value: (value: string) => addHexPrefix(value),
-  maxFeePerGas: (maxFeePerGas: string) => addHexPrefix(maxFeePerGas),
+  data: (data: string) => add0x(padHexToEvenLength(data)),
+  from: (from: string) => add0x(from).toLowerCase(),
+  gas: (gas: string) => add0x(gas),
+  gasLimit: (gas: string) => add0x(gas),
+  gasPrice: (gasPrice: string) => add0x(gasPrice),
+  nonce: (nonce: string) => add0x(nonce),
+  to: (to: string) => add0x(to).toLowerCase(),
+  value: (value: string) => add0x(value),
+  maxFeePerGas: (maxFeePerGas: string) => add0x(maxFeePerGas),
   maxPriorityFeePerGas: (maxPriorityFeePerGas: string) =>
-    addHexPrefix(maxPriorityFeePerGas),
+    add0x(maxPriorityFeePerGas),
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
-    addHexPrefix(maxPriorityFeePerGas),
-  type: (type: string) => addHexPrefix(type),
+    add0x(maxPriorityFeePerGas),
+  type: (type: string) => add0x(type),
 };
 
 /**
@@ -40,7 +43,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  * @param txParams - The transaction params to normalize.
  * @returns Normalized transaction params.
  */
-export function normalizeTxParams(txParams: TransactionParams) {
+export function normalizeTransactionParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
 
   for (const key of getKnownPropertyNames(NORMALIZERS)) {
@@ -79,7 +82,7 @@ export const validateGasValues = (
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value = (gasValues as any)[key];
-    if (typeof value !== 'string' || !isHexString(value)) {
+    if (typeof value !== 'string' || !isStrictHexString(value)) {
       throw new TypeError(
         `expected hex string for ${key} but received: ${value}`,
       );
@@ -99,7 +102,7 @@ export const isGasPriceValue = (
   (gasValues as GasPriceValue)?.gasPrice !== undefined;
 
 export const getIncreasedPriceHex = (value: number, rate: number): string =>
-  addHexPrefix(`${parseInt(`${value * rate}`, 10).toString(16)}`);
+  add0x(`${parseInt(`${value * rate}`, 10).toString(16)}`);
 
 export const getIncreasedPriceFromExisting = (
   value: string | undefined,
@@ -175,7 +178,7 @@ export function normalizeGasFeeValues(
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalize = (value: any) =>
-    typeof value === 'string' ? addHexPrefix(value) : value;
+    typeof value === 'string' ? add0x(value) : value;
 
   if ('gasPrice' in gasFeeValues) {
     return {
@@ -187,4 +190,19 @@ export function normalizeGasFeeValues(
     maxFeePerGas: normalize(gasFeeValues.maxFeePerGas),
     maxPriorityFeePerGas: normalize(gasFeeValues.maxPriorityFeePerGas),
   };
+}
+
+/**
+ * Ensure a hex string is of even length by adding a leading 0 if necessary.
+ * Any existing `0x` prefix is preserved but is not added if missing.
+ *
+ * @param hex - The hex string to ensure is even.
+ * @returns The hex string with an even length.
+ */
+export function padHexToEvenLength(hex: string) {
+  const prefix = hex.toLowerCase().startsWith('0x') ? hex.slice(0, 2) : '';
+  const data = prefix ? hex.slice(2) : hex;
+  const evenData = data.length % 2 === 0 ? data : `0${data}`;
+
+  return prefix + evenData;
 }

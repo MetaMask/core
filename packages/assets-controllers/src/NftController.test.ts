@@ -26,7 +26,7 @@ import {
   getDefaultPreferencesState,
   type PreferencesState,
 } from '@metamask/preferences-controller';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
 import { v4 } from 'uuid';

@@ -1,4 +1,4 @@
-import type { BlockTracker, NetworkState } from '@metamask/network-controller';
+import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
@@ -15,6 +15,21 @@ const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.txParams.gasUsed,
 ];
 
+/**
+ * Configuration options for the IncomingTransactionHelper
+ *
+ * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
+ * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
+ * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
+ * @property updateTransactions - Whether to update local transactions using remote transaction data.
+ */
+export type IncomingTransactionOptions = {
+  includeTokenTransfers?: boolean;
+  isEnabled?: () => boolean;
+  queryEntireHistory?: boolean;
+  updateTransactions?: boolean;
+};
+
 export class IncomingTransactionHelper {
   hub: EventEmitter;
 
@@ -26,7 +41,7 @@ export class IncomingTransactionHelper {
 
   #getLocalTransactions: () => TransactionMeta[];
 
-  #getNetworkState: () => NetworkState;
+  #getChainId: () => Hex;
 
   #isEnabled: () => boolean;
 
@@ -49,7 +64,7 @@ export class IncomingTransactionHelper {
     getCurrentAccount,
     getLastFetchedBlockNumbers,
     getLocalTransactions,
-    getNetworkState,
+    getChainId,
     isEnabled,
     queryEntireHistory,
     remoteTransactionSource,
@@ -60,7 +75,7 @@ export class IncomingTransactionHelper {
     getCurrentAccount: () => string;
     getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
-    getNetworkState: () => NetworkState;
+    getChainId: () => Hex;
     isEnabled?: () => boolean;
     queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
@@ -73,7 +88,7 @@ export class IncomingTransactionHelper {
     this.#getCurrentAccount = getCurrentAccount;
     this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
     this.#getLocalTransactions = getLocalTransactions || (() => []);
-    this.#getNetworkState = getNetworkState;
+    this.#getChainId = getChainId;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
     this.#queryEntireHistory = queryEntireHistory ?? true;
@@ -128,13 +143,9 @@ export class IncomingTransactionHelper {
       const additionalLastFetchedKeys =
         this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
 
-      const fromBlock = this.#getFromBlock(
-        latestBlockNumber,
-        additionalLastFetchedKeys,
-      );
-
+      const fromBlock = this.#getFromBlock(latestBlockNumber);
       const address = this.#getCurrentAccount();
-      const currentChainId = this.#getCurrentChainId();
+      const currentChainId = this.#getChainId();
 
       let remoteTransactions = [];
 
@@ -152,7 +163,6 @@ export class IncomingTransactionHelper {
         log('Error while fetching remote transactions', error);
         return;
       }
-
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
           (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
@@ -187,7 +197,6 @@ export class IncomingTransactionHelper {
           updated: updatedTransactions,
         });
       }
-
       this.#updateLastFetchedBlockNumber(
         remoteTransactions,
         additionalLastFetchedKeys,
@@ -232,14 +241,16 @@ export class IncomingTransactionHelper {
     );
   }
 
-  #getFromBlock(
-    latestBlockNumber: number,
-    additionalKeys: string[],
-  ): number | undefined {
-    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
+  #getLastFetchedBlockNumberDec(): number {
+    const additionalLastFetchedKeys =
+      this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
+    const lastFetchedKey = this.#getBlockNumberKey(additionalLastFetchedKeys);
+    const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
+    return lastFetchedBlockNumbers[lastFetchedKey];
+  }
 
-    const lastFetchedBlockNumber =
-      this.#getLastFetchedBlockNumbers()[lastFetchedKey];
+  #getFromBlock(latestBlockNumber: number): number | undefined {
+    const lastFetchedBlockNumber = this.#getLastFetchedBlockNumberDec();
 
     if (lastFetchedBlockNumber) {
       return lastFetchedBlockNumber + 1;
@@ -280,7 +291,6 @@ export class IncomingTransactionHelper {
     }
 
     lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
-
     this.hub.emit('updatedLastFetchedBlockNumbers', {
       lastFetchedBlockNumbers,
       blockNumber: lastFetchedBlockNumber,
@@ -288,7 +298,7 @@ export class IncomingTransactionHelper {
   }
 
   #getBlockNumberKey(additionalKeys: string[]): string {
-    const currentChainId = this.#getCurrentChainId();
+    const currentChainId = this.#getChainId();
     const currentAccount = this.#getCurrentAccount()?.toLowerCase();
 
     return [currentChainId, currentAccount, ...additionalKeys].join('#');
@@ -296,15 +306,11 @@ export class IncomingTransactionHelper {
 
   #canStart(): boolean {
     const isEnabled = this.#isEnabled();
-    const currentChainId = this.#getCurrentChainId();
+    const currentChainId = this.#getChainId();
 
     const isSupportedNetwork =
       this.#remoteTransactionSource.isSupportedNetwork(currentChainId);
 
     return isEnabled && isSupportedNetwork;
-  }
-
-  #getCurrentChainId(): Hex {
-    return this.#getNetworkState().providerConfig.chainId;
   }
 }

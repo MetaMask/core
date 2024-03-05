@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
+### Added
+
+- Add `normalizeTransactionParams` method ([#3990](https://github.com/MetaMask/core/pull/3990))
+
+### Changed
+
+- **BREAKING**: Remove support for retrieving transactions via Etherscan for Optimism Goerli; add support for Optimism Sepolia instead ([#3999](https://github.com/MetaMask/core/pull/3999))
+- Normalize `data` property into an even length hex string ([#3990](https://github.com/MetaMask/core/pull/3990))
+- Bump `@metamask/approval-controller` to `^5.1.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/gas-fee-controller` to `^13.0.2` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/network-controller` to `^17.2.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
+## [23.1.0]
+
+### Added
+
+- Add `gasFeeEstimatesLoaded` property to `TransactionMeta` ([#3948](https://github.com/MetaMask/core/pull/3948))
+- Add `gasFeeEstimates` property to `TransactionMeta` to be automatically populated on unapproved transactions ([#3913](https://github.com/MetaMask/core/pull/3913))
+
+### Changed
+
+- Use the `linea_estimateGas` RPC method to provide transaction specific gas fee estimates on Linea networks ([#3913](https://github.com/MetaMask/core/pull/3913))
+
+## [23.0.0]
+
+### Added
+
+- **BREAKING:** Constructor now expects a `getNetworkClientRegistry` callback function ([#3643](https://github.com/MetaMask/core/pull/3643))
+- **BREAKING:** Messenger now requires `NetworkController:stateChange` to be an allowed event ([#3643](https://github.com/MetaMask/core/pull/3643))
+- **BREAKING:** Messenger now requires `NetworkController:findNetworkClientByChainId` and `NetworkController:getNetworkClientById` actions ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds a feature flag parameter `isMultichainEnabled` passed via the constructor (and defaulted to false), which when passed a truthy value will enable the controller to submit, process, and track transactions concurrently on multiple networks. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds `destroy()` method that stops/removes internal polling and listeners ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Adds `stopAllIncomingTransactionPolling()` method that stops polling Etherscan for transaction updates relevant to the currently selected network.
+  - When called with the `isMultichainEnabled` feature flag on, also stops polling Etherscan for transaction updates relevant to each currently polled networkClientId. ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Exports `PendingTransactionOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
+- Exports `TransactionControllerOptions` type ([#3643](https://github.com/MetaMask/core/pull/3643))
+
+### Changed
+
+- **BREAKING:** `approveTransactionsWithSameNonce()` now requires `chainId` to be populated in for each TransactionParams that is passed ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `addTransaction()` now accepts optional `networkClientId` in its options param which specifies the network client that the transaction will be processed with during its lifecycle if the `isMultichainEnabled` feature flag is on ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - when called with the `isMultichainEnabled` feature flag off, passing in a networkClientId will cause an error to be thrown.
+- `estimateGas()` now accepts optional networkClientId as its last param which specifies the network client that should be used to estimate the required gas for the given transaction ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - when called with the `isMultichainEnabled` feature flag is off, the networkClientId param is ignored and the global network client will be used instead.
+- `estimateGasBuffered()` now accepts optional networkClientId as its last param which specifies the network client that should be used to estimate the required gas plus buffer for the given transaction ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - when called with the `isMultichainEnabled` feature flag is off, the networkClientId param is ignored and the global network client will be used instead.
+- `getNonceLock()` now accepts optional networkClientId as its last param which specifies which the network client's nonceTracker should be used to determine the next nonce. ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - When called with the `isMultichainEnabled` feature flag on and with networkClientId specified, this method will also restrict acquiring the next nonce by chainId, i.e. if this method is called with two different networkClientIds on the same chainId, only the first call will return immediately with a lock from its respective nonceTracker with the second call being blocked until the first caller releases its lock
+  - When called with `isMultichainEnabled` feature flag off, the networkClientId param is ignored and the global network client will be used instead.
+- `startIncomingTransactionPolling()` and `updateIncomingTransactions()` now enforce a 5 second delay between requests per chainId to avoid rate limiting ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `TransactionMeta` type now specifies an optional `networkClientId` field ([#3643](https://github.com/MetaMask/core/pull/3643))
+- `startIncomingTransactionPolling()` now accepts an optional array of `networkClientIds`. ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - When `networkClientIds` is provided and the `isMultichainEnabled` feature flag is on, the controller will start polling Etherscan for transaction updates relevant to the networkClientIds.
+  - When `networkClientIds` is provided and the `isMultichainEnabled` feature flag is off, nothing will happen.
+  - If `networkClientIds` is empty or not provided, the controller will start polling Etherscan for transaction updates relevant to the currently selected network.
+- `stopIncomingTransactionPolling()` now accepts an optional array of `networkClientIds`. ([#3643](https://github.com/MetaMask/core/pull/3643))
+  - When `networkClientIds` is provided and the `isMultichainEnabled` feature flag is on, the controller will stop polling Ethercsan for transaction updates relevant to the networkClientIds.
+  - When `networkClientIds` is provided and the `isMultichainEnabled` feature flag is off, nothing will happen.
+  - If `networkClientIds` is empty or not provided, the controller will stop polling Etherscan for transaction updates relevant to the currently selected network.
+
 ## [22.0.0]
 
 ### Changed
@@ -495,7 +558,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...@metamask/transaction-controller@24.0.0
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...@metamask/transaction-controller@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@22.0.0...@metamask/transaction-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.2.0...@metamask/transaction-controller@22.0.0
 [21.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.1.0...@metamask/transaction-controller@21.2.0
 [21.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.0.1...@metamask/transaction-controller@21.1.0
