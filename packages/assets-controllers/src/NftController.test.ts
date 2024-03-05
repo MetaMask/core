@@ -159,8 +159,7 @@ function setupController(
 
   const nftControllerMessenger = messenger.getRestricted<
     typeof controllerName,
-    ApprovalActions['type'],
-    never
+    ApprovalActions['type']
   >({
     name: controllerName,
     allowedActions: ['ApprovalController:addRequest'],
