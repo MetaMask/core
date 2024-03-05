@@ -4,6 +4,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import * as uuid from 'uuid';
 
 import { isErrorWithCode, wrapError } from './errors';
 import type { Json } from './json';
@@ -240,8 +241,7 @@ export async function forceRemove(entryPath: string): Promise<void> {
  * ```
  */
 export function createSandbox(projectName: string): FileSandbox {
-  const timestamp = new Date().getTime();
-  const directoryPath = path.join(os.tmpdir(), `${projectName}--${timestamp}`);
+  const directoryPath = path.join(os.tmpdir(), projectName, uuid.v4());
 
   return {
     directoryPath,

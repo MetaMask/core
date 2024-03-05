@@ -3,6 +3,7 @@ import { when } from 'jest-when';
 import os from 'os';
 import path from 'path';
 import util from 'util';
+import * as uuid from 'uuid';
 
 import {
   createSandbox,
@@ -17,6 +18,16 @@ import {
 } from './fs';
 
 const { withinSandbox } = createSandbox('utils');
+
+// Clone the `uuid` module so that we can spy on its exports
+jest.mock('uuid', () => {
+  return {
+    // This is how to mock an ES-compatible module in Jest.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    __esModule: true,
+    ...jest.requireActual('uuid'),
+  };
+});
 
 describe('fs', () => {
   describe('readFile', () => {
@@ -674,9 +685,14 @@ describe('fs', () => {
     });
 
     it('does not create the sandbox directory immediately', async () => {
+      jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
       createSandbox('utils-fs');
 
-      const sandboxDirectoryPath = path.join(os.tmpdir(), 'utils-fs');
+      const sandboxDirectoryPath = path.join(
+        os.tmpdir(),
+        'utils-fs',
+        'AAAA-AAAA-AAAA-AAAA',
+      );
 
       await expect(fs.promises.stat(sandboxDirectoryPath)).rejects.toThrow(
         'ENOENT',
@@ -686,16 +702,15 @@ describe('fs', () => {
     describe('withinSandbox', () => {
       it('creates the sandbox directory and keeps it around before its given function ends', async () => {
         expect.assertions(1);
-
-        const nowTimestamp = new Date('2023-01-01').getTime();
-        jest.setSystemTime(nowTimestamp);
+        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
-        const sandboxDirectoryPath = path.join(
-          os.tmpdir(),
-          `utils-fs--${nowTimestamp}`,
-        );
 
         await withinTestSandbox(async () => {
+          const sandboxDirectoryPath = path.join(
+            os.tmpdir(),
+            'utils-fs',
+            'AAAA-AAAA-AAAA-AAAA',
+          );
           expect(await fs.promises.stat(sandboxDirectoryPath)).toStrictEqual(
             expect.anything(),
           );
@@ -703,32 +718,32 @@ describe('fs', () => {
       });
 
       it('removes the sandbox directory after its given function ends', async () => {
-        const nowTimestamp = new Date('2023-01-01').getTime();
-        jest.setSystemTime(nowTimestamp);
+        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
-        const sandboxDirectoryPath = path.join(
-          os.tmpdir(),
-          `utils-fs--${nowTimestamp}`,
-        );
 
         await withinTestSandbox(async () => {
           // do nothing
         });
 
+        const sandboxDirectoryPath = path.join(
+          os.tmpdir(),
+          'utils-fs',
+          'AAAA-AAAA-AAAA-AAAA',
+        );
         await expect(fs.promises.stat(sandboxDirectoryPath)).rejects.toThrow(
           'ENOENT',
         );
       });
 
       it('throws if the sandbox directory already exists', async () => {
-        const nowTimestamp = new Date('2023-01-01').getTime();
-        jest.setSystemTime(nowTimestamp);
+        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
+
         const sandboxDirectoryPath = path.join(
           os.tmpdir(),
-          `utils-fs--${nowTimestamp}`,
+          'utils-fs',
+          'AAAA-AAAA-AAAA-AAAA',
         );
-
         try {
           await fs.promises.mkdir(sandboxDirectoryPath);
 
