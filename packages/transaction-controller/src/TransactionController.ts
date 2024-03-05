@@ -234,7 +234,6 @@ export type PendingTransactionOptions = {
  * @property disableHistory - Whether to disable storing history in transaction metadata.
  * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
  * @property disableSwaps - Whether to disable additional processing on swaps transactions.
- * @property isMultichainEnabled - Enable multichain support.
  * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
  * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
  * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
@@ -245,11 +244,15 @@ export type PendingTransactionOptions = {
  * @property getSavedGasFees - Gets the saved gas fee config.
  * @property getSelectedAddress - Gets the address of the currently selected account.
  * @property incomingTransactions - Configuration options for incoming transaction support.
+ * @property isMultichainEnabled - Enable multichain support.
  * @property messenger - The controller messenger.
  * @property onNetworkStateChange - Allows subscribing to network controller state changes.
  * @property pendingTransactions - Configuration options for pending transaction support.
  * @property provider - The provider used to create the underlying EthQuery instance.
  * @property securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
+ * @property sign - Function used to sign transactions.
+ * @property state - Initial state to set on this controller.
+ * @property transactionHistoryLimit - Transaction history limit.
  * @property hooks - The controller hooks.
  * @property hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
  * @property hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
@@ -257,9 +260,6 @@ export type PendingTransactionOptions = {
  * @property hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
  * @property hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
  * @property hooks.publish - Alternate logic to publish a transaction.
- * @property sign - Function used to sign transactions.
- * @property state - Initial state to set on this controller.
- * @property transactionHistoryLimit - Transaction history limit.
  */
 export type TransactionControllerOptions = {
   blockTracker: BlockTracker;
@@ -273,18 +273,25 @@ export type TransactionControllerOptions = {
     chainId?: string,
   ) => NonceTrackerTransaction[];
   getGasFeeEstimates?: () => Promise<GasFeeState>;
+  getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   getSelectedAddress: () => string;
   incomingTransactions?: IncomingTransactionOptions;
+  isMultichainEnabled: boolean;
   messenger: TransactionControllerMessenger;
   onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
   pendingTransactions?: PendingTransactionOptions;
   provider: Provider;
   securityProviderRequest?: SecurityProviderRequest;
-  getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-  isMultichainEnabled: boolean;
+  sign?: (
+    transaction: TypedTransaction,
+    from: string,
+    transactionMeta?: TransactionMeta,
+  ) => Promise<TypedTransaction>;
+  state?: Partial<TransactionControllerState>;
+  transactionHistoryLimit: number;
   hooks: {
     afterSign?: (
       transactionMeta: TransactionMeta,
@@ -302,13 +309,6 @@ export type TransactionControllerOptions = {
       transactionMeta: TransactionMeta,
     ) => Promise<{ transactionHash: string }>;
   };
-  sign?: (
-    transaction: TypedTransaction,
-    from: string,
-    transactionMeta?: TransactionMeta,
-  ) => Promise<TypedTransaction>;
-  state?: Partial<TransactionControllerState>;
-  transactionHistoryLimit: number;
 };
 
 /**
@@ -696,7 +696,6 @@ export class TransactionController extends BaseController<
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
-   * @param options.hooks - The controller hooks.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
    * @param options.messenger - The controller messenger.
@@ -707,6 +706,7 @@ export class TransactionController extends BaseController<
    * @param options.sign - Function used to sign transactions.
    * @param options.state - Initial state to set on this controller.
    * @param options.transactionHistoryLimit - Transaction history limit.
+   * @param options.hooks - The controller hooks.
    */
   constructor({
     blockTracker,
@@ -717,22 +717,22 @@ export class TransactionController extends BaseController<
     getCurrentNetworkEIP1559Compatibility,
     getExternalPendingTransactions,
     getGasFeeEstimates,
+    getNetworkClientRegistry,
     getNetworkState,
     getPermittedAccounts,
     getSavedGasFees,
     getSelectedAddress,
     incomingTransactions = {},
+    isMultichainEnabled = false,
     messenger,
     onNetworkStateChange,
     pendingTransactions = {},
     provider,
     securityProviderRequest,
-    getNetworkClientRegistry,
-    isMultichainEnabled = false,
-    hooks,
     sign,
     state,
     transactionHistoryLimit = 40,
+    hooks,
   }: TransactionControllerOptions) {
     super({
       name: controllerName,
