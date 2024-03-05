@@ -1488,7 +1488,7 @@ __metadata:
     "@metamask/keyring-api": ^3.0.0
     "@metamask/keyring-controller": ^13.0.0
     "@metamask/snaps-controllers": ^4.0.0
-    "@metamask/snaps-sdk": ^1.3.2
+    "@metamask/snaps-sdk": ^3.1.0
     "@metamask/snaps-utils": ^5.1.2
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2855,6 +2855,20 @@ __metadata:
     is-svg: ^4.4.0
     superstruct: ^1.0.3
   checksum: faf3505add1d719bd9640beb5e67a84ed858198b06330d67d675a06e8b1e66250afc097b1a4c3af23bc8fc01bbc899af963bc056a4aafd09780ca59e1bb51917
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-sdk@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@metamask/snaps-sdk@npm:3.1.0"
+  dependencies:
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/providers": ^14.0.2
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/utils": ^8.3.0
+    fast-xml-parser: ^4.3.4
+    superstruct: ^1.0.3
+  checksum: 292c97eb4f98530fcb0dc207643686ad927ec4d86ac43c296ecc3b5500aef160556ae19eb3f8e15dbb5ffcf7763b51da90ff327a1f1a10ab2409afd3d9b8caed
   languageName: node
   linkType: hard
 
@@ -6288,6 +6302,17 @@ __metadata:
   bin:
     fxparser: src/cli/cli.js
   checksum: d8b0c9e04756f6c43fa0399428f30149acadae21350e42e26e8fe98e24e6afa6b9b00aa554453795036b00e9fee974a1b556fe2ba18be391d51a9bf1ab790e7c
+  languageName: node
+  linkType: hard
+
+"fast-xml-parser@npm:^4.3.4":
+  version: 4.3.5
+  resolution: "fast-xml-parser@npm:4.3.5"
+  dependencies:
+    strnum: ^1.0.5
+  bin:
+    fxparser: src/cli/cli.js
+  checksum: 852064985ca56aa2078be02c92509a675408b57bb9862f696689301bf7df786f9ce9116b812b032c627979a4de5755f9cbfeecc4b90ed9d56be76deccd97c0c6
   languageName: node
   linkType: hard
 
