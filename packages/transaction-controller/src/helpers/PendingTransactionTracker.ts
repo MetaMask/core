@@ -7,7 +7,6 @@ import type {
 import EventEmitter from 'events';
 
 import { createModuleLogger, projectLogger } from '../logger';
-import type { ApprovalState } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
@@ -59,7 +58,7 @@ export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #approveTransaction: (transactionId: string) => Promise<ApprovalState>;
+  #approveTransaction: (transactionId: string) => Promise<void>;
 
   #blockTracker: BlockTracker;
 
@@ -98,7 +97,7 @@ export class PendingTransactionTracker {
     publishTransaction,
     hooks,
   }: {
-    approveTransaction: (transactionId: string) => Promise<ApprovalState>;
+    approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;

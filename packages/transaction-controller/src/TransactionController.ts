@@ -3292,7 +3292,9 @@ export class TransactionController extends BaseController<
     const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
 
     const pendingTransactionTracker = new PendingTransactionTracker({
-      approveTransaction: this.approveTransaction.bind(this),
+      approveTransaction: async (transactionId: string) => {
+        await this.approveTransaction(transactionId);
+      },
       blockTracker,
       getChainId,
       getEthQuery: () => ethQuery,
