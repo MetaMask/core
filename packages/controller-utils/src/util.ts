@@ -554,5 +554,8 @@ function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
     } else {
       throw error;
     }
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    throw error;
   }
 }
