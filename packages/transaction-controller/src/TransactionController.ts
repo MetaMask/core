@@ -533,7 +533,7 @@ export enum ApprovalState {
  *
  * @returns The default TransactionsController state.
  */
-function getDefaultTransactionControllerState() {
+function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     methodData: {},
     transactions: [],
@@ -2704,8 +2704,8 @@ export class TransactionController extends BaseController<
         const { chainId, status, txParams, time } = tx;
 
         if (txParams) {
-          const key = `${String(txParams.nonce)}-${String(
-            convertHexToDecimal(chainId),
+          const key = `${String(txParams.nonce)}-${convertHexToDecimal(
+            chainId,
           )}-${new Date(time).toDateString()}`;
 
           if (nonceNetworkSet.has(key)) {
