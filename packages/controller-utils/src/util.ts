@@ -542,12 +542,12 @@ function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
 
   if (error instanceof Error) {
     const includesErrorCodeToCatch = codesToCatch.some((code) =>
-      error.message?.includes(`Fetch failed with status '${code}'`),
+      error.message.includes(`Fetch failed with status '${code}'`),
     );
 
     if (
       includesErrorCodeToCatch ||
-      error.message?.includes('Failed to fetch') ||
+      error.message.includes('Failed to fetch') ||
       error === TIMEOUT_ERROR
     ) {
       console.error(error);
