@@ -430,12 +430,12 @@ export class ControllerMessenger<
    */
   getRestricted<
     Namespace extends string,
-    AllowedAction extends NotNamespacedBy<Namespace, Action['type']>,
-    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']>,
+    AllowedAction extends NotNamespacedBy<Namespace, Action['type']> = never,
+    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']> = never,
   >({
     name,
-    allowedActions,
-    allowedEvents,
+    allowedActions = [],
+    allowedEvents = [],
   }: {
     name: Namespace;
     allowedActions?: NotNamespacedBy<

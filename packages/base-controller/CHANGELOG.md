@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** The `getRestricted` method of the `ControllerMessenger` class has major API changes that may require updates to its existing instances in downstream code.
+  - If the `AllowedActions`, `AllowedEvents` generic parameters are omitted, they are always assumed to be `never`.
+    - Previously, omission of these generic parameters resulted in the full allowlists for the controller being inferred as type constraints for the `allowedActions`, `allowedEvents` function parameters.
+  - If the function parameters `allowedActions`, `allowedEvents` are a non-empty array, their corresponding type names must be explicitly passed into generic parameters `AllowedActions`, `AllowedEvents` to avoid type errors.
+    - This requirement is only relevant for TypeScript code. A JavaScript consumer only needs to pass in the correct value-level function parameters.
+    - `getRestricted` is still able to flag `AllowedActions` and `AllowedEvents` members that should not be included in the allowlists, based on the `Action`, `Event` generic arguments passed into the `ControllerMessenger` instance.
+
 ## [4.1.1]
 
 ### Changed
