@@ -2,7 +2,9 @@ import { isNetworkType, NetworkType } from './types';
 
 describe('types', () => {
   it('isNetworkType', () => {
+    // @ts-expect-error We are intentionally passing bad input.
     expect(isNetworkType({})).toBe(false);
+    // @ts-expect-error We are intentionally passing bad input.
     expect(isNetworkType(1)).toBe(false);
     expect(isNetworkType('test')).toBe(false);
     expect(isNetworkType('mainnet')).toBe(true);
