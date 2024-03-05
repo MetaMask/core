@@ -182,11 +182,7 @@ describe('ComposableController', () => {
         never,
         ComposableControllerEvents | FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
       });
       const fooController = new FooController(fooControllerMessenger);
@@ -286,11 +282,7 @@ describe('ComposableController', () => {
         never,
         ComposableControllerEvents | FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
       });
       const fooController = new FooController(fooControllerMessenger);
@@ -346,11 +338,7 @@ describe('ComposableController', () => {
         never,
         FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
       });
       const fooController = new FooController(fooControllerMessenger);

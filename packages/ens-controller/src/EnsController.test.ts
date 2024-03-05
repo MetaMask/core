@@ -38,7 +38,7 @@ const name = 'EnsController';
  * @returns A restricted controller messenger.
  */
 function getMessenger() {
-  return new ControllerMessenger().getRestricted<typeof name, never, never>({
+  return new ControllerMessenger().getRestricted({
     name,
   });
 }

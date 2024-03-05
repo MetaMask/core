@@ -117,11 +117,7 @@ describe('TokensController', () => {
     const defaultSelectedAddress = '0x1';
     messenger = new ControllerMessenger();
 
-    approvalControllerMessenger = messenger.getRestricted<
-      'ApprovalController',
-      never,
-      never
-    >({
+    approvalControllerMessenger = messenger.getRestricted({
       name: 'ApprovalController',
     });
 
