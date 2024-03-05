@@ -22,6 +22,7 @@ const SUBDOMAIN_BY_CHAIN_ID: Record<Hex, string> = {
   [CHAIN_IDS.BSC]: 'bsc-mainnet',
 };
 
+/** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
   from: Hex;
   to?: Hex;
@@ -29,6 +30,7 @@ export type SimulationRequestTransaction = {
   data?: Hex;
 };
 
+/** Request to the simulation API to simulate transactions. */
 export type SimulationRequest = {
   transactions: SimulationRequestTransaction[];
   overrides?: {
@@ -42,17 +44,20 @@ export type SimulationRequest = {
   withLogs?: boolean;
 };
 
+/** Raw event log emitted by a simulated transaction. */
 export type SimulationLog = {
   address: Hex;
   data: Hex;
   topics: Hex[];
 };
 
+/** Call trace of a single simulated transaction. */
 export type SimulationResponseCallTrace = {
   calls: SimulationResponseCallTrace[];
   logs: SimulationLog[];
 };
 
+/** Response from the simulation API. */
 export type SimulationResponse = {
   transactions: {
     return: Hex;

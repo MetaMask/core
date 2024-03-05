@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable jsdoc/require-jsdoc */
-
 import type { LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
@@ -25,6 +22,13 @@ import { simulateTransactions } from './simulation-api';
 
 const log = createModuleLogger(projectLogger, 'simulation');
 
+type ABIEntry = {
+  name: string;
+  inputs: { name: string }[];
+};
+
+type ABI = ABIEntry[];
+
 export type GetSimulationDataRequest = {
   chainId: Hex;
   from: Hex;
@@ -38,9 +42,19 @@ type ParsedEvent = {
   tokenStandard: SimulationTokenStandard;
   name: string;
   data: Record<string, Hex>;
-  abi: any;
+  abi: ABI;
 };
 
+/**
+ * Generate simulation data for a transaction.
+ * @param request - The transaction to simulate.
+ * @param request.chainId - The chain ID of the transaction.
+ * @param request.from - The sender of the transaction.
+ * @param request.to - The recipient of the transaction.
+ * @param request.value - The value of the transaction.
+ * @param request.data - The data of the transaction.
+ * @returns The simulation data.
+ */
 export async function getSimulationData(
   request: GetSimulationDataRequest,
 ): Promise<SimulationData | undefined> {
@@ -76,6 +90,12 @@ export async function getSimulationData(
   }
 }
 
+/**
+ * Extract the native balance change from a simulation response.
+ * @param userAddress - The user's account address.
+ * @param response - The simulation response.
+ * @returns The native balance change or undefined if unchanged.
+ */
 function getNativeBalanceChange(
   userAddress: Hex,
   response: SimulationResponse,
@@ -95,6 +115,11 @@ function getNativeBalanceChange(
   return getSimulationBalanceChange(previousBalance, newBalance);
 }
 
+/**
+ * Extract events from a simulation response.
+ * @param response - The simulation response.
+ * @returns The parsed events.
+ */
 function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
   const logs = getLogs(response.transactions[0]?.callTrace ?? {});
@@ -120,7 +145,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
       }
 
       /* istanbul ignore next */
-      const inputs = event.abi.find((e: any) => e.name === event.name)?.inputs;
+      const inputs = event.abi.find((e) => e.name === event.name)?.inputs;
 
       /* istanbul ignore if */
       if (!inputs) {
@@ -141,6 +166,12 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
     .filter((e) => e !== undefined) as ParsedEvent[];
 }
 
+/**
+ * Parse event arguments using ABI input definitions.
+ * @param args - The raw event arguments.
+ * @param abiInputs - The ABI input definitions.
+ * @returns The parsed event arguments.
+ */
 function parseEventArgs(args: Result, abiInputs: { name: string }[]) {
   return args.reduce((result, arg, index) => {
     const name = abiInputs[index].name.replace('_', '');
@@ -152,6 +183,12 @@ function parseEventArgs(args: Result, abiInputs: { name: string }[]) {
   }, {});
 }
 
+/**
+ * Parse an event argument value.
+ * @param value - The event argument value.
+ * @returns The parsed event argument value.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseEventArgValue(value: any): any {
   if (Array.isArray(value)) {
     return value.map(parseEventArgValue);
@@ -166,6 +203,12 @@ function parseEventArgValue(value: any): any {
   return parsedValue.toLowerCase();
 }
 
+/**
+ * Generate token balance changes from parsed events.
+ * @param request - The transaction that was simulated.
+ * @param events - The parsed events.
+ * @returns An array of token balance changes.
+ */
 async function getTokenBalanceChanges(
   request: GetSimulationDataRequest,
   events: ParsedEvent[],
@@ -217,6 +260,12 @@ async function getTokenBalanceChanges(
     .filter((change) => change !== undefined) as SimulationTokenBalanceChange[];
 }
 
+/**
+ * Generate transactions to check token balances.
+ * @param request - The transaction that was simulated.
+ * @param events - The parsed events.
+ * @returns A map of token balance transactions keyed by token.
+ */
 function getTokenBalanceTransactions(
   request: GetSimulationDataRequest,
   events: ParsedEvent[],
@@ -293,13 +342,21 @@ function getTokenBalanceTransactions(
   }, new Map<SimulationToken, SimulationRequestTransaction>());
 }
 
+/**
+ * Parse a raw event log using known ABIs.
+ * @param eventLog - The raw event log.
+ * @param erc20 - The ERC-20 ABI interface.
+ * @param erc721 - The ERC-721 ABI interface.
+ * @param erc1155 - The ERC-1155 ABI interface.
+ * @returns The parsed event log or undefined if it could not be parsed.
+ */
 function parseLog(
   eventLog: SimulationLog,
   erc20: Interface,
   erc721: Interface,
   erc1155: Interface,
 ):
-  | (LogDescription & { abi: any; standard: SimulationTokenStandard })
+  | (LogDescription & { abi: ABI; standard: SimulationTokenStandard })
   | undefined {
   const abisByStandard = [
     {
@@ -334,6 +391,11 @@ function parseLog(
   return undefined;
 }
 
+/**
+ * Extract all logs from a call trace tree.
+ * @param call - The root call trace.
+ * @returns An array of logs.
+ */
 function getLogs(call: SimulationResponseCallTrace): SimulationLog[] {
   /* istanbul ignore next */
   const logs = call.logs ?? [];
@@ -347,6 +409,12 @@ function getLogs(call: SimulationResponseCallTrace): SimulationLog[] {
   ];
 }
 
+/**
+ * Generate balance change data from previous and new balances.
+ * @param previousBalance - The previous balance.
+ * @param newBalance - The new balance.
+ * @returns The balance change data or undefined if unchanged.
+ */
 function getSimulationBalanceChange(
   previousBalance: Hex,
   newBalance: Hex,
