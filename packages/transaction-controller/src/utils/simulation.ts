@@ -69,8 +69,6 @@ export async function getSimulationData(
       withLogs: true,
     });
 
-    log('Simulation response', response);
-
     const nativeBalanceChange = getNativeBalanceChange(request.from, response);
     const events = getEvents(response);
 

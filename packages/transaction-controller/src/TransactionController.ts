@@ -685,17 +685,10 @@ export class TransactionController extends BaseControllerV1<
       type: transactionType,
     };
 
-    await this.updateGasProperties(transactionMeta);
-
-    transactionMeta.simulationData = await getSimulationData({
-      chainId,
-      from: txParams.from as Hex,
-      to: txParams.to as Hex,
-      value: txParams.value as Hex,
-      data: txParams.data as Hex,
-    });
-
-    log('Retrieved simulation data', transactionMeta.simulationData);
+    await Promise.all([
+      this.updateGasProperties(transactionMeta),
+      this.#simulateTransaction(transactionMeta),
+    ]);
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -2779,5 +2772,20 @@ export class TransactionController extends BaseControllerV1<
       error?.message?.includes('nonce too low') ||
       error?.data?.message?.includes('nonce too low')
     );
+  }
+
+  async #simulateTransaction(transactionMeta: TransactionMeta) {
+    const { chainId, txParams } = transactionMeta;
+    const { from, to, value, data } = txParams;
+
+    transactionMeta.simulationData = await getSimulationData({
+      chainId,
+      from: from as Hex,
+      to: to as Hex,
+      value: value as Hex,
+      data: data as Hex,
+    });
+
+    log('Retrieved simulation data', transactionMeta.simulationData);
   }
 }
