@@ -3573,13 +3573,13 @@ describe('TransactionController', () => {
       );
     });
 
-    it('emits incomingTransactionBlock event', async () => {
+    it('publishes TransactionController:incomingTransactionBlockReceived', async () => {
       const blockNumber = 123;
       const listener = jest.fn();
 
       const { messenger } = setupController();
       messenger.subscribe(
-        'TransactionController:incomingTransactionBlock',
+        'TransactionController:incomingTransactionBlockReceived',
         listener,
       );
 

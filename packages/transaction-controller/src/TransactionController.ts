@@ -340,8 +340,8 @@ export type TransactionControllerStateChangeEvent = ControllerStateChangeEvent<
 /**
  * Represents the `TransactionController:incomingTransactionBlockReceived` event.
  */
-export type TransactionControllerIncomingTransactionBlockEvent = {
-  type: `${typeof controllerName}:incomingTransactionBlock`;
+export type TransactionControllerIncomingTransactionBlockReceivedEvent = {
+  type: `${typeof controllerName}:incomingTransactionBlockReceived`;
   payload: [blockNumber: number];
 };
 
@@ -491,7 +491,7 @@ export type TransactionControllerUnapprovedTransactionAddedEvent = {
  * The internal events available to the {@link TransactionController}.
  */
 export type TransactionControllerEvents =
-  | TransactionControllerIncomingTransactionBlockEvent
+  | TransactionControllerIncomingTransactionBlockReceivedEvent
   | TransactionControllerPostTransactionBalanceUpdatedEvent
   | TransactionControllerSpeedupTransactionAddedEvent
   | TransactionControllerStateChangeEvent
@@ -2878,7 +2878,7 @@ export class TransactionController extends BaseController<
       state.lastFetchedBlockNumbers = lastFetchedBlockNumbers;
     });
     this.messagingSystem.publish(
-      `${controllerName}:incomingTransactionBlock`,
+      `${controllerName}:incomingTransactionBlockReceived`,
       blockNumber,
     );
   }
