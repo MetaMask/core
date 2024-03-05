@@ -1939,7 +1939,7 @@ describe('TransactionController', () => {
         expect(status).toBe(TransactionStatus.rejected);
       });
 
-      it('emits rejected and finished event', async () => {
+      it('publishes TransactionController:transactionRejected and TransactionController:transactionFinished', async () => {
         const { controller, messenger } = setupController({
           messengerOptions: {
             addTransactionApprovalRequest: {
@@ -2415,7 +2415,7 @@ describe('TransactionController', () => {
       ).rejects.toThrow('No sign method defined');
     });
 
-    it('emits transaction events', async () => {
+    it('publishes transaction events', async () => {
       const { controller, messenger, mockTransactionApprovalRequest } =
         setupController({ network: MOCK_LINEA_GOERLI_NETWORK });
 
@@ -2778,7 +2778,7 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(2);
     });
 
-    it('emits transaction events', async () => {
+    it('publishes transaction events', async () => {
       const { controller, messenger } = setupController({
         network: MOCK_LINEA_MAINNET_NETWORK,
       });
@@ -3170,7 +3170,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('emits confirmed event', async () => {
+    it('publishes TransactionController:transactionConfirmed', async () => {
       const { controller, messenger } = setupController();
 
       const confirmedEventListener = jest.fn();
@@ -3211,7 +3211,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('emits confirmed event with transaction chainId regardless of whether it matches globally selected chainId', async () => {
+    it('publishes TransactionController:transactionConfirmed with transaction chainId regardless of whether it matches globally selected chainId', async () => {
       const mockGloballySelectedNetwork = {
         ...MOCK_NETWORK,
         state: {
