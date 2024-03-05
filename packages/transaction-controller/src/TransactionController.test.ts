@@ -1669,7 +1669,7 @@ describe('TransactionController', () => {
       });
     });
 
-    it('updates simulation data', async () => {
+    it('updates simulation data by default', async () => {
       getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
 
       const controller = newController();
@@ -1691,6 +1691,22 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].simulationData).toStrictEqual(
         SIMULATION_DATA_MOCK,
       );
+    });
+
+    it('does not update simulation data if simulation disabled', async () => {
+      getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+      const controller = newController({
+        options: { isSimulationEnabled: () => false },
+      });
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+      expect(controller.state.transactions[0].simulationData).toBeUndefined();
     });
 
     describe('on approve', () => {

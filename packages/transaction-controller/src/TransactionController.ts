@@ -222,6 +222,7 @@ export type PendingTransactionOptions = {
  * @property getSavedGasFees - Gets the saved gas fee config.
  * @property getSelectedAddress - Gets the address of the currently selected account.
  * @property incomingTransactions - Configuration options for incoming transaction support.
+ * @property isSimulationEnabled - Whether new transactions will be automatically simulated.
  * @property messenger - The controller messenger.
  * @property onNetworkStateChange - Allows subscribing to network controller state changes.
  * @property pendingTransactions - Configuration options for pending transaction support.
@@ -252,6 +253,7 @@ export type TransactionControllerOptions = {
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   getSelectedAddress: () => string;
   incomingTransactions?: IncomingTransactionOptions;
+  isSimulationEnabled?: () => boolean;
   messenger: TransactionControllerMessenger;
   onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
   pendingTransactions?: PendingTransactionOptions;
@@ -376,6 +378,8 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
+  private readonly isSimulationEnabled: () => boolean;
+
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
@@ -465,6 +469,7 @@ export class TransactionController extends BaseControllerV1<
       getSavedGasFees,
       getSelectedAddress,
       incomingTransactions = {},
+      isSimulationEnabled,
       messenger,
       onNetworkStateChange,
       pendingTransactions = {},
@@ -494,6 +499,7 @@ export class TransactionController extends BaseControllerV1<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
+    this.isSimulationEnabled = isSimulationEnabled ?? (() => true);
     // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
     this.registry = new MethodRegistry({ provider });
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
@@ -3105,6 +3111,11 @@ export class TransactionController extends BaseControllerV1<
   }
 
   async #simulateTransaction(transactionMeta: TransactionMeta) {
+    if (!this.isSimulationEnabled()) {
+      log('Skipping simulation as disabled');
+      return;
+    }
+
     const { chainId, txParams } = transactionMeta;
     const { from, to, value, data } = txParams;
 
