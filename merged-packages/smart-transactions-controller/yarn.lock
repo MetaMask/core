@@ -876,7 +876,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^8.0.2":
+"@metamask/controller-utils@npm:^8.0.2, @metamask/controller-utils@npm:^8.0.4":
   version: 8.0.4
   resolution: "@metamask/controller-utils@npm:8.0.4"
   dependencies:
@@ -954,7 +954,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^12.0.1":
+"@metamask/eth-json-rpc-middleware@npm:^12.1.0":
   version: 12.1.0
   resolution: "@metamask/eth-json-rpc-middleware@npm:12.1.0"
   dependencies:
@@ -1018,7 +1018,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/json-rpc-engine@npm:^7.1.1, @metamask/json-rpc-engine@npm:^7.3.2":
+"@metamask/json-rpc-engine@npm:^7.1.1, @metamask/json-rpc-engine@npm:^7.3.2, @metamask/json-rpc-engine@npm:^7.3.3":
   version: 7.3.3
   resolution: "@metamask/json-rpc-engine@npm:7.3.3"
   dependencies:
@@ -1030,24 +1030,24 @@ __metadata:
   linkType: hard
 
 "@metamask/network-controller@npm:^17.2.0":
-  version: 17.2.0
-  resolution: "@metamask/network-controller@npm:17.2.0"
+  version: 17.2.1
+  resolution: "@metamask/network-controller@npm:17.2.1"
   dependencies:
     "@metamask/base-controller": ^4.1.1
-    "@metamask/controller-utils": ^8.0.2
+    "@metamask/controller-utils": ^8.0.4
     "@metamask/eth-json-rpc-infura": ^9.0.0
-    "@metamask/eth-json-rpc-middleware": ^12.0.1
+    "@metamask/eth-json-rpc-middleware": ^12.1.0
     "@metamask/eth-json-rpc-provider": ^2.3.2
     "@metamask/eth-query": ^4.0.0
-    "@metamask/json-rpc-engine": ^7.3.2
-    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/json-rpc-engine": ^7.3.3
+    "@metamask/rpc-errors": ^6.2.1
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     async-mutex: ^0.2.6
     eth-block-tracker: ^8.0.0
     immer: ^9.0.6
     uuid: ^8.3.2
-  checksum: 8fedec394888020a61379c2b64cc1c5bd1c8d43875f4a0c8c13be28f4e04f8375bc175b02c91281b172e1258d601e3e36d5fdd7321bd8eb39e89e3f2da92c1df
+  checksum: c8406e3696c5d5450489d28a8b2598d439b104e1894fa85c56f25222bcf958a5386cc5df212e6fb26ee56475eee2220ab9ae9e4d0b4655028b541db5484aa8df
   languageName: node
   linkType: hard
 
@@ -1078,7 +1078,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/rpc-errors@npm:^6.0.0, @metamask/rpc-errors@npm:^6.1.0, @metamask/rpc-errors@npm:^6.2.1":
+"@metamask/rpc-errors@npm:^6.0.0, @metamask/rpc-errors@npm:^6.2.1":
   version: 6.2.1
   resolution: "@metamask/rpc-errors@npm:6.2.1"
   dependencies:
