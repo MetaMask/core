@@ -27,8 +27,8 @@ export function addInitialHistorySnapshot(
  *
  * @param transactionMeta - TransactionMeta to add history entry to.
  * @param note - Note to add to history entry.
- * @returns A copy of `transactionMeta` with a new `history` entry if it has a
- * `history`, or `transactionMeta` unchanged.
+ * @returns A copy of `transactionMeta` with a new `history` entry if it has an
+ * existing non-empty `history` array.
  */
 export function updateTransactionHistory(
   transactionMeta: TransactionMeta,
