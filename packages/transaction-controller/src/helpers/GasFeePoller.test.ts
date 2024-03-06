@@ -70,6 +70,15 @@ describe('GasFeePoller', () => {
   // As we mock implementation of updateTransactionLayer1GasFee, it does not matter if we pass matching flow here
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
 
+  const transactionLayer1GasFeeUpdater = ({
+    transactionMeta,
+  }: {
+    transactionMeta: TransactionMeta;
+  }) => {
+    transactionMeta.layer1GasFee = LAYER1_GAS_FEE_MOCK;
+    return Promise.resolve();
+  };
+
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
@@ -82,14 +91,7 @@ describe('GasFeePoller', () => {
     getTransactionsMock.mockReturnValue([{ ...TRANSACTION_META_MOCK }]);
 
     updateTransactionLayer1GasFeeMock.mockImplementation(
-      ({
-        layer1GasFeeFlows: _layer1GasFeeFlows,
-        transactionMeta,
-        provider: _provider,
-      }) => {
-        transactionMeta.layer1GasFee = LAYER1_GAS_FEE_MOCK;
-        return Promise.resolve();
-      },
+      transactionLayer1GasFeeUpdater,
     );
 
     constructorOptions = {
@@ -107,7 +109,18 @@ describe('GasFeePoller', () => {
 
   describe('on state change', () => {
     describe('if unapproved transaction', () => {
+      beforeEach(() => {
+        // to avoid side effect of the mock implementation
+        // otherwise argument assertion would fail because mock.calls[][] holds reference
+        updateTransactionLayer1GasFeeMock.mockResolvedValue(undefined);
+      });
+
       it('emits updated event', async () => {
+        // skip into original implementation
+        updateTransactionLayer1GasFeeMock.mockImplementationOnce(
+          transactionLayer1GasFeeUpdater,
+        );
+
         const listener = jest.fn();
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
@@ -126,12 +139,6 @@ describe('GasFeePoller', () => {
       });
 
       it('calls gas fee flow', async () => {
-        // to avoid side effect of the mock implementation
-        // otherwise argument assertion would fail because mock.calls[][] holds reference
-        updateTransactionLayer1GasFeeMock.mockImplementationOnce(() =>
-          Promise.resolve(),
-        );
-
         new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
@@ -146,12 +153,6 @@ describe('GasFeePoller', () => {
       });
 
       it('calls layer1 gas fee updater', async () => {
-        // to avoid side effect of the mock implementation
-        // otherwise argument assertion would fail because mock.calls[][] holds reference
-        updateTransactionLayer1GasFeeMock.mockImplementationOnce(() =>
-          Promise.resolve(),
-        );
-
         new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
