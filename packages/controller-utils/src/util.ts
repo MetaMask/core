@@ -44,9 +44,7 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @param inputBn - BN instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function BNToHex(inputBn: any) {
+export function BNToHex(inputBn: BN) {
   return add0x(inputBn.toString(16));
 }
 
@@ -59,9 +57,7 @@ export function BNToHex(inputBn: any) {
  * @returns Product of the multiplication.
  */
 export function fractionBN(
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetBN: any,
+  targetBN: BN,
   numerator: number | string,
   denominator: number | string,
 ) {
@@ -539,25 +535,27 @@ export function isValidJson(value: unknown): value is Json {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function logOrRethrowError(error: any, codesToCatch: number[] = []) {
+function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
   if (!error) {
     return;
   }
 
-  const includesErrorCodeToCatch = codesToCatch.some((code) =>
-    error.message?.includes(`Fetch failed with status '${code}'`),
-  );
+  if (error instanceof Error) {
+    const includesErrorCodeToCatch = codesToCatch.some((code) =>
+      error.message.includes(`Fetch failed with status '${code}'`),
+    );
 
-  if (
-    error instanceof Error &&
-    (includesErrorCodeToCatch ||
-      error.message?.includes('Failed to fetch') ||
-      error === TIMEOUT_ERROR)
-  ) {
-    console.error(error);
+    if (
+      includesErrorCodeToCatch ||
+      error.message.includes('Failed to fetch') ||
+      error === TIMEOUT_ERROR
+    ) {
+      console.error(error);
+    } else {
+      throw error;
+    }
   } else {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
     throw error;
   }
 }
