@@ -236,10 +236,13 @@ async function getTokenBalanceChanges(
 
   return [...balanceTransactionsByToken.keys()]
     .map((token, index) => {
-      const previousBalance = response.transactions[index].return;
+      const previousBalance = normalizeReturnValue(
+        response.transactions[index].return,
+      );
 
-      const newBalance =
-        response.transactions[index + balanceTransactions.length + 1].return;
+      const newBalance = normalizeReturnValue(
+        response.transactions[index + balanceTransactions.length + 1].return,
+      );
 
       const balanceChange = getSimulationBalanceChange(
         previousBalance,
@@ -432,4 +435,13 @@ function getSimulationBalanceChange(
     difference,
     isDecrease,
   };
+}
+
+/**
+ * Normalize a return value.
+ * @param value - The return value to normalize.
+ * @returns The normalized return value.
+ */
+function normalizeReturnValue(value: Hex): Hex {
+  return toHex(hexToBN(value));
 }

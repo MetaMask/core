@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 
@@ -92,12 +91,22 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
   ],
 };
 
+/**
+ * Create a mock of a raw log emitted by a simulated transaction.
+ * @param contractAddress - The contract address.
+ * @returns The raw log mock.
+ */
 function createLogMock(contractAddress: string) {
   return {
     address: contractAddress,
   } as unknown as SimulationLog;
 }
 
+/**
+ * Create a mock simulation API response to include event logs.
+ * @param logs - The logs.
+ * @returns Mock API response.
+ */
 function createEventResponseMock(logs: SimulationLog[]) {
   return {
     transactions: [
