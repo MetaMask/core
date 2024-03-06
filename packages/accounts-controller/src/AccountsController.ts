@@ -11,14 +11,15 @@ import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
-  KeyringControllerEvents,
   KeyringControllerGetKeyringForAccountAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetAccountsAction,
+  KeyringControllerStateChangeEvent,
+  KeyringControllerAccountRemovedEvent,
 } from '@metamask/keyring-controller';
 import type {
-  SnapControllerEvents,
   SnapControllerState,
+  SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
@@ -78,6 +79,11 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
+export type AllowedAccountsControllerActions =
+  | KeyringControllerGetKeyringForAccountAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerGetAccountsAction;
+
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
@@ -87,9 +93,7 @@ export type AccountsControllerActions =
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetAccountAction
-  | KeyringControllerGetKeyringForAccountAction
-  | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetAccountsAction;
+  | AllowedAccountsControllerActions;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -101,18 +105,22 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AllowedAccountsControllerEvents =
+  | SnapStateChange
+  | KeyringControllerAccountRemovedEvent
+  | KeyringControllerStateChangeEvent;
+
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
   | AccountsControllerSelectedAccountChangeEvent
-  | SnapControllerEvents
-  | KeyringControllerEvents;
+  | AllowedAccountsControllerEvents;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   AccountsControllerActions,
   AccountsControllerEvents,
-  string,
-  string
+  AllowedAccountsControllerActions['type'],
+  AllowedAccountsControllerEvents['type']
 >;
 
 type AddressAndKeyringTypeObject = {
