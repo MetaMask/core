@@ -55,6 +55,7 @@ import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
+import { updateTransactionLayer1GasFee } from './utils/layer1-gas-fee-flow';
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
@@ -68,6 +69,7 @@ jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/swaps');
+jest.mock('./utils/layer1-gas-fee-flow');
 
 jest.mock('uuid', () => {
   return {
@@ -5059,7 +5061,31 @@ describe('TransactionController', () => {
         params,
       );
 
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: updatedTransaction,
+        }),
+      );
+
       expect(updatedTransaction?.txParams).toStrictEqual(params);
+    });
+
+    it('updates transaction layer 1 gas fee updater', async () => {
+      const controller = newController();
+      controller.state.transactions.push(transactionMeta);
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: updatedTransaction,
+        }),
+      );
     });
 
     it('throws an error if no transaction metadata is found', async () => {
