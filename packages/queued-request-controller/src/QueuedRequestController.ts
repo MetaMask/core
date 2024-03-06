@@ -99,6 +99,9 @@ type QueuedRequest = {
  * Queuing requests in batches also allows us to ensure the globally selected network matches the
  * dapp-selected network, before the confirmation UI is rendered. This is important because the
  * data shown on some confirmation screens is only collected for the globally selected network.
+ *
+ * Requests get processed in order of insertion, even across batches. All requests get processed
+ * even in the event of preceding requests failing.
  */
 export class QueuedRequestController extends BaseController<
   typeof controllerName,
@@ -235,7 +238,10 @@ export class QueuedRequestController extends BaseController<
    *
    * We process requests one origin at a time, so that requests from different origins do not get
    * interwoven, and so that we can ensure that the globally selected network matches the dapp-
-   * selected network. Request are executed in exactly the same order they come in.
+   * selected network.
+   *
+   * Requests get processed in order of insertion, even across origins/batches. All requests get
+   * processed even in the event of preceding requests failing.
    *
    * @param request - The JSON-RPC request to process.
    * @param requestNext - A function representing the next steps for processing this request.
