@@ -77,4 +77,3 @@ async function getTransactionLayer1GasFee({
     return undefined;
   }
 }
-
