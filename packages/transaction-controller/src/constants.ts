@@ -4,7 +4,7 @@ export const CHAIN_IDS = {
   BSC: '0x38',
   BSC_TESTNET: '0x61',
   OPTIMISM: '0xa',
-  OPTIMISM_TESTNET: '0x1a4',
+  OPTIMISM_SEPOLIA: '0xaa37dc',
   POLYGON: '0x89',
   POLYGON_TESTNET: '0x13881',
   AVALANCHE: '0xa86a',
@@ -64,10 +64,10 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
     subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-optimistic`,
     networkId: parseInt(CHAIN_IDS.OPTIMISM, 16).toString(),
   },
-  [CHAIN_IDS.OPTIMISM_TESTNET]: {
+  [CHAIN_IDS.OPTIMISM_SEPOLIA]: {
     domain: DEFAULT_ETHERSCAN_DOMAIN,
-    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli-optimistic`,
-    networkId: parseInt(CHAIN_IDS.OPTIMISM_TESTNET, 16).toString(),
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-sepolia-optimistic`,
+    networkId: parseInt(CHAIN_IDS.OPTIMISM_SEPOLIA, 16).toString(),
   },
   [CHAIN_IDS.POLYGON]: {
     domain: 'polygonscan.com',
