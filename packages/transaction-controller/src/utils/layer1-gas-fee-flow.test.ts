@@ -103,7 +103,7 @@ describe('updateTransactionLayer1GasFee', () => {
       expect(transactionMetaMock.layer1GasFee).toBeUndefined();
     });
 
-    it('when could not find any matching layer 1 gas fee flow', async () => {
+    it('if no matching layer 1 gas fee flow', async () => {
       const unmatchingLayer1GasFeeFlow = createLayer1GasFeeFlowMock({
         match: false,
         layer1Fee: LAYER1_GAS_FEE_VALUE_UNMATCH_MOCK,
