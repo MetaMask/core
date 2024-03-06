@@ -1,4 +1,4 @@
-import type { LogDescription, Result } from '@ethersproject/abi';
+import type { Fragment, LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
@@ -13,7 +13,7 @@ import type {
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 import type {
-  SimulationLog,
+  SimulationResponseLog,
   SimulationRequestTransaction,
   SimulationResponse,
   SimulationResponseCallTrace,
@@ -22,12 +22,7 @@ import { simulateTransactions } from './simulation-api';
 
 const log = createModuleLogger(projectLogger, 'simulation');
 
-type ABIEntry = {
-  name: string;
-  inputs: { name: string }[];
-};
-
-type ABI = ABIEntry[];
+type ABI = Fragment[];
 
 export type GetSimulationDataRequest = {
   chainId: Hex;
@@ -41,7 +36,7 @@ type ParsedEvent = {
   contractAddress: Hex;
   tokenStandard: SimulationTokenStandard;
   name: string;
-  data: Record<string, Hex>;
+  args: Record<string, Hex | Hex[]>;
   abi: ABI;
 };
 
@@ -74,9 +69,7 @@ export async function getSimulationData(
 
     log('Parsed events', events);
 
-    const tokenBalanceChanges = events.length
-      ? await getTokenBalanceChanges(request, events)
-      : [];
+    const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
     return {
       nativeBalanceChange,
@@ -99,10 +92,13 @@ function getNativeBalanceChange(
   response: SimulationResponse,
 ): SimulationBalanceChange | undefined {
   /* istanbul ignore next */
-  const { stateDiff } = response.transactions[0] ?? {
-    stateDiff: { pre: {}, post: {} },
-  };
+  const transactionResponse = response.transactions[0];
 
+  if (!transactionResponse) {
+    return undefined;
+  }
+
+  const { stateDiff } = transactionResponse;
   const previousBalance = stateDiff.pre[userAddress]?.balance;
   const newBalance = stateDiff.post[userAddress]?.balance;
 
@@ -120,7 +116,7 @@ function getNativeBalanceChange(
  */
 function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
-  const logs = getLogs(response.transactions[0]?.callTrace ?? {});
+  const logs = extractLogs(response.transactions[0]?.callTrace ?? {});
 
   log('Extracted logs', logs);
 
@@ -157,7 +153,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         contractAddress: currentLog.address,
         tokenStandard: event.standard,
         name: event.name,
-        data: args,
+        args,
         abi: event.abi,
       };
     })
@@ -170,7 +166,10 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
  * @param abiInputs - The ABI input definitions.
  * @returns The parsed event arguments.
  */
-function parseEventArgs(args: Result, abiInputs: { name: string }[]) {
+function parseEventArgs(
+  args: Result,
+  abiInputs: { name: string }[],
+): Record<string, Hex | Hex[]> {
   return args.reduce((result, arg, index) => {
     const name = abiInputs[index].name.replace('_', '');
     const value = parseEventArgValue(arg);
@@ -187,18 +186,12 @@ function parseEventArgs(args: Result, abiInputs: { name: string }[]) {
  * @returns The parsed event argument value.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseEventArgValue(value: any): any {
+function parseEventArgValue(value: any): Hex | Hex[] {
   if (Array.isArray(value)) {
-    return value.map(parseEventArgValue);
+    return value.map(parseEventArgValue) as Hex[];
   }
 
-  let parsedValue = value;
-
-  if (parsedValue.toHexString) {
-    parsedValue = value.toHexString();
-  }
-
-  return parsedValue.toLowerCase();
+  return (value.toHexString?.() ?? value).toLowerCase();
 }
 
 /**
@@ -228,11 +221,11 @@ async function getTokenBalanceChanges(
     transactions: [...balanceTransactions, request, ...balanceTransactions],
   });
 
+  log('Balance simulation response', response);
+
   if (response.transactions.length !== balanceTransactions.length * 2 + 1) {
     throw new Error('Invalid response from simulation API');
   }
-
-  log('Balance simulation response', response);
 
   return [...balanceTransactionsByToken.keys()]
     .map((token, index) => {
@@ -276,30 +269,31 @@ function getTokenBalanceTransactions(
   return events.reduce((result, event) => {
     if (
       !['Transfer', 'TransferSingle', 'TransferBatch'].includes(event.name) ||
-      ![event.data.from, event.data.to].includes(request.from)
+      ![event.args.from, event.args.to].includes(request.from)
     ) {
       log('Ignoring event', event);
       return result;
     }
 
+    // ERC-20 does not have a token ID so default to undefined.
     let tokenIds: (Hex | undefined)[] = [undefined];
 
     if (event.tokenStandard === SimulationTokenStandard.erc721) {
-      tokenIds = [event.data.tokenId];
+      tokenIds = [event.args.tokenId as Hex];
     }
 
     if (
       event.tokenStandard === SimulationTokenStandard.erc1155 &&
       event.name === 'TransferSingle'
     ) {
-      tokenIds = [event.data.id];
+      tokenIds = [event.args.id as Hex];
     }
 
     if (
       event.tokenStandard === SimulationTokenStandard.erc1155 &&
       event.name === 'TransferBatch'
     ) {
-      tokenIds = event.data.ids as unknown as Hex[];
+      tokenIds = event.args.ids as Hex[];
     }
 
     log('Extracted token ids', tokenIds);
@@ -352,7 +346,7 @@ function getTokenBalanceTransactions(
  * @returns The parsed event log or undefined if it could not be parsed.
  */
 function parseLog(
-  eventLog: SimulationLog,
+  eventLog: SimulationResponseLog,
   erc20: Interface,
   erc721: Interface,
   erc1155: Interface,
@@ -385,7 +379,7 @@ function parseLog(
         standard,
       };
     } catch (e) {
-      // Intentionally empty
+      continue;
     }
   }
 
@@ -397,7 +391,9 @@ function parseLog(
  * @param call - The root call trace.
  * @returns An array of logs.
  */
-function getLogs(call: SimulationResponseCallTrace): SimulationLog[] {
+function extractLogs(
+  call: SimulationResponseCallTrace,
+): SimulationResponseLog[] {
   /* istanbul ignore next */
   const logs = call.logs ?? [];
 
@@ -406,7 +402,7 @@ function getLogs(call: SimulationResponseCallTrace): SimulationLog[] {
 
   return [
     ...logs,
-    ...nestedCalls.map((nestedCall) => getLogs(nestedCall)).flat(),
+    ...nestedCalls.map((nestedCall) => extractLogs(nestedCall)).flat(),
   ];
 }
 

@@ -3,7 +3,7 @@ import { Interface } from '@ethersproject/abi';
 
 import { SimulationTokenStandard } from '../types';
 import { getSimulationData, type GetSimulationDataRequest } from './simulation';
-import type { SimulationLog } from './simulation-api';
+import type { SimulationResponseLog } from './simulation-api';
 import {
   simulateTransactions,
   type SimulationResponse,
@@ -99,7 +99,7 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
 function createLogMock(contractAddress: string) {
   return {
     address: contractAddress,
-  } as unknown as SimulationLog;
+  } as unknown as SimulationResponseLog;
 }
 
 /**
@@ -107,7 +107,7 @@ function createLogMock(contractAddress: string) {
  * @param logs - The logs.
  * @returns Mock API response.
  */
-function createEventResponseMock(logs: SimulationLog[]) {
+function createEventResponseMock(logs: SimulationResponseLog[]) {
   return {
     transactions: [
       {

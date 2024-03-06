@@ -24,65 +24,114 @@ const SUBDOMAIN_BY_CHAIN_ID: Record<Hex, string> = {
 
 /** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
+  /** Sender of the transaction. */
   from: Hex;
+
+  /** Recipient of the transaction. */
   to?: Hex;
+
+  /** Value to send with the transaction. */
   value?: Hex;
+
+  /** Data to send with the transaction. */
   data?: Hex;
 };
 
 /** Request to the simulation API to simulate transactions. */
 export type SimulationRequest = {
+  /**
+   * Transactions to be sequentially simulated.
+   * State changes impact subsequent transactions in the list.
+   */
   transactions: SimulationRequestTransaction[];
+
+  /**
+   * Overrides to the state of the blockchain, keyed by smart contract address.
+   */
   overrides?: {
     [address: Hex]: {
+      /** Overrides to the storage slots for a smart contract account. */
       stateDiff: {
         [slot: Hex]: Hex;
       };
     };
   };
+
+  /**
+   * Whether to include call traces in the response.
+   * Defaults to false.
+   */
   withCallTrace?: boolean;
+
+  /**
+   * Whether to include event logs in the response.
+   * Defaults to false.
+   */
   withLogs?: boolean;
 };
 
 /** Raw event log emitted by a simulated transaction. */
-export type SimulationLog = {
+export type SimulationResponseLog = {
+  /** Address of the account that created the event. */
   address: Hex;
+
+  /** Raw data in the event that is not indexed. */
   data: Hex;
+
+  /** Raw indexed data from the event. */
   topics: Hex[];
 };
 
 /** Call trace of a single simulated transaction. */
 export type SimulationResponseCallTrace = {
+  /** Nested calls. */
   calls: SimulationResponseCallTrace[];
-  logs: SimulationLog[];
+
+  /** Raw event logs created by the call. */
+  logs: SimulationResponseLog[];
+};
+
+/**
+ * Changes to the blockchain state.
+ * Keyed by account address.
+ */
+export type SimulationResponseStateDiff = {
+  [address: Hex]: {
+    /** Native balance of the account. */
+    balance?: Hex;
+
+    /** Nonce of the account. */
+    nonce?: Hex;
+
+    /** Storage values per slot. */
+    storage?: {
+      [slot: Hex]: Hex;
+    };
+  };
+};
+
+/** Response from the simulation API for a single transaction. */
+export type SimulationResponseTransaction = {
+  /** Return value of the transaction, such as the balance if calling balanceOf. */
+  return: Hex;
+
+  /** Hierarchy of call data including nested calls and logs. */
+  callTrace: SimulationResponseCallTrace;
+
+  /** Changes to the blockchain state. */
+  stateDiff: {
+    /** Initial blockchain state before the transaction. */
+    pre: SimulationResponseStateDiff;
+
+    /** Updated blockchain state after the transaction. */
+    post: SimulationResponseStateDiff;
+  };
 };
 
 /** Response from the simulation API. */
 export type SimulationResponse = {
-  transactions: {
-    return: Hex;
-    callTrace: SimulationResponseCallTrace;
-    stateDiff: {
-      pre: {
-        [address: Hex]: {
-          balance?: Hex;
-          nonce?: Hex;
-          storage?: {
-            [slot: Hex]: Hex;
-          };
-        };
-      };
-      post: {
-        [address: Hex]: {
-          balance?: Hex;
-          nonce?: Hex;
-          storage?: {
-            [slot: Hex]: Hex;
-          };
-        };
-      };
-    };
-  }[];
+  /** Simulation data for each transaction in the request. */
+  transactions: SimulationResponseTransaction[];
 };
 
 /**
