@@ -786,7 +786,7 @@ describe('QueuedRequestController', () => {
  * action.
  * @param options.networkControllerSetActiveNetwork - A handler for the
  * `NetworkController:setActiveNetwork` action.
- * @param options.selectedNetworkControllerGetNetworkClientIdForDomain - A hanlder for the
+ * @param options.selectedNetworkControllerGetNetworkClientIdForDomain - A handler for the
  * `SelectedNetworkController:getNetworkClientIdForDomain` action.
  * @returns A controller messenger with QueuedRequestController types, and
  * mocks for all allowed actions.
