@@ -15,7 +15,6 @@ import type {
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
-  KeyringControllerAccountRemovedEvent,
 } from '@metamask/keyring-controller';
 import type {
   SnapControllerState,
@@ -107,7 +106,6 @@ export type AccountsControllerSelectedAccountChangeEvent = {
 
 export type AllowedAccountsControllerEvents =
   | SnapStateChange
-  | KeyringControllerAccountRemovedEvent
   | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
