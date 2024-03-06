@@ -28,10 +28,8 @@ export type NetworkType = (typeof NetworkType)[keyof typeof NetworkType];
  * @param val - the value to check whether it is NetworkType or not.
  * @returns boolean indicating whether or not the argument is NetworkType.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isNetworkType(val: any): val is NetworkType {
-  return Object.values(NetworkType).includes(val);
+export function isNetworkType(val: string): val is NetworkType {
+  return Object.values(NetworkType).includes(val as NetworkType);
 }
 
 /**
