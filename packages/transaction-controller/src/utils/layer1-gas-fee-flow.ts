@@ -4,13 +4,31 @@ import { createModuleLogger, type Hex } from '@metamask/utils';
 import { projectLogger } from '../logger';
 import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
 
-const log = createModuleLogger(projectLogger, 'optimisim-layer1-gas-fee-flow');
+const log = createModuleLogger(projectLogger, 'layer-1-gas-fee-flow');
 
-type UpdateLayer1GasFeeRequest = {
+export type UpdateLayer1GasFeeRequest = {
   provider: Provider;
   transactionMeta: TransactionMeta;
   layer1GasFeeFlows: Layer1GasFeeFlow[];
 };
+
+/**
+ * Updates the given transactionMeta with the layer 1 gas fee.
+ * @param request - The request to use when getting the layer 1 gas fee.
+ * @param request.provider - Provider used to create a new underlying EthQuery instance
+ * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
+ * @param request.layer1GasFeeFlows - The layer 1 gas fee flows to search.
+ */
+export async function updateTransactionLayer1GasFee(
+  request: UpdateLayer1GasFeeRequest,
+) {
+  const layer1GasFee = await getTransactionLayer1GasFee(request);
+
+  if (layer1GasFee) {
+    const { transactionMeta } = request;
+    transactionMeta.layer1GasFee = layer1GasFee;
+  }
+}
 
 /**
  * Get the layer 1 gas fee flow for a transaction.
@@ -60,20 +78,3 @@ async function getTransactionLayer1GasFee({
   }
 }
 
-/**
- * Updates the given transactionMeta with the layer 1 gas fee.
- * @param request - The request to use when getting the layer 1 gas fee.
- * @param request.provider - Provider used to create a new underlying EthQuery instance
- * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
- * @param request.layer1GasFeeFlows - The layer 1 gas fee flows to search.
- */
-export async function updateTransactionLayer1GasFee(
-  request: UpdateLayer1GasFeeRequest,
-) {
-  const layer1GasFee = await getTransactionLayer1GasFee(request);
-
-  if (layer1GasFee) {
-    const { transactionMeta } = request;
-    transactionMeta.layer1GasFee = layer1GasFee;
-  }
-}
