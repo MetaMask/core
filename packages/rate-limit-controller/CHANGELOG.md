@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GetRateLimitState` is now `RateLimitControllerGetStateAction`.
   - `RateLimitStateChange` is now `RateLimitControllerStateChangeEvent`.
   - `CallApi` is now `RateLimitControllerCallApiAction`.
+- Add `@metamask/utils` `^8.3.0` as a dependency. ([#3963](https://github.com/MetaMask/core/pull/3963))
 
 ### Fixed
 
