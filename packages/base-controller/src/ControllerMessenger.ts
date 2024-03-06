@@ -55,8 +55,8 @@ export type GenericEventHandler = (...args: unknown[]) => void;
 
 export type SelectorFunction<
   Event extends EventConstraint,
+  EventType extends Event['type'],
   ReturnValue,
-  EventType = Event['type'],
 > = (...args: ExtractEventPayload<Event, EventType>) => ReturnValue;
 export type SelectorEventHandler<SelectorReturnValue> = (
   newValue: SelectorReturnValue,
@@ -77,7 +77,7 @@ type EventSubscriptionMap<
   ReturnValue = unknown,
 > = Map<
   GenericEventHandler | SelectorEventHandler<ReturnValue>,
-  SelectorFunction<Event, ReturnValue> | undefined
+  SelectorFunction<Event, Event['type'], ReturnValue> | undefined
 >;
 
 /**
@@ -322,13 +322,13 @@ export class ControllerMessenger<
   subscribe<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
     handler: SelectorEventHandler<SelectorReturnValue>,
-    selector: SelectorFunction<Event, SelectorReturnValue, EventType>,
+    selector: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ): void;
 
   subscribe<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
     handler: ExtractEventHandler<Event, EventType>,
-    selector?: SelectorFunction<Event, SelectorReturnValue, EventType>,
+    selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ): void {
     let subscribers = this.#events.get(eventType);
     if (!subscribers) {
