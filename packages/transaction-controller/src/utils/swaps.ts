@@ -166,25 +166,27 @@ export function updateSwapsTransaction(
 
   const swapsMeta = swaps?.meta as Partial<TransactionMeta>;
 
+  if (!swapsMeta) {
+    return transactionMeta;
+  }
+
   let updatedTransactionMeta = transactionMeta;
-  if (swapsMeta) {
-    if (transactionType === TransactionType.swapApproval) {
-      updatedTransactionMeta = updateSwapApprovalTransaction(
-        transactionMeta,
-        swapsMeta,
-      );
-      messenger.publish('TransactionController:transactionNewSwapApproval', {
-        transactionMeta: updatedTransactionMeta,
-      });
-    } else if (transactionType === TransactionType.swap) {
-      updatedTransactionMeta = updateSwapTransaction(
-        transactionMeta,
-        swapsMeta,
-      );
-      messenger.publish('TransactionController:transactionNewSwap', {
-        transactionMeta: updatedTransactionMeta,
-      });
-    }
+
+  if (transactionType === TransactionType.swapApproval) {
+    updatedTransactionMeta = updateSwapApprovalTransaction(
+      transactionMeta,
+      swapsMeta,
+    );
+    messenger.publish('TransactionController:transactionNewSwapApproval', {
+      transactionMeta: updatedTransactionMeta,
+    });
+  }
+
+  if (transactionType === TransactionType.swap) {
+    updatedTransactionMeta = updateSwapTransaction(transactionMeta, swapsMeta);
+    messenger.publish('TransactionController:transactionNewSwap', {
+      transactionMeta: updatedTransactionMeta,
+    });
   }
 
   return updatedTransactionMeta;
