@@ -1,9 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import {
-  BNToHex,
-  query,
-  safelyExecuteWithTimeout,
-} from '@metamask/controller-utils';
+import { query, safelyExecuteWithTimeout } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
 import type {
@@ -272,9 +268,12 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
 
       const accountsForChain = { ...accountsByChainId[chainId] };
       for (const address of accountsToUpdate) {
-        accountsForChain[address] = {
-          balance: BNToHex(await this.getBalanceFromChain(address, ethQuery)),
-        };
+        const balance = await this.getBalanceFromChain(address, ethQuery);
+        if (balance) {
+          accountsForChain[address] = {
+            balance,
+          };
+        }
       }
 
       this.update({
