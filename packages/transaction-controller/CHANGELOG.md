@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
+### Added
+
+- Add `normalizeTransactionParams` method ([#3990](https://github.com/MetaMask/core/pull/3990))
+
+### Changed
+
+- **BREAKING**: Remove support for retrieving transactions via Etherscan for Optimism Goerli; add support for Optimism Sepolia instead ([#3999](https://github.com/MetaMask/core/pull/3999))
+- Normalize `data` property into an even length hex string ([#3990](https://github.com/MetaMask/core/pull/3990))
+- Bump `@metamask/approval-controller` to `^5.1.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/gas-fee-controller` to `^13.0.2` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/network-controller` to `^17.2.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
 ## [23.1.0]
 
 ### Added
@@ -543,7 +558,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...@metamask/transaction-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...@metamask/transaction-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@22.0.0...@metamask/transaction-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.2.0...@metamask/transaction-controller@22.0.0
