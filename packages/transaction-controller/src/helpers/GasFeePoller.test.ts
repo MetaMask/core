@@ -117,7 +117,7 @@ describe('GasFeePoller', () => {
         await flushPromises();
 
         expect(listener).toHaveBeenCalledTimes(2);
-        expect(listener.mock.calls[0][0]).toStrictEqual({
+        expect(listener).toHaveBeenCalledWith({
           ...TRANSACTION_META_MOCK,
           gasFeeEstimates: GAS_FEE_FLOW_RESPONSE_MOCK.estimates,
           layer1GasFee: LAYER1_GAS_FEE_MOCK,
