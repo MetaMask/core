@@ -196,7 +196,6 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
     name: 'AccountsController',
     allowedEvents: [
       'SnapController:stateChange',
-      'KeyringController:accountRemoved',
       'KeyringController:stateChange',
     ],
     allowedActions: [
