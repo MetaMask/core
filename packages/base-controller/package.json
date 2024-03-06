@@ -15,7 +15,6 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
-  "sideEffects": false,
   "exports": {
     ".": {
       "import": "./dist/index.mjs",

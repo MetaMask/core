@@ -259,7 +259,8 @@ gen_enforced_field(WorkspaceCwd, 'exports', null) :-
 
 % Published packages must not have side effects.
 gen_enforced_field(WorkspaceCwd, 'sideEffects', false) :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/base-controller'.
 % Non-published packages must not specify side effects.
 gen_enforced_field(WorkspaceCwd, 'sideEffects', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
