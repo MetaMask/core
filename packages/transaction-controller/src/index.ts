@@ -6,7 +6,7 @@ export type {
   TransactionControllerActions,
   TransactionControllerEvents,
   TransactionControllerGetStateAction,
-  TransactionControllerIncomingTransactionBlockEvent,
+  TransactionControllerIncomingTransactionBlockReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
   TransactionControllerSpeedupTransactionAddedEvent,
   TransactionControllerState,
