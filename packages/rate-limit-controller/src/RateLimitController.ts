@@ -6,6 +6,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
+import { getKnownPropertyNames } from '@metamask/utils';
 
 /**
  * A rate-limited API endpoint.
@@ -120,12 +121,9 @@ export class RateLimitController<
     implementations: RateLimitedApis;
   }) {
     const defaultState = {
-      requests: (
-        Object.keys(implementations) as (keyof RateLimitedApis)[]
-      ).reduce<RateLimitedRequests<RateLimitedApis>>(
-        (acc, key) => ({ ...acc, [key]: {} }),
-        {} as never,
-      ),
+      requests: getKnownPropertyNames(implementations).reduce<
+        RateLimitedRequests<RateLimitedApis>
+      >((acc, key) => ({ ...acc, [key]: {} }), {} as never),
     };
     super({
       name,
