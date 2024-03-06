@@ -1216,7 +1216,7 @@ describe('TransactionController', () => {
       expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
       expect(transactionMeta.origin).toBe(mockOrigin);
       expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
-      expect(transactionMeta.securityAlertResponse).toBe(
+      expect(transactionMeta.securityAlertResponse).toStrictEqual(
         mockSecurityAlertResponse,
       );
       expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
@@ -1606,7 +1606,9 @@ describe('TransactionController', () => {
       );
 
       const { securityProviderResponse } = controller.state.transactions[0];
-      expect(securityProviderResponse).toBe(mockSecurityProviderResponse);
+      expect(securityProviderResponse).toStrictEqual(
+        mockSecurityProviderResponse,
+      );
     });
 
     it('updates gas properties', async () => {

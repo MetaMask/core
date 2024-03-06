@@ -1,5 +1,5 @@
 import jsonDiffer from 'fast-json-patch';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, merge } from 'lodash';
 
 import type {
   TransactionHistory,
@@ -18,7 +18,7 @@ export function addInitialHistorySnapshot(
   transactionMeta: TransactionMeta,
 ): TransactionMeta {
   const snapshot = snapshotFromTransactionMeta(transactionMeta);
-  return { ...transactionMeta, history: [snapshot] };
+  return merge({}, transactionMeta, { history: [snapshot] });
 }
 
 /**
@@ -43,10 +43,9 @@ export function updateTransactionHistory(
   const historyEntry = generateHistoryEntry(previousState, currentState, note);
 
   if (historyEntry.length > 0) {
-    return {
-      ...transactionMeta,
+    return merge({}, transactionMeta, {
       history: [...transactionMeta.history, historyEntry],
-    };
+    });
   }
   return transactionMeta;
 }

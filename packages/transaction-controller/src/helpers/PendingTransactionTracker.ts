@@ -5,6 +5,7 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import EventEmitter from 'events';
+import { cloneDeep, merge } from 'lodash';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionMeta, TransactionReceipt } from '../types';
@@ -295,13 +296,13 @@ export class PendingTransactionTracker {
     const retryCount = (txMeta.retryCount ?? 0) + 1;
 
     this.#updateTransaction(
-      { ...txMeta, retryCount },
+      merge({}, txMeta, { retryCount }),
       'PendingTransactionTracker:transaction-retry - Retry count increased',
     );
   }
 
   #isResubmitDue(txMeta: TransactionMeta, latestBlockNumber: string): boolean {
-    const txMetaWithFirstRetryBlockNumber = { ...txMeta };
+    const txMetaWithFirstRetryBlockNumber = cloneDeep(txMeta);
 
     if (!txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber) {
       txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber = latestBlockNumber;
@@ -409,7 +410,7 @@ export class PendingTransactionTracker {
     const { baseFeePerGas, timestamp: blockTimestamp } =
       await this.#getBlockByHash(blockHash, false);
 
-    const updatedTxMeta = { ...txMeta };
+    const updatedTxMeta = cloneDeep(txMeta);
     updatedTxMeta.baseFeePerGas = baseFeePerGas;
     updatedTxMeta.blockTimestamp = blockTimestamp;
     updatedTxMeta.status = TransactionStatus.confirmed;

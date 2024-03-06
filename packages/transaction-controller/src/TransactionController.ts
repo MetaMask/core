@@ -39,7 +39,7 @@ import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
-import { mapValues, merge, pickBy, sortBy } from 'lodash';
+import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { NonceTracker } from 'nonce-tracker';
 import type {
   NonceLock,
@@ -631,11 +631,10 @@ export class TransactionController extends BaseController<
     error: Error,
     actionId?: string,
   ) {
-    const newTransactionMeta = {
-      ...transactionMeta,
+    const newTransactionMeta = merge({}, transactionMeta, {
       error: normalizeTxError(error),
       status: TransactionStatus.failed as const,
-    };
+    });
     this.messagingSystem.publish(`${controllerName}:transactionFailed`, {
       actionId,
       error: error.message,
@@ -1006,7 +1005,7 @@ export class TransactionController extends BaseController<
 
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     let addedTransactionMeta = existingTransactionMeta
-      ? { ...existingTransactionMeta }
+      ? cloneDeep(existingTransactionMeta)
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
@@ -1779,7 +1778,7 @@ export class TransactionController extends BaseController<
     transactionGasFees = pickBy(transactionGasFees);
 
     // merge updated gas values with existing transaction meta
-    const updatedMeta = merge(transactionMeta, transactionGasFees);
+    const updatedMeta = merge({}, transactionMeta, transactionGasFees);
 
     this.updateTransaction(
       updatedMeta,
@@ -1837,7 +1836,7 @@ export class TransactionController extends BaseController<
     );
 
     // merge updated previous gas values with existing transaction meta
-    const updatedMeta = merge(transactionMeta, transactionPreviousGas);
+    const updatedMeta = merge({}, transactionMeta, transactionPreviousGas);
 
     this.updateTransaction(
       updatedMeta,
@@ -1912,7 +1911,7 @@ export class TransactionController extends BaseController<
       editableParams.txParams,
     ) as TransactionParams;
 
-    const updatedTransaction = merge(transactionMeta, editableParams);
+    const updatedTransaction = merge({}, transactionMeta, editableParams);
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
       this.#multichainTrackingHelper.getEthQuery({
@@ -2482,7 +2481,7 @@ export class TransactionController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
-    const updatedTransactionMeta = { ...transactionMeta };
+    const updatedTransactionMeta = cloneDeep(transactionMeta);
 
     const {
       txParams: { from },
@@ -3068,7 +3067,7 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
   ): Promise<TransactionMeta> {
-    const transactionMetaWithRsv = { ...transactionMeta };
+    const transactionMetaWithRsv = cloneDeep(transactionMeta);
 
     for (const key of ['r', 's', 'v'] as const) {
       const value = signedTx[key];
@@ -3152,7 +3151,9 @@ export class TransactionController extends BaseController<
 
     const rawTx = bufferToHex(signedTx.serialize());
 
-    const transactionMetaWithRawTx = { ...transactionMetaWithRsv, rawTx };
+    const transactionMetaWithRawTx = merge({}, transactionMetaWithRsv, {
+      rawTx,
+    });
 
     this.updateTransaction(
       transactionMetaWithRawTx,
