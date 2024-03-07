@@ -43,9 +43,9 @@ export class RestrictedControllerMessenger<
 
   readonly #controllerName: Namespace;
 
-  readonly #allowedActions: NotNamespacedBy<Namespace, AllowedAction>[] | null;
+  readonly #allowedActions: NotNamespacedBy<Namespace, AllowedAction>[];
 
-  readonly #allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[] | null;
+  readonly #allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[];
 
   /**
    * Constructs a restricted controller messenger
@@ -73,13 +73,13 @@ export class RestrictedControllerMessenger<
   }: {
     controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
     name: Namespace;
-    allowedActions?: NotNamespacedBy<Namespace, AllowedAction>[];
-    allowedEvents?: NotNamespacedBy<Namespace, AllowedEvent>[];
+    allowedActions: NotNamespacedBy<Namespace, AllowedAction>[];
+    allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[];
   }) {
     this.#controllerMessenger = controllerMessenger;
     this.#controllerName = name;
-    this.#allowedActions = allowedActions ?? null;
-    this.#allowedEvents = allowedEvents ?? null;
+    this.#allowedActions = allowedActions;
+    this.#allowedEvents = allowedEvents;
   }
 
   /**
