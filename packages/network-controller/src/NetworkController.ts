@@ -472,8 +472,8 @@ export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   NetworkControllerActions,
   NetworkControllerEvents,
-  string,
-  string
+  never,
+  never
 >;
 
 export type NetworkControllerOptions = {
