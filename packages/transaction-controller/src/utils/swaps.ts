@@ -4,7 +4,8 @@ import { merge, pickBy } from 'lodash';
 
 import { CHAIN_IDS } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
-import type { Events, TransactionMeta } from '../types';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import type { TransactionMeta } from '../types';
 import { TransactionType } from '../types';
 import { validateIfTransactionUnapproved } from './utils';
 
@@ -121,9 +122,11 @@ export const SWAP_TRANSACTION_TYPES = [
  * @param updateSwapsTransactionRequest - Dependency bag
  * @param updateSwapsTransactionRequest.isSwapsDisabled - Whether swaps are disabled
  * @param updateSwapsTransactionRequest.cancelTransaction - Function to cancel a transaction
- * @param updateSwapsTransactionRequest.controllerHubEmitter - Function to emit an event to the controller hub
+ * @param updateSwapsTransactionRequest.messenger - TransactionController messenger
+ * @returns A copy of the transaction meta object with updates, or the same
+ * transaction meta object if no updates were made.
  */
-export async function updateSwapsTransaction(
+export function updateSwapsTransaction(
   transactionMeta: TransactionMeta,
   transactionType: TransactionType,
   swaps: {
@@ -133,19 +136,17 @@ export async function updateSwapsTransaction(
   {
     isSwapsDisabled,
     cancelTransaction,
-    controllerHubEmitter,
+    messenger,
   }: {
     isSwapsDisabled: boolean;
     cancelTransaction: (transactionId: string) => void;
-    controllerHubEmitter: <T extends keyof Events>(
-      eventName: T,
-      ...args: Events[T]
-    ) => boolean;
+    messenger: TransactionControllerMessenger;
   },
-) {
+): TransactionMeta {
   if (isSwapsDisabled || !SWAP_TRANSACTION_TYPES.includes(transactionType)) {
-    return;
+    return transactionMeta;
   }
+
   // The simulationFails property is added if the estimateGas call fails. In cases
   // when no swaps approval tx is required, this indicates that the swap will likely
   // fail. There was an earlier estimateGas call made by the swaps controller,
@@ -159,29 +160,36 @@ export async function updateSwapsTransaction(
     swaps?.hasApproveTx === false &&
     transactionMeta.simulationFails
   ) {
-    await cancelTransaction(transactionMeta.id);
+    cancelTransaction(transactionMeta.id);
     throw new Error('Simulation failed');
   }
 
   const swapsMeta = swaps?.meta as Partial<TransactionMeta>;
 
   if (!swapsMeta) {
-    return;
+    return transactionMeta;
   }
 
+  let updatedTransactionMeta = transactionMeta;
+
   if (transactionType === TransactionType.swapApproval) {
-    updateSwapApprovalTransaction(transactionMeta, swapsMeta);
-    controllerHubEmitter('transaction-new-swap-approval', {
+    updatedTransactionMeta = updateSwapApprovalTransaction(
       transactionMeta,
+      swapsMeta,
+    );
+    messenger.publish('TransactionController:transactionNewSwapApproval', {
+      transactionMeta: updatedTransactionMeta,
     });
   }
 
   if (transactionType === TransactionType.swap) {
-    updateSwapTransaction(transactionMeta, swapsMeta);
-    controllerHubEmitter('transaction-new-swap', {
-      transactionMeta,
+    updatedTransactionMeta = updateSwapTransaction(transactionMeta, swapsMeta);
+    messenger.publish('TransactionController:transactionNewSwap', {
+      transactionMeta: updatedTransactionMeta,
     });
   }
+
+  return updatedTransactionMeta;
 }
 
 /**
@@ -211,7 +219,8 @@ export async function updatePostTransactionBalance(
   log('Updating post transaction balance', transactionMeta.id);
 
   const transactionId = transactionMeta.id;
-  let latestTransactionMeta, approvalTransactionMeta;
+  let latestTransactionMeta: TransactionMeta | undefined;
+  let approvalTransactionMeta;
 
   for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
     log('Querying balance', { attempt: i });
@@ -220,7 +229,9 @@ export async function updatePostTransactionBalance(
       transactionMeta.txParams.from,
     ]);
 
-    latestTransactionMeta = getTransaction(transactionId) as TransactionMeta;
+    latestTransactionMeta = {
+      ...(getTransaction(transactionId) ?? ({} as TransactionMeta)),
+    };
 
     approvalTransactionMeta = latestTransactionMeta.approvalTxId
       ? getTransaction(latestTransactionMeta.approvalTxId)
@@ -280,6 +291,7 @@ export async function updatePostTransactionBalance(
  * @param propsToUpdate.swapTokenValue - Value of the token to be swapped
  * @param propsToUpdate.estimatedBaseFee - Estimated base fee of the transaction
  * @param propsToUpdate.approvalTxId - Transaction id of the approval transaction
+ * @returns The updated transaction meta object.
  */
 function updateSwapTransaction(
   transactionMeta: TransactionMeta,
@@ -294,7 +306,7 @@ function updateSwapTransaction(
     estimatedBaseFee,
     approvalTxId,
   }: Partial<TransactionMeta>,
-) {
+): TransactionMeta {
   validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
 
   let swapTransaction = {
@@ -311,7 +323,8 @@ function updateSwapTransaction(
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   swapTransaction = pickBy(swapTransaction) as any;
-  merge(transactionMeta, swapTransaction);
+
+  return merge({}, transactionMeta, swapTransaction);
 }
 
 /**
@@ -321,11 +334,12 @@ function updateSwapTransaction(
  * @param propsToUpdate - Properties to update
  * @param propsToUpdate.type - Type of the transaction
  * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
+ * @returns The updated transaction meta object.
  */
 function updateSwapApprovalTransaction(
   transactionMeta: TransactionMeta,
   { type, sourceTokenSymbol }: Partial<TransactionMeta>,
-) {
+): TransactionMeta {
   validateIfTransactionUnapproved(
     transactionMeta,
     'updateSwapApprovalTransaction',
@@ -338,7 +352,8 @@ function updateSwapApprovalTransaction(
     type,
     sourceTokenSymbol,
   }) as Partial<TransactionMeta>;
-  merge(transactionMeta, swapApprovalTransaction);
+
+  return merge({}, transactionMeta, swapApprovalTransaction);
 }
 
 /**
