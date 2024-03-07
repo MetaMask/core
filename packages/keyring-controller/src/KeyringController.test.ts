@@ -1454,15 +1454,12 @@ describe('KeyringController', () => {
             type: 2,
           },
           {
-            common: Common.forCustomChain(
-              NetworkType.mainnet,
-              {
-                name: 'goerli',
-                chainId: parseInt('5'),
-                networkId: parseInt('5'),
-              },
-              'london',
-            ),
+            common: Common.custom({
+              name: 'goerli',
+              chainId: parseInt('5'),
+              networkId: parseInt('5'),
+              defaultHardfork: 'london',
+            }),
           },
         );
         const signedTx = await signProcessKeyringController.signTransaction(

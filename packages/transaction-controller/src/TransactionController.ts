@@ -1,9 +1,12 @@
-import Common from '@ethereumjs/common';
-import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
-import { v1 as random } from 'uuid';
-
-import {
-  BaseController,
+import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
+import type { TypedTransaction } from '@ethereumjs/tx';
+import { TransactionFactory } from '@ethereumjs/tx';
+import type {
+  AcceptResultCallbacks,
+  AddApprovalRequest,
+  AddResult,
+} from '@metamask/approval-controller';
+import type {
   BaseConfig,
   BaseState,
   RestrictedControllerMessenger,
@@ -21,11 +24,6 @@ import {
   ORIGIN_METAMASK,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
-import {
-  AcceptResultCallbacks,
-  AddApprovalRequest,
-  AddResult,
-} from '@metamask/approval-controller';
 import EthQuery from '@metamask/eth-query';
 import type {
   BlockTracker,
@@ -53,7 +51,7 @@ import {
   ESTIMATE_GAS_ERROR,
 } from './utils';
 
-const HARDFORK = 'london';
+export const HARDFORK = Hardfork.London;
 
 /**
  * @type Result
@@ -635,17 +633,14 @@ export class TransactionController extends BaseController<
       return new Common({ chain, hardfork: HARDFORK });
     }
 
-    const customChainParams = {
+    const customChainParams: Partial<ChainConfig> = {
       name,
       chainId: parseInt(chainId, 16),
       networkId: networkId === null ? NaN : parseInt(networkId, undefined),
+      defaultHardfork: HARDFORK,
     };
 
-    return Common.forCustomChain(
-      NetworkType.mainnet,
-      customChainParams,
-      HARDFORK,
-    );
+    return Common.custom(customChainParams);
   }
 
   /**
