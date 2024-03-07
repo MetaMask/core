@@ -9,7 +9,7 @@ import type {
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
-  getSmartTransactionFeeEstimatesResponse,
+  GetSmartTransactionFeeEstimatesResponse,
 } from '../types';
 import { GasFeeEstimateLevel } from '../types';
 import { pickMiddleFeeElement } from '../utils/utils';
@@ -53,9 +53,9 @@ export class SmartTransactionGasFeeFlow implements GasFeeFlow {
   async #getSmartTransactionGasFees(
     request: GasFeeFlowRequest,
   ): Promise<GasFeeFlowResponse> {
-    const smartTransactionFeesResponse = (await this.#getGasFeesAPIResponse(
+    const smartTransactionFeesResponse = await this.#getGasFeesAPIResponse(
       request,
-    )) as NonNullable<getSmartTransactionFeeEstimatesResponse['tradeTxFees']>;
+    );
 
     log('Received smart transaction response', smartTransactionFeesResponse);
 
@@ -90,22 +90,16 @@ export class SmartTransactionGasFeeFlow implements GasFeeFlow {
 
     return {
       estimates,
-      smartTransactionFeesResponse,
     };
   }
 
-  async #getGasFeesAPIResponse(
-    request: GasFeeFlowRequest,
-  ): Promise<getSmartTransactionFeeEstimatesResponse['tradeTxFees']> {
+  async #getGasFeesAPIResponse(request: GasFeeFlowRequest) {
     const {
       transactionMeta: { txParams },
       getSmartTransactionFeeEstimates,
     } = request;
 
-    const { tradeTxFees } = (await getSmartTransactionFeeEstimates(
-      txParams,
-      null,
-    )) as getSmartTransactionFeeEstimatesResponse;
+    const { tradeTxFees } = await getSmartTransactionFeeEstimates(txParams);
 
     if (!tradeTxFees) {
       throw new Error('Trade fees not found');

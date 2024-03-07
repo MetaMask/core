@@ -1,10 +1,10 @@
-import type EthQuery from '@metamask/eth-query';
+import EthQuery from '@metamask/eth-query';
 
 import type {
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
-  getSmartTransactionFeeEstimatesResponse,
+  GetSmartTransactionFeeEstimatesResponse,
 } from '../types';
 import { TransactionStatus } from '../types';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
@@ -51,14 +51,12 @@ const RESPONSE_MOCK: GasFeeFlowResponse = {
       maxPriorityFeePerGas: '0x6e', // 110
     },
   },
-  smartTransactionFeesResponse:
-    SMART_TRANSACTION_GAS_FEES_API_RESPONSE_MOCK.tradeTxFees as getSmartTransactionFeeEstimatesResponse['tradeTxFees'],
 };
 
 describe('SmartTransactionGasFeeFlow', () => {
   let request: GasFeeFlowRequest;
   const getSmartTransactionFeeEstimatesMock: jest.MockedFn<
-    () => Promise<getSmartTransactionFeeEstimatesResponse>
+    () => Promise<GetSmartTransactionFeeEstimatesResponse>
   > = jest.fn();
 
   beforeEach(() => {
@@ -94,7 +92,7 @@ describe('SmartTransactionGasFeeFlow', () => {
     it('returns calculated fees for a smart transaction', async () => {
       const flow = new SmartTransactionGasFeeFlow();
       getSmartTransactionFeeEstimatesMock.mockResolvedValue(
-        SMART_TRANSACTION_GAS_FEES_API_RESPONSE_MOCK as getSmartTransactionFeeEstimatesResponse,
+        SMART_TRANSACTION_GAS_FEES_API_RESPONSE_MOCK as GetSmartTransactionFeeEstimatesResponse,
       );
 
       const response = await flow.getGasFees(request);

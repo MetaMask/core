@@ -5,7 +5,6 @@ import type {
   GasFeeState,
 } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -1023,25 +1022,28 @@ export type GasFeeFlowRequest = {
   ) => Promise<GasFeeState>;
 
   /** Callback to get the smart transaction fee estimates. */
-  getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
+  getSmartTransactionFeeEstimates: (
+    tradeTransactionParams: TransactionParams,
+  ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
 };
 
-// TODO: Replace this type with the actual type from the smart-transactions-controller package once it's updated.
 /** Return type of getFees API call */
-export type getSmartTransactionFeeEstimatesResponse = Awaited<
-  ReturnType<SmartTransactionsController['getFees']>
->;
+export type GetSmartTransactionFeeEstimatesResponse = {
+  tradeTxFees?: {
+    fees: {
+      maxFeePerGas: number;
+      maxPriorityFeePerGas: number;
+    }[];
+  };
+};
 
 /** Response from a gas fee flow containing gas fee estimates. */
 export type GasFeeFlowResponse = {
   /** The gas fee estimates for the transaction. */
   estimates: GasFeeEstimates;
-
-  /** The gas fee estimates for smart transactions. */
-  smartTransactionFeesResponse?: getSmartTransactionFeeEstimatesResponse['tradeTxFees'];
 };
 
 /** A method of obtaining gas fee estimates for a specific transaction. */

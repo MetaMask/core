@@ -1,6 +1,5 @@
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -8,7 +7,12 @@ import EventEmitter from 'events';
 import type { NetworkClientId } from '../../../network-controller/src';
 import { projectLogger } from '../logger';
 import type { GasFeeEstimates, GasFeeFlow, GasFeeFlowRequest } from '../types';
-import { TransactionStatus, type TransactionMeta } from '../types';
+import { TransactionStatus } from '../types';
+import type {
+  TransactionMeta,
+  TransactionParams,
+  GetSmartTransactionFeeEstimatesResponse,
+} from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
@@ -27,7 +31,9 @@ export class GasFeePoller {
 
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
 
-  #getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
+  #getSmartTransactionFeeEstimates: (
+    tradeTransactionParams: TransactionParams,
+  ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -57,7 +63,9 @@ export class GasFeePoller {
     getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
     getTransactions: () => TransactionMeta[];
-    getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
+    getSmartTransactionFeeEstimates: (
+      tradeTransactionParams: TransactionParams,
+    ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
     onStateChange: (listener: () => void) => void;
   }) {
     this.#gasFeeFlows = gasFeeFlows;

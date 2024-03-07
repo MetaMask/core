@@ -34,7 +34,6 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
-import type SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -69,6 +68,7 @@ import type {
   WalletDevice,
   SecurityAlertResponse,
   GasFeeFlow,
+  GetSmartTransactionFeeEstimatesResponse,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -251,7 +251,9 @@ export type TransactionControllerOptions = {
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   getSelectedAddress: () => string;
-  getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
+  getSmartTransactionFeeEstimates: (
+    tradeTransactionParams: TransactionParams,
+  ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
   incomingTransactions?: IncomingTransactionOptions;
   messenger: TransactionControllerMessenger;
   onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
@@ -358,7 +360,9 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getSelectedAddress: () => string;
 
-  private readonly getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
+  private readonly getSmartTransactionFeeEstimates: (
+    tradeTransactionParams: TransactionParams,
+  ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
 
   private readonly getExternalPendingTransactions: (
     address: string,

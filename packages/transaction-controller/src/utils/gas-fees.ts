@@ -11,7 +11,6 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type SmartTransactionsController from '@metamask/smart-transactions-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
@@ -22,6 +21,7 @@ import type {
   TransactionMeta,
   TransactionType,
   GasFeeFlow,
+  GetSmartTransactionFeeEstimatesResponse,
 } from '../types';
 import { UserFeeLevel } from '../types';
 import { getGasFeeFlow } from './gas-flow';
@@ -34,7 +34,9 @@ export type UpdateGasFeesRequest = {
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
-  getSmartTransactionFeeEstimates: SmartTransactionsController['getFees'];
+  getSmartTransactionFeeEstimates: (
+    tradeTransactionParams: TransactionParams,
+  ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
   getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
   txMeta: TransactionMeta;
 };
