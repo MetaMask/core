@@ -2354,18 +2354,24 @@ describe('TransactionController', () => {
       const mockNonce = '0x9';
       uuidModuleMock.v1.mockImplementationOnce(() => cancelTransactionId);
 
-      const { controller } = setupController();
-
-      // Assume we have a submitted transaction in the state
-      controller.state.transactions.push({
-        id: simpleSendTransactionId,
-        chainId: toHex(5),
-        status: TransactionStatus.submitted,
-        type: TransactionType.simpleSend,
-        time: 123456789,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          nonce: mockNonce,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              // Assume we have a submitted transaction in the state
+              {
+                id: simpleSendTransactionId,
+                chainId: toHex(5),
+                status: TransactionStatus.submitted,
+                type: TransactionType.simpleSend,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  nonce: mockNonce,
+                },
+              },
+            ],
+          },
         },
       });
 
@@ -2512,17 +2518,23 @@ describe('TransactionController', () => {
 
     it('should avoid creating speedup transaction if actionId already exist', async () => {
       const mockActionId = 'mockActionId';
-      const { controller } = setupController();
-
-      controller.state.transactions.push({
-        actionId: mockActionId,
-        id: '2',
-        chainId: toHex(5),
-        status: TransactionStatus.submitted,
-        type: TransactionType.retry,
-        time: 123456789,
-        txParams: {
-          from: ACCOUNT_MOCK,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                actionId: mockActionId,
+                id: '2',
+                chainId: toHex(5),
+                status: TransactionStatus.submitted,
+                type: TransactionType.retry,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                },
+              },
+            ],
+          },
         },
       });
 
@@ -3402,7 +3414,24 @@ describe('TransactionController', () => {
     });
 
     it('throws if the transaction is not unapproved status', async () => {
-      const { controller } = setupController();
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: 'foo',
+                chainId: toHex(5),
+                hash: '1337',
+                status: TransactionStatus.submitted as const,
+                time: 123456789,
+                txParams: {
+                  from: MOCK_PREFERENCES.state.selectedAddress,
+                },
+              },
+            ],
+          },
+        },
+      });
       const mockSendFlowHistory = [
         {
           entry:
@@ -3410,16 +3439,6 @@ describe('TransactionController', () => {
           timestamp: 1650663928211,
         },
       ];
-      controller.state.transactions.push({
-        id: 'foo',
-        chainId: toHex(5),
-        hash: '1337',
-        status: TransactionStatus.submitted as const,
-        time: 123456789,
-        txParams: {
-          from: MOCK_PREFERENCES.state.selectedAddress,
-        },
-      });
       expect(() =>
         controller.updateTransactionSendFlowHistory(
           'foo',
@@ -3434,8 +3453,6 @@ describe('TransactionController', () => {
 
   describe('clearUnapprovedTransactions', () => {
     it('clears unapproved transactions', async () => {
-      const { controller } = setupController();
-
       const firstUnapprovedTxId = '1';
       const secondUnapprovedTxId = '2';
       const firstConfirmedTxId = '3';
@@ -3460,29 +3477,34 @@ describe('TransactionController', () => {
         status: TransactionStatus.unapproved as const,
       };
 
-      controller.state.transactions.push(
-        {
-          ...unapprovedTxMeta,
-          id: firstUnapprovedTxId,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...unapprovedTxMeta,
+                id: firstUnapprovedTxId,
+              },
+              {
+                ...unapprovedTxMeta,
+                id: secondUnapprovedTxId,
+              },
+              {
+                ...confirmedTxMeta,
+                id: firstConfirmedTxId,
+              },
+              {
+                ...confirmedTxMeta,
+                id: secondConfirmedTxId,
+              },
+            ],
+          },
         },
-        {
-          ...unapprovedTxMeta,
-          id: secondUnapprovedTxId,
-        },
-        {
-          ...confirmedTxMeta,
-          id: firstConfirmedTxId,
-        },
-        {
-          ...confirmedTxMeta,
-          id: secondConfirmedTxId,
-        },
-      );
+      });
 
       controller.clearUnapprovedTransactions();
 
       const { transactions } = controller.state;
-
       expect(transactions).toHaveLength(2);
       expect(
         transactions.find(({ id }) => id === firstConfirmedTxId)?.status,
@@ -3613,14 +3635,21 @@ describe('TransactionController', () => {
       const transactionId = '123';
       const fnName = 'updateTransactionGasFees';
       const status = TransactionStatus.failed;
-      const { controller } = setupController();
-      controller.state.transactions.push({
-        id: transactionId,
-        status,
-        error: new Error('mock error'),
-        chainId: '0x1',
-        time: 123456789,
-        txParams: {} as TransactionParams,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status,
+                error: new Error('mock error'),
+                chainId: '0x1',
+                time: 123456789,
+                txParams: {} as TransactionParams,
+              },
+            ],
+          },
+        },
       });
       expect(() =>
         controller.updateTransactionGasFees(transactionId, {
@@ -3633,7 +3662,28 @@ describe('TransactionController', () => {
 
     it('updates provided legacy gas values', async () => {
       const transactionId = '123';
-      const { controller } = setupController();
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                chainId: '0x1',
+                time: 123456789,
+                status: TransactionStatus.unapproved as const,
+                history: [
+                  {} as TransactionMeta,
+                  ...([{}] as TransactionHistoryEntry[]),
+                ],
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              },
+            ],
+          },
+        },
+      });
 
       const gas = '0xgas';
       const gasLimit = '0xgasLimit';
@@ -3644,21 +3694,6 @@ describe('TransactionController', () => {
       const originalGasEstimate = '0xoriginalGasEstimate';
       const userEditedGasLimit = true;
       const userFeeLevel = '0xuserFeeLevel';
-
-      controller.state.transactions.push({
-        id: transactionId,
-        chainId: '0x1',
-        time: 123456789,
-        status: TransactionStatus.unapproved as const,
-        history: [
-          {} as TransactionMeta,
-          ...([{}] as TransactionHistoryEntry[]),
-        ],
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      });
 
       controller.updateTransactionGasFees(transactionId, {
         gas,
@@ -3692,20 +3727,26 @@ describe('TransactionController', () => {
       const maxFeePerGas = '0xmaxFeePerGas';
       const transactionId = '123';
 
-      const { controller } = setupController();
-
-      controller.state.transactions.push({
-        id: transactionId,
-        chainId: '0x1',
-        time: 123456789,
-        status: TransactionStatus.unapproved as const,
-        history: [
-          {} as TransactionMeta,
-          ...([{}] as TransactionHistoryEntry[]),
-        ],
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                chainId: '0x1',
+                time: 123456789,
+                status: TransactionStatus.unapproved as const,
+                history: [
+                  {} as TransactionMeta,
+                  ...([{}] as TransactionHistoryEntry[]),
+                ],
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              },
+            ],
+          },
         },
       });
 
@@ -3741,13 +3782,17 @@ describe('TransactionController', () => {
       const transactionId = '123';
       const fnName = 'updatePreviousGasParams';
       const status = TransactionStatus.failed;
-      const { controller } = setupController();
-      controller.state.transactions.push({
-        id: transactionId,
-        status,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              // TODO: Replace `any` with type
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { id: transactionId, status } as any,
+            ],
+          },
+        },
+      });
       expect(() =>
         controller.updatePreviousGasParams(transactionId, {
           maxFeePerGas: '0x1',
@@ -3759,23 +3804,29 @@ describe('TransactionController', () => {
 
     it('updates previous gas values', async () => {
       const transactionId = '123';
-      const { controller } = setupController();
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status: TransactionStatus.unapproved,
+                history: [{}],
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            ],
+          },
+        },
+      });
 
       const gasLimit = '0xgasLimit';
       const maxFeePerGas = '0xmaxFeePerGas';
       const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
-
-      controller.state.transactions.push({
-        id: transactionId,
-        status: TransactionStatus.unapproved,
-        history: [{}],
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
 
       controller.updatePreviousGasParams(transactionId, {
         gasLimit,
@@ -4475,13 +4526,20 @@ describe('TransactionController', () => {
     it('should throw error if securityAlertResponse is not defined', async () => {
       const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
-      const { controller } = setupController();
-      controller.state.transactions.push({
-        id: transactionMetaId,
-        status,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionMetaId,
+                status,
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            ],
+          },
+        },
+      });
       expect(controller.state.transactions[0]).toBeDefined();
 
       expect(() =>
@@ -4499,18 +4557,25 @@ describe('TransactionController', () => {
     it('should throw error if transaction with given id does not exist', async () => {
       const transactionMetaId = '123';
       const status = TransactionStatus.submitted;
-      const { controller } = setupController();
-      controller.state.transactions.push({
-        id: transactionMetaId,
-        status,
-        txParams: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionMetaId,
+                status,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+                history: mockSendFlowHistory,
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            ],
+          },
         },
-        history: mockSendFlowHistory,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+      });
       expect(controller.state.transactions[0]).toBeDefined();
 
       expect(() =>
@@ -4663,8 +4728,13 @@ describe('TransactionController', () => {
           history: [{ ...baseTransaction }],
         };
         const newStatus = TransactionStatus.approved as const;
-        const { controller } = setupController();
-        controller.state.transactions.push(nonCustodialTransaction);
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [nonCustodialTransaction],
+            },
+          },
+        });
 
         expect(() =>
           controller.updateCustodialTransaction(nonCustodialTransaction.id, {
@@ -4675,8 +4745,13 @@ describe('TransactionController', () => {
 
       it('throws if status is invalid', async () => {
         const newStatus = TransactionStatus.approved as const;
-        const { controller } = setupController();
-        controller.state.transactions.push(transactionMeta);
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMeta],
+            },
+          },
+        });
 
         expect(() =>
           controller.updateCustodialTransaction(transactionMeta.id, {
@@ -5271,8 +5346,13 @@ describe('TransactionController', () => {
     };
 
     it('updates editable params and returns updated transaction metadata', async () => {
-      const { controller } = setupController();
-      controller.state.transactions.push(transactionMeta);
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+      });
 
       const updatedTransaction = await controller.updateEditableParams(
         transactionId,
@@ -5292,10 +5372,17 @@ describe('TransactionController', () => {
     });
 
     it('throws an error if the transaction is not unapproved', async () => {
-      const { controller } = setupController();
-      controller.state.transactions.push({
-        ...transactionMeta,
-        status: TransactionStatus.submitted as const,
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...transactionMeta,
+                status: TransactionStatus.submitted as const,
+              },
+            ],
+          },
+        },
       });
       await expect(controller.updateEditableParams(transactionId, params))
         .rejects
