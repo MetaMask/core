@@ -190,13 +190,6 @@ export class ComposableController extends BaseController<
     }
 
     const { name } = controller;
-    if (isBaseControllerV1(controller)) {
-      controller.subscribe((childState) => {
-        this.update((state) => {
-          Object.assign(state, { [name]: childState });
-        });
-      });
-    }
     if (
       (isBaseControllerV1(controller) && 'messagingSystem' in controller) ||
       isBaseController(controller)
@@ -209,6 +202,12 @@ export class ComposableController extends BaseController<
           });
         },
       );
+    } else if (isBaseControllerV1(controller)) {
+      controller.subscribe((childState) => {
+        this.update((state) => {
+          Object.assign(state, { [name]: childState });
+        });
+      });
     }
   }
 }
