@@ -209,7 +209,8 @@ export class QueuedRequestController extends BaseController<
       try {
         if (
           request.method !== 'wallet_switchEthereumChain' &&
-          request.method !== 'wallet_addEthereumChain'
+          request.method !== 'wallet_addEthereumChain' &&
+          request.method !== 'eth_requestAccounts'
         ) {
           await this.#switchNetworkIfNecessary(request);
         }
