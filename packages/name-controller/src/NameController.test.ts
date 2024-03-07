@@ -635,7 +635,7 @@ describe('NameController', () => {
       [' and no existing type state', { names: {} }],
     ])(
       'creates entry with proposed names if value is new%s',
-      async (_, getExistingState) => {
+      async (_, existingState) => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2, { updateDelay: 3 });
 
@@ -643,7 +643,7 @@ describe('NameController', () => {
           ...CONTROLLER_ARGS_MOCK,
           providers: [provider1, provider2],
           // @ts-expect-error We are intentionally setting invalid state.
-          state: getExistingState,
+          state: existingState,
         });
 
         const result = await controller.updateProposedNames({
