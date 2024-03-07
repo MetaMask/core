@@ -2904,6 +2904,7 @@ __metadata:
     "@ethereumjs/tx": ^4.2.0
     "@ethereumjs/util": ^8.1.0
     "@ethersproject/abi": ^5.7.0
+    "@ethersproject/providers": ^5.7.0
     "@metamask/approval-controller": ^5.1.3
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^4.1.1
