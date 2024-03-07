@@ -31,7 +31,7 @@ export class GasFeePoller {
 
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
 
-  #getSmartTransactionFeeEstimates: (
+  #getSmartTransactionGasFeeEstimates: (
     tradeTransactionParams: TransactionParams,
   ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
 
@@ -47,7 +47,7 @@ export class GasFeePoller {
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
    * @param options.getEthQuery - Callback to obtain an EthQuery instance.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
-   * @param options.getSmartTransactionFeeEstimates - Callback to obtain the smart transaction fee estimates.
+   * @param options.getSmartTransactionGasFeeEstimates - Callback to obtain the smart transaction fee estimates.
    * @param options.getTransactions - Callback to obtain the transaction data.
    * @param options.onStateChange - Callback to register a listener for controller state changes.
    */
@@ -55,7 +55,7 @@ export class GasFeePoller {
     gasFeeFlows,
     getEthQuery,
     getGasFeeControllerEstimates,
-    getSmartTransactionFeeEstimates,
+    getSmartTransactionGasFeeEstimates,
     getTransactions,
     onStateChange,
   }: {
@@ -63,7 +63,7 @@ export class GasFeePoller {
     getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
     getTransactions: () => TransactionMeta[];
-    getSmartTransactionFeeEstimates: (
+    getSmartTransactionGasFeeEstimates: (
       tradeTransactionParams: TransactionParams,
     ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
     onStateChange: (listener: () => void) => void;
@@ -71,7 +71,7 @@ export class GasFeePoller {
     this.#gasFeeFlows = gasFeeFlows;
     this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
-    this.#getSmartTransactionFeeEstimates = getSmartTransactionFeeEstimates;
+    this.#getSmartTransactionGasFeeEstimates = getSmartTransactionGasFeeEstimates;
     this.#getTransactions = getTransactions;
 
     onStateChange(() => {
@@ -152,7 +152,7 @@ export class GasFeePoller {
     const request: GasFeeFlowRequest = {
       ethQuery,
       getGasFeeControllerEstimates: this.#getGasFeeControllerEstimates,
-      getSmartTransactionFeeEstimates: this.#getSmartTransactionFeeEstimates,
+      getSmartTransactionGasFeeEstimates: this.#getSmartTransactionGasFeeEstimates,
       transactionMeta,
     };
 

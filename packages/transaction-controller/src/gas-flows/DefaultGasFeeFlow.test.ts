@@ -107,7 +107,7 @@ describe('DefaultGasFeeFlow', () => {
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
         getGasFeeControllerEstimates,
-        getSmartTransactionFeeEstimates: jest.fn(),
+        getSmartTransactionGasFeeEstimates: jest.fn(),
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
@@ -126,7 +126,7 @@ describe('DefaultGasFeeFlow', () => {
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
         getGasFeeControllerEstimates,
-        getSmartTransactionFeeEstimates: jest.fn(),
+        getSmartTransactionGasFeeEstimates: jest.fn(),
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
@@ -145,7 +145,7 @@ describe('DefaultGasFeeFlow', () => {
       const response = defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
         getGasFeeControllerEstimates,
-        getSmartTransactionFeeEstimates: jest.fn(),
+        getSmartTransactionGasFeeEstimates: jest.fn(),
         transactionMeta: TRANSACTION_META_MOCK,
       });
 

@@ -1022,7 +1022,7 @@ export type GasFeeFlowRequest = {
   ) => Promise<GasFeeState>;
 
   /** Callback to get the smart transaction fee estimates. */
-  getSmartTransactionFeeEstimates: (
+  getSmartTransactionGasFeeEstimates: (
     tradeTransactionParams: TransactionParams,
   ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
 

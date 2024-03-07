@@ -55,7 +55,7 @@ const RESPONSE_MOCK: GasFeeFlowResponse = {
 
 describe('SmartTransactionGasFeeFlow', () => {
   let request: GasFeeFlowRequest;
-  const getSmartTransactionFeeEstimatesMock: jest.MockedFn<
+  const getSmartTransactionGasFeeEstimatesMock: jest.MockedFn<
     () => Promise<GetSmartTransactionFeeEstimatesResponse>
   > = jest.fn();
 
@@ -65,7 +65,7 @@ describe('SmartTransactionGasFeeFlow', () => {
     request = {
       ethQuery: {} as EthQuery,
       getGasFeeControllerEstimates: jest.fn(),
-      getSmartTransactionFeeEstimates: getSmartTransactionFeeEstimatesMock,
+      getSmartTransactionGasFeeEstimates: getSmartTransactionGasFeeEstimatesMock,
       transactionMeta: TRANSACTION_META_MOCK as TransactionMeta,
     };
   });
@@ -91,7 +91,7 @@ describe('SmartTransactionGasFeeFlow', () => {
   describe('getGasFees', () => {
     it('returns calculated fees for a smart transaction', async () => {
       const flow = new SmartTransactionGasFeeFlow();
-      getSmartTransactionFeeEstimatesMock.mockResolvedValue(
+      getSmartTransactionGasFeeEstimatesMock.mockResolvedValue(
         SMART_TRANSACTION_GAS_FEES_API_RESPONSE_MOCK as GetSmartTransactionFeeEstimatesResponse,
       );
 
@@ -109,7 +109,7 @@ describe('SmartTransactionGasFeeFlow', () => {
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 
-      getSmartTransactionFeeEstimatesMock.mockRejectedValue(
+      getSmartTransactionGasFeeEstimatesMock.mockRejectedValue(
         new Error('TestError'),
       );
 
@@ -131,7 +131,7 @@ describe('SmartTransactionGasFeeFlow', () => {
         DefaultGasFeeFlow.prototype.getGasFees,
       );
 
-      getSmartTransactionFeeEstimatesMock.mockRejectedValue(
+      getSmartTransactionGasFeeEstimatesMock.mockRejectedValue(
         new Error('TestError'),
       );
 

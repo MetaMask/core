@@ -251,7 +251,7 @@ export type TransactionControllerOptions = {
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   getSelectedAddress: () => string;
-  getSmartTransactionFeeEstimates: (
+  getSmartTransactionGasFeeEstimates: (
     tradeTransactionParams: TransactionParams,
   ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
   incomingTransactions?: IncomingTransactionOptions;
@@ -360,7 +360,7 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly getSelectedAddress: () => string;
 
-  private readonly getSmartTransactionFeeEstimates: (
+  private readonly getSmartTransactionGasFeeEstimates: (
     tradeTransactionParams: TransactionParams,
   ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
 
@@ -471,7 +471,7 @@ export class TransactionController extends BaseControllerV1<
       getPermittedAccounts,
       getSavedGasFees,
       getSelectedAddress,
-      getSmartTransactionFeeEstimates,
+      getSmartTransactionGasFeeEstimates,
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
@@ -513,7 +513,7 @@ export class TransactionController extends BaseControllerV1<
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
-    this.getSmartTransactionFeeEstimates = getSmartTransactionFeeEstimates;
+    this.getSmartTransactionGasFeeEstimates = getSmartTransactionGasFeeEstimates;
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
@@ -599,7 +599,7 @@ export class TransactionController extends BaseControllerV1<
           chainId,
         }),
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
-      getSmartTransactionFeeEstimates: this.getSmartTransactionFeeEstimates,
+      getSmartTransactionGasFeeEstimates: this.getSmartTransactionGasFeeEstimates,
       getTransactions: () => this.state.transactions,
       onStateChange: (listener) => {
         this.subscribe(listener);
@@ -2039,7 +2039,7 @@ export class TransactionController extends BaseControllerV1<
       }),
       gasFeeFlows: this.gasFeeFlows,
       getGasFeeEstimates: this.getGasFeeEstimates,
-      getSmartTransactionFeeEstimates: this.getSmartTransactionFeeEstimates,
+      getSmartTransactionGasFeeEstimates: this.getSmartTransactionGasFeeEstimates,
       getSavedGasFees: this.getSavedGasFees.bind(this),
       txMeta: transactionMeta,
     });

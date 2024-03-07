@@ -34,7 +34,7 @@ export type UpdateGasFeesRequest = {
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
-  getSmartTransactionFeeEstimates: (
+  getSmartTransactionGasFeeEstimates: (
     tradeTransactionParams: TransactionParams,
   ) => Promise<GetSmartTransactionFeeEstimatesResponse>;
   getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
@@ -291,7 +291,7 @@ async function getSuggestedGasFees(
     ethQuery,
     gasFeeFlows,
     getGasFeeEstimates,
-    getSmartTransactionFeeEstimates,
+    getSmartTransactionGasFeeEstimates,
     txMeta,
   } = request;
 
@@ -310,7 +310,7 @@ async function getSuggestedGasFees(
     const response = await gasFeeFlow.getGasFees({
       ethQuery,
       getGasFeeControllerEstimates: getGasFeeEstimates,
-      getSmartTransactionFeeEstimates,
+      getSmartTransactionGasFeeEstimates,
       transactionMeta: txMeta,
     });
 

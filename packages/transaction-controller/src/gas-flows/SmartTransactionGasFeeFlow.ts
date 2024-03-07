@@ -96,10 +96,10 @@ export class SmartTransactionGasFeeFlow implements GasFeeFlow {
   async #getGasFeesAPIResponse(request: GasFeeFlowRequest) {
     const {
       transactionMeta: { txParams },
-      getSmartTransactionFeeEstimates,
+      getSmartTransactionGasFeeEstimates,
     } = request;
 
-    const { tradeTxFees } = await getSmartTransactionFeeEstimates(txParams);
+    const { tradeTxFees } = await getSmartTransactionGasFeeEstimates(txParams);
 
     if (!tradeTxFees) {
       throw new Error('Trade fees not found');
