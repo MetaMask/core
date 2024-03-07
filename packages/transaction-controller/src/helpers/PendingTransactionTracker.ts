@@ -4,10 +4,10 @@ import type {
   BlockTracker,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
+import { cloneDeep, merge } from 'lodash';
 
-import { projectLogger } from '../logger';
+import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
@@ -278,8 +278,6 @@ export class PendingTransactionTracker {
       return;
     }
 
-    log('Resubmitting transaction', txMeta.id);
-
     const { rawTx } = txMeta;
 
     if (!this.#beforePublish(txMeta)) {
@@ -295,26 +293,27 @@ export class PendingTransactionTracker {
     const ethQuery = this.#getEthQuery(txMeta.networkClientId);
     await this.#publishTransaction(ethQuery, rawTx);
 
-    txMeta.retryCount = (txMeta.retryCount ?? 0) + 1;
+    const retryCount = (txMeta.retryCount ?? 0) + 1;
 
     this.#updateTransaction(
-      txMeta,
+      merge({}, txMeta, { retryCount }),
       'PendingTransactionTracker:transaction-retry - Retry count increased',
     );
   }
 
   #isResubmitDue(txMeta: TransactionMeta, latestBlockNumber: string): boolean {
-    if (!txMeta.firstRetryBlockNumber) {
-      txMeta.firstRetryBlockNumber = latestBlockNumber;
+    const txMetaWithFirstRetryBlockNumber = cloneDeep(txMeta);
+
+    if (!txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber) {
+      txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber = latestBlockNumber;
 
       this.#updateTransaction(
-        txMeta,
+        txMetaWithFirstRetryBlockNumber,
         'PendingTransactionTracker:#isResubmitDue - First retry block number set',
       );
     }
 
-    const firstRetryBlockNumber =
-      txMeta.firstRetryBlockNumber || latestBlockNumber;
+    const { firstRetryBlockNumber } = txMetaWithFirstRetryBlockNumber;
 
     const blocksSinceFirstRetry =
       Number.parseInt(latestBlockNumber, 16) -
@@ -411,19 +410,23 @@ export class PendingTransactionTracker {
     const { baseFeePerGas, timestamp: blockTimestamp } =
       await this.#getBlockByHash(blockHash, false);
 
-    txMeta.baseFeePerGas = baseFeePerGas;
-    txMeta.blockTimestamp = blockTimestamp;
-    txMeta.status = TransactionStatus.confirmed;
-    txMeta.txParams.gasUsed = receipt.gasUsed;
-    txMeta.txReceipt = receipt;
-    txMeta.verifiedOnBlockchain = true;
+    const updatedTxMeta = cloneDeep(txMeta);
+    updatedTxMeta.baseFeePerGas = baseFeePerGas;
+    updatedTxMeta.blockTimestamp = blockTimestamp;
+    updatedTxMeta.status = TransactionStatus.confirmed;
+    updatedTxMeta.txParams = {
+      ...updatedTxMeta.txParams,
+      gasUsed: receipt.gasUsed,
+    };
+    updatedTxMeta.txReceipt = receipt;
+    updatedTxMeta.verifiedOnBlockchain = true;
 
     this.#updateTransaction(
-      txMeta,
+      updatedTxMeta,
       'PendingTransactionTracker:#onTransactionConfirmed - Transaction confirmed',
     );
 
-    this.hub.emit('transaction-confirmed', txMeta);
+    this.hub.emit('transaction-confirmed', updatedTxMeta);
   }
 
   async #isTransactionDropped(txMeta: TransactionMeta) {
@@ -488,13 +491,11 @@ export class PendingTransactionTracker {
   }
 
   #warnTransaction(txMeta: TransactionMeta, error: string, message: string) {
-    txMeta.warning = {
-      error,
-      message,
-    };
-
     this.#updateTransaction(
-      txMeta,
+      {
+        ...txMeta,
+        warning: { error, message },
+      },
       'PendingTransactionTracker:#warnTransaction - Warning added',
     );
   }

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add and export type `StateConstraint`, which is an alias for `Record<string, Json>`, and represents the narrowest supertype encompassing the state of all controllers.
+
+### Changed
+
+- **BREAKING:** Narrow the generic constraint of the `ControllerState` parameter from `Record<string, unknown>` to `Record<string, Json>` for types `ControllerGetStateAction`, `ControllerStateChangeEvent`, `ControllerActions`, `ControllerEvents`.
+- **BREAKING:** Narrow the return type of the function `deriveStateFromMetadata<ControllerState>` from `Record<string, Json>` to `Record<keyof ControllerState, Json>`.
+- **BREAKING:** The `getRestricted` method of the `ControllerMessenger` class has major API changes that may require updates to its existing instances in downstream code. These changes align the type-level and runtime behavior of `getRestricted`, so that omitted or empty inputs consistently represent a set of empty allowlists. ([$4013](https://github.com/MetaMask/core/pull/4013))
+  - If the `AllowedActions`, `AllowedEvents` generic parameters are omitted, they are always assumed to be `never`.
+    - Previously, omission of these generic parameters resulted in the full allowlists for the controller being inferred as type constraints for the `allowedActions`, `allowedEvents` function parameters.
+  - If the function parameters `allowedActions`, `allowedEvents` are a non-empty array, their corresponding type names must be explicitly passed into generic parameters `AllowedActions`, `AllowedEvents` to avoid type errors.
+    - This may cause some duplication of allowlists between type-level and value-level code.
+    - This requirement is only relevant for TypeScript code. A JavaScript consumer only needs to pass in the correct value-level function parameters. Because of this, these changes should not affect downstream JavaScript code, but may be disruptive to TypeScript code.
+    - `getRestricted` is still able to flag `AllowedActions` and `AllowedEvents` members that should not be included in the allowlists, based on the `Action`, `Event` generic arguments passed into the `ControllerMessenger` instance.
+- **BREAKING:** The `RestrictedControllerMessenger` class constructor now expects `allowedActions` and `allowedEvents` as required options. ([$4013](https://github.com/MetaMask/core/pull/4013))
+- Convert interface `StatePropertyMetadata<T extends Json>` into a type.
+
+### Removed
+
+- **BREAKING:** Remove the deprecated `subscribe` class field from `BaseControllerV2`.
+
 ## [4.1.1]
 
 ### Changed

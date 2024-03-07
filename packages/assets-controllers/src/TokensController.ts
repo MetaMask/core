@@ -5,8 +5,6 @@ import type {
   BaseConfig,
   BaseState,
   RestrictedControllerMessenger,
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
@@ -33,6 +31,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
+import type { Patch } from 'immer/dist/immer';
 import { v1 as random } from 'uuid';
 
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
@@ -111,10 +110,11 @@ export type TokensControllerActions =
   | TokensControllerGetStateAction
   | TokensControllerAddDetectedTokensAction;
 
-export type TokensControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  TokensState
->;
+// TODO: Once `TokensController` is upgraded to V2, rewrite this type using the `ControllerGetStateAction` type, which constrains `TokensState` as `Record<string, Json>`.
+export type TokensControllerGetStateAction = {
+  type: `${typeof controllerName}:getState`;
+  handler: () => TokensState;
+};
 
 export type TokensControllerAddDetectedTokensAction = {
   type: `${typeof controllerName}:addDetectedTokens`;
@@ -128,10 +128,11 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction;
 
-export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  TokensState
->;
+// TODO: Once `TokensController` is upgraded to V2, rewrite this type using the `ControllerStateChangeEvent` type, which constrains `TokensState` as `Record<string, Json>`.
+export type TokensControllerStateChangeEvent = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [TokensState, Patch[]];
+};
 
 export type TokensControllerEvents = TokensControllerStateChangeEvent;
 

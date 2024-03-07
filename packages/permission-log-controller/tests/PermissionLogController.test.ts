@@ -41,11 +41,7 @@ const initController = ({
   restrictedMethods: Set<string>;
   state?: Partial<PermissionLogControllerState>;
 }): PermissionLogController => {
-  const messenger = new ControllerMessenger().getRestricted<
-    typeof name,
-    never,
-    never
-  >({
+  const messenger = new ControllerMessenger().getRestricted({
     name,
   });
   return new PermissionLogController({

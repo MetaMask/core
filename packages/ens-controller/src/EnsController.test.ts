@@ -7,7 +7,25 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 
-import { EnsController } from './EnsController';
+import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
+import type { EnsControllerState } from './EnsController';
+
+const defaultState: EnsControllerState = {
+  ensEntries: {},
+  ensResolutionsByAddress: {},
+};
+
+for (const [cid, address] of Object.entries(DEFAULT_ENS_NETWORK_MAP)) {
+  const chainId = toHex(cid);
+  defaultState.ensEntries[chainId] = {
+    '.': {
+      ensName: '.',
+      address,
+      chainId,
+    },
+  };
+}
+Object.freeze(defaultState);
 
 jest.mock('@ethersproject/providers', () => {
   const originalModule = jest.requireActual('@ethersproject/providers');
@@ -38,7 +56,7 @@ const name = 'EnsController';
  * @returns A restricted controller messenger.
  */
 function getMessenger() {
-  return new ControllerMessenger().getRestricted<typeof name, never, never>({
+  return new ControllerMessenger().getRestricted({
     name,
   });
 }
@@ -58,10 +76,27 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.state).toStrictEqual({
-      ensEntries: {},
-      ensResolutionsByAddress: {},
+    expect(controller.state).toStrictEqual(defaultState);
+  });
+
+  it('should return registry address for `.`', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
     });
+    expect(controller.get('0x1', '.')).toStrictEqual({
+      ensName: '.',
+      address: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+      chainId: '0x1',
+    });
+  });
+
+  it('should not return registry address for unrecognized chains', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
+    expect(controller.get('0x666', '.')).toBeNull();
   });
 
   it('should add a new ENS entry and return true', () => {
@@ -69,18 +104,11 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: address1Checksum,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: address1Checksum,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -95,12 +123,9 @@ describe('EnsController', () => {
       },
     });
 
-    expect(controller.state).toStrictEqual({
-      ensResolutionsByAddress: {
-        [address1Checksum]: 'peaksignal.eth',
-      },
-      ensEntries: {},
-    });
+    expect(controller.state.ensResolutionsByAddress[address1Checksum]).toBe(
+      'peaksignal.eth',
+    );
 
     controller.resetState();
 
@@ -120,7 +145,7 @@ describe('EnsController', () => {
       onNetworkDidChange: (listener) => {
         listener({
           providerConfig: {
-            chainId: toHex(1),
+            chainId: '0x1',
             type: NetworkType.mainnet,
             ticker: NetworksTicker.mainnet,
           },
@@ -136,18 +161,11 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, null)).toBe(true);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: null,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, null)).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: null,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -156,19 +174,12 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.set(toHex(1), name1, address2)).toBe(true);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: address2Checksum,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.set('0x1', name1, address2)).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: address2Checksum,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -177,19 +188,12 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.set(toHex(1), name1, null)).toBe(true);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: null,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.set('0x1', name1, null)).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: null,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -198,19 +202,12 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.set(toHex(1), name1, address1)).toBe(false);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: address1Checksum,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.set('0x1', name1, address1)).toBe(false);
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: address1Checksum,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -219,19 +216,12 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, null)).toBe(true);
-    expect(controller.set(toHex(1), name1, null)).toBe(false);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: null,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, null)).toBe(true);
+    expect(controller.set('0x1', name1, null)).toBe(false);
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: null,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -240,33 +230,37 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.set(toHex(1), name2, address2)).toBe(true);
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.set('0x1', name2, address2)).toBe(true);
     expect(controller.set(toHex(2), name1, address1)).toBe(true);
-    expect(controller.set(toHex(1), name1, address3)).toBe(true);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: address3Checksum,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-          [name2]: {
-            address: address2Checksum,
-            chainId: toHex(1),
-            ensName: name2,
-          },
-        },
-        [toHex(2)]: {
-          [name1]: {
-            address: address1Checksum,
-            chainId: toHex(2),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, address3)).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: address3Checksum,
+      chainId: '0x1',
+      ensName: name1,
+    });
+    expect(controller.state.ensEntries['0x1'][name2]).toStrictEqual({
+      address: address2Checksum,
+      chainId: '0x1',
+      ensName: name2,
+    });
+    expect(controller.state.ensEntries['0x2'][name1]).toStrictEqual({
+      address: address1Checksum,
+      chainId: toHex(2),
+      ensName: name1,
+    });
+  });
+
+  it('should get ENS default registry by chainId when asking for `.`', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.get('0x1', name1)).toStrictEqual({
+      address: address1Checksum,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -275,10 +269,10 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.get(toHex(1), name1)).toStrictEqual({
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.get('0x1', name1)).toStrictEqual({
       address: address1Checksum,
-      chainId: toHex(1),
+      chainId: '0x1',
       ensName: name1,
     });
   });
@@ -288,8 +282,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.get(toHex(1), name2)).toBeNull();
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.get('0x1', name2)).toBeNull();
   });
 
   it('should return null when getting nonexistent chainId', () => {
@@ -297,7 +291,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.set('0x1', name1, address1)).toBe(true);
     expect(controller.get(toHex(2), name1)).toBeNull();
   });
 
@@ -312,10 +306,7 @@ describe('EnsController', () => {
     }).toThrow(
       'Invalid ENS entry: { chainId:a, ensName:foobarb.eth, address:0x32Be343B94f860124dC4fEe278FDCBD38C102D88}',
     );
-    expect(controller.state).toStrictEqual({
-      ensEntries: {},
-      ensResolutionsByAddress: {},
-    });
+    expect(controller.state).toStrictEqual(defaultState);
   });
 
   it('should throw on attempt to set invalid ENS entry: ENS name', () => {
@@ -324,12 +315,9 @@ describe('EnsController', () => {
       messenger,
     });
     expect(() => {
-      controller.set(toHex(1), 'foo.eth', address1);
+      controller.set('0x1', 'foo.eth', address1);
     }).toThrow('Invalid ENS name: foo.eth');
-    expect(controller.state).toStrictEqual({
-      ensEntries: {},
-      ensResolutionsByAddress: {},
-    });
+    expect(controller.state).toStrictEqual(defaultState);
   });
 
   it('should throw on attempt to set invalid ENS entry: address', () => {
@@ -338,14 +326,11 @@ describe('EnsController', () => {
       messenger,
     });
     expect(() => {
-      controller.set(toHex(1), name1, 'foo');
+      controller.set('0x1', name1, 'foo');
     }).toThrow(
       'Invalid ENS entry: { chainId:0x1, ensName:foobarb.eth, address:foo}',
     );
-    expect(controller.state).toStrictEqual({
-      ensEntries: {},
-      ensResolutionsByAddress: {},
-    });
+    expect(controller.state).toStrictEqual(defaultState);
   });
 
   it('should remove an ENS entry and return true', () => {
@@ -353,12 +338,23 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.delete(toHex(1), name1)).toBe(true);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {},
-      ensResolutionsByAddress: {},
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.delete('0x1', name1)).toBe(true);
+    expect(controller.state).toStrictEqual(defaultState);
+  });
+
+  it('should remove chain entries completely when all entries are removed', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
     });
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.delete('0x1', '.')).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name1].address).toBe(
+      address1Checksum,
+    );
+    expect(controller.delete('0x1', name1)).toBe(true);
+    expect(controller.state.ensEntries['0x1']).toBeUndefined();
   });
 
   it('should return false if an ENS entry was NOT deleted', () => {
@@ -366,20 +362,13 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    controller.set(toHex(1), name1, address1);
-    expect(controller.delete(toHex(1), 'bar')).toBe(false);
+    controller.set('0x1', name1, address1);
+    expect(controller.delete('0x1', 'bar')).toBe(false);
     expect(controller.delete(toHex(2), 'bar')).toBe(false);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name1]: {
-            address: address1Checksum,
-            chainId: toHex(1),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.state.ensEntries['0x1'][name1]).toStrictEqual({
+      address: address1Checksum,
+      chainId: '0x1',
+      ensName: name1,
     });
   });
 
@@ -388,28 +377,19 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.set(toHex(1), name2, address2)).toBe(true);
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.set('0x1', name2, address2)).toBe(true);
     expect(controller.set(toHex(2), name1, address1)).toBe(true);
-    expect(controller.delete(toHex(1), name1)).toBe(true);
-    expect(controller.state).toStrictEqual({
-      ensEntries: {
-        [toHex(1)]: {
-          [name2]: {
-            address: address2Checksum,
-            chainId: toHex(1),
-            ensName: name2,
-          },
-        },
-        [toHex(2)]: {
-          [name1]: {
-            address: address1Checksum,
-            chainId: toHex(2),
-            ensName: name1,
-          },
-        },
-      },
-      ensResolutionsByAddress: {},
+    expect(controller.delete('0x1', name1)).toBe(true);
+    expect(controller.state.ensEntries['0x1'][name2]).toStrictEqual({
+      address: address2Checksum,
+      chainId: '0x1',
+      ensName: name2,
+    });
+    expect(controller.state.ensEntries['0x2'][name1]).toStrictEqual({
+      address: address1Checksum,
+      chainId: toHex(2),
+      ensName: name1,
     });
   });
 
@@ -418,8 +398,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toBe(true);
-    expect(controller.set(toHex(1), name2, address2)).toBe(true);
+    expect(controller.set('0x1', name1, address1)).toBe(true);
+    expect(controller.set('0x1', name2, address2)).toBe(true);
     expect(controller.set(toHex(2), name1, address1)).toBe(true);
     controller.clear();
     expect(controller.state).toStrictEqual({
@@ -445,7 +425,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -488,7 +468,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -511,7 +491,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -533,7 +513,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -558,7 +538,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -583,7 +563,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -610,7 +590,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -636,7 +616,7 @@ describe('EnsController', () => {
         onNetworkDidChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: '0x1',
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
