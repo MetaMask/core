@@ -33,14 +33,13 @@
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.3",
+    "@metamask/controller-utils": "^8.0.4",
     "@metamask/utils": "^8.3.0",
-    "ethereum-ens-network-map": "^1.0.2",
     "punycode": "^2.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^17.2.0",
+    "@metamask/network-controller": "^17.2.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

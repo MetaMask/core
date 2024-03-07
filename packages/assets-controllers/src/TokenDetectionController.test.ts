@@ -12,10 +12,11 @@ import type {
   NetworkState,
   NetworkConfiguration,
   NetworkController,
-  ProviderConfig,
   NetworkClientId,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
+import type { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -142,9 +143,9 @@ function buildTokenDetectionControllerMessenger(
     allowedActions: [
       'AccountsController:getSelectedAccount',
       'KeyringController:getState',
-      'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getNetworkClientById',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
-      'NetworkController:getProviderConfig',
+      'NetworkController:getState',
       'TokensController:getState',
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
@@ -271,10 +272,13 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.goerli,
           },
         },
-        async ({ controller }) => {
+        async ({ controller, mockNetworkState }) => {
+          mockNetworkState({
+            ...defaultNetworkState,
+            selectedNetworkClientId: NetworkType.goerli,
+          });
           await controller.start();
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
@@ -291,7 +295,6 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -339,19 +342,26 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: 'polygon',
             selectedAddress,
           },
         },
         async ({
           controller,
-          mockGetProviderConfig,
           mockTokenListGetState,
+          mockNetworkState,
+          mockGetNetworkClientById,
           callActionSpy,
         }) => {
-          mockGetProviderConfig({
-            chainId: '0x89',
-          } as unknown as ProviderConfig);
+          mockNetworkState({
+            ...defaultNetworkState,
+            selectedNetworkClientId: 'polygon',
+          });
+          mockGetNetworkClientById(
+            () =>
+              ({
+                configuration: { chainId: '0x89' },
+              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+          );
 
           mockTokenListGetState({
             ...getDefaultTokenListState(),
@@ -399,7 +409,6 @@ describe('TokenDetectionController', () => {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             interval,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -459,7 +468,6 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -510,8 +518,6 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
-            selectedAddress: '',
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
@@ -569,7 +575,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -625,7 +630,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -680,7 +684,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress: firstSelectedAddress,
               },
               isKeyringUnlocked: false,
@@ -738,7 +741,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -805,7 +807,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -863,7 +864,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -931,7 +931,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -979,7 +978,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1031,7 +1029,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress: firstSelectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1080,7 +1077,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1142,7 +1138,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -1190,7 +1185,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1258,7 +1252,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1315,7 +1308,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1367,7 +1359,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1415,7 +1406,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1466,7 +1456,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1526,7 +1515,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1583,7 +1571,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1619,7 +1606,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1668,7 +1654,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1725,7 +1710,6 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -1792,15 +1776,19 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.goerli,
             selectedAddress,
           },
         },
         async ({
           controller,
+          mockNetworkState,
           triggerPreferencesStateChange,
           callActionSpy,
         }) => {
+          mockNetworkState({
+            ...defaultNetworkState,
+            selectedNetworkClientId: NetworkType.goerli,
+          });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
@@ -1832,7 +1820,6 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -1852,17 +1839,12 @@ describe('TokenDetectionController', () => {
           expect(callActionSpy).toHaveBeenLastCalledWith(
             'TokensController:addDetectedTokens',
             Object.values(STATIC_MAINNET_TOKEN_LIST).map((token) => {
-              const newToken = {
-                ...token,
+              const { iconUrl, ...tokenMetadata } = token;
+              return {
+                ...tokenMetadata,
                 image: token.iconUrl,
                 isERC721: false,
               };
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              delete (newToken as any).erc20;
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              delete (newToken as any).erc721;
-              delete newToken.iconUrl;
-              return newToken;
             }),
             {
               selectedAddress,
@@ -1883,7 +1865,6 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -1938,7 +1919,6 @@ describe('TokenDetectionController', () => {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -2002,9 +1982,9 @@ type WithControllerCallback<ReturnValue> = ({
   mockTokensGetState,
   mockTokenListGetState,
   mockPreferencesGetState,
-  mockFindNetworkClientIdByChainId,
+  mockGetNetworkClientById,
   mockGetNetworkConfigurationByNetworkClientId,
-  mockGetProviderConfig,
+  mockNetworkState,
   callActionSpy,
   triggerKeyringUnlock,
   triggerKeyringLock,
@@ -2019,13 +1999,15 @@ type WithControllerCallback<ReturnValue> = ({
   mockTokensGetState: (state: TokensState) => void;
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
-  mockFindNetworkClientIdByChainId: (
-    handler: (chainId: Hex) => NetworkClientId,
+  mockGetNetworkClientById: (
+    handler: (
+      networkClientId: NetworkClientId,
+    ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
   ) => void;
   mockGetNetworkConfigurationByNetworkClientId: (
-    handler: (networkClientId: string) => NetworkConfiguration,
+    handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
   ) => void;
-  mockGetProviderConfig: (config: ProviderConfig) => void;
+  mockNetworkState: (state: NetworkState) => void;
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
@@ -2076,10 +2058,20 @@ async function withController<ReturnValue>(
       isUnlocked: isKeyringUnlocked ?? true,
     } as KeyringControllerState),
   );
-  const mockFindNetworkClientIdByChainId = jest.fn<NetworkClientId, [Hex]>();
+  const mockGetNetworkClientById = jest.fn<
+    ReturnType<NetworkController['getNetworkClientById']>,
+    Parameters<NetworkController['getNetworkClientById']>
+  >();
   controllerMessenger.registerActionHandler(
-    'NetworkController:findNetworkClientIdByChainId',
-    mockFindNetworkClientIdByChainId.mockReturnValue(NetworkType.mainnet),
+    'NetworkController:getNetworkClientById',
+    mockGetNetworkClientById.mockImplementation(() => {
+      return {
+        configuration: { chainId: '0x1' },
+        provider: {},
+        destroy: {},
+        blockTracker: {},
+      } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+    }),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
@@ -2093,13 +2085,10 @@ async function withController<ReturnValue>(
       },
     ),
   );
-  const mockGetProviderConfig = jest.fn<ProviderConfig, []>();
+  const mockNetworkState = jest.fn<NetworkState, []>();
   controllerMessenger.registerActionHandler(
-    'NetworkController:getProviderConfig',
-    mockGetProviderConfig.mockReturnValue({
-      type: NetworkType.mainnet,
-      chainId: '0x1',
-    } as unknown as ProviderConfig),
+    'NetworkController:getState',
+    mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
   );
   const mockTokensState = jest.fn<TokensState, []>();
   controllerMessenger.registerActionHandler(
@@ -2130,7 +2119,6 @@ async function withController<ReturnValue>(
   const callActionSpy = jest.spyOn(controllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
-    networkClientId: NetworkType.mainnet,
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
@@ -2154,10 +2142,12 @@ async function withController<ReturnValue>(
       mockTokenListGetState: (state: TokenListState) => {
         mockTokenListState.mockReturnValue(state);
       },
-      mockFindNetworkClientIdByChainId: (
-        handler: (chainId: Hex) => NetworkClientId,
+      mockGetNetworkClientById: (
+        handler: (
+          networkClientId: NetworkClientId,
+        ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
       ) => {
-        mockFindNetworkClientIdByChainId.mockImplementation(handler);
+        mockGetNetworkClientById.mockImplementation(handler);
       },
       mockGetNetworkConfigurationByNetworkClientId: (
         handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
@@ -2166,8 +2156,8 @@ async function withController<ReturnValue>(
           handler,
         );
       },
-      mockGetProviderConfig: (config: ProviderConfig) => {
-        mockGetProviderConfig.mockReturnValue(config);
+      mockNetworkState: (state: NetworkState) => {
+        mockNetworkState.mockReturnValue(state);
       },
       callActionSpy,
       triggerKeyringUnlock: () => {

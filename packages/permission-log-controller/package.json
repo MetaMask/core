@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-log-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Controller with middleware for logging requests and responses to restricted and permissions-related methods",
   "keywords": [
     "MetaMask",
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^4.1.1",
-    "@metamask/json-rpc-engine": "^7.3.2",
+    "@metamask/json-rpc-engine": "^7.3.3",
     "@metamask/utils": "^8.3.0"
   },
   "devDependencies": {
