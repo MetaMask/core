@@ -204,7 +204,7 @@ type TransactionMetaBase = {
   id: string;
 
   /**
-   * Whether the transaction is a smart contract interaction.
+   * Whether the transaction will be submitted privately.
    */
   isSmartTransaction?: boolean;
 
