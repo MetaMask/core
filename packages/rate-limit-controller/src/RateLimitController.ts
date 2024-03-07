@@ -33,11 +33,11 @@ const name = 'RateLimitController';
 
 export type RateLimitStateChange<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = ControllerStateChangeEvent<typeof name, RateLimitedApis>;
+> = ControllerStateChangeEvent<typeof name, RateLimitState<RateLimitedApis>>;
 
 export type GetRateLimitState<
   RateLimitedApis extends Record<string, RateLimitedApi>,
-> = ControllerGetStateAction<typeof name, RateLimitedApis>;
+> = ControllerGetStateAction<typeof name, RateLimitState<RateLimitedApis>>;
 
 export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
   type: `${typeof name}:call`;

@@ -91,9 +91,9 @@ function getNativeBalanceChange(
   userAddress: Hex,
   response: SimulationResponse,
 ): SimulationBalanceChange | undefined {
-  /* istanbul ignore next */
   const transactionResponse = response.transactions[0];
 
+  /* istanbul ignore next */
   if (!transactionResponse) {
     return undefined;
   }
