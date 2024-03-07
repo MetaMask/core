@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - This may cause some duplication of allowlists between type-level and value-level code.
     - This requirement is only relevant for TypeScript code. A JavaScript consumer only needs to pass in the correct value-level function parameters. Because of this, these changes should not affect downstream JavaScript code, but may be disruptive to TypeScript code.
     - `getRestricted` is still able to flag `AllowedActions` and `AllowedEvents` members that should not be included in the allowlists, based on the `Action`, `Event` generic arguments passed into the `ControllerMessenger` instance.
+- **BREAKING:** The `RestrictedControllerMessenger` class constructor now expects `allowedActions` and `allowedEvents` as required options. ([$4013](https://github.com/MetaMask/core/pull/4013))
 - Convert interface `StatePropertyMetadata<T extends Json>` into a type.
 
 ### Removed
