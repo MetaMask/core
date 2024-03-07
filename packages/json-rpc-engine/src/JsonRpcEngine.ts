@@ -239,24 +239,22 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
         if (isComplete) {
           await JsonRpcEngine.#runReturnHandlers(returnHandlers);
-          return end(middlewareError as JsonRpcEngineCallbackError);
+          return end(middlewareError);
         }
 
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         return next(async (handlerCallback) => {
           try {
             await JsonRpcEngine.#runReturnHandlers(returnHandlers);
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } catch (error: any) {
-            return handlerCallback(error);
+          } catch (error: unknown) {
+            // TODO: Explicitly handle errors thrown from `#runReturnHandlers` that are not of type `JsonRpcEngineCallbackError`
+            return handlerCallback(error as JsonRpcEngineCallbackError);
           }
           return handlerCallback();
         });
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        return end(error);
+      } catch (error: unknown) {
+        // TODO: Explicitly handle errors thrown from `#runAllMiddleware` that are not of type `JsonRpcEngineCallbackError`
+        return end(error as JsonRpcEngineCallbackError);
       }
     };
   }
@@ -501,7 +499,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     middlewares: JsonRpcMiddleware<JsonRpcParams, Json>[],
   ): Promise<
     [
-      unknown, // error
+      JsonRpcEngineCallbackError, // error
       boolean, // isComplete
       JsonRpcEngineReturnHandler[],
     ]
@@ -541,15 +539,15 @@ export class JsonRpcEngine extends SafeEventEmitter {
     response: PendingJsonRpcResponse<Json>,
     middleware: JsonRpcMiddleware<JsonRpcParams, Json>,
     returnHandlers: JsonRpcEngineReturnHandler[],
-  ): Promise<[unknown, boolean]> {
+  ): Promise<[JsonRpcEngineCallbackError, boolean]> {
     return new Promise((resolve) => {
-      const end: JsonRpcEngineEndCallback = (error?: unknown) => {
+      const end: JsonRpcEngineEndCallback = (error) => {
         const parsedError = error || response.error;
         if (parsedError) {
           response.error = serializeError(parsedError);
         }
         // True indicates that the request should end
-        resolve([parsedError, true]);
+        resolve([parsedError ?? null, true]);
       };
 
       const next: JsonRpcEngineNextCallback = (
@@ -581,10 +579,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
       try {
         middleware(request, response, next, end);
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        end(error);
+      } catch (error: unknown) {
+        // TODO: Explicitly handle errors thrown from `middleware` that are not of type `JsonRpcEngineCallbackError`
+        end(error as JsonRpcEngineCallbackError);
       }
     });
   }
