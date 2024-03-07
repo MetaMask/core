@@ -122,8 +122,8 @@ export type ApprovalControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   ApprovalControllerActions,
   ApprovalControllerEvents,
-  string,
-  string
+  never,
+  never
 >;
 
 // Option Types
