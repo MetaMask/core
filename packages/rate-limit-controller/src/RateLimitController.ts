@@ -202,7 +202,7 @@ export class RateLimitController<
       if (previous === 0) {
         setTimeout(() => this.resetRequestCount(api, origin), rateLimitTimeout);
       }
-      return Object.assign(state, {
+      Object.assign(state, {
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
           [api]: { [origin]: previous + 1 },
@@ -219,7 +219,7 @@ export class RateLimitController<
    */
   private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
-      return Object.assign(state, {
+      Object.assign(state, {
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
           [api]: { [origin]: 0 },
