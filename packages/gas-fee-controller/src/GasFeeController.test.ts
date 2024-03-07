@@ -2,15 +2,16 @@ import nock from 'nock';
 import * as sinon from 'sinon';
 import type { Hex } from '@metamask/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  NetworkController,
+import { NetworkType, toHex } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
+import { NetworkController } from '@metamask/network-controller';
+import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
-import EthQuery from 'eth-query';
-import { NetworkType, toHex } from '@metamask/controller-utils';
+
 import {
   GAS_ESTIMATE_TYPES,
   GasFeeController,

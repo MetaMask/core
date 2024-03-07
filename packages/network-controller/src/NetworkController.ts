@@ -1,7 +1,6 @@
 import { strict as assert } from 'assert';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
-import EthQuery from 'eth-query';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -18,13 +17,15 @@ import {
   NetworkType,
   isSafeChainId,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
+import type { Hex } from '@metamask/utils';
 import {
-  Hex,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
   isStrictHexString,
 } from '@metamask/utils';
+
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
 import {

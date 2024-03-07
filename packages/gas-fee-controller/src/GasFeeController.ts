@@ -1,5 +1,4 @@
 import type { Patch } from 'immer';
-import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
 import type { Hex } from '@metamask/utils';
 import {
@@ -7,6 +6,7 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,

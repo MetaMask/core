@@ -1,24 +1,13 @@
-import { EventEmitter } from 'events';
-import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
-import { errorCodes, ethErrors } from 'eth-rpc-errors';
-import MethodRegistry from 'eth-method-registry';
-import EthQuery from 'eth-query';
 import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
-import { Mutex } from 'async-mutex';
-import type { Hex } from '@metamask/utils';
+
 import {
   BaseController,
   BaseConfig,
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import type {
-  BlockTracker,
-  NetworkState,
-  Provider,
-} from '@metamask/network-controller';
 import {
   BNToHex,
   fractionBN,
@@ -37,6 +26,18 @@ import {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
+import EthQuery from '@metamask/eth-query';
+import type {
+  BlockTracker,
+  NetworkState,
+  Provider,
+} from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
+import MethodRegistry from 'eth-method-registry';
+import { errorCodes, ethErrors } from 'eth-rpc-errors';
+import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
+import { EventEmitter } from 'events';
 import NonceTracker from 'nonce-tracker';
 import {
   getAndFormatTransactionsForNonceTracker,

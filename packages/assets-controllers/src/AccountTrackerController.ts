@@ -1,13 +1,8 @@
-import EthQuery from 'eth-query';
-import type { Provider } from 'eth-query';
-import { Mutex } from 'async-mutex';
 import {
   BaseConfig,
   BaseController,
   BaseState,
 } from '@metamask/base-controller';
-import { Hex, assert } from '@metamask/utils';
-import { PreferencesState } from '@metamask/preferences-controller';
 import {
   BNToHex,
   query,
@@ -15,6 +10,11 @@ import {
 } from '@metamask/controller-utils';
 import { NetworkState } from '@metamask/network-controller';
 import { cloneDeep } from 'lodash';
+import EthQuery from '@metamask/eth-query';
+import type { Provider } from '@metamask/eth-query';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import { Hex, assert } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 
 /**
  * @type AccountInformation
