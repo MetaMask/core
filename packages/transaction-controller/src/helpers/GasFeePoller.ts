@@ -6,9 +6,11 @@ import EventEmitter from 'events';
 
 import type { NetworkClientId } from '../../../network-controller/src';
 import { projectLogger } from '../logger';
-import type { GasFeeEstimates, GasFeeFlow, GasFeeFlowRequest } from '../types';
 import { TransactionStatus } from '../types';
 import type {
+  GasFeeEstimates,
+  GasFeeFlow,
+  GasFeeFlowRequest,
   TransactionMeta,
   TransactionParams,
   GetSmartTransactionFeeEstimatesResponse,
@@ -71,7 +73,8 @@ export class GasFeePoller {
     this.#gasFeeFlows = gasFeeFlows;
     this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
-    this.#getSmartTransactionGasFeeEstimates = getSmartTransactionGasFeeEstimates;
+    this.#getSmartTransactionGasFeeEstimates =
+      getSmartTransactionGasFeeEstimates;
     this.#getTransactions = getTransactions;
 
     onStateChange(() => {
@@ -152,7 +155,8 @@ export class GasFeePoller {
     const request: GasFeeFlowRequest = {
       ethQuery,
       getGasFeeControllerEstimates: this.#getGasFeeControllerEstimates,
-      getSmartTransactionGasFeeEstimates: this.#getSmartTransactionGasFeeEstimates,
+      getSmartTransactionGasFeeEstimates:
+        this.#getSmartTransactionGasFeeEstimates,
       transactionMeta,
     };
 

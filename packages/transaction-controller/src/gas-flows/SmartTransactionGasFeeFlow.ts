@@ -1,37 +1,16 @@
-import { hexToBN, toHex } from '@metamask/controller-utils';
-import { createModuleLogger, type Hex } from '@metamask/utils';
-import type BN from 'bn.js';
+import { toHex } from '@metamask/controller-utils';
+import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
-  GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
-  GetSmartTransactionFeeEstimatesResponse,
 } from '../types';
-import { GasFeeEstimateLevel } from '../types';
-import { pickMiddleFeeElement } from '../utils/utils';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 const log = createModuleLogger(projectLogger, 'smart-transaction-gas-fee-flow');
-
-const BASE_FEE_MULTIPLIERS = {
-  low: 1,
-  medium: 1.35,
-  high: 1.7,
-};
-
-const PRIORITY_FEE_MULTIPLIERS = {
-  low: 1,
-  medium: 1.05,
-  high: 1.1,
-};
-
-type FeesByLevel = {
-  [key in GasFeeEstimateLevel]: BN;
-};
 
 /**
  * Implementation of a smart transaction gas fee flow specific to Smart Transactions.
@@ -59,34 +38,19 @@ export class SmartTransactionGasFeeFlow implements GasFeeFlow {
 
     log('Received smart transaction response', smartTransactionFeesResponse);
 
-    const baseValue = pickMiddleFeeElement(smartTransactionFeesResponse.fees);
+    const sortedFees = smartTransactionFeesResponse.fees
+      .slice()
+      .sort((a, b) => b.maxFeePerGas - a.maxFeePerGas);
+    const highestValue = sortedFees[0];
 
-    log('Picked base value', baseValue);
+    log('Picked highest value', highestValue);
 
-    const maxFees = this.#getValuesFromMultipliers(
-      toHex(baseValue.maxFeePerGas),
-      BASE_FEE_MULTIPLIERS,
-    );
-
-    log('Generated max fees', maxFees);
-
-    const priorityFees = this.#getValuesFromMultipliers(
-      toHex(baseValue.maxPriorityFeePerGas),
-      PRIORITY_FEE_MULTIPLIERS,
-    );
-
-    log('Generated priority fees', priorityFees);
-
-    const estimates = Object.values(GasFeeEstimateLevel).reduce(
-      (result, level) => ({
-        ...result,
-        [level]: {
-          maxFeePerGas: toHex(maxFees[level]),
-          maxPriorityFeePerGas: toHex(priorityFees[level]),
-        },
-      }),
-      {} as GasFeeEstimates,
-    );
+    const estimates = {
+      medium: {
+        maxFeePerGas: toHex(highestValue.maxFeePerGas),
+        maxPriorityFeePerGas: toHex(highestValue.maxPriorityFeePerGas),
+      },
+    };
 
     return {
       estimates,
@@ -106,21 +70,5 @@ export class SmartTransactionGasFeeFlow implements GasFeeFlow {
     }
 
     return tradeTxFees;
-  }
-
-  #getValuesFromMultipliers(
-    value: Hex,
-    multipliers: { low: number; medium: number; high: number },
-  ): FeesByLevel {
-    const base = hexToBN(value);
-    const low = base.muln(multipliers.low);
-    const medium = base.muln(multipliers.medium);
-    const high = base.muln(multipliers.high);
-
-    return {
-      low,
-      medium,
-      high,
-    };
   }
 }

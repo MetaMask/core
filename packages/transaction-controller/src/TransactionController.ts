@@ -513,7 +513,8 @@ export class TransactionController extends BaseControllerV1<
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
-    this.getSmartTransactionGasFeeEstimates = getSmartTransactionGasFeeEstimates;
+    this.getSmartTransactionGasFeeEstimates =
+      getSmartTransactionGasFeeEstimates;
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
@@ -599,7 +600,8 @@ export class TransactionController extends BaseControllerV1<
           chainId,
         }),
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
-      getSmartTransactionGasFeeEstimates: this.getSmartTransactionGasFeeEstimates,
+      getSmartTransactionGasFeeEstimates:
+        this.getSmartTransactionGasFeeEstimates,
       getTransactions: () => this.state.transactions,
       onStateChange: (listener) => {
         this.subscribe(listener);
@@ -2039,7 +2041,8 @@ export class TransactionController extends BaseControllerV1<
       }),
       gasFeeFlows: this.gasFeeFlows,
       getGasFeeEstimates: this.getGasFeeEstimates,
-      getSmartTransactionGasFeeEstimates: this.getSmartTransactionGasFeeEstimates,
+      getSmartTransactionGasFeeEstimates:
+        this.getSmartTransactionGasFeeEstimates,
       getSavedGasFees: this.getSavedGasFees.bind(this),
       txMeta: transactionMeta,
     });

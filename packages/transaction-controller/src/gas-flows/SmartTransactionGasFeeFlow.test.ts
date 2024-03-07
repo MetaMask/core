@@ -1,4 +1,4 @@
-import EthQuery from '@metamask/eth-query';
+import type EthQuery from '@metamask/eth-query';
 
 import type {
   GasFeeFlowRequest,
@@ -38,17 +38,9 @@ const SMART_TRANSACTION_GAS_FEES_API_RESPONSE_MOCK = {
 
 const RESPONSE_MOCK: GasFeeFlowResponse = {
   estimates: {
-    low: {
-      maxFeePerGas: '0x64', // 100
-      maxPriorityFeePerGas: '0x64', // 100
-    },
     medium: {
-      maxFeePerGas: '0x87', // 135
-      maxPriorityFeePerGas: '0x69', // 105
-    },
-    high: {
-      maxFeePerGas: '0xaa', // 170
-      maxPriorityFeePerGas: '0x6e', // 110
+      maxFeePerGas: '0xc8', // 200
+      maxPriorityFeePerGas: '0xc8', // 200
     },
   },
 };
@@ -65,7 +57,8 @@ describe('SmartTransactionGasFeeFlow', () => {
     request = {
       ethQuery: {} as EthQuery,
       getGasFeeControllerEstimates: jest.fn(),
-      getSmartTransactionGasFeeEstimates: getSmartTransactionGasFeeEstimatesMock,
+      getSmartTransactionGasFeeEstimates:
+        getSmartTransactionGasFeeEstimatesMock,
       transactionMeta: TRANSACTION_META_MOCK as TransactionMeta,
     };
   });

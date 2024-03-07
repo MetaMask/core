@@ -1002,13 +1002,13 @@ export enum GasFeeEstimateLevel {
 /** Gas fee estimates for a transaction. */
 export type GasFeeEstimates = {
   /** The gas fee estimate for a low priority transaction. */
-  [GasFeeEstimateLevel.low]: GasFeeEstimatesForLevel;
+  [GasFeeEstimateLevel.low]?: GasFeeEstimatesForLevel;
 
   /** The gas fee estimate for a medium priority transaction. */
   [GasFeeEstimateLevel.medium]: GasFeeEstimatesForLevel;
 
   /** The gas fee estimate for a high priority transaction. */
-  [GasFeeEstimateLevel.high]: GasFeeEstimatesForLevel;
+  [GasFeeEstimateLevel.high]?: GasFeeEstimatesForLevel;
 };
 
 /** Request to a gas fee flow to obtain gas fee estimates. */

@@ -66,7 +66,9 @@ export function mergeGasFeeEstimates({
         ...result,
         [level]: mergeFeeMarketEstimate(
           gasFeeControllerEstimates[level],
-          transactionGasFeeEstimates[level],
+          transactionGasFeeEstimates[level] as NonNullable<
+            TransactionGasFeeEstimates[typeof level]
+          >,
         ),
       }),
       { ...gasFeeControllerEstimates } as GasFeeEstimates,
@@ -77,7 +79,11 @@ export function mergeGasFeeEstimates({
     return Object.values(GasFeeEstimateLevel).reduce(
       (result, level) => ({
         ...result,
-        [level]: getLegacyEstimate(transactionGasFeeEstimates[level]),
+        [level]: getLegacyEstimate(
+          transactionGasFeeEstimates[level] as NonNullable<
+            TransactionGasFeeEstimates[typeof level]
+          >,
+        ),
       }),
       {} as LegacyGasPriceEstimate,
     );
