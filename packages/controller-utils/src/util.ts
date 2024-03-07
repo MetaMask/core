@@ -418,6 +418,10 @@ export async function timeoutFetch(
  * @returns The normalized ENS name string.
  */
 export function normalizeEnsName(ensName: string): string | null {
+  // `.` refers to the registry root contract
+  if (ensName === '.') {
+    return ensName;
+  }
   if (ensName && typeof ensName === 'string') {
     try {
       const normalized = ensNamehash.normalize(ensName.trim());
