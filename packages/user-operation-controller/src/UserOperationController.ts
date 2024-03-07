@@ -770,10 +770,21 @@ export class UserOperationController extends BaseController<
     const previousMaxFeePerGas = userOperation.maxFeePerGas;
     const previousMaxPriorityFeePerGas = userOperation.maxPriorityFeePerGas;
 
-    if (
+    const gasFeesUpdated =
       previousMaxFeePerGas !== updatedMaxFeePerGas ||
-      previousMaxPriorityFeePerGas !== updatedMaxPriorityFeePerGas
-    ) {
+      previousMaxPriorityFeePerGas !== updatedMaxPriorityFeePerGas;
+
+    /**
+     * true when we detect {@link getTransactionMetadata} has set the gas fees to zero
+     * because the userOperation has a paymaster. This should not be mistaken for gas
+     * fees being updated during the approval process.
+     */
+    const areGasFeesZeroBecauseOfPaymaster =
+      usingPaymaster &&
+      updatedMaxFeePerGas === VALUE_ZERO &&
+      updatedMaxPriorityFeePerGas === VALUE_ZERO;
+
+    if (gasFeesUpdated && !areGasFeesZeroBecauseOfPaymaster) {
       log('Gas fees updated during approval', {
         previousMaxFeePerGas,
         previousMaxPriorityFeePerGas,
