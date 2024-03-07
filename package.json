@@ -12,9 +12,11 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc --build tsconfig.build.json --verbose",
+    "build": "yarn run build:source && yarn run build:types",
     "build:clean": "rimraf dist '**/*.tsbuildinfo' && yarn build",
     "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run build:docs",
+    "build:source": "yarn workspaces foreach --exclude @metamask/core-monorepo --parallel --interlaced --verbose run build",
+    "build:types": "tsc --build tsconfig.build.json --verbose",
     "build:watch": "yarn run build --watch",
     "changelog:update": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
@@ -39,6 +41,9 @@
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
+  },
+  "resolutions": {
+    "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
@@ -77,9 +82,9 @@
     "nock": "^13.3.1",
     "prettier": "^2.7.1",
     "prettier-plugin-packagejson": "^2.4.5",
-    "rimraf": "^3.0.2",
     "simple-git-hooks": "^2.8.0",
     "ts-node": "^10.9.1",
+    "tsup": "^8.0.2",
     "typescript": "~4.8.4",
     "yargs": "^17.7.2"
   },
@@ -92,7 +97,8 @@
       "@lavamoat/preinstall-always-fail": false,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "babel-runtime>core-js": false,
-      "simple-git-hooks": false
+      "simple-git-hooks": false,
+      "tsup>esbuild": true
     }
   }
 }
