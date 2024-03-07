@@ -16,9 +16,9 @@ import type {
 } from '@metamask/keyring-controller';
 import type {
   NetworkClientId,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
-  NetworkControllerGetProviderConfigAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -32,8 +32,8 @@ import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type {
   GetTokenListState,
+  TokenListMap,
   TokenListStateChange,
-  TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type {
@@ -63,25 +63,23 @@ export function isEqualCaseInsensitive(
   return value1.toLowerCase() === value2.toLowerCase();
 }
 
-type LegacyToken = Omit<
-  Token,
-  'aggregators' | 'image' | 'balanceError' | 'isERC721'
-> & {
+type LegacyToken = {
   name: string;
-  logo: string;
+  logo: `${string}.svg`;
+  symbol: string;
+  decimals: number;
   erc20?: boolean;
   erc721?: boolean;
 };
 
+type TokenDetectionMap = {
+  [P in keyof TokenListMap]: Omit<TokenListMap[P], 'occurrences'>;
+};
+
 export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
   contractMap,
-).reduce<
-  Record<
-    string,
-    Partial<TokenListToken> & Pick<Token, 'address' | 'symbol' | 'decimals'>
-  >
->((acc, [base, contract]) => {
-  const { logo, ...tokenMetadata } = contract;
+).reduce<TokenDetectionMap>((acc, [base, contract]) => {
+  const { logo, erc20, erc721, ...tokenMetadata } = contract;
   return {
     ...acc,
     [base.toLowerCase()]: {
@@ -107,9 +105,9 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
-  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetStateAction
   | GetTokenListState
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction
@@ -141,7 +139,6 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
  * @property intervalId - Polling interval used to fetch new token rates
- * @property chainId - The chain ID of the current network
  * @property selectedAddress - Vault selected address
  * @property networkClientId - The network client ID of the current selected network
  * @property disabled - Boolean to track if network requests are blocked
@@ -156,11 +153,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 > {
   #intervalId?: ReturnType<typeof setTimeout>;
 
-  #chainId: Hex;
-
   #selectedAddress: string;
 
   #networkClientId: NetworkClientId;
+
+  #tokenList: TokenDetectionMap = {};
 
   #disabled: boolean;
 
@@ -189,13 +186,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.messenger - The controller messaging system.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
-   * @param options.networkClientId - The selected network client ID of the current network
    * @param options.selectedAddress - Vault selected address
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    */
   constructor({
-    networkClientId,
     selectedAddress,
     interval = DEFAULT_INTERVAL,
     disabled = true,
@@ -203,7 +198,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     trackMetaMetricsEvent,
     messenger,
   }: {
-    networkClientId: NetworkClientId;
     selectedAddress?: string;
     interval?: number;
     disabled?: boolean;
@@ -229,21 +223,20 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
-    this.#networkClientId = networkClientId;
     this.#selectedAddress =
       selectedAddress ??
       this.messagingSystem.call('AccountsController:getSelectedAccount')
         .address;
-    const { chainId } =
-      this.#getCorrectChainIdAndNetworkClientId(networkClientId);
-    this.#chainId = chainId;
+
+    const { chainId, networkClientId } =
+      this.#getCorrectChainIdAndNetworkClientId();
+    this.#networkClientId = networkClientId;
 
     const { useTokenDetection: defaultUseTokenDetection } =
       this.messagingSystem.call('PreferencesController:getState');
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
-    this.#isDetectionEnabledForNetwork = isTokenDetectionSupportedForNetwork(
-      this.#chainId,
-    );
+    this.#isDetectionEnabledForNetwork =
+      isTokenDetectionSupportedForNetwork(chainId);
 
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
 
@@ -329,7 +322,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
         const { chainId: newChainId } =
           this.#getCorrectChainIdAndNetworkClientId(selectedNetworkClientId);
-        this.#chainId = newChainId;
         this.#isDetectionEnabledForNetwork =
           isTokenDetectionSupportedForNetwork(newChainId);
 
@@ -346,30 +338,29 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   /**
    * Allows controller to make active and passive polling requests
    */
-  enable() {
+  enable(): void {
     this.#disabled = false;
   }
 
   /**
    * Blocks controller from making network calls
    */
-  disable() {
+  disable(): void {
     this.#disabled = true;
   }
 
   /**
    * Internal isActive state
-   *
-   * @type {object}
+   * @type {boolean}
    */
-  get isActive() {
+  get isActive(): boolean {
     return !this.#disabled && this.#isUnlocked;
   }
 
   /**
    * Start polling for detected tokens.
    */
-  async start() {
+  async start(): Promise<void> {
     this.enable();
     await this.#startPolling();
   }
@@ -377,12 +368,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   /**
    * Stop polling for detected tokens.
    */
-  stop() {
+  stop(): void {
     this.disable();
     this.#stopPolling();
   }
 
-  #stopPolling() {
+  #stopPolling(): void {
     if (this.#intervalId) {
       clearInterval(this.#intervalId);
     }
@@ -418,21 +409,23 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         };
       }
     }
-    const { chainId } = this.messagingSystem.call(
-      'NetworkController:getProviderConfig',
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
     );
-    const newNetworkClientId = this.messagingSystem.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
     );
     return {
       chainId,
-      networkClientId: newNetworkClientId,
+      networkClientId: selectedNetworkClientId,
     };
   }
 
   async _executePoll(
-    networkClientId: string,
+    networkClientId: NetworkClientId,
     options: { address: string },
   ): Promise<void> {
     if (!this.isActive) {
@@ -455,7 +448,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
   async #restartTokenDetection({
     selectedAddress,
     networkClientId,
-  }: { selectedAddress?: string; networkClientId?: string } = {}) {
+  }: {
+    selectedAddress?: string;
+    networkClientId?: NetworkClientId;
+  } = {}): Promise<void> {
     await this.detectTokens({
       networkClientId,
       selectedAddress,
@@ -484,15 +480,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     const addressAgainstWhichToDetect =
       selectedAddress ?? this.#selectedAddress;
-    const {
-      chainId: chainIdAgainstWhichToDetect,
-      networkClientId: networkClientIdAgainstWhichToDetect,
-    } = this.#getCorrectChainIdAndNetworkClientId(networkClientId);
+    const { chainId, networkClientId: selectedNetworkClientId } =
+      this.#getCorrectChainIdAndNetworkClientId(networkClientId);
+    const chainIdAgainstWhichToDetect = chainId;
+    const networkClientIdAgainstWhichToDetect = selectedNetworkClientId;
 
     if (!isTokenDetectionSupportedForNetwork(chainIdAgainstWhichToDetect)) {
       return;
     }
-
     if (
       !this.#isDetectionEnabledFromPreferences &&
       chainIdAgainstWhichToDetect !== ChainId.mainnet
@@ -505,12 +500,30 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
-    const tokenList =
-      tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
-    const tokenListUsed = isTokenDetectionInactiveInMainnet
+    this.#tokenList = isTokenDetectionInactiveInMainnet
       ? STATIC_MAINNET_TOKEN_LIST
-      : tokenList;
+      : tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
 
+    for (const tokensSlice of this.#getSlicesOfTokensToDetect({
+      chainId: chainIdAgainstWhichToDetect,
+      selectedAddress: addressAgainstWhichToDetect,
+    })) {
+      await this.#addDetectedTokens({
+        tokensSlice,
+        selectedAddress: addressAgainstWhichToDetect,
+        networkClientId: networkClientIdAgainstWhichToDetect,
+        chainId: chainIdAgainstWhichToDetect,
+      });
+    }
+  }
+
+  #getSlicesOfTokensToDetect({
+    chainId,
+    selectedAddress,
+  }: {
+    chainId: Hex;
+    selectedAddress: string;
+  }): string[][] {
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messagingSystem.call('TokensController:getState');
     const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddresses] = [
@@ -518,12 +531,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       allDetectedTokens,
       allIgnoredTokens,
     ].map((tokens) =>
-      (
-        tokens[chainIdAgainstWhichToDetect]?.[addressAgainstWhichToDetect] ?? []
-      ).map((value) => (typeof value === 'string' ? value : value.address)),
+      (tokens[chainId]?.[selectedAddress] ?? []).map((value) =>
+        typeof value === 'string' ? value : value.address,
+      ),
     );
+
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(tokenListUsed)) {
+    for (const tokenAddress of Object.keys(this.#tokenList)) {
       if (
         [
           tokensAddresses,
@@ -539,60 +553,71 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         tokensToDetect.push(tokenAddress);
       }
     }
+
     const slicesOfTokensToDetect = [];
-    slicesOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
-    slicesOfTokensToDetect[1] = tokensToDetect.slice(
-      1000,
-      tokensToDetect.length - 1,
-    );
-    for (const tokensSlice of slicesOfTokensToDetect) {
-      if (tokensSlice.length === 0) {
-        break;
+    for (let i = 0, size = 1000; i < tokensToDetect.length; i += size) {
+      slicesOfTokensToDetect.push(tokensToDetect.slice(i, i + size));
+    }
+
+    return slicesOfTokensToDetect;
+  }
+
+  async #addDetectedTokens({
+    tokensSlice,
+    selectedAddress,
+    networkClientId,
+    chainId,
+  }: {
+    tokensSlice: string[];
+    selectedAddress: string;
+    networkClientId: NetworkClientId;
+    chainId: Hex;
+  }): Promise<void> {
+    await safelyExecute(async () => {
+      const balances = await this.#getBalancesInSingleCall(
+        selectedAddress,
+        tokensSlice,
+        networkClientId,
+      );
+
+      const tokensWithBalance: Token[] = [];
+      const eventTokensDetails: string[] = [];
+      for (const nonZeroTokenAddress of Object.keys(balances)) {
+        const { decimals, symbol, aggregators, iconUrl, name } =
+          this.#tokenList[nonZeroTokenAddress];
+        eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
+        tokensWithBalance.push({
+          address: nonZeroTokenAddress,
+          decimals,
+          symbol,
+          aggregators,
+          image: iconUrl,
+          isERC721: false,
+          name,
+        });
       }
 
-      await safelyExecute(async () => {
-        const balances = await this.#getBalancesInSingleCall(
-          addressAgainstWhichToDetect,
-          tokensSlice,
-          networkClientIdAgainstWhichToDetect,
+      if (tokensWithBalance.length) {
+        this.#trackMetaMetricsEvent({
+          event: 'Token Detected',
+          category: 'Wallet',
+          properties: {
+            tokens: eventTokensDetails,
+            token_standard: 'ERC20',
+            asset_type: 'TOKEN',
+          },
+        });
+
+        await this.messagingSystem.call(
+          'TokensController:addDetectedTokens',
+          tokensWithBalance,
+          {
+            selectedAddress,
+            chainId,
+          },
         );
-        const tokensWithBalance: Token[] = [];
-        const eventTokensDetails: string[] = [];
-        for (const nonZeroTokenAddress of Object.keys(balances)) {
-          const { decimals, symbol, aggregators, iconUrl, name } =
-            tokenListUsed[nonZeroTokenAddress];
-          eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
-          tokensWithBalance.push({
-            address: nonZeroTokenAddress,
-            decimals,
-            symbol,
-            aggregators,
-            image: iconUrl,
-            isERC721: false,
-            name,
-          });
-        }
-        if (tokensWithBalance.length) {
-          this.#trackMetaMetricsEvent({
-            event: 'Token Detected',
-            category: 'Wallet',
-            properties: {
-              tokens: eventTokensDetails,
-              token_standard: 'ERC20',
-              asset_type: 'TOKEN',
-            },
-          });
-          await this.messagingSystem.call(
-            'TokensController:addDetectedTokens',
-            tokensWithBalance,
-            {
-              selectedAddress: addressAgainstWhichToDetect,
-              chainId: chainIdAgainstWhichToDetect,
-            },
-          );
-        }
-      });
-    }
+      }
+    });
   }
 }
 
