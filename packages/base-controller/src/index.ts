@@ -2,6 +2,7 @@ export type { BaseConfig, BaseState, Listener } from './BaseControllerV1';
 export { BaseControllerV1 } from './BaseControllerV1';
 export type {
   Listener as ListenerV2,
+  StateConstraint,
   StateDeriver,
   StateMetadata,
   StatePropertyMetadata,
