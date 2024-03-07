@@ -1678,16 +1678,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/base-controller@npm:^3.2.1, @metamask/base-controller@npm:^3.2.3":
-  version: 3.2.3
-  resolution: "@metamask/base-controller@npm:3.2.3"
-  dependencies:
-    "@metamask/utils": ^8.1.0
-    immer: ^9.0.6
-  checksum: f49fcf2bf892ec25657c2d72a50b3c4f3cad59acb1b74d9fdcdf564107b8f38f73647c696aaa9699d94828b5797d8f1479dab44a2dbcda987c268b0088bb3b76
-  languageName: node
-  linkType: hard
-
 "@metamask/browser-passworder@npm:^4.3.0":
   version: 4.3.0
   resolution: "@metamask/browser-passworder@npm:4.3.0"
@@ -1765,21 +1755,6 @@ __metadata:
     typescript: ~4.8.4
   languageName: unknown
   linkType: soft
-
-"@metamask/controller-utils@npm:^5.0.0, @metamask/controller-utils@npm:^5.0.2":
-  version: 5.0.2
-  resolution: "@metamask/controller-utils@npm:5.0.2"
-  dependencies:
-    "@metamask/eth-query": ^3.0.1
-    "@metamask/utils": ^8.1.0
-    "@spruceid/siwe-parser": 1.1.3
-    eth-ens-namehash: ^2.0.8
-    ethereumjs-util: ^7.0.10
-    ethjs-unit: ^0.1.6
-    fast-deep-equal: ^3.1.3
-  checksum: 2345ab9ee0ba900fe2249d80009acfcf458bc60b30418234d00f5f04247b1182a585050572237f8ab09aa23032a24b99ad96399fc0798a0e9a114a29c3bf90d6
-  languageName: node
-  linkType: hard
 
 "@metamask/core-monorepo@workspace:.":
   version: 0.0.0-use.local
@@ -1951,7 +1926,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^12.0.1, @metamask/eth-json-rpc-middleware@npm:^12.1.0":
+"@metamask/eth-json-rpc-middleware@npm:^12.1.0":
   version: 12.1.0
   resolution: "@metamask/eth-json-rpc-middleware@npm:12.1.0"
   dependencies:
@@ -1968,7 +1943,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-provider@^2.1.0, @metamask/eth-json-rpc-provider@^2.2.0, @metamask/eth-json-rpc-provider@^2.3.2, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
+"@metamask/eth-json-rpc-provider@^2.1.0, @metamask/eth-json-rpc-provider@^2.3.2, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
@@ -1985,16 +1960,6 @@ __metadata:
     typescript: ~4.8.4
   languageName: unknown
   linkType: soft
-
-"@metamask/eth-query@npm:^3.0.1":
-  version: 3.0.1
-  resolution: "@metamask/eth-query@npm:3.0.1"
-  dependencies:
-    json-rpc-random-id: ^1.0.0
-    xtend: ^4.0.1
-  checksum: b9a323dff67328eace7d54fc8b0bc4dd763bf15760870656cbd5aad5380d1ee4489fb5c59506290d5f77cf55e74e530ee97b52702a329f1090ec03a6158434b7
-  languageName: node
-  linkType: hard
 
 "@metamask/eth-query@npm:^4.0.0":
   version: 4.0.0
@@ -2181,7 +2146,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@^7.1.1, @metamask/json-rpc-engine@^7.2.0, @metamask/json-rpc-engine@^7.3.1, @metamask/json-rpc-engine@^7.3.2, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
+"@metamask/json-rpc-engine@^7.1.1, @metamask/json-rpc-engine@^7.3.1, @metamask/json-rpc-engine@^7.3.2, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"
   dependencies:
@@ -2403,28 +2368,6 @@ __metadata:
     uuid: ^8.3.2
   languageName: unknown
   linkType: soft
-
-"@metamask/network-controller@npm:^15.0.0":
-  version: 15.2.0
-  resolution: "@metamask/network-controller@npm:15.2.0"
-  dependencies:
-    "@metamask/base-controller": ^3.2.3
-    "@metamask/controller-utils": ^5.0.2
-    "@metamask/eth-json-rpc-infura": ^9.0.0
-    "@metamask/eth-json-rpc-middleware": ^12.0.1
-    "@metamask/eth-json-rpc-provider": ^2.2.0
-    "@metamask/eth-query": ^3.0.1
-    "@metamask/json-rpc-engine": ^7.2.0
-    "@metamask/rpc-errors": ^6.1.0
-    "@metamask/swappable-obj-proxy": ^2.1.0
-    "@metamask/utils": ^8.2.0
-    async-mutex: ^0.2.6
-    eth-block-tracker: ^8.0.0
-    immer: ^9.0.6
-    uuid: ^8.3.2
-  checksum: 331937360ac503a5000cf6277159852a23ff7d5cd72155665467e170c3cf213e4970a1706d24765201434dd5c4a088fa5e029011a78b1be87de51ca7b4011a5f
-  languageName: node
-  linkType: hard
 
 "@metamask/notification-controller@workspace:packages/notification-controller":
   version: 0.0.0-use.local
@@ -2784,23 +2727,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/smart-transactions-controller@npm:^6.2.2":
-  version: 6.2.2
-  resolution: "@metamask/smart-transactions-controller@npm:6.2.2"
-  dependencies:
-    "@ethersproject/bignumber": ^5.7.0
-    "@ethersproject/bytes": ^5.7.0
-    "@ethersproject/providers": ^5.7.0
-    "@metamask/base-controller": ^3.2.1
-    "@metamask/controller-utils": ^5.0.0
-    "@metamask/network-controller": ^15.0.0
-    bignumber.js: ^9.0.1
-    fast-json-patch: ^3.1.0
-    lodash: ^4.17.21
-  checksum: a9094b64fcda7528a2da34ec1aa6ec95e5b07111b8ab92048c380a610bd78155a9e90cb2cd942fabeceec03daea8861092d2be7dceb8457ca99c29d167c0c82c
-  languageName: node
-  linkType: hard
-
 "@metamask/snaps-controllers@npm:^3.4.1":
   version: 3.6.0
   resolution: "@metamask/snaps-controllers@npm:3.6.0"
@@ -2961,7 +2887,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/swappable-obj-proxy@npm:^2.1.0, @metamask/swappable-obj-proxy@npm:^2.2.0":
+"@metamask/swappable-obj-proxy@npm:^2.2.0":
   version: 2.2.0
   resolution: "@metamask/swappable-obj-proxy@npm:2.2.0"
   checksum: 343c95f72c96776980ef3e70600f7fa312be9a75683c132404a66ddd3c507abadee9c4deba1385246f73bded1938a7958e5a89fc407c19dfc352dd9b398e216f
@@ -2987,7 +2913,6 @@ __metadata:
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^17.2.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/smart-transactions-controller": ^6.2.2
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
@@ -6110,7 +6035,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethereumjs-util@npm:^7.0.10, ethereumjs-util@npm:^7.0.8, ethereumjs-util@npm:^7.1.2":
+"ethereumjs-util@npm:^7.0.8, ethereumjs-util@npm:^7.1.2":
   version: 7.1.5
   resolution: "ethereumjs-util@npm:7.1.5"
   dependencies:
@@ -6154,16 +6079,6 @@ __metadata:
   version: 0.2.1
   resolution: "ethjs-schema@npm:0.2.1"
   checksum: 7d8b1225bcf9616bfe94a24c2f4a48dae5ec30180a61d509efd7335eec68431abee638fbd02c2088e0ee59010396284e4b8364af8afdb229ac67e29ae38a3230
-  languageName: node
-  linkType: hard
-
-"ethjs-unit@npm:^0.1.6":
-  version: 0.1.6
-  resolution: "ethjs-unit@npm:0.1.6"
-  dependencies:
-    bn.js: 4.11.6
-    number-to-bn: 1.7.0
-  checksum: df6b4752ff7461a59a20219f4b1684c631ea601241c39660e3f6c6bd63c950189723841c22b3c6c0ebeb3c9fc99e0e803e3c613101206132603705fcbcf4def5
   languageName: node
   linkType: hard
 
@@ -6336,7 +6251,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-json-patch@npm:^3.1.0, fast-json-patch@npm:^3.1.1":
+"fast-json-patch@npm:^3.1.1":
   version: 3.1.1
   resolution: "fast-json-patch@npm:3.1.1"
   checksum: c4525b61b2471df60d4b025b4118b036d99778a93431aa44d1084218182841d82ce93056f0f3bbd731a24e6a8e69820128adf1873eb2199a26c62ef58d137833
