@@ -116,6 +116,8 @@ const setupController = async (
   const networkController = new NetworkController({
     messenger: unrestrictedMessenger.getRestricted({
       name: 'NetworkController',
+      allowedActions: [],
+      allowedEvents: [],
     }),
     trackMetaMetricsEvent: () => {
       // noop
@@ -131,6 +133,8 @@ const setupController = async (
   const approvalController = new ApprovalController({
     messenger: unrestrictedMessenger.getRestricted({
       name: 'ApprovalController',
+      allowedActions: [],
+      allowedEvents: [],
     }),
     showApprovalRequest: jest.fn(),
     typesExcludedFromRateLimiting: [ApprovalType.Transaction],
