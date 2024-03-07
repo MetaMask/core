@@ -271,8 +271,11 @@ describe('ControllerMessenger', () => {
         getPayload: () => [state],
       });
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.propA);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.propA,
+      );
 
       state.propA += 1;
       controllerMessenger.publish('complexMessage', state);
@@ -299,8 +302,11 @@ describe('ControllerMessenger', () => {
         getPayload: () => [state],
       });
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.propA);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.propA,
+      );
 
       controllerMessenger.publish('complexMessage', state);
 
@@ -323,8 +329,11 @@ describe('ControllerMessenger', () => {
         MessageEvent
       >();
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.propA);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.propA,
+      );
 
       state.propA += 1;
       controllerMessenger.publish('complexMessage', state);
@@ -347,8 +356,11 @@ describe('ControllerMessenger', () => {
         MessageEvent
       >();
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.propA);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.propA,
+      );
 
       controllerMessenger.publish('complexMessage', state);
 
@@ -370,8 +382,11 @@ describe('ControllerMessenger', () => {
         MessageEvent
       >();
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.propA);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.propA,
+      );
 
       controllerMessenger.publish('complexMessage', state);
 
@@ -391,8 +406,11 @@ describe('ControllerMessenger', () => {
       >();
 
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.prop1,
+      );
       controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
       controllerMessenger.publish('complexMessage', { prop1: 'z', prop2: 'b' });
 
@@ -412,8 +430,11 @@ describe('ControllerMessenger', () => {
       >();
 
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.prop1,
+      );
       controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
 
       expect(handler.calledWithExactly('a', undefined)).toBe(true);
@@ -431,8 +452,11 @@ describe('ControllerMessenger', () => {
       >();
 
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
-      controllerMessenger.subscribe('complexMessage', handler, selector);
+      controllerMessenger.subscribe(
+        'complexMessage',
+        handler,
+        (obj) => obj.prop1,
+      );
       controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
       controllerMessenger.publish('complexMessage', { prop1: 'a', prop3: 'c' });
 
