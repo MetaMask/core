@@ -1,11 +1,9 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
-  OPENSEA_PROXY_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
-  timeoutFetch,
-  safelyExecute,
+  RESERVOIR_API_BASE_URL,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -17,15 +15,11 @@ import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller'
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
-import { mapOpenSeaNftV2ToV1 } from './assetsUtil';
 import { Source } from './constants';
-import type { OpenSeaV2GetNftResponse } from './NftController';
 import {
   type NftController,
   type NftState,
   type NftMetadata,
-  type OpenSeaV2ListNftsResponse,
-  OpenSeaV2ChainIds,
 } from './NftController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -154,6 +148,205 @@ export interface NftDetectionConfig extends BaseConfig {
   selectedAddress: string;
 }
 
+export type ReservoirResponse = {
+  tokens: TokensResponse[];
+  continuation?: string;
+};
+
+export type TokensResponse = {
+  token: Token;
+  ownership: Ownership;
+};
+
+export type Token = {
+  chainId: number;
+  contract: string;
+  tokenId: string;
+  /** @description Can be erc721, erc115, etc. */
+  kind?: string;
+  name?: string;
+  image?: string;
+  imageSmall?: string;
+  imageLarge?: string;
+  metadata?: Metadata;
+  description?: string;
+  /** @description Can be higher than one if erc1155. */
+  supply?: number;
+  remainingSupply?: number;
+  /** @description No rarity for collections over 100k */
+  rarityScore?: number;
+  /** @description No rarity rank for collections over 100k */
+  rarityRank?: number;
+  media?: string;
+  /** @default false */
+  isFlagged?: boolean;
+  /** @default false */
+  isSpam?: boolean;
+  /** @default false */
+  isNsfw?: boolean;
+  /** @default false */
+  metadataDisabled?: boolean;
+  lastFlagUpdate?: string;
+  lastFlagChange?: string;
+  collection?: Collection;
+  lastSale?: LastSale;
+  topBid?: TopBid;
+  /** @description The value of the last sale.Can be null. */
+  lastAppraisalValue?: number;
+  attributes?: Attributes[];
+};
+
+export type TopBid = {
+  id?: string;
+  price?: Price;
+  source?: {
+    id?: string;
+    domain?: string;
+    name?: string;
+    icon?: string;
+    url?: string;
+  };
+};
+
+export type LastSale = {
+  /** @description Deprecated. Use `saleId` instead. */
+  id?: string;
+  /** @description Unique identifier made from txn hash, price, etc. */
+  saleId?: string;
+  token?: {
+    contract?: string;
+    tokenId?: string;
+    name?: string;
+    image?: string;
+    collection?: {
+      id?: string;
+      name?: string;
+    };
+  };
+  orderSource?: string;
+  /**
+   * @description Can be `ask` or `bid`.
+   * @enum {string}
+   */
+  orderSide?: 'ask' | 'bid';
+  orderKind?: string;
+  orderId?: string;
+  from?: string;
+  to?: string;
+  amount?: string;
+  fillSource?: string;
+  block?: number;
+  txHash?: string;
+  logIndex?: number;
+  batchIndex?: number;
+  /** @description Time added on the blockchain */
+  timestamp?: number;
+  price?: Price;
+  washTradingScore?: number;
+  royaltyFeeBps?: number;
+  marketplaceFeeBps?: number;
+  paidFullRoyalty?: boolean;
+  feeBreakdown?: FeeBreakdown[];
+  isDeleted?: boolean;
+  /** @description Time when added to indexer */
+  createdAt?: string;
+  /** @description Time when updated in indexer */
+  updatedAt?: string;
+};
+
+export type FeeBreakdown = {
+  kind?: string;
+  bps?: number;
+  recipient?: string;
+  source?: string;
+  rawAmount?: string;
+};
+
+export type Attributes = {
+  /** @description Case sensitive */
+  key?: string;
+  /** @description Can be `string`, `number, `date, or `range`. */
+  kind?: string;
+  /** @description Case sensitive. */
+  value: string;
+  tokenCount?: number;
+  onSaleCount?: number;
+  floorAskPrice?: Price;
+  /** @description Can be null. */
+  topBidValue?: number;
+  createdAt?: string;
+};
+
+export type Collection = {
+  id?: string;
+  name?: string;
+  /** @description Open Sea slug */
+  slug?: string;
+  symbol?: string;
+  imageUrl?: string;
+  /** @default false */
+  isSpam?: boolean;
+  /** @default false */
+  isNsfw?: boolean;
+  /** @default false */
+  metadataDisabled?: boolean;
+  openseaVerificationStatus?: string;
+  floorAskPrice?: Price;
+  royaltiesBps?: number;
+  royalties?: Royalties[];
+};
+
+export type Royalties = {
+  bps?: number;
+  recipient?: string;
+};
+
+export type Ownership = {
+  tokenCount?: string;
+  onSaleCount?: string;
+  floorAsk?: FloorAsk;
+  acquiredAt?: string;
+};
+
+export type FloorAsk = {
+  id?: string;
+  price?: Price;
+  maker?: string;
+  kind?: string;
+  validFrom?: number;
+  validUntil?: number;
+  source?: Source;
+  rawData?: Metadata;
+  isNativeOffChainCancellable?: boolean;
+};
+
+export type Price = {
+  currency?: {
+    contract?: string;
+    name?: string;
+    symbol?: string;
+    decimals?: number;
+    chainId?: number;
+  };
+  amount?: {
+    raw?: string;
+    decimal?: number;
+    usd?: number;
+    native?: number;
+  };
+  netAmount?: {
+    raw?: string;
+    decimal?: number;
+    usd?: number;
+    native?: number;
+  };
+};
+
+export type Metadata = {
+  imageOriginal?: string;
+  tokenURI?: string;
+};
+
 /**
  * Controller that passively polls on a set interval for NFT auto detection
  */
@@ -170,19 +363,24 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     address: string;
     next?: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/chain/${
-      OpenSeaV2ChainIds.ethereum
-    }/account/${address}/nfts?limit=200&next=${next ?? ''}`;
+    return `${RESERVOIR_API_BASE_URL}/${address}/tokens?chainIds=1&limit=200&continuation=${
+      next ?? ''
+    }`;
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: OpenSeaV2ListNftsResponse;
-    let nfts: ApiNft[] = [];
+    let nftApiResponse: ReservoirResponse;
+    let nfts: TokensResponse[] = [];
     let next;
 
     do {
       nftApiResponse = await fetchWithErrorHandling({
         url: this.getOwnerNftApi({ address, next }),
+        options: {
+          headers: {
+            Version: '1',
+          },
+        },
         timeout: 15000,
       });
 
@@ -190,33 +388,12 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
         return nfts;
       }
 
-      const newNfts = await Promise.all(
-        nftApiResponse.nfts.map(async (nftV2) => {
-          const nftV1 = mapOpenSeaNftV2ToV1(nftV2);
-
-          // If the image hasn't been processed into OpenSea's CDN, the image_url will be null.
-          // Try fetching the NFT individually, which returns the original image url from metadata if available.
-          if (!nftV1.image_url && nftV2.metadata_url) {
-            const nftDetails: OpenSeaV2GetNftResponse | undefined =
-              await safelyExecute(() =>
-                timeoutFetch(
-                  this.getNftApi({
-                    contractAddress: nftV2.contract,
-                    tokenId: nftV2.identifier,
-                  }),
-                  undefined,
-                  1000,
-                ).then((r) => r.json()),
-              );
-
-            nftV1.image_original_url = nftDetails?.nft?.image_url ?? null;
-          }
-          return nftV1;
-        }),
+      const newNfts = nftApiResponse.tokens.filter(
+        (elm) => elm.token.isSpam === false,
       );
 
       nfts = [...nfts, ...newNfts];
-    } while ((next = nftApiResponse.next));
+    } while ((next = nftApiResponse.continuation));
 
     return nfts;
   }
@@ -401,24 +578,17 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     }
 
     const apiNfts = await this.getOwnerNfts(userAddress);
-    const addNftPromises = apiNfts.map(async (nft: ApiNft) => {
+    const addNftPromises = apiNfts.map(async (nft: TokensResponse) => {
       const {
-        token_id,
-        num_sales,
-        background_color,
-        image_url,
-        image_preview_url,
-        image_thumbnail_url,
-        image_original_url,
-        animation_url,
-        animation_original_url,
+        tokenId: token_id,
+        contract,
+        kind,
+        image: image_url,
+        imageSmall: image_thumbnail_url,
+        metadata: { imageOriginal: image_original_url } = {},
         name,
         description,
-        external_link,
-        creator,
-        asset_contract: { address, schema_name },
-        last_sale,
-      } = nft;
+      } = nft.token;
 
       let ignored;
       /* istanbul ignore else */
@@ -427,7 +597,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
         ignored = ignoredNfts.find((c) => {
           /* istanbul ignore next */
           return (
-            c.address === toChecksumHexAddress(address) &&
+            c.address === toChecksumHexAddress(contract) &&
             c.tokenId === token_id
           );
         });
@@ -439,24 +609,15 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
         const nftMetadata: NftMetadata = Object.assign(
           {},
           { name },
-          creator && { creator },
+          //  creator && { creator },
           description && { description },
           image_url && { image: image_url },
-          num_sales && { numberOfSales: num_sales },
-          background_color && { backgroundColor: background_color },
-          image_preview_url && { imagePreview: image_preview_url },
           image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
           image_original_url && { imageOriginal: image_original_url },
-          animation_url && { animation: animation_url },
-          animation_original_url && {
-            animationOriginal: animation_original_url,
-          },
-          schema_name && { standard: schema_name },
-          external_link && { externalLink: external_link },
-          last_sale && { lastSale: last_sale },
+          kind && { standard: kind },
         );
 
-        await this.addNft(address, token_id, {
+        await this.addNft(contract, token_id, {
           nftMetadata,
           userAddress,
           source: Source.Detected,
