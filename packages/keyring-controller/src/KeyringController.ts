@@ -208,8 +208,8 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   KeyringControllerActions,
   KeyringControllerEvents,
-  string,
-  string
+  never,
+  never
 >;
 
 export type KeyringControllerOptions = {
