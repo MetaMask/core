@@ -1,5 +1,5 @@
 import type { Json } from '@metamask/utils';
-import { enablePatches, produceWithPatches, applyPatches } from 'immer';
+import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
 import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
@@ -140,7 +140,12 @@ export class BaseController<
   }) {
     this.messagingSystem = messenger;
     this.name = name;
-    this.#internalState = state;
+    // Here we use `freeze` from Immer to enforce that the state is deeply
+    // immutable. Note that this is a runtime check, not a compile-time check.
+    // That is, unlike `Object.freeze`, this does not narrow the type
+    // recursively to `Readonly`. The equivalent in Immer is `Immutable`, but
+    // `Immutable` does not handle recursive types such as our `Json` type.
+    this.#internalState = freeze(state, true);
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(

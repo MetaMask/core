@@ -294,7 +294,10 @@ describe('RestrictedControllerMessenger', () => {
       handler: (increment: number) => void;
     };
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+    const restrictedControllerMessenger = controllerMessenger.getRestricted<
+      'PingController',
+      CountAction['type']
+    >({
       name: 'PingController',
       allowedActions: ['CountController:count'],
     });
@@ -316,7 +319,10 @@ describe('RestrictedControllerMessenger', () => {
       handler: (increment: number) => void;
     };
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+    const restrictedControllerMessenger = controllerMessenger.getRestricted<
+      'PingController',
+      CountAction['type']
+    >({
       name: 'PingController',
       allowedActions: ['CountController:count'],
     });
@@ -973,7 +979,10 @@ describe('RestrictedControllerMessenger', () => {
       controllerMessenger.getRestricted({
         name: 'CountController',
       });
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+    const restrictedControllerMessenger = controllerMessenger.getRestricted<
+      'OtherController',
+      CountAction['type']
+    >({
       name: 'OtherController',
       allowedActions: ['CountController:count'],
     });
@@ -1022,7 +1031,11 @@ describe('RestrictedControllerMessenger', () => {
       controllerMessenger.getRestricted({
         name: 'MessageController',
       });
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+    const restrictedControllerMessenger = controllerMessenger.getRestricted<
+      'OtherController',
+      never,
+      MessageEvent['type']
+    >({
       name: 'OtherController',
       allowedEvents: ['MessageController:message'],
     });
