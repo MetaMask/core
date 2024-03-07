@@ -1839,7 +1839,6 @@ __metadata:
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    ethereum-ens-network-map: ^1.0.2
     jest: ^27.5.1
     punycode: ^2.1.1
     ts-jest: ^27.1.4
@@ -2924,6 +2923,7 @@ __metadata:
     deepmerge: ^4.2.2
     eth-method-registry: ^4.0.0
     fast-json-patch: ^3.1.1
+    immer: ^9.0.6
     jest: ^27.5.1
     lodash: ^4.17.21
     nock: ^13.3.1
@@ -6027,13 +6027,6 @@ __metadata:
     "@scure/bip32": 1.3.1
     "@scure/bip39": 1.2.1
   checksum: 2e8f7b8cc90232ae838ab6a8167708e8362621404d26e79b5d9e762c7b53d699f7520aff358d9254de658fcd54d2d0af168ff909943259ed27dc4cef2736410c
-  languageName: node
-  linkType: hard
-
-"ethereum-ens-network-map@npm:^1.0.2":
-  version: 1.0.2
-  resolution: "ethereum-ens-network-map@npm:1.0.2"
-  checksum: 34fa160f2b1ee8ec31bfe3dcec7b4becd4a6110acde171f43b9c28e0adc126dbded9dc6747d03088b6c99f04582887e6a23cb24b718321712c85208965835ea1
   languageName: node
   linkType: hard
 
