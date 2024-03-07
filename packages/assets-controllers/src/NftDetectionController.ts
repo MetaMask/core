@@ -154,11 +154,11 @@ export type ReservoirResponse = {
 };
 
 export type TokensResponse = {
-  token: Token;
+  token: TokenResponse;
   ownership: Ownership;
 };
 
-export type Token = {
+export type TokenResponse = {
   chainId: number;
   contract: string;
   tokenId: string;
