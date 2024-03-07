@@ -1,5 +1,7 @@
+import * as sinon from 'sinon';
 import { v1 as random } from 'uuid';
 
+import { advanceTime } from '../../../../tests/helpers';
 import {
   ID_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK,
@@ -27,6 +29,8 @@ jest.mock('../utils/etherscan', () => ({
 jest.mock('uuid');
 
 describe('EtherscanRemoteTransactionSource', () => {
+  let clock: sinon.SinonFakeTimers;
+
   const fetchEtherscanTransactionsMock =
     fetchEtherscanTransactions as jest.MockedFn<
       typeof fetchEtherscanTransactions
@@ -42,6 +46,8 @@ describe('EtherscanRemoteTransactionSource', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    clock = sinon.useFakeTimers();
+
     fetchEtherscanTransactionsMock.mockResolvedValue(
       ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK,
     );
@@ -51,6 +57,10 @@ describe('EtherscanRemoteTransactionSource', () => {
     );
 
     randomMock.mockReturnValue(ID_MOCK);
+  });
+
+  afterEach(() => {
+    clock.restore();
   });
 
   describe('isSupportedNetwork', () => {
@@ -126,9 +136,13 @@ describe('EtherscanRemoteTransactionSource', () => {
 
       const remoteSource = new EtherscanRemoteTransactionSource();
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions;
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,27 +165,43 @@ describe('EtherscanRemoteTransactionSource', () => {
 
       const remoteSource = new EtherscanRemoteTransactionSource();
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions1 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions1;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(0);
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions2 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions2;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(1);
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions3 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions3;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(2);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(1);
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions4 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions4;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(2);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(2);
 
@@ -191,12 +221,20 @@ describe('EtherscanRemoteTransactionSource', () => {
         includeTokenTransfers: false,
       });
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await remoteSource.fetchTransactions({} as any);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions1 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions1;
+      const promiseForFetchTransactions2 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions2;
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await remoteSource.fetchTransactions({} as any);
@@ -236,9 +274,13 @@ describe('EtherscanRemoteTransactionSource', () => {
         fetchEtherscanTokenTransactionsMock.mockResolvedValueOnce(response);
 
         const remoteSource = new EtherscanRemoteTransactionSource();
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await remoteSource.fetchTransactions({} as any);
+        const promiseForFetchTransactions = remoteSource.fetchTransactions(
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {} as any,
+        );
+        await advanceTime({ clock, duration: 5000 });
+        await promiseForFetchTransactions;
 
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

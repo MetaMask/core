@@ -12,16 +12,32 @@ import {
   toChecksumHexAddress,
   CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
+  toHex,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
-import ensNetworkMap from 'ethereum-ens-network-map';
 import { toASCII } from 'punycode/';
 
 const log = createProjectLogger('ens-controller');
 
 const name = 'EnsController';
+
+// Map of chainIDs and ENS registry contract addresses
+export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
+  // Mainnet
+  1: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Ropsten
+  3: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Rinkeby
+  4: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Goerli
+  5: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Holesky
+  17000: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+  // Sepolia
+  11155111: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+};
 
 /**
  * @type EnsEntry
@@ -88,17 +104,20 @@ export class EnsController extends BaseController<
    * Creates an EnsController instance.
    *
    * @param options - Constructor options.
+   * @param options.registriesByChainId - Map between chain IDs and ENS contract addresses.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.provider - Provider instance.
    * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    */
   constructor({
+    registriesByChainId = DEFAULT_ENS_NETWORK_MAP,
     messenger,
     state = {},
     provider,
     onNetworkDidChange,
   }: {
+    registriesByChainId?: Record<number, Hex>;
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
@@ -112,6 +131,18 @@ export class EnsController extends BaseController<
       messenger,
       state: {
         ...defaultState,
+        ensEntries: Object.fromEntries(
+          Object.entries(registriesByChainId).map(([chainId, address]) => [
+            toHex(chainId),
+            {
+              '.': {
+                address,
+                chainId: toHex(chainId),
+                ensName: '.',
+              },
+            },
+          ]),
+        ),
         ...state,
       },
     });
@@ -126,7 +157,7 @@ export class EnsController extends BaseController<
             name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
               currentChainId as ChainId
             ],
-            ensAddress: ensNetworkMap[parseInt(currentChainId, 16)],
+            ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
           });
         } else {
           this.#ethProvider = null;
@@ -256,8 +287,8 @@ export class EnsController extends BaseController<
    * @param chainId - chain id.
    * @returns Boolean indicating if the chain supports ENS.
    */
-  #getChainEnsSupport(chainId: string) {
-    return Boolean(ensNetworkMap[parseInt(chainId, 16)]);
+  #getChainEnsSupport(chainId: Hex) {
+    return Boolean(this.state.ensEntries[chainId]);
   }
 
   /**
