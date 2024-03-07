@@ -145,7 +145,7 @@ function getMessagesMessenger(
       MessagesControllerEvent
     >();
   }
-  return controllerMessenger.getRestricted<'MessagesController', never, never>({
+  return controllerMessenger.getRestricted({
     name: messagesControllerName,
   });
 }
