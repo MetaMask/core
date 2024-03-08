@@ -5,7 +5,7 @@ This monorepo is a collection of packages used across multiple MetaMask clients 
 ## Modules
 
 This repository contains the following packages [^fn1]:
-
+ 
 <!-- start package list -->
 
 - [`@metamask/accounts-controller`](packages/accounts-controller)
