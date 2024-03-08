@@ -43,7 +43,7 @@
   "dependencies": {
     "@metamask/base-controller": "^4.1.1",
     "@metamask/controller-utils": "^8.0.4",
-    "@metamask/eth-json-rpc-infura": "^9.0.0",
+    "@metamask/eth-json-rpc-infura": "^9.1.0",
     "@metamask/eth-json-rpc-middleware": "^12.1.0",
     "@metamask/eth-json-rpc-provider": "^2.3.2",
     "@metamask/eth-query": "^4.0.0",
