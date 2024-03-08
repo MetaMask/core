@@ -307,6 +307,11 @@ type TransactionMetaBase = {
   sendFlowHistory?: SendFlowHistoryEntry[];
 
   /**
+   * Simulation data for the transaction used to predict its outcome.
+   */
+  simulationData?: SimulationData;
+
+  /**
    * If the gas estimation fails, an object containing error and block information.
    */
   simulationFails?: {
@@ -1016,4 +1021,51 @@ export type GasFeeFlow = {
    * @returns The gas fee flow response containing the gas fee estimates.
    */
   getGasFees: (request: GasFeeFlowRequest) => Promise<GasFeeFlowResponse>;
+};
+
+/** Simulation data concerning an update to a native or token balance. */
+export type SimulationBalanceChange = {
+  /** The balance before the transaction. */
+  previousBalance: Hex;
+
+  /** The balance after the transaction. */
+  newBalance: Hex;
+
+  /** The difference in balance. */
+  difference: Hex;
+
+  /** Whether the balance is increasing or decreasing. */
+  isDecrease: boolean;
+};
+
+/** Token standards supported by simulation. */
+export enum SimulationTokenStandard {
+  erc20 = 'erc20',
+  erc721 = 'erc721',
+  erc1155 = 'erc1155',
+}
+
+/** Simulation data concerning an updated token. */
+export type SimulationToken = {
+  /** The token's contract address. */
+  address: Hex;
+
+  /** The standard of the token. */
+  standard: SimulationTokenStandard;
+
+  /** The ID of the token if supported by the standard. */
+  id?: Hex;
+};
+
+/** Simulation data concerning a change to the a token balance. */
+export type SimulationTokenBalanceChange = SimulationToken &
+  SimulationBalanceChange;
+
+/** Simulation data for a transaction. */
+export type SimulationData = {
+  /** Data concerning a change to the user's native balance. */
+  nativeBalanceChange?: SimulationBalanceChange;
+
+  /** Data concerning a change to the user's token balances. */
+  tokenBalanceChanges: SimulationTokenBalanceChange[];
 };
