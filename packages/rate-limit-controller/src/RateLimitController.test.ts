@@ -2,7 +2,6 @@ import { ControllerMessenger } from '@metamask/base-controller';
 
 import type {
   RateLimitControllerActions,
-  RateLimitMessenger,
   RateLimitControllerEvents,
 } from './RateLimitController';
 import { RateLimitController } from './RateLimitController';
@@ -47,7 +46,7 @@ function getRestrictedMessenger(
     name,
     allowedActions: [],
     allowedEvents: [],
-  }) as RateLimitMessenger<RateLimitedApis>;
+  });
 }
 
 const origin = 'snap_test';

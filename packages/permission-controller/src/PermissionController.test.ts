@@ -19,7 +19,6 @@ import type {
   PermissionConstraint,
   PermissionControllerActions,
   PermissionControllerEvents,
-  PermissionControllerMessenger,
   PermissionOptions,
   RestrictedMethodOptions,
   RestrictedMethodParameters,
@@ -486,7 +485,7 @@ function getPermissionControllerMessenger(
       ],
       allowedEvents: [],
     },
-  ) as PermissionControllerMessenger;
+  );
 }
 
 /**

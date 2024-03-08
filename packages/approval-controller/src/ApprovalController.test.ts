@@ -7,7 +7,6 @@ import type {
   AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
-  ApprovalControllerMessenger,
   ErrorOptions,
   StartFlowOptions,
   SuccessOptions,
@@ -1151,7 +1150,7 @@ describe('approval controller', () => {
           name: controllerName,
           allowedActions: [],
           allowedEvents: [],
-        }) as ApprovalControllerMessenger,
+        }),
         showApprovalRequest,
       });
 
@@ -1175,7 +1174,7 @@ describe('approval controller', () => {
           name: controllerName,
           allowedActions: [],
           allowedEvents: [],
-        }) as ApprovalControllerMessenger,
+        }),
         showApprovalRequest,
       });
 
@@ -1199,7 +1198,7 @@ describe('approval controller', () => {
           name: controllerName,
           allowedActions: [],
           allowedEvents: [],
-        }) as ApprovalControllerMessenger,
+        }),
         showApprovalRequest,
       });
 
