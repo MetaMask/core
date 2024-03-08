@@ -36,6 +36,8 @@ function getRestrictedMessenger(
 ) {
   return controllerMessenger.getRestricted({
     name,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 

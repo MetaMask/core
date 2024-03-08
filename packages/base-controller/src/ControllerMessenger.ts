@@ -430,15 +430,15 @@ export class ControllerMessenger<
     AllowedEvent extends NotNamespacedBy<Namespace, Event['type']> = never,
   >({
     name,
-    allowedActions = [],
-    allowedEvents = [],
+    allowedActions,
+    allowedEvents,
   }: {
     name: Namespace;
-    allowedActions?: NotNamespacedBy<
+    allowedActions: NotNamespacedBy<
       Namespace,
       Extract<Action['type'], AllowedAction>
     >[];
-    allowedEvents?: NotNamespacedBy<
+    allowedEvents: NotNamespacedBy<
       Namespace,
       Extract<Event['type'], AllowedEvent>
     >[];

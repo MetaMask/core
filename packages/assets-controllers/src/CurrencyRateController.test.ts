@@ -58,6 +58,7 @@ function getRestrictedMessenger() {
   >({
     name,
     allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedEvents: [],
   });
   return messenger;
 }

@@ -58,6 +58,8 @@ const name = 'EnsController';
 function getMessenger() {
   return new ControllerMessenger().getRestricted({
     name,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 

@@ -7450,6 +7450,8 @@ function buildMessenger() {
 function buildNetworkControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'NetworkController',
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 

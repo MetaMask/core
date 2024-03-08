@@ -19,7 +19,6 @@ import type {
   PermissionConstraint,
   PermissionControllerActions,
   PermissionControllerEvents,
-  PermissionControllerMessenger,
   PermissionOptions,
   RestrictedMethodOptions,
   RestrictedMethodParameters,
@@ -484,8 +483,9 @@ function getPermissionControllerMessenger(
         'ApprovalController:rejectRequest',
         'SubjectMetadataController:getSubjectMetadata',
       ],
+      allowedEvents: [],
     },
-  ) as PermissionControllerMessenger;
+  );
 }
 
 /**

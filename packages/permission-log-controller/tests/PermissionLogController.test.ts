@@ -43,6 +43,8 @@ const initController = ({
 }): PermissionLogController => {
   const messenger = new ControllerMessenger().getRestricted({
     name,
+    allowedActions: [],
+    allowedEvents: [],
   });
   return new PermissionLogController({
     messenger,
