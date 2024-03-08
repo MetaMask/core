@@ -354,7 +354,14 @@ describe('NftDetectionController', () => {
     const mockAddNft = jest.fn();
     await withController(
       { options: { addNft: mockAddNft } },
-      async ({ controller }) => {
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const selectedAddress = ''; // Emtpy selected address
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress,
+          useNftDetection: true, // auto-detect is enabled so it proceeds to check userAddress
+        });
+
         // confirm that default selected address is an empty string
         expect(controller.config.selectedAddress).toBe('');
 
