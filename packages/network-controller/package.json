@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
@@ -33,7 +43,7 @@
   "dependencies": {
     "@metamask/base-controller": "^4.1.1",
     "@metamask/controller-utils": "^8.0.4",
-    "@metamask/eth-json-rpc-infura": "^9.0.0",
+    "@metamask/eth-json-rpc-infura": "^9.1.0",
     "@metamask/eth-json-rpc-middleware": "^12.1.0",
     "@metamask/eth-json-rpc-provider": "^2.3.2",
     "@metamask/eth-query": "^4.0.0",

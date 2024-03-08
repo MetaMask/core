@@ -90,12 +90,12 @@ type EventSubscriptionMap<
  */
 export type NamespacedBy<
   Namespace extends string,
-  Name,
+  Name extends string,
 > = Name extends `${Namespace}:${string}` ? Name : never;
 
 export type NotNamespacedBy<
   Namespace extends string,
-  Name,
+  Name extends string,
 > = Name extends `${Namespace}:${string}` ? never : Name;
 
 export type NamespacedName<Namespace extends string = string> =
@@ -426,19 +426,19 @@ export class ControllerMessenger<
    */
   getRestricted<
     Namespace extends string,
-    AllowedAction extends NotNamespacedBy<Namespace, Action['type']>,
-    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']>,
+    AllowedAction extends NotNamespacedBy<Namespace, Action['type']> = never,
+    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']> = never,
   >({
     name,
     allowedActions,
     allowedEvents,
   }: {
     name: Namespace;
-    allowedActions?: NotNamespacedBy<
+    allowedActions: NotNamespacedBy<
       Namespace,
       Extract<Action['type'], AllowedAction>
     >[];
-    allowedEvents?: NotNamespacedBy<
+    allowedEvents: NotNamespacedBy<
       Namespace,
       Extract<Event['type'], AllowedEvent>
     >[];
@@ -450,15 +450,7 @@ export class ControllerMessenger<
     AllowedAction,
     AllowedEvent
   > {
-    return new RestrictedControllerMessenger<
-      Namespace,
-      | NarrowToNamespace<Action, Namespace>
-      | NarrowToAllowed<Action, AllowedAction>,
-      | NarrowToNamespace<Event, Namespace>
-      | NarrowToAllowed<Event, AllowedEvent>,
-      AllowedAction,
-      AllowedEvent
-    >({
+    return new RestrictedControllerMessenger({
       controllerMessenger: this,
       name,
       allowedActions,

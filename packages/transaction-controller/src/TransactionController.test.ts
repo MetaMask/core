@@ -51,10 +51,17 @@ import type {
   TransactionParams,
   TransactionHistoryEntry,
   TransactionError,
+  SimulationData,
 } from './types';
-import { TransactionStatus, TransactionType, WalletDevice } from './types';
+import {
+  SimulationTokenStandard,
+  TransactionStatus,
+  TransactionType,
+  WalletDevice,
+} from './types';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
+import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
@@ -84,6 +91,7 @@ jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/swaps');
+jest.mock('./utils/simulation');
 
 jest.mock('uuid');
 
@@ -428,6 +436,26 @@ const TRANSACTION_META_2_MOCK = {
   },
 } as TransactionMeta;
 
+const SIMULATION_DATA_MOCK: SimulationData = {
+  nativeBalanceChange: {
+    previousBalance: '0x0',
+    newBalance: '0x1',
+    difference: '0x1',
+    isDecrease: false,
+  },
+  tokenBalanceChanges: [
+    {
+      address: '0x123',
+      standard: SimulationTokenStandard.erc721,
+      id: '0x456',
+      previousBalance: '0x1',
+      newBalance: '0x3',
+      difference: '0x2',
+      isDecrease: false,
+    },
+  ],
+};
+
 describe('TransactionController', () => {
   const uuidModuleMock = jest.mocked(uuidModule);
   const EthQueryMock = jest.mocked(EthQuery);
@@ -442,6 +470,7 @@ describe('TransactionController', () => {
   const defaultGasFeeFlowClassMock = jest.mocked(DefaultGasFeeFlow);
   const lineaGasFeeFlowClassMock = jest.mocked(LineaGasFeeFlow);
   const gasFeePollerClassMock = jest.mocked(GasFeePoller);
+  const getSimulationDataMock = jest.mocked(getSimulationData);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -534,6 +563,7 @@ describe('TransactionController', () => {
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
         ],
+        allowedEvents: [],
       });
 
     const controller = new TransactionController({
@@ -1346,6 +1376,7 @@ describe('TransactionController', () => {
         origin: undefined,
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
+        simulationData: undefined,
         status: TransactionStatus.unapproved as const,
         time: expect.any(Number),
         txParams: expect.anything(),
@@ -1651,6 +1682,46 @@ describe('TransactionController', () => {
         getSavedGasFees: expect.any(Function),
         txMeta: expect.any(Object),
       });
+    });
+
+    it('updates simulation data by default', async () => {
+      getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+      const { controller } = setupController();
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationDataMock).toHaveBeenCalledWith({
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        data: undefined,
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      expect(controller.state.transactions[0].simulationData).toStrictEqual(
+        SIMULATION_DATA_MOCK,
+      );
+    });
+
+    it('does not update simulation data if simulation disabled', async () => {
+      getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+      const { controller } = setupController({
+        options: { isSimulationEnabled: () => false },
+      });
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+      expect(controller.state.transactions[0].simulationData).toBeUndefined();
     });
 
     describe('on approve', () => {

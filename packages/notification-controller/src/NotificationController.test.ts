@@ -29,8 +29,10 @@ function getUnrestrictedMessenger() {
 function getRestrictedMessenger(
   controllerMessenger = getUnrestrictedMessenger(),
 ) {
-  return controllerMessenger.getRestricted<typeof name, never, never>({
+  return controllerMessenger.getRestricted({
     name,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 

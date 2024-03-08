@@ -19,7 +19,6 @@ import type {
   PermissionConstraint,
   PermissionControllerActions,
   PermissionControllerEvents,
-  PermissionControllerMessenger,
   PermissionOptions,
   RestrictedMethodOptions,
   RestrictedMethodParameters,
@@ -474,20 +473,19 @@ function getUnrestrictedMessenger() {
 function getPermissionControllerMessenger(
   messenger = getUnrestrictedMessenger(),
 ) {
-  return messenger.getRestricted<
-    typeof controllerName,
-    AllowedActions['type'],
-    never
-  >({
-    name: controllerName,
-    allowedActions: [
-      'ApprovalController:hasRequest',
-      'ApprovalController:addRequest',
-      'ApprovalController:acceptRequest',
-      'ApprovalController:rejectRequest',
-      'SubjectMetadataController:getSubjectMetadata',
-    ],
-  }) as PermissionControllerMessenger;
+  return messenger.getRestricted<typeof controllerName, AllowedActions['type']>(
+    {
+      name: controllerName,
+      allowedActions: [
+        'ApprovalController:hasRequest',
+        'ApprovalController:addRequest',
+        'ApprovalController:acceptRequest',
+        'ApprovalController:rejectRequest',
+        'SubjectMetadataController:getSubjectMetadata',
+      ],
+      allowedEvents: [],
+    },
+  );
 }
 
 /**

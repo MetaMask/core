@@ -28,6 +28,7 @@ const log = createModuleLogger(projectLogger, 'linea-gas-fee-flow');
 const LINEA_CHAIN_IDS: Hex[] = [
   ChainId['linea-mainnet'],
   ChainId['linea-goerli'],
+  ChainId['linea-sepolia'],
 ];
 
 const BASE_FEE_MULTIPLIERS = {

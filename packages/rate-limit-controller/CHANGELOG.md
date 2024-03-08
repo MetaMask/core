@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add and export types `RateLimitedApiMap`, `RateLimitedRequests`. ([#3963](https://github.com/MetaMask/core/pull/3963))
+  - `RateLimitedApiMap` represents the type of the `RateLimitedApis` generic parameter used throughout the controller.
+  - `RateLimitedRequests` represents the type of the `request` property of `RateLimitState`.
+
+### Changed
+
+- **BREAKING:** Rename types to align with conventions followed by other controllers. ([#3963](https://github.com/MetaMask/core/pull/3963))
+  - `GetRateLimitState` is now `RateLimitControllerGetStateAction`.
+  - `RateLimitStateChange` is now `RateLimitControllerStateChangeEvent`.
+  - `CallApi` is now `RateLimitControllerCallApiAction`.
+- Add `@metamask/utils` `^8.3.0` as a dependency. ([#3963](https://github.com/MetaMask/core/pull/3963))
+
 ### Fixed
 
 - **BREAKING:** Fix `GetRateLimitState`, `RateLimitStateChange` types by replacing `RateLimitedApis` with `RateLimitState<RateLimitedApis>` as the state type passed in as generic arguments to `ControllerGetStateAction` and `ControllerStateChangeEvent` ([#3949](https://github.com/MetaMask/core/pull/3949))

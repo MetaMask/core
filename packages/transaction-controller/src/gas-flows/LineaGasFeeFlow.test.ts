@@ -72,7 +72,8 @@ describe('LineaGasFeeFlow', () => {
   describe('matchesTransaction', () => {
     it.each([
       ['linea mainnet', CHAIN_IDS.LINEA_MAINNET],
-      ['linea testnet', CHAIN_IDS.LINEA_GOERLI],
+      ['linea goerli testnet', CHAIN_IDS.LINEA_GOERLI],
+      ['linea sepolia testnet', CHAIN_IDS.LINEA_SEPOLIA],
     ])('returns true if chain ID is %s', (_title, chainId) => {
       const flow = new LineaGasFeeFlow();
 

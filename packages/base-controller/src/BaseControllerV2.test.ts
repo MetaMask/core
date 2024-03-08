@@ -62,8 +62,10 @@ function getCountMessenger(
       CountControllerEvent
     >();
   }
-  return controllerMessenger.getRestricted<'CountController', never, never>({
+  return controllerMessenger.getRestricted({
     name: countControllerName,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 
@@ -145,8 +147,10 @@ function getMessagesMessenger(
       MessagesControllerEvent
     >();
   }
-  return controllerMessenger.getRestricted<'MessagesController', never, never>({
+  return controllerMessenger.getRestricted({
     name: messagesControllerName,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 
@@ -1108,12 +1112,10 @@ describe('getPersistentState', () => {
         VisitorControllerAction | VisitorOverflowControllerAction,
         VisitorControllerEvent | VisitorOverflowControllerEvent
       >();
-      const visitorControllerMessenger = controllerMessenger.getRestricted<
-        typeof visitorName,
-        never,
-        never
-      >({
+      const visitorControllerMessenger = controllerMessenger.getRestricted({
         name: visitorName,
+        allowedActions: [],
+        allowedEvents: [],
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,

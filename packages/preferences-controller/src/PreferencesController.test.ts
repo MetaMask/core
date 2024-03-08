@@ -460,6 +460,7 @@ function setupPreferencesController({
     AllowedEvents['type']
   >({
     name: 'PreferencesController',
+    allowedActions: [],
     allowedEvents: ['KeyringController:stateChange'],
   });
   return new PreferencesController({

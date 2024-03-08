@@ -363,9 +363,9 @@ export type SideEffectMessenger<
   Events extends EventConstraint,
 > = RestrictedControllerMessenger<
   typeof controllerName,
-  Actions,
+  Actions | AllowedActions,
   Events,
-  string,
+  AllowedActions['type'],
   never
 >;
 
