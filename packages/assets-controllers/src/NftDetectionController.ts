@@ -609,12 +609,11 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
         const nftMetadata: NftMetadata = Object.assign(
           {},
           { name },
-          //  creator && { creator },
           description && { description },
           image_url && { image: image_url },
           image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
           image_original_url && { imageOriginal: image_original_url },
-          kind && { standard: kind },
+          kind && { standard: kind.toUpperCase() },
         );
 
         await this.addNft(contract, token_id, {

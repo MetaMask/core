@@ -1,4 +1,8 @@
-import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
+import {
+  RESERVOIR_API_BASE_URL,
+  ChainId,
+  toHex,
+} from '@metamask/controller-utils';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -22,108 +26,95 @@ describe('NftDetectionController', () => {
   beforeEach(async () => {
     clock = sinon.useFakeTimers();
 
-    nock(OPENSEA_PROXY_URL)
+    nock(RESERVOIR_API_BASE_URL)
       .persist()
-      .get(`/chain/ethereum/account/0x1/nfts?limit=200&next=`)
+      .get(`/0x1/tokens?chainIds=1&limit=200&continuation=`)
       .reply(200, {
-        nfts: [
+        tokens: [
           {
-            contract: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
-            collection: 'Collection 2577',
-            token_standard: 'erc721',
-            name: 'ID 2577',
-            description: 'Description 2577',
-            image_url: 'image/2577.png',
-            identifier: '2577',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              chainId: 1,
+              contract: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+              tokenId: '2577',
+              kind: 'erc721',
+              name: 'Remilio 632',
+              image: 'https://imgtest',
+              imageSmall: 'https://imgSmall',
+              imageLarge: 'https://imglarge',
+              metadata: {
+                imageOriginal: 'https://remilio.org/remilio/632.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'https://remilio.org/remilio/json/632',
+              },
+              description:
+                "Redacted Remilio Babies is a collection of 10,000 neochibi pfpNFT's expanding the Milady Maker paradigm with the introduction of young J.I.T. energy and schizophrenic reactionary aesthetics. We are #REMILIONAIREs.",
+              rarityScore: 343.443,
+              rarityRank: 8872,
+              supply: '1',
+              isSpam: false,
+            },
           },
           {
-            contract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
-            collection: 'Collection 2577',
-            token_standard: 'erc721',
-            name: 'ID 2578',
-            description: 'Description 2578',
-            image_url: 'image/2578.png',
-            identifier: '2578',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              contract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+              kind: 'erc721',
+              name: 'ID 2578',
+              description: 'Description 2578',
+              image: 'https://imgtest',
+              imageSmall: 'https://imgSmall',
+              imageLarge: 'https://imglarge',
+              tokenId: '2578',
+              metadata: {
+                imageOriginal: 'https://remilio.org/remilio/632.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'https://remilio.org/remilio/json/632',
+              },
+              rarityScore: 343.443,
+              rarityRank: 8872,
+              supply: '1',
+              isSpam: false,
+            },
           },
           {
-            contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-            collection: 'Collection 2574',
-            token_standard: 'erc721',
-            name: 'ID 2574',
-            description: 'Description 2574',
-            image_url: 'image/2574.png',
-            identifier: '2574',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
           },
         ],
       })
-      .get(`/chain/ethereum/account/0x9/nfts?limit=200&next=`)
+      .get(`/0x9/tokens?chainIds=1&limit=200&continuation=`)
       .reply(200, {
-        nfts: [
+        tokens: [
           {
-            contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-            collection: 'Collection 2574',
-            token_standard: 'erc721',
-            name: 'ID 2574',
-            description: 'Description 2574',
-            image_url: 'image/2574.png',
-            identifier: '2574',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
           },
         ],
       });
-
-    nock(OPENSEA_PROXY_URL)
-      .persist()
-      .get(
-        `/chain/ethereum/contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
-      )
-      .reply(200, {
-        address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-        chain: 'ethereum',
-        collection: 'Name',
-        contract_standard: 'erc721',
-        name: 'Name',
-        total_supply: 0,
-      })
-      .get(
-        `/chain/ethereum/contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
-      )
-      .reply(200, {
-        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-        chain: 'ethereum',
-        collection: 'Name HH',
-        contract_standard: 'erc721',
-        name: 'Name HH',
-        total_supply: 10,
-      })
-      .get(`/collections/Name%20HH`)
-      .reply(200, {
-        description: 'Description HH',
-        image_url: 'url HH',
-      })
-      .get(
-        `/chain/ethereum/contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
-      )
-      .replyWithError(new Error('Failed to fetch'))
-      .get(
-        `/chain/ethereum/contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
-      )
-      .replyWithError(new Error('Failed to fetch'));
   });
 
   afterEach(() => {
@@ -266,11 +257,7 @@ describe('NftDetectionController', () => {
               image: 'image/2574.png',
               name: 'ID 2574',
               standard: 'ERC721',
-              creator: {
-                user: { username: '' },
-                profile_img_url: '',
-                address: '',
-              },
+              imageOriginal: 'imageOriginal/2574.png',
             },
             userAddress: selectedAddress,
             source: Source.Detected,
@@ -313,11 +300,7 @@ describe('NftDetectionController', () => {
               image: 'image/2574.png',
               name: 'ID 2574',
               standard: 'ERC721',
-              creator: {
-                user: { username: '' },
-                profile_img_url: '',
-                address: '',
-              },
+              imageOriginal: 'imageOriginal/2574.png',
             },
             userAddress: '0x9',
             source: Source.Detected,
@@ -407,11 +390,11 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should do nothing when the request to the OpenSea proxy server fails', async () => {
+  it('should do nothing when the request to Nft API fails', async () => {
     const selectedAddress = '0x3';
-    nock(OPENSEA_PROXY_URL)
-      .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-      .query({ next: '', limit: '200' })
+    nock(RESERVOIR_API_BASE_URL)
+      .get(`/${selectedAddress}/tokens`)
+      .query({ continuation: '', limit: '200', chainIds: '1' })
       .replyWithError(new Error('Failed to fetch'))
       .persist();
     const mockAddNft = jest.fn();
@@ -437,16 +420,16 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {
+  it('should rethrow error when Nft APi server fails with error other than fetch failure', async () => {
     const selectedAddress = '0x4';
     await withController(
       async ({ controller, triggerPreferencesStateChange }) => {
         // This mock is for the initial detect call after preferences change
-        nock(OPENSEA_PROXY_URL)
-          .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-          .query({ next: '', limit: '200' })
+        nock(RESERVOIR_API_BASE_URL)
+          .get(`/${selectedAddress}/tokens`)
+          .query({ continuation: '', limit: '200', chainIds: '1' })
           .reply(200, {
-            nfts: [],
+            tokens: [],
           });
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
@@ -459,9 +442,9 @@ describe('NftDetectionController', () => {
           duration: 1,
         });
         // This mock is for the call under test
-        nock(OPENSEA_PROXY_URL)
-          .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-          .query({ next: '', limit: '200' })
+        nock(RESERVOIR_API_BASE_URL)
+          .get(`/${selectedAddress}/tokens`)
+          .query({ continuation: '', limit: '200', chainIds: '1' })
           .replyWithError(new Error('UNEXPECTED ERROR'));
 
         await expect(() => controller.detectNfts()).rejects.toThrow(
@@ -493,80 +476,6 @@ describe('NftDetectionController', () => {
         await expect(async () => await controller.detectNfts()).rejects.toThrow(
           'UNEXPECTED ERROR',
         );
-      },
-    );
-  });
-
-  it('should fetch the original image url if image_url is null but theres metadata', async () => {
-    const selectedAddress = '0x1994';
-    const nftContract = '0x26B4a381D694c1AC6812eA80C3f3d088572802db';
-    const nftId = '123';
-    nock(OPENSEA_PROXY_URL)
-      .persist()
-      .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-      .query({ next: '', limit: '200' })
-      .reply(200, {
-        nfts: [
-          {
-            identifier: nftId,
-            contract: nftContract,
-            image_url: null,
-            token_standard: 'erc721',
-            metadata_url: 'https://example.com',
-          },
-        ],
-      })
-      .get(`/chain/ethereum/contract/${nftContract}/nfts/${nftId}`)
-      .reply(200, { nft: { image_url: 'https://example.com/image.gif' } });
-    const mockAddNft = jest.fn();
-    await withController(
-      {
-        options: {
-          addNft: mockAddNft,
-          getNftApi: jest
-            .fn()
-            .mockImplementation(
-              ({
-                contractAddress,
-                tokenId,
-              }: {
-                contractAddress: string;
-                tokenId: string;
-              }) =>
-                `${OPENSEA_PROXY_URL}/chain/ethereum/contract/${contractAddress}/nfts/${tokenId}`,
-            ),
-        },
-      },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress,
-          useNftDetection: true,
-        });
-        // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
-          duration: 1,
-        });
-        mockAddNft.mockReset();
-
-        await controller.detectNfts();
-
-        expect(mockAddNft).toHaveBeenCalledWith(nftContract, nftId, {
-          nftMetadata: {
-            imageOriginal: 'https://example.com/image.gif',
-            name: undefined,
-            standard: 'ERC721',
-            creator: {
-              user: { username: '' },
-              profile_img_url: '',
-              address: '',
-            },
-          },
-          userAddress: selectedAddress,
-          source: Source.Detected,
-          networkClientId: undefined,
-        });
       },
     );
   });
