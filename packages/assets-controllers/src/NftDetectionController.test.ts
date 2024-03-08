@@ -3,6 +3,8 @@ import {
   ChainId,
   toHex,
 } from '@metamask/controller-utils';
+import { NetworkClientType } from '@metamask/network-controller';
+import type { NetworkClient } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -10,6 +12,8 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { Source } from './constants';
 import { getDefaultNftState, type NftState } from './NftController';
@@ -368,6 +372,30 @@ describe('NftDetectionController', () => {
         await controller.detectNfts();
 
         expect(mockAddNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('should return true if mainnet is detected', async () => {
+    const mockAddNft = jest.fn();
+    const mockNetworkClient: NetworkClient = {
+      configuration: {
+        chainId: toHex(1),
+        rpcUrl: 'https://test.network',
+        ticker: 'TEST',
+        type: NetworkClientType.Custom,
+      },
+      provider: new FakeProvider(),
+      blockTracker: new FakeBlockTracker(),
+      destroy: () => {
+        // do nothing
+      },
+    };
+    await withController(
+      { options: { addNft: mockAddNft } },
+      async ({ controller }) => {
+        const result = controller.isMainnetByNetworkClientId(mockNetworkClient);
+        expect(result).toBe(true);
       },
     );
   });
