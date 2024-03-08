@@ -90,12 +90,12 @@ type EventSubscriptionMap<
  */
 export type NamespacedBy<
   Namespace extends string,
-  Name,
+  Name extends string,
 > = Name extends `${Namespace}:${string}` ? Name : never;
 
 export type NotNamespacedBy<
   Namespace extends string,
-  Name,
+  Name extends string,
 > = Name extends `${Namespace}:${string}` ? never : Name;
 
 export type NamespacedName<Namespace extends string = string> =
