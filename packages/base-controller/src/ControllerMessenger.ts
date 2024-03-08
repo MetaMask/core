@@ -450,15 +450,7 @@ export class ControllerMessenger<
     AllowedAction,
     AllowedEvent
   > {
-    return new RestrictedControllerMessenger<
-      Namespace,
-      | NarrowToNamespace<Action, Namespace>
-      | NarrowToAllowed<Action, AllowedAction>,
-      | NarrowToNamespace<Event, Namespace>
-      | NarrowToAllowed<Event, AllowedEvent>,
-      AllowedAction,
-      AllowedEvent
-    >({
+    return new RestrictedControllerMessenger({
       controllerMessenger: this,
       name,
       allowedActions,
