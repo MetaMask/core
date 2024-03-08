@@ -28,7 +28,7 @@ const getMockEnqueueRequest = () =>
       ReturnType<QueuedRequestControllerEnqueueRequestAction['handler']>,
       Parameters<QueuedRequestControllerEnqueueRequestAction['handler']>
     >()
-    .mockImplementation((_origin, requestNext) => requestNext());
+    .mockImplementation((_request, requestNext) => requestNext());
 
 describe('createQueuedRequestMiddleware', () => {
   it('throws if not provided an origin', async () => {
