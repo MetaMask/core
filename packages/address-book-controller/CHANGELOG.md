@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` (TODO: Fill in PR number)
+
 ## [3.1.7]
 
 ### Changed
@@ -108,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.7...@metamask/address-book-controller@4.0.0
 [3.1.7]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.6...@metamask/address-book-controller@3.1.7
 [3.1.6]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.5...@metamask/address-book-controller@3.1.6
 [3.1.5]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.4...@metamask/address-book-controller@3.1.5

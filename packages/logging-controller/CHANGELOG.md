@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` (TODO: This PR)
+
 ## [2.0.3]
 
 ### Changed
@@ -68,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.3...@metamask/logging-controller@3.0.0
 [2.0.3]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.2...@metamask/logging-controller@2.0.3
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.1...@metamask/logging-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.0...@metamask/logging-controller@2.0.1
