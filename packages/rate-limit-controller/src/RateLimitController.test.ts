@@ -45,6 +45,8 @@ function getRestrictedMessenger(
 ) {
   return controllerMessenger.getRestricted({
     name,
+    allowedActions: [],
+    allowedEvents: [],
   }) as RateLimitMessenger<RateLimitedApis>;
 }
 

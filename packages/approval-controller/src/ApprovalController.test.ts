@@ -233,6 +233,8 @@ function getRestrictedMessenger() {
   >();
   const messenger = controllerMessenger.getRestricted({
     name: 'ApprovalController',
+    allowedActions: [],
+    allowedEvents: [],
   });
   return messenger;
 }
@@ -1147,6 +1149,8 @@ describe('approval controller', () => {
       approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
+          allowedActions: [],
+          allowedEvents: [],
         }) as ApprovalControllerMessenger,
         showApprovalRequest,
       });
@@ -1169,6 +1173,8 @@ describe('approval controller', () => {
       approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
+          allowedActions: [],
+          allowedEvents: [],
         }) as ApprovalControllerMessenger,
         showApprovalRequest,
       });
@@ -1191,6 +1197,8 @@ describe('approval controller', () => {
       approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
+          allowedActions: [],
+          allowedEvents: [],
         }) as ApprovalControllerMessenger,
         showApprovalRequest,
       });

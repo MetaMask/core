@@ -123,6 +123,8 @@ function setupController(
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
+    allowedActions: [],
+    allowedEvents: [],
   });
 
   const approvalController = new ApprovalController({

@@ -28,6 +28,8 @@ function getRestrictedMessenger() {
 
   const messenger = controllerMessenger.getRestricted({
     name: controllerName,
+    allowedActions: [],
+    allowedEvents: [],
   });
 
   return messenger;
