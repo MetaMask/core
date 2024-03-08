@@ -1,7 +1,4 @@
 export type {
-  BaseControllerV1Instance,
-  BaseControllerV2Instance,
-  ControllerInstance,
   ComposableControllerState,
   ComposableControllerStateChangeEvent,
   ComposableControllerEvents,
