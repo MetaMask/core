@@ -484,6 +484,7 @@ function getPermissionControllerMessenger(
         'ApprovalController:rejectRequest',
         'SubjectMetadataController:getSubjectMetadata',
       ],
+      allowedEvents: [],
     },
   ) as PermissionControllerMessenger;
 }

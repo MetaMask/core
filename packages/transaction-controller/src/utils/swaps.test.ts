@@ -55,6 +55,7 @@ describe('updateSwapsTransaction', () => {
         'NetworkController:getNetworkClientById',
         'NetworkController:findNetworkClientIdByChainId',
       ],
+      allowedEvents: [],
     });
     request = {
       isSwapsDisabled: false,

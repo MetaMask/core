@@ -165,6 +165,7 @@ function setupController(
   >({
     name: controllerName,
     allowedActions: ['ApprovalController:addRequest'],
+    allowedEvents: [],
   });
 
   const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =

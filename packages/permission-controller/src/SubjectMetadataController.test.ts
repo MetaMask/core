@@ -38,6 +38,7 @@ function getSubjectMetadataControllerMessenger() {
     >({
       name: controllerName,
       allowedActions: ['PermissionController:hasPermissions'],
+      allowedEvents: [],
     }) as SubjectMetadataControllerMessenger,
     hasPermissionsSpy,
   ] as const;

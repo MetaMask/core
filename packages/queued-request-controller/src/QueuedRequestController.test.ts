@@ -865,6 +865,7 @@ function buildQueuedRequestControllerMessenger(
       'NetworkController:setActiveNetwork',
       'SelectedNetworkController:getNetworkClientIdForDomain',
     ],
+    allowedEvents: [],
   });
 }
 

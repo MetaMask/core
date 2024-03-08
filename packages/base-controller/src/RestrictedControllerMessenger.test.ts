@@ -176,6 +176,7 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
+      allowedEvents: [],
     });
 
     expect(() => {
@@ -197,6 +198,7 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
+      allowedActions: [],
       allowedEvents: [],
     });
 
@@ -224,6 +226,7 @@ describe('RestrictedControllerMessenger', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
+      allowedActions: [],
       allowedEvents: ['OtherController:other'],
     });
 
@@ -246,6 +249,7 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
+      allowedActions: [],
       allowedEvents: [],
     });
 
@@ -273,6 +277,7 @@ describe('RestrictedControllerMessenger', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
+      allowedActions: [],
       allowedEvents: ['OtherController:other'],
     });
 
@@ -314,6 +319,7 @@ describe('RestrictedControllerMessenger', () => {
     >({
       name: 'PingController',
       allowedActions: ['CountController:count'],
+      allowedEvents: [],
     });
 
     expect(() => {
@@ -339,6 +345,7 @@ describe('RestrictedControllerMessenger', () => {
     >({
       name: 'PingController',
       allowedActions: ['CountController:count'],
+      allowedEvents: [],
     });
     expect(() => {
       restrictedControllerMessenger.unregisterActionHandler(
@@ -356,6 +363,7 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
       allowedActions: [],
+      allowedEvents: [],
     });
 
     expect(() => {
@@ -1045,6 +1053,7 @@ describe('RestrictedControllerMessenger', () => {
     >({
       name: 'OtherController',
       allowedActions: ['CountController:count'],
+      allowedEvents: [],
     });
 
     let count = 0;
@@ -1101,6 +1110,7 @@ describe('RestrictedControllerMessenger', () => {
       MessageEvent['type']
     >({
       name: 'OtherController',
+      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -1138,6 +1148,7 @@ describe('RestrictedControllerMessenger', () => {
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
       allowedActions: ['CountController:count'],
+      allowedEvents: [],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
@@ -1187,6 +1198,7 @@ describe('RestrictedControllerMessenger', () => {
 
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
+      allowedActions: [],
       allowedEvents: ['CountController:update'],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({

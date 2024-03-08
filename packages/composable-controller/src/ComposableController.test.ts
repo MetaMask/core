@@ -176,6 +176,7 @@ describe('ComposableController', () => {
         FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
       const composableController = new ComposableController({
@@ -204,6 +205,7 @@ describe('ComposableController', () => {
         FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
       new ComposableController({
@@ -246,6 +248,7 @@ describe('ComposableController', () => {
         FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
       const composableController = new ComposableController({
@@ -276,6 +279,7 @@ describe('ComposableController', () => {
         FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
       new ComposableController({
@@ -318,6 +322,7 @@ describe('ComposableController', () => {
         FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
       new ComposableController({
@@ -382,6 +387,7 @@ describe('ComposableController', () => {
         FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
       expect(
