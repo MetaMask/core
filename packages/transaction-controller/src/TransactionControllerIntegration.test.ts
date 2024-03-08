@@ -113,12 +113,11 @@ const setupController = async (
 
   const unrestrictedMessenger: UnrestrictedControllerMessenger =
     new ControllerMessenger();
+  const networkControllerMessenger = unrestrictedMessenger.getRestricted({
+    name: 'NetworkController',
+  });
   const networkController = new NetworkController({
-    messenger: unrestrictedMessenger.getRestricted({
-      name: 'NetworkController',
-      allowedActions: [],
-      allowedEvents: [],
-    }),
+    messenger: networkControllerMessenger,
     trackMetaMetricsEvent: () => {
       // noop
     },
@@ -130,12 +129,11 @@ const setupController = async (
   assert(provider, 'Provider must be available');
   assert(blockTracker, 'Provider must be available');
 
+  const approvalControllerMessenger = unrestrictedMessenger.getRestricted({
+    name: 'ApprovalController',
+  });
   const approvalController = new ApprovalController({
-    messenger: unrestrictedMessenger.getRestricted({
-      name: 'ApprovalController',
-      allowedActions: [],
-      allowedEvents: [],
-    }),
+    messenger: approvalControllerMessenger,
     showApprovalRequest: jest.fn(),
     typesExcludedFromRateLimiting: [ApprovalType.Transaction],
   });
