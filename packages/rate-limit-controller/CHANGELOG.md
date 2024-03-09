@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GetRateLimitState` is now `RateLimitControllerGetStateAction`.
   - `RateLimitStateChange` is now `RateLimitControllerStateChangeEvent`.
   - `CallApi` is now `RateLimitControllerCallApiAction`.
-- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
 - Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
 - Add `@metamask/utils` `^8.3.0` as a dependency ([#3963](https://github.com/MetaMask/core/pull/3963))

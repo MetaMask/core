@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
-- **BREAKING:** Bump peer dependency on `@metamask/keyring-controller` to `^14.0.0` (TODO: This PR)
-- Bump `@metamask/controller-utils` to `^9.0.0` (TODO: This PR)
+- **BREAKING:** Bump peer dependency on `@metamask/keyring-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
 
 ## [8.0.0]
 

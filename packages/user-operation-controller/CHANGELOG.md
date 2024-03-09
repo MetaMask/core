@@ -16,13 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` (TODO: This PR)
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to `^14.0.0` (TODO: This PR)
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to `^14.0.0` (TODO: This PR)
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` (TODO: This PR)
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/transaction-controller` to `^25.0.0` (TODO: This PR)
-- **BREAKING:** Bump `@metamask/controller-utils` to `^9.0.0` (TODO: This PR)
-- **BREAKING:** Bump `@metamask/polling-controller` to `^6.0.0` (TODO: This PR)
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/transaction-controller` to `^25.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/polling-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
 
 ## [5.0.0]
 

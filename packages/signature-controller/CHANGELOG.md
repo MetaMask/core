@@ -16,13 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` (TODO: This PR)
-- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to `^14.0.0` (TODO: This PR)
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/logging-controller` to `^3.0.0` (TODO: This PR)
-- Bump `@metamask/controller-utils` to `^9.0.0` (TODO: This PR)
-- Bump `@metamask/message-manager` to `^8.0.0` (TODO: This PR)
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/logging-controller` to `^3.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/message-manager` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
 
 ## [13.0.0]
 

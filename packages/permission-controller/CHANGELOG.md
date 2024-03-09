@@ -16,11 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency on `@metamask/approval-controller` to `^6.0.0` (TODO: This PR)
-- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+- **BREAKING:** Bump peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
-- Bump `@metamask/controller-utils` to `^9.0.0` (TODO: This PR)
-- Bump `@metamask/json-rpc-engine` to `^8.0.0` (TODO: This PR)
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/json-rpc-engine` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
 
 ### Fixed
 

@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
 - **BREAKING:** Remove support for Optimism Goerli (chain ID `0x1a4`); replace with support for Optimism Sepolia (chain ID `0xaa37dc`) ([#3999](https://github.com/MetaMask/core/pull/3999))
 

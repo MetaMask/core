@@ -75,13 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - As dictated by BaseController v2, any types that are part of state need to be compatible with the `Json` type from `@metamask/utils`.
 - **BREAKING:** Transform `rpc` property on transaction errors so they're JSON-encodable ([#3827](https://github.com/MetaMask/core/pull/3827))
   - This change also results in typing this property as `Json` instead of `unknown`, avoiding a "Type instantiation is excessively deep and possibly infinite" error when resolving the `TransactionControllerState` type.
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` (TODO: This PR)
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to `^14.0.0` (TODO: This PR)
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` (TODO: This PR)
-- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
 - Add dependency on `@ethersproject/providers` `^5.7.0` ([#4020](https://github.com/MetaMask/core/pull/4020))
-- Bump `@metamask/controller-utils` to `^9.0.0` (TODO: This PR)
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
 
 ### Removed
 

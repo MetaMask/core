@@ -40,9 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The number of queued requests is now tracked in controller state, as the `queuedRequestCount` property. Use the `QueuedRequestController:stateChange` event to be notified of count changes instead.
 - **BREAKING**: Remove the `length` method ([#3985](https://github.com/MetaMask/core/pull/3985))
   - The number of queued requests is now tracked in controller state, as the `queuedRequestCount` property.
-- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` (TODO: This PR)
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
-- **BREAKING:** Bump peer dependency on `@metamask/network-controller` to `^18.0.0` (TODO: This PR)
+- **BREAKING:** Bump peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
 - **BREAKING:** Bump peer dependency on `@metamask/selected-network-controller` to `^10.0.0` ([#3996](https://github.com/MetaMask/core/pull/3996))
 - Bump `@metamask/controller-utils` to `^9.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
 - Bump `@metamask/json-rpc-engine` to `^8.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
