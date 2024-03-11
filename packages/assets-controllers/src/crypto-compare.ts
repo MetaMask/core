@@ -1,5 +1,8 @@
 import { handleFetch } from '@metamask/controller-utils';
 
+/** A map from native currency symbol to CryptoCompare identifier */
+const nativeSymbolOverrides = new Map([['MNT', 'MANTLE']]);
+
 /**
  * Get the CryptoCompare API URL for getting the conversion rate from the given native currency to
  * the given currency. Optionally, the conversion rate from the native currency to USD can also be
@@ -16,9 +19,11 @@ function getPricingURL(
   nativeCurrency: string,
   includeUSDRate?: boolean,
 ) {
+  nativeCurrency = nativeCurrency.toUpperCase();
+  const fsym = nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency;
   return (
     `https://min-api.cryptocompare.com/data/price?fsym=` +
-    `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}` +
+    `${fsym}&tsyms=${currentCurrency.toUpperCase()}` +
     `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
   );
 }
