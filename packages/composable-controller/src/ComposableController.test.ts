@@ -71,7 +71,7 @@ class BarController extends BaseControllerV1<never, BarControllerState> {
     bar: 'bar',
   };
 
-  override name = 'BarController';
+  override name = 'BarController' as const;
 
   constructor() {
     super();
@@ -92,7 +92,7 @@ class BazController extends BaseControllerV1<never, BazControllerState> {
     baz: 'baz',
   };
 
-  override name = 'BazController';
+  override name = 'BazController' as const;
 
   constructor() {
     super();
