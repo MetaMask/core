@@ -1,3 +1,32 @@
+import type { NetworkClientId } from '@metamask/network-controller';
+import type { Json } from '@metamask/utils';
+
+export type PollingTokenSetId = `${NetworkClientId}:${string}`;
+
+export type IPollingController = {
+  startPollingByNetworkClientId(
+    networkClientId: NetworkClientId,
+    options: Json,
+  ): string;
+
+  stopAllPolling(): void;
+
+  stopPollingByPollingToken(pollingToken: string): void;
+
+  onPollingCompleteByNetworkClientId(
+    networkClientId: NetworkClientId,
+    callback: (networkClientId: NetworkClientId) => void,
+    options: Json,
+  ): void;
+
+  _executePoll(networkClientId: NetworkClientId, options: Json): Promise<void>;
+  _startPollingByNetworkClientId(
+    networkClientId: NetworkClientId,
+    options: Json,
+  ): void;
+  _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void;
+};
+
 /**
  * TypeScript enforces this type for mixin constructors.
  *

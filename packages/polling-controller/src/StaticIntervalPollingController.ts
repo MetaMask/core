@@ -7,10 +7,10 @@ import {
   getKey,
 } from './AbstractPollingController';
 import type {
+  Constructor,
   IPollingController,
   PollingTokenSetId,
-} from './AbstractPollingController';
-import type { Constructor } from './types';
+} from './types';
 
 /**
  * StaticIntervalPollingControllerMixin

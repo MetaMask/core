@@ -9,8 +9,7 @@ import {
   AbstractPollingControllerBaseMixin,
   getKey,
 } from './AbstractPollingController';
-import type { PollingTokenSetId } from './AbstractPollingController';
-import type { Constructor } from './types';
+import type { Constructor, PollingTokenSetId } from './types';
 
 /**
  * BlockTrackerPollingControllerMixin
