@@ -3,6 +3,8 @@ import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
+import type { Constructor } from './types';
+
 export type IPollingController = {
   startPollingByNetworkClientId(
     networkClientId: NetworkClientId,
@@ -33,10 +35,6 @@ export const getKey = (
 ): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
 
 export type PollingTokenSetId = `${NetworkClientId}:${string}`;
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor = new (...args: any[]) => object;
 
 /**
  * AbstractPollingControllerBaseMixin
