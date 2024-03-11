@@ -441,10 +441,7 @@ export class NameController extends BaseController<
     const normalizedValue = this.#normalizeValue(value, type);
     const normalizedVariation = this.#normalizeVariation(variationKey, type);
 
-    if (
-      normalizedValue === '__proto__' ||
-      normalizedVariation === '__proto__'
-    ) {
+    if ([normalizedValue, normalizedVariation].includes('__proto__')) {
       return;
     }
 
