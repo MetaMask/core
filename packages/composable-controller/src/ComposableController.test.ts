@@ -27,9 +27,9 @@ type FooControllerEvent = {
 type FooMessenger = RestrictedControllerMessenger<
   'FooController',
   never,
-  FooControllerEvent,
+  FooControllerEvent | QuzControllerEvent,
   never,
-  never
+  QuzControllerEvent['type']
 >;
 
 const fooControllerStateMetadata = {
@@ -56,6 +56,50 @@ class FooController extends BaseController<
   updateFoo(foo: string) {
     super.update((state) => {
       state.foo = foo;
+    });
+  }
+}
+
+type QuzControllerState = {
+  quz: string;
+};
+type QuzControllerEvent = {
+  type: `QuzController:stateChange`;
+  payload: [QuzControllerState, Patch[]];
+};
+
+type QuzMessenger = RestrictedControllerMessenger<
+  'QuzController',
+  never,
+  QuzControllerEvent,
+  never,
+  never
+>;
+
+const quzControllerStateMetadata = {
+  quz: {
+    persist: true,
+    anonymous: true,
+  },
+};
+
+class QuzController extends BaseController<
+  'QuzController',
+  QuzControllerState,
+  QuzMessenger
+> {
+  constructor(messagingSystem: QuzMessenger) {
+    super({
+      messenger: messagingSystem,
+      metadata: quzControllerStateMetadata,
+      name: 'QuzController',
+      state: { quz: 'quz' },
+    });
+  }
+
+  updateQuz(quz: string) {
+    super.update((state) => {
+      state.quz = quz;
     });
   }
 }
@@ -161,30 +205,44 @@ describe('ComposableController', () => {
     it('should compose controller state', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
-        FooControllerEvent
+        FooControllerEvent | QuzControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted({
+      const fooMessenger = controllerMessenger.getRestricted<
+        'FooController',
+        never,
+        QuzControllerEvent['type']
+      >({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: ['QuzController:stateChange'],
+      });
+      const quzMessenger = controllerMessenger.getRestricted({
+        name: 'QuzController',
         allowedActions: [],
         allowedEvents: [],
       });
-      const fooController = new FooController(fooControllerMessenger);
+      const fooController = new FooController(fooMessenger);
+      const quzController = new QuzController(quzMessenger);
 
       const composableControllerMessenger = controllerMessenger.getRestricted<
         'ComposableController',
         never,
-        FooControllerEvent['type']
+        (FooControllerEvent | QuzControllerEvent)['type']
       >({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+        allowedEvents: [
+          'FooController:stateChange',
+          'QuzController:stateChange',
+        ],
       });
       const composableController = new ComposableController({
-        controllers: [fooController],
+        controllers: [fooController, quzController],
         messenger: composableControllerMessenger,
       });
       expect(composableController.state).toStrictEqual({
         FooController: { foo: 'foo' },
+        QuzController: { quz: 'quz' },
       });
     });
 
