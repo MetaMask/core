@@ -194,6 +194,8 @@ export class EnsController extends BaseController<
   delete(chainId: Hex, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
     if (
+      // @ts-expect-error suppressing to perform runtime check
+      chainId === '__proto__' ||
       !normalizedEnsName ||
       !this.state.ensEntries[chainId] ||
       !this.state.ensEntries[chainId][normalizedEnsName]

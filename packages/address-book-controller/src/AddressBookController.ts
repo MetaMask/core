@@ -110,6 +110,7 @@ export class AddressBookController extends BaseControllerV1<
   delete(chainId: Hex, address: string) {
     address = toChecksumHexAddress(address);
     if (
+      [chainId, address].includes('__proto__') ||
       !isValidHexAddress(address) ||
       !this.state.addressBook[chainId] ||
       !this.state.addressBook[chainId][address]
