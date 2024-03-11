@@ -107,7 +107,7 @@ export class AssetsContractController extends BaseControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'AssetsContractController';
+  override name = 'AssetsContractController' as const;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
