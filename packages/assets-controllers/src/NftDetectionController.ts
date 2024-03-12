@@ -3,7 +3,7 @@ import {
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
-  RESERVOIR_API_BASE_URL,
+  NFT_API_BASE_URL,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -288,6 +288,7 @@ export type Collection = {
   isSpam?: boolean;
   /** @default false */
   isNsfw?: boolean;
+  creator?: string;
   /** @default false */
   metadataDisabled?: boolean;
   openseaVerificationStatus?: string;
@@ -363,7 +364,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     address: string;
     next?: string;
   }) {
-    return `${RESERVOIR_API_BASE_URL}/${address}/tokens?chainIds=1&limit=200&continuation=${
+    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=200&continuation=${
       next ?? ''
     }`;
   }

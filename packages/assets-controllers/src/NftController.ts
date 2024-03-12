@@ -17,6 +17,7 @@ import {
   ERC1155,
   OPENSEA_PROXY_URL,
   ApprovalType,
+  NFT_API_BASE_URL,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -37,13 +38,13 @@ import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   mapOpenSeaContractV2ToV1,
-  mapOpenSeaDetailedNftV2ToV1,
 } from './assetsUtil';
 import { Source } from './constants';
 import type {
   ApiNftCreator,
   ApiNftContract,
   ApiNftLastSale,
+  ReservoirResponse,
 } from './NftDetectionController';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
@@ -321,14 +322,8 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
 
   private readonly messagingSystem: NftControllerMessenger;
 
-  getNftApi({
-    contractAddress,
-    tokenId,
-  }: {
-    contractAddress: string;
-    tokenId: string;
-  }) {
-    return `${OPENSEA_PROXY_URL}/chain/${OpenSeaV2ChainIds.ethereum}/contract/${contractAddress}/nfts/${tokenId}`;
+  getNftApi() {
+    return `${NFT_API_BASE_URL}/tokens`;
   }
 
   private getNftContractInformationApi({
@@ -379,7 +374,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   }
 
   /**
-   * Request individual NFT information from OpenSea API.
+   * Request individual NFT information from NFT API.
    *
    * @param contractAddress - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
@@ -390,17 +385,22 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     tokenId: string,
   ): Promise<NftMetadata> {
     // TODO Parameterize this by chainId for non-mainnet token detection
-    // Attempt to fetch the data with the proxy
-    const nftInformation: OpenSeaV2GetNftResponse | undefined =
+    // Attempt to fetch the data with the nft-api
+    const urlParams = new URLSearchParams({
+      chainIds: '1',
+      tokens: `${contractAddress}:${tokenId}`,
+    }).toString();
+    const nftInformation: ReservoirResponse | undefined =
       await fetchWithErrorHandling({
-        url: this.getNftApi({
-          contractAddress,
-          tokenId,
-        }),
+        url: `${this.getNftApi()}?${urlParams}`,
+        options: {
+          headers: {
+            Version: '1',
+          },
+        },
       });
-
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
-    if (!nftInformation?.nft) {
+    if (!nftInformation?.tokens[0].token) {
       return {
         name: null,
         description: null,
@@ -411,42 +411,25 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
 
     // if we've reached this point, we have successfully fetched some data for nftInformation
     // now we reconfigure the data to conform to the `NftMetadata` type for storage.
+
     const {
-      num_sales,
-      background_color,
-      image_url,
-      image_preview_url,
-      image_thumbnail_url,
-      image_original_url,
-      animation_url,
-      animation_original_url,
+      image,
+      metadata: { imageOriginal } = {},
       name,
       description,
-      external_link,
-      creator,
-      last_sale,
-      asset_contract: { schema_name },
-    } = mapOpenSeaDetailedNftV2ToV1(nftInformation.nft);
+      collection: { creator } = {},
+      kind,
+    } = nftInformation.tokens[0].token;
 
     /* istanbul ignore next */
     const nftMetadata: NftMetadata = Object.assign(
       {},
       { name: name || null },
       { description: description || null },
-      { image: image_url || null },
+      { image: image || null },
       creator && { creator },
-      num_sales && { numberOfSales: num_sales },
-      background_color && { backgroundColor: background_color },
-      image_preview_url && { imagePreview: image_preview_url },
-      image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
-      image_original_url && { imageOriginal: image_original_url },
-      animation_url && { animation: animation_url },
-      animation_original_url && {
-        animationOriginal: animation_original_url,
-      },
-      external_link && { externalLink: external_link },
-      last_sale && { lastSale: last_sale },
-      schema_name && { standard: schema_name },
+      imageOriginal && { imageOriginal },
+      kind && { standard: kind.toUpperCase() },
     );
 
     return nftMetadata;
@@ -601,7 +584,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     const chainId = this.getCorrectChainId({
       networkClientId,
     });
-
     const [blockchainMetadata, openSeaMetadata] = await Promise.all([
       safelyExecute(() =>
         this.getNftInformationFromTokenURI(

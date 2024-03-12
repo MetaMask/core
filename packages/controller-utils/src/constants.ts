@@ -108,7 +108,7 @@ export const BUILT_IN_NETWORKS = {
 export const OPENSEA_PROXY_URL =
   'https://proxy.metafi.codefi.network/opensea/v1/api/v2';
 
-export const RESERVOIR_API_BASE_URL = 'https://nft.api.cx.metamask.io/users';
+export const NFT_API_BASE_URL = 'https://nft.api.cx.metamask.io';
 
 // Default origin for controllers
 export const ORIGIN_METAMASK = 'metamask';

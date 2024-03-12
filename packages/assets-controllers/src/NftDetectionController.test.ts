@@ -1,8 +1,4 @@
-import {
-  RESERVOIR_API_BASE_URL,
-  ChainId,
-  toHex,
-} from '@metamask/controller-utils';
+import { NFT_API_BASE_URL, ChainId, toHex } from '@metamask/controller-utils';
 import { NetworkClientType } from '@metamask/network-controller';
 import type { NetworkClient } from '@metamask/network-controller';
 import {
@@ -30,9 +26,9 @@ describe('NftDetectionController', () => {
   beforeEach(async () => {
     clock = sinon.useFakeTimers();
 
-    nock(RESERVOIR_API_BASE_URL)
+    nock(NFT_API_BASE_URL)
       .persist()
-      .get(`/0x1/tokens?chainIds=1&limit=200&continuation=`)
+      .get(`/users/0x1/tokens?chainIds=1&limit=200&continuation=`)
       .reply(200, {
         tokens: [
           {
@@ -97,7 +93,7 @@ describe('NftDetectionController', () => {
           },
         ],
       })
-      .get(`/0x9/tokens?chainIds=1&limit=200&continuation=`)
+      .get(`/users/0x9/tokens?chainIds=1&limit=200&continuation=`)
       .reply(200, {
         tokens: [
           {
@@ -427,8 +423,8 @@ describe('NftDetectionController', () => {
 
   it('should do nothing when the request to Nft API fails', async () => {
     const selectedAddress = '0x3';
-    nock(RESERVOIR_API_BASE_URL)
-      .get(`/${selectedAddress}/tokens`)
+    nock(NFT_API_BASE_URL)
+      .get(`/users/${selectedAddress}/tokens`)
       .query({ continuation: '', limit: '200', chainIds: '1' })
       .replyWithError(new Error('Failed to fetch'))
       .persist();
@@ -460,8 +456,8 @@ describe('NftDetectionController', () => {
     await withController(
       async ({ controller, triggerPreferencesStateChange }) => {
         // This mock is for the initial detect call after preferences change
-        nock(RESERVOIR_API_BASE_URL)
-          .get(`/${selectedAddress}/tokens`)
+        nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/tokens`)
           .query({ continuation: '', limit: '200', chainIds: '1' })
           .reply(200, {
             tokens: [],
@@ -477,8 +473,8 @@ describe('NftDetectionController', () => {
           duration: 1,
         });
         // This mock is for the call under test
-        nock(RESERVOIR_API_BASE_URL)
-          .get(`/${selectedAddress}/tokens`)
+        nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/tokens`)
           .query({ continuation: '', limit: '200', chainIds: '1' })
           .replyWithError(new Error('UNEXPECTED ERROR'));
 
