@@ -3119,6 +3119,8 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 

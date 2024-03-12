@@ -123,6 +123,8 @@ function setupController(
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
+    allowedActions: [],
+    allowedEvents: [],
   });
 
   const approvalController = new ApprovalController({
@@ -163,6 +165,7 @@ function setupController(
   >({
     name: controllerName,
     allowedActions: ['ApprovalController:addRequest'],
+    allowedEvents: [],
   });
 
   const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =

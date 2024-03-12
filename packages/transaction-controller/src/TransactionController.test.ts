@@ -563,6 +563,7 @@ describe('TransactionController', () => {
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
         ],
+        allowedEvents: [],
       });
 
     const controller = new TransactionController({

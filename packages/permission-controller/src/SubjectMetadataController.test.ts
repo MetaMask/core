@@ -5,7 +5,6 @@ import type { HasPermissions } from './PermissionController';
 import type {
   SubjectMetadataControllerActions,
   SubjectMetadataControllerEvents,
-  SubjectMetadataControllerMessenger,
 } from './SubjectMetadataController';
 import {
   SubjectMetadataController,
@@ -38,7 +37,8 @@ function getSubjectMetadataControllerMessenger() {
     >({
       name: controllerName,
       allowedActions: ['PermissionController:hasPermissions'],
-    }) as SubjectMetadataControllerMessenger,
+      allowedEvents: [],
+    }),
     hasPermissionsSpy,
   ] as const;
 }

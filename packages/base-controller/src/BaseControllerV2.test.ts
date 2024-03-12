@@ -64,6 +64,8 @@ function getCountMessenger(
   }
   return controllerMessenger.getRestricted({
     name: countControllerName,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 
@@ -147,6 +149,8 @@ function getMessagesMessenger(
   }
   return controllerMessenger.getRestricted({
     name: messagesControllerName,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 
@@ -1110,6 +1114,8 @@ describe('getPersistentState', () => {
       >();
       const visitorControllerMessenger = controllerMessenger.getRestricted({
         name: visitorName,
+        allowedActions: [],
+        allowedEvents: [],
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,

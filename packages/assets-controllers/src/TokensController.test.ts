@@ -117,6 +117,8 @@ describe('TokensController', () => {
 
     approvalControllerMessenger = messenger.getRestricted({
       name: 'ApprovalController',
+      allowedActions: [],
+      allowedEvents: [],
     });
 
     tokensControllerMessenger = messenger.getRestricted<

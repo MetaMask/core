@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
 ## [7.3.9]
 
 ### Changed
@@ -209,7 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.9...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.9...@metamask/message-manager@8.0.0
 [7.3.9]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.8...@metamask/message-manager@7.3.9
 [7.3.8]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.7...@metamask/message-manager@7.3.8
 [7.3.7]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.6...@metamask/message-manager@7.3.7
