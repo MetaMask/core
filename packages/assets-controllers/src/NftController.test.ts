@@ -2704,6 +2704,31 @@ describe('NftController', () => {
   });
 
   describe('updateNftFavoriteStatus', () => {
+    it('should not set NFT as favorite if nft not found', async () => {
+      const { nftController } = setupController();
+      const { selectedAddress, chainId } = nftController.config;
+      await nftController.addNft(
+        ERC721_DEPRESSIONIST_ADDRESS,
+        ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
+      );
+
+      nftController.updateNftFavoriteStatus(
+        ERC721_DEPRESSIONIST_ADDRESS,
+        '666',
+        true,
+      );
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual(
+        expect.objectContaining({
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: false,
+        }),
+      );
+    });
     it('should set NFT as favorite', async () => {
       const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
