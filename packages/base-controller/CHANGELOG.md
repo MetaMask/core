@@ -19,8 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Narrow the return type of the function `deriveStateFromMetadata<ControllerState>` from `Record<string, Json>` to `Record<keyof ControllerState, Json>` ([#3949](https://github.com/MetaMask/core/pull/3949))
-  - TODO: What's the result of this change? `deriveStateFromMetadata` is not public, but `getAnonymizedState` and `getPersistentState` are.
+- **BREAKING:** Narrow the return types of functions `getAnonymizedState<ControllerState>` and `getPersistentState<ControllerState>` from `Record<string, Json>` to `Record<keyof ControllerState, Json>`. ([#3949](https://github.com/MetaMask/core/pull/3949), [#4040](https://github.com/MetaMask/core/pull/4040))
 - **BREAKING:** Align type-level and runtime behavior of `getRestricted` so that omitted or empty inputs consistently represent a set of empty allowlists ([#4013](https://github.com/MetaMask/core/pull/4013))
   - If the `AllowedActions` and `AllowedEvents` generic parameters are omitted, they are always assumed to be `never`.
     - Previously, omission of these generic parameters resulted in the full allowlists for the controller being inferred as type constraints for the `allowedActions` and `allowedEvents` function parameters.
