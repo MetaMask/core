@@ -20,8 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Passing a non-controller into `controllers` constructor option now throws an error ([#3904](https://github.com/MetaMask/core/pull/3904))
 - **BREAKING:** The `AllowedAction` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions ([#3904](https://github.com/MetaMask/core/pull/3904))
-- **BREAKING:** Constrain allowed event handler `payload`s for `ComposableControllerMessenger` to correctly accommodate `BaseControllerV1` and `BaseController` instead of allowing `Record<string, unknown>` ([#3949](https://github.com/MetaMask/core/pull/3949))
-  - TODO: Is this necessary now?
 - **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
 - Relax `payload` in `ComposableControllerStateChangeEvent` to use `Record<string, any>` rather than `Record<string, unknown>` ([#3949](https://github.com/MetaMask/core/pull/3949))
