@@ -1,6 +1,9 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-/** A map from native currency symbol to CryptoCompare identifier */
+/**
+ * A map from native currency symbol to CryptoCompare identifier.
+ * This is only needed when the values don't match.
+ */
 const nativeSymbolOverrides = new Map([['MNT', 'MANTLE']]);
 
 /**
