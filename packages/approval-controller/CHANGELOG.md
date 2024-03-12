@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **BREAKING:** Narrow `ApprovalControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
-  - Allowlisting any actions or events will now produce a type error.
+  - Allowlisting or using any external actions or events will now produce a type error.
 
 ## [5.1.3]
 
