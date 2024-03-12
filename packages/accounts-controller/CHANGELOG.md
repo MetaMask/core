@@ -27,8 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **BREAKING:** Narrow allowed actions and event type for `AccountsController` messenger ([#4021](https://github.com/MetaMask/core/pull/4021), [#4031](https://github.com/MetaMask/core/pull/4031))
-  - Narrow type parameter `AllowedAction` from `string` to `KeyringControllerGetKeyringForAccountAction | KeyringControllerGetKeyringsByTypeAction | KeyringControllerGetAccountsAction`.
-  - Narrow type parameter `AllowedEvent` from `string` to `SnapStateChange | KeyringControllerStateChangeEvent`, removing other events from `SnapController` and `KeyringController`.
+  - Narrow type parameter `AllowedAction` from `string` to `(KeyringControllerGetKeyringForAccountAction | KeyringControllerGetKeyringsByTypeAction | KeyringControllerGetAccountsAction)['type']`.
+  - Narrow type parameter `AllowedEvent` from `string` to `(SnapStateChange | KeyringControllerStateChangeEvent)['type']`, removing other events from `SnapController` and `KeyringController`.
 
 ## [11.0.0]
 
