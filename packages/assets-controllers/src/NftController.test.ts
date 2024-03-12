@@ -260,25 +260,9 @@ describe('NftController', () => {
         image_url: 'url',
       })
       .get(
-        `/chain/ethereum/contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/nfts/798958393`,
-      )
-      .replyWithError(new TypeError('Failed to fetch'))
-      .get(
         `/chain/ethereum/contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`,
       )
       .replyWithError(new TypeError('Failed to fetch'));
-
-    nock(OPENSEA_PROXY_URL)
-      .get(
-        `/chain/ethereum/contract/${ERC1155_NFT_ADDRESS}/nfts/${ERC1155_NFT_ID}`,
-      )
-      .reply(200, {
-        nft: {
-          token_standard: 'erc1155',
-          name: 'name',
-          description: 'description',
-        },
-      });
 
     nock(DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH).get('/').reply(200, {
       name: 'name',
@@ -1750,18 +1734,24 @@ describe('NftController', () => {
           .fn()
           .mockRejectedValue(new Error('Failed to fetch')),
       });
-      nock(OPENSEA_PROXY_URL)
+      nock(NFT_API_BASE_URL)
         .get(
-          `/chain/ethereum/contract/${ERC721_KUDOSADDRESS}/nfts/${ERC721_KUDOS_TOKEN_ID}`,
+          `/tokens?chainIds=1&tokens=${ERC721_KUDOSADDRESS}%3A${ERC721_KUDOS_TOKEN_ID}`,
         )
         .reply(200, {
-          nft: {
-            token_standard: 'erc721',
-            name: 'Kudos Name',
-            description: 'Kudos Description',
-            image_url: 'Kudos image (from proxy API)',
-          },
-        })
+          tokens: [
+            {
+              token: {
+                kind: 'erc721',
+                name: 'Kudos Name',
+                description: 'Kudos Description',
+                image: 'Kudos image (from proxy API)',
+              },
+            },
+          ],
+        });
+
+      nock(OPENSEA_PROXY_URL)
         .get(
           `/chain/ethereum/contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/`,
         )
@@ -1895,9 +1885,10 @@ describe('NftController', () => {
       const { nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/chain/ethereum/contract/${ERC721_NFT_ADDRESS}`)
-        .replyWithError(new Error('Failed to fetch'))
+        .replyWithError(new Error('Failed to fetch'));
+      nock(NFT_API_BASE_URL)
         .get(
-          `/chain/ethereum/contract/${ERC721_NFT_ADDRESS}/nfts/${ERC721_NFT_ID}`,
+          `/tokens?chainIds=1&tokens=${ERC721_NFT_ADDRESS}%3A${ERC721_NFT_ID}`,
         )
         .replyWithError(new Error('Failed to fetch'));
 
