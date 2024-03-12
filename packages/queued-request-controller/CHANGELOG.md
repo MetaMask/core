@@ -17,11 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: The `QueuedRequestController` will now batch queued requests by origin ([#3781](https://github.com/MetaMask/core/pull/3781))
+- **BREAKING**: The `QueuedRequestController` will now batch queued requests by origin ([#3781](https://github.com/MetaMask/core/pull/3781), [#4038](https://github.com/MetaMask/core/pull/4038))
   - All of the requests in a single batch will be processed in parallel.
   - Requests get processed in order of insertion, even across origins/batches.
   - All requests get processed even in the event of preceding requests failing.
-- **BREAKING:** The `queuedRequestCount` state no longer includes requests that are currently being processed. It just counts requests that are queued ([#3781](https://github.com/MetaMask/core/pull/3781))
+- **BREAKING:** The `queuedRequestCount` state no longer includes requests that are currently being processed; it just counts requests that are queued ([#3781](https://github.com/MetaMask/core/pull/3781))
 - **BREAKING:** The `QueuedRequestController` no longer triggers a confirmation when a network switch is needed ([#3781](https://github.com/MetaMask/core/pull/3781))
   - The network switch now happens automatically, with no confirmation.
   - A new `QueuedRequestController:networkSwitched` event has been added to communicate when this has happened.
