@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/accounts-controller` to `^12.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/preferences-controller` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Relax `TokensControllerGetStateAction` and `TokensControllerStateChangeEvent` types so that they no longer constrain the `TokensController` state in the action handler and event payload to `Record<string, Json>` ([#3949](https://github.com/MetaMask/core/pull/3949))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/polling-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
 ## [26.0.0]
 
 ### Added
@@ -697,7 +717,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@26.0.0...@metamask/assets-controllers@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...@metamask/assets-controllers@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...@metamask/assets-controllers@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
