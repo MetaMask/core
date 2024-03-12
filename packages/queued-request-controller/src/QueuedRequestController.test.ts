@@ -100,6 +100,37 @@ describe('QueuedRequestController', () => {
       );
     });
 
+    it('does not switch networks if the method is `eth_requestAccounts`', async () => {
+      const mockSetActiveNetwork = jest.fn();
+      const { messenger } = buildControllerMessenger({
+        networkControllerGetState: jest.fn().mockReturnValue({
+          ...cloneDeep(defaultNetworkState),
+          selectedNetworkClientId: 'selectedNetworkClientId',
+        }),
+        networkControllerSetActiveNetwork: mockSetActiveNetwork,
+        selectedNetworkControllerGetNetworkClientIdForDomain: jest
+          .fn()
+          .mockImplementation((_origin) => 'differentNetworkClientId'),
+      });
+      const onNetworkSwitched = jest.fn();
+      messenger.subscribe(
+        'QueuedRequestController:networkSwitched',
+        onNetworkSwitched,
+      );
+      const options: QueuedRequestControllerOptions = {
+        messenger: buildQueuedRequestControllerMessenger(messenger),
+      };
+      const controller = new QueuedRequestController(options);
+
+      await controller.enqueueRequest(
+        { ...buildRequest(), method: 'eth_requestAccounts' },
+        () => new Promise((resolve) => setTimeout(resolve, 10)),
+      );
+
+      expect(mockSetActiveNetwork).not.toHaveBeenCalled();
+      expect(onNetworkSwitched).not.toHaveBeenCalled();
+    });
+
     it('does not switch networks if a request comes in for the same network client', async () => {
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({

@@ -256,7 +256,7 @@ export class BaseController<
 export function getAnonymizedState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
-): StateConstraint {
+): Record<keyof ControllerState, Json> {
   return deriveStateFromMetadata(state, metadata, 'anonymous');
 }
 
@@ -270,7 +270,7 @@ export function getAnonymizedState<ControllerState extends StateConstraint>(
 export function getPersistentState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
-): StateConstraint {
+): Record<keyof ControllerState, Json> {
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
 
