@@ -29,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `getRestricted` is still able to flag `AllowedActions` and `AllowedEvents` members that should not be included in the allowlists, based on the `Action` and `Event` generic arguments passed into the `ControllerMessenger` instance.
 - **BREAKING:** The `RestrictedControllerMessenger` class constructor now expects `allowedActions` and `allowedEvents` as required options ([#4013](https://github.com/MetaMask/core/pull/4013))
 - **BREAKING**: Add `string` as generic constraint to the `Name` generic parameter of the types `NamespacedBy` and `NotNamespacedBy` ([#4036](https://github.com/MetaMask/core/pull/4036))
-  - TODO: `NamespacedBy` and `NotNamespacedBy` aren't public. What does this affect?
 - **BREAKING:** The `getRestricted` method of the `ControllerMessenger` class now expects both `allowedActions` and `allowedEvents` as required parameters.
   - An empty array is required if no allowed actions or events are desired.
 - Convert interface `StatePropertyMetadata` into a type alias ([#3949](https://github.com/MetaMask/core/pull/3949))
