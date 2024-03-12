@@ -211,7 +211,7 @@ export class TokensController extends BaseControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'TokensController';
+  override name = 'TokensController' as const;
 
   /**
    * Creates a TokensController instance.
