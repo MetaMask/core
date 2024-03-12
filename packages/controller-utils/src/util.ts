@@ -257,14 +257,22 @@ export async function safelyExecuteWithTimeout<Result>(
  * @returns A 0x-prefixed hexidecimal checksummed address, if address is valid. Otherwise original input 0x-prefixe, if address is valid. Otherwise original input 0x-prefixed.
  */
 export function toChecksumHexAddress(address: string) {
+  if (typeof address !== 'string') {
+    // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
+    // function was previously using) for backward compatibility
+    return address;
+  }
+
   const hexPrefixed = add0x(address);
+
   if (!isHexString(hexPrefixed)) {
-    // Version 5.1 of ethereumjs-utils would have returned '0xY' for input 'y'
+    // Version 5.1 of ethereumjs-util would have returned '0xY' for input 'y'
     // but we shouldn't waste effort trying to change case on a clearly invalid
     // string. Instead just return the hex prefixed original string which most
     // closely mimics the original behavior.
     return hexPrefixed;
   }
+
   return toChecksumAddress(hexPrefixed);
 }
 
