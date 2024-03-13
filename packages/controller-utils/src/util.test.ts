@@ -299,12 +299,10 @@ describe('util', () => {
     });
 
     it('should return the input untouched if it is undefined', () => {
-      // @ts-expect-error We are intentionally passing invalid input.
       expect(util.toChecksumHexAddress(undefined)).toBeUndefined();
     });
 
     it('should return the input untouched if it is null', () => {
-      // @ts-expect-error We are intentionally passing invalid input.
       expect(util.toChecksumHexAddress(null)).toBeNull();
     });
   });
