@@ -16,6 +16,7 @@ import type {
   EthKeyring,
   EthUserOperation,
   EthUserOperationPatch,
+  KeyringExecutionContext,
 } from '@metamask/keyring-api';
 import type {
   PersonalMessageParams,
@@ -1235,11 +1236,13 @@ export class KeyringController extends BaseController<
    *
    * @param from - Address of the sender.
    * @param transactions - Base transactions to include in the UserOperation.
+   * @param context - Keyring execution context.
    * @returns A pseudo-UserOperation that can be used to construct a real.
    */
   async prepareUserOperation(
     from: string,
     transactions: EthBaseTransaction[],
+    context: KeyringExecutionContext,
   ): Promise<EthBaseUserOperation> {
     const address = normalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
@@ -1250,7 +1253,7 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.UnsupportedPrepareUserOperation);
     }
 
-    return await keyring.prepareUserOperation(address, transactions);
+    return await keyring.prepareUserOperation(address, transactions, context);
   }
 
   /**
@@ -1259,11 +1262,13 @@ export class KeyringController extends BaseController<
    *
    * @param from - Address of the sender.
    * @param userOp - UserOperation to patch.
+   * @param context - Keyring execution context.
    * @returns A patch to apply to the UserOperation.
    */
   async patchUserOperation(
     from: string,
     userOp: EthUserOperation,
+    context: KeyringExecutionContext,
   ): Promise<EthUserOperationPatch> {
     const address = normalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
@@ -1274,7 +1279,7 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.UnsupportedPatchUserOperation);
     }
 
-    return await keyring.patchUserOperation(address, userOp);
+    return await keyring.patchUserOperation(address, userOp, context);
   }
 
   /**
@@ -1282,11 +1287,13 @@ export class KeyringController extends BaseController<
    *
    * @param from - Address of the sender.
    * @param userOp - UserOperation to sign.
+   * @param context - Keyring execution context.
    * @returns The signature of the UserOperation.
    */
   async signUserOperation(
     from: string,
     userOp: EthUserOperation,
+    context: KeyringExecutionContext,
   ): Promise<string> {
     const address = normalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
@@ -1297,7 +1304,7 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.UnsupportedSignUserOperation);
     }
 
-    return await keyring.signUserOperation(address, userOp);
+    return await keyring.signUserOperation(address, userOp, context);
   }
 
   /**
