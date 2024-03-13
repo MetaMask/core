@@ -1,11 +1,15 @@
-import type {
-  Json,
-  JsonRpcParams,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
+import {
+  type Json,
+  type JsonRpcParams,
+  type JsonRpcRequest,
+  type PendingJsonRpcResponse,
 } from '@metamask/utils';
+import { isNativeError } from 'util/types';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngine';
+import type {
+  JsonRpcEngineCallbackError,
+  JsonRpcMiddleware,
+} from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
@@ -83,13 +87,12 @@ export function createAsyncMiddleware<
       } else {
         end(null);
       }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      if (returnHandlerCallback) {
+    } catch (error: unknown) {
+      if (returnHandlerCallback && isNativeError(error)) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);
       } else {
-        end(error);
+        // TODO: Explicitly handle errors thrown from `#runReturnHandlers` that are not of type `JsonRpcEngineCallbackError`
+        end(error as JsonRpcEngineCallbackError);
       }
     }
   };
