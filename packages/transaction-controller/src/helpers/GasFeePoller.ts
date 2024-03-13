@@ -168,14 +168,17 @@ export class GasFeePoller {
       return;
     }
 
-    transactionMeta.gasFeeEstimates = gasFeeEstimates;
-    transactionMeta.gasFeeEstimatesLoaded = true;
+    const updatedTransactionMeta: TransactionMeta = {
+      ...transactionMeta,
+      gasFeeEstimates,
+      gasFeeEstimatesLoaded: true,
+    };
 
-    this.hub.emit('transaction-updated', transactionMeta);
+    this.hub.emit('transaction-updated', updatedTransactionMeta);
 
     log('Updated suggested gas fees', {
-      gasFeeEstimates: transactionMeta.gasFeeEstimates,
-      transaction: transactionMeta.id,
+      gasFeeEstimates: updatedTransactionMeta.gasFeeEstimates,
+      transaction: updatedTransactionMeta.id,
     });
   }
 

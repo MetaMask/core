@@ -1,6 +1,10 @@
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from './BaseControllerV2';
 import {
   BaseController,
   getAnonymizedState,
@@ -14,15 +18,16 @@ const countControllerName = 'CountController';
 type CountControllerState = {
   count: number;
 };
-type CountControllerAction = {
-  type: `${typeof countControllerName}:getState`;
-  handler: () => CountControllerState;
-};
 
-type CountControllerEvent = {
-  type: `${typeof countControllerName}:stateChange`;
-  payload: [CountControllerState, Patch[]];
-};
+type CountControllerAction = ControllerGetStateAction<
+  typeof countControllerName,
+  CountControllerState
+>;
+
+type CountControllerEvent = ControllerStateChangeEvent<
+  typeof countControllerName,
+  CountControllerState
+>;
 
 const countControllerStateMetadata = {
   count: {
@@ -57,8 +62,10 @@ function getCountMessenger(
       CountControllerEvent
     >();
   }
-  return controllerMessenger.getRestricted<'CountController', never, never>({
+  return controllerMessenger.getRestricted({
     name: countControllerName,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 
@@ -71,6 +78,91 @@ class CountController extends BaseController<
     callback: (
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
+  ) {
+    const res = super.update(callback);
+    return res;
+  }
+
+  applyPatches(patches: Patch[]) {
+    super.applyPatches(patches);
+  }
+
+  destroy() {
+    super.destroy();
+  }
+}
+
+const messagesControllerName = 'MessagesController';
+
+type Message = {
+  subject: string;
+  body: string;
+  headers: Record<string, string>;
+};
+
+type MessagesControllerState = {
+  messages: Message[];
+};
+
+type MessagesControllerAction = ControllerGetStateAction<
+  typeof messagesControllerName,
+  MessagesControllerState
+>;
+
+type MessagesControllerEvent = ControllerStateChangeEvent<
+  typeof messagesControllerName,
+  MessagesControllerState
+>;
+
+const messagesControllerStateMetadata = {
+  messages: {
+    persist: true,
+    anonymous: true,
+  },
+};
+
+type MessagesMessenger = RestrictedControllerMessenger<
+  typeof messagesControllerName,
+  MessagesControllerAction,
+  MessagesControllerEvent,
+  never,
+  never
+>;
+
+/**
+ * Constructs a restricted controller messenger for the Messages controller.
+ *
+ * @param controllerMessenger - The controller messenger.
+ * @returns A restricted controller messenger for the Messages controller.
+ */
+function getMessagesMessenger(
+  controllerMessenger?: ControllerMessenger<
+    MessagesControllerAction,
+    MessagesControllerEvent
+  >,
+): MessagesMessenger {
+  if (!controllerMessenger) {
+    controllerMessenger = new ControllerMessenger<
+      MessagesControllerAction,
+      MessagesControllerEvent
+    >();
+  }
+  return controllerMessenger.getRestricted({
+    name: messagesControllerName,
+    allowedActions: [],
+    allowedEvents: [],
+  });
+}
+
+class MessagesController extends BaseController<
+  typeof messagesControllerName,
+  MessagesControllerState,
+  MessagesMessenger
+> {
+  update(
+    callback: (
+      state: Draft<MessagesControllerState>,
+    ) => void | MessagesControllerState,
   ) {
     const res = super.update(callback);
     return res;
@@ -129,7 +221,7 @@ describe('BaseController', () => {
     expect(controller.metadata).toStrictEqual(countControllerStateMetadata);
   });
 
-  it('should not allow mutating state directly', () => {
+  it('should not allow reassigning the `state` property', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
@@ -142,6 +234,56 @@ describe('BaseController', () => {
     }).toThrow(
       "Controller state cannot be directly mutated; use 'update' method instead.",
     );
+  });
+
+  it('should not allow reassigning an object property that exists in state', () => {
+    const controller = new MessagesController({
+      messenger: getMessagesMessenger(),
+      name: messagesControllerName,
+      state: {
+        messages: [
+          {
+            subject: 'Hi',
+            body: 'Hello, I hope you have a good day',
+            headers: {
+              'X-Foo': 'Bar',
+            },
+          },
+        ],
+      },
+      metadata: messagesControllerStateMetadata,
+    });
+
+    expect(() => {
+      controller.state.messages[0].headers['X-Baz'] = 'Qux';
+    }).toThrow('Cannot add property X-Baz, object is not extensible');
+  });
+
+  it('should not allow pushing a value onto an array property that exists in state', () => {
+    const controller = new MessagesController({
+      messenger: getMessagesMessenger(),
+      name: messagesControllerName,
+      state: {
+        messages: [
+          {
+            subject: 'Hi',
+            body: 'Hello, I hope you have a good day',
+            headers: {
+              'X-Foo': 'Bar',
+            },
+          },
+        ],
+      },
+      metadata: messagesControllerStateMetadata,
+    });
+
+    expect(() => {
+      controller.state.messages.push({
+        subject: 'Hello again',
+        body: 'Please join my network on LinkedIn',
+        headers: {},
+      });
+    }).toThrow('Cannot add property 1, object is not extensible');
   });
 
   it('should allow updating state by modifying draft', () => {
@@ -970,12 +1112,10 @@ describe('getPersistentState', () => {
         VisitorControllerAction | VisitorOverflowControllerAction,
         VisitorControllerEvent | VisitorOverflowControllerEvent
       >();
-      const visitorControllerMessenger = controllerMessenger.getRestricted<
-        typeof visitorName,
-        never,
-        never
-      >({
+      const visitorControllerMessenger = controllerMessenger.getRestricted({
         name: visitorName,
+        allowedActions: [],
+        allowedEvents: [],
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,

@@ -25,10 +25,8 @@ import {
   defaultState as defaultNetworkState,
   NetworkClientType,
 } from '@metamask/network-controller';
-import {
-  getDefaultPreferencesState,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -117,15 +115,17 @@ describe('TokensController', () => {
     const defaultSelectedAddress = '0x1';
     messenger = new ControllerMessenger();
 
-    approvalControllerMessenger = messenger.getRestricted<
-      'ApprovalController',
-      never,
-      never
-    >({
+    approvalControllerMessenger = messenger.getRestricted({
       name: 'ApprovalController',
+      allowedActions: [],
+      allowedEvents: [],
     });
 
-    tokensControllerMessenger = messenger.getRestricted({
+    tokensControllerMessenger = messenger.getRestricted<
+      typeof controllerName,
+      AllowedActions['type'],
+      AllowedEvents['type']
+    >({
       name: controllerName,
       allowedActions: [
         'ApprovalController:addRequest',

@@ -123,6 +123,8 @@ function setupController(
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
+    allowedActions: [],
+    allowedEvents: [],
   });
 
   const approvalController = new ApprovalController({
@@ -159,11 +161,11 @@ function setupController(
 
   const nftControllerMessenger = messenger.getRestricted<
     typeof controllerName,
-    ApprovalActions['type'],
-    never
+    ApprovalActions['type']
   >({
     name: controllerName,
     allowedActions: ['ApprovalController:addRequest'],
+    allowedEvents: [],
   });
 
   const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =

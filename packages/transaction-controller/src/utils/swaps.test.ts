@@ -1,6 +1,14 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import { query } from '@metamask/controller-utils';
 
 import { CHAIN_IDS } from '../constants';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  TransactionControllerActions,
+  TransactionControllerEvents,
+  TransactionControllerMessenger,
+} from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType, TransactionStatus } from '../types';
 import {
@@ -21,6 +29,7 @@ describe('updateSwapsTransaction', () => {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let request: any;
+  let messenger: TransactionControllerMessenger;
 
   beforeEach(() => {
     transactionMeta = {
@@ -36,35 +45,39 @@ describe('updateSwapsTransaction', () => {
         destinationTokenSymbol: 'DAI',
       },
     };
+    messenger = new ControllerMessenger<
+      TransactionControllerActions | AllowedActions,
+      TransactionControllerEvents | AllowedEvents
+    >().getRestricted({
+      name: 'TransactionController',
+      allowedActions: [
+        'ApprovalController:addRequest',
+        'NetworkController:getNetworkClientById',
+        'NetworkController:findNetworkClientIdByChainId',
+      ],
+      allowedEvents: [],
+    });
     request = {
       isSwapsDisabled: false,
       cancelTransaction: jest.fn(),
-      controllerHubEmitter: jest.fn(),
+      messenger,
     };
   });
 
   it('should not update if swaps are disabled', async () => {
     request.isSwapsDisabled = true;
-    await updateSwapsTransaction(
-      transactionMeta,
-      transactionType,
-      swaps,
-      request,
-    );
+    jest.spyOn(messenger, 'call');
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
-    expect(request.controllerHubEmitter).not.toHaveBeenCalled();
+    expect(messenger.call).not.toHaveBeenCalled();
   });
 
   it('should not update if transaction type is not swap or swapApproval', async () => {
     transactionType = TransactionType.deployContract;
-    await updateSwapsTransaction(
-      transactionMeta,
-      transactionType,
-      swaps,
-      request,
-    );
+    jest.spyOn(messenger, 'call');
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
-    expect(request.controllerHubEmitter).not.toHaveBeenCalled();
+    expect(messenger.call).not.toHaveBeenCalled();
   });
 
   it('should cancel transaction if simulation fails', async () => {
@@ -73,25 +86,21 @@ describe('updateSwapsTransaction', () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
-    await expect(
+    expect(() =>
       updateSwapsTransaction(transactionMeta, transactionType, swaps, request),
-    ).rejects.toThrow('Simulation failed');
+    ).toThrow('Simulation failed');
     expect(request.cancelTransaction).toHaveBeenCalledWith(transactionMeta.id);
   });
 
   it('should not update or call swap events if swaps meta is not defined', async () => {
     swaps.meta = undefined;
-    await updateSwapsTransaction(
-      transactionMeta,
-      transactionType,
-      swaps,
-      request,
-    );
+    jest.spyOn(messenger, 'call');
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
     expect(request.cancelTransaction).not.toHaveBeenCalled();
-    expect(request.controllerHubEmitter).not.toHaveBeenCalled();
+    expect(messenger.call).not.toHaveBeenCalled();
   });
 
-  it('should update swap transaction and emit newSwap event', async () => {
+  it('should update swap transaction and publish TransactionController:transactionNewSwap', async () => {
     const sourceTokenSymbol = 'ETH';
     const destinationTokenSymbol = 'DAI';
     const type = TransactionType.swap;
@@ -116,33 +125,76 @@ describe('updateSwapsTransaction', () => {
       approvalTxId,
     };
 
-    await updateSwapsTransaction(
+    const transactionNewSwapEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewSwap',
+      transactionNewSwapEventListener,
+    );
+
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
+
+    expect(transactionNewSwapEventListener).toHaveBeenCalledWith({
+      transactionMeta: {
+        ...transactionMeta,
+        sourceTokenSymbol,
+        destinationTokenSymbol,
+        type,
+        destinationTokenDecimals,
+        destinationTokenAddress,
+        swapMetaData,
+        swapTokenValue,
+        estimatedBaseFee,
+        approvalTxId,
+      },
+    });
+  });
+
+  it('should return the swap transaction updated with information', () => {
+    const sourceTokenSymbol = 'ETH';
+    const destinationTokenSymbol = 'DAI';
+    const type = TransactionType.swap;
+    const destinationTokenDecimals = '18';
+    const destinationTokenAddress = '0x0';
+    const swapMetaData = {
+      meta: 'data',
+    };
+    const swapTokenValue = '0x123';
+    const estimatedBaseFee = '0x123';
+    const approvalTxId = '0x123';
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    };
+
+    const updatedSwapsTransaction = updateSwapsTransaction(
       transactionMeta,
       transactionType,
       swaps,
       request,
     );
-    expect(request.controllerHubEmitter).toHaveBeenCalledTimes(1);
-    expect(request.controllerHubEmitter).toHaveBeenCalledWith(
-      'transaction-new-swap',
-      {
-        transactionMeta: {
-          ...transactionMeta,
-          sourceTokenSymbol,
-          destinationTokenSymbol,
-          type,
-          destinationTokenDecimals,
-          destinationTokenAddress,
-          swapMetaData,
-          swapTokenValue,
-          estimatedBaseFee,
-          approvalTxId,
-        },
-      },
-    );
+    expect(updatedSwapsTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    });
   });
 
-  it('should update swap approval transaction and emit newSwapApproval event', async () => {
+  it('should update swap approval transaction and publish TransactionController:transactionNewSwapApproval', async () => {
     const sourceTokenSymbol = 'ETH';
     const type = TransactionType.swapApproval;
 
@@ -152,23 +204,44 @@ describe('updateSwapsTransaction', () => {
     };
     transactionType = TransactionType.swapApproval;
 
-    await updateSwapsTransaction(
+    const transactionNewSwapApprovalEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewSwapApproval',
+      transactionNewSwapApprovalEventListener,
+    );
+
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
+    expect(transactionNewSwapApprovalEventListener).toHaveBeenCalledTimes(1);
+    expect(transactionNewSwapApprovalEventListener).toHaveBeenCalledWith({
+      transactionMeta: {
+        ...transactionMeta,
+        sourceTokenSymbol,
+        type,
+      },
+    });
+  });
+
+  it('should return the swap approval transaction updated with information', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const type = TransactionType.swapApproval;
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      type,
+    };
+    transactionType = TransactionType.swapApproval;
+
+    const updatedSwapsTransaction = updateSwapsTransaction(
       transactionMeta,
       transactionType,
       swaps,
       request,
     );
-    expect(request.controllerHubEmitter).toHaveBeenCalledTimes(1);
-    expect(request.controllerHubEmitter).toHaveBeenCalledWith(
-      'transaction-new-swap-approval',
-      {
-        transactionMeta: {
-          ...transactionMeta,
-          sourceTokenSymbol,
-          type,
-        },
-      },
-    );
+    expect(updatedSwapsTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      type,
+    });
   });
 });
 

@@ -78,7 +78,7 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
-export type AllowedAccountsControllerActions =
+export type AllowedActions =
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetAccountsAction;
@@ -91,8 +91,7 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountAction
-  | AllowedAccountsControllerActions;
+  | AccountsControllerGetAccountAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -104,21 +103,18 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
-export type AllowedAccountsControllerEvents =
-  | SnapStateChange
-  | KeyringControllerStateChangeEvent;
+export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent
-  | AllowedAccountsControllerEvents;
+  | AccountsControllerSelectedAccountChangeEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  AccountsControllerActions,
-  AccountsControllerEvents,
-  AllowedAccountsControllerActions['type'],
-  AllowedAccountsControllerEvents['type']
+  AccountsControllerActions | AllowedActions,
+  AccountsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 type AddressAndKeyringTypeObject = {

@@ -18,6 +18,7 @@ export const CHAIN_IDS = {
   FANTOM_TESTNET: '0xfa2',
   SEPOLIA: '0xaa36a7',
   LINEA_GOERLI: '0xe704',
+  LINEA_SEPOLIA: '0xe705',
   LINEA_MAINNET: '0xe708',
   MOONBEAM: '0x504',
   MOONBEAM_TESTNET: '0x507',
@@ -46,6 +47,10 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   [CHAIN_IDS.LINEA_GOERLI]: {
     domain: 'lineascan.build',
     subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli`,
+  },
+  [CHAIN_IDS.LINEA_SEPOLIA]: {
+    domain: 'lineascan.build',
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-sepolia`,
   },
   [CHAIN_IDS.LINEA_MAINNET]: {
     domain: 'lineascan.build',
