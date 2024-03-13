@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.1]
+
 ### Uncategorized
 
 - Fix `types` field in `package.json` for all packages ([#4047](https://github.com/MetaMask/core/pull/4047))
@@ -222,7 +224,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.1...HEAD
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.0...@metamask/signature-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@13.0.0...@metamask/signature-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@12.0.0...@metamask/signature-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@11.0.0...@metamask/signature-controller@12.0.0
