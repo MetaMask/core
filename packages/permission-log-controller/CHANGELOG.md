@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.1]
 
-### Uncategorized
+### Fixed
 
-- Fix `types` field in `package.json` for all packages ([#4047](https://github.com/MetaMask/core/pull/4047))
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
 
 ## [2.0.0]
 
