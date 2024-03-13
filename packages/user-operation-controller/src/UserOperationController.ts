@@ -526,11 +526,12 @@ export class UserOperationController extends BaseController<
     metadata: UserOperationMetadata,
     smartContractAccount: SmartContractAccount,
   ) {
-    const { id, userOperation } = metadata;
+    const { chainId, id, userOperation } = metadata;
 
     log('Requesting paymaster data', { id });
 
     const response = await smartContractAccount.updateUserOperation({
+      chainId,
       userOperation,
     });
 

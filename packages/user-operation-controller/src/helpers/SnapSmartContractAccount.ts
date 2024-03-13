@@ -17,10 +17,19 @@ export class SnapSmartContractAccount implements SmartContractAccount {
     this.#messenger = messenger;
   }
 
+  toEip155ChainId(chainId: string): string {
+    const chainIdNumber = Number(chainId);
+
+    // If for some reason the chainId isn't convertible to a decimal integer representation, we fallback
+    // to the initial `chainId`.
+    return Number.isInteger(chainIdNumber) ? chainIdNumber.toString() : chainId;
+  }
+
   async prepareUserOperation(
     request: PrepareUserOperationRequest,
   ): Promise<PrepareUserOperationResponse> {
     const {
+      chainId,
       data: requestData,
       from: sender,
       to: requestTo,
@@ -35,6 +44,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:prepareUserOperation',
       sender,
       [{ data, to, value }],
+      { chainId: this.toEip155ChainId(chainId) },
     );
 
     const {
@@ -62,7 +72,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
   async updateUserOperation(
     request: UpdateUserOperationRequest,
   ): Promise<UpdateUserOperationResponse> {
-    const { userOperation } = request;
+    const { chainId, userOperation } = request;
     const { sender } = userOperation;
 
     const { paymasterAndData: responsePaymasterAndData } =
@@ -70,6 +80,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
         'KeyringController:patchUserOperation',
         sender,
         userOperation,
+        { chainId: this.toEip155ChainId(chainId) },
       );
 
     const paymasterAndData =
@@ -85,13 +96,14 @@ export class SnapSmartContractAccount implements SmartContractAccount {
   async signUserOperation(
     request: SignUserOperationRequest,
   ): Promise<SignUserOperationResponse> {
-    const { userOperation } = request;
+    const { chainId, userOperation } = request;
     const { sender } = userOperation;
 
     const signature = await this.#messenger.call(
       'KeyringController:signUserOperation',
       sender,
       userOperation,
+      { chainId: this.toEip155ChainId(chainId) },
     );
 
     return { signature };
