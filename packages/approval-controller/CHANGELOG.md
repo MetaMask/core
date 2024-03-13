@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
 ## [6.0.0]
 
 ### Added
@@ -180,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.0...@metamask/approval-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.3...@metamask/approval-controller@6.0.0
 [5.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.2...@metamask/approval-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.1...@metamask/approval-controller@5.1.2

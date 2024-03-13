@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
 ## [14.0.0]
 
 ### Added
@@ -394,7 +400,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...HEAD
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.1.0...@metamask/keyring-controller@12.2.0

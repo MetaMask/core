@@ -1,6 +1,6 @@
 {
   "name": "@metamask/name-controller",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "Stores and suggests names for values such as Ethereum addresses",
   "keywords": [
     "MetaMask",
@@ -42,7 +42,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.0",
+    "@metamask/base-controller": "^5.0.1",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6"
   },
