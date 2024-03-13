@@ -238,7 +238,7 @@ gen_enforced_field(WorkspaceCwd, 'main', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % The type definitions entrypoint for all publishable packages must be the same.
-gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts') :-
+gen_enforced_field(WorkspaceCwd, 'types', './dist/types/index.d.ts') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 % Non-published packages must not specify a type definitions entrypoint.
 gen_enforced_field(WorkspaceCwd, 'types', null) :-

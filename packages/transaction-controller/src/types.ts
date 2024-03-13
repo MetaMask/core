@@ -195,6 +195,11 @@ type TransactionMetaBase = {
   isUserOperation?: boolean;
 
   /**
+   * Additional gas fees to cover the cost of persisting data on layer 1 for layer 2 networks.
+   */
+  layer1GasFee?: Hex;
+
+  /**
    * The ID of the network client used by the transaction.
    */
   networkClientId?: NetworkClientId;
@@ -1021,6 +1026,40 @@ export type GasFeeFlow = {
    * @returns The gas fee flow response containing the gas fee estimates.
    */
   getGasFees: (request: GasFeeFlowRequest) => Promise<GasFeeFlowResponse>;
+};
+
+/** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
+export type Layer1GasFeeFlowRequest = {
+  /** An EthQuery instance to enable queries to the associated RPC provider. */
+  ethQuery: EthQuery;
+
+  /** The metadata of the transaction to obtain estimates for. */
+  transactionMeta: TransactionMeta;
+};
+
+/** Response from a layer 1 gas fee flow containing layer 1 fee estimate. */
+export type Layer1GasFeeFlowResponse = {
+  /** The gas fee estimates for the transaction. */
+  layer1Fee: Hex;
+};
+
+/** A method of obtaining layer 1 gas fee estimates for a specific transaction. */
+export type Layer1GasFeeFlow = {
+  /**
+   * Determine if the gas fee flow supports the specified transaction.
+   * @param transactionMeta - The transaction metadata.
+   * @returns Whether the layer1 gas fee flow supports the transaction.
+   */
+  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+
+  /**
+   * Get layer 1 gas fee estimates for a specific transaction.
+   * @param request - The gas fee flow request.
+   * @returns The gas fee flow response containing the layer 1 gas fee estimate.
+   */
+  getLayer1Fee: (
+    request: Layer1GasFeeFlowRequest,
+  ) => Promise<Layer1GasFeeFlowResponse>;
 };
 
 /** Simulation data concerning an update to a native or token balance. */
