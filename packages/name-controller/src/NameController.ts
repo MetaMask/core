@@ -4,6 +4,7 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { isSafeDynamicKey } from '@metamask/controller-utils';
 
 import type {
   NameProvider,
@@ -12,7 +13,6 @@ import type {
   NameProviderSourceResult,
 } from './types';
 import { NameType } from './types';
-import { isSafeDynamicKey } from '../../controller-utils/src/util';
 
 export const FALLBACK_VARIATION = '*';
 export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours

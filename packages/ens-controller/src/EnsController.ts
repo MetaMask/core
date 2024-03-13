@@ -9,6 +9,7 @@ import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
+  isSafeDynamicKey,
   toChecksumHexAddress,
   CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
@@ -18,7 +19,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { toASCII } from 'punycode/';
-import { isSafeDynamicKey } from '../../controller-utils/src/util';
 
 const log = createProjectLogger('ens-controller');
 

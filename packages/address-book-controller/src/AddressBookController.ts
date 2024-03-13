@@ -3,11 +3,11 @@ import { BaseControllerV1 } from '@metamask/base-controller';
 import {
   normalizeEnsName,
   isValidHexAddress,
+  isSafeDynamicKey,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { isSafeDynamicKey } from '../../controller-utils/src/util';
 
 /**
  * @type ContactEntry
