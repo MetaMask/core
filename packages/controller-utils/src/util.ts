@@ -16,6 +16,23 @@ import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
 
+const PROTOTYPE_POLLUTION_BLOCKLIST = [
+  '__proto__',
+  'constructor',
+  'defineProperty',
+] as const;
+
+/**
+ * Checks whether a dynamic string used as an object key is a dangerous string
+ * that makes the object vulnerable to a prototype pollution attack.
+ *
+ * @param key - The dynamic key to check for safety.
+ * @returns Whether the given dyanmic key is safe
+ */
+export function isSafeDynamicKey(key: string): boolean {
+  return PROTOTYPE_POLLUTION_BLOCKLIST.every((badInput) => key !== badInput);
+}
+
 /**
  * Checks whether the given number primitive chain ID is safe.
  * Because some cryptographic libraries we use expect the chain ID to be a
