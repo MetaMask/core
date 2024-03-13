@@ -56,7 +56,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^14.0.1",
-    "@metamask/snaps-controllers": "^4.0.0",
+    "@metamask/snaps-controllers": "^6.0.3",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
@@ -67,7 +67,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^14.0.0",
-    "@metamask/snaps-controllers": "^4.0.0"
+    "@metamask/snaps-controllers": "^6.0.3"
   },
   "engines": {
     "node": ">=16.0.0"
