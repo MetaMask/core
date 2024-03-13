@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [25.0.1]
+## [25.1.0]
+
+### Added
+
+- Support `Layer1GasFeeFlows` and add `layer1GasFee` property to `TransactionMeta` ([#3944](https://github.com/MetaMask/core/pull/3944))
 
 ### Fixed
 
 - Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
-- Support `Layer1GasFeeFlows` and add `layer1GasFee` property to `TransactionMeta` ([#3944](https://github.com/MetaMask/core/pull/3944))
 
 ## [25.0.0]
 
