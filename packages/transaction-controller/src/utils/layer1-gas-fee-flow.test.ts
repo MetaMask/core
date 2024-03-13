@@ -1,4 +1,5 @@
-import type { Provider } from '@metamask/network-controller';
+import { query } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -7,6 +8,11 @@ import {
   type TransactionMeta,
 } from '../types';
 import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
+
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  query: jest.fn(),
+}));
 
 const LAYER1_GAS_FEE_VALUE_MATCH_MOCK: Hex = '0x1';
 const LAYER1_GAS_FEE_VALUE_UNMATCH_MOCK: Hex = '0x2';
@@ -32,8 +38,8 @@ function createLayer1GasFeeFlowMock({
 }
 
 describe('updateTransactionLayer1GasFee', () => {
+  const queryMock = query as unknown as EthQuery;
   let layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]>;
-  let providerMock: Provider;
   let transactionMetaMock: TransactionMeta;
 
   beforeEach(() => {
@@ -56,14 +62,13 @@ describe('updateTransactionLayer1GasFee', () => {
         from: '0x123',
       },
     };
-    providerMock = {} as Provider;
   });
 
   it('updates given transaction layer1GasFee property', async () => {
     await updateTransactionLayer1GasFee({
-      provider: providerMock,
-      transactionMeta: transactionMetaMock,
+      ethQuery: queryMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
+      transactionMeta: transactionMetaMock,
     });
 
     const [unmatchingLayer1GasFeeFlow, matchingLayer1GasFeeFlow] =
@@ -72,7 +77,7 @@ describe('updateTransactionLayer1GasFee', () => {
     expect(unmatchingLayer1GasFeeFlow.getLayer1Fee).not.toHaveBeenCalled();
 
     expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
-      provider: providerMock,
+      ethQuery: queryMock,
       transactionMeta: transactionMetaMock,
     });
 
@@ -91,13 +96,13 @@ describe('updateTransactionLayer1GasFee', () => {
       );
 
       await updateTransactionLayer1GasFee({
-        provider: providerMock,
+        ethQuery: queryMock,
         transactionMeta: transactionMetaMock,
         layer1GasFeeFlows: layer1GasFeeFlowsMock,
       });
 
       expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
-        provider: providerMock,
+        ethQuery: queryMock,
         transactionMeta: transactionMetaMock,
       });
       expect(transactionMetaMock.layer1GasFee).toBeUndefined();
@@ -111,7 +116,7 @@ describe('updateTransactionLayer1GasFee', () => {
       layer1GasFeeFlowsMock = [unmatchingLayer1GasFeeFlow];
 
       await updateTransactionLayer1GasFee({
-        provider: providerMock,
+        ethQuery: queryMock,
         transactionMeta: transactionMetaMock,
         layer1GasFeeFlows: layer1GasFeeFlowsMock,
       });

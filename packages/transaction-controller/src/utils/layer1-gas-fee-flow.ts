@@ -1,4 +1,4 @@
-import type { Provider } from '@metamask/network-controller';
+import type EthQuery from '@metamask/eth-query';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
@@ -7,9 +7,9 @@ import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
 const log = createModuleLogger(projectLogger, 'layer-1-gas-fee-flow');
 
 export type UpdateLayer1GasFeeRequest = {
-  provider: Provider;
-  transactionMeta: TransactionMeta;
+  ethQuery: EthQuery;
   layer1GasFeeFlows: Layer1GasFeeFlow[];
+  transactionMeta: TransactionMeta;
 };
 
 /**
@@ -48,12 +48,12 @@ function getLayer1GasFeeFlow(
 /**
  * Get the layer 1 gas fee for a transaction and return the layer1Fee.
  * @param request - The request to use when getting the layer 1 gas fee.
- * @param request.provider - Provider used to create a new underlying EthQuery instance
- * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
+ * @param request.ethQuery - The EthQuery instance to use to get the layer 1 gas fee.
  * @param request.layer1GasFeeFlows - The layer 1 gas fee flows to search.
+ * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
  */
 async function getTransactionLayer1GasFee({
-  provider,
+  ethQuery,
   transactionMeta,
   layer1GasFeeFlows,
 }: UpdateLayer1GasFeeRequest): Promise<Hex | undefined> {
@@ -68,7 +68,7 @@ async function getTransactionLayer1GasFee({
 
   try {
     const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({
-      provider,
+      ethQuery,
       transactionMeta,
     });
     return layer1Fee;

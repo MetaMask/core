@@ -1,6 +1,6 @@
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -38,8 +38,6 @@ export class GasFeePoller {
 
   #timeout: ReturnType<typeof setTimeout> | undefined;
 
-  #provider: Provider;
-
   #running = false;
 
   /**
@@ -51,7 +49,6 @@ export class GasFeePoller {
    * @param options.getTransactions - Callback to obtain the transaction data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
    * @param options.onStateChange - Callback to register a listener for controller state changes.
-   * @param options.provider - The provider used to create the underlying EthQuery instance.
    */
   constructor({
     gasFeeFlows,
@@ -60,7 +57,6 @@ export class GasFeePoller {
     getTransactions,
     layer1GasFeeFlows,
     onStateChange,
-    provider,
   }: {
     gasFeeFlows: GasFeeFlow[];
     getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
@@ -68,14 +64,12 @@ export class GasFeePoller {
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     onStateChange: (listener: () => void) => void;
-    provider: Provider;
   }) {
     this.#gasFeeFlows = gasFeeFlows;
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
     this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
     this.#getTransactions = getTransactions;
-    this.#provider = provider;
 
     onStateChange(() => {
       const unapprovedTransactions = this.#getUnapprovedTransactions();
@@ -186,9 +180,12 @@ export class GasFeePoller {
   }
 
   async #updateTransactionLayer1GasFee(transactionMeta: TransactionMeta) {
+    const { chainId, networkClientId } = transactionMeta;
+    const ethQuery = this.#getEthQuery(chainId, networkClientId);
+
     await updateTransactionLayer1GasFee({
+      ethQuery,
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
-      provider: this.#provider,
       transactionMeta,
     });
 

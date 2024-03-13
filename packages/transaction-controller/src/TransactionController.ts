@@ -377,8 +377,6 @@ export class TransactionController extends BaseControllerV1<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
-  private readonly provider: Provider;
-
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
   private readonly afterSign: (
@@ -515,7 +513,6 @@ export class TransactionController extends BaseControllerV1<
     this.securityProviderRequest = securityProviderRequest;
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
-    this.provider = provider;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -602,7 +599,6 @@ export class TransactionController extends BaseControllerV1<
       onStateChange: (listener) => {
         this.subscribe(listener);
       },
-      provider: this.provider,
     });
 
     gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
@@ -1644,8 +1640,8 @@ export class TransactionController extends BaseControllerV1<
     updatedTransaction.type = type;
 
     await updateTransactionLayer1GasFee({
+      ethQuery,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
-      provider: this.provider,
       transactionMeta: updatedTransaction,
     });
 
@@ -2050,8 +2046,8 @@ export class TransactionController extends BaseControllerV1<
     });
 
     await updateTransactionLayer1GasFee({
+      ethQuery,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
-      provider: this.provider,
       transactionMeta,
     });
   }
