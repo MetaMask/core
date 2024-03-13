@@ -595,8 +595,6 @@ export class TransactionController extends BaseController<
 
   private readonly layer1GasFeeFlows: Layer1GasFeeFlow[];
 
-  private readonly messagingSystem: TransactionControllerMessenger;
-
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;

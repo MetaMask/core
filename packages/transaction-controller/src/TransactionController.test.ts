@@ -5432,19 +5432,17 @@ describe('TransactionController', () => {
         params,
       );
 
-      expect(updateTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
-      expect(updateTransactionLayer1GasFee).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactionMeta: updatedTransaction,
-        }),
-      );
-
       expect(updatedTransaction?.txParams).toStrictEqual(params);
     });
 
     it('updates transaction layer 1 gas fee updater', async () => {
-      const controller = newController();
-      controller.state.transactions.push(transactionMeta);
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+      });
 
       const updatedTransaction = await controller.updateEditableParams(
         transactionId,
@@ -5454,7 +5452,10 @@ describe('TransactionController', () => {
       expect(updateTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
       expect(updateTransactionLayer1GasFee).toHaveBeenCalledWith(
         expect.objectContaining({
-          transactionMeta: updatedTransaction,
+          transactionMeta: {
+            ...updatedTransaction,
+            history: expect.any(Array),
+          },
         }),
       );
     });
