@@ -72,16 +72,10 @@ If you're developing your project locally and want to test changes to a package,
 
       > **Example:**
       >
-      > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and your clone of the `core` repo is at the same level as your project, add the following to `resolutions`:
+      > - If your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and your clone of the `core` repo is at the same level as your project, add the following to `resolutions`:
       >
       >   ```
       >   "@metamask/controller-utils@^1.1.4": "file:../core/packages/controller-utils"
-      >   ```
-      >
-      > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and your fork of the `core` repo is at the same level as your project, add the following to `overrides`:
-      >
-      >   ```
-      >   "@metamask/assets-controllers@^3.4.7": "file:../core/packages/assets-controllers"
       >   ```
 
    4. Run `yarn install`.
@@ -145,16 +139,10 @@ To use a preview build for a package within a project, you need to override the 
 
    > **Example:**
    >
-   > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-preview-e2df9b4`, add the following to `resolutions`:
+   > - If your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-preview-e2df9b4`, add the following to `resolutions`:
    >
    >   ```
    >   "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-preview-e2df9b4"
-   >   ```
-   >
-   > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and you want to use the preview version `4.5.6-preview-bc2a997` published under `@foo`, add the following to `overrides`:
-   >
-   >   ```
-   >   "@metamask/assets-controllers@^3.4.7": "npm:@foo/assets-controllers@4.5.6-preview-bc2a997"
    >   ```
 
 4. Run `yarn install`.
