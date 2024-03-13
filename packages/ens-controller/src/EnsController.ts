@@ -18,6 +18,7 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { toASCII } from 'punycode/';
+import { isSafeDynamicKey } from '../../controller-utils/src/util';
 
 const log = createProjectLogger('ens-controller');
 
@@ -194,8 +195,7 @@ export class EnsController extends BaseController<
   delete(chainId: Hex, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
     if (
-      // @ts-expect-error suppressing to perform runtime check
-      chainId === '__proto__' ||
+      !isSafeDynamicKey(chainId) ||
       !normalizedEnsName ||
       !this.state.ensEntries[chainId] ||
       !this.state.ensEntries[chainId][normalizedEnsName]

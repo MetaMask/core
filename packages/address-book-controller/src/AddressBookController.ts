@@ -7,6 +7,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import { isSafeDynamicKey } from '../../controller-utils/src/util';
 
 /**
  * @type ContactEntry
@@ -110,7 +111,7 @@ export class AddressBookController extends BaseControllerV1<
   delete(chainId: Hex, address: string) {
     address = toChecksumHexAddress(address);
     if (
-      [chainId, address].includes('__proto__') ||
+      ![chainId, address].every((key) => isSafeDynamicKey(key)) ||
       !isValidHexAddress(address) ||
       !this.state.addressBook[chainId] ||
       !this.state.addressBook[chainId][address]

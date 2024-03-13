@@ -12,6 +12,7 @@ import type {
   NameProviderSourceResult,
 } from './types';
 import { NameType } from './types';
+import { isSafeDynamicKey } from '../../controller-utils/src/util';
 
 export const FALLBACK_VARIATION = '*';
 export const PROPOSED_NAME_EXPIRE_DURATION = 60 * 60 * 24; // 24 hours
@@ -441,7 +442,11 @@ export class NameController extends BaseController<
     const normalizedValue = this.#normalizeValue(value, type);
     const normalizedVariation = this.#normalizeVariation(variationKey, type);
 
-    if ([normalizedValue, normalizedVariation].includes('__proto__')) {
+    if (
+      ![normalizedValue, normalizedVariation].every((key) =>
+        isSafeDynamicKey(key),
+      )
+    ) {
       return;
     }
 
