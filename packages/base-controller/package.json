@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-controller",
-  "version": "4.1.1",
+  "version": "5.0.1",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "MetaMask",
@@ -24,7 +24,7 @@
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],

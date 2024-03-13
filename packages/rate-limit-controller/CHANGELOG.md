@@ -7,24 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [5.0.0]
+
 ### Added
 
-- Add and export types `RateLimitedApiMap`, `RateLimitedRequests`. ([#3963](https://github.com/MetaMask/core/pull/3963))
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add and export types `RateLimitedApiMap` and `RateLimitedRequests` ([#3963](https://github.com/MetaMask/core/pull/3963))
   - `RateLimitedApiMap` represents the type of the `RateLimitedApis` generic parameter used throughout the controller.
   - `RateLimitedRequests` represents the type of the `request` property of `RateLimitState`.
 
 ### Changed
 
-- **BREAKING:** Rename types to align with conventions followed by other controllers. ([#3963](https://github.com/MetaMask/core/pull/3963))
+- **BREAKING:** Rename types to align with conventions followed by other controllers ([#3963](https://github.com/MetaMask/core/pull/3963))
   - `GetRateLimitState` is now `RateLimitControllerGetStateAction`.
   - `RateLimitStateChange` is now `RateLimitControllerStateChangeEvent`.
   - `CallApi` is now `RateLimitControllerCallApiAction`.
-- Add `@metamask/utils` `^8.3.0` as a dependency. ([#3963](https://github.com/MetaMask/core/pull/3963))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
+- Add `@metamask/utils` `^8.3.0` as a dependency ([#3963](https://github.com/MetaMask/core/pull/3963))
 
 ### Fixed
 
-- **BREAKING:** Fix `GetRateLimitState`, `RateLimitStateChange` types by replacing `RateLimitedApis` with `RateLimitState<RateLimitedApis>` as the state type passed in as generic arguments to `ControllerGetStateAction` and `ControllerStateChangeEvent` ([#3949](https://github.com/MetaMask/core/pull/3949))
-  - This bug was introduced in v4.0.0.
+- **BREAKING:** Correct action and event payloads for `RateLimitControllerGetStateAction` (formerly `GetRateLimitState)` and `RateLimitStateChange` (formerly `RateLimitControllerStateChangeEvent`) by replacing `RateLimitedApis` with `RateLimitState<RateLimitedApis>` ([#3949](https://github.com/MetaMask/core/pull/3949))
+  - The wrong type was introduced in 4.0.0.
 
 ## [4.0.2]
 
@@ -111,7 +124,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@4.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@5.0.0...@metamask/rate-limit-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@4.0.2...@metamask/rate-limit-controller@5.0.0
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@4.0.1...@metamask/rate-limit-controller@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@4.0.0...@metamask/rate-limit-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.3...@metamask/rate-limit-controller@4.0.0
