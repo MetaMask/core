@@ -61,6 +61,7 @@ import {
 } from './types';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
+import { updateTransactionLayer1GasFee } from './utils/layer1-gas-fee-flow';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -91,6 +92,7 @@ jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/swaps');
+jest.mock('./utils/layer1-gas-fee-flow');
 jest.mock('./utils/simulation');
 
 jest.mock('uuid');
@@ -5431,6 +5433,31 @@ describe('TransactionController', () => {
       );
 
       expect(updatedTransaction?.txParams).toStrictEqual(params);
+    });
+
+    it('updates transaction layer 1 gas fee updater', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
+      expect(updateTransactionLayer1GasFee).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: {
+            ...updatedTransaction,
+            history: expect.any(Array),
+          },
+        }),
+      );
     });
 
     it('throws an error if no transaction metadata is found', async () => {

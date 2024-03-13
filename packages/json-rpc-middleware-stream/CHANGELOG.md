@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [7.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
 ## [6.0.2]
 
 ### Changed
@@ -99,7 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.1...HEAD
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.0...@metamask/json-rpc-middleware-stream@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.2...@metamask/json-rpc-middleware-stream@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.1...@metamask/json-rpc-middleware-stream@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.0...@metamask/json-rpc-middleware-stream@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-middleware-stream@5.0.1...@metamask/json-rpc-middleware-stream@6.0.0

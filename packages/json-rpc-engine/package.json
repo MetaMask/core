@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "7.3.3",
+  "version": "8.0.1",
   "description": "A tool for processing JSON-RPC messages",
   "keywords": [
     "MetaMask",
@@ -25,7 +25,7 @@
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "directories": {
     "test": "test"
   },
