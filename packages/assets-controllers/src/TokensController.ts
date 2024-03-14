@@ -31,7 +31,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
-import type { Patch } from 'immer/dist/immer';
+import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';

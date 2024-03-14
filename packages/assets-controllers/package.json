@@ -65,15 +65,16 @@
     "async-mutex": "^0.2.6",
     "bn.js": "^5.2.1",
     "cockatiel": "^3.1.2",
+    "immer": "^9.0.6",
     "lodash": "^4.17.21",
-    "multiformats": "^9.5.2",
+    "multiformats": "^13.1.0",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^3.0.0",
+    "@metamask/keyring-api": "^4.0.2",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",

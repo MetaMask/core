@@ -43,6 +43,7 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "@metamask/utils": "file:/Users/elliot/code/metamask/utils",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
@@ -82,6 +83,7 @@
     "nock": "^13.3.1",
     "prettier": "^2.7.1",
     "prettier-plugin-packagejson": "^2.4.5",
+    "rimraf": "^5.0.5",
     "simple-git-hooks": "^2.8.0",
     "ts-node": "^10.9.1",
     "tsup": "^8.0.2",
