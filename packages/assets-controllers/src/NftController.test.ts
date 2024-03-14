@@ -393,6 +393,21 @@ describe('NftController', () => {
       expect(callActionSpy).toHaveBeenCalledTimes(0);
     });
 
+    it('should error if the call to isNftOwner fail', async function () {
+      const { nftController } = setupController();
+      jest.spyOn(nftController, 'isNftOwner').mockRejectedValue('Random error');
+      try {
+        await nftController.watchNft(
+          ERC721_NFT,
+          ERC721,
+          'https://test-dapp.com',
+        );
+      } catch (err) {
+        // eslint-disable-next-line jest/no-conditional-expect
+        expect(err).toBe('Random error');
+      }
+    });
+
     it('should error if the user does not own the suggested ERC1155 NFT', async function () {
       const { nftController, messenger } = setupController({
         getERC1155BalanceOf: jest.fn().mockImplementation(() => new BN(0)),
