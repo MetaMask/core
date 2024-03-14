@@ -256,7 +256,7 @@ export async function safelyExecuteWithTimeout<Result>(
  * @param address - The address to convert.
  * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid, or untouched otherwise.
  */
-export function toChecksumHexAddress<T extends unknown>(address: T) {
+export function toChecksumHexAddress<T>(address: T) {
   if (typeof address !== 'string') {
     // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
     // function was previously using) for backward compatibility.
