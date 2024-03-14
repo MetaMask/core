@@ -4,7 +4,6 @@ import {
   type JsonRpcRequest,
   type PendingJsonRpcResponse,
 } from '@metamask/utils';
-import { isNativeError } from 'util/types';
 
 import type {
   JsonRpcEngineCallbackError,
@@ -88,7 +87,7 @@ export function createAsyncMiddleware<
         end(null);
       }
     } catch (error) {
-      if (returnHandlerCallback && isNativeError(error)) {
+      if (returnHandlerCallback && error instanceof Error) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);
       } else {
         // TODO: Explicitly handle errors thrown from `#runReturnHandlers` that are not of type `JsonRpcEngineCallbackError`
