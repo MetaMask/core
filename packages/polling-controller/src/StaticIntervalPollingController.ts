@@ -7,13 +7,10 @@ import {
   getKey,
 } from './AbstractPollingController';
 import type {
+  Constructor,
   IPollingController,
   PollingTokenSetId,
-} from './AbstractPollingController';
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor = new (...args: any[]) => object;
+} from './types';
 
 /**
  * StaticIntervalPollingControllerMixin

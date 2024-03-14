@@ -58,6 +58,7 @@ import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
+  Layer1GasFeeFlow,
   SavedGasFees,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
@@ -80,6 +81,7 @@ import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
 } from './utils/history';
+import { updateTransactionLayer1GasFee } from './utils/layer1-gas-fee-flow';
 import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
@@ -591,6 +593,8 @@ export class TransactionController extends BaseController<
     chainId?: string,
   ) => NonceTrackerTransaction[];
 
+  private readonly layer1GasFeeFlows: Layer1GasFeeFlow[];
+
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
@@ -844,6 +848,7 @@ export class TransactionController extends BaseController<
     });
 
     this.gasFeeFlows = this.#getGasFeeFlows();
+    this.layer1GasFeeFlows = this.#getLayer1GasFeeFlows();
 
     const gasFeePoller = new GasFeePoller({
       // Default gas fee polling is not yet supported by the clients
@@ -855,6 +860,7 @@ export class TransactionController extends BaseController<
         }),
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
       getTransactions: () => this.state.transactions,
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
       onStateChange: (listener) => {
         this.messagingSystem.subscribe(
           'TransactionController:stateChange',
@@ -1923,14 +1929,21 @@ export class TransactionController extends BaseController<
     ) as TransactionParams;
 
     const updatedTransaction = merge({}, transactionMeta, editableParams);
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId: transactionMeta.networkClientId,
+      chainId: transactionMeta.chainId,
+    });
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
-      this.#multichainTrackingHelper.getEthQuery({
-        networkClientId: transactionMeta.networkClientId,
-        chainId: transactionMeta.chainId,
-      }),
+      ethQuery,
     );
     updatedTransaction.type = type;
+
+    await updateTransactionLayer1GasFee({
+      ethQuery,
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
+      transactionMeta: updatedTransaction,
+    });
 
     this.updateTransaction(
       updatedTransaction,
@@ -2320,11 +2333,13 @@ export class TransactionController extends BaseController<
         ).configuration.type === NetworkClientType.Custom
       : this.getNetworkState().providerConfig.type === NetworkType.rpc;
 
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId,
+      chainId,
+    });
+
     await updateGas({
-      ethQuery: this.#multichainTrackingHelper.getEthQuery({
-        networkClientId,
-        chainId,
-      }),
+      ethQuery,
       chainId,
       isCustomNetwork,
       txMeta: transactionMeta,
@@ -2332,14 +2347,17 @@ export class TransactionController extends BaseController<
 
     await updateGasFees({
       eip1559: isEIP1559Compatible,
-      ethQuery: this.#multichainTrackingHelper.getEthQuery({
-        networkClientId,
-        chainId,
-      }),
+      ethQuery,
       gasFeeFlows: this.gasFeeFlows,
       getGasFeeEstimates: this.getGasFeeEstimates,
       getSavedGasFees: this.getSavedGasFees.bind(this),
       txMeta: transactionMeta,
+    });
+
+    await updateTransactionLayer1GasFee({
+      ethQuery,
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
+      transactionMeta,
     });
   }
 
@@ -3457,6 +3475,10 @@ export class TransactionController extends BaseController<
 
   #getGasFeeFlows(): GasFeeFlow[] {
     return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
+  }
+
+  #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
+    return [];
   }
 
   #updateTransactionInternal(

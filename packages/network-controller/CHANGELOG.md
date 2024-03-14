@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
 ## [18.0.0]
 
 ### Added
@@ -452,7 +458,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.0...@metamask/network-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.1...@metamask/network-controller@18.0.0
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.0...@metamask/network-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...@metamask/network-controller@17.2.0

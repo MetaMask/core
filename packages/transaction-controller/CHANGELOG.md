@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.0]
+
+### Added
+
+- Support `Layer1GasFeeFlows` and add `layer1GasFee` property to `TransactionMeta` ([#3944](https://github.com/MetaMask/core/pull/3944))
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
 ## [25.0.0]
 
 ### Added
@@ -674,7 +684,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...HEAD
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.0.0...@metamask/transaction-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@24.0.0...@metamask/transaction-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...@metamask/transaction-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...@metamask/transaction-controller@23.1.0

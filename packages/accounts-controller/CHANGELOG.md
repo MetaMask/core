@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
 ## [12.0.0]
 
 ### Added
@@ -149,7 +155,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@12.0.0...@metamask/accounts-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@11.0.0...@metamask/accounts-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@10.0.0...@metamask/accounts-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@9.0.0...@metamask/accounts-controller@10.0.0
