@@ -254,9 +254,26 @@ export async function safelyExecuteWithTimeout<Result>(
  * Convert an address to a checksummed hexadecimal address.
  *
  * @param address - The address to convert.
- * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid, or untouched otherwise.
+ * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
  */
-export function toChecksumHexAddress<T>(address: T) {
+export function toChecksumHexAddress(address: string): Hex;
+
+/**
+ * Convert an address to a checksummed hexadecimal address.
+ *
+ * Note that this particular overload does nothing.
+ *
+ * @param address - A value that is not a string (e.g. `undefined` or `null`).
+ * @returns The `address` untouched.
+ * @deprecated This overload is designed to gracefully handle an invalid input
+ * and is only present for backward compatibility. It may be removed in a future
+ * major version. Please pass a string to `toChecksumHexAddress` instead.
+ */
+export function toChecksumHexAddress<T>(address: T): T;
+
+// Tools only see JSDocs for overloads and ignore them for the implementation.
+// eslint-disable-next-line jsdoc/require-jsdoc
+export function toChecksumHexAddress(address: unknown) {
   if (typeof address !== 'string') {
     // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
     // function was previously using) for backward compatibility.
