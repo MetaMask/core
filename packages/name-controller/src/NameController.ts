@@ -443,8 +443,8 @@ export class NameController extends BaseController<
     const normalizedVariation = this.#normalizeVariation(variationKey, type);
 
     if (
-      ![normalizedValue, normalizedVariation].every((key) =>
-        isSafeDynamicKey(key),
+      [normalizedValue, normalizedVariation].some(
+        (key) => !isSafeDynamicKey(key),
       )
     ) {
       return;
