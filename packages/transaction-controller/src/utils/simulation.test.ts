@@ -19,6 +19,8 @@ const BALANCE_2_MOCK = '0x3';
 const DIFFERENCE_MOCK = '0x2';
 const VALUE_MOCK = '0x4';
 const TOKEN_ID_MOCK = '0x5';
+const ERROR_CODE_MOCK = 123;
+const ERROR_MESSAGE_MOCK = 'Test Error';
 
 const REQUEST_MOCK: GetSimulationDataRequest = {
   chainId: '0x1',
@@ -535,13 +537,23 @@ describe('Simulation Utils', () => {
       });
     });
 
-    it('returns undefined if API request throws', async () => {
-      simulateTransactionsMock.mockRejectedValueOnce(new Error());
+    it('returns error if API request throws', async () => {
+      simulateTransactionsMock.mockRejectedValueOnce({
+        code: ERROR_CODE_MOCK,
+        message: ERROR_MESSAGE_MOCK,
+      });
 
-      expect(await getSimulationData(REQUEST_MOCK)).toBeUndefined();
+      expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
+        error: {
+          code: ERROR_CODE_MOCK,
+          message: ERROR_MESSAGE_MOCK,
+          isReverted: false,
+        },
+        tokenBalanceChanges: [],
+      });
     });
 
-    it('returns undefined if API response has missing transactions', async () => {
+    it('returns error if API response has missing transactions', async () => {
       mockParseLog({ erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK });
 
       simulateTransactionsMock
@@ -552,7 +564,14 @@ describe('Simulation Utils', () => {
 
       const simulationData = await getSimulationData(REQUEST_MOCK);
 
-      expect(simulationData).toBeUndefined();
+      expect(simulationData).toStrictEqual({
+        error: {
+          code: undefined,
+          message: 'Invalid response from simulation API',
+          isReverted: false,
+        },
+        tokenBalanceChanges: [],
+      });
     });
   });
 });

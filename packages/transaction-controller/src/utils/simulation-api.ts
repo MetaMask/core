@@ -1,4 +1,3 @@
-import { JsonRpcProvider } from '@ethersproject/providers';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from '../constants';
@@ -112,19 +111,22 @@ export type SimulationResponseStateDiff = {
 
 /** Response from the simulation API for a single transaction. */
 export type SimulationResponseTransaction = {
+  /** An error message indicating the transaction could not be simulated. */
+  error?: string;
+
   /** Return value of the transaction, such as the balance if calling balanceOf. */
   return: Hex;
 
   /** Hierarchy of call data including nested calls and logs. */
-  callTrace: SimulationResponseCallTrace;
+  callTrace?: SimulationResponseCallTrace;
 
   /** Changes to the blockchain state. */
-  stateDiff: {
+  stateDiff?: {
     /** Initial blockchain state before the transaction. */
-    pre: SimulationResponseStateDiff;
+    pre?: SimulationResponseStateDiff;
 
     /** Updated blockchain state after the transaction. */
-    post: SimulationResponseStateDiff;
+    post?: SimulationResponseStateDiff;
   };
 };
 
@@ -147,12 +149,25 @@ export async function simulateTransactions(
 
   log('Sending request', url, request);
 
-  const jsonRpc = new JsonRpcProvider(url);
-  const response = await jsonRpc.send(RPC_METHOD, [request]);
+  const response = await fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({
+      id: '1',
+      jsonrpc: '2.0',
+      method: RPC_METHOD,
+      params: [request],
+    }),
+  });
 
-  log('Received response', response);
+  const responseJson = await response.json();
 
-  return response;
+  log('Received response', responseJson);
+
+  if (responseJson.error) {
+    throw responseJson.error;
+  }
+
+  return responseJson?.result;
 }
 
 /**

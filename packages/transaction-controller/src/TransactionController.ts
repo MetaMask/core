@@ -68,6 +68,7 @@ import type {
   WalletDevice,
   SecurityAlertResponse,
   GasFeeFlow,
+  SimulationData,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -1038,10 +1039,10 @@ export class TransactionController extends BaseController<
           networkClientId,
         };
 
-    await Promise.all([
-      this.updateGasProperties(addedTransactionMeta),
-      this.#simulateTransaction(addedTransactionMeta),
-    ]);
+    const getSimulationDataPromise =
+      this.#getSimulationData(addedTransactionMeta);
+
+    await this.updateGasProperties(addedTransactionMeta);
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -1075,10 +1076,19 @@ export class TransactionController extends BaseController<
       );
 
       this.addMetadata(addedTransactionMeta);
+
       this.messagingSystem.publish(
         `${controllerName}:unapprovedTransactionAdded`,
         addedTransactionMeta,
       );
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      getSimulationDataPromise.then(async (simulationData) => {
+        await this.updateSimulationData(
+          addedTransactionMeta.id,
+          simulationData,
+        );
+      });
     }
 
     return {
@@ -3508,16 +3518,24 @@ export class TransactionController extends BaseController<
     });
   }
 
-  async #simulateTransaction(transactionMeta: TransactionMeta) {
+  async #getSimulationData(
+    transactionMeta: TransactionMeta,
+  ): Promise<SimulationData> {
     if (!this.#isSimulationEnabled()) {
       log('Skipping simulation as disabled');
-      return;
+      return {
+        error: {
+          message: 'Simulation disabled',
+          isReverted: false,
+        },
+        tokenBalanceChanges: [],
+      };
     }
 
     const { chainId, txParams } = transactionMeta;
     const { from, to, value, data } = txParams;
 
-    transactionMeta.simulationData = await getSimulationData({
+    const simulationData = await getSimulationData({
       chainId,
       from: from as Hex,
       to: to as Hex,
@@ -3525,6 +3543,30 @@ export class TransactionController extends BaseController<
       data: data as Hex,
     });
 
-    log('Retrieved simulation data', transactionMeta.simulationData);
+    return simulationData;
+  }
+
+  async updateSimulationData(
+    transactionId: string,
+    simulationData: SimulationData,
+  ) {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      log(
+        'Cannot update simulation data as transaction not found',
+        transactionId,
+        simulationData,
+      );
+
+      return;
+    }
+
+    this.updateTransaction(
+      { ...transactionMeta, simulationData },
+      'TransactionController#updateSimulationData - Update simulation data',
+    );
+
+    log('Updated simulation data', transactionId, simulationData);
   }
 }
