@@ -90,8 +90,7 @@ export function createAsyncMiddleware<
       if (returnHandlerCallback && error instanceof Error) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);
       } else {
-        // TODO: Explicitly handle errors thrown from `#runReturnHandlers` that are not of type `JsonRpcEngineCallbackError`
-        end(error as JsonRpcEngineCallbackError);
+        end(error);
       }
     }
   };

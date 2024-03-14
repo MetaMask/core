@@ -277,8 +277,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
           return handlerCallback();
         });
       } catch (error) {
-        // TODO: Explicitly handle errors thrown from `#runAllMiddleware` that are not of type `JsonRpcEngineCallbackError`
-        return end(error as JsonRpcEngineCallbackError);
+        return end(error);
       }
     };
   }
@@ -600,8 +599,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       try {
         middleware(request, response, next, end);
       } catch (error) {
-        // TODO: Explicitly handle errors thrown from `middleware` that are not of type `JsonRpcEngineCallbackError`
-        end(error as JsonRpcEngineCallbackError);
+        end(error);
       }
     });
   }
