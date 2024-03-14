@@ -43,7 +43,7 @@
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
     "@metamask/base-controller": "^5.0.1",
-    "@metamask/eth-snap-keyring": "^2.1.1",
+    "@metamask/eth-snap-keyring": "^2.2.2",
     "@metamask/keyring-api": "^3.0.0",
     "@metamask/snaps-sdk": "^1.3.2",
     "@metamask/snaps-utils": "^5.1.2",
