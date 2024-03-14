@@ -143,6 +143,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
 > {
   private handle?: ReturnType<typeof setTimeout>;
 
+  private lastPollTime = 0;
+
   #pollState = PollState.Inactive;
 
   #tokenPricesService: AbstractTokenPricesService;
@@ -291,12 +293,17 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   }
 
   /**
-   * Start (or restart) polling.
+   * Start (or resume) polling.
    */
   async start() {
     this.#stopPoll();
     this.#pollState = PollState.Active;
-    await this.#poll();
+    
+    const nextPollTime = Math.max(
+      this.config.interval - (Date.now() - this.lastPollTime),
+      0,
+    );
+    this.handle = setTimeout(() => this.#poll(), nextPollTime);
   }
 
   /**
@@ -320,6 +327,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * Poll for exchange rate updates.
    */
   async #poll() {
+    this.lastPollTime = Date.now();
     await safelyExecute(() => this.updateExchangeRates());
 
     // Poll using recursive `setTimeout` instead of `setInterval` so that
