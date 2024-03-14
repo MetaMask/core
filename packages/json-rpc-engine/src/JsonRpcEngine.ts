@@ -440,23 +440,6 @@ export class JsonRpcEngine extends SafeEventEmitter {
       }
       return callback(null);
     }
-    return this.#handleRequest(callerReq, callback);
-  }
-
-  /**
-   * Processes request object, and
-   * passes any error and response object to the given callback.
-   *
-   * Does not reject.
-   *
-   * @param callerReq - The request object from the caller.
-   * @param callback - The callback function.
-   * @returns Nothing.
-   */
-  async #handleRequest(
-    callerReq: JsonRpcRequest | JsonRpcNotification,
-    callback: (error?: unknown, response?: JsonRpcResponse<Json>) => void,
-  ): Promise<void> {
     let error = null;
 
     // Handle requests.
