@@ -46,6 +46,12 @@ export const CaipAccountAddressStruct = pattern(
 );
 export type CaipAccountAddress = Infer<typeof CaipAccountAddressStruct>;
 
+/** Known CAIP namespaces. */
+export enum KnownCaipNamespace {
+  /** EIP-155 compatible chains. */
+  Eip155 = 'eip155',
+}
+
 /**
  * Check if the given value is a {@link CaipChainId}.
  *
@@ -145,4 +151,38 @@ export function parseCaipAccountId(caipAccountId: CaipAccountId): {
       reference: match.groups.reference as CaipReference,
     },
   };
+}
+
+/**
+ * Chain ID as defined per the CAIP-2
+ * {@link https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-2.md}.
+ *
+ * It defines a way to uniquely identify any blockchain in a human-readable
+ * way.
+ *
+ * @param namespace - The standard (ecosystem) of similar blockchains.
+ * @param reference - Identify of a blockchain within a given namespace.
+ * @throws {@link Error}
+ * This exception is thrown if the inputs does not comply with the CAIP-2
+ * syntax specification
+ * {@link https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-2.md#syntax}.
+ * @returns A CAIP chain ID.
+ */
+export function toCaipChainId(
+  namespace: CaipNamespace,
+  reference: CaipReference,
+): CaipChainId {
+  if (!isCaipNamespace(namespace)) {
+    throw new Error(
+      `Invalid "namespace", must match: ${CAIP_NAMESPACE_REGEX.toString()}`,
+    );
+  }
+
+  if (!isCaipReference(reference)) {
+    throw new Error(
+      `Invalid "reference", must match: ${CAIP_REFERENCE_REGEX.toString()}`,
+    );
+  }
+
+  return `${namespace}:${reference}`;
 }

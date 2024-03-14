@@ -34,6 +34,7 @@ describe('index', () => {
         "JsonRpcVersionStruct",
         "JsonSize",
         "JsonStruct",
+        "KnownCaipNamespace",
         "PendingJsonRpcResponseStruct",
         "StrictHexStruct",
         "UnsafeJsonStruct",
@@ -129,6 +130,7 @@ describe('index', () => {
         "signedBigIntToBytes",
         "stringToBytes",
         "timeSince",
+        "toCaipChainId",
         "valueToBytes",
         "wrapError",
       ]
