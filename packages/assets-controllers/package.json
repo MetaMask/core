@@ -65,8 +65,9 @@
     "async-mutex": "^0.5.0",
     "bn.js": "^5.2.1",
     "cockatiel": "^3.1.2",
+    "immer": "^9.0.6",
     "lodash": "^4.17.21",
-    "multiformats": "^9.5.2",
+    "multiformats": "^13.1.0",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2"
   },

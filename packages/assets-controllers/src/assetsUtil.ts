@@ -6,7 +6,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 import BN from 'bn.js';
-import { CID } from 'multiformats/cid';
+import { CID } from 'multiformats';
 
 import type { Nft, NftMetadata } from './NftController';
 import type { AbstractTokenPricesService } from './token-prices-service';

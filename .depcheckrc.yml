@@ -12,9 +12,11 @@ ignores:
   - '@metamask/create-release-branch'
   - 'depcheck'
   - 'eslint-interactive'
+  - 'rimraf'
   - 'simple-git-hooks'
   - 'ts-node'
   - 'typedoc'
+  - 'which'
   # Ignore plugins implicitly imported by tools
   - 'jest-silent-reporter'
   - 'prettier-plugin-packagejson'
