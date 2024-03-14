@@ -5,10 +5,7 @@ import {
   type PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type {
-  JsonRpcEngineCallbackError,
-  JsonRpcMiddleware,
-} from './JsonRpcEngine';
+import type { JsonRpcMiddleware } from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
