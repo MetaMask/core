@@ -11,6 +11,7 @@ import type {
 } from '@metamask/utils';
 import {
   hasProperty,
+  isJsonRpcError,
   isJsonRpcNotification,
   isJsonRpcRequest,
 } from '@metamask/utils';
@@ -270,8 +271,10 @@ export class JsonRpcEngine extends SafeEventEmitter {
           try {
             await JsonRpcEngine.#runReturnHandlers(returnHandlers);
           } catch (error) {
-            // TODO: Explicitly handle errors thrown from `#runReturnHandlers` that are not of type `JsonRpcEngineCallbackError`
-            return handlerCallback(error as JsonRpcEngineCallbackError);
+            // Errors thrown by `#runReturnHandlers` are of type `Error | SerializedJsonRpcError`
+            if (error instanceof Error || isJsonRpcError(error)) {
+              return handlerCallback(error);
+            }
           }
           return handlerCallback();
         });
