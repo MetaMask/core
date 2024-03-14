@@ -49,6 +49,7 @@ import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
@@ -3478,7 +3479,7 @@ export class TransactionController extends BaseController<
   }
 
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
-    return [];
+    return [new OptimismLayer1GasFeeFlow()];
   }
 
   #updateTransactionInternal(
