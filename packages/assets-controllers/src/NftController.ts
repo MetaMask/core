@@ -15,7 +15,6 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
-  OPENSEA_PROXY_URL,
   ApprovalType,
   NFT_API_BASE_URL,
 } from '@metamask/controller-utils';
@@ -34,17 +33,14 @@ import { EventEmitter } from 'events';
 import { v4 as random } from 'uuid';
 
 import type { AssetsContractController } from './AssetsContractController';
-import {
-  compareNftMetadata,
-  getFormattedIpfsUrl,
-  mapOpenSeaContractV2ToV1,
-} from './assetsUtil';
+import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
 import { Source } from './constants';
 import type {
-  ApiNftCreator,
   ApiNftContract,
-  ApiNftLastSale,
   ReservoirResponse,
+  Collection,
+  Attributes,
+  LastSale,
 } from './NftDetectionController';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
@@ -56,78 +52,6 @@ type SuggestedNftMeta = {
   type: NFTStandardType;
   interactingAddress: string;
   origin: string;
-};
-
-export enum OpenSeaV2ChainIds {
-  ethereum = 'ethereum',
-}
-
-export type OpenSeaV2GetNftResponse = { nft: OpenSeaV2DetailedNft };
-
-export type OpenSeaV2Nft = {
-  identifier: string;
-  collection: string;
-  contract: string;
-  token_standard: string;
-  name: string;
-  description: string;
-  image_url?: string;
-  metadata_url?: string;
-  updated_at: string;
-  is_disabled: boolean;
-  is_nsfw: boolean;
-};
-
-export type OpenSeaV2DetailedNft = OpenSeaV2Nft & {
-  animation_url?: string;
-  is_suspicious: boolean;
-  creator: string;
-  traits: {
-    trait_type: string;
-    display_type?: string;
-    max_value: string;
-    trait_count?: number;
-    value: number | string;
-  }[];
-  owners: {
-    address: string;
-    quantity: number;
-  }[];
-  rarity: { rank: number };
-};
-
-export type OpenSeaV2ListNftsResponse = {
-  nfts: OpenSeaV2Nft[];
-  next?: string;
-};
-
-export type OpenSeaV2Contract = {
-  address: string;
-  chain: string;
-  collection: string;
-  contract_standard: string;
-  name: string;
-  total_supply?: number;
-};
-
-export type OpenSeaV2Collection = {
-  collection: string;
-  name: string;
-  description?: string;
-  image_url?: string;
-  owner: string;
-  category: string;
-  is_disabled: boolean;
-  is_nsfw: boolean;
-  trait_offers_enabled: boolean;
-  opensea_url: string;
-  project_url?: string;
-  wiki_url?: string;
-  discord_url?: string;
-  telegram_url?: string;
-  twitter_username?: string;
-  instagram_username?: string;
-  total_supply?: number;
 };
 
 /**
@@ -231,10 +155,14 @@ export interface NftMetadata {
   animation?: string;
   animationOriginal?: string;
   externalLink?: string;
-  creator?: ApiNftCreator;
-  lastSale?: ApiNftLastSale;
+  creator?: string;
   transactionId?: string;
   tokenURI?: string | null;
+  collection?: Collection;
+  address?: string;
+  attributes?: Attributes;
+  lastSale?: LastSale;
+  rarityRank?: string;
 }
 
 /**
@@ -326,22 +254,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     return `${NFT_API_BASE_URL}/tokens`;
   }
 
-  private getNftContractInformationApi({
-    contractAddress,
-  }: {
-    contractAddress: string;
-  }) {
-    return `${OPENSEA_PROXY_URL}/chain/${OpenSeaV2ChainIds.ethereum}/contract/${contractAddress}`;
-  }
-
-  private getNftCollectionInformationApi({
-    collectionSlug,
-  }: {
-    collectionSlug: string;
-  }) {
-    return `${OPENSEA_PROXY_URL}/collections/${collectionSlug}`;
-  }
-
   /**
    * Helper method to update nested state for allNfts and allNftContracts.
    *
@@ -389,6 +301,9 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     const urlParams = new URLSearchParams({
       chainIds: '1',
       tokens: `${contractAddress}:${tokenId}`,
+      includeTopBid: 'true',
+      includeAttributes: 'true',
+      includeLastSale: 'true',
     }).toString();
     const nftInformation: ReservoirResponse | undefined =
       await fetchWithErrorHandling({
@@ -417,8 +332,13 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       metadata: { imageOriginal } = {},
       name,
       description,
-      collection: { creator } = {},
+      collection,
       kind,
+      rarityRank,
+      rarity,
+      attributes,
+      lastSale,
+      imageSmall,
     } = nftInformation.tokens[0].token;
 
     /* istanbul ignore next */
@@ -427,9 +347,18 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       { name: name || null },
       { description: description || null },
       { image: image || null },
-      creator && { creator },
+      collection?.creator && { creator: collection.creator },
       imageOriginal && { imageOriginal },
+      imageSmall && { imageThumbnail: imageSmall },
       kind && { standard: kind.toUpperCase() },
+      lastSale && { lastSale },
+      attributes && { attributes },
+      nftInformation.tokens[0].market?.topBid && {
+        topBid: nftInformation.tokens[0].market?.topBid,
+      },
+      rarityRank && { rarityRank },
+      rarity && { rarity },
+      collection && { collection },
     );
 
     return nftMetadata;
@@ -584,7 +513,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     const chainId = this.getCorrectChainId({
       networkClientId,
     });
-    const [blockchainMetadata, openSeaMetadata] = await Promise.all([
+    const [blockchainMetadata, nftApiMetadata] = await Promise.all([
       safelyExecute(() =>
         this.getNftInformationFromTokenURI(
           contractAddress,
@@ -598,64 +527,15 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           )
         : undefined,
     ]);
-
     return {
-      ...openSeaMetadata,
-      name: blockchainMetadata?.name ?? openSeaMetadata?.name ?? null,
+      ...nftApiMetadata,
+      name: blockchainMetadata?.name ?? nftApiMetadata?.name ?? null,
       description:
-        blockchainMetadata?.description ?? openSeaMetadata?.description ?? null,
-      image: blockchainMetadata?.image ?? openSeaMetadata?.image ?? null,
+        blockchainMetadata?.description ?? nftApiMetadata?.description ?? null,
+      image: blockchainMetadata?.image ?? nftApiMetadata?.image ?? null,
       standard:
-        blockchainMetadata?.standard ?? openSeaMetadata?.standard ?? null,
+        blockchainMetadata?.standard ?? nftApiMetadata?.standard ?? null,
       tokenURI: blockchainMetadata?.tokenURI ?? null,
-    };
-  }
-
-  /**
-   * Request NFT contract information from OpenSea API.
-   *
-   * @param contractAddress - Hex address of the NFT contract.
-   * @returns Promise resolving to the current NFT name and image.
-   */
-  private async getNftContractInformationFromApi(
-    contractAddress: string,
-  ): Promise<ApiNftContract> {
-    /* istanbul ignore if */
-    const apiNftContractObject: OpenSeaV2Contract | undefined =
-      await fetchWithErrorHandling({
-        url: this.getNftContractInformationApi({
-          contractAddress,
-        }),
-      });
-
-    // If we successfully fetched the contract
-    if (apiNftContractObject) {
-      // Then fetch some additional details from the collection
-      const collection: OpenSeaV2Collection | undefined =
-        await fetchWithErrorHandling({
-          url: this.getNftCollectionInformationApi({
-            collectionSlug: apiNftContractObject.collection,
-          }),
-        });
-
-      return mapOpenSeaContractV2ToV1(apiNftContractObject, collection);
-    }
-
-    // If we've reached this point we were unable to fetch data from either the proxy or opensea so we return
-    // the default/null of ApiNftContract
-    return {
-      address: contractAddress,
-      asset_contract_type: null,
-      created_date: null,
-      schema_name: null,
-      symbol: null,
-      total_supply: null,
-      description: null,
-      external_link: null,
-      collection: {
-        name: null,
-        image_url: null,
-      },
     };
   }
 
@@ -687,47 +567,45 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   }
 
   /**
-   * Request NFT contract information from OpenSea API.
+   * Request NFT contract information from Blockchain and aggregate with received data from NFTMetadata.
    *
    * @param contractAddress - Hex address of the NFT contract.
+   * @param nftMetadataFromApi - Received NFT information to be aggregated with blockchain contract information.
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the NFT contract name, image and description.
    */
   private async getNftContractInformation(
     contractAddress: string,
+    nftMetadataFromApi: NftMetadata,
     networkClientId?: NetworkClientId,
   ): Promise<
     Partial<ApiNftContract> &
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'>
   > {
-    const chainId = this.getCorrectChainId({
-      networkClientId,
-    });
-
-    const [blockchainContractData, openSeaContractData] = await Promise.all([
-      safelyExecute(() =>
-        this.getNftContractInformationFromContract(
-          contractAddress,
-          networkClientId,
-        ),
+    const blockchainContractData = await safelyExecute(() =>
+      this.getNftContractInformationFromContract(
+        contractAddress,
+        networkClientId,
       ),
-      this.config.openSeaEnabled && chainId === '0x1'
-        ? safelyExecute(() =>
-            this.getNftContractInformationFromApi(contractAddress),
-          )
-        : undefined,
-    ]);
+    );
 
-    if (blockchainContractData || openSeaContractData) {
+    if (
+      blockchainContractData ||
+      !Object.values(nftMetadataFromApi).every((value) => value === null)
+    ) {
       return {
         address: contractAddress,
-        ...openSeaContractData,
         ...blockchainContractData,
+        schema_name: nftMetadataFromApi?.standard ?? null,
         collection: {
           name: null,
-          image_url: null,
-          ...openSeaContractData?.collection,
+          image_url:
+            nftMetadataFromApi?.collection?.image ??
+            nftMetadataFromApi?.collection?.imageUrl ??
+            null,
+          tokenCount: nftMetadataFromApi?.collection?.tokenCount ?? null,
+          ...nftMetadataFromApi?.collection,
           ...blockchainContractData?.collection,
         },
       };
@@ -838,6 +716,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
    * @param options - options.
    * @param options.tokenAddress - Hex address of the NFT contract.
    * @param options.userAddress - The address of the account where the NFT is being added.
+   * @param options.nftMetadata - The retrirved NFTMetadata from API.
    * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns Promise resolving to the current NFT contracts list.
@@ -847,9 +726,11 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     userAddress,
     networkClientId,
     source,
+    nftMetadata,
   }: {
     tokenAddress: string;
     userAddress: string;
+    nftMetadata: NftMetadata;
     networkClientId?: NetworkClientId;
     source?: Source;
   }): Promise<NftContract[]> {
@@ -873,19 +754,20 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
 
       // this doesn't work currently for detection if the user switches networks while the detection is processing
       // will be fixed once detection uses networkClientIds
+      // get name and symbol if ERC721 then put together the metadata
       const contractInformation = await this.getNftContractInformation(
         tokenAddress,
+        nftMetadata,
         networkClientId,
       );
       const {
         asset_contract_type,
         created_date,
-        schema_name,
         symbol,
-        total_supply,
         description,
         external_link,
-        collection: { name, image_url },
+        schema_name,
+        collection: { name, image_url, tokenCount },
       } = contractInformation;
 
       // If the nft is auto-detected we want some valid metadata to be present
@@ -912,8 +794,8 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         name && { name },
         image_url && { logo: image_url },
         symbol && { symbol },
-        total_supply !== null &&
-          typeof total_supply !== 'undefined' && { totalSupply: total_supply },
+        tokenCount !== null &&
+          typeof tokenCount !== 'undefined' && { totalSupply: tokenCount },
         asset_contract_type && { assetContractType: asset_contract_type },
         created_date && { createdDate: created_date },
         schema_name && { schemaName: schema_name },
@@ -1444,16 +1326,18 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     tokenAddress = toChecksumHexAddress(tokenAddress);
 
     const chainId = this.getCorrectChainId({ networkClientId });
+
+    nftMetadata =
+      nftMetadata ||
+      (await this.getNftInformation(tokenAddress, tokenId, networkClientId));
+
     const newNftContracts = await this.addNftContract({
       tokenAddress,
       userAddress,
       networkClientId,
       source,
+      nftMetadata,
     });
-
-    nftMetadata =
-      nftMetadata ||
-      (await this.getNftInformation(tokenAddress, tokenId, networkClientId));
 
     // If NFT contract was not added, do not add individual NFT
     const nftContract = newNftContracts.find(

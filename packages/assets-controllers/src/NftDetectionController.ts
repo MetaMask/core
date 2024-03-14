@@ -94,6 +94,7 @@ export interface ApiNftContract {
   collection: {
     name: string | null;
     image_url?: string | null;
+    tokenCount?: string | null;
   };
 }
 
@@ -156,6 +157,28 @@ export type ReservoirResponse = {
 export type TokensResponse = {
   token: TokenResponse;
   ownership: Ownership;
+  market?: Market;
+  blockaidResult?: Blockaid;
+};
+
+export enum BlockaidResultType {
+  Benign = 'Benign',
+  Spam = 'Spam',
+  Warning = 'Warning',
+  Malicious = 'Malicious',
+}
+
+export type Blockaid = {
+  contract: string;
+  chainId: number;
+  result_type: BlockaidResultType;
+  malicious_score: string;
+  attack_types: object;
+};
+
+export type Market = {
+  floorAsk?: FloorAsk;
+  topBid?: TopBid;
 };
 
 export type TokenResponse = {
@@ -175,6 +198,7 @@ export type TokenResponse = {
   remainingSupply?: number;
   /** @description No rarity for collections over 100k */
   rarityScore?: number;
+  rarity?: number;
   /** @description No rarity rank for collections over 100k */
   rarityRank?: number;
   media?: string;
@@ -284,11 +308,13 @@ export type Collection = {
   slug?: string;
   symbol?: string;
   imageUrl?: string;
+  image?: string;
   /** @default false */
   isSpam?: boolean;
   /** @default false */
   isNsfw?: boolean;
   creator?: string;
+  tokenCount?: string;
   /** @default false */
   metadataDisabled?: boolean;
   openseaVerificationStatus?: string;
@@ -364,7 +390,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     address: string;
     next?: string;
   }) {
-    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=200&continuation=${
+    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=${
       next ?? ''
     }`;
   }
@@ -390,7 +416,11 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       }
 
       const newNfts = nftApiResponse.tokens.filter(
-        (elm) => elm.token.isSpam === false,
+        (elm) =>
+          elm.token.isSpam === false &&
+          (elm.blockaidResult?.result_type
+            ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
+            : true),
       );
 
       nfts = [...nfts, ...newNfts];
@@ -579,6 +609,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     }
 
     const apiNfts = await this.getOwnerNfts(userAddress);
+    console.log('🚀 ~ apiNfts:==================', apiNfts);
     const addNftPromises = apiNfts.map(async (nft: TokensResponse) => {
       const {
         tokenId: token_id,
@@ -589,6 +620,12 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
         metadata: { imageOriginal: image_original_url } = {},
         name,
         description,
+        attributes,
+        topBid,
+        lastSale,
+        rarityRank,
+        rarityScore,
+        collection,
       } = nft.token;
 
       let ignored;
@@ -615,6 +652,12 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
           image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
           image_original_url && { imageOriginal: image_original_url },
           kind && { standard: kind.toUpperCase() },
+          lastSale && { lastSale },
+          attributes && { attributes },
+          topBid && { topBid },
+          rarityRank && { rarityRank },
+          rarityScore && { rarityScore },
+          collection && { collection },
         );
 
         await this.addNft(contract, token_id, {
