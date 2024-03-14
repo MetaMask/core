@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "25.0.0",
+  "version": "25.1.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -25,7 +25,7 @@
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
@@ -46,13 +46,13 @@
     "@ethereumjs/util": "^8.1.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/approval-controller": "^6.0.0",
-    "@metamask/base-controller": "^5.0.0",
-    "@metamask/controller-utils": "^9.0.0",
+    "@metamask/approval-controller": "^6.0.1",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/controller-utils": "^9.0.1",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^14.0.0",
+    "@metamask/gas-fee-controller": "^14.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",
-    "@metamask/network-controller": "^18.0.0",
+    "@metamask/network-controller": "^18.0.1",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",

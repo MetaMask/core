@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "9.0.0",
+  "version": "9.0.1",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -25,7 +25,7 @@
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
