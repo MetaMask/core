@@ -43,9 +43,9 @@ export class RestrictedControllerMessenger<
 
   readonly #controllerName: Namespace;
 
-  readonly #allowedActions: NotNamespacedBy<Namespace, AllowedAction>[] | null;
+  readonly #allowedActions: NotNamespacedBy<Namespace, AllowedAction>[];
 
-  readonly #allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[] | null;
+  readonly #allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[];
 
   /**
    * Constructs a restricted controller messenger
@@ -73,13 +73,13 @@ export class RestrictedControllerMessenger<
   }: {
     controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
     name: Namespace;
-    allowedActions?: NotNamespacedBy<Namespace, AllowedAction>[];
-    allowedEvents?: NotNamespacedBy<Namespace, AllowedEvent>[];
+    allowedActions: NotNamespacedBy<Namespace, AllowedAction>[];
+    allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[];
   }) {
     this.#controllerMessenger = controllerMessenger;
     this.#controllerName = name;
-    this.#allowedActions = allowedActions ?? null;
-    this.#allowedEvents = allowedEvents ?? null;
+    this.#allowedActions = allowedActions;
+    this.#allowedEvents = allowedEvents;
   }
 
   /**
@@ -169,6 +169,40 @@ export class RestrictedControllerMessenger<
   }
 
   /**
+   * Register a function for getting the initial payload for an event.
+   *
+   * This is used for events that represent a state change, where the payload is the state.
+   * Registering a function for getting the payload allows event selectors to have a point of
+   * comparison the first time state changes.
+   *
+   * The event type *must* be in the current namespace
+   *
+   * @param args - The arguments to this function
+   * @param args.eventType - The event type to register a payload for.
+   * @param args.getPayload - A function for retrieving the event payload.
+   */
+  registerInitialEventPayload<
+    EventType extends Event['type'] & NamespacedName<Namespace>,
+  >({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(eventType)) {
+      throw new Error(
+        `Only allowed publishing events prefixed by '${this.#controllerName}:'`,
+      );
+    }
+    this.#controllerMessenger.registerInitialEventPayload({
+      eventType,
+      getPayload,
+    });
+  }
+
+  /**
    * Publish an event.
    *
    * Publishes the given payload to all subscribers of the given event type.
@@ -241,10 +275,7 @@ export class RestrictedControllerMessenger<
   >(
     eventType: EventType,
     handler: SelectorEventHandler<SelectorReturnValue>,
-    selector: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+    selector: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ): void;
 
   subscribe<
@@ -255,10 +286,7 @@ export class RestrictedControllerMessenger<
   >(
     event: EventType,
     handler: ExtractEventHandler<Event, EventType>,
-    selector?: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+    selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ) {
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);

@@ -1,5 +1,5 @@
 import jsonDiffer from 'fast-json-patch';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, merge } from 'lodash';
 
 import type {
   TransactionHistory,
@@ -8,39 +8,46 @@ import type {
 } from '../types';
 
 /**
- * Add initial history snapshot to the provided transactionMeta history.
+ * Build a new version of the provided transaction with an initial history
+ * entry, which is just a snapshot of the transaction.
  *
  * @param transactionMeta - TransactionMeta to add initial history snapshot to.
+ * @returns A copy of `transactionMeta` with a new `history` property.
  */
-export function addInitialHistorySnapshot(transactionMeta: TransactionMeta) {
+export function addInitialHistorySnapshot(
+  transactionMeta: TransactionMeta,
+): TransactionMeta {
   const snapshot = snapshotFromTransactionMeta(transactionMeta);
-  transactionMeta.history = [snapshot];
+  return merge({}, transactionMeta, { history: [snapshot] });
 }
 
 /**
- * Compares and adds history entry to the provided transactionMeta history.
+ * Builds a new version of the transaction with a new history entry if
+ * it has a `history` property, or just returns the transaction.
  *
  * @param transactionMeta - TransactionMeta to add history entry to.
  * @param note - Note to add to history entry.
+ * @returns A copy of `transactionMeta` with a new `history` entry if it has an
+ * existing non-empty `history` array.
  */
 export function updateTransactionHistory(
   transactionMeta: TransactionMeta,
   note: string,
-): void {
+): TransactionMeta {
   if (!transactionMeta.history) {
-    return;
+    return transactionMeta;
   }
 
   const currentState = snapshotFromTransactionMeta(transactionMeta);
-  const previousState = replayHistory(
-    transactionMeta.history as TransactionHistory,
-  );
-
+  const previousState = replayHistory(transactionMeta.history);
   const historyEntry = generateHistoryEntry(previousState, currentState, note);
 
-  if (historyEntry.length) {
-    transactionMeta?.history?.push(historyEntry);
+  if (historyEntry.length > 0) {
+    return merge({}, transactionMeta, {
+      history: [...transactionMeta.history, historyEntry],
+    });
   }
+  return transactionMeta;
 }
 
 /**
@@ -52,6 +59,8 @@ export function updateTransactionHistory(
  * @returns An array of history operation.
  */
 function generateHistoryEntry(
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   previousState: any,
   currentState: TransactionMeta,
   note: string,
@@ -81,6 +90,8 @@ function replayHistory(
 ): TransactionMeta {
   const shortHistory = cloneDeep(transactionHistory);
   return shortHistory.reduce(
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (val, entry: any) => jsonDiffer.applyPatch(val, entry).newDocument,
   ) as TransactionMeta;
 }

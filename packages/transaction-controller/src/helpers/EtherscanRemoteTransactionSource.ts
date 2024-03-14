@@ -1,6 +1,7 @@
 import { BNToHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { BN } from 'ethereumjs-util';
+import { Mutex } from 'async-mutex';
+import BN from 'bn.js';
 import { v1 as random } from 'uuid';
 
 import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
@@ -23,6 +24,7 @@ import type {
   EtherscanTransactionResponse,
 } from '../utils/etherscan';
 
+const ETHERSCAN_RATE_LIMIT_INTERVAL = 5000;
 /**
  * A RemoteTransactionSource that fetches transaction data from Etherscan.
  */
@@ -32,6 +34,8 @@ export class EtherscanRemoteTransactionSource
   #includeTokenTransfers: boolean;
 
   #isTokenRequestPending: boolean;
+
+  #mutex = new Mutex();
 
   constructor({
     includeTokenTransfers,
@@ -51,20 +55,41 @@ export class EtherscanRemoteTransactionSource
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
+    const releaseLock = await this.#mutex.acquire();
+    const acquiredTime = Date.now();
+
     const etherscanRequest: EtherscanTransactionRequest = {
       ...request,
       chainId: request.currentChainId,
     };
 
-    const transactions = this.#isTokenRequestPending
-      ? await this.#fetchTokenTransactions(request, etherscanRequest)
-      : await this.#fetchNormalTransactions(request, etherscanRequest);
+    try {
+      const transactions = this.#isTokenRequestPending
+        ? await this.#fetchTokenTransactions(request, etherscanRequest)
+        : await this.#fetchNormalTransactions(request, etherscanRequest);
 
-    if (this.#includeTokenTransfers) {
-      this.#isTokenRequestPending = !this.#isTokenRequestPending;
+      if (this.#includeTokenTransfers) {
+        this.#isTokenRequestPending = !this.#isTokenRequestPending;
+      }
+
+      return transactions;
+    } finally {
+      this.#releaseLockAfterInterval(acquiredTime, releaseLock);
     }
+  }
 
-    return transactions;
+  #releaseLockAfterInterval(acquireTime: number, releaseLock: () => void) {
+    const elapsedTime = Date.now() - acquireTime;
+    const remainingTime = Math.max(
+      0,
+      ETHERSCAN_RATE_LIMIT_INTERVAL - elapsedTime,
+    );
+    // Wait for the remaining time if it hasn't been 5 seconds yet
+    if (remainingTime > 0) {
+      setTimeout(releaseLock, remainingTime);
+    } else {
+      releaseLock();
+    }
   }
 
   #fetchNormalTransactions = async (

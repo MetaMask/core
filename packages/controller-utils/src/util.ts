@@ -1,16 +1,15 @@
+import { isValidAddress, toChecksumAddress } from '@ethereumjs/util';
 import type EthQuery from '@metamask/eth-query';
 import { fromWei, toWei } from '@metamask/ethjs-unit';
 import type { Hex, Json } from '@metamask/utils';
-import { isStrictHexString } from '@metamask/utils';
-import ensNamehash from 'eth-ens-namehash';
 import {
-  addHexPrefix,
-  isValidAddress,
+  isStrictHexString,
+  add0x,
   isHexString,
-  BN,
-  toChecksumAddress,
-  stripHexPrefix,
-} from 'ethereumjs-util';
+  remove0x,
+} from '@metamask/utils';
+import BN from 'bn.js';
+import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
@@ -29,7 +28,10 @@ export function isSafeChainId(chainId: Hex): boolean {
   if (!isHexString(chainId)) {
     return false;
   }
-  const decimalChainId = Number.parseInt(chainId);
+  const decimalChainId = Number.parseInt(
+    chainId,
+    isStrictHexString(chainId) ? 16 : 10,
+  );
   return (
     Number.isSafeInteger(decimalChainId) &&
     decimalChainId > 0 &&
@@ -42,8 +44,8 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @param inputBn - BN instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
-export function BNToHex(inputBn: any) {
-  return addHexPrefix(inputBn.toString(16));
+export function BNToHex(inputBn: BN) {
+  return add0x(inputBn.toString(16));
 }
 
 /**
@@ -55,7 +57,7 @@ export function BNToHex(inputBn: any) {
  * @returns Product of the multiplication.
  */
 export function fractionBN(
-  targetBN: any,
+  targetBN: BN,
   numerator: number | string,
   denominator: number | string,
 ) {
@@ -107,7 +109,7 @@ export function gweiDecToWEIBN(n: number | string) {
  * @returns The value in dec gwei as string.
  */
 export function weiHexToGweiDec(hex: string) {
-  const hexWei = new BN(stripHexPrefix(hex), 16);
+  const hexWei = new BN(remove0x(hex), 16);
   return fromWei(hexWei, 'gwei');
 }
 
@@ -143,7 +145,7 @@ export function getBuyURL(
  * @returns A BN instance.
  */
 export function hexToBN(inputHex: string) {
-  return inputHex ? new BN(stripHexPrefix(inputHex), 16) : new BN(0);
+  return inputHex ? new BN(remove0x(inputHex), 16) : new BN(0);
 }
 
 /**
@@ -154,7 +156,7 @@ export function hexToBN(inputHex: string) {
  */
 export function hexToText(hex: string) {
   try {
-    const stripped = stripHexPrefix(hex);
+    const stripped = remove0x(hex);
     const buff = Buffer.from(stripped, 'hex');
     return buff.toString('utf8');
   } catch (e) {
@@ -198,15 +200,16 @@ export function toHex(value: number | string | BN): Hex {
  *
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
+ * @template Result - Type of the result of the async operation
  * @returns Promise resolving to the result of the async operation.
  */
-export async function safelyExecute(
-  operation: () => Promise<any>,
+export async function safelyExecute<Result>(
+  operation: () => Promise<Result>,
   logError = false,
-) {
+): Promise<Result | undefined> {
   try {
     return await operation();
-  } catch (error: any) {
+  } catch (error) {
     /* istanbul ignore next */
     if (logError) {
       console.error(error);
@@ -221,17 +224,18 @@ export async function safelyExecute(
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
  * @param timeout - Timeout to fail the operation.
+ * @template Result - Type of the result of the async operation
  * @returns Promise resolving to the result of the async operation.
  */
-export async function safelyExecuteWithTimeout(
-  operation: () => Promise<any>,
+export async function safelyExecuteWithTimeout<Result>(
+  operation: () => Promise<Result>,
   logError = false,
   timeout = 500,
-) {
+): Promise<Result | undefined> {
   try {
     return await Promise.race([
       operation(),
-      new Promise<void>((_, reject) =>
+      new Promise<never>((_, reject) =>
         setTimeout(() => {
           reject(TIMEOUT_ERROR);
         }, timeout),
@@ -250,10 +254,10 @@ export async function safelyExecuteWithTimeout(
  * Convert an address to a checksummed hexidecimal address.
  *
  * @param address - The address to convert.
- * @returns A 0x-prefixed hexidecimal checksummed address.
+ * @returns A 0x-prefixed hexidecimal checksummed address, if address is valid. Otherwise original input 0x-prefixe, if address is valid. Otherwise original input 0x-prefixed.
  */
 export function toChecksumHexAddress(address: string) {
-  const hexPrefixed = addHexPrefix(address);
+  const hexPrefixed = add0x(address);
   if (!isHexString(hexPrefixed)) {
     // Version 5.1 of ethereumjs-utils would have returned '0xY' for input 'y'
     // but we shouldn't waste effort trying to change case on a clearly invalid
@@ -266,9 +270,9 @@ export function toChecksumHexAddress(address: string) {
 
 /**
  * Validates that the input is a hex address. This utility method is a thin
- * wrapper around ethereumjs-util.isValidAddress, with the exception that it
- * by default will return true for hex strings that meet the length requirement
- * of a hex address, but are not prefixed with `0x`.
+ * wrapper around @metamask/utils.isValidHexAddress, with the exception that it
+ * by default will return true for hex strings that are otherwise valid
+ * hex addresses, but are not prefixed with `0x`.
  *
  * @param possibleAddress - Input parameter to check against.
  * @param options - The validation options.
@@ -278,11 +282,11 @@ export function toChecksumHexAddress(address: string) {
 export function isValidHexAddress(
   possibleAddress: string,
   { allowNonPrefixed = true } = {},
-) {
+): boolean {
   const addressToCheck = allowNonPrefixed
-    ? addHexPrefix(possibleAddress)
+    ? add0x(possibleAddress)
     : possibleAddress;
-  if (!isHexString(addressToCheck)) {
+  if (!isStrictHexString(addressToCheck)) {
     return false;
   }
 
@@ -414,6 +418,10 @@ export async function timeoutFetch(
  * @returns The normalized ENS name string.
  */
 export function normalizeEnsName(ensName: string): string | null {
+  // `.` refers to the registry root contract
+  if (ensName === '.') {
+    return ensName;
+  }
   if (ensName && typeof ensName === 'string') {
     try {
       const normalized = ensNamehash.normalize(ensName.trim());
@@ -440,7 +448,11 @@ export function normalizeEnsName(ensName: string): string | null {
 export function query(
   ethQuery: EthQuery,
   method: string,
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any[] = [],
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const cb = (error: unknown, result: unknown) => {
@@ -470,7 +482,7 @@ export function query(
 export const convertHexToDecimal = (
   value: string | undefined = '0x0',
 ): number => {
-  if (isHexString(value)) {
+  if (isStrictHexString(value)) {
     return parseInt(value, 16);
   }
 
@@ -527,23 +539,27 @@ export function isValidJson(value: unknown): value is Json {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-function logOrRethrowError(error: any, codesToCatch: number[] = []) {
+function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
   if (!error) {
     return;
   }
 
-  const includesErrorCodeToCatch = codesToCatch.some((code) =>
-    error.message?.includes(`Fetch failed with status '${code}'`),
-  );
+  if (error instanceof Error) {
+    const includesErrorCodeToCatch = codesToCatch.some((code) =>
+      error.message.includes(`Fetch failed with status '${code}'`),
+    );
 
-  if (
-    error instanceof Error &&
-    (includesErrorCodeToCatch ||
-      error.message?.includes('Failed to fetch') ||
-      error === TIMEOUT_ERROR)
-  ) {
-    console.error(error);
+    if (
+      includesErrorCodeToCatch ||
+      error.message.includes('Failed to fetch') ||
+      error === TIMEOUT_ERROR
+    ) {
+      console.error(error);
+    } else {
+      throw error;
+    }
   } else {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
     throw error;
   }
 }

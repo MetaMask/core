@@ -1,5 +1,4 @@
-import type { ExportableKeyEncryptor } from '@metamask/eth-keyring-controller/dist/types';
-import type { Json } from '@metamask/utils';
+import type { ExportableKeyEncryptor } from '../../src/KeyringController';
 
 export const PASSWORD = 'password123';
 export const MOCK_ENCRYPTION_KEY = JSON.stringify({
@@ -18,9 +17,11 @@ export const MOCK_HEX = '0xabcdef0123456789';
 const MOCK_KEY = Buffer.alloc(32);
 const INVALID_PASSWORD_ERROR = 'Incorrect password.';
 
-let cacheVal: Json;
+let cacheVal: string;
 
 export default class MockEncryptor implements ExportableKeyEncryptor {
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encrypt(password: string, dataObj: any) {
     return JSON.stringify({
       ...(await this.encryptWithKey(password, dataObj)),
@@ -33,17 +34,21 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
       throw new Error(INVALID_PASSWORD_ERROR);
     }
 
-    return cacheVal ?? {};
+    return JSON.parse(cacheVal) ?? {};
   }
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encryptWithKey(_key: unknown, dataObj: any) {
-    cacheVal = dataObj;
+    cacheVal = JSON.stringify(dataObj);
     return {
       data: MOCK_HEX,
       iv: 'anIv',
     };
   }
 
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async encryptWithDetail(key: string, dataObj: any) {
     return {
       vault: await this.encrypt(key, dataObj),

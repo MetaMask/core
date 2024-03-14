@@ -1,5 +1,5 @@
 import EthQuery from '@metamask/eth-query';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import nock from 'nock';
 
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -439,6 +439,8 @@ describe('util', () => {
     describe('when the given method exists directly on the EthQuery', () => {
       it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
         class MockEthQuery extends EthQuery {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           getBlockByHash(blockId: any, cb: any) {
             cb(null, { id: blockId });
           }
@@ -453,6 +455,8 @@ describe('util', () => {
 
       it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
         class MockEthQuery extends EthQuery {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           getBlockByHash(_blockId: any, cb: any) {
             cb(new Error('uh oh'), null);
           }
@@ -468,6 +472,8 @@ describe('util', () => {
     describe('when the given method does not exist directly on the EthQuery', () => {
       it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
         class MockEthQuery extends EthQuery {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           sendAsync({ method, params }: any, cb: any) {
             if (method === 'eth_getBlockByHash') {
               return cb(null, { id: params[0] });
@@ -485,6 +491,8 @@ describe('util', () => {
 
       it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
         class MockEthQuery extends EthQuery {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           sendAsync(_args: any, cb: any) {
             cb(new Error('uh oh'), null);
           }

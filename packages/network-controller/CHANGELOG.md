@@ -1,33 +1,107 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [18.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [18.0.0]
+
 ### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add network client for Linea Sepolia (chain ID `0xe705`) ([#3995](https://github.com/MetaMask/core/pull/3995))
+  - Bump `@metamask/eth-json-rpc-infura` to `^9.1.0` to bring this change.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Fixed
+
+- **BREAKING:** Narrow `NetworkControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - Allowlisting or using any external actions or events will now produce a type error.
+
+## [17.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/eth-json-rpc-middleware` to `^12.1.0` ([#3829](https://github.com/MetaMask/core/pull/3829))
+- Bump `@metamask/json-rpc-engine` to `^7.3.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970), [#3954](https://github.com/MetaMask/core/pull/3954))
+
+## [17.2.0]
+
+### Changed
+
+- The `setActiveNetwork` method and action now supports built-in network types ([#3764](https://github.com/MetaMask/core/pull/3764))
+  - Previously this would only accept a network configuration ID. Now it will accept the type of a built-in network as well, using it like an ID. This lets you switch to a built-in or custom network with a single method/action.
+- Deprecate the `setProviderType` method and action ([#3764](https://github.com/MetaMask/core/pull/3764))
+  - Use `setActiveNetwork` instead
+- Bump `@metamask/swappable-obj-proxy` to `^2.2.0` ([#3784](https://github.com/MetaMask/core/pull/3784))
+- Bump `@metamask/utils` to `^8.3.0` ([#3769](https://github.com/MetaMask/core/pull/3769))
+- Bump `@metamask/base-controller` to `^4.1.1` ([#3760](https://github.com/MetaMask/core/pull/3760), [#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/controller-utils` to `^8.0.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/eth-json-rpc-provider` to `^2.3.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+- Bump `@metamask/json-rpc-engine` to `^7.3.2` ([#3821](https://github.com/MetaMask/core/pull/3821))
+
+## [17.1.0]
+
+### Added
+
 - Add `getNetworkConfigurationByNetworkClientId` method which can be used to retrieve details for both custom and built-in networks (using the network configuration object shape) ([#2055](https://github.com/MetaMask/core/pull/2055))
 - Add `NetworkController:getNetworkConfigurationByNetworkClientId` messenger action for the previous method ([#2055](https://github.com/MetaMask/core/pull/2055))
 
-## [17.0.0]
 ### Changed
+
+- Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/controller-utils` to `^8.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695), [#3678](https://github.com/MetaMask/core/pull/3678), [#3667](https://github.com/MetaMask/core/pull/3667), [#3580](https://github.com/MetaMask/core/pull/3580))
+- Bump `@metamask/eth-json-rpc-provider` to `^2.3.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Bump `@metamask/json-rpc-engine` to `^7.3.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
+- Create new network clients before updating `networkConfigurations` state ([#3679](https://github.com/MetaMask/core/pull/3679))
+  - This primarily affects subscribers to the `NetworkController:stateChange` event. It's now safe to use a network client for any network that appears in the `networkConfigurations` state, whereas previously it was possible that synchronous attempts to access a network client in response to this event would fail.
+- Add `NetworkState` payload to `NetworkController:networkWillChange` and `NetworkController:networkDidChange` ([#3598](https://github.com/MetaMask/core/pull/3598))
+  - Both of these events now include `NetworkState` as the first and only item in the payload
+
+## [17.0.0]
+
+### Changed
+
 - **BREAKING:** Bump `@metamask/base-controller` to ^4.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
   - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for this package for more.
 - Bump `@metamask/controller-utils` to ^6.0.0 ([#2063](https://github.com/MetaMask/core/pull/2063))
 
 ## [16.0.0]
+
 ### Changed
+
 - **BREAKING:** Bump dependency `@metamask/eth-query` from ^3.0.1 to ^4.0.0 ([#2028](https://github.com/MetaMask/core/pull/2028))
   - This is breaking because it changes the type of the EthQuery instance this controller creates internally and exports under the `getEthQuery` action. Please consult the [changelog for `@metamask/eth-query` 4.0.0](https://github.com/MetaMask/eth-query/blob/main/CHANGELOG.md#400) for more.
 
 ## [15.2.0]
+
 ### Changed
+
 - Update @metamask/eth-json-rpc-middleware in network controller ([#1988](https://github.com/MetaMask/core/pull/1988))
 - Bump dependency on `@metamask/json-rpc-engine` to ^7.2.0 ([#1895](https://github.com/MetaMask/core/pull/1895))
 - Bump @metamask/utils from 8.1.0 to 8.2.0 ([#1957](https://github.com/MetaMask/core/pull/1957))
 
 ## [15.1.0]
+
 ### Added
+
 - Add new action handlers and associated types ([#1806](https://github.com/MetaMask/core/pull/1806))
   - `NetworkController:setActiveNetwork` / `NetworkControllerSetActiveNetworkAction`
   - `NetworkController:setProviderType` / `NetworkControllerSetProviderTypeAction`
@@ -35,10 +109,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ticker` to `NetworkClientConfiguration` ([#1794](https://github.com/MetaMask/core/pull/1794))
 
 ### Changed
+
 - Bump dependency on `@metamask/eth-json-rpc-provider` to ^2.2.0 ([#1738](https://github.com/MetaMask/core/pull/1738))
 
 ## [15.0.0]
+
 ### Changed
+
 - **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-infura` to ^9.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
 - **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-middleware` to ^12.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
 - **BREAKING:** Move from `json-rpc-engine` ^7.1.1 to `@metamask/json-rpc-engine` ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
@@ -47,24 +124,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move from `eth-rpc-errors` ^4.0.2 to `@metamask/rpc-errors` ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
 
 ## [14.0.0]
+
 ### Added
+
 - Add `NetworkController:getEIP1559Compatibility` controller action ([#1673](https://github.com/MetaMask/core/pull/1673))
 
 ### Changed
+
 - **BREAKING:** Rename `get1555CompatibilityWithNetworkClientId` to `get1559CompatibilityWithNetworkClientId` ([#1673](https://github.com/MetaMask/core/pull/1673))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 - Bump dependency on `@metamask/base-controller` to ^3.2.3
 - Bump dependency on `@metamask/controller-utils` to ^5.0.2
 
 ### Fixed
+
 - Update linea goerli explorer url ([#1666](https://github.com/MetaMask/core/pull/1666))
 
 ## [13.0.1]
+
 ### Changed
+
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 
 ## [13.0.0]
+
 ### Changed
+
 - **BREAKING**: Remove `NetworkId` type ([#1633](https://github.com/MetaMask/core/pull/1633))
 - **BREAKING**: Remove `networkId` property from `NetworkState` type ([#1633](https://github.com/MetaMask/core/pull/1633))
 - Update scaffold RPC middleware for built-in Infura networks to no longer resolve `net_version` locally ([#1633](https://github.com/MetaMask/core/pull/1633))
@@ -72,32 +157,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0
 
 ## [12.2.0]
+
 ### Added
+
 - Add `NetworkController:getNetworkClientById` action ([#1638](https://github.com/MetaMask/core/pull/1638))
 - Add `lookupNetworkByClientId` and `get1555CompatibilityWithNetworkClientId` methods ([#1557](https://github.com/MetaMask/core/pull/1557))
 
 ### Changed
-- Add optional `networkClientId` argument to methods `lookupNetwork` and  `getEIP1559Compatibility` ([#1557](https://github.com/MetaMask/core/pull/1557))
+
+- Add optional `networkClientId` argument to methods `lookupNetwork` and `getEIP1559Compatibility` ([#1557](https://github.com/MetaMask/core/pull/1557))
 
 ## [12.1.2]
+
 ### Changed
+
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
 - Bump dependency on `@metamask/controller-utils` to ^4.3.2
 
 ## [12.1.1]
+
 ### Added
+
 - Added an export for NetworkClientId in NetworkController ([#1583](https://github.com/MetaMask/core/pull/1583))
 
 ## [12.1.0]
+
 ### Added
+
 - Add `getNetworkClientById` ([#1562](https://github.com/MetaMask/core/pull/1562))
 - Add `findNetworkClientIdByChainId` ([#1571](https://github.com/MetaMask/core/pull/1571))
 
 ## [12.0.0]
+
 ### Added
+
 - Add `NetworksMetadata` type ([#1559](https://github.com/MetaMask/core/pull/1559))
 
 ### Changed
+
 - **BREAKING:** Remove `NetworkDetails` type in favor of `NetworkMetadata` ([#1559](https://github.com/MetaMask/core/pull/1559))
   - This new type includes `NetworkDetails` plus a `status` property
 - **BREAKING:** Add `networksMetadata` to state ([#1559](https://github.com/MetaMask/core/pull/1559))
@@ -108,11 +205,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
 
 ### Removed
+
 - **BREAKING:** Remove `networkDetails` from state ([#1559](https://github.com/MetaMask/core/pull/1559))
   - The data in this state property has been merged into the new `networksMetadata` state property; each value in this object contains an `EIPS` property.
 
 ## [11.0.0]
+
 ### Changed
+
 - **BREAKING**: Require `ticker` to be included in the `providerConfig` state ([#1495](https://github.com/MetaMask/core/pull/1495))
   - This requires a state migration, setting `providerConfig.ticker` to `ETH` if it's missing.
 - Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
@@ -120,16 +220,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove unnecessary `babel-runtime` dependency ([#1504](https://github.com/MetaMask/core/pull/1504))
 
 ## [10.3.1]
+
 ### Changed
+
 - Bump `@metamask/eth-json-rpc-infura` dependency from ^8.0.0 to ^8.1.0
   - This extends the types that this package recognizes to include Linea networks
 
 ## [10.3.0]
+
 ### Added
+
 - Add `getNetworkClientsById` method ([#1439](https://github.com/MetaMask/core/pull/1439))
   - This method returns a registry of available built-in and custom networks, allowing consumers to access multiple networks simultaneously if desired
 
 ### Changed
+
 - Network clients are retained and will no longer be destroyed or recreated whenever the network is initialized or switched ([#1439](https://github.com/MetaMask/core/pull/1439))
   - This means that cached responses for a network will no longer disappear when a different network is selected
 - Update `upsertNetworkConfiguration` to keep the network client registry up to date with changes to the set of network configurations ([#1439](https://github.com/MetaMask/core/pull/1439))
@@ -137,22 +242,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If an existing network configuration is updated, its information will be used to recreate the client for the corresponding network
 
 ## [10.2.0]
+
 ### Added
+
 - Expose `BlockTracker` type ([#1443](https://github.com/MetaMask/core/pull/1443))
 
 ## [10.1.0]
+
 ### Added
+
 - Add `loadBackup` method to NetworkController ([#1421](https://github.com/MetaMask/core/pull/1421))
 
 ## [10.0.0]
+
 ### Changed
+
 - **BREAKING:** Update `getEIP1559Compatibility` to return `false` instead of `true` if the provider has not been initialized yet ([#1404](https://github.com/MetaMask/core/pull/1404))
 - Update `getEIP1559Compatibility` to not hit the current network if it is known that it does not support EIP-1559 ([#1404](https://github.com/MetaMask/core/pull/1404))
 - Update `networkDetails` initial state from `{ EIPS: { 1559: false } }` to `{ EIPS: {} }` ([#1404](https://github.com/MetaMask/core/pull/1404))
 - Update lookupNetwork to unset `networkDetails.EIPS[1559]` in state instead of setting it `false` if either of its requests for the network ID or network details fails ([#1403](https://github.com/MetaMask/core/pull/1403))
 
 ## [9.0.0]
+
 ### Added
+
 - The events `networkWillChange` and `networkDidChange` are emitted during `setProviderType`, `setActiveNetwork`, `resetConnection`, and `rollbackToPreviousProvider` ([#1336](https://github.com/MetaMask/core/pull/1336))
   - The `networkWillChange` event is emitted before the network is switched (before the network status is cleared),
   - The `networkDidChange` event is emitted after the new provider is setup (but before it has finished initializing).
@@ -161,6 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `NetworkController:getState` action constant ([#1329](https://github.com/MetaMask/core/pull/1329))
 
 ### Changed
+
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
 - **BREAKING:** The `providerConfig` type and state property have changed. The `chainId` property is now `Hex` rather than a decimal `string` ([#1367](https://github.com/MetaMask/core/pull/1367))
   - This requires a state migration
@@ -213,20 +327,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add dependency `json-rpc-engine` ^6.1.0 ([#1116](https://github.com/MetaMask/core/pull/1116))
 
 ### Removed
+
 - **BREAKING:** Remove `providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
   - Consumers are encouraged to subscribe to `NetworkController:stateChange` with a selector function that returns `providerConfig` if they want to perform an action when `providerConfig` changes.
 - **BREAKING:** The built-in "localhost" network has been removed ([#1313](https://github.com/MetaMask/core/pull/1313))
 
 ### Fixed
+
 - Update network details in `lookupNetwork` even when network ID is unchanged ([#1379](https://github.com/MetaMask/core/pull/1379))
 - Fix error when `rollbackToPreviousProvider` is called when the previous network is a custom network with a missing or invalid `id` ([#1223](https://github.com/MetaMask/core/pull/1223))
   - In that situation, `rollbackToPreviousProvider` used to throw an error. Now it correctly rolls back instead.
 
 ## [8.0.0]
+
 ### Added
+
 - Implement `resetConnection` method ([#1131](https://github.com/MetaMask/core/pull/1131), [#1235](https://github.com/MetaMask/core/pull/1235), [#1239](https://github.com/MetaMask/core/pull/1239))
 
 ### Changed
+
 - Update EIP-1559 compatibility during network lookup ([#1236](https://github.com/MetaMask/core/pull/1236))
   - EIP-1559 compatibility check is still performed on initialization and after switching networks, like before. This change only impacts direct calls to `lookupNetwork`.
   - `lookupNetwork` is now making two network calls instead of one, ensuring that the `networkDetails` state is up-to-date.
@@ -251,20 +370,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - deps: bump @metamask/utils to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
 
 ### Removed
+
 - **BREAKING:** Remove `isCustomNetwork` state ([#1199](https://github.com/MetaMask/core/pull/1199))
   - The `providerConfig.type` state will be set to `'rpc'` if the current network is a custom network. Replace all references to the `isCustomNetwork` state by checking the provider config state instead.
 
 ## [7.0.0]
+
 ### Changed
+
 - **BREAKING:** Replace `providerConfig` setter with a public `initializeProvider` method ([#1133](https://github.com/MetaMask/core/pull/1133))
   - The property `providerConfig` should no longer be set to initialize the provider. That property no longer exists.
   - The method `initializeProvider` must be called instead to initialize the provider after constructing the network controller.
 
 ## [6.0.0]
+
 ### Added
+
 - Add rollbackToPreviousProvider method ([#1132](https://github.com/MetaMask/core/pull/1132))
 
 ### Changed
+
 - **BREAKING:** Migrate network configurations from `PreferencesController` to `NetworkController` ([#1064](https://github.com/MetaMask/core/pull/1064))
   - Consumers will need to adapt to reading network data from `NetworkConfigurations` state on `NetworkController` rather than `frequentRpcList` on `PreferencesController`.
   - `setRpcTarget` becomes `setActiveNetwork` on `NetworkController` and accepts a `networkConfigurationId` argument rather than an `rpcUrl`.
@@ -275,50 +400,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This change is breaking because it removes the provider property from `NetworkController`. Instead, a new method `getProviderAndBlockTracker` method is available for accessing the current provider object.
 
 ## [5.0.0]
+
 ### Changed
+
 - **BREAKING:** Rename `properties` property in state object to `networkDetails` ([#1074](https://github.com/MetaMask/controllers/pull/1074))
 
 ### Removed
+
 - **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
 
 ## [4.0.0]
+
 ### Changed
+
 - **BREAKING:** Update type of state object by renaming `properties` property to `networkDetails` ([#1074](https://github.com/MetaMask/core/pull/1074))
   - Consumers are recommended to add a state migration for this change.
 - **BREAKING:** Rename `NetworkProperties` type to `NetworkDetails` ([#1074](https://github.com/MetaMask/core/pull/1074))
 - Change `getEIP1559Compatibility` to use async await syntax ([#1084](https://github.com/MetaMask/core/pull/1084))
 
 ## [3.0.0]
+
 ### Added
+
 - Add support for Sepolia as a built-in Infura network ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 - Export types for network controller events and actions ([#1039](https://github.com/MetaMask/core/pull/1039))
 
 ### Changed
+
 - **BREAKING:** Make `lookupNetwork` block on completing the lookup ([#1063](https://github.com/MetaMask/controllers/pull/1063))
   - This function was always `async`, but it would return before completing any async work. Now it will not return until after the network lookup has been completed.
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
 - Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ### Removed
+
 - **BREAKING:**: Drop support for Ropsten, Rinkeby, and Kovan as built-in Infura networks ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [2.0.0]
+
 ### Changed
+
 - **BREAKING:** Update type of state object by renaming `provider` property to `providerConfig` ([#995](https://github.com/MetaMask/core/pull/995))
   - Consumers are recommended to add a state migration for this change.
 - **BREAKING:** Rename `NetworkController:providerChange` messenger event to `NetworkController:providerConfigChange` ([#995](https://github.com/MetaMask/core/pull/995))
 - Relax dependencies on `@metamask/base-controller` and `@metamask/controller-utils` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/core/pull/998))
 
 ## [1.0.0]
+
 ### Added
+
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/network` (minus `NetworkType` and `NetworksChainId`, which were placed in `@metamask/controller-utils`)
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.0...@metamask/network-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.1...@metamask/network-controller@18.0.0
+[17.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.0...@metamask/network-controller@17.2.1
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...@metamask/network-controller@17.2.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...@metamask/network-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@16.0.0...@metamask/network-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.2.0...@metamask/network-controller@16.0.0
 [15.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.1.0...@metamask/network-controller@15.2.0

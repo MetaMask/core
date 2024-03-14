@@ -66,9 +66,15 @@ export type GetSubjectMetadata = {
   handler: (origin: SubjectOrigin) => SubjectMetadata | undefined;
 };
 
+export type AddSubjectMetadata = {
+  type: `${typeof controllerName}:addSubjectMetadata`;
+  handler: (metadata: SubjectMetadataToAdd) => void;
+};
+
 export type SubjectMetadataControllerActions =
   | GetSubjectMetadataState
-  | GetSubjectMetadata;
+  | GetSubjectMetadata
+  | AddSubjectMetadata;
 
 export type SubjectMetadataStateChange = ControllerStateChangeEvent<
   typeof controllerName,
@@ -140,6 +146,11 @@ export class SubjectMetadataController extends BaseController<
       `${this.name}:getSubjectMetadata`,
       this.getSubjectMetadata.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:addSubjectMetadata`,
+      this.addSubjectMetadata.bind(this),
+    );
   }
 
   /**
@@ -200,6 +211,8 @@ export class SubjectMetadataController extends BaseController<
 
     this.update((draftState) => {
       // Typecast: ts(2589)
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       draftState.subjectMetadata[origin] = newMetadata as any;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
@@ -224,6 +237,8 @@ export class SubjectMetadataController extends BaseController<
     this.update((draftState) => {
       return SubjectMetadataController.getTrimmedState(
         // Typecast: ts(2589)
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         draftState as any,
         this.subjectHasPermissions,
       );

@@ -2,9 +2,8 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "resolveJsonModule": true
+    "outDir": "./dist/types",
+    "rootDir": "./src"
   },
   "references": [
     {
@@ -12,7 +11,22 @@
     },
     {
       "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../gas-fee-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../polling-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
     }
   ],
-  "include": ["../../types", "./src", "./src/**/*.json"]
+  "include": ["../../types", "./src"]
 }

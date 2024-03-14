@@ -1,5 +1,6 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
-import { sha256FromString } from 'ethereumjs-util';
+import { toBuffer } from '@ethereumjs/util';
+import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
+import { sha256 } from 'ethereum-cryptography/sha256';
 import { v4 as uuid } from 'uuid';
 
 /**
@@ -9,6 +10,12 @@ import { v4 as uuid } from 'uuid';
  * @returns The name of the keyring type.
  */
 export function keyringTypeToName(keyringType: string): string {
+  // Custody keyrings are a special case, as they are not a single type
+  // they just start with the prefix `Custody`
+  if (isCustodyKeyring(keyringType)) {
+    return 'Custody';
+  }
+
   switch (keyringType) {
     case KeyringTypes.simple: {
       return 'Account';
@@ -31,9 +38,6 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
-    case KeyringTypes.custody: {
-      return 'Custody';
-    }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
     }
@@ -47,7 +51,7 @@ export function keyringTypeToName(keyringType: string): string {
  */
 export function getUUIDFromAddressOfNormalAccount(address: string): string {
   const v4options = {
-    random: sha256FromString(address).slice(0, 16),
+    random: sha256(toBuffer(address)).slice(0, 16),
   };
 
   return uuid(v4options);

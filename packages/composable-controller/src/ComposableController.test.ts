@@ -7,9 +7,11 @@ import {
   BaseControllerV1,
   ControllerMessenger,
 } from '@metamask/base-controller';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
 
+import type { ComposableControllerEvents } from './ComposableController';
 import { ComposableController } from './ComposableController';
 
 // Mock BaseController classes
@@ -26,7 +28,7 @@ type FooMessenger = RestrictedControllerMessenger<
   'FooController',
   never,
   FooControllerEvent,
-  string,
+  never,
   never
 >;
 
@@ -105,15 +107,18 @@ describe('ComposableController', () => {
 
   describe('BaseControllerV1', () => {
     it('should compose controller state', () => {
-      const composableMessenger = new ControllerMessenger().getRestricted<
-        'ComposableController',
+      const composableMessenger = new ControllerMessenger<
         never,
-        never
-      >({ name: 'ComposableController' });
-      const controller = new ComposableController(
-        [new BarController(), new BazController()],
-        composableMessenger,
-      );
+        ComposableControllerEvents
+      >().getRestricted({
+        name: 'ComposableController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      const controller = new ComposableController({
+        controllers: [new BarController(), new BazController()],
+        messenger: composableMessenger,
+      });
 
       expect(controller.state).toStrictEqual({
         BarController: { bar: 'bar' },
@@ -121,37 +126,26 @@ describe('ComposableController', () => {
       });
     });
 
-    it('should compose flat controller state', () => {
-      const composableMessenger = new ControllerMessenger().getRestricted<
-        'ComposableController',
-        never,
-        never
-      >({ name: 'ComposableController' });
-      const controller = new ComposableController(
-        [new BarController(), new BazController()],
-        composableMessenger,
-      );
-
-      expect(controller.flatState).toStrictEqual({
-        bar: 'bar',
-        baz: 'baz',
-      });
-    });
-
     it('should notify listeners of nested state change', () => {
-      const composableMessenger = new ControllerMessenger().getRestricted<
-        'ComposableController',
+      const controllerMessenger = new ControllerMessenger<
         never,
-        never
-      >({ name: 'ComposableController' });
+        ComposableControllerEvents
+      >();
+      const composableMessenger = controllerMessenger.getRestricted({
+        name: 'ComposableController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
       const barController = new BarController();
-      const controller = new ComposableController(
-        [barController],
-        composableMessenger,
-      );
+      new ComposableController({
+        controllers: [barController],
+        messenger: composableMessenger,
+      });
       const listener = sinon.stub();
-      controller.subscribe(listener);
-
+      controllerMessenger.subscribe(
+        'ComposableController:stateChange',
+        listener,
+      );
       barController.updateBar('something different');
 
       expect(listener.calledOnce).toBe(true);
@@ -169,90 +163,61 @@ describe('ComposableController', () => {
         never,
         FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
 
       const composableControllerMessenger = controllerMessenger.getRestricted<
         'ComposableController',
         never,
-        'FooController:stateChange'
+        FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      const composableController = new ComposableController(
-        [fooController],
-        composableControllerMessenger,
-      );
+      const composableController = new ComposableController({
+        controllers: [fooController],
+        messenger: composableControllerMessenger,
+      });
       expect(composableController.state).toStrictEqual({
         FooController: { foo: 'foo' },
-      });
-    });
-
-    it('should compose flat controller state', () => {
-      const controllerMessenger = new ControllerMessenger<
-        never,
-        FooControllerEvent
-      >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
-        name: 'FooController',
-      });
-      const fooController = new FooController(fooControllerMessenger);
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        'FooController:stateChange'
-      >({
-        name: 'ComposableController',
-        allowedEvents: ['FooController:stateChange'],
-      });
-      const composableController = new ComposableController(
-        [fooController],
-        composableControllerMessenger,
-      );
-      expect(composableController.flatState).toStrictEqual({
-        foo: 'foo',
       });
     });
 
     it('should notify listeners of nested state change', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
-        FooControllerEvent
+        ComposableControllerEvents | FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
       const composableControllerMessenger = controllerMessenger.getRestricted<
         'ComposableController',
         never,
-        'FooController:stateChange'
+        FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      const composableController = new ComposableController(
-        [fooController],
-        composableControllerMessenger,
-      );
+      new ComposableController({
+        controllers: [fooController],
+        messenger: composableControllerMessenger,
+      });
 
       const listener = sinon.stub();
-      composableController.subscribe(listener);
+      controllerMessenger.subscribe(
+        'ComposableController:stateChange',
+        listener,
+      );
       fooController.updateFoo('bar');
 
       expect(listener.calledOnce).toBe(true);
@@ -271,61 +236,28 @@ describe('ComposableController', () => {
         never,
         FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
       const composableControllerMessenger = controllerMessenger.getRestricted<
         'ComposableController',
         never,
-        'FooController:stateChange'
+        FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      const composableController = new ComposableController(
-        [barController, fooController],
-        composableControllerMessenger,
-      );
+      const composableController = new ComposableController({
+        controllers: [barController, fooController],
+        messenger: composableControllerMessenger,
+      });
       expect(composableController.state).toStrictEqual({
         BarController: { bar: 'bar' },
         FooController: { foo: 'foo' },
-      });
-    });
-
-    it('should compose flat controller state', () => {
-      const barController = new BarController();
-      const controllerMessenger = new ControllerMessenger<
-        never,
-        FooControllerEvent
-      >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
-        name: 'FooController',
-      });
-      const fooController = new FooController(fooControllerMessenger);
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        'FooController:stateChange'
-      >({
-        name: 'ComposableController',
-        allowedEvents: ['FooController:stateChange'],
-      });
-      const composableController = new ComposableController(
-        [barController, fooController],
-        composableControllerMessenger,
-      );
-      expect(composableController.flatState).toStrictEqual({
-        bar: 'bar',
-        foo: 'foo',
       });
     });
 
@@ -333,31 +265,32 @@ describe('ComposableController', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
-        FooControllerEvent
+        ComposableControllerEvents | FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
       const composableControllerMessenger = controllerMessenger.getRestricted<
         'ComposableController',
         never,
-        'FooController:stateChange'
+        FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      const composableController = new ComposableController(
-        [barController, fooController],
-        composableControllerMessenger,
-      );
-
+      new ComposableController({
+        controllers: [barController, fooController],
+        messenger: composableControllerMessenger,
+      });
       const listener = sinon.stub();
-      composableController.subscribe(listener);
+      controllerMessenger.subscribe(
+        'ComposableController:stateChange',
+        listener,
+      );
       barController.updateBar('foo');
 
       expect(listener.calledOnce).toBe(true);
@@ -375,31 +308,33 @@ describe('ComposableController', () => {
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
-        FooControllerEvent
+        ComposableControllerEvents | FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
       const composableControllerMessenger = controllerMessenger.getRestricted<
         'ComposableController',
         never,
-        'FooController:stateChange'
+        FooControllerEvent['type']
       >({
         name: 'ComposableController',
+        allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      const composableController = new ComposableController(
-        [barController, fooController],
-        composableControllerMessenger,
-      );
+      new ComposableController({
+        controllers: [barController, fooController],
+        messenger: composableControllerMessenger,
+      });
 
       const listener = sinon.stub();
-      composableController.subscribe(listener);
+      controllerMessenger.subscribe(
+        'ComposableController:stateChange',
+        listener,
+      );
       fooController.updateFoo('bar');
 
       expect(listener.calledOnce).toBe(true);
@@ -419,18 +354,51 @@ describe('ComposableController', () => {
         never,
         FooControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted<
-        'FooController',
-        never,
-        never
-      >({
+      const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
       expect(
-        () => new ComposableController([barController, fooController]),
+        () =>
+          // @ts-expect-error - Suppressing type error to test for runtime error handling
+          new ComposableController({
+            controllers: [barController, fooController],
+          }),
+      ).toThrow('Messaging system is required');
+    });
+
+    it('should throw if composing a controller that does not extend from BaseController', () => {
+      const notController = new JsonRpcEngine();
+      const controllerMessenger = new ControllerMessenger<
+        never,
+        FooControllerEvent
+      >();
+      const fooControllerMessenger = controllerMessenger.getRestricted({
+        name: 'FooController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      const fooController = new FooController(fooControllerMessenger);
+      const composableControllerMessenger = controllerMessenger.getRestricted<
+        'ComposableController',
+        never,
+        FooControllerEvent['type']
+      >({
+        name: 'ComposableController',
+        allowedActions: [],
+        allowedEvents: ['FooController:stateChange'],
+      });
+      expect(
+        () =>
+          new ComposableController({
+            // @ts-expect-error - Suppressing type error to test for runtime error handling
+            controllers: [notController, fooController],
+            messenger: composableControllerMessenger,
+          }),
       ).toThrow(
-        'Messaging system required if any BaseController controllers are used',
+        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
       );
     });
   });

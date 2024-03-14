@@ -14,7 +14,10 @@ import {
   NetworkController,
   NetworkClientType,
 } from '@metamask/network-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
+import {
+  getDefaultPreferencesState,
+  type PreferencesState,
+} from '@metamask/preferences-controller';
 
 import { mockNetwork } from '../../../tests/mock-network';
 import {
@@ -52,37 +55,48 @@ async function setupAssetContractControllers() {
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',
+      allowedActions: [],
+      allowedEvents: [],
     });
   const network = new NetworkController({
     infuraProjectId: networkClientConfiguration.infuraProjectId,
     messenger,
     trackMetaMetricsEvent: jest.fn(),
   });
-  const preferences = new PreferencesController();
 
   const provider = new HttpProvider(
     `https://mainnet.infura.io/v3/${networkClientConfiguration.infuraProjectId}`,
   );
 
+  const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
+    [];
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
-    onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+    onPreferencesStateChange: (listener) => {
+      preferencesStateChangeListeners.push(listener);
+    },
     onNetworkDidChange: (listener) =>
       messenger.subscribe('NetworkController:networkDidChange', listener),
     getNetworkClientById: (networkClientId: NetworkClientId) =>
       ({
         ...network.getNetworkClientById(networkClientId),
         provider,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any),
   });
 
   return {
     messenger,
     network,
-    preferences,
     assetsContract,
     provider,
     networkClientConfiguration,
+    triggerPreferencesStateChange: (state: PreferencesState) => {
+      for (const listener of preferencesStateChangeListeners) {
+        listener(state);
+      }
+    },
   };
 }
 
@@ -133,7 +147,7 @@ describe('AssetsContractController', () => {
   });
 
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', async () => {
-    const { assetsContract, messenger, preferences } =
+    const { assetsContract, messenger, triggerPreferencesStateChange } =
       await setupAssetContractControllers();
     expect(assetsContract.config).toStrictEqual({
       chainId: SupportedTokenDetectionNetworks.mainnet,
@@ -141,7 +155,11 @@ describe('AssetsContractController', () => {
       provider: undefined,
     });
 
-    preferences.setIpfsGateway('newIPFSGateWay');
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: 'newIPFSGateWay',
+    });
+
     expect(assetsContract.config).toStrictEqual({
       ipfsGateway: 'newIPFSGateWay',
       chainId: SupportedTokenDetectionNetworks.mainnet,
@@ -901,7 +919,7 @@ describe('AssetsContractController', () => {
     );
     expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
 
-    await network.setProviderType(NetworkType.sepolia);
+    await network.setActiveNetwork(NetworkType.sepolia);
 
     const noBalances = await assetsContract.getBalancesInSingleCall(
       ERC20_SAI_ADDRESS,
@@ -923,6 +941,43 @@ describe('AssetsContractController', () => {
         '1',
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should throw when ERC1155 function transferSingle is not defined', async () => {
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
+      await setupAssetContractControllers();
+    assetsContract.configure({ provider });
+    mockNetworkWithDefaultChainId({
+      networkClientConfiguration,
+      mocks: [
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: ERC1155_ADDRESS,
+                data: '0x00fdd58e0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000001',
+          },
+        },
+      ],
+    });
+    await expect(
+      assetsContract.transferSingleERC1155(
+        ERC1155_ADDRESS,
+        '0x0',
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        ERC1155_ID,
+        '1',
+      ),
+    ).rejects.toThrow('contract.transferSingle is not a function');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 

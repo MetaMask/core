@@ -5,9 +5,11 @@
     "rootDir": "../.."
   },
   "references": [
+    { "path": "../accounts-controller" },
     { "path": "../approval-controller" },
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
+    { "path": "../keyring-controller" },
     { "path": "../network-controller" },
     { "path": "../preferences-controller" },
     { "path": "../polling-controller" }

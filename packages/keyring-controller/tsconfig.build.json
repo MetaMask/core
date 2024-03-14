@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "outDir": "./dist",
+    "outDir": "./dist/types",
     "rootDir": "./src"
   },
   "references": [
@@ -11,9 +11,6 @@
     },
     {
       "path": "../message-manager/tsconfig.build.json"
-    },
-    {
-      "path": "../preferences-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

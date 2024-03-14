@@ -16,6 +16,6 @@
       "@metamask/*": ["../*/src"]
     },
     "strict": true,
-    "target": "es6"
+    "target": "ES2020"
   }
 }

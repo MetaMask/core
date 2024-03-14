@@ -1,42 +1,10 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
-import type { ControllerMessenger } from '@metamask/base-controller';
-import { ApprovalType, isNetworkType } from '@metamask/controller-utils';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
-import type {
-  NetworkClientId,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerSetActiveNetworkAction,
-  NetworkControllerSetProviderTypeAction,
-} from '@metamask/network-controller';
 import { serializeError } from '@metamask/rpc-errors';
-import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
-import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
-import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
-
-export type MiddlewareAllowedActions =
-  | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction
-  | NetworkControllerSetProviderTypeAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
-  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-  | AddApprovalRequest;
-
-export type QueuedRequestMiddlewareMessenger = ControllerMessenger<
-  QueuedRequestControllerEnqueueRequestAction | MiddlewareAllowedActions,
-  never
->;
-
-export type QueuedRequestMiddlewareJsonRpcRequest = JsonRpcRequest & {
-  networkClientId?: NetworkClientId;
-  origin?: string;
-};
+import type { QueuedRequestController } from './QueuedRequestController';
+import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
 const isConfirmationMethod = (method: string) => {
   const confirmationMethods = [
@@ -56,125 +24,61 @@ const isConfirmationMethod = (method: string) => {
 };
 
 /**
+ * Ensure that the incoming request has the additional required request metadata. This metadata
+ * should be attached to the request earlier in the middleware pipeline.
+ *
+ * @param request - The request to check.
+ * @throws Throws an error if any required metadata is missing.
+ */
+function hasRequiredMetadata(
+  request: Record<string, unknown>,
+): asserts request is QueuedRequestMiddlewareJsonRpcRequest {
+  if (!request.origin) {
+    throw new Error("Request object is lacking an 'origin'");
+  } else if (typeof request.origin !== 'string') {
+    throw new Error(
+      `Request object has an invalid origin of type '${typeof request.origin}'`,
+    );
+  } else if (!request.networkClientId) {
+    throw new Error("Request object is lacking a 'networkClientId'");
+  } else if (typeof request.networkClientId !== 'string') {
+    throw new Error(
+      `Request object has an invalid networkClientId of type '${typeof request.networkClientId}'`,
+    );
+  }
+}
+
+/**
  * Creates a JSON-RPC middleware for handling queued requests. This middleware
  * intercepts JSON-RPC requests, checks if they require queueing, and manages
  * their execution based on the specified options.
  *
  * @param options - Configuration options.
- * @param options.messenger - A controller messenger used for communication with various controllers.
+ * @param options.enqueueRequest - A method for enqueueing a request.
  * @param options.useRequestQueue - A function that determines if the request queue feature is enabled.
  * @returns The JSON-RPC middleware that manages queued requests.
  */
 export const createQueuedRequestMiddleware = ({
-  messenger,
+  enqueueRequest,
   useRequestQueue,
 }: {
-  messenger: QueuedRequestMiddlewareMessenger;
+  enqueueRequest: QueuedRequestController['enqueueRequest'];
   useRequestQueue: () => boolean;
 }): JsonRpcMiddleware<JsonRpcParams, Json> => {
-  return createAsyncMiddleware(
-    async (req: QueuedRequestMiddlewareJsonRpcRequest, res, next) => {
-      const { origin, networkClientId: networkClientIdForRequest } = req;
+  return createAsyncMiddleware(async (req: JsonRpcRequest, res, next) => {
+    hasRequiredMetadata(req);
 
-      if (!origin) {
-        throw new Error("Request object is lacking an 'origin'");
-      }
+    // if the request queue feature is turned off, or this method is not a confirmation method
+    // bypass the queue completely
+    if (!useRequestQueue() || !isConfirmationMethod(req.method)) {
+      return await next();
+    }
 
-      if (!networkClientIdForRequest) {
-        throw new Error("Request object is lacking a 'networkClientId'");
-      }
-
-      // if the request queue feature is turned off, or this method is not a confirmation method
-      // do nothing
-      if (!useRequestQueue() || !isConfirmationMethod(req.method)) {
-        next();
-        return;
-      }
-
-      await messenger.call(
-        QueuedRequestControllerActionTypes.enqueueRequest,
-        async () => {
-          if (
-            req.method === 'wallet_switchEthereumChain' ||
-            req.method === 'wallet_addEthereumChain'
-          ) {
-            return next();
-          }
-
-          const networkClientConfigurationForRequest = messenger.call(
-            'NetworkController:getNetworkClientById',
-            networkClientIdForRequest,
-          ).configuration;
-
-          const networkControllerState = messenger.call(
-            'NetworkController:getState',
-          );
-
-          const isBuiltIn = isNetworkType(networkClientIdForRequest);
-          let networkConfigurationForRequest;
-          if (!isBuiltIn) {
-            networkConfigurationForRequest =
-              networkControllerState.networkConfigurations[
-                networkClientIdForRequest
-              ];
-          } else {
-            // if its a built in
-            // Ideally we should be using only networkConfigurations, and networkClientIds &
-            // networkConfiguration.id should be the same thing.
-            networkConfigurationForRequest =
-              networkClientConfigurationForRequest;
-          }
-
-          const currentProviderConfig = networkControllerState.providerConfig;
-          const currentChainId = currentProviderConfig.chainId;
-
-          // if the 'globally selected network' is already on the correct chain for the request currently being processed
-          // continue with the request as normal.
-          if (currentChainId === networkConfigurationForRequest.chainId) {
-            return next();
-          }
-
-          // todo once we have 'batches':
-          // if is switch eth chain call
-          // clear request queue when the switch ethereum chain call completes (success, but maybe not if it fails?)
-          // This is because a dapp-requested switch ethereum chain invalidates any requests they've made after this switch, since we dont know if they were expecting the chain after the switch or before.
-          // with the queue batching approach, this would mean clearing any batch for that origin (batches being per-origin.)
-          const requestData = {
-            toNetworkConfiguration: networkConfigurationForRequest,
-            fromNetworkConfiguration: currentProviderConfig,
-          };
-
-          try {
-            await messenger.call(
-              'ApprovalController:addRequest',
-              {
-                origin,
-                type: ApprovalType.SwitchEthereumChain,
-                requestData,
-              },
-              true,
-            );
-
-            const method = isBuiltIn ? 'setProviderType' : 'setActiveNetwork';
-
-            await messenger.call(
-              `NetworkController:${method}`,
-              networkClientIdForRequest,
-            );
-
-            messenger.call(
-              SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
-              origin,
-              networkClientIdForRequest,
-            );
-          } catch (error) {
-            res.error = serializeError(error);
-            return error;
-          }
-
-          return next();
-        },
-      );
-    },
-  );
+    try {
+      await enqueueRequest(req, next);
+    } catch (error: unknown) {
+      res.error = serializeError(error);
+    }
+    return undefined;
+  });
 };

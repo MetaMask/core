@@ -5,10 +5,11 @@ module.exports = {
     '!.eslintrc.js',
     '!jest.config.js',
     'node_modules',
-    'dist',
-    'docs',
-    'coverage',
+    '**/dist',
+    '**/docs',
+    '**/coverage',
     'merged-packages',
+    'scripts/create-package/package-template',
   ],
   overrides: [
     {
@@ -41,6 +42,9 @@ module.exports = {
         project: ['./tsconfig.packages.json'],
       },
       rules: {
+        // Enable rules that are disabled in `@metamask/eslint-config-typescript`
+        '@typescript-eslint/no-explicit-any': 'error',
+
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
 

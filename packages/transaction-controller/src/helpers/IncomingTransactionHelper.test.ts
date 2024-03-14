@@ -1,8 +1,7 @@
 /* eslint-disable jest/prefer-spy-on */
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { NetworkType } from '@metamask/controller-utils';
-import type { BlockTracker, NetworkState } from '@metamask/network-controller';
+import type { BlockTracker } from '@metamask/network-controller';
 
 import {
   TransactionStatus,
@@ -19,14 +18,8 @@ jest.mock('@metamask/controller-utils', () => ({
 
 console.error = jest.fn();
 
-const NETWORK_STATE_MOCK: NetworkState = {
-  providerConfig: {
-    chainId: '0x1',
-    type: NetworkType.mainnet,
-  },
-} as unknown as NetworkState;
-
-const ADDERSS_MOCK = '0x1';
+const CHAIN_ID_MOCK = '0x1' as const;
+const ADDRESS_MOCK = '0x1';
 const FROM_BLOCK_HEX_MOCK = '0x20';
 const FROM_BLOCK_DECIMAL_MOCK = 32;
 const LAST_BLOCK_VARIATION_MOCK = 'test-variation';
@@ -39,9 +32,9 @@ const BLOCK_TRACKER_MOCK = {
 
 const CONTROLLER_ARGS_MOCK = {
   blockTracker: BLOCK_TRACKER_MOCK,
-  getCurrentAccount: () => ADDERSS_MOCK,
+  getCurrentAccount: () => ADDRESS_MOCK,
   getLastFetchedBlockNumbers: () => ({}),
-  getNetworkState: () => NETWORK_STATE_MOCK,
+  getChainId: () => CHAIN_ID_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
   transactionLimit: 1,
 };
@@ -125,6 +118,7 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('on block tracker latest event', () => {
+    // eslint-disable-next-line jest/expect-expect
     it('handles errors', async () => {
       const helper = new IncomingTransactionHelper({
         ...CONTROLLER_ARGS_MOCK,
@@ -152,8 +146,8 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
-          address: ADDERSS_MOCK,
-          currentChainId: NETWORK_STATE_MOCK.providerConfig.chainId,
+          address: ADDRESS_MOCK,
+          currentChainId: CHAIN_ID_MOCK,
           fromBlock: undefined,
           limit: CONTROLLER_ARGS_MOCK.transactionLimit,
         });
@@ -209,7 +203,7 @@ describe('IncomingTransactionHelper', () => {
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource,
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
+            [`${CHAIN_ID_MOCK}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               FROM_BLOCK_DECIMAL_MOCK,
           }),
         });
@@ -476,7 +470,7 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
-          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
+          [`${CHAIN_ID_MOCK}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
             parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
         });
       });
@@ -534,9 +528,25 @@ describe('IncomingTransactionHelper', () => {
             TRANSACTION_MOCK_2,
           ]),
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
+            [`${CHAIN_ID_MOCK}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
           }),
+        });
+
+        const { blockNumberListener } = await emitBlockTrackerLatestEvent(
+          helper,
+        );
+
+        expect(blockNumberListener).not.toHaveBeenCalled();
+      });
+
+      it('does not if current account is undefined', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          remoteTransactionSource: createRemoteTransactionSourceMock([
+            TRANSACTION_MOCK_2,
+          ]),
+          getCurrentAccount: () => undefined as unknown as string,
         });
 
         const { blockNumberListener } = await emitBlockTrackerLatestEvent(
@@ -560,8 +570,10 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
-          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
-            parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
+          [`${CHAIN_ID_MOCK}#${ADDRESS_MOCK}`]: parseInt(
+            TRANSACTION_MOCK_2.blockNumber as string,
+            10,
+          ),
         });
       });
     });

@@ -1,13 +1,20 @@
+import * as sinon from 'sinon';
 import { v1 as random } from 'uuid';
 
+import { advanceTime } from '../../../../tests/helpers';
+import {
+  ID_MOCK,
+  ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK,
+  ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_EMPTY_MOCK,
+  ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+  EXPECTED_NORMALISED_TRANSACTION_SUCCESS,
+  EXPECTED_NORMALISED_TRANSACTION_ERROR,
+  ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK,
+  EXPECTED_NORMALISED_TOKEN_TRANSACTION,
+  ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK,
+  ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK,
+} from '../../tests/EtherscanMocks';
 import { CHAIN_IDS } from '../constants';
-import { TransactionStatus, TransactionType } from '../types';
-import type {
-  EtherscanTokenTransactionMeta,
-  EtherscanTransactionMeta,
-  EtherscanTransactionMetaBase,
-  EtherscanTransactionResponse,
-} from '../utils/etherscan';
 import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
@@ -21,130 +28,9 @@ jest.mock('../utils/etherscan', () => ({
 
 jest.mock('uuid');
 
-const ID_MOCK = '6843ba00-f4bf-11e8-a715-5f2fff84549d';
-
-const ETHERSCAN_TRANSACTION_BASE_MOCK: EtherscanTransactionMetaBase = {
-  blockNumber: '4535105',
-  confirmations: '4',
-  contractAddress: '',
-  cumulativeGasUsed: '693910',
-  from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-  gas: '335208',
-  gasPrice: '20000000000',
-  gasUsed: '21000',
-  hash: '0x342e9d73e10004af41d04973339fc7219dbadcbb5629730cfe65e9f9cb15ff91',
-  nonce: '1',
-  timeStamp: '1543596356',
-  transactionIndex: '13',
-  value: '50000000000000000',
-  blockHash: '0x0000000001',
-  to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-};
-
-const ETHERSCAN_TRANSACTION_SUCCESS_MOCK: EtherscanTransactionMeta = {
-  ...ETHERSCAN_TRANSACTION_BASE_MOCK,
-  functionName: 'testFunction',
-  input: '0x',
-  isError: '0',
-  methodId: 'testId',
-  txreceipt_status: '1',
-};
-
-const ETHERSCAN_TRANSACTION_ERROR_MOCK: EtherscanTransactionMeta = {
-  ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
-  isError: '1',
-};
-
-const ETHERSCAN_TOKEN_TRANSACTION_MOCK: EtherscanTokenTransactionMeta = {
-  ...ETHERSCAN_TRANSACTION_BASE_MOCK,
-  tokenDecimal: '456',
-  tokenName: 'TestToken',
-  tokenSymbol: 'ABC',
-};
-
-const ETHERSCAN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
-  {
-    status: '1',
-    result: [
-      ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
-      ETHERSCAN_TRANSACTION_ERROR_MOCK,
-    ],
-  };
-
-const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTokenTransactionMeta> =
-  {
-    status: '1',
-    result: [
-      ETHERSCAN_TOKEN_TRANSACTION_MOCK,
-      ETHERSCAN_TOKEN_TRANSACTION_MOCK,
-    ],
-  };
-
-const ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
-  {
-    status: '0',
-    result: '',
-  };
-
-const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_EMPTY_MOCK: EtherscanTransactionResponse<EtherscanTokenTransactionMeta> =
-  ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK as any;
-
-const ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
-  {
-    status: '0',
-    message: 'NOTOK',
-    result: 'Test Error',
-  };
-
-const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK: EtherscanTransactionResponse<EtherscanTokenTransactionMeta> =
-  ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK as any;
-
-const EXPECTED_NORMALISED_TRANSACTION_BASE = {
-  blockNumber: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.blockNumber,
-  chainId: undefined,
-  hash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
-  id: ID_MOCK,
-  status: TransactionStatus.confirmed,
-  time: 1543596356000,
-  txParams: {
-    chainId: undefined,
-    from: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.from,
-    gas: '0x51d68',
-    gasPrice: '0x4a817c800',
-    gasUsed: '0x5208',
-    nonce: '0x1',
-    to: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.to,
-    value: '0xb1a2bc2ec50000',
-  },
-  type: TransactionType.incoming,
-  verifiedOnBlockchain: false,
-};
-
-const EXPECTED_NORMALISED_TRANSACTION_SUCCESS = {
-  ...EXPECTED_NORMALISED_TRANSACTION_BASE,
-  txParams: {
-    ...EXPECTED_NORMALISED_TRANSACTION_BASE.txParams,
-    data: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.input,
-  },
-};
-
-const EXPECTED_NORMALISED_TRANSACTION_ERROR = {
-  ...EXPECTED_NORMALISED_TRANSACTION_SUCCESS,
-  error: new Error('Transaction failed'),
-  status: TransactionStatus.failed,
-};
-
-const EXPECTED_NORMALISED_TOKEN_TRANSACTION = {
-  ...EXPECTED_NORMALISED_TRANSACTION_BASE,
-  isTransfer: true,
-  transferInformation: {
-    contractAddress: '',
-    decimals: Number(ETHERSCAN_TOKEN_TRANSACTION_MOCK.tokenDecimal),
-    symbol: ETHERSCAN_TOKEN_TRANSACTION_MOCK.tokenSymbol,
-  },
-};
-
 describe('EtherscanRemoteTransactionSource', () => {
+  let clock: sinon.SinonFakeTimers;
+
   const fetchEtherscanTransactionsMock =
     fetchEtherscanTransactions as jest.MockedFn<
       typeof fetchEtherscanTransactions
@@ -160,6 +46,8 @@ describe('EtherscanRemoteTransactionSource', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    clock = sinon.useFakeTimers();
+
     fetchEtherscanTransactionsMock.mockResolvedValue(
       ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK,
     );
@@ -169,6 +57,10 @@ describe('EtherscanRemoteTransactionSource', () => {
     );
 
     randomMock.mockReturnValue(ID_MOCK);
+  });
+
+  afterEach(() => {
+    clock.restore();
   });
 
   describe('isSupportedNetwork', () => {
@@ -198,6 +90,8 @@ describe('EtherscanRemoteTransactionSource', () => {
 
     it('returns token if token request', async () => {
       const remoteSource = new EtherscanRemoteTransactionSource();
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await remoteSource.fetchTransactions({} as any);
 
       expect(remoteSource.getLastBlockVariations()).toStrictEqual(['token']);
@@ -208,6 +102,8 @@ describe('EtherscanRemoteTransactionSource', () => {
         includeTokenTransfers: false,
       });
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await remoteSource.fetchTransactions({} as any);
 
       expect(remoteSource.getLastBlockVariations()).toStrictEqual(['normal']);
@@ -222,6 +118,8 @@ describe('EtherscanRemoteTransactionSource', () => {
 
       const transactions =
         await new EtherscanRemoteTransactionSource().fetchTransactions(
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           {} as any,
         );
 
@@ -238,8 +136,16 @@ describe('EtherscanRemoteTransactionSource', () => {
 
       const remoteSource = new EtherscanRemoteTransactionSource();
 
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions;
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const transactions = await remoteSource.fetchTransactions({} as any);
 
       expect(transactions).toStrictEqual([
@@ -259,22 +165,48 @@ describe('EtherscanRemoteTransactionSource', () => {
 
       const remoteSource = new EtherscanRemoteTransactionSource();
 
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions1 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions1;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(0);
 
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions2 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions2;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(1);
 
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions3 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions3;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(2);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(1);
 
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions4 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions4;
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(2);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(2);
 
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await remoteSource.fetchTransactions({} as any);
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(3);
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(2);
@@ -289,8 +221,22 @@ describe('EtherscanRemoteTransactionSource', () => {
         includeTokenTransfers: false,
       });
 
-      await remoteSource.fetchTransactions({} as any);
-      await remoteSource.fetchTransactions({} as any);
+      const promiseForFetchTransactions1 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions1;
+      const promiseForFetchTransactions2 = remoteSource.fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+      );
+      await advanceTime({ clock, duration: 5000 });
+      await promiseForFetchTransactions2;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await remoteSource.fetchTransactions({} as any);
 
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(0);
@@ -307,6 +253,8 @@ describe('EtherscanRemoteTransactionSource', () => {
 
         const transactions =
           await new EtherscanRemoteTransactionSource().fetchTransactions(
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             {} as any,
           );
 
@@ -326,8 +274,16 @@ describe('EtherscanRemoteTransactionSource', () => {
         fetchEtherscanTokenTransactionsMock.mockResolvedValueOnce(response);
 
         const remoteSource = new EtherscanRemoteTransactionSource();
-        await remoteSource.fetchTransactions({} as any);
+        const promiseForFetchTransactions = remoteSource.fetchTransactions(
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          {} as any,
+        );
+        await advanceTime({ clock, duration: 5000 });
+        await promiseForFetchTransactions;
 
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const transactions = await remoteSource.fetchTransactions({} as any);
 
         expect(transactions).toStrictEqual([]);

@@ -1,39 +1,73 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  NetworkControllerGetStateAction,
+  NetworkControllerSetActiveNetworkAction,
+} from '@metamask/network-controller';
+import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
+import { createDeferredPromise } from '@metamask/utils';
+
+import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
 export const controllerName = 'QueuedRequestController';
 
+export type QueuedRequestControllerState = {
+  queuedRequestCount: number;
+};
+
 export const QueuedRequestControllerActionTypes = {
   enqueueRequest: `${controllerName}:enqueueRequest` as const,
+  getState: `${controllerName}:getState` as const,
 };
 
-export const QueuedRequestControllerEventTypes = {
-  countChanged: `${controllerName}:countChanged` as const,
-};
-
-export type QueuedRequestControllerState = Record<string, never>;
-
-export type QueuedRequestControllerCountChangedEvent = {
-  type: typeof QueuedRequestControllerEventTypes.countChanged;
-  payload: [number];
-};
+export type QueuedRequestControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  QueuedRequestControllerState
+>;
 
 export type QueuedRequestControllerEnqueueRequestAction = {
   type: typeof QueuedRequestControllerActionTypes.enqueueRequest;
   handler: QueuedRequestController['enqueueRequest'];
 };
 
+export const QueuedRequestControllerEventTypes = {
+  networkSwitched: `${controllerName}:networkSwitched` as const,
+  stateChange: `${controllerName}:stateChange` as const,
+};
+
+export type QueuedRequestControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    QueuedRequestControllerState
+  >;
+
+export type QueuedRequestControllerNetworkSwitched = {
+  type: typeof QueuedRequestControllerEventTypes.networkSwitched;
+  payload: [string];
+};
+
 export type QueuedRequestControllerEvents =
-  QueuedRequestControllerCountChangedEvent;
+  | QueuedRequestControllerStateChangeEvent
+  | QueuedRequestControllerNetworkSwitched;
 
 export type QueuedRequestControllerActions =
-  QueuedRequestControllerEnqueueRequestAction;
+  | QueuedRequestControllerGetStateAction
+  | QueuedRequestControllerEnqueueRequestAction;
+
+export type AllowedActions =
+  | NetworkControllerGetStateAction
+  | NetworkControllerSetActiveNetworkAction
+  | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
 
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  QueuedRequestControllerActions,
+  QueuedRequestControllerActions | AllowedActions,
   QueuedRequestControllerEvents,
-  never,
+  AllowedActions['type'],
   never
 >;
 
@@ -42,96 +76,235 @@ export type QueuedRequestControllerOptions = {
 };
 
 /**
- * Controller for request queueing. The QueuedRequestController manages the orderly execution of enqueued requests
- * to prevent concurrency issues and ensure proper handling of asynchronous operations.
+ * A queued request.
+ */
+type QueuedRequest = {
+  /**
+   * The origin of the queued request.
+   */
+  origin: string;
+  /**
+   * A callback used to continue processing the request, called when the request is dequeued.
+   */
+  processRequest: (error: unknown) => void;
+};
+
+/**
+ * Queue requests for processing in batches, by request origin.
  *
- * @param options - The controller options, including the restricted controller messenger for the QueuedRequestController.
- * @param options.messenger - The restricted controller messenger that facilitates communication with the QueuedRequestController.
+ * Processing requests in batches allows us to completely separate sets of requests that originate
+ * from different origins. This ensures that our UI will not display those requests as a set, which
+ * could mislead users into thinking they are related.
  *
- * The QueuedRequestController maintains a count of enqueued requests, allowing you to monitor the queue's workload.
- * It processes requests sequentially, ensuring that each request is executed one after the other. The class offers
- * an `enqueueRequest` method for adding requests to the queue. The controller initializes with a count of zero and
- * registers message handlers for request enqueuing. It also publishes count changes to inform external observers.
+ * Queuing requests in batches also allows us to ensure the globally selected network matches the
+ * dapp-selected network, before the confirmation UI is rendered. This is important because the
+ * data shown on some confirmation screens is only collected for the globally selected network.
+ *
+ * Requests get processed in order of insertion, even across batches. All requests get processed
+ * even in the event of preceding requests failing.
  */
 export class QueuedRequestController extends BaseController<
   typeof controllerName,
   QueuedRequestControllerState,
   QueuedRequestControllerMessenger
 > {
-  private currentRequest: Promise<unknown> = Promise.resolve();
-
-  #count = 0;
+  /**
+   * The origin of the current batch of requests being processed, or `undefined` if there are no
+   * requests currently being processed.
+   */
+  #originOfCurrentBatch: string | undefined;
 
   /**
-   * Constructs a QueuedRequestController, responsible for managing and processing enqueued requests sequentially.
-   * @param options - The controller options, including the restricted controller messenger for the QueuedRequestController.
-   * @param options.messenger - The restricted controller messenger that facilitates communication with the QueuedRequestController.
+   * The list of all queued requests, in chronological order.
+   */
+  #requestQueue: QueuedRequest[] = [];
+
+  /**
+   * The number of requests currently being processed.
+   *
+   * Note that this does not include queued requests, just those being actively processed (i.e.
+   * those in the "current batch").
+   */
+  #processingRequestCount = 0;
+
+  /**
+   * Construct a QueuedRequestController.
+   *
+   * @param options - Controller options.
+   * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
    */
   constructor({ messenger }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
-      metadata: {},
+      metadata: {
+        queuedRequestCount: {
+          anonymous: true,
+          persist: false,
+        },
+      },
       messenger,
-      state: {},
+      state: { queuedRequestCount: 0 },
     });
     this.#registerMessageHandlers();
   }
 
   #registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
-      QueuedRequestControllerActionTypes.enqueueRequest,
+      `${controllerName}:enqueueRequest`,
       this.enqueueRequest.bind(this),
     );
   }
 
   /**
-   * Gets the current count of enqueued requests in the request queue. This count represents the number of
-   * pending requests that are waiting to be processed sequentially.
+   * Process the next batch of requests.
    *
-   * @returns The current count of enqueued requests. This count reflects the number of pending
-   * requests in the queue, which are yet to be processed. It allows you to monitor the queue's workload
-   * and assess the volume of requests awaiting execution.
+   * This will trigger the next batch of requests with matching origins to be processed. Each
+   * request in the batch is dequeued one at a time, in chronological order, but they all get
+   * processed in parallel.
+   *
+   * This should be called after a batch of requests has finished processing, if the queue is non-
+   * empty.
    */
-  length() {
-    return this.#count;
+  async #processNextBatch() {
+    const firstRequest = this.#requestQueue.shift() as QueuedRequest;
+    this.#originOfCurrentBatch = firstRequest.origin;
+    const batch = [firstRequest.processRequest];
+    while (this.#requestQueue[0]?.origin === this.#originOfCurrentBatch) {
+      const nextEntry = this.#requestQueue.shift() as QueuedRequest;
+      batch.push(nextEntry.processRequest);
+    }
+
+    // If globally selected network is different from origin selected network,
+    // switch network before processing batch
+    let networkSwitchError: unknown;
+    try {
+      await this.#switchNetworkIfNecessary();
+    } catch (error: unknown) {
+      networkSwitchError = error;
+    }
+
+    for (const processRequest of batch) {
+      processRequest(networkSwitchError);
+    }
+    this.#updateQueuedRequestCount();
   }
 
-  #updateCount(change: -1 | 1) {
-    this.#count += change;
+  /**
+   * Switch the globally selected network client to match the network
+   * client of the current batch.
+   *
+   * @throws Throws an error if the current selected `networkClientId` or the
+   * `networkClientId` on the request are invalid.
+   */
+  async #switchNetworkIfNecessary() {
+    // This branch is unreachable; it's just here for type reasons.
+    /* istanbul ignore next */
+    if (!this.#originOfCurrentBatch) {
+      throw new Error('Current batch origin must be initialized first');
+    }
+    const originNetworkClientId = this.messagingSystem.call(
+      'SelectedNetworkController:getNetworkClientIdForDomain',
+      this.#originOfCurrentBatch,
+    );
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    if (originNetworkClientId === selectedNetworkClientId) {
+      return;
+    }
+
+    await this.messagingSystem.call(
+      'NetworkController:setActiveNetwork',
+      originNetworkClientId,
+    );
+
     this.messagingSystem.publish(
-      'QueuedRequestController:countChanged',
-      this.#count,
+      'QueuedRequestController:networkSwitched',
+      originNetworkClientId,
     );
   }
 
   /**
-   * Enqueues a new request for sequential processing in the request queue. This function manages the order of
-   * requests, ensuring they are executed one after the other to prevent concurrency issues and maintain proper
-   * execution flow.
-   *
-   * @param requestNext - A function representing the request to be enqueued. It returns a promise that
-   * resolves when the request is complete.
-   * @returns A promise that resolves when the enqueued request and any subsequent asynchronous
-   * operations are fully processed. This allows you to await the completion of the enqueued request before continuing
-   * with additional actions. If there are multiple enqueued requests, this function ensures they are processed in
-   * the order they were enqueued, guaranteeing sequential execution.
+   * Update the queued request count.
    */
-  async enqueueRequest(requestNext: (...arg: unknown[]) => Promise<unknown>) {
-    this.#updateCount(1);
+  #updateQueuedRequestCount() {
+    this.update((state) => {
+      state.queuedRequestCount = this.#requestQueue.length;
+    });
+  }
 
-    if (this.#count > 1) {
-      await this.currentRequest;
+  /**
+   * Enqueue a request to be processed in a batch with other requests from the same origin.
+   *
+   * We process requests one origin at a time, so that requests from different origins do not get
+   * interwoven, and so that we can ensure that the globally selected network matches the dapp-
+   * selected network.
+   *
+   * Requests get processed in order of insertion, even across origins/batches. All requests get
+   * processed even in the event of preceding requests failing.
+   *
+   * @param request - The JSON-RPC request to process.
+   * @param requestNext - A function representing the next steps for processing this request.
+   * @returns A promise that resolves when the given request has been fully processed.
+   */
+  async enqueueRequest(
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+    requestNext: () => Promise<void>,
+  ): Promise<void> {
+    if (this.#originOfCurrentBatch === undefined) {
+      this.#originOfCurrentBatch = request.origin;
     }
 
-    this.currentRequest = requestNext()
-      .then(() => {
-        this.#updateCount(-1);
-      })
-      .catch((e) => {
-        this.#updateCount(-1);
-        throw e;
-      });
+    try {
+      // Queue request for later processing
+      // Network switch is handled when this batch is processed
+      if (
+        this.state.queuedRequestCount > 0 ||
+        this.#originOfCurrentBatch !== request.origin
+      ) {
+        const {
+          promise: waitForDequeue,
+          reject,
+          resolve,
+        } = createDeferredPromise({
+          suppressUnhandledRejection: true,
+        });
+        this.#requestQueue.push({
+          origin: request.origin,
+          processRequest: (error: unknown) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve();
+            }
+          },
+        });
+        this.#updateQueuedRequestCount();
 
-    await this.currentRequest;
+        await waitForDequeue;
+      } else if (request.method !== 'eth_requestAccounts') {
+        // Process request immediately
+        // Requires switching network now if necessary
+        // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
+        await this.#switchNetworkIfNecessary();
+      }
+      this.#processingRequestCount += 1;
+      try {
+        await requestNext();
+      } finally {
+        this.#processingRequestCount -= 1;
+      }
+      return undefined;
+    } finally {
+      if (this.#processingRequestCount === 0) {
+        this.#originOfCurrentBatch = undefined;
+        if (this.#requestQueue.length > 0) {
+          // The next batch is triggered here. We intentionally omit the `await` because we don't
+          // want the next batch to block resolution of the current request.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#processNextBatch();
+        }
+      }
+    }
   }
 }

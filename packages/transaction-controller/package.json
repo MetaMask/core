@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "18.3.0",
+  "version": "25.1.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -15,13 +15,24 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -32,32 +43,37 @@
   "dependencies": {
     "@ethereumjs/common": "^3.2.0",
     "@ethereumjs/tx": "^4.2.0",
+    "@ethereumjs/util": "^8.1.0",
     "@ethersproject/abi": "^5.7.0",
-    "@metamask/approval-controller": "^5.0.0",
-    "@metamask/base-controller": "^4.0.0",
-    "@metamask/controller-utils": "^6.1.0",
+    "@ethersproject/providers": "^5.7.0",
+    "@metamask/approval-controller": "^6.0.1",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/controller-utils": "^9.0.1",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^11.0.0",
+    "@metamask/gas-fee-controller": "^14.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",
-    "@metamask/network-controller": "^17.0.0",
-    "@metamask/rpc-errors": "^6.1.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/network-controller": "^18.0.1",
+    "@metamask/rpc-errors": "^6.2.1",
+    "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
-    "eth-method-registry": "1.1.0",
-    "ethereumjs-util": "^7.0.10",
+    "bn.js": "^5.2.1",
+    "eth-method-registry": "^4.0.0",
     "fast-json-patch": "^3.1.1",
     "lodash": "^4.17.21",
     "nonce-tracker": "^3.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
-    "@metamask/ethjs-provider-http": "^0.2.0",
+    "@babel/runtime": "^7.23.9",
+    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/ethjs-provider-http": "^0.3.0",
+    "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
-    "babel-runtime": "^6.26.0",
     "deepmerge": "^4.2.2",
+    "immer": "^9.0.6",
     "jest": "^27.5.1",
+    "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
@@ -65,10 +81,10 @@
     "typescript": "~5.0.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^5.0.0",
-    "@metamask/gas-fee-controller": "^11.0.0",
-    "@metamask/network-controller": "^17.0.0",
-    "babel-runtime": "^6.26.0"
+    "@babel/runtime": "^7.23.9",
+    "@metamask/approval-controller": "^6.0.0",
+    "@metamask/gas-fee-controller": "^14.0.0",
+    "@metamask/network-controller": "^18.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

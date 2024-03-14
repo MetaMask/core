@@ -72,16 +72,10 @@ If you're developing your project locally and want to test changes to a package,
 
       > **Example:**
       >
-      > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and your clone of the `core` repo is at the same level as your project, add the following to `resolutions`:
+      > - If your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and your clone of the `core` repo is at the same level as your project, add the following to `resolutions`:
       >
       >   ```
       >   "@metamask/controller-utils@^1.1.4": "file:../core/packages/controller-utils"
-      >   ```
-      >
-      > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and your fork of the `core` repo is at the same level as your project, add the following to `overrides`:
-      >
-      >   ```
-      >   "@metamask/assets-controllers@^3.4.7": "file:../core/packages/assets-controllers"
       >   ```
 
    4. Run `yarn install`.
@@ -102,7 +96,7 @@ If you're a member of the MetaMask organization, you can create preview builds b
    Note two things about each package:
 
    - The name is scoped to `@metamask-previews` instead of `@metamask`.
-   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-e2df9b4` instead of `1.2.3`.
+   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-preview-e2df9b4` instead of `1.2.3`.
 
 Now you can [use these preview builds in your project](#using-preview-builds).
 
@@ -125,7 +119,7 @@ If you've forked this repository, you can create preview builds based on a branc
    You should be able to see the published version of each package in the output. Note two things:
 
    - The name is scoped to the NPM organization you entered instead of `@metamask`.
-   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-e2df9b4` instead of `1.2.3`.
+   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-preview-e2df9b4` instead of `1.2.3`.
 
 Now you can [use these preview builds in your project](#using-preview-builds).
 
@@ -145,19 +139,57 @@ To use a preview build for a package within a project, you need to override the 
 
    > **Example:**
    >
-   > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-e2df9b4`, add the following to `resolutions`:
+   > - If your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-preview-e2df9b4`, add the following to `resolutions`:
    >
    >   ```
-   >   "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-e2df9b4"
-   >   ```
-   >
-   > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and you want to use the preview version `4.5.6-bc2a997` published under `@foo`, add the following to `overrides`:
-   >
-   >   ```
-   >   "@metamask/assets-controllers@^3.4.7": "npm:@foo/assets-controllers@4.5.6-bc2a997"
+   >   "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-preview-e2df9b4"
    >   ```
 
 4. Run `yarn install`.
+
+## Adding new packages
+
+> If you're migrating an existing package to the monorepo, please see [the package migration documentation](./package-migration-process-guide.md).
+> You may be able to make use of `create-package` when migrating your package, but there's a lot more to it.
+
+Manually a new monorepo package can be a tedious, even frustrating process. To spare us from that
+suffering, we have created a CLI that automates most of the job for us, creatively titled
+[`create-package`](../scripts/create-package/). To create a new monorepo package, follow these steps:
+
+1. Create a new package using `yarn create-package`.
+   - Use the `--help` flag for usage information.
+   - Once this is done, you can find a package with your chosen name in `/packages`.
+2. Make sure your license is correct.
+   - By default, `create-package` gives your package an MIT license.
+   - If your desired license is _not_ MIT, then you must update your `LICENSE` file and the
+     `license` field of `package.json`.
+3. Add your dependencies.
+   - Do this as normal using `yarn`.
+   - Remember, if you are adding other monorepo packages as dependents, don't forget to add them
+     to the `references` array in your package's `tsconfig.json` and `tsconfig.build.json`.
+
+And that's it!
+
+### Contributing to `create-package`
+
+Along with this documentation, `create-package` is intended to be the source of truth for the
+process of adding new packages to the monorepo. Consequently, to change that process, you will want
+to change `create-package`.
+
+The `create-package` directory contains a [template package](../scripts/create-package/package-template/). The CLI is not aware of the contents of the template, only that its files have
+[placeholder values](../scripts/create-package/constants.ts). When a new package is created, the template files are read from disk, the
+placeholder values are replaced with real ones, and the updated files are added to a new directory
+in `/packages`. To modify the template package:
+
+- If you need to add or modify any files or folders, just go ahead and make your changes in
+  [`/scripts/create-package/package-template`](../scripts/create-package/package-template/).
+  The CLI will read whatever's in that directory and write it to disk.
+- If you need to add or modify any placeholders, make sure that your desired values are added to
+  both the relevant file(s) and
+  [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts).
+  Then, update the implementation of the CLI accordingly.
+- As with placeholders, updating the monorepo files that the CLI interacts with begins by updating
+  [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts).
 
 ## Releasing
 

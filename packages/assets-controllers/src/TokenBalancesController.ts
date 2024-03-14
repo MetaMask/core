@@ -1,102 +1,170 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
-import { safelyExecute } from '@metamask/controller-utils';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import { BN } from 'ethereumjs-util';
+import {
+  type RestrictedControllerMessenger,
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  BaseController,
+} from '@metamask/base-controller';
+import { safelyExecute, toHex } from '@metamask/controller-utils';
+import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 
 import type { AssetsContractController } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
-import type { TokensState } from './TokensController';
+import type { TokensControllerStateChangeEvent } from './TokensController';
 
-// TODO: Remove this export in the next major release
-export { BN };
+const DEFAULT_INTERVAL = 180000;
+
+const controllerName = 'TokenBalancesController';
+
+const metadata = {
+  contractBalances: { persist: true, anonymous: false },
+};
 
 /**
- * @type TokenBalancesConfig
- *
- * Token balances controller configuration
- * @property interval - Polling interval used to fetch new token balances
- * @property tokens - List of tokens to track balances for
+ * Token balances controller options
+ * @property interval - Polling interval used to fetch new token balances.
+ * @property tokens - List of tokens to track balances for.
+ * @property disabled - If set to true, all tracked tokens contract balances updates are blocked.
+ * @property getERC20BalanceOf - Gets the balance of the given account at the given contract address.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TokenBalancesConfig extends BaseConfig {
-  interval: number;
-  tokens: Token[];
-}
+type TokenBalancesControllerOptions = {
+  interval?: number;
+  tokens?: Token[];
+  disabled?: boolean;
+  getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
+  messenger: TokenBalancesControllerMessenger;
+  state?: Partial<TokenBalancesControllerState>;
+};
 
 /**
- * @type TokenBalancesState
- *
+ * Represents a mapping of hash token contract addresses to their balances.
+ */
+type ContractBalances = Record<string, string>;
+
+/**
  * Token balances controller state
  * @property contractBalances - Hash of token contract addresses to balances
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TokenBalancesState extends BaseState {
-  contractBalances: { [address: string]: BN };
+export type TokenBalancesControllerState = {
+  contractBalances: ContractBalances;
+};
+
+export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  TokenBalancesControllerState
+>;
+
+export type TokenBalancesControllerActions =
+  TokenBalancesControllerGetStateAction;
+
+export type AllowedActions = PreferencesControllerGetStateAction;
+
+export type TokenBalancesControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    TokenBalancesControllerState
+  >;
+
+export type TokenBalancesControllerEvents =
+  TokenBalancesControllerStateChangeEvent;
+
+export type AllowedEvents = TokensControllerStateChangeEvent;
+
+export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  TokenBalancesControllerActions | AllowedActions,
+  TokenBalancesControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
+
+/**
+ * Get the default TokenBalancesController state.
+ *
+ * @returns The default TokenBalancesController state.
+ */
+export function getDefaultTokenBalancesState(): TokenBalancesControllerState {
+  return {
+    contractBalances: {},
+  };
 }
 
 /**
  * Controller that passively polls on a set interval token balances
  * for tokens stored in the TokensController
  */
-export class TokenBalancesController extends BaseControllerV1<
-  TokenBalancesConfig,
-  TokenBalancesState
+export class TokenBalancesController extends BaseController<
+  typeof controllerName,
+  TokenBalancesControllerState,
+  TokenBalancesControllerMessenger
 > {
-  private handle?: ReturnType<typeof setTimeout>;
+  #handle?: ReturnType<typeof setTimeout>;
+
+  #getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
+
+  #interval: number;
+
+  #tokens: Token[];
+
+  #disabled: boolean;
 
   /**
-   * Name of this controller used during composition
-   */
-  override name = 'TokenBalancesController';
-
-  private readonly getSelectedAddress: () => PreferencesState['selectedAddress'];
-
-  private readonly getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
-
-  /**
-   * Creates a TokenBalancesController instance.
+   * Construct a Token Balances Controller.
    *
    * @param options - The controller options.
-   * @param options.onTokensStateChange - Allows subscribing to assets controller state changes.
-   * @param options.getSelectedAddress - Gets the current selected address.
+   * @param options.interval - Polling interval used to fetch new token balances.
+   * @param options.tokens - List of tokens to track balances for.
+   * @param options.disabled - If set to true, all tracked tokens contract balances updates are blocked.
    * @param options.getERC20BalanceOf - Gets the balance of the given account at the given contract address.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options.state - Initial state to set on this controller.
+   * @param options.messenger - The controller restricted messenger.
    */
-  constructor(
-    {
-      onTokensStateChange,
-      getSelectedAddress,
-      getERC20BalanceOf,
-    }: {
-      onTokensStateChange: (
-        listener: (tokenState: TokensState) => void,
-      ) => void;
-      getSelectedAddress: () => PreferencesState['selectedAddress'];
-      getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
-    },
-    config?: Partial<TokenBalancesConfig>,
-    state?: Partial<TokenBalancesState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      interval: 180000,
-      tokens: [],
-    };
-    this.defaultState = { contractBalances: {} };
-    this.initialize();
-    onTokensStateChange(({ tokens, detectedTokens }) => {
-      this.configure({ tokens: [...tokens, ...detectedTokens] });
-      this.updateBalances();
+  constructor({
+    interval = DEFAULT_INTERVAL,
+    tokens = [],
+    disabled = false,
+    getERC20BalanceOf,
+    messenger,
+    state = {},
+  }: TokenBalancesControllerOptions) {
+    super({
+      name: controllerName,
+      metadata,
+      messenger,
+      state: {
+        ...getDefaultTokenBalancesState(),
+        ...state,
+      },
     });
-    this.getSelectedAddress = getSelectedAddress;
-    this.getERC20BalanceOf = getERC20BalanceOf;
+
+    this.#disabled = disabled;
+    this.#interval = interval;
+    this.#tokens = tokens;
+
+    this.messagingSystem.subscribe(
+      'TokensController:stateChange',
+      ({ tokens: newTokens, detectedTokens }) => {
+        this.#tokens = [...newTokens, ...detectedTokens];
+        this.updateBalances();
+      },
+    );
+
+    this.#getERC20BalanceOf = getERC20BalanceOf;
+
     this.poll();
+  }
+
+  /**
+   * Allows controller to update tracked tokens contract balances.
+   */
+  enable() {
+    this.#disabled = false;
+  }
+
+  /**
+   * Blocks controller from updating tracked tokens contract balances.
+   */
+  disable() {
+    this.#disabled = true;
   }
 
   /**
@@ -105,37 +173,49 @@ export class TokenBalancesController extends BaseControllerV1<
    * @param interval - Polling interval used to fetch new token balances.
    */
   async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    if (interval) {
+      this.#interval = interval;
+    }
+
+    if (this.#handle) {
+      clearTimeout(this.#handle);
+    }
+
     await safelyExecute(() => this.updateBalances());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
-    }, this.config.interval);
+
+    this.#handle = setTimeout(() => {
+      this.poll(this.#interval);
+    }, this.#interval);
   }
 
   /**
    * Updates balances for all tokens.
    */
   async updateBalances() {
-    if (this.disabled) {
+    if (this.#disabled) {
       return;
     }
-    const { tokens } = this.config;
-    const newContractBalances: { [address: string]: BN } = {};
-    for (const token of tokens) {
+
+    const newContractBalances: ContractBalances = {};
+    for (const token of this.#tokens) {
       const { address } = token;
+      const { selectedAddress } = this.messagingSystem.call(
+        'PreferencesController:getState',
+      );
       try {
-        newContractBalances[address] = await this.getERC20BalanceOf(
-          address,
-          this.getSelectedAddress(),
+        newContractBalances[address] = toHex(
+          await this.#getERC20BalanceOf(address, selectedAddress),
         );
         token.balanceError = null;
       } catch (error) {
-        newContractBalances[address] = new BN(0);
+        newContractBalances[address] = toHex(0);
         token.balanceError = error;
       }
     }
-    this.update({ contractBalances: newContractBalances });
+
+    this.update((state) => {
+      state.contractBalances = newContractBalances;
+    });
   }
 }
 

@@ -12,9 +12,6 @@
       "path": "../network-controller"
     },
     {
-      "path": "../approval-controller"
-    },
-    {
       "path": "../selected-network-controller"
     },
     {

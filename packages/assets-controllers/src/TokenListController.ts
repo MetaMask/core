@@ -10,7 +10,7 @@ import type {
   NetworkState,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import { PollingController } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
@@ -68,12 +68,14 @@ export type TokenListControllerActions = GetTokenListState;
 
 type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
-type TokenListMessenger = RestrictedControllerMessenger<
+type AllowedEvents = NetworkControllerStateChangeEvent;
+
+export type TokenListControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   TokenListControllerActions | AllowedActions,
-  TokenListControllerEvents | NetworkControllerStateChangeEvent,
+  TokenListControllerEvents | AllowedEvents,
   AllowedActions['type'],
-  (TokenListControllerEvents | NetworkControllerStateChangeEvent)['type']
+  AllowedEvents['type']
 >;
 
 const metadata = {
@@ -82,19 +84,21 @@ const metadata = {
   preventPollingOnNetworkRestart: { persist: true, anonymous: true },
 };
 
-const defaultState: TokenListState = {
-  tokenList: {},
-  tokensChainsCache: {},
-  preventPollingOnNetworkRestart: false,
+export const getDefaultTokenListState = (): TokenListState => {
+  return {
+    tokenList: {},
+    tokensChainsCache: {},
+    preventPollingOnNetworkRestart: false,
+  };
 };
 
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends PollingController<
+export class TokenListController extends StaticIntervalPollingController<
   typeof name,
   TokenListState,
-  TokenListMessenger
+  TokenListControllerMessenger
 > {
   private readonly mutex = new Mutex();
 
@@ -136,14 +140,14 @@ export class TokenListController extends PollingController<
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
-    messenger: TokenListMessenger;
+    messenger: TokenListControllerMessenger;
     state?: Partial<TokenListState>;
   }) {
     super({
       name,
       metadata,
       messenger,
-      state: { ...defaultState, ...state },
+      state: { ...getDefaultTokenListState(), ...state },
     });
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
@@ -270,7 +274,7 @@ export class TokenListController extends PollingController<
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
-      const cachedTokens: TokenListMap = await safelyExecute(() =>
+      const cachedTokens = await safelyExecute(() =>
         this.#fetchFromCache(chainId),
       );
       if (cachedTokens) {
@@ -278,9 +282,14 @@ export class TokenListController extends PollingController<
         tokenList = { ...cachedTokens };
       } else {
         // Fetch fresh token list
-        const tokensFromAPI: TokenListToken[] = await safelyExecute(() => {
-          return fetchTokenListByChainId(chainId, this.abortController.signal);
-        });
+        const tokensFromAPI = await safelyExecute(
+          () =>
+            fetchTokenListByChainId(
+              chainId,
+              this.abortController.signal,
+            ) as Promise<TokenListToken[]>,
+        );
+
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
           tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };

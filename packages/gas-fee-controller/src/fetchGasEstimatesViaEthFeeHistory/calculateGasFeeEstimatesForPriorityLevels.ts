@@ -1,6 +1,6 @@
 import { GWEI } from '@metamask/controller-utils';
 import { fromWei } from '@metamask/ethjs-unit';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 
 import type { FeeHistoryBlock } from '../fetchBlockFeeHistory';
 import type { Eip1559GasFee, GasFeeEstimates } from '../GasFeeController';

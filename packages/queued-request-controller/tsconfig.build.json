@@ -2,13 +2,12 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "outDir": "./dist",
+    "outDir": "./dist/types",
     "rootDir": "./src"
   },
   "references": [
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
-    { "path": "../approval-controller/tsconfig.build.json" },
     { "path": "../selected-network-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
     { "path": "../json-rpc-engine/tsconfig.build.json" }

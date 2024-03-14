@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "6.0.0",
+  "version": "12.0.1",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -15,13 +15,24 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/accounts-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -30,20 +41,22 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.0.0",
-    "@metamask/eth-snap-keyring": "^2.0.0",
-    "@metamask/keyring-api": "^1.1.0",
-    "@metamask/snaps-utils": "^3.2.0",
-    "@metamask/utils": "^8.2.0",
+    "@ethereumjs/util": "^8.1.0",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/eth-snap-keyring": "^2.1.1",
+    "@metamask/keyring-api": "^3.0.0",
+    "@metamask/snaps-sdk": "^1.3.2",
+    "@metamask/snaps-utils": "^5.1.2",
+    "@metamask/utils": "^8.3.0",
     "deepmerge": "^4.2.2",
-    "ethereumjs-util": "^7.0.10",
+    "ethereum-cryptography": "^2.1.2",
     "immer": "^9.0.6",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
-    "@metamask/keyring-controller": "^10.0.0",
-    "@metamask/snaps-controllers": "^3.2.0",
+    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-controller": "^14.0.1",
+    "@metamask/snaps-controllers": "^4.0.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
@@ -53,7 +66,8 @@
     "typescript": "~5.0.4"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^10.0.0"
+    "@metamask/keyring-controller": "^14.0.0",
+    "@metamask/snaps-controllers": "^4.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

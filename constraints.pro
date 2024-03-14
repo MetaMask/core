@@ -117,7 +117,7 @@ repo_name(RepoUrl, RepoName) :-
   RepoNameLength is End - Start,
   sub_atom(RepoUrl, PrefixLength, RepoNameLength, SuffixLength, RepoName).
 
-% True if DependencyIdent starts with '@metamask' and ends with '-controller'
+% True if DependencyIdent starts with '@metamask' and ends with '-controller'.
 is_controller(DependencyIdent) :-
   Prefix = '@metamask/',
   atom_length(Prefix, PrefixLength),
@@ -238,10 +238,31 @@ gen_enforced_field(WorkspaceCwd, 'main', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % The type definitions entrypoint for all publishable packages must be the same.
-gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts') :-
+gen_enforced_field(WorkspaceCwd, 'types', './dist/types/index.d.ts') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 % Non-published packages must not specify a type definitions entrypoint.
 gen_enforced_field(WorkspaceCwd, 'types', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
+
+% The exports for all published packages must be the same.
+gen_enforced_field(WorkspaceCwd, 'exports["."].import', './dist/index.mjs') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'exports["."].require', './dist/index.js') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'exports["."].types', './dist/types/index.d.ts') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'exports["./package.json"]', './package.json') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+% Non-published packages must not specify exports.
+gen_enforced_field(WorkspaceCwd, 'exports', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
+
+% Published packages must not have side effects.
+gen_enforced_field(WorkspaceCwd, 'sideEffects', false) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/base-controller'.
+% Non-published packages must not specify side effects.
+gen_enforced_field(WorkspaceCwd, 'sideEffects', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % The list of files included in published packages must only include files
@@ -253,6 +274,10 @@ gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
 % as otherwise the `node/no-unpublished-require` ESLint rule will disallow it.)
 gen_enforced_field(WorkspaceCwd, 'files', []) :-
   WorkspaceCwd = '.'.
+
+% All non-root packages must have the same "build" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.build', 'tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean') :-
+  WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "build:docs" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
@@ -276,6 +301,16 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', CorrectChangelogV
   atom_concat('../../scripts/validate-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
   \+ atom_concat(ExpectedPrefix, _, ChangelogValidationCommand).
 
+% The "changelog:update" script for each published package must run a common
+% script with the name of the package as the first argument.
+gen_enforced_field(WorkspaceCwd, 'scripts.changelog:update', CorrectChangelogUpdateCommand) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_field(WorkspaceCwd, 'scripts.changelog:update', ChangelogUpdateCommand),
+  workspace_package_name(WorkspaceCwd, WorkspacePackageName),
+  atomic_list_concat(['../../scripts/update-changelog.sh ', WorkspacePackageName, ' [...]'], CorrectChangelogUpdateCommand),
+  atom_concat('../../scripts/update-changelog.sh ', WorkspacePackageName, ExpectedPrefix),
+  \+ atom_concat(ExpectedPrefix, _, ChangelogUpdateCommand).
+
 % All non-root packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
@@ -298,43 +333,80 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally start
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   \+ is_valid_version_range(DependencyRange).
 
-% All references to a workspace package must be up to date with the current
-% version of that package.
-gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, DependencyType) :-
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
-  workspace_ident(OtherWorkspaceCwd, DependencyIdent),
-  workspace_version(OtherWorkspaceCwd, OtherWorkspaceVersion),
-  atomic_list_concat(['^', OtherWorkspaceVersion], CorrectDependencyRange).
-
-% All dependency ranges for a package must be synchronized across the monorepo
-% (the least version range wins), regardless of which "*dependencies" field
-% where the package appears.
+% All version ranges used to reference one workspace package in another
+% workspace package's `dependencies` or `devDependencies` must be the same.
+% Among all references to the same dependency across the monorepo, the one with
+% the smallest version range will win. (We handle `peerDependencies` in another
+% constraint, as it has slightly different logic.)
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, OtherDependencyRange, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   workspace_has_dependency(OtherWorkspaceCwd, DependencyIdent, OtherDependencyRange, OtherDependencyType),
   WorkspaceCwd \= OtherWorkspaceCwd,
   DependencyRange \= OtherDependencyRange,
-  npm_version_range_out_of_sync(DependencyRange, OtherDependencyRange).
+  npm_version_range_out_of_sync(DependencyRange, OtherDependencyRange),
+  DependencyType \= 'peerDependencies',
+  OtherDependencyType \= 'peerDependencies'.
 
-% If a dependency is listed under "dependencies", it should not be listed under
-% "devDependencies". We match on the same dependency range so that if a
-% dependency is listed under both lists, their versions are synchronized and
-% then this constraint will apply and remove the "right" duplicate.
-gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+% All version ranges used to reference one workspace package in another
+% workspace package's `dependencies` or `devDependencies` must match the current
+% version of that package. (We handle `peerDependencies` in another rule.)
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, DependencyType) :-
+  DependencyType \= 'peerDependencies',
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
-  DependencyType == 'devDependencies'.
+  workspace_ident(OtherWorkspaceCwd, DependencyIdent),
+  workspace_version(OtherWorkspaceCwd, OtherWorkspaceVersion),
+  atomic_list_concat(['^', OtherWorkspaceVersion], CorrectDependencyRange).
 
-% If a controller dependency (other than `base-controller`, `eth-keyring-controller` and
-% `polling-controller`) is listed under "dependencies", it should also be
-% listed under "peerDependencies". Each controller is a singleton, so we need
-% to ensure the versions used match expectations.
-gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'peerDependencies') :-
+% If a workspace package is listed under another workspace package's
+% `dependencies`, it should not also be listed under its `devDependencies`.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, 'devDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies').
+
+% Each controller is a singleton, so we need to ensure the versions
+% used match expectations. To accomplish this, if a controller (other than
+% `base-controller`, `eth-keyring-controller` and `polling-controller`) is
+% listed under a workspace package's `dependencies`, it should also be listed
+% under its `peerDependencies`, and the major version of the peer dependency
+% should match the major part of the current version dependency, with the minor
+% and patch parts set to 0. If it is already listed there, then the major
+% version should match the current version of the package and the minor and
+% patch parts should be <= the corresponding parts.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+  \+ workspace_has_dependency(WorkspaceCwd, DependencyIdent, _, 'peerDependencies'),
+  is_controller(DependencyIdent),
   DependencyIdent \= '@metamask/base-controller',
   DependencyIdent \= '@metamask/eth-keyring-controller',
   DependencyIdent \= '@metamask/polling-controller',
-  is_controller(DependencyIdent).
+  workspace_ident(DependencyWorkspaceCwd, DependencyIdent),
+  workspace_version(DependencyWorkspaceCwd, CurrentDependencyWorkspaceVersion),
+  parse_version_range(CurrentDependencyWorkspaceVersion, _, CurrentDependencyVersionMajor, _, _),
+  atomic_list_concat([CurrentDependencyVersionMajor, 0, 0], '.', CorrectPeerDependencyVersion),
+  atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange).
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, SpecifiedPeerDependencyRange, 'peerDependencies'),
+  is_controller(DependencyIdent),
+  DependencyIdent \= '@metamask/base-controller',
+  DependencyIdent \= '@metamask/eth-keyring-controller',
+  DependencyIdent \= '@metamask/polling-controller',
+  workspace_ident(DependencyWorkspaceCwd, DependencyIdent),
+  workspace_version(DependencyWorkspaceCwd, CurrentDependencyVersion),
+  parse_version_range(CurrentDependencyVersion, _, CurrentDependencyVersionMajor, CurrentDependencyVersionMinor, CurrentDependencyVersionPatch),
+  parse_version_range(SpecifiedPeerDependencyRange, _, SpecifiedPeerDependencyVersionMajor, SpecifiedPeerDependencyVersionMinor, SpecifiedPeerDependencyVersionPatch),
+  (
+    (
+      SpecifiedPeerDependencyVersionMajor == CurrentDependencyVersionMajor,
+      (
+        SpecifiedPeerDependencyVersionMinor @< CurrentDependencyVersionMinor ;
+        (
+          SpecifiedPeerDependencyVersionMinor == CurrentDependencyVersionMinor,
+          SpecifiedPeerDependencyVersionPatch @=< CurrentDependencyVersionPatch
+        )
+      )
+    ) ->
+      CorrectPeerDependencyRange = SpecifiedPeerDependencyRange ;
+      atom_concat('^', CurrentDependencyVersion, CorrectPeerDependencyRange)
+  ).
 
 % All packages must specify a minimum Node version of 16.
 gen_enforced_field(WorkspaceCwd, 'engines.node', '>=16.0.0').
@@ -349,10 +421,3 @@ gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npm
 % whatsoever.
 gen_enforced_field(WorkspaceCwd, 'publishConfig', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
-
-% eth-method-registry has an unlisted dependency on babel-runtime (via `ethjs->ethjs-query`), so
-% that package needs to be present if eth-method-registry is present.
-gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'peerDependencies') :-
-  workspace_has_dependency(WorkspaceCwd, 'eth-method-registry', _, 'dependencies').
-gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'devDependencies') :-
-  workspace_has_dependency(WorkspaceCwd, 'eth-method-registry', _, 'dependencies').

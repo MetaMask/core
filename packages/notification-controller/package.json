@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-controller",
-  "version": "4.0.0",
+  "version": "5.0.1",
   "description": "Manages display of notifications within MetaMask",
   "keywords": [
     "MetaMask",
@@ -15,13 +15,24 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -30,12 +41,12 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.0.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/utils": "^8.3.0",
     "nanoid": "^3.1.31"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

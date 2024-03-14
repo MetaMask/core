@@ -47,6 +47,7 @@ export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   SEPOLIA: 'SepoliaETH',
   LINEA_GOERLI: 'LineaETH',
+  LINEA_SEPOLIA: 'LineaETH',
 };
 
 /**
@@ -81,6 +82,13 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: 'https://goerli.lineascan.build',
     },
   },
+  [NetworkType['linea-sepolia']]: {
+    chainId: ChainId['linea-sepolia'],
+    ticker: NetworksTicker['linea-sepolia'],
+    rpcPrefs: {
+      blockExplorerUrl: 'https://sepolia.lineascan.build',
+    },
+  },
   [NetworkType['linea-mainnet']]: {
     chainId: ChainId['linea-mainnet'],
     ticker: NetworksTicker['linea-mainnet'],
@@ -98,9 +106,7 @@ export const BUILT_IN_NETWORKS = {
 
 // APIs
 export const OPENSEA_PROXY_URL =
-  'https://proxy.metafi.codefi.network/opensea/v1/api/v1';
-export const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
-export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
+  'https://proxy.metafi.codefi.network/opensea/v1/api/v2';
 
 // Default origin for controllers
 export const ORIGIN_METAMASK = 'metamask';
@@ -139,6 +145,7 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId.sepolia]: BuiltInNetworkName.Sepolia,
   [ChainId.mainnet]: BuiltInNetworkName.Mainnet,
   [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
+  [ChainId['linea-sepolia']]: BuiltInNetworkName.LineaSepolia,
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
   [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };

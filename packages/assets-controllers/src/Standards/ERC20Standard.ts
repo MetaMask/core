@@ -1,11 +1,11 @@
+import { toUtf8 } from '@ethereumjs/util';
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import { decodeSingle } from '@metamask/abi-utils';
 import { ERC20 } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { assertIsStrictHexString } from '@metamask/utils';
-import { toUtf8 } from 'ethereumjs-util';
-import type { BN } from 'ethereumjs-util';
+import type BN from 'bn.js';
 
 import { ethersBigNumberToBN } from '../assetsUtil';
 
@@ -40,9 +40,12 @@ export class ERC20Standard {
     try {
       const decimals = await contract.decimals();
       return decimals.toString();
-    } catch (err: any) {
+    } catch (err) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (
+        err instanceof Error &&
+        err.message.includes('call revert exception')
+      ) {
         throw new Error('Failed to parse token decimals');
       }
       throw err;
@@ -60,9 +63,12 @@ export class ERC20Standard {
     try {
       const name = await contract.name();
       return name.toString();
-    } catch (err: any) {
+    } catch (err) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (
+        err instanceof Error &&
+        err.message.includes('call revert exception')
+      ) {
         throw new Error('Failed to parse token name');
       }
       throw err;

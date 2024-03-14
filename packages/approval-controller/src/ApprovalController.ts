@@ -66,6 +66,8 @@ type ApprovalFlow = {
 type ResultOptions = {
   flowToEnd?: string;
   header?: (string | ResultComponent)[];
+  icon?: string | null;
+  title?: string | null;
 };
 
 // Miscellaneous Types
@@ -120,8 +122,8 @@ export type ApprovalControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   ApprovalControllerActions,
   ApprovalControllerEvents,
-  string,
-  string
+  never,
+  never
 >;
 
 // Option Types
@@ -749,9 +751,8 @@ export class ApprovalController extends BaseController<
     }
 
     this.update((draftState) => {
-      // Typecast: ts(2589)
       draftState.pendingApprovals[opts.id].requestState =
-        opts.requestState as any;
+        opts.requestState as never;
     });
   }
 
@@ -833,13 +834,18 @@ export class ApprovalController extends BaseController<
    * @param opts.message - The message text or components to display in the page.
    * @param opts.header - The text or components to display in the header of the page.
    * @param opts.flowToEnd - The ID of the approval flow to end once the success page is approved.
+   * @param opts.title - The title to display above the message. Shown by default but can be hidden with `null`.
+   * @param opts.icon - The icon to display in the page. Shown by default but can be hidden with `null`.
    * @returns Empty object to support future additions.
    */
   async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
     await this.#result(APPROVAL_TYPE_RESULT_SUCCESS, opts, {
       message: opts.message,
       header: opts.header,
-    } as any);
+      title: opts.title,
+      icon: opts.icon,
+    } as Record<string, Json>);
+
     return {};
   }
 
@@ -850,13 +856,18 @@ export class ApprovalController extends BaseController<
    * @param opts.message - The message text or components to display in the page.
    * @param opts.header - The text or components to display in the header of the page.
    * @param opts.flowToEnd - The ID of the approval flow to end once the error page is approved.
+   * @param opts.title - The title to display above the message. Shown by default but can be hidden with `null`.
+   * @param opts.icon - The icon to display in the page. Shown by default but can be hidden with `null`.
    * @returns Empty object to support future additions.
    */
   async error(opts: ErrorOptions = {}): Promise<ErrorResult> {
     await this.#result(APPROVAL_TYPE_RESULT_ERROR, opts, {
       error: opts.error,
       header: opts.header,
-    } as any);
+      title: opts.title,
+      icon: opts.icon,
+    } as Record<string, Json>);
+
     return {};
   }
 
@@ -986,7 +997,7 @@ export class ApprovalController extends BaseController<
     requestState?: Record<string, Json>,
     expectsResult?: boolean,
   ): void {
-    const approval: ApprovalRequest<Record<string, Json> | null> = {
+    const approval = {
       id,
       origin,
       type,
@@ -997,8 +1008,8 @@ export class ApprovalController extends BaseController<
     };
 
     this.update((draftState) => {
-      // Typecast: ts(2589)
-      draftState.pendingApprovals[id] = approval as any;
+      draftState.pendingApprovals[id] = approval as never;
+
       draftState.pendingApprovalCount = Object.keys(
         draftState.pendingApprovals,
       ).length;

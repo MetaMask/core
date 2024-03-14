@@ -21,8 +21,10 @@ function getRestrictedMessenger() {
     AnnouncementControllerActions,
     AnnouncementControllerEvents
   >();
-  return controllerMessenger.getRestricted<typeof name, never, never>({
+  return controllerMessenger.getRestricted({
     name,
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 const allAnnouncements: AnnouncementMap = {

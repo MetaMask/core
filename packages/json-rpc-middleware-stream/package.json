@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-middleware-stream",
-  "version": "6.0.0",
+  "version": "7.0.1",
   "description": "A small toolset for streaming JSON-RPC data and matching requests and responses",
   "keywords": [
     "MetaMask",
@@ -15,13 +15,24 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "ISC",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
@@ -30,17 +41,17 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/json-rpc-engine": "^7.3.0",
+    "@metamask/json-rpc-engine": "^8.0.1",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^8.2.0",
+    "@metamask/utils": "^8.3.0",
     "readable-stream": "^3.6.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.3",
+    "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
-    "extension-port-stream": "^2.0.1",
+    "extension-port-stream": "^3.0.0",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",

@@ -54,11 +54,11 @@ function getRestrictedMessenger() {
   );
   const messenger = controllerMessenger.getRestricted<
     typeof name,
-    NetworkControllerGetNetworkClientByIdAction['type'],
-    never
+    NetworkControllerGetNetworkClientByIdAction['type']
   >({
     name,
     allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedEvents: [],
   });
   return messenger;
 }
