@@ -13,6 +13,7 @@ import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
+import {methodsRequiringSwitch} from './constants';
 export const controllerName = 'QueuedRequestController';
 
 export type QueuedRequestControllerState = {
@@ -155,6 +156,17 @@ export class QueuedRequestController extends BaseController<
     );
   }
 
+  async #flushQueueForOrigin(flushOrigin: string) {
+    this.#requestQueue
+      .filter(({origin}) => origin === flushOrigin)
+      .map(({ processRequest }) => {
+        processRequest(new Error("User rejected the transaction"))
+      });
+    this.#requestQueue = this.#requestQueue
+      .filter(({origin}) => origin !== flushOrigin)
+  }
+
+
   /**
    * Process the next batch of requests.
    *
@@ -282,7 +294,7 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (request.method !== 'eth_requestAccounts') {
+      } else if (methodsRequiringSwitch.includes(request.method) === false) {
         // Process request immediately
         // Requires switching network now if necessary
         // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
@@ -291,6 +303,9 @@ export class QueuedRequestController extends BaseController<
       this.#processingRequestCount += 1;
       try {
         await requestNext();
+        if (request.method === "wallet_switchEthereumChain") {
+          #flushQueueForOrigin(request.origin);
+        }
       } finally {
         this.#processingRequestCount -= 1;
       }
