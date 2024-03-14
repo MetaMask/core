@@ -87,7 +87,7 @@ export function createAsyncMiddleware<
       } else {
         end(null);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       if (returnHandlerCallback && isNativeError(error)) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);
       } else {

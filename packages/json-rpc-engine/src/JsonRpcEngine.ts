@@ -269,13 +269,13 @@ export class JsonRpcEngine extends SafeEventEmitter {
         return next(async (handlerCallback) => {
           try {
             await JsonRpcEngine.#runReturnHandlers(returnHandlers);
-          } catch (error: unknown) {
+          } catch (error) {
             // TODO: Explicitly handle errors thrown from `#runReturnHandlers` that are not of type `JsonRpcEngineCallbackError`
             return handlerCallback(error as JsonRpcEngineCallbackError);
           }
           return handlerCallback();
         });
-      } catch (error: unknown) {
+      } catch (error) {
         // TODO: Explicitly handle errors thrown from `#runAllMiddleware` that are not of type `JsonRpcEngineCallbackError`
         return end(error as JsonRpcEngineCallbackError);
       }
@@ -435,7 +435,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     ) {
       try {
         await this.#notificationHandler(callerReq);
-      } catch (error: unknown) {
+      } catch (error) {
         return callback(error);
       }
       return callback(null);
@@ -469,7 +469,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
     try {
       await JsonRpcEngine.#processRequest(req, res, this.#middleware);
-    } catch (_error: unknown) {
+    } catch (_error) {
       // A request handler error, a re-thrown middleware error, or something
       // unexpected.
       error = _error;
@@ -615,7 +615,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
       try {
         middleware(request, response, next, end);
-      } catch (error: unknown) {
+      } catch (error) {
         // TODO: Explicitly handle errors thrown from `middleware` that are not of type `JsonRpcEngineCallbackError`
         end(error as JsonRpcEngineCallbackError);
       }
