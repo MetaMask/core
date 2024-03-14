@@ -13,6 +13,7 @@ import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
+import {methodsRequiringNetwork} from './constants';
 export const controllerName = 'QueuedRequestController';
 
 export type QueuedRequestControllerState = {
@@ -282,7 +283,7 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (request.method !== 'eth_requestAccounts') {
+      } else if (methodsRequiringNetwork.includes(request.method) === false) {
         // Process request immediately
         // Requires switching network now if necessary
         // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
