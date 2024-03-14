@@ -26,9 +26,7 @@ export type JsonRpcEngineNextCallback = (
   returnHandlerCallback?: JsonRpcEngineReturnHandler,
 ) => void;
 
-export type JsonRpcEngineEndCallback = (
-  error?: JsonRpcEngineCallbackError,
-) => void;
+export type JsonRpcEngineEndCallback = (error?: unknown) => void;
 
 export type JsonRpcMiddleware<
   Params extends JsonRpcParams,
