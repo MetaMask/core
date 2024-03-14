@@ -256,7 +256,7 @@ export async function safelyExecuteWithTimeout<Result>(
  * @param address - The address to convert.
  * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
  */
-export function toChecksumHexAddress(address: string): Hex;
+export function toChecksumHexAddress(address: string): string;
 
 /**
  * Convert an address to a checksummed hexadecimal address.
