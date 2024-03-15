@@ -5578,13 +5578,13 @@ describe('TransactionController', () => {
 
       const { controller } = setupController();
 
-      await expect(
-        controller.getLayer1GasFee(
+      expect(
+        await controller.getLayer1GasFee(
           chainIdMock,
           networkClientIdMock,
           transactionParamsMock,
         ),
-      ).resolves.toBe(layer1GasFeeMock);
+      ).toBe(layer1GasFeeMock);
       expect(getTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
     });
   });
