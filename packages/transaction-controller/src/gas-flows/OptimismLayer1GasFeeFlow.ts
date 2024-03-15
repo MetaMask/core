@@ -1,5 +1,5 @@
 import { Contract } from '@ethersproject/contracts';
-import type { Web3Provider } from '@ethersproject/providers';
+import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from '../constants';
@@ -53,7 +53,7 @@ export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
       OPTIMISM_GAS_PRICE_ORACLE_ADDRESS,
       OPTIMISM_GAS_PRICE_ORACLE_ABI,
       // Network controller provider type is uncompatible with ethers provider
-      provider as unknown as Web3Provider,
+      new Web3Provider(provider as unknown as ExternalProvider),
     );
 
     const serializedTransaction =

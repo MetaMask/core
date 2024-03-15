@@ -17,9 +17,11 @@ jest.mock('../utils/layer1-gas-fee-flow', () => ({
   buildUnserializedTransaction: jest.fn(),
 }));
 
+jest.mock('@ethersproject/providers');
+
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
-  chainId: '0x123',
+  chainId: CHAIN_IDS.OPTIMISM,
   status: TransactionStatus.unapproved,
   time: 0,
   txParams: {

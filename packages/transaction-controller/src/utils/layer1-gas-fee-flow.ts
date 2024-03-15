@@ -1,7 +1,7 @@
 import { Common, Hardfork } from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import type { Provider } from '@metamask/network-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger, type Hex, remove0x } from '@metamask/utils';
 import BN from 'bn.js';
 import { omit } from 'lodash';
 
@@ -109,7 +109,7 @@ function buildTransactionParams(
  */
 function buildTransactionCommon(transactionMeta: TransactionMeta) {
   return Common.custom({
-    chainId: new BN(transactionMeta.chainId, 16) as unknown as number,
+    chainId: new BN(remove0x(transactionMeta.chainId), 16) as unknown as number,
     // Optimism only supports type-0 transactions; it does not support any of
     // the newer EIPs since EIP-155. Source:
     // <https://github.com/ethereum-optimism/optimism/blob/develop/specs/l2geth/transaction-types.md>

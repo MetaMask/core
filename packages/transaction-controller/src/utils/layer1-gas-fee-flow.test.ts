@@ -141,6 +141,7 @@ describe('buildUnserializedTransaction', () => {
         value: `0x${new BN('10000000000000').toString(16)}`,
         data: '0x0',
       },
+      chainId: '0x1',
     } as unknown as TransactionMeta);
     expect(unserializedTransaction.toJSON()).toMatchObject({
       nonce: '0x0',
