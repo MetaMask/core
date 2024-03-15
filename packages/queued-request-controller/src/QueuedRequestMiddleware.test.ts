@@ -139,27 +139,6 @@ describe('createQueuedRequestMiddleware', () => {
     expect(mockEnqueueRequest).not.toHaveBeenCalled();
   });
 
-  it('enqueues request that has a confirmation', async () => {
-    const mockEnqueueRequest = getMockEnqueueRequest();
-    const middleware = createQueuedRequestMiddleware({
-      enqueueRequest: mockEnqueueRequest,
-      useRequestQueue: () => true,
-    });
-    const request = {
-      ...getRequestDefaults(),
-      origin: 'exampleorigin.com',
-      method: 'eth_sendTransaction',
-    };
-
-    await new Promise((resolve, reject) =>
-      middleware(request, getPendingResponseDefault(), resolve, reject),
-    );
-
-    expect(mockEnqueueRequest).toHaveBeenCalledWith(
-      request,
-      expect.any(Function),
-    );
-  });
 
   it('enqueues request that have a confirmation', async () => {
     const mockEnqueueRequest = getMockEnqueueRequest();
