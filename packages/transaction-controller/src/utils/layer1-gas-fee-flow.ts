@@ -56,7 +56,7 @@ function getLayer1GasFeeFlow(
  * @param request.provider - The provider to use to get the layer 1 gas fee.
  * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
  */
-async function getTransactionLayer1GasFee({
+export async function getTransactionLayer1GasFee({
   layer1GasFeeFlows,
   provider,
   transactionMeta,

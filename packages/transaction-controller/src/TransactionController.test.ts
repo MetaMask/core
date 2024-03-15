@@ -61,7 +61,10 @@ import {
 } from './types';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
-import { updateTransactionLayer1GasFee } from './utils/layer1-gas-fee-flow';
+import {
+  getTransactionLayer1GasFee,
+  updateTransactionLayer1GasFee,
+} from './utils/layer1-gas-fee-flow';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -5554,6 +5557,35 @@ describe('TransactionController', () => {
           }
         ).error.message,
       ).toBe('Signing aborted by user');
+    });
+  });
+
+  describe('getLayer1GasFee', () => {
+    it('calls getLayer1GasFee with the correct parameters', async () => {
+      const chainIdMock = '0x1';
+      const networkClientIdMock = 'mainnet';
+      const transactionParamsMock = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        value: '0x0',
+      };
+      const layer1GasFeeMock = '0x12356';
+      (getTransactionLayer1GasFee as jest.Mock).mockResolvedValueOnce(
+        layer1GasFeeMock,
+      );
+
+      const { controller } = setupController();
+
+      await expect(
+        controller.getLayer1GasFee(
+          chainIdMock,
+          networkClientIdMock,
+          transactionParamsMock,
+        ),
+      ).resolves.toBe(layer1GasFeeMock);
+      expect(getTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
     });
   });
 });

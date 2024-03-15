@@ -82,7 +82,10 @@ import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
 } from './utils/history';
-import { updateTransactionLayer1GasFee } from './utils/layer1-gas-fee-flow';
+import {
+  getTransactionLayer1GasFee,
+  updateTransactionLayer1GasFee,
+} from './utils/layer1-gas-fee-flow';
 import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
@@ -2249,6 +2252,34 @@ export class TransactionController extends BaseController<
       return txs;
     }
     return filteredTransactions;
+  }
+
+  /**
+   * Utility method to get the layer 1 gas fee for given transaction params.
+   *
+   * @param chainId - Estimated transaction chainId.
+   * @param networkClientId - Estimated transaction networkClientId.
+   * @param transactionParams - The transaction params to estimate layer 1 gas fee for.
+   */
+  async getLayer1GasFee(
+    chainId: Hex,
+    networkClientId: NetworkClientId,
+    transactionParams: TransactionParams,
+  ): Promise<Hex | undefined> {
+    const provider = this.#multichainTrackingHelper.getProvider({
+      networkClientId,
+      chainId,
+    });
+
+    const layer1GasFee = await getTransactionLayer1GasFee({
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider,
+      transactionMeta: {
+        txParams: transactionParams,
+        chainId,
+      } as TransactionMeta,
+    });
+    return layer1GasFee;
   }
 
   private async signExternalTransaction(
