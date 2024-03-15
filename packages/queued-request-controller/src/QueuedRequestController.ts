@@ -283,7 +283,7 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (methodsRequiringNetwork.includes(request.method) === false) {
+      } else if (methodsRequiringNetwork.includes(request.method)) {
         // Process request immediately
         // Requires switching network now if necessary
         // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
