@@ -39,7 +39,7 @@ import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
+import { cloneDeep, mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
 import { NonceTracker } from 'nonce-tracker';
 import type {
   NonceLock,
@@ -1039,9 +1039,6 @@ export class TransactionController extends BaseController<
           networkClientId,
         };
 
-    const getSimulationDataPromise =
-      this.#getSimulationData(addedTransactionMeta);
-
     await this.updateGasProperties(addedTransactionMeta);
 
     // Checks if a transaction already exists with a given actionId
@@ -1077,18 +1074,13 @@ export class TransactionController extends BaseController<
 
       this.addMetadata(addedTransactionMeta);
 
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#updateSimulationData(addedTransactionMeta);
+
       this.messagingSystem.publish(
         `${controllerName}:unapprovedTransactionAdded`,
         addedTransactionMeta,
       );
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      getSimulationDataPromise.then(async (simulationData) => {
-        await this.updateSimulationData(
-          addedTransactionMeta.id,
-          simulationData,
-        );
-      });
     }
 
     return {
@@ -3502,6 +3494,9 @@ export class TransactionController extends BaseController<
 
     validateTxParams(normalizedTransaction.txParams);
 
+    const updatedTransactionParams =
+      this.#checkIfTransactionParamsUpdated(transactionMeta);
+
     const transactionWithUpdatedHistory =
       skipHistory === true
         ? normalizedTransaction
@@ -3516,46 +3511,89 @@ export class TransactionController extends BaseController<
       );
       state.transactions[index] = transactionWithUpdatedHistory;
     });
+
+    if (updatedTransactionParams.length > 0) {
+      this.#onTransactionParamsUpdated(
+        transactionMeta,
+        updatedTransactionParams,
+      );
+    }
   }
 
-  async #getSimulationData(
-    transactionMeta: TransactionMeta,
-  ): Promise<SimulationData> {
-    if (!this.#isSimulationEnabled()) {
-      log('Skipping simulation as disabled');
-      return {
-        error: {
-          message: 'Simulation disabled',
-          isReverted: false,
-        },
-        tokenBalanceChanges: [],
-      };
+  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
+    const { id: transactionId, txParams: newParams } = newTransactionMeta;
+
+    const originalParams = this.getTransaction(transactionId)?.txParams;
+
+    if (!originalParams || isEqual(originalParams, newParams)) {
+      return [];
     }
 
-    const { chainId, txParams } = transactionMeta;
-    const { from, to, value, data } = txParams;
+    const params = Object.keys(newParams) as (keyof TransactionParams)[];
 
-    const simulationData = await getSimulationData({
-      chainId,
-      from: from as Hex,
-      to: to as Hex,
-      value: value as Hex,
-      data: data as Hex,
-    });
+    const updatedProperties = params.filter(
+      (param) => newParams[param] !== originalParams[param],
+    );
 
-    return simulationData;
+    log(
+      'Transaction parameters have been updated',
+      transactionId,
+      updatedProperties,
+      originalParams,
+      newParams,
+    );
+
+    return updatedProperties;
   }
 
-  async updateSimulationData(
-    transactionId: string,
-    simulationData: SimulationData,
+  #onTransactionParamsUpdated(
+    transactionMeta: TransactionMeta,
+    updatedParams: (keyof TransactionParams)[],
   ) {
-    const transactionMeta = this.getTransaction(transactionId);
+    if (
+      (['to', 'value', 'data'] as const).some((param) =>
+        updatedParams.includes(param),
+      )
+    ) {
+      log('Updating simulation data due to transaction parameter update');
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#updateSimulationData(transactionMeta);
+    }
+  }
 
-    if (!transactionMeta) {
+  async #updateSimulationData(transactionMeta: TransactionMeta) {
+    const { id, chainId, txParams } = transactionMeta;
+    const { from, to, value, data } = txParams;
+
+    let simulationData: SimulationData = {
+      error: {
+        message: 'Simulation disabled',
+        isReverted: false,
+      },
+      tokenBalanceChanges: [],
+    };
+
+    if (this.#isSimulationEnabled()) {
+      this.#updateTransactionInternal(
+        { ...transactionMeta, simulationData: undefined },
+        { skipHistory: true },
+      );
+
+      simulationData = await getSimulationData({
+        chainId,
+        from: from as Hex,
+        to: to as Hex,
+        value: value as Hex,
+        data: data as Hex,
+      });
+    }
+
+    const finalTransactionMeta = this.getTransaction(id);
+
+    if (!finalTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
-        transactionId,
+        id,
         simulationData,
       );
 
@@ -3563,10 +3601,10 @@ export class TransactionController extends BaseController<
     }
 
     this.updateTransaction(
-      { ...transactionMeta, simulationData },
+      { ...finalTransactionMeta, simulationData },
       'TransactionController#updateSimulationData - Update simulation data',
     );
 
-    log('Updated simulation data', transactionId, simulationData);
+    log('Updated simulation data', id, simulationData);
   }
 }

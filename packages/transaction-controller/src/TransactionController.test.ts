@@ -1695,6 +1695,8 @@ describe('TransactionController', () => {
         to: ACCOUNT_MOCK,
       });
 
+      await flushPromises();
+
       expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
       expect(getSimulationDataMock).toHaveBeenCalledWith({
         chainId: MOCK_NETWORK.state.providerConfig.chainId,
