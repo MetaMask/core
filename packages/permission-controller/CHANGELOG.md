@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.2]
+
 ### Uncategorized
 
 - Fix `SideEffectMessenger` type not respecting generic parameter types ([#4059](https://github.com/MetaMask/controllers.git/pull/4059))
@@ -216,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/permission-controller@9.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/permission-controller@9.0.2...HEAD
+[9.0.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/permission-controller@9.0.1...@metamask/permission-controller@9.0.2
 [9.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/permission-controller@9.0.0...@metamask/permission-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/permission-controller@8.0.1...@metamask/permission-controller@9.0.0
 [8.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/permission-controller@8.0.0...@metamask/permission-controller@8.0.1
