@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Fixed
+
+- `QueuedRequestMiddleware` now enqueues the following methods that can trigger confirmations: ([#4066](https://github.com/MetaMask/core/pull/4066))
+  - `eth_sendTransaction`
+  - `eth_sendRawTransaction`
+  - `wallet_switchEthereumChain`
+  - `wallet_addEthereumChain`
+  - `wallet_watchAsset`
+  - `eth_signTypedData_v4`
+  - `personal_sign`
+  - `wallet_requestPermissions`
+  - `wallet_requestSnaps`
+  - `wallet_snap`
+  - `wallet_invokeSnap`
+  - `eth_decrypt`
+  - `eth_sign`
+  - `eth_requestAccounts`
+  - `eth_getEncryptionPublicKey`
+- `QueuedRequestController.enqueueRequest()` now ensures the globally selected network matches the dapp selected network before processing the following methods: ([#4066](https://github.com/MetaMask/core/pull/4066))
+  - `eth_sendTransaction`
+  - `eth_sendRawTransaction`
+  - `wallet_switchEthereumChain`
+  - `wallet_addEthereumChain`
+  - `wallet_watchAsset`
+  - `eth_signTypedData_v4`
+  - `personal_sign`
+
 ## [0.6.1]
 
 ### Fixed
