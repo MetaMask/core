@@ -13,7 +13,6 @@ import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
-import {methodsRequiringSwitch} from './constants';
 export const controllerName = 'QueuedRequestController';
 
 export type QueuedRequestControllerState = {
@@ -294,7 +293,7 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (methodsRequiringSwitch.includes(request.method) === false) {
+      } else if (request.methods === "eth_requestAccounts") {
         // Process request immediately
         // Requires switching network now if necessary
         // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
@@ -304,7 +303,7 @@ export class QueuedRequestController extends BaseController<
       try {
         await requestNext();
         if (request.method === "wallet_switchEthereumChain") {
-          #flushQueueForOrigin(request.origin);
+          this.#flushQueueForOrigin(request.origin);
         }
       } finally {
         this.#processingRequestCount -= 1;

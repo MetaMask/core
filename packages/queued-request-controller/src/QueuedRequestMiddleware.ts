@@ -5,9 +5,21 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type { QueuedRequestController } from './QueuedRequestController';
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
-import {confirmationMethods} from './constants';
 
 const isConfirmationMethod = (method: string) => {
+  const confirmationMethods = [
+    'eth_sendTransaction',
+    'wallet_watchAsset',
+    'wallet_switchEthereumChain',
+    'eth_signTypedData_v4',
+    'wallet_addEthereumChain',
+    'wallet_requestPermissions',
+    'wallet_requestSnaps',
+    'personal_sign',
+    'eth_sign',
+    'eth_requestAccounts',
+  ];
+
   return confirmationMethods.includes(method);
 };
 
