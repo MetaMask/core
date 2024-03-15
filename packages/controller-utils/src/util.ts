@@ -30,8 +30,9 @@ export const PROTOTYPE_POLLUTION_BLOCKLIST = [
  * @returns Whether the given dynamic key is safe to use.
  */
 export function isSafeDynamicKey(key: string): boolean {
-  return !PROTOTYPE_POLLUTION_BLOCKLIST.some(
-    (blockedKey) => key === blockedKey,
+  return (
+    typeof key === 'string' &&
+    !PROTOTYPE_POLLUTION_BLOCKLIST.some((blockedKey) => key === blockedKey)
   );
 }
 
