@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## Fixed
+### Fixed
 
 - `QueuedRequestMiddleware` now enqueues the following methods that can trigger confirmations: ([#4066](https://github.com/MetaMask/core/pull/4066))
   - `eth_sendTransaction`
