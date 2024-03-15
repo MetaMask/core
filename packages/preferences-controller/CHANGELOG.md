@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Restore previous behavior of toChecksumHexAddress ([#4046](https://github.com/MetaMask/core/pull/4046))
-
 ## [9.0.1]
 
 ### Fixed
