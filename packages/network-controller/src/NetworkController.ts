@@ -640,6 +640,11 @@ export class NetworkController extends BaseController<
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
 
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getSelectedNetworkClient`,
+      this.getSelectedNetworkClient.bind(this),
+    );
+
     this.#previousProviderConfig = this.state.providerConfig;
   }
 
