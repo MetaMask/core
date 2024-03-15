@@ -609,7 +609,6 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     }
 
     const apiNfts = await this.getOwnerNfts(userAddress);
-    console.log('🚀 ~ apiNfts:==================', apiNfts);
     const addNftPromises = apiNfts.map(async (nft: TokensResponse) => {
       const {
         tokenId: token_id,
