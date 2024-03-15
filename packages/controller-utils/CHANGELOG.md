@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.0.2]
 
-### Uncategorized
+### Fixed
 
-- Restore previous behavior of toChecksumHexAddress ([#4046](https://github.com/MetaMask/core/pull/4046))
+- Allow `toChecksumHexAddress` to take and handle non-string inputs again, which was removed in 8.0.4 ([#4046](https://github.com/MetaMask/core/pull/4046))
 
 ## [9.0.1]
 
