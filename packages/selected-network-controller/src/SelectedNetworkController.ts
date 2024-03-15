@@ -4,6 +4,7 @@ import type {
   BlockTrackerProxy,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
   ProviderProxy,
@@ -71,6 +72,7 @@ export type SelectedNetworkControllerActions =
 
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetStateAction
   | PermissionControllerHasPermissions
   | PermissionControllerGetSubjectsAction;
@@ -171,9 +173,7 @@ export class SelectedNetworkController extends BaseController<
               op === 'remove' &&
               this.state.domains[domain] !== undefined
             ) {
-              this.update(({ domains }) => {
-                delete domains[domain];
-              });
+              this.#unsetNetworkClientIdForDomain(domain);
             }
           }
         });
@@ -240,6 +240,24 @@ export class SelectedNetworkController extends BaseController<
     });
   }
 
+  #unsetNetworkClientIdForDomain(domain: Domain) {
+    const globallySelectedNetworkClient = this.messagingSystem.call(
+      'NetworkController:getSelectedNetworkClient',
+    );
+    const networkProxy = this.#domainProxyMap.get(domain);
+    if (networkProxy && globallySelectedNetworkClient) {
+      networkProxy.provider.setTarget(globallySelectedNetworkClient.provider);
+      networkProxy.blockTracker.setTarget(
+        globallySelectedNetworkClient.blockTracker,
+      );
+    } else if (networkProxy) {
+      this.#domainProxyMap.delete(domain);
+    }
+    this.update((state) => {
+      delete state.domains[domain];
+    });
+  }
+
   #domainHasPermissions(domain: Domain): boolean {
     return this.messagingSystem.call(
       'PermissionController:hasPermissions',
@@ -282,23 +300,23 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
-    if (!this.#getUseRequestQueue()) {
-      throw new Error(
-        'Provider and BlockTracker should be fetched from NetworkController when useRequestQueue is false',
-      );
-    }
     const networkClientId = this.state.domains[domain];
-    if (!networkClientId) {
-      throw new Error(
-        'NetworkClientId has not been set for the requested domain',
-      );
-    }
     let networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
-      const networkClient = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
+      let networkClient;
+      if (networkClientId === undefined) {
+        networkClient = this.messagingSystem.call(
+          'NetworkController:getSelectedNetworkClient',
+        );
+        if (networkClient === undefined) {
+          throw new Error('Network not initialized');
+        }
+      } else {
+        networkClient = this.messagingSystem.call(
+          'NetworkController:getNetworkClientById',
+          networkClientId,
+        );
+      }
       networkProxy = {
         provider: createEventEmitterProxy(networkClient.provider),
         blockTracker: createEventEmitterProxy(networkClient.blockTracker, {

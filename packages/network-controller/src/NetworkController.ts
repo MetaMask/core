@@ -426,6 +426,11 @@ export type NetworkControllerGetNetworkClientByIdAction = {
   handler: NetworkController['getNetworkClientById'];
 };
 
+export type NetworkControllerGetSelectedNetworkClientAction = {
+  type: `NetworkController:getSelectedNetworkClient`;
+  handler: NetworkController['getSelectedNetworkClient'];
+};
+
 export type NetworkControllerGetEIP1559CompatibilityAction = {
   type: `NetworkController:getEIP1559Compatibility`;
   handler: NetworkController['getEIP1559Compatibility'];
@@ -462,6 +467,7 @@ export type NetworkControllerActions =
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetEIP1559CompatibilityAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerSetActiveNetworkAction
@@ -652,6 +658,21 @@ export class NetworkController extends BaseController<
       provider: this.#providerProxy,
       blockTracker: this.#blockTrackerProxy,
     };
+  }
+
+  getSelectedNetworkClient():
+    | {
+        provider: SwappableProxy<ProxyWithAccessibleTarget<Provider>>;
+        blockTracker: SwappableProxy<ProxyWithAccessibleTarget<BlockTracker>>;
+      }
+    | undefined {
+    if (this.#providerProxy && this.#blockTrackerProxy) {
+      return {
+        provider: this.#providerProxy,
+        blockTracker: this.#blockTrackerProxy,
+      };
+    }
+    return undefined;
   }
 
   /**
