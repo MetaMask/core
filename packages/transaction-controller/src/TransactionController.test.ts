@@ -1685,7 +1685,7 @@ describe('TransactionController', () => {
       });
     });
 
-    it('updates simulation data by default', async () => {
+    it('updates simulation data', async () => {
       getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
 
       const { controller } = setupController();
@@ -5494,6 +5494,34 @@ describe('TransactionController', () => {
         .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
       Current tx status: ${TransactionStatus.submitted}`);
     });
+
+    it.each(['value', 'to', 'data'])(
+      'updates simulation data if %s changes',
+      async (param) => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...transactionMeta,
+                },
+              ],
+            },
+          },
+        });
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          ...transactionMeta.txParams,
+          [param]: ACCOUNT_2_MOCK,
+        });
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 
   describe('abortTransactionSigning', () => {

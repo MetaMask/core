@@ -537,40 +537,79 @@ describe('Simulation Utils', () => {
       });
     });
 
-    it('returns error if API request throws', async () => {
-      simulateTransactionsMock.mockRejectedValueOnce({
-        code: ERROR_CODE_MOCK,
-        message: ERROR_MESSAGE_MOCK,
-      });
-
-      expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
-        error: {
+    describe('returns error', () => {
+      it('if API request throws', async () => {
+        simulateTransactionsMock.mockRejectedValueOnce({
           code: ERROR_CODE_MOCK,
           message: ERROR_MESSAGE_MOCK,
-          isReverted: false,
-        },
-        tokenBalanceChanges: [],
+        });
+
+        expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
+          error: {
+            code: ERROR_CODE_MOCK,
+            message: ERROR_MESSAGE_MOCK,
+            isReverted: false,
+          },
+          tokenBalanceChanges: [],
+        });
       });
-    });
 
-    it('returns error if API response has missing transactions', async () => {
-      mockParseLog({ erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK });
+      it('if API request throws without message', async () => {
+        simulateTransactionsMock.mockRejectedValueOnce({
+          code: ERROR_CODE_MOCK,
+        });
 
-      simulateTransactionsMock
-        .mockResolvedValueOnce(
-          createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
-        )
-        .mockResolvedValueOnce(createBalanceOfResponse([], []));
+        expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
+          error: {
+            code: ERROR_CODE_MOCK,
+            message: undefined,
+            isReverted: false,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
 
-      const simulationData = await getSimulationData(REQUEST_MOCK);
+      it('if API response has missing transactions', async () => {
+        mockParseLog({ erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK });
 
-      expect(simulationData).toStrictEqual({
-        error: {
-          code: undefined,
-          message: 'Invalid response from simulation API',
-          isReverted: false,
-        },
-        tokenBalanceChanges: [],
+        simulateTransactionsMock
+          .mockResolvedValueOnce(
+            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+          )
+          .mockResolvedValueOnce(createBalanceOfResponse([], []));
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
+            code: undefined,
+            message: 'Invalid response from simulation API',
+            isReverted: false,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('if response has reverted transaction', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              error: 'test execution reverted test',
+              return: '0x',
+            },
+          ],
+        });
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
+            code: undefined,
+            message: 'test execution reverted test',
+            isReverted: true,
+          },
+          tokenBalanceChanges: [],
+        });
       });
     });
   });

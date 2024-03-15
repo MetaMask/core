@@ -3494,8 +3494,9 @@ export class TransactionController extends BaseController<
 
     validateTxParams(normalizedTransaction.txParams);
 
-    const updatedTransactionParams =
-      this.#checkIfTransactionParamsUpdated(transactionMeta);
+    const updatedTransactionParams = this.#checkIfTransactionParamsUpdated(
+      normalizedTransaction,
+    );
 
     const transactionWithUpdatedHistory =
       skipHistory === true
@@ -3514,7 +3515,7 @@ export class TransactionController extends BaseController<
 
     if (updatedTransactionParams.length > 0) {
       this.#onTransactionParamsUpdated(
-        transactionMeta,
+        normalizedTransaction,
         updatedTransactionParams,
       );
     }

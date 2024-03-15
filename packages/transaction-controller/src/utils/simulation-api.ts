@@ -23,17 +23,26 @@ const SUBDOMAIN_BY_CHAIN_ID: Record<Hex, string> = {
 
 /** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
+  /** Data to send with the transaction. */
+  data?: Hex;
+
   /** Sender of the transaction. */
   from: Hex;
+
+  /** Gas limit for the transaction. */
+  gas?: Hex;
+
+  /** Maximum fee per gas for the transaction. */
+  maxFeePerGas?: Hex;
+
+  /** Maximum priority fee per gas for the transaction. */
+  maxPriorityFeePerGas?: Hex;
 
   /** Recipient of the transaction. */
   to?: Hex;
 
   /** Value to send with the transaction. */
   value?: Hex;
-
-  /** Data to send with the transaction. */
-  data?: Hex;
 };
 
 /** Request to the simulation API to simulate transactions. */

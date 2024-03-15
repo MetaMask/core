@@ -59,7 +59,16 @@ export async function getSimulationData(
 
   try {
     const response = await simulateTransactions(chainId, {
-      transactions: [{ from, to, value, data }],
+      transactions: [
+        {
+          data,
+          from,
+          maxFeePerGas: '0x0',
+          maxPriorityFeePerGas: '0x0',
+          to,
+          value,
+        },
+      ],
       withCallTrace: true,
       withLogs: true,
     });

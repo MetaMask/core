@@ -3,6 +3,8 @@ import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
 
 const CHAIN_ID_MOCK = '0x1';
+const ERROR_CODE_MOCK = 123;
+const ERROR_MESSAGE_MOCK = 'Test Error Message';
 
 const REQUEST_MOCK: SimulationRequest = {
   transactions: [{ from: '0x1', to: '0x2', value: '0x1' }],
@@ -98,6 +100,19 @@ describe('Simulation API Utils', () => {
         'https://tx-sentinel-ethereum-goerli.api.cx.metamask.io/',
         expect.any(Object),
       );
+    });
+
+    it('throws if response has error', async () => {
+      mockFetchResponse({
+        error: { code: ERROR_CODE_MOCK, message: ERROR_MESSAGE_MOCK },
+      });
+
+      await expect(
+        simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK),
+      ).rejects.toStrictEqual({
+        code: ERROR_CODE_MOCK,
+        message: ERROR_MESSAGE_MOCK,
+      });
     });
   });
 });
