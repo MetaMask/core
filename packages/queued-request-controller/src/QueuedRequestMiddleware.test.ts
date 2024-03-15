@@ -1,6 +1,7 @@
 import { errorCodes } from '@metamask/rpc-errors';
 import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 
+import { methodsWithConfirmation } from './constants';
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { createQueuedRequestMiddleware } from './QueuedRequestMiddleware';
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
@@ -139,28 +140,30 @@ describe('createQueuedRequestMiddleware', () => {
     expect(mockEnqueueRequest).not.toHaveBeenCalled();
   });
 
+  it.each(methodsWithConfirmation)(
+    'enqueues the `%s` request that has a confirmation',
+    async (method) => {
+      const mockEnqueueRequest = getMockEnqueueRequest();
+      const middleware = createQueuedRequestMiddleware({
+        enqueueRequest: mockEnqueueRequest,
+        useRequestQueue: () => true,
+      });
+      const request = {
+        ...getRequestDefaults(),
+        origin: 'exampleorigin.com',
+        method,
+      };
 
-  it('enqueues request that have a confirmation', async () => {
-    const mockEnqueueRequest = getMockEnqueueRequest();
-    const middleware = createQueuedRequestMiddleware({
-      enqueueRequest: mockEnqueueRequest,
-      useRequestQueue: () => true,
-    });
-    const request = {
-      ...getRequestDefaults(),
-      origin: 'exampleorigin.com',
-      method: 'eth_sendTransaction',
-    };
+      await new Promise((resolve, reject) =>
+        middleware(request, getPendingResponseDefault(), resolve, reject),
+      );
 
-    await new Promise((resolve, reject) =>
-      middleware(request, getPendingResponseDefault(), resolve, reject),
-    );
-
-    expect(mockEnqueueRequest).toHaveBeenCalledWith(
-      request,
-      expect.any(Function),
-    );
-  });
+      expect(mockEnqueueRequest).toHaveBeenCalledWith(
+        request,
+        expect.any(Function),
+      );
+    },
+  );
 
   it('calls next when a request is not queued', async () => {
     const middleware = createQueuedRequestMiddleware({
