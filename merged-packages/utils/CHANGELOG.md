@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.4.0]
+### Added
+- Add `toCaipChainId` utility function ([#175](https://github.com/MetaMask/utils/pull/175))
+- Add `KnownCaipNamespace` enum ([#175](https://github.com/MetaMask/utils/pull/175))
+
+### Changed
+- Update docs for `createDeferredPromise` to caution against using `suppressUnhandledRejection` ([#174](https://github.com/MetaMask/utils/pull/174))
+
+### Fixed
+- Fix `createSandbox` to assign a unique name to the sandbox directory, so that it can be used in multiple concurrently running Jest tests ([#171](https://github.com/MetaMask/utils/pull/171))
+
 ## [8.3.0]
 ### Added
 - Add `createDeferredPromise` ([#164](https://github.com/MetaMask/utils/pull/164))
@@ -212,7 +223,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v8.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v8.4.0...HEAD
+[8.4.0]: https://github.com/MetaMask/utils/compare/v8.3.0...v8.4.0
 [8.3.0]: https://github.com/MetaMask/utils/compare/v8.2.1...v8.3.0
 [8.2.1]: https://github.com/MetaMask/utils/compare/v8.2.0...v8.2.1
 [8.2.0]: https://github.com/MetaMask/utils/compare/v8.1.0...v8.2.0
