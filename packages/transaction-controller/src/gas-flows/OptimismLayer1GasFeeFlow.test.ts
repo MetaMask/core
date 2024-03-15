@@ -1,7 +1,7 @@
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { toBuffer } from '@ethereumjs/util';
 import { Contract } from '@ethersproject/contracts';
-import type EthQuery from '@metamask/eth-query';
+import type { Provider } from '@metamask/network-controller';
 
 import { CHAIN_IDS } from '../constants';
 import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
@@ -42,7 +42,7 @@ describe('OptimismLayer1GasFeeFlow', () => {
 
   beforeEach(() => {
     request = {
-      ethQuery: {} as EthQuery,
+      provider: {} as Provider,
       transactionMeta: TRANSACTION_META_MOCK,
     };
 

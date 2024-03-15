@@ -860,6 +860,11 @@ export class TransactionController extends BaseController<
           chainId,
         }),
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getProvider: (chainId, networkClientId) =>
+        this.#multichainTrackingHelper.getProvider({
+          networkClientId,
+          chainId,
+        }),
       getTransactions: () => this.state.transactions,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
       onStateChange: (listener) => {
@@ -1934,6 +1939,10 @@ export class TransactionController extends BaseController<
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
+    const provider = this.#multichainTrackingHelper.getProvider({
+      chainId: transactionMeta.chainId,
+      networkClientId: transactionMeta.networkClientId,
+    });
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
       ethQuery,
@@ -1941,8 +1950,8 @@ export class TransactionController extends BaseController<
     updatedTransaction.type = type;
 
     await updateTransactionLayer1GasFee({
-      ethQuery,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider,
       transactionMeta: updatedTransaction,
     });
 
@@ -2339,6 +2348,11 @@ export class TransactionController extends BaseController<
       chainId,
     });
 
+    const provider = this.#multichainTrackingHelper.getProvider({
+      networkClientId,
+      chainId,
+    });
+
     await updateGas({
       ethQuery,
       chainId,
@@ -2356,8 +2370,8 @@ export class TransactionController extends BaseController<
     });
 
     await updateTransactionLayer1GasFee({
-      ethQuery,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider,
       transactionMeta,
     });
   }

@@ -749,6 +749,9 @@ describe('TransactionController', () => {
         getEthQuery: jest.fn().mockImplementation(() => {
           return new EthQuery(provider);
         }),
+        getProvider: jest.fn().mockImplementation(() => {
+          return provider;
+        }),
         checkForPendingTransactionAndStartPolling: jest.fn(),
         getNonceLock: getNonceLockSpy,
         initialize: jest.fn(),

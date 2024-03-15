@@ -190,23 +190,11 @@ export class MultichainTrackingHelper {
     if (!this.#isMultichainEnabled) {
       return new EthQuery(this.#provider);
     }
-    let networkClient: NetworkClient | undefined;
 
-    if (networkClientId) {
-      try {
-        networkClient = this.#getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by networkClientId');
-      }
-    }
-    if (!networkClient && chainId) {
-      try {
-        networkClientId = this.#findNetworkClientIdByChainId(chainId);
-        networkClient = this.#getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by chainId');
-      }
-    }
+    const networkClient = this.#getNetworkClient({
+      networkClientId,
+      chainId,
+    });
 
     if (networkClient) {
       return new EthQuery(networkClient.provider);
@@ -216,6 +204,25 @@ export class MultichainTrackingHelper {
     // Some calls to getEthQuery only have access to optional networkClientId
     // throw new Error('failed to get eth query instance');
     return new EthQuery(this.#provider);
+  }
+
+  getProvider({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  } = {}): Provider {
+    if (!this.#isMultichainEnabled) {
+      return this.#provider;
+    }
+
+    const networkClient = this.#getNetworkClient({
+      networkClientId,
+      chainId,
+    });
+
+    return networkClient?.provider || this.#provider;
   }
 
   /**
@@ -451,4 +458,31 @@ export class MultichainTrackingHelper {
       this.#etherscanRemoteTransactionSourcesMap.delete(chainId);
     });
   };
+
+  #getNetworkClient({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  } = {}): NetworkClient | undefined {
+    let networkClient: NetworkClient | undefined;
+
+    if (networkClientId) {
+      try {
+        networkClient = this.#getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('failed to get network client by networkClientId');
+      }
+    }
+    if (!networkClient && chainId) {
+      try {
+        networkClientId = this.#findNetworkClientIdByChainId(chainId);
+        networkClient = this.#getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('failed to get network client by chainId');
+      }
+    }
+    return networkClient;
+  }
 }

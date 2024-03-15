@@ -1,6 +1,6 @@
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
+import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -32,6 +32,8 @@ export class GasFeePoller {
 
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
 
+  #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
+
   #getTransactions: () => TransactionMeta[];
 
   #layer1GasFeeFlows: Layer1GasFeeFlow[];
@@ -46,6 +48,7 @@ export class GasFeePoller {
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
    * @param options.getEthQuery - Callback to obtain an EthQuery instance.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
+   * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
    * @param options.onStateChange - Callback to register a listener for controller state changes.
@@ -54,6 +57,7 @@ export class GasFeePoller {
     gasFeeFlows,
     getEthQuery,
     getGasFeeControllerEstimates,
+    getProvider,
     getTransactions,
     layer1GasFeeFlows,
     onStateChange,
@@ -61,6 +65,7 @@ export class GasFeePoller {
     gasFeeFlows: GasFeeFlow[];
     getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+    getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     onStateChange: (listener: () => void) => void;
@@ -69,6 +74,7 @@ export class GasFeePoller {
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
     this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
+    this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
 
     onStateChange(() => {
@@ -184,10 +190,10 @@ export class GasFeePoller {
 
   async #updateTransactionLayer1GasFee(transactionMeta: TransactionMeta) {
     const { chainId, networkClientId } = transactionMeta;
-    const ethQuery = this.#getEthQuery(chainId, networkClientId);
+    const provider = this.#getProvider(chainId, networkClientId);
 
     await updateTransactionLayer1GasFee({
-      ethQuery,
+      provider,
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       transactionMeta,
     });

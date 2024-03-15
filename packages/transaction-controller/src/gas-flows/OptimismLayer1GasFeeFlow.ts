@@ -47,13 +47,13 @@ export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
   async #getOptimisimLayer1GasFee(
     request: Layer1GasFeeFlowRequest,
   ): Promise<Layer1GasFeeFlowResponse> {
-    const { ethQuery, transactionMeta } = request;
+    const { provider, transactionMeta } = request;
 
     const contract = new Contract(
       OPTIMISM_GAS_PRICE_ORACLE_ADDRESS,
       OPTIMISM_GAS_PRICE_ORACLE_ABI,
       // Network controller provider type is uncompatible with ethers provider
-      ethQuery.currentProvider as unknown as Web3Provider,
+      provider as unknown as Web3Provider,
     );
 
     const serializedTransaction =
