@@ -1,5 +1,6 @@
-import { convertHexToDecimal } from '@metamask/controller-utils';
+import { NetworkType, convertHexToDecimal } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
+import { NetworkStatus } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -9,7 +10,7 @@ import { API_BASE_URL, CHAIN_IDS } from './constants';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';
-import { flushPromises, advanceTime } from './test-helpers';
+import { advanceTime, flushPromises } from './test-helpers';
 import type { SmartTransaction, UnsignedTransaction } from './types';
 import { SmartTransactionStatuses } from './types';
 import * as utils from './utils';
@@ -308,12 +309,47 @@ const defaultState = {
   },
 };
 
+const mockProvider = {
+  sendAsync: jest.fn(),
+};
+
+const mockProviderConfig = {
+  chainId: '0x1' as `0x${string}`,
+  provider: mockProvider,
+  type: NetworkType.mainnet,
+  ticker: 'ticker',
+};
+
+const mockNetworkState = {
+  providerConfig: mockProviderConfig,
+  selectedNetworkClientId: 'id',
+  networkConfigurations: {
+    id: {
+      id: 'id',
+      rpcUrl: 'string',
+      chainId: '0x1' as `0x${string}`,
+      ticker: 'string',
+    },
+  },
+  networksMetadata: {
+    id: {
+      EIPS: {
+        1155: true,
+      },
+      status: NetworkStatus.Available,
+    },
+  },
+};
+
 describe('SmartTransactionsController', () => {
   let smartTransactionsController: SmartTransactionsController;
   let networkListener: (networkState: NetworkState) => void;
+
   beforeEach(() => {
     smartTransactionsController = new SmartTransactionsController({
-      onNetworkStateChange: (listener) => {
+      onNetworkStateChange: (
+        listener: (networkState: NetworkState) => void,
+      ) => {
         networkListener = listener;
       },
       getNonceLock: jest.fn(() => {
@@ -346,6 +382,8 @@ describe('SmartTransactionsController', () => {
     });
     // eslint-disable-next-line jest/prefer-spy-on
     smartTransactionsController.subscribe = jest.fn();
+
+    networkListener(mockNetworkState);
   });
 
   afterEach(async () => {
