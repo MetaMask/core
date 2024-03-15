@@ -16,7 +16,7 @@ import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
 
-const PROTOTYPE_POLLUTION_BLOCKLIST = [
+export const PROTOTYPE_POLLUTION_BLOCKLIST = [
   '__proto__',
   'constructor',
   'prototype',
