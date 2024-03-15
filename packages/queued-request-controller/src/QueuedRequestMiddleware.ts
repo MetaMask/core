@@ -3,9 +3,9 @@ import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import { serializeError } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
+import { methodsWithConfirmation } from './constants';
 import type { QueuedRequestController } from './QueuedRequestController';
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
-import {methodsWithConfirmation} from './constants';
 
 const isConfirmationMethod = (method: string) => {
   return methodsWithConfirmation.includes(method);

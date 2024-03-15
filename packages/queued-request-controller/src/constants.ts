@@ -1,4 +1,4 @@
-export const methodsRequiringNetwork = [
+export const methodsRequiringNetworkSwitch = [
   'eth_sendTransaction',
   'eth_sendRawTransaction',
   'wallet_switchEthereumChain',
@@ -6,10 +6,10 @@ export const methodsRequiringNetwork = [
   'wallet_watchAsset',
   'eth_signTypedData_v4',
   'personal_sign',
-]
+];
 
 export const methodsWithConfirmation = [
-  ...methodsRequiringNetwork,
+  ...methodsRequiringNetworkSwitch,
   'wallet_requestPermissions',
   'wallet_requestSnaps',
   'wallet_snap',
