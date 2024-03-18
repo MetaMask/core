@@ -73,9 +73,11 @@ export async function getSimulationData(
       withLogs: true,
     });
 
-    if (response.transactions?.[0]?.error) {
+    const transactionError = response.transactions?.[0]?.error;
+
+    if (transactionError) {
       // eslint-disable-next-line @typescript-eslint/no-throw-literal
-      throw { message: response.transactions[0].error };
+      throw { message: transactionError };
     }
 
     const nativeBalanceChange = getNativeBalanceChange(request.from, response);

@@ -797,9 +797,6 @@ describe('TransactionController Integration', () => {
             isMultichainEnabled: true,
             getPermittedAccounts: async () => [ACCOUNT_MOCK],
             getSelectedAddress: () => ACCOUNT_MOCK,
-            pendingTransactions: {
-              isResubmitEnabled: false,
-            },
           });
         const otherNetworkClientIdOnGoerli =
           await networkController.upsertNetworkConfiguration(

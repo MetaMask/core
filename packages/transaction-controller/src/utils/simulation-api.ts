@@ -145,6 +145,8 @@ export type SimulationResponse = {
   transactions: SimulationResponseTransaction[];
 };
 
+let requestIdCounter = 0;
+
 /**
  * Simulate transactions using the transaction simulation API.
  * @param chainId - The chain ID to simulate transactions on.
@@ -158,10 +160,13 @@ export async function simulateTransactions(
 
   log('Sending request', url, request);
 
+  const requestId = requestIdCounter;
+  requestIdCounter += 1;
+
   const response = await fetch(url, {
     method: 'POST',
     body: JSON.stringify({
-      id: '1',
+      id: String(requestId),
       jsonrpc: '2.0',
       method: RPC_METHOD,
       params: [request],
