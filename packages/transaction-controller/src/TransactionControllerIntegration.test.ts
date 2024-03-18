@@ -782,6 +782,10 @@ describe('TransactionController Integration', () => {
               '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
               '0x1',
             ),
+            buildEthSendRawTransactionRequestMock(
+              '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+              '0x1',
+            ),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
             buildEthGetBlockByHashRequestMock('0x1'),
