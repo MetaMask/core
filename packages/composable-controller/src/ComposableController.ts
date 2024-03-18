@@ -17,7 +17,7 @@ export const controllerName = 'ComposableController';
  * A universal subtype of all controller instances that extend from `BaseControllerV1`.
  * Any `BaseControllerV1` instance can be assigned to this type.
  *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseControllerV1` instances.
+ * Note that this type is not the widest subtype or narrowest supertype of all `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type BaseControllerV1Instance =
@@ -29,7 +29,7 @@ export type BaseControllerV1Instance =
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
  * Any `BaseController` instance can be assigned to this type.
  *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` instances.
+ * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  *
  * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
@@ -43,12 +43,23 @@ export type BaseControllerInstance = {
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
  * Any `BaseController` or `BaseControllerV1` instance can be assigned to this type.
  *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
+ * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type ControllerInstance =
   | BaseControllerV1Instance
   | BaseControllerInstance;
+
+/**
+ * A narrowest supertype of all `RestrictedControllerMessenger` instances.
+ */
+type RestrictedControllerMessengerConstraint = RestrictedControllerMessenger<
+  string,
+  ActionConstraint,
+  EventConstraint,
+  string,
+  string
+>;
 
 /**
  * Determines if the given controller is an instance of `BaseControllerV1`
@@ -84,13 +95,7 @@ export function isBaseController(
 ): controller is BaseController<
   string,
   StateConstraint,
-  RestrictedControllerMessenger<
-    string,
-    ActionConstraint,
-    EventConstraint,
-    string,
-    string
-  >
+  RestrictedControllerMessengerConstraint
 > {
   return (
     'name' in controller &&
@@ -101,6 +106,18 @@ export function isBaseController(
   );
 }
 
+/**
+ *
+ */
+// TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
+type LegacyControllerStateChangeEvent<
+  ControllerName extends string,
+  ControllerState extends ControllerInstance['state'],
+> = {
+  type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
+};
+
 // TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
 export type ComposableControllerState = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
@@ -109,19 +126,18 @@ export type ComposableControllerState = {
   [name: string]: Record<string, any>;
 };
 
-export type ComposableControllerStateChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ComposableControllerState, Patch[]];
-};
+export type ComposableControllerStateChangeEvent =
+  LegacyControllerStateChangeEvent<
+    typeof controllerName,
+    ComposableControllerState
+  >;
 
 export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
 
-type AnyControllerStateChangeEvent = {
-  type: `${string}:stateChange`;
-  payload: [ControllerInstance['state'], Patch[]];
-};
-
-type AllowedEvents = AnyControllerStateChangeEvent;
+type AllowedEvents = LegacyControllerStateChangeEvent<
+  string,
+  ControllerInstance['state']
+>;
 
 export type ComposableControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -131,16 +147,31 @@ export type ComposableControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
+/**
+ *
+ */
 type GetStateChangeEvents<Controller extends ControllerInstance> =
-  Controller extends BaseControllerV1Instance
-    ? {
-        type: `${Controller['name']}:stateChange`;
-        payload: [Controller['state'], Patch[]];
+  Controller extends BaseControllerInstance
+    ? ControllerStateChangeEvent<Controller['name'], Controller['state']>
+    : Controller extends BaseControllerV1Instance
+    ? Controller extends {
+        messagingSystem: RestrictedControllerMessengerConstraint;
       }
-    : ControllerStateChangeEvent<Controller['name'], Controller['state']>;
+      ? LegacyControllerStateChangeEvent<
+          Controller['name'],
+          Controller['state']
+        >
+      : never
+    : never;
 
 /**
  * Controller that can be used to compose multiple controllers together.
+ * @template ChildControllers
+ * @template ComposedControllerState
+ * @template ComposedControllerStateChangeEvent
+ * @template ChildControllersStateChangeEvents
+ * @template ComposedControllerMessenger
+ * @template MessengerArgument
  */
 export class ComposableController<
   ChildControllers extends ControllerInstance,
@@ -163,6 +194,7 @@ export class ComposableController<
     never,
     ChildControllersStateChangeEvents['type']
   >,
+  MessengerArgument extends ComposedControllerMessenger = ComposedControllerMessenger,
 > extends BaseController<
   typeof controllerName,
   ComposedControllerState,
@@ -181,7 +213,7 @@ export class ComposableController<
     messenger,
   }: {
     controllers: ChildControllers[];
-    messenger: ComposedControllerMessenger;
+    messenger: MessengerArgument;
   }) {
     if (messenger === undefined) {
       throw new Error(`Messaging system is required`);
