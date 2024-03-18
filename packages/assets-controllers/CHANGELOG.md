@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [27.1.0]
 
-### Uncategorized
+### Added
 
-- fix: add updateNft fct ([#4008](https://github.com/MetaMask/core/pull/4008))
-- Release 127.0.0 ([#4065](https://github.com/MetaMask/core/pull/4065))
+- feat: add updateNft fct to update Nft metadata whenever its requested. ([#4008](https://github.com/MetaMask/core/pull/4008))
 
 ## [27.0.1]
 
