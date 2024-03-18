@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- feat: add updateNft fct to update Nft metadata whenever its requested. ([#4008](https://github.com/MetaMask/core/pull/4008))
+- Add `updateNftMetadata` method to `NftController` to update metadata for the requested NFTs ([#4008](https://github.com/MetaMask/core/pull/4008))
 
 ## [27.0.1]
 
