@@ -12,9 +12,15 @@ import type {
 } from '../types';
 import { buildUnserializedTransaction } from '../utils/layer1-gas-fee-flow';
 
-const OPTIMISIM_CHAIN_IDS: Hex[] = [
+// This gas flow to be used for the following OP stack chains
+const OPTIMISM_STACK_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.OPTIMISM,
   CHAIN_IDS.OPTIMISM_TESTNET,
+  CHAIN_IDS.BASE,
+  CHAIN_IDS.BASE_TESTNET,
+  CHAIN_IDS.OPBNB,
+  CHAIN_IDS.OPBNB_TESTNET,
+  CHAIN_IDS.ZORA,
 ];
 
 const log = createModuleLogger(projectLogger, 'optimisim-layer1-gas-fee-flow');
@@ -41,7 +47,7 @@ const OPTIMISM_GAS_PRICE_ORACLE_ADDRESS =
  */
 export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
   matchesTransaction(transactionMeta: TransactionMeta): boolean {
-    return OPTIMISIM_CHAIN_IDS.includes(transactionMeta.chainId);
+    return OPTIMISM_STACK_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 
   async #getOptimisimLayer1GasFee(
