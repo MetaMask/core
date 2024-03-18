@@ -65,25 +65,42 @@ const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   },
 ];
 
+const INFURA_AUTH_TOKEN_MOCK = 'test';
+
 describe('gas utils', () => {
   describe('fetchGasEstimates', () => {
     it('should fetch external gasFeeEstimates when data is valid', async () => {
-      const scope = nock('https://not-a-real-url/')
+      const scope = nock('https://not-a-real-url/', {
+        reqheaders: {
+          Authorization: INFURA_AUTH_TOKEN_MOCK,
+        },
+      })
         .get(/.+/u)
         .reply(200, mockEIP1559ApiResponses[0])
         .persist();
-      const result = await fetchGasEstimates('https://not-a-real-url/');
+      const result = await fetchGasEstimates(
+        'https://not-a-real-url/',
+        INFURA_AUTH_TOKEN_MOCK,
+      );
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
       scope.done();
     });
 
     it('should fetch external gasFeeEstimates with client id header when clientId arg is added', async () => {
-      const scope = nock('https://not-a-real-url/')
+      const scope = nock('https://not-a-real-url/', {
+        reqheaders: {
+          Authorization: INFURA_AUTH_TOKEN_MOCK,
+        },
+      })
         .matchHeader('x-client-id', 'test')
         .get(/.+/u)
         .reply(200, mockEIP1559ApiResponses[0])
         .persist();
-      const result = await fetchGasEstimates('https://not-a-real-url/', 'test');
+      const result = await fetchGasEstimates(
+        'https://not-a-real-url/',
+        INFURA_AUTH_TOKEN_MOCK,
+        'test',
+      );
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
       scope.done();
     });
@@ -111,11 +128,18 @@ describe('gas utils', () => {
         estimatedBaseFee: '32.000000017',
       };
 
-      const scope = nock('https://not-a-real-url/')
+      const scope = nock('https://not-a-real-url/', {
+        reqheaders: {
+          Authorization: INFURA_AUTH_TOKEN_MOCK,
+        },
+      })
         .get(/.+/u)
         .reply(200, mockEIP1559ApiResponses[1])
         .persist();
-      const result = await fetchGasEstimates('https://not-a-real-url/');
+      const result = await fetchGasEstimates(
+        'https://not-a-real-url/',
+        INFURA_AUTH_TOKEN_MOCK,
+      );
       expect(result).toMatchObject(expectedResult);
       scope.done();
     });
@@ -123,7 +147,11 @@ describe('gas utils', () => {
 
   describe('fetchLegacyGasPriceEstimates', () => {
     it('should fetch external gasPrices and return high/medium/low', async () => {
-      const scope = nock('https://not-a-real-url/')
+      const scope = nock('https://not-a-real-url/', {
+        reqheaders: {
+          Authorization: INFURA_AUTH_TOKEN_MOCK,
+        },
+      })
         .get(/.+/u)
         .reply(200, {
           SafeGasPrice: '22',
@@ -133,6 +161,7 @@ describe('gas utils', () => {
         .persist();
       const result = await fetchLegacyGasPriceEstimates(
         'https://not-a-real-url/',
+        INFURA_AUTH_TOKEN_MOCK,
       );
       expect(result).toMatchObject({
         high: '30',
@@ -143,7 +172,11 @@ describe('gas utils', () => {
     });
 
     it('should fetch external gasPrices with client id header when clientId arg is passed', async () => {
-      const scope = nock('https://not-a-real-url/')
+      const scope = nock('https://not-a-real-url/', {
+        reqheaders: {
+          Authorization: INFURA_AUTH_TOKEN_MOCK,
+        },
+      })
         .matchHeader('x-client-id', 'test')
         .get(/.+/u)
         .reply(200, {
@@ -154,6 +187,7 @@ describe('gas utils', () => {
         .persist();
       const result = await fetchLegacyGasPriceEstimates(
         'https://not-a-real-url/',
+        INFURA_AUTH_TOKEN_MOCK,
         'test',
       );
       expect(result).toMatchObject({

@@ -33,17 +33,21 @@ export function normalizeGWEIDecimalNumbers(n: string | number) {
  * Fetch gas estimates from the given URL.
  *
  * @param url - The gas estimate URL.
+ * @param infuraAuthToken - The infura auth token to use for the request.
  * @param clientId - The client ID used to identify to the API who is asking for estimates.
  * @returns The gas estimates.
  */
 export async function fetchGasEstimates(
   url: string,
+  infuraAuthToken: string,
   clientId?: string,
 ): Promise<GasFeeEstimates> {
-  const estimates = await handleFetch(
-    url,
-    clientId ? { headers: makeClientIdHeader(clientId) } : undefined,
-  );
+  const estimates = await handleFetch(url, {
+    headers: {
+      Authorization: `Basic ${infuraAuthToken}`,
+      ...(clientId && makeClientIdHeader(clientId)),
+    },
+  });
   return {
     low: {
       ...estimates.low,
@@ -87,11 +91,13 @@ export async function fetchGasEstimates(
  * high values from that API.
  *
  * @param url - The URL to fetch gas price estimates from.
+ * @param infuraAuthToken - The infura auth token to use for the request.
  * @param clientId - The client ID used to identify to the API who is asking for estimates.
  * @returns The gas price estimates.
  */
 export async function fetchLegacyGasPriceEstimates(
   url: string,
+  infuraAuthToken: string,
   clientId?: string,
 ): Promise<LegacyGasPriceEstimate> {
   const result = await handleFetch(url, {
@@ -101,6 +107,7 @@ export async function fetchLegacyGasPriceEstimates(
     mode: 'cors',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Basic ${infuraAuthToken}`,
       ...(clientId && makeClientIdHeader(clientId)),
     },
   });
