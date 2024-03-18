@@ -159,7 +159,7 @@ export interface Nft extends NftMetadata {
   isCurrentlyOwned?: boolean;
 }
 
-export type NftUpdate = {
+type NftUpdate = {
   nft: Nft;
   newMetadata: NftMetadata;
 };
