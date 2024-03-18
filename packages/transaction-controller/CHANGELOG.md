@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 127.0.0 ([#4065](https://github.com/MetaMask/core/pull/4065))
+- Fix intermittently failing TransactionController test ([#4057](https://github.com/MetaMask/core/pull/4057))
+
 ## [25.1.0]
 
 ### Added
