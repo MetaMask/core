@@ -178,8 +178,11 @@ const createSubmitTransactionsApiResponse = () => {
   return { uuid: 'dP23W7c2kt4FK9TmXOkz1UM2F20' };
 };
 
-// TODO: How exactly a signed transaction should look like?
 const createSignedTransaction = () => {
+  return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
+};
+
+const createTxParams = () => {
   return {
     from: '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3',
     to: '0x0000000000000000000000000000000000000000',
@@ -193,19 +196,8 @@ const createSignedTransaction = () => {
   };
 };
 
-// TODO: How exactly a signed canceled transaction should look like?
 const createSignedCanceledTransaction = () => {
-  return {
-    from: '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3',
-    to: '0x0000000000000000000000000000000000000000',
-    value: 0,
-    data: '0x',
-    nonce: 0,
-    type: 2,
-    chainId: 4,
-    maxFeePerGas: 2100001000,
-    maxPriorityFeePerGas: 466503987,
-  };
+  return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
 };
 
 const createPendingBatchStatusApiResponse = () => ({
@@ -655,7 +647,7 @@ describe('SmartTransactionsController', () => {
       await smartTransactionsController.submitSignedTransactions({
         signedTransactions: [signedTransaction],
         signedCanceledTransactions: [signedCanceledTransaction],
-        txParams: signedTransaction,
+        txParams: createTxParams(),
       });
 
       expect(
@@ -872,7 +864,6 @@ describe('SmartTransactionsController', () => {
       );
 
       await flushPromises();
-
       expect(
         smartTransactionsController.state.smartTransactionsState
           .smartTransactions[CHAIN_IDS.ETHEREUM],

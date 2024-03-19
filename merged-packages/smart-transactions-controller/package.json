@@ -25,6 +25,8 @@
     "test:watch": "jest --watchAll"
   },
   "dependencies": {
+    "@ethereumjs/tx": "^5.2.1",
+    "@ethereumjs/util": "^9.0.2",
     "@ethersproject/bytes": "^5.7.0",
     "@metamask/base-controller": "^4.0.0",
     "@metamask/controller-utils": "^8.0.2",

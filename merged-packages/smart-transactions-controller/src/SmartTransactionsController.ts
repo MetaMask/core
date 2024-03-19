@@ -42,6 +42,7 @@ import {
   isSmartTransactionPending,
   replayHistory,
   snapshotFromTxMeta,
+  getTxHash,
 } from './utils';
 
 const SECOND = 1000;
@@ -92,7 +93,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   private readonly trackMetaMetricsEvent: any;
 
-  private readonly eventEmitter: EventEmitter;
+  public eventEmitter: EventEmitter;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
@@ -328,7 +329,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     });
   }
 
-  #updateSmartTransaction(
+  async #updateSmartTransaction(
     smartTransaction: SmartTransaction,
     {
       chainId = this.config.chainId,
@@ -337,7 +338,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       chainId: Hex;
       ethQuery: EthQuery | undefined;
     },
-  ): void {
+  ): Promise<void> {
     const { smartTransactionsState } = this.state;
     const { smartTransactions } = smartTransactionsState;
     const currentSmartTransactions = smartTransactions[chainId] ?? [];
@@ -398,29 +399,32 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         ...currentSmartTransaction,
         ...smartTransaction,
       };
-      if (!smartTransaction.skipConfirm) {
-        this.#confirmSmartTransaction(nextSmartTransaction, {
-          chainId,
-          ethQuery,
-        });
-      }
+      await this.#confirmSmartTransaction(nextSmartTransaction, {
+        chainId,
+        ethQuery,
+      });
+    } else {
+      this.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            ...smartTransactionsState.smartTransactions,
+            [chainId]: smartTransactionsState.smartTransactions[chainId].map(
+              (item, index) => {
+                return index === currentIndex
+                  ? { ...item, ...smartTransaction }
+                  : item;
+              },
+            ),
+          },
+        },
+      });
     }
 
-    this.update({
-      smartTransactionsState: {
-        ...smartTransactionsState,
-        smartTransactions: {
-          ...smartTransactionsState.smartTransactions,
-          [chainId]: smartTransactionsState.smartTransactions[chainId].map(
-            (item, index) => {
-              return index === currentIndex
-                ? { ...item, ...smartTransaction }
-                : item;
-            },
-          ),
-        },
-      },
-    });
+    this.eventEmitter.emit(
+      `${smartTransaction.uuid}:smartTransaction`,
+      smartTransaction,
+    );
   }
 
   async updateSmartTransactions({
@@ -453,10 +457,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       ethQuery: EthQuery | undefined;
     },
   ) {
-    if (smartTransaction.skipConfirm) {
-      return;
-    }
-
     if (ethQuery === undefined) {
       throw new Error(ETH_QUERY_ERROR_MSG);
     }
@@ -467,7 +467,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         maxPriorityFeePerGas?: string;
         blockNumber: string;
       } | null = await query(ethQuery, 'getTransactionReceipt', [txHash]);
-
       const transaction: {
         maxFeePerGas?: string;
         maxPriorityFeePerGas?: string;
@@ -568,7 +567,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         cancellable: isSmartTransactionCancellable(stxStatus),
         uuid,
       };
-      this.eventEmitter.emit(`${uuid}:smartTransaction`, smartTransaction);
       this.#updateSmartTransaction(smartTransaction, { chainId, ethQuery });
     });
 
@@ -669,17 +667,17 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
   // * After this successful call client must add a nonce representative to
   // * transaction controller external transactions list
   async submitSignedTransactions({
+    transactionMeta,
     txParams,
     signedTransactions,
     signedCanceledTransactions,
     networkClientId,
-    skipConfirm,
   }: {
     signedTransactions: SignedTransaction[];
     signedCanceledTransactions: SignedCanceledTransaction[];
+    transactionMeta?: any;
     txParams?: any;
     networkClientId?: NetworkClientId;
-    skipConfirm?: boolean;
   }) {
     const chainId = this.#getChainId({ networkClientId });
     const ethQuery = this.#getEthQuery({ networkClientId });
@@ -717,6 +715,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         txParams.nonce ??= nonce;
       }
     }
+    const submitTransactionResponse = {
+      ...data,
+      txHash: getTxHash(signedTransactions[0]),
+    };
 
     try {
       this.#updateSmartTransaction(
@@ -727,9 +729,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           status: SmartTransactionStatuses.PENDING,
           time,
           txParams,
-          uuid: data.uuid,
+          uuid: submitTransactionResponse.uuid,
+          txHash: submitTransactionResponse.txHash,
           cancellable: true,
-          skipConfirm: skipConfirm ?? false,
+          type: transactionMeta?.type || 'swap',
         },
         { chainId, ethQuery },
       );
@@ -737,7 +740,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       nonceLock?.releaseLock();
     }
 
-    return data;
+    return submitTransactionResponse;
   }
 
   #getChainId({

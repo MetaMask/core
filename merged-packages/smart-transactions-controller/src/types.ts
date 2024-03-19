@@ -71,6 +71,7 @@ export type SmartTransactionsStatus = {
 
 export type SmartTransaction = {
   uuid: string;
+  txHash?: string;
   chainId?: string;
   destinationTokenAddress?: string;
   destinationTokenDecimals?: string;
@@ -84,12 +85,12 @@ export type SmartTransaction = {
   sourceTokenSymbol?: string;
   swapMetaData?: any;
   swapTokenValue?: string;
-  time?: number;
+  time?: number; // @deprecated We should use creationTime instead.
+  creationTime?: number;
   txParams?: any;
   type?: string;
   confirmed?: boolean;
   cancellable?: boolean;
-  skipConfirm?: boolean;
 };
 
 export type Fee = {

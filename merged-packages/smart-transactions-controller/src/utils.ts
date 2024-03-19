@@ -1,3 +1,5 @@
+import { TransactionFactory } from '@ethereumjs/tx';
+import { bytesToHex } from '@ethereumjs/util';
 import { hexlify } from '@ethersproject/bytes';
 import { BigNumber } from 'bignumber.js';
 import jsonDiffer from 'fast-json-patch';
@@ -213,4 +215,15 @@ export const isSmartTransactionCancellable = (
 export const incrementNonceInHex = (nonceInHex: string): string => {
   const nonceInDec = new BigNumber(nonceInHex, 16).toString(10);
   return hexlify(Number(nonceInDec) + 1);
+};
+
+export const getTxHash = (signedTxHex: any) => {
+  if (!signedTxHex) {
+    return '';
+  }
+  const txHashBytes = TransactionFactory.fromSerializedData(
+    // eslint-disable-next-line no-restricted-globals
+    Buffer.from(signedTxHex.slice(2), 'hex'),
+  ).hash();
+  return bytesToHex(txHashBytes);
 };

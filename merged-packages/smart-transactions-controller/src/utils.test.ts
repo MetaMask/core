@@ -10,11 +10,17 @@ import {
 import * as utils from './utils';
 import packageJson from '../package.json';
 
+const createSignedTransaction = () => {
+  return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
+};
+
 describe('src/utils.js', () => {
   describe('isSmartTransactionPending', () => {
     const createSmartTransaction = () => {
       return {
         uuid: 'sdfasfj345345dfgag45353',
+        txHash:
+          '0x3c3e7c5e09c250d2200bcc3530f4a9088d7e3fb4ea3f4fccfd09f535a3539e84',
         status: 'pending',
         statusMetadata: {
           error: undefined,
@@ -272,6 +278,27 @@ describe('src/utils.js', () => {
       expect(errResponseCamelCase.errorDetails).toStrictEqual(
         errResponse.error_details,
       );
+    });
+  });
+
+  describe('getTxHash', () => {
+    it('returns a transaction hash from a signed transaction', () => {
+      const expectedTxHash =
+        '0x0302b75dfb9fd9eb34056af031efcaee2a8cbd799ea054a85966165cd82a7356';
+      const txHash = utils.getTxHash(createSignedTransaction());
+      expect(txHash).toBe(expectedTxHash);
+    });
+
+    it('returns an empty string if there is no signed transaction', () => {
+      const expectedTxHash = '';
+      const txHash = utils.getTxHash('');
+      expect(txHash).toBe(expectedTxHash);
+    });
+
+    it('throws an error with an incorrect signed transaction', () => {
+      expect(() => {
+        utils.getTxHash('0x0302b75dfb9fd9eb34056af0');
+      }).toThrow('kzg instance required to instantiate blob tx');
     });
   });
 });
