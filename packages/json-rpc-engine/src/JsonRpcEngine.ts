@@ -407,7 +407,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       const error = new JsonRpcError(
         errorCodes.rpc.invalidRequest,
         `Must specify a string method. Received: ${typeof callerReq.method}`,
-        { request: callerReq as Json },
+        { request: callerReq },
       );
 
       if (this.#notificationHandler && !isJsonRpcRequest(callerReq)) {
@@ -578,7 +578,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
                     `Received "${typeof returnHandler}" for request:\n${jsonify(
                       request,
                     )}`,
-                  { request: request as Json },
+                  { request },
                 ),
               );
             }
@@ -634,7 +634,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
         `JsonRpcEngine: Response has no error or result for request:\n${jsonify(
           request,
         )}`,
-        { request: request as Json },
+        { request },
       );
     }
 
@@ -642,7 +642,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       throw new JsonRpcError(
         errorCodes.rpc.internal,
         `JsonRpcEngine: Nothing ended request:\n${jsonify(request)}`,
-        { request: request as Json },
+        { request },
       );
     }
   }
