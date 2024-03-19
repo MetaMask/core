@@ -45,7 +45,8 @@ export async function fetchGasEstimates(
   const estimates = await handleFetch(url, {
     headers: {
       Authorization: `Basic ${infuraAuthToken}`,
-      ...(clientId && makeClientIdHeader(clientId)),
+      // Only add the clientId header if clientId is a non-empty string
+      ...(clientId?.trim() ? makeClientIdHeader(clientId) : {}),
     },
   });
   return {
@@ -108,7 +109,8 @@ export async function fetchLegacyGasPriceEstimates(
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Basic ${infuraAuthToken}`,
-      ...(clientId && makeClientIdHeader(clientId)),
+      // Only add the clientId header if clientId is a non-empty string
+      ...(clientId?.trim() ? makeClientIdHeader(clientId) : {}),
     },
   });
   return {
