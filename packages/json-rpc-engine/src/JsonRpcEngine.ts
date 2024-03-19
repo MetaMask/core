@@ -146,10 +146,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   handle<Params extends JsonRpcParams, Result extends Json>(
     request: JsonRpcRequest<Params>,
-    callback: (
-      error: JsonRpcEngineCallbackError,
-      response: JsonRpcResponse<Result>,
-    ) => void,
+    callback: (error: unknown, response: JsonRpcResponse<Result>) => void,
   ): void;
 
   /**
@@ -160,7 +157,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   handle<Params extends JsonRpcParams>(
     notification: JsonRpcNotification<Params>,
-    callback: (error: JsonRpcEngineCallbackError, response: void) => void,
+    callback: (error: unknown, response: void) => void,
   ): void;
 
   /**
@@ -173,10 +170,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   handle<Params extends JsonRpcParams, Result extends Json>(
     requests: (JsonRpcRequest<Params> | JsonRpcNotification<Params>)[],
-    callback: (
-      error: JsonRpcEngineCallbackError,
-      responses: JsonRpcResponse<Result>[],
-    ) => void,
+    callback: (error: unknown, responses: JsonRpcResponse<Result>[]) => void,
   ): void;
 
   /**
@@ -214,7 +208,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       | (JsonRpcRequest | JsonRpcNotification)[]
       | JsonRpcRequest
       | JsonRpcNotification,
-    callback?: unknown,
+    callback?: (error: unknown, response: never) => void,
   ) {
     this.#assertIsNotDestroyed();
 
@@ -518,7 +512,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     middlewares: JsonRpcMiddleware<JsonRpcParams, Json>[],
   ): Promise<
     [
-      JsonRpcEngineCallbackError, // error
+      unknown, // error
       boolean, // isComplete
       JsonRpcEngineReturnHandler[],
     ]
@@ -558,7 +552,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     response: PendingJsonRpcResponse<Json>,
     middleware: JsonRpcMiddleware<JsonRpcParams, Json>,
     returnHandlers: JsonRpcEngineReturnHandler[],
-  ): Promise<[JsonRpcEngineCallbackError, boolean]> {
+  ): Promise<[unknown, boolean]> {
     return new Promise((resolve) => {
       const end: JsonRpcEngineEndCallback = (error) => {
         const parsedError = error || response.error;
