@@ -159,6 +159,11 @@ export interface Nft extends NftMetadata {
   isCurrentlyOwned?: boolean;
 }
 
+type NftUpdate = {
+  nft: Nft;
+  newMetadata: NftMetadata;
+};
+
 /**
  * @type NftContract
  *
@@ -1486,6 +1491,59 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         source,
       );
     }
+  }
+
+  /**
+   * Refetches NFT metadata and updates the state
+   *
+   * @param options - Options for refetching NFT metadata
+   * @param options.nfts - Array of nfts
+   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options.userAddress - The current user address
+   */
+  async updateNftMetadata({
+    nfts,
+    networkClientId,
+    userAddress = this.config.selectedAddress,
+  }: {
+    nfts: Nft[];
+    networkClientId?: NetworkClientId;
+    userAddress?: string;
+  }) {
+    const chainId = this.getCorrectChainId({ networkClientId });
+    const nftsWithChecksumAdr = nfts.map((nft) => {
+      return {
+        ...nft,
+        address: toChecksumHexAddress(nft.address),
+      };
+    });
+    const nftMetadataResults = await Promise.allSettled(
+      nftsWithChecksumAdr.map(async (nft) => {
+        const resMetadata = await this.getNftInformation(
+          nft.address,
+          nft.tokenId,
+          networkClientId,
+        );
+        return {
+          nft,
+          newMetadata: resMetadata,
+        };
+      }),
+    );
+
+    nftMetadataResults
+      .filter(
+        (result): result is PromiseFulfilledResult<NftUpdate> =>
+          result.status === 'fulfilled',
+      )
+      .forEach((elm) =>
+        this.updateNft(
+          elm.value.nft,
+          elm.value.newMetadata,
+          userAddress,
+          chainId,
+        ),
+      );
   }
 
   /**
