@@ -349,9 +349,8 @@ export class GasFeeController extends StaticIntervalPollingController<
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
     this.#getProvider = getProvider;
-    const { EIP1559APIEndpoint, legacyAPIEndpoint } = this.#getAPIEndpoints();
-    this.EIP1559APIEndpoint = EIP1559APIEndpoint;
-    this.legacyAPIEndpoint = legacyAPIEndpoint;
+    this.EIP1559APIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/suggestedGasFees`;
+    this.legacyAPIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/gasPrices`;
     this.clientId = clientId;
     this.infuraAuthToken = Buffer.from(
       `${infuraAPIKey}:${infuraAPIKeySecret}`,
@@ -594,16 +593,6 @@ export class GasFeeController extends StaticIntervalPollingController<
 
       this.currentChainId = newChainId;
     }
-  }
-
-  #getAPIEndpoints() {
-    const EIP1559APIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/suggestedGasFees`;
-    const legacyAPIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/gasPrices`;
-
-    return {
-      EIP1559APIEndpoint,
-      legacyAPIEndpoint,
-    };
   }
 }
 
