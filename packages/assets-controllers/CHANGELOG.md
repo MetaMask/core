@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add export for const `SUPPORTED_CHAIN_IDS` in `token-prices-service.ts` and `index.ts` ([#4079](https://github.com/MetaMask/core/pull/4079))
+- `CodefiTokenPricesServiceV2` exports `SUPPORTED_CHAIN_IDS`, an array of chain IDs supported by Codefi Price API V2. ([#4079](https://github.com/MetaMask/core/pull/4079))
 
 ## [27.1.0]
 
