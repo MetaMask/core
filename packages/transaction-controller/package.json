@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "23.1.0",
+  "version": "25.1.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
@@ -35,13 +45,14 @@
     "@ethereumjs/tx": "^4.2.0",
     "@ethereumjs/util": "^8.1.0",
     "@ethersproject/abi": "^5.7.0",
-    "@metamask/approval-controller": "^5.1.2",
-    "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.3",
+    "@ethersproject/providers": "^5.7.0",
+    "@metamask/approval-controller": "^6.0.1",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/controller-utils": "^9.0.2",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^13.0.1",
+    "@metamask/gas-fee-controller": "^14.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",
-    "@metamask/network-controller": "^17.2.0",
+    "@metamask/network-controller": "^18.0.1",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
@@ -60,6 +71,7 @@
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
+    "immer": "^9.0.6",
     "jest": "^27.5.1",
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
@@ -70,9 +82,9 @@
   },
   "peerDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/approval-controller": "^5.1.2",
-    "@metamask/gas-fee-controller": "^13.0.0",
-    "@metamask/network-controller": "^17.2.0"
+    "@metamask/approval-controller": "^6.0.0",
+    "@metamask/gas-fee-controller": "^14.0.0",
+    "@metamask/network-controller": "^18.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

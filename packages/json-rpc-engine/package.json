@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "7.3.2",
+  "version": "8.0.1",
   "description": "A tool for processing JSON-RPC messages",
   "keywords": [
     "MetaMask",
@@ -15,8 +15,17 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "ISC",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "directories": {
     "test": "test"
   },
@@ -24,8 +33,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "build:clean": "rimraf dist && yarn build",
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",

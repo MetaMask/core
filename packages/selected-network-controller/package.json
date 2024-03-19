@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "8.0.0",
+  "version": "10.0.1",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/selected-network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/selected-network-controller",
@@ -31,15 +41,15 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.1.1",
-    "@metamask/json-rpc-engine": "^7.3.2",
-    "@metamask/network-controller": "^17.2.0",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/json-rpc-engine": "^8.0.1",
+    "@metamask/network-controller": "^18.0.1",
+    "@metamask/permission-controller": "^9.0.2",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^8.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/permission-controller": "^8.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -53,7 +63,8 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^17.2.0"
+    "@metamask/network-controller": "^18.0.0",
+    "@metamask/permission-controller": "^9.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

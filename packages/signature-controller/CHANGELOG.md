@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [14.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/logging-controller` to `^3.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/message-manager` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` dependency and peer dependency to `^13.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/approval-controller` to `^5.1.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/logging-controller` to `^2.0.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/message-manager` to `^7.3.9` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3954](https://github.com/MetaMask/core/pull/3954))
+- Remove dependency `ethereumjs-util` ([#3943](https://github.com/MetaMask/core/pull/3943))
+
 ## [12.0.0]
 
 ### Changed
@@ -189,7 +224,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.1...HEAD
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.0...@metamask/signature-controller@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@13.0.0...@metamask/signature-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@12.0.0...@metamask/signature-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@11.0.0...@metamask/signature-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@10.0.0...@metamask/signature-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@9.0.0...@metamask/signature-controller@10.0.0

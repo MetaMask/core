@@ -7,11 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [0.6.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Export `QueuedRequestControllerGetStateAction` and `QueuedRequestControllerStateChangeEvent` ([#3984](https://github.com/MetaMask/core/pull/3984))
+
+### Changed
+
+- **BREAKING**: The `QueuedRequestController` will now batch queued requests by origin ([#3781](https://github.com/MetaMask/core/pull/3781), [#4038](https://github.com/MetaMask/core/pull/4038))
+  - All of the requests in a single batch will be processed in parallel.
+  - Requests get processed in order of insertion, even across origins/batches.
+  - All requests get processed even in the event of preceding requests failing.
+- **BREAKING:** The `queuedRequestCount` state no longer includes requests that are currently being processed; it just counts requests that are queued ([#3781](https://github.com/MetaMask/core/pull/3781))
+- **BREAKING:** The `QueuedRequestController` no longer triggers a confirmation when a network switch is needed ([#3781](https://github.com/MetaMask/core/pull/3781))
+  - The network switch now happens automatically, with no confirmation.
+  - A new `QueuedRequestController:networkSwitched` event has been added to communicate when this has happened.
+  - The `QueuedRequestController` messenger no longer needs access to the actions `NetworkController:getNetworkConfigurationByNetworkClientId` and `ApprovalController:addRequest`.
+  - The package `@metamask/approval-controller` has been completely removed as a dependency
+- **BREAKING:** The `QueuedRequestController` method `enqueueRequest` is now responsible for switching the network before processing a request, rather than the `QueuedRequestMiddleware` ([#3968](https://github.com/MetaMask/core/pull/3968))
+  - Functionally the behavior is the same: before processing each request, we compare the request network client with the current selected network client, and we switch the current selected network client if necessary.
+  - The `QueuedRequestController` messenger now requires four additional allowed actions:
+    - `NetworkController:getState`
+    - `NetworkController:setActiveNetwork`
+    - `NetworkController:getNetworkConfigurationByNetworkClientId`
+    - `ApprovalController:addRequest`
+  - The `QueuedRequestController` method `enqueueRequest` now takes one additional parameter, the request object.
+  - `createQueuedRequestMiddleware` no longer takes a controller messenger; instead it takes the `enqueueRequest` method from `QueuedRequestController` as a parameter.
+- **BREAKING**: Remove the `QueuedRequestController:countChanged` event ([#3985](https://github.com/MetaMask/core/pull/3985))
+  - The number of queued requests is now tracked in controller state, as the `queuedRequestCount` property. Use the `QueuedRequestController:stateChange` event to be notified of count changes instead.
+- **BREAKING**: Remove the `length` method ([#3985](https://github.com/MetaMask/core/pull/3985))
+  - The number of queued requests is now tracked in controller state, as the `queuedRequestCount` property.
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- **BREAKING:** Bump peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump peer dependency on `@metamask/selected-network-controller` to `^10.0.0` ([#3996](https://github.com/MetaMask/core/pull/3996))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/json-rpc-engine` to `^8.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970))
+
 ## [0.5.0]
+
+### Added
+
+- Add `queuedRequestCount` state ([#3919](https://github.com/MetaMask/core/pull/3919))
 
 ### Changed
 
 - **BREAKING:** Bump `@metamask/selected-network-controller` peer dependency to `^8.0.0` ([#3958](https://github.com/MetaMask/core/pull/3958))
+- Deprecate the `length` method in favor of the `queuedRequestCount` state ([#3919](https://github.com/MetaMask/core/pull/3919))
+- Deprecate the `countChanged` event in favor of the `stateChange` event ([#3919](https://github.com/MetaMask/core/pull/3919))
 
 ## [0.4.0]
 
@@ -94,7 +147,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...HEAD
+[0.6.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.0...@metamask/queued-request-controller@0.6.1
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.5.0...@metamask/queued-request-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.4.0...@metamask/queued-request-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.3.0...@metamask/queued-request-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.2.0...@metamask/queued-request-controller@0.3.0

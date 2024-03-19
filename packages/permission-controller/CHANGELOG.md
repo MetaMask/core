@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.2]
+
+### Fixed
+
+- Fix `SideEffectMessenger` type not respecting generic parameter types ([#4059](https://github.com/MetaMask/core/pull/4059))
+
+## [9.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/json-rpc-engine` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Fixed
+
+- **BREAKING:** Fix `SideEffectMessenger` so that it's defined with a `RestrictedControllerMessenger` that has access to `PermissionController` allowed actions ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - The messenger's `Action` generic parameter is widened to include the `PermissionController` actions allowlist.
+  - The messenger's `AllowedAction` generic parameter is narrowed from `string` to the `PermissionController` actions allowlist.
+
 ## [8.0.1]
 
 ### Fixed
@@ -185,7 +218,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.2...HEAD
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.1...@metamask/permission-controller@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.0...@metamask/permission-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.1...@metamask/permission-controller@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.0...@metamask/permission-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...@metamask/permission-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.0.0...@metamask/permission-controller@7.1.0

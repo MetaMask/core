@@ -3,6 +3,7 @@ export type {
   QueuedRequestControllerEnqueueRequestAction,
   QueuedRequestControllerGetStateAction,
   QueuedRequestControllerStateChangeEvent,
+  QueuedRequestControllerNetworkSwitched,
   QueuedRequestControllerEvents,
   QueuedRequestControllerActions,
   QueuedRequestControllerMessenger,

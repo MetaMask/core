@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [5.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add and export type `StateConstraint`, which is an alias for `Record<string, Json>` ([#3949](https://github.com/MetaMask/core/pull/3949))
+  - This type represents the narrowest supertype of the state of all controllers.
+  - Importing this type enables controllers to constrain state objects and types to be JSON-serializable without having to directly add `@metamask/utils` as a dependency.
+
+### Changed
+
+- **BREAKING:** Narrow the return types of functions `getAnonymizedState<ControllerState>` and `getPersistentState<ControllerState>` from `Record<string, Json>` to `Record<keyof ControllerState, Json>`. ([#3949](https://github.com/MetaMask/core/pull/3949), [#4040](https://github.com/MetaMask/core/pull/4040))
+- **BREAKING:** Align type-level and runtime behavior of `getRestricted` so that omitted or empty inputs consistently represent a set of empty allowlists ([#4013](https://github.com/MetaMask/core/pull/4013))
+  - If the `AllowedActions` and `AllowedEvents` generic parameters are omitted, they are always assumed to be `never`.
+    - Previously, omission of these generic parameters resulted in the full allowlists for the controller being inferred as type constraints for the `allowedActions` and `allowedEvents` function parameters.
+  - If the function parameters `allowedActions` and `allowedEvents` are a non-empty array, their corresponding type names must be explicitly passed into generic parameters `AllowedActions` and `AllowedEvents` to avoid type errors.
+    - This may cause some duplication of allowlists between type-level and value-level code.
+    - This requirement is only relevant for TypeScript code. A JavaScript consumer only needs to pass in the correct value-level function parameters. Because of this, these changes should not affect downstream JavaScript code, but may be disruptive to TypeScript code.
+    - `getRestricted` is still able to flag `AllowedActions` and `AllowedEvents` members that should not be included in the allowlists, based on the `Action` and `Event` generic arguments passed into the `ControllerMessenger` instance.
+- **BREAKING:** The `RestrictedControllerMessenger` class constructor now expects `allowedActions` and `allowedEvents` as required options ([#4013](https://github.com/MetaMask/core/pull/4013))
+- **BREAKING**: Add `string` as generic constraint to the `Name` generic parameter of the types `NamespacedBy` and `NotNamespacedBy` ([#4036](https://github.com/MetaMask/core/pull/4036))
+- **BREAKING:** The `getRestricted` method of the `ControllerMessenger` class now expects both `allowedActions` and `allowedEvents` as required parameters.
+  - An empty array is required if no allowed actions or events are desired.
+- Convert interface `StatePropertyMetadata` into a type alias ([#3949](https://github.com/MetaMask/core/pull/3949))
+
+### Removed
+
+- **BREAKING:** Remove the deprecated `subscribe` class field from `BaseController` ([#3949](https://github.com/MetaMask/core/pull/3949))
+  - This property was used to differentiate between `BaseControllerV1` and `BaseController` (v2) controllers. It is no longer used.
+
+### Fixed
+
+- **BREAKING:** Narrow the generic constraint of the `ControllerState` parameter from `Record<string, unknown>` to `Record<string, Json>` for types `ControllerGetStateAction`, `ControllerStateChangeEvent`, `ControllerActions`, and `ControllerEvents` ([#3949](https://github.com/MetaMask/core/pull/3949))
+- **BREAKING:** Fix `BaseController` so that mutating state directly now results in a runtime error ([#4011](https://github.com/MetaMask/core/pull/4011))
+  - Directly modifying the state outside of an `update` call may lead to parts of the application being out of sync, because such modifications do not result in the `stateChange` event being fired.
+  - Instead of mutating the state of a controller after instantiation, consumers should either initialize that controller with the proper state via options or should use the `update` method to safely modify the state.
+- **BREAKING**: Fix `subscribe` on `ControllerMessenger` and `RestrictedControllerMessenger` to infer correct types for `selector` arguments ([#4012](https://github.com/MetaMask/core/pull/4012))
+  - Previously, the types of the arguments that the `selector` function received would always be inferred as `never`, but now the types match those of `publish` (the "event payload"). This means that you shouldn't need to add use type annotations or assertions to type the `selector` arguments.
+
 ## [4.1.1]
 
 ### Changed
@@ -155,7 +201,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@5.0.0...@metamask/base-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.1.1...@metamask/base-controller@5.0.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.1.0...@metamask/base-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.1...@metamask/base-controller@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.0...@metamask/base-controller@4.0.1

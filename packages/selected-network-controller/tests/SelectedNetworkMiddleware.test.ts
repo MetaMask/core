@@ -27,6 +27,8 @@ describe('createSelectedNetworkMiddleware', () => {
     const middleware = createSelectedNetworkMiddleware(
       messenger.getRestricted({
         name: 'SelectedNetworkController',
+        allowedActions: [],
+        allowedEvents: [],
       }),
     );
     const req: SelectedNetworkMiddlewareJsonRpcRequest = {
@@ -49,6 +51,8 @@ describe('createSelectedNetworkMiddleware', () => {
     const middleware = createSelectedNetworkMiddleware(
       messenger.getRestricted({
         name: 'SelectedNetworkController',
+        allowedActions: [],
+        allowedEvents: [],
       }),
     );
 
@@ -83,6 +87,8 @@ describe('createSelectedNetworkMiddleware', () => {
       createSelectedNetworkMiddleware(
         messenger.getRestricted({
           name: 'SelectedNetworkController',
+          allowedActions: [],
+          allowedEvents: [],
         }),
       ),
     );

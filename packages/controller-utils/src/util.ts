@@ -44,9 +44,7 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @param inputBn - BN instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function BNToHex(inputBn: any) {
+export function BNToHex(inputBn: BN) {
   return add0x(inputBn.toString(16));
 }
 
@@ -59,9 +57,7 @@ export function BNToHex(inputBn: any) {
  * @returns Product of the multiplication.
  */
 export function fractionBN(
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetBN: any,
+  targetBN: BN,
   numerator: number | string,
   denominator: number | string,
 ) {
@@ -255,20 +251,45 @@ export async function safelyExecuteWithTimeout<Result>(
 }
 
 /**
- * Convert an address to a checksummed hexidecimal address.
+ * Convert an address to a checksummed hexadecimal address.
  *
  * @param address - The address to convert.
- * @returns A 0x-prefixed hexidecimal checksummed address, if address is valid. Otherwise original input 0x-prefixe, if address is valid. Otherwise original input 0x-prefixed.
+ * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
  */
-export function toChecksumHexAddress(address: string) {
+export function toChecksumHexAddress(address: string): string;
+
+/**
+ * Convert an address to a checksummed hexadecimal address.
+ *
+ * Note that this particular overload does nothing.
+ *
+ * @param address - A value that is not a string (e.g. `undefined` or `null`).
+ * @returns The `address` untouched.
+ * @deprecated This overload is designed to gracefully handle an invalid input
+ * and is only present for backward compatibility. It may be removed in a future
+ * major version. Please pass a string to `toChecksumHexAddress` instead.
+ */
+export function toChecksumHexAddress<T>(address: T): T;
+
+// Tools only see JSDocs for overloads and ignore them for the implementation.
+// eslint-disable-next-line jsdoc/require-jsdoc
+export function toChecksumHexAddress(address: unknown) {
+  if (typeof address !== 'string') {
+    // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
+    // function was previously using) for backward compatibility.
+    return address;
+  }
+
   const hexPrefixed = add0x(address);
+
   if (!isHexString(hexPrefixed)) {
-    // Version 5.1 of ethereumjs-utils would have returned '0xY' for input 'y'
+    // Version 5.1 of ethereumjs-util would have returned '0xY' for input 'y'
     // but we shouldn't waste effort trying to change case on a clearly invalid
     // string. Instead just return the hex prefixed original string which most
     // closely mimics the original behavior.
     return hexPrefixed;
   }
+
   return toChecksumAddress(hexPrefixed);
 }
 
@@ -422,6 +443,10 @@ export async function timeoutFetch(
  * @returns The normalized ENS name string.
  */
 export function normalizeEnsName(ensName: string): string | null {
+  // `.` refers to the registry root contract
+  if (ensName === '.') {
+    return ensName;
+  }
   if (ensName && typeof ensName === 'string') {
     try {
       const normalized = ensNamehash.normalize(ensName.trim());
@@ -539,25 +564,27 @@ export function isValidJson(value: unknown): value is Json {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function logOrRethrowError(error: any, codesToCatch: number[] = []) {
+function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
   if (!error) {
     return;
   }
 
-  const includesErrorCodeToCatch = codesToCatch.some((code) =>
-    error.message?.includes(`Fetch failed with status '${code}'`),
-  );
+  if (error instanceof Error) {
+    const includesErrorCodeToCatch = codesToCatch.some((code) =>
+      error.message.includes(`Fetch failed with status '${code}'`),
+    );
 
-  if (
-    error instanceof Error &&
-    (includesErrorCodeToCatch ||
-      error.message?.includes('Failed to fetch') ||
-      error === TIMEOUT_ERROR)
-  ) {
-    console.error(error);
+    if (
+      includesErrorCodeToCatch ||
+      error.message.includes('Failed to fetch') ||
+      error === TIMEOUT_ERROR
+    ) {
+      console.error(error);
+    } else {
+      throw error;
+    }
   } else {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
     throw error;
   }
 }

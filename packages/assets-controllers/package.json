@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "25.0.0",
+  "version": "27.1.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/assets-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
@@ -37,17 +47,17 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/abi-utils": "^2.0.2",
-    "@metamask/accounts-controller": "^10.0.0",
-    "@metamask/approval-controller": "^5.1.2",
-    "@metamask/base-controller": "^4.1.1",
+    "@metamask/accounts-controller": "^12.0.1",
+    "@metamask/approval-controller": "^6.0.1",
+    "@metamask/base-controller": "^5.0.1",
     "@metamask/contract-metadata": "^2.4.0",
-    "@metamask/controller-utils": "^8.0.3",
+    "@metamask/controller-utils": "^9.0.2",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/keyring-controller": "^12.2.0",
+    "@metamask/keyring-controller": "^14.0.1",
     "@metamask/metamask-eth-abis": "3.0.0",
-    "@metamask/network-controller": "^17.2.0",
-    "@metamask/polling-controller": "^5.0.0",
-    "@metamask/preferences-controller": "^7.0.0",
+    "@metamask/network-controller": "^18.0.1",
+    "@metamask/polling-controller": "^6.0.1",
+    "@metamask/preferences-controller": "^9.0.1",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "@types/bn.js": "^5.1.5",
@@ -78,11 +88,11 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^10.0.0",
-    "@metamask/approval-controller": "^5.1.2",
-    "@metamask/keyring-controller": "^12.2.0",
-    "@metamask/network-controller": "^17.2.0",
-    "@metamask/preferences-controller": "^7.0.0"
+    "@metamask/accounts-controller": "^12.0.0",
+    "@metamask/approval-controller": "^6.0.0",
+    "@metamask/keyring-controller": "^14.0.0",
+    "@metamask/network-controller": "^18.0.0",
+    "@metamask/preferences-controller": "^9.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

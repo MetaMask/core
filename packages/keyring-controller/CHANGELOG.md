@@ -7,12 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [14.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/message-manager` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Fixed
+
+- **BREAKING:** Narrow `KeyringControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - Allowlisting or using any external actions or events will now produce a type error.
+
+## [13.0.0]
+
+### Added
+
+- Add `isCustodyKeyring` function ([#3899](https://github.com/MetaMask/core/pull/3899))
+- Add `keyringBuilderFactory` utility function ([#3830](https://github.com/MetaMask/core/pull/3830))
+- Add `GenericEncryptor`, `ExportableKeyEncryptor`, and `SerializedKeyring` types ([#3830](https://github.com/MetaMask/core/pull/3830))
+
+### Changed
+
+- Replace `ethereumjs-util` with `@ethereumjs/util` ([#3943](https://github.com/MetaMask/core/pull/3943))
+- Bump `@metamask/message-manager` to `^7.3.9` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
 ### Removed
 
 - **BREAKING:** Remove callbacks `updateIdentities`, `syncIdentities`, `setSelectedAddress`, `setAccountLabel` from constructor options of the `KeyringController` class. These were previously used to update `PreferencesController` state, but are now replaced with `PreferencesController`'s subscription to the `KeyringController:stateChange` event. ([#3853](https://github.com/MetaMask/core/pull/3853))
-  - Class methods `addNewAccount`, `addNewAccountForKeyring`, `createNewVaultAndRestore`, `createNewVaultAndKeychain`, `importAccountWithStrategy`, `restoreQRKeyring`, `unlockQRHardwareWalletAccount`, `forgetQRDevice` no longer directly updates `PreferencesController` state by calling the `updateIdentities` callback.
-  - Class method `submitPassword` no longer directly updates `PreferencesController` state by calling the `syncIdentities` callback.
-  - Class method `unlockQRHardwareWalletAccount` no longer directly updates `PreferencesController` state by calling the `setAccountLabel`, `setSelectedAddress` callbacks.
+  - Methods `addNewAccount`, `addNewAccountForKeyring`, `createNewVaultAndRestore`, `createNewVaultAndKeychain`, `importAccountWithStrategy`, `restoreQRKeyring`, `unlockQRHardwareWalletAccount`, and `forgetQRDevice` no longer directly update `PreferencesController` state by calling the `updateIdentities` callback.
+  - Method `submitPassword` no longer directly updates `PreferencesController` state by calling the `syncIdentities` callback.
+  - Method `unlockQRHardwareWalletAccount` no longer directly updates `PreferencesController` state by calling the `setAccountLabel` or `setSelectedAddress` callbacks.
+- Remove `@metamask/eth-keyring-controller` dependency, and transfer dependencies to this package instead ([#3830](https://github.com/MetaMask/core/pull/3830))
+  - `@metamask/eth-hd-keyring`
+  - `@metamask/eth-simple-keyring`
+  - `@metamask/eth-sig-util`
+  - `@metamask/browser-passworder`
 
 ## [12.2.0]
 
@@ -358,7 +400,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...HEAD
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.1.0...@metamask/keyring-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.0.0...@metamask/keyring-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@11.0.0...@metamask/keyring-controller@12.0.0

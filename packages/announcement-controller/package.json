@@ -1,6 +1,6 @@
 {
   "name": "@metamask/announcement-controller",
-  "version": "5.0.2",
+  "version": "6.0.1",
   "description": "Manages in-app announcements",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/announcement-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/announcement-controller",
@@ -31,7 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.1.1"
+    "@metamask/base-controller": "^5.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

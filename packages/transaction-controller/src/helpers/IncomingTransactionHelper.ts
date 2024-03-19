@@ -323,9 +323,11 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
     this.hub.emit('updatedLastFetchedBlockNumbers', {
-      lastFetchedBlockNumbers,
+      lastFetchedBlockNumbers: {
+        ...lastFetchedBlockNumbers,
+        [lastFetchedKey]: lastFetchedBlockNumber,
+      },
       blockNumber: lastFetchedBlockNumber,
     });
   }

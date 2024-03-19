@@ -178,7 +178,7 @@ export function getDefaultPreferencesState() {
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC_TESTNET]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM]: true,
-      [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM_TESTNET]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM_SEPOLIA]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON_TESTNET]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.AVALANCHE]: true,
@@ -187,6 +187,7 @@ export function getDefaultPreferencesState() {
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.FANTOM_TESTNET]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.SEPOLIA]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_GOERLI]: true,
+      [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_SEPOLIA]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_MAINNET]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM_TESTNET]: true,
@@ -253,7 +254,9 @@ export class PreferencesController extends BaseController<
    * @param addresses - List of addresses to use to generate new identities.
    */
   addIdentities(addresses: string[]) {
-    const checksummedAddresses = addresses.map(toChecksumHexAddress);
+    const checksummedAddresses = addresses.map((address) =>
+      toChecksumHexAddress(address),
+    );
     this.update((state) => {
       const { identities } = state;
       for (const address of checksummedAddresses) {

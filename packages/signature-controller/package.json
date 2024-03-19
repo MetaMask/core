@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "12.0.0",
+  "version": "14.0.1",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/signature-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/signature-controller",
@@ -31,12 +41,12 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^5.1.2",
-    "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.3",
-    "@metamask/keyring-controller": "^12.2.0",
-    "@metamask/logging-controller": "^2.0.2",
-    "@metamask/message-manager": "^7.3.8",
+    "@metamask/approval-controller": "^6.0.1",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/controller-utils": "^9.0.2",
+    "@metamask/keyring-controller": "^14.0.1",
+    "@metamask/logging-controller": "^3.0.1",
+    "@metamask/message-manager": "^8.0.1",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "lodash": "^4.17.21"
@@ -52,9 +62,9 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^5.1.2",
-    "@metamask/keyring-controller": "^12.2.0",
-    "@metamask/logging-controller": "^2.0.2"
+    "@metamask/approval-controller": "^6.0.0",
+    "@metamask/keyring-controller": "^14.0.0",
+    "@metamask/logging-controller": "^3.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/composable-controller",
-  "version": "5.0.1",
+  "version": "6.0.1",
   "description": "Consolidates the state from multiple controllers into one",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/composable-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/composable-controller",
@@ -31,12 +41,11 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.1.1",
-    "@metamask/utils": "^8.3.0"
+    "@metamask/base-controller": "^5.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^7.3.2",
+    "@metamask/json-rpc-engine": "^8.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",

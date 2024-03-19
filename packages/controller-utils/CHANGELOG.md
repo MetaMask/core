@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.2]
+
+### Fixed
+
+- Allow `toChecksumHexAddress` to take and handle non-string inputs again, which was removed in 8.0.4 ([#4046](https://github.com/MetaMask/core/pull/4046))
+
+## [9.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add support for Linea Sepolia to various constants, types, and type guards ([#3995](https://github.com/MetaMask/core/pull/3995))
+  - Add `LINEA_SEPOLIA` to `TESTNET_TICKER_SYMBOLS` constant
+  - Add `0xe705` to `CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP` constant
+  - Add `linea-sepolia` to `BUILT_IN_NETWORKS` constant and `InfuraNetworkType`, `NetworkType`, `ChainId`, and `NetworksTicker` types
+  - Add `LineaSepolia` to `BuiltInNetworkName` enum
+  - `isNetworkType` and `isInfuraNetworkType` now return `true` when given "linea-sepolia"
+
+### Changed
+
+- Update `normalizeEnsName` so that it does not attempt to normalize `"."` ([#4006](https://github.com/MetaMask/core/pull/4006))
+- Move `bn.js` from `devDependencies` to `dependencies` ([#4023](https://github.com/MetaMask/core/pull/4023))
+
+### Fixed
+
+- **BREAKING**: Narrow argument type for `BNToHex` and `fractionBN` from `any` to `BN` to enhance type safety ([#3975](https://github.com/MetaMask/core/pull/3975))
+- **BREAKING**: Narrow argument type for `logOrRethrowError` from `any` to `unknown` to enhance type safety ([#3975](https://github.com/MetaMask/core/pull/3975))
+- **BREAKING**: Narrow argument type for `isNetworkType` from `any` to `string` to enhance type safety ([#3975](https://github.com/MetaMask/core/pull/3975))
+
+## [8.0.4]
+
+### Changed
+
+- Replace `ethereumjs-util` with `@ethereumjs/util` ([#3943](https://github.com/MetaMask/core/pull/3943))
+
 ## [8.0.3]
 
 ### Changed
@@ -270,7 +312,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...HEAD
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.1...@metamask/controller-utils@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.0...@metamask/controller-utils@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.4...@metamask/controller-utils@9.0.0
+[8.0.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.3...@metamask/controller-utils@8.0.4
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.2...@metamask/controller-utils@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...@metamask/controller-utils@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1

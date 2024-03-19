@@ -72,16 +72,10 @@ If you're developing your project locally and want to test changes to a package,
 
       > **Example:**
       >
-      > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and your clone of the `core` repo is at the same level as your project, add the following to `resolutions`:
+      > - If your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and your clone of the `core` repo is at the same level as your project, add the following to `resolutions`:
       >
       >   ```
       >   "@metamask/controller-utils@^1.1.4": "file:../core/packages/controller-utils"
-      >   ```
-      >
-      > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and your fork of the `core` repo is at the same level as your project, add the following to `overrides`:
-      >
-      >   ```
-      >   "@metamask/assets-controllers@^3.4.7": "file:../core/packages/assets-controllers"
       >   ```
 
    4. Run `yarn install`.
@@ -102,7 +96,7 @@ If you're a member of the MetaMask organization, you can create preview builds b
    Note two things about each package:
 
    - The name is scoped to `@metamask-previews` instead of `@metamask`.
-   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-e2df9b4` instead of `1.2.3`.
+   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-preview-e2df9b4` instead of `1.2.3`.
 
 Now you can [use these preview builds in your project](#using-preview-builds).
 
@@ -125,7 +119,7 @@ If you've forked this repository, you can create preview builds based on a branc
    You should be able to see the published version of each package in the output. Note two things:
 
    - The name is scoped to the NPM organization you entered instead of `@metamask`.
-   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-e2df9b4` instead of `1.2.3`.
+   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-preview-e2df9b4` instead of `1.2.3`.
 
 Now you can [use these preview builds in your project](#using-preview-builds).
 
@@ -145,16 +139,10 @@ To use a preview build for a package within a project, you need to override the 
 
    > **Example:**
    >
-   > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-e2df9b4`, add the following to `resolutions`:
+   > - If your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-preview-e2df9b4`, add the following to `resolutions`:
    >
    >   ```
-   >   "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-e2df9b4"
-   >   ```
-   >
-   > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and you want to use the preview version `4.5.6-bc2a997` published under `@foo`, add the following to `overrides`:
-   >
-   >   ```
-   >   "@metamask/assets-controllers@^3.4.7": "npm:@foo/assets-controllers@4.5.6-bc2a997"
+   >   "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-preview-e2df9b4"
    >   ```
 
 4. Run `yarn install`.

@@ -7,6 +7,147 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.0]
+
+### Added
+
+- Support `Layer1GasFeeFlows` and add `layer1GasFee` property to `TransactionMeta` ([#3944](https://github.com/MetaMask/core/pull/3944))
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [25.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add new types for TransactionController messenger actions ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - `TransactionControllerActions`
+  - `TransactionControllerGetStateAction`
+- Add new types for TransactionController messenger events ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - `TransactionControllerEvents`
+  - `TransactionControllerIncomingTransactionBlockReceivedEvent`
+  - `TransactionControllerPostTransactionBalanceUpdatedEvent`
+  - `TransactionControllerSpeedupTransactionAddedEvent`
+  - `TransactionControllerStateChangeEvent`
+  - `TransactionControllerTransactionApprovedEvent`
+  - `TransactionControllerTransactionConfirmedEvent`
+  - `TransactionControllerTransactionDroppedEvent`
+  - `TransactionControllerTransactionFailedEvent`
+  - `TransactionControllerTransactionFinishedEvent`
+  - `TransactionControllerTransactionNewSwapApprovalEvent`
+  - `TransactionControllerTransactionNewSwapEvent`
+  - `TransactionControllerTransactionPublishingSkipped`
+  - `TransactionControllerTransactionRejectedEvent`
+  - `TransactionControllerTransactionStatusUpdatedEvent`
+  - `TransactionControllerTransactionSubmittedEvent`
+  - `TransactionControllerUnapprovedTransactionAddedEvent`
+- Add optional `simulationData` property to `TransactionMeta` which will be automatically populated ([#4020](https://github.com/MetaMask/core/pull/4020))
+- Add optional `isSimulationEnabled` constructor option to dynamically disable simulation ([#4020](https://github.com/MetaMask/core/pull/4020))
+- Add support for Linea Sepolia (chain ID `0xe705`) ([#3995](https://github.com/MetaMask/core/pull/3995))
+
+### Changed
+
+- **BREAKING:** Change superclass of TransactionController from BaseController v1 to BaseController v2 ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - Instead of accepting three arguments, the constructor now takes a single options argument. All of the existing options that were supported in the second argument are now a part of this options object, including `messenger`; `state` (the previous third argument) is also an option.
+- **BREAKING:** Rename `txHistoryLimit` option to `transactionHistoryLimit` ([#3827](https://github.com/MetaMask/core/pull/3827))
+- **BREAKING:** Switch some type definitions from `interface` to `type` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - These types are affected:
+    - `DappSuggestedGasFees`
+    - `Log`
+    - `MethodData`
+    - `TransactionControllerState` (formerly `TransactionState`)
+    - `TransactionParams`
+    - `TransactionReceipt`
+  - This is a breaking change because type aliases have different behavior from interfaces. Specifically, the `Json` type in `@metamask/utils`, which BaseController v2 controller state must conform to, is not compatible with interfaces.
+- **BREAKING:** Align `parsedRegistryMethod` in `MethodData` type with usage ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - The type of this is now `{ name: string; args: { type: string }[]; } | { name?: any; args?: any; }`, which is a `Json`-compatible version of a type found in `eth-method-registry`.
+- **BREAKING:** Rename `TransactionState` to `TransactionControllerState` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - This change aligns this controller with other MetaMask controllers.
+- **BREAKING:** Update allowed events for the `TransactionControllerMessenger` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - The restricted messenger must allow the following events:
+    - `TransactionController:incomingTransactionBlockReceived`
+    - `TransactionController:postTransactionBalanceUpdated`
+    - `TransactionController:speedUpTransactionAdded`
+    - `TransactionController:transactionApproved`
+    - `TransactionController:transactionConfirmed`
+    - `TransactionController:transactionDropped`
+    - `TransactionController:transactionFinished`
+    - `TransactionController:transactionFinished`
+    - `TransactionController:transactionPublishingSkipped`
+    - `TransactionController:transactionRejected`
+    - `TransactionController:transactionStatusUpdated`
+    - `TransactionController:transactionSubmitted`
+    - `TransactionController:unapprovedTransactionAdded`
+- **BREAKING:** Update `TransactionMeta` type to be compatible with `Json` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - As dictated by BaseController v2, any types that are part of state need to be compatible with the `Json` type from `@metamask/utils`.
+- **BREAKING:** Transform `rpc` property on transaction errors so they're JSON-encodable ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - This change also results in typing this property as `Json` instead of `unknown`, avoiding a "Type instantiation is excessively deep and possibly infinite" error when resolving the `TransactionControllerState` type.
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Add dependency on `@ethersproject/providers` `^5.7.0` ([#4020](https://github.com/MetaMask/core/pull/4020))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Removed
+
+- **BREAKING:** Remove `TransactionConfig` type ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - The properties in this type have been absorbed into `TransactionControllerOptions`.
+- **BREAKING:** Remove `hub` property from TransactionController ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - TransactionController now fully makes use of its messenger object to announce various kinds of activities. Instead of subscribing to an event like this:
+    ```
+    transactionController.hub.on(eventName, ...)
+    ```
+    use this:
+    ```
+    messenger.subscribe('TransactionController:${eventName}', ...)
+    ```
+  - The complete list of renamed events are:
+    - `incomingTransactionBlock` -> `TransactionController:incomingTransactionBlockReceived`
+    - `post-transaction-balance-updated` -> `TransactionController:postTransactionBalanceUpdated`
+    - `transaction-approved` -> `TransactionController:transactionApproved`
+    - `transaction-confirmed` -> `TransactionController:transactionConfirmed`
+    - `transaction-dropped` -> `TransactionController:transactionDropped`
+    - `transaction-finished` -> `TransactionController:transactionFinished`
+    - `transaction-rejected` -> `TransactionController:transactionRejected`
+    - `transaction-status-update` -> `TransactionController:transactionStatusUpdated`
+    - `transaction-submitted` -> `TransactionController:transactionSubmitted`
+    - `unapprovedTransaction` -> `TransactionController:unapprovedTransactionAdded`
+  - Some events announced the state of specific transactions. These have been removed. Instead, subscribe to the appropriate generic event and check for a specific transaction ID in your event handler:
+    - `${transactionId}:finished` -> `TransactionController:transactionFinished`
+    - `${transactionId}:speedup` -> `TransactionController:speedUpTransactionAdded`
+    - `${transactionId}:publish-skip` -> `TransactionController:transactionPublishingSkipped`
+
+### Fixed
+
+- Fix various methods so that they no longer update transactions in state directly but only via `update` ([#3827](https://github.com/MetaMask/core/pull/3827))
+  - `addTransaction`
+  - `confirmExternalTransaction`
+  - `speedUpTransaction`
+  - `updateCustodialTransaction`
+  - `updateSecurityAlertResponse`
+  - `updateTransaction`
+- Fix `handleMethodData` method to update state with an empty registry object instead of blowing up if registry could be found ([#3827](https://github.com/MetaMask/core/pull/3827))
+
+## [24.0.0]
+
+### Added
+
+- Add `normalizeTransactionParams` method ([#3990](https://github.com/MetaMask/core/pull/3990))
+
+### Changed
+
+- **BREAKING**: Remove support for retrieving transactions via Etherscan for Optimism Goerli; add support for Optimism Sepolia instead ([#3999](https://github.com/MetaMask/core/pull/3999))
+- Normalize `data` property into an even length hex string ([#3990](https://github.com/MetaMask/core/pull/3990))
+- Bump `@metamask/approval-controller` to `^5.1.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/gas-fee-controller` to `^13.0.2` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/network-controller` to `^17.2.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+
 ## [23.1.0]
 
 ### Added
@@ -543,7 +684,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...HEAD
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.0.0...@metamask/transaction-controller@25.1.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@24.0.0...@metamask/transaction-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...@metamask/transaction-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.0.0...@metamask/transaction-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@22.0.0...@metamask/transaction-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@21.2.0...@metamask/transaction-controller@22.0.0

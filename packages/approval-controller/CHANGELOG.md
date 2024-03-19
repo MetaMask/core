@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+
+### Fixed
+
+- **BREAKING:** Narrow `ApprovalControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - Allowlisting or using any external actions or events will now produce a type error.
+
+## [5.1.3]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3954](https://github.com/MetaMask/core/pull/3954))
+
 ## [5.1.2]
 
 ### Changed
@@ -157,7 +186,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.0...@metamask/approval-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.3...@metamask/approval-controller@6.0.0
+[5.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.2...@metamask/approval-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.1...@metamask/approval-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.0...@metamask/approval-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.0.0...@metamask/approval-controller@5.1.0

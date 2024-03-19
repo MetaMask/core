@@ -7,32 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.0]
+
 ### Added
 
-- **BREAKING:** Adds `@metamask/accounts-controller` ^8.0.0 and `@metamask/keyring-controller` ^12.0.0 as dependencies and peer dependencies. ([#3775](https://github.com/MetaMask/core/pull/3775/)).
-- **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, `KeyringController:unlock` events, and allows messenger actions `AccountsController:getSelectedAccount`, `NetworkController:findNetworkClientIdByChainId`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getProviderConfig`, `KeyringController:getState`, `PreferencesController:getState`, `TokenListController:getState`, `TokensController:getState`, `TokensController:addDetectedTokens`. ([#3775](https://github.com/MetaMask/core/pull/3775/)), ([#3923](https://github.com/MetaMask/core/pull/3923/))
-- `TokensController` now exports `TokensControllerActions`, `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerEvents`, `TokensControllerStateChangeEvent`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
+- Add `updateNftMetadata` method to `NftController` to update metadata for the requested NFTs ([#4008](https://github.com/MetaMask/core/pull/4008))
+
+## [27.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [27.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
 
 ### Changed
 
-- **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo. ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923)), ([#3938](https://github.com/MetaMask/core/pull/3938))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/accounts-controller` to `^12.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/keyring-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/preferences-controller` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Relax `TokensControllerGetStateAction` and `TokensControllerStateChangeEvent` types so that they no longer constrain the `TokensController` state in the action handler and event payload to `Record<string, Json>` ([#3949](https://github.com/MetaMask/core/pull/3949))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/polling-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+## [26.0.0]
+
+### Added
+
+- **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, and `KeyringController:unlock` events, and allows messenger actions `AccountsController:getSelectedAccount`, `NetworkController:getNetworkClientById`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getState`, `KeyringController:getState`, `PreferencesController:getState`, `TokenListController:getState`, `TokensController:getState`, and `TokensController:addDetectedTokens` ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923/), [#3938](https://github.com/MetaMask/core/pull/3938))
+- `TokensController` now exports `TokensControllerActions`, `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerEvents`, and `TokensControllerStateChangeEvent` ([#3690](https://github.com/MetaMask/core/pull/3690/))
+
+### Changed
+
+- **BREAKING:** Add `@metamask/accounts-controller` `^11.0.0` as dependency and peer dependency ([#3775](https://github.com/MetaMask/core/pull/3775/), [#4007](https://github.com/MetaMask/core/pull/4007))
+- **BREAKING:** Add `@metamask/keyring-controller` `^13.0.0` as dependency and peer dependency ([#3775](https://github.com/MetaMask/core/pull/3775), [#4007](https://github.com/MetaMask/core/pull/4007))
+- **BREAKING:** Bump `@metamask/preferences-controller` dependency and peer dependency to `^8.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923)), ([#3938](https://github.com/MetaMask/core/pull/3938))
   - **BREAKING:** `TokenDetectionController` now resets its polling interval to the default value of 3 minutes when token detection is triggered by external controller events `KeyringController:unlock`, `TokenListController:stateChange`, `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`.
   - **BREAKING:** `TokenDetectionController` now refetches tokens on `NetworkController:networkDidChange` if the `networkClientId` is changed instead of `chainId`.
   - **BREAKING:** `TokenDetectionController` cannot initiate polling or token detection if `KeyringController` state is locked.
   - **BREAKING:** The `detectTokens` method input option `accountAddress` has been renamed to `selectedAddress`.
   - **BREAKING:** The `detectTokens` method now excludes tokens that are already included in the `TokensController`'s `detectedTokens` list from the batch of incoming tokens it sends to the `TokensController` `addDetectedTokens` method.
-  - **BREAKING:** The constructor for `TokenDetectionController` expects a new required proprerty `trackMetaMetricsEvent`, which defines the callback that is called in the `detectTokens` method.
-  - The constructor option `selectedAddress` no longer defaults to `''` if omitted. Instead, the correct address is assigned using the `AccountsController:getSelectedAccount` messenger action.
+  - **BREAKING:** The constructor for `TokenDetectionController` expects a new required property `trackMetaMetricsEvent`, which defines the callback that is called in the `detectTokens` method.
   - **BREAKING:** In Mainnet, even if the `PreferenceController`'s `useTokenDetection` option is set to false, automatic token detection is performed on the legacy token list (token data from the contract-metadata repo).
   - **BREAKING:** The `TokensState` type is now defined as a type alias rather than an interface. ([#3690](https://github.com/MetaMask/core/pull/3690/))
     - This is breaking because it could affect how this type is used with other types, such as `Json`, which does not support TypeScript interfaces.
+  - The constructor option `selectedAddress` no longer defaults to `''` if omitted. Instead, the correct address is assigned using the `AccountsController:getSelectedAccount` messenger action.
+- **BREAKING:** Change type of `provider` property in `AssetsContractController` from `any` to `Provider` from `@metamask/network-controller` ([#3818](https://github.com/MetaMask/core/pull/3818))
+- **BREAKING:** Change type of `provider` property in `TokensController` from `any` to `Provider` from `@metamask/network-controller` ([#3818](https://github.com/MetaMask/core/pull/3818))
+- Bump `@metamask/approval-controller` to `^5.1.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/ethjs-unit` to `^0.3.0` ([#3897](https://github.com/MetaMask/core/pull/3897))
+- Bump `@metamask/network-controller` to `^17.2.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/polling-controller` to `^5.0.1` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970), [#3954](https://github.com/MetaMask/core/pull/3954))
+- Replace `ethereumjs-util` with `@ethereumjs/util` and `bn.js` ([#3943](https://github.com/MetaMask/core/pull/3943))
+- Update `CodefiTokenPricesServiceV2` so that requests to the price API now use the `No-Cache` HTTP header ([#3939](https://github.com/MetaMask/core/pull/3939))
 
 ### Removed
 
-- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, `addDetectedTokens`. ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/))
-- **BREAKING:** `TokenDetectionController` no longer allows the `NetworkController:stateChange` event. The `NetworkController:networkDidChange` event can be used instead. ([#3775](https://github.com/MetaMask/core/pull/3775/))
-- **BREAKING:** `TokensController` constructor no longer accepts options `onPreferencesStateChange`, `onNetworkDidChange`, `onTokenListStateChange`, `getNetworkClientById`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
-- **BREAKING:** `TokenBalancesController` constructor no longer accepts options `onTokensStateChange`, `getSelectedAddress`. ([#3690](https://github.com/MetaMask/core/pull/3690/))
+- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `networkClientId`, `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, or `addDetectedTokens` ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/), [#3938](https://github.com/MetaMask/core/pull/3938))
+- **BREAKING:** `TokenDetectionController` no longer allows the `NetworkController:stateChange` event. ([#3775](https://github.com/MetaMask/core/pull/3775/))
+  - The `NetworkController:networkDidChange` event can be used instead.
+- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `networkClientId`, `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, or `addDetectedTokens` ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/), [#3938](https://github.com/MetaMask/core/pull/3938))
+- **BREAKING:** `TokenBalancesController` constructor no longer accepts options `onTokensStateChange`, `getSelectedAddress` ([#3690](https://github.com/MetaMask/core/pull/3690/))
+
+### Fixed
+
+- `TokenDetectionController.detectTokens()` now reads the chain ID keyed state properties from `TokenListController` and `TokensController` rather than incorrectly using the globally selected state properties when a network client ID is passed ([#3914](https://github.com/MetaMask/core/pull/3914))
+- Fix `PreferencesController` state listener in `NftDetectionController` so that NFT detection is not run when any preference changes, but only when NFT detection is enabled ([#3917](https://github.com/MetaMask/core/pull/3917))
+- Fix `isTokenListSupportedForNetwork` so that it returns false for chain 1337 ([#3777](https://github.com/MetaMask/core/pull/3777))
+  - When used in combination with `TokensController`, this makes it possible to import an ERC-20 token on a locally run chain.
 
 ## [25.0.0]
 
@@ -675,7 +729,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.1...@metamask/assets-controllers@27.1.0
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.0...@metamask/assets-controllers@27.0.1
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@26.0.0...@metamask/assets-controllers@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...@metamask/assets-controllers@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...@metamask/assets-controllers@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.0.0...@metamask/assets-controllers@23.1.0

@@ -274,14 +274,16 @@ describe('UserOperationController', () => {
 
   describe('constructor', () => {
     it('creates PendingUserOperationTracker using state user operations', () => {
-      const controller = new UserOperationController(optionsMock);
-
       const userOperationsMock = {
         testId1: { ...USER_OPERATION_METADATA_MOCK, id: 'testId1' },
         testId2: { ...USER_OPERATION_METADATA_MOCK, id: 'testId2' },
       };
-
-      controller.state.userOperations = userOperationsMock;
+      new UserOperationController({
+        ...optionsMock,
+        state: {
+          userOperations: userOperationsMock,
+        },
+      });
 
       const result = jest
         .mocked(PendingUserOperationTrackerHelper.PendingUserOperationTracker)
@@ -869,6 +871,46 @@ describe('UserOperationController', () => {
         );
       });
 
+      it('does not update gas fees nor regenerate if paymaster is set but updated gas fees are zero', async () => {
+        const controller = new UserOperationController(optionsMock);
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                maxFeePerGas: '0x0',
+                maxPriorityFeePerGas: '0x0',
+              },
+            },
+          },
+        });
+
+        const { hash, id } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(controller.state.userOperations[id].userOperation).toStrictEqual(
+          expect.objectContaining({
+            maxFeePerGas: '0x4',
+            maxPriorityFeePerGas: '0x5',
+          }),
+        );
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
       it('regenerates if gas fees updated and paymaster data set', async () => {
         const controller = new UserOperationController(optionsMock);
 
@@ -1316,17 +1358,20 @@ describe('UserOperationController', () => {
 
     describe('on user operation updated', () => {
       it('updates state', async () => {
-        const controller = new UserOperationController(optionsMock);
-
-        controller.state.userOperations = {
-          [USER_OPERATION_METADATA_MOCK.id]: {
-            ...USER_OPERATION_METADATA_MOCK,
+        const controller = new UserOperationController({
+          ...optionsMock,
+          state: {
+            userOperations: {
+              [USER_OPERATION_METADATA_MOCK.id]: {
+                ...USER_OPERATION_METADATA_MOCK,
+              },
+              testId2: {
+                ...USER_OPERATION_METADATA_MOCK,
+                id: 'testId2',
+              },
+            },
           },
-          testId2: {
-            ...USER_OPERATION_METADATA_MOCK,
-            id: 'testId2',
-          },
-        };
+        });
 
         pendingUserOperationTrackerMock.hub.emit('user-operation-updated', {
           ...USER_OPERATION_METADATA_MOCK,

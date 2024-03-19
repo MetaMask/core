@@ -1,50 +1,57 @@
 import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
-  ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
-  BaseState,
+  ActionConstraint,
   BaseConfig,
-  StateMetadata,
+  BaseState,
+  EventConstraint,
+  RestrictedControllerMessenger,
+  StateConstraint,
 } from '@metamask/base-controller';
-import { isValidJson, type Json } from '@metamask/utils';
+import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
 
-// TODO: Remove this type once `BaseControllerV2` migrations are completed for all controllers.
 /**
- * A type encompassing all controller instances that extend from `BaseControllerV1`.
+ * A universal subtype of all controller instances that extend from `BaseControllerV1`.
+ * Any `BaseControllerV1` instance can be assigned to this type.
+ *
+ * Note that this type is not the greatest subtype or narrowest supertype of all `BaseControllerV1` instances.
+ * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type BaseControllerV1Instance =
-  // `any` is used to include all `BaseControllerV1` instances.
+  // `any` is used so that all `BaseControllerV1` instances are assignable to this type.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   BaseControllerV1<any, any>;
 
 /**
- * A type encompassing all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
+ * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
+ * Any `BaseController` instance can be assigned to this type.
  *
- * The `BaseController` class itself can't be used directly as a type representing all of its subclasses,
- * because the generic parameters it expects require knowing the exact shape of the controller's state and messenger.
+ * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` instances.
+ * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  *
- * Instead, we look for an object with the `BaseController` properties that we use in the ComposableController (name and state).
+ * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
  */
-export type BaseControllerV2Instance = {
+export type BaseControllerInstance = {
   name: string;
-  state: Record<string, Json>;
+  state: StateConstraint;
 };
 
-// TODO: Remove `BaseControllerV1Instance` member once `BaseControllerV2` migrations are completed for all controllers.
 /**
- * A type encompassing all controller instances that extend from `BaseControllerV1` or `BaseController`.
+ * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
+ * Any `BaseController` or `BaseControllerV1` instance can be assigned to this type.
+ *
+ * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
+ * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type ControllerInstance =
   | BaseControllerV1Instance
-  | BaseControllerV2Instance;
+  | BaseControllerInstance;
 
 /**
- * Determines if the given controller is an instance of BaseControllerV1
+ * Determines if the given controller is an instance of `BaseControllerV1`
  * @param controller - Controller instance to check
- * @returns True if the controller is an instance of BaseControllerV1
- * TODO: Deprecate once `BaseControllerV2` migrations are completed for all controllers.
+ * @returns True if the controller is an instance of `BaseControllerV1`
  */
 export function isBaseControllerV1(
   controller: ControllerInstance,
@@ -66,13 +73,23 @@ export function isBaseControllerV1(
 }
 
 /**
- * Determines if the given controller is an instance of BaseController
+ * Determines if the given controller is an instance of `BaseController`
  * @param controller - Controller instance to check
- * @returns True if the controller is an instance of BaseController
+ * @returns True if the controller is an instance of `BaseController`
  */
 export function isBaseController(
   controller: ControllerInstance,
-): controller is BaseController<never, never, never> {
+): controller is BaseController<
+  string,
+  StateConstraint,
+  RestrictedControllerMessenger<
+    string,
+    ActionConstraint,
+    EventConstraint,
+    string,
+    string
+  >
+> {
   return (
     'name' in controller &&
     typeof controller.name === 'string' &&
@@ -82,25 +99,25 @@ export function isBaseController(
   );
 }
 
+// TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
 export type ComposableControllerState = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
   // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
-  // TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: Record<string, any>;
 };
 
-export type ComposableControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  Record<string, unknown>
->;
+export type ComposableControllerStateChangeEvent = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [ComposableControllerState, Patch[]];
+};
 
 export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
 
-type AnyControllerStateChangeEvent = ControllerStateChangeEvent<
-  string,
-  Record<string, unknown>
->;
+type AnyControllerStateChangeEvent = {
+  type: `${string}:stateChange`;
+  payload: [ControllerInstance['state'], Patch[]];
+};
 
 type AllowedEvents = AnyControllerStateChangeEvent;
 
@@ -141,7 +158,7 @@ export class ComposableController extends BaseController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
+      metadata: controllers.reduce(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
@@ -150,12 +167,9 @@ export class ComposableController extends BaseController<
         }),
         {},
       ),
-      state: controllers.reduce<ComposableControllerState>(
-        (state, controller) => {
-          return { ...state, [controller.name]: controller.state };
-        },
-        {},
-      ),
+      state: controllers.reduce((state, controller) => {
+        return { ...state, [controller.name]: controller.state };
+      }, {}),
       messenger,
     });
 
@@ -167,30 +181,33 @@ export class ComposableController extends BaseController<
   /**
    * Constructor helper that subscribes to child controller state changes.
    * @param controller - Controller instance to update
-   * TODO: Remove `isBaseControllerV1` branch once `BaseControllerV2` migrations are completed for all controllers.
    */
   #updateChildController(controller: ControllerInstance): void {
-    const { name } = controller;
-    if (isBaseControllerV1(controller)) {
-      controller.subscribe((childState) => {
-        this.update((state) => ({
-          ...state,
-          [name]: childState,
-        }));
-      });
-    } else if (isBaseController(controller)) {
-      this.messagingSystem.subscribe(`${name}:stateChange`, (childState) => {
-        if (isValidJson(childState)) {
-          this.update((state) => ({
-            ...state,
-            [name]: childState,
-          }));
-        }
-      });
-    } else {
+    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
       throw new Error(
         'Invalid controller: controller must extend from BaseController or BaseControllerV1',
       );
+    }
+
+    const { name } = controller;
+    if (
+      (isBaseControllerV1(controller) && 'messagingSystem' in controller) ||
+      isBaseController(controller)
+    ) {
+      this.messagingSystem.subscribe(
+        `${name}:stateChange`,
+        (childState: Record<string, unknown>) => {
+          this.update((state) => {
+            Object.assign(state, { [name]: childState });
+          });
+        },
+      );
+    } else if (isBaseControllerV1(controller)) {
+      controller.subscribe((childState) => {
+        this.update((state) => {
+          Object.assign(state, { [name]: childState });
+        });
+      });
     }
   }
 }

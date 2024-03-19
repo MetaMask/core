@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [18.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add network client for Linea Sepolia (chain ID `0xe705`) ([#3995](https://github.com/MetaMask/core/pull/3995))
+  - Bump `@metamask/eth-json-rpc-infura` to `^9.1.0` to bring this change.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Fixed
+
+- **BREAKING:** Narrow `NetworkControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - Allowlisting or using any external actions or events will now produce a type error.
+
+## [17.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^8.0.4` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/eth-json-rpc-middleware` to `^12.1.0` ([#3829](https://github.com/MetaMask/core/pull/3829))
+- Bump `@metamask/json-rpc-engine` to `^7.3.3` ([#4007](https://github.com/MetaMask/core/pull/4007))
+- Bump `@metamask/rpc-errors` to `^6.2.1` ([#3970](https://github.com/MetaMask/core/pull/3970), [#3954](https://github.com/MetaMask/core/pull/3954))
+
 ## [17.2.0]
 
 ### Changed
@@ -423,7 +458,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.0...@metamask/network-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.1...@metamask/network-controller@18.0.0
+[17.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.0...@metamask/network-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...@metamask/network-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...@metamask/network-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@16.0.0...@metamask/network-controller@17.0.0
