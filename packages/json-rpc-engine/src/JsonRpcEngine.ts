@@ -219,10 +219,10 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (Array.isArray(req)) {
       if (callback) {
         return this.#handleBatch(
-          req as (JsonRpcRequest | JsonRpcNotification)[],
+          req,
           callback as (
             error: unknown,
-            response?: JsonRpcResponse<Json>[],
+            responses?: JsonRpcResponse<Json>[],
           ) => void,
         );
       }
@@ -231,11 +231,11 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
     if (callback) {
       return this.#handle(
-        req as JsonRpcRequest | JsonRpcNotification,
+        req,
         callback as (error: unknown, response?: JsonRpcResponse<Json>) => void,
       );
     }
-    return this._promiseHandle(req as JsonRpcRequest);
+    return this._promiseHandle(req);
   }
 
   /**
@@ -332,8 +332,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
         )
       ).filter(
         // Filter out any notification responses.
-        (response) => response !== undefined,
-      ) as JsonRpcResponse<Json>[];
+        (response): response is JsonRpcResponse<Json> => response !== undefined,
+      );
 
       // 3. Return batch response
       if (callback) {
@@ -418,7 +418,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       return callback(error, {
         // Typecast: This could be a notification, but we want to access the
         // `id` even if it doesn't exist.
-        id: (callerReq as JsonRpcRequest).id ?? null,
+        id: 'id' in callerReq ? callerReq.id : null,
         jsonrpc: '2.0',
         error,
       });
