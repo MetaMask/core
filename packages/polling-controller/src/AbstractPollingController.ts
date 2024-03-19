@@ -3,40 +3,16 @@ import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
-export type IPollingController = {
-  startPollingByNetworkClientId(
-    networkClientId: NetworkClientId,
-    options: Json,
-  ): string;
-
-  stopAllPolling(): void;
-
-  stopPollingByPollingToken(pollingToken: string): void;
-
-  onPollingCompleteByNetworkClientId(
-    networkClientId: NetworkClientId,
-    callback: (networkClientId: NetworkClientId) => void,
-    options: Json,
-  ): void;
-
-  _executePoll(networkClientId: NetworkClientId, options: Json): Promise<void>;
-  _startPollingByNetworkClientId(
-    networkClientId: NetworkClientId,
-    options: Json,
-  ): void;
-  _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void;
-};
+import type {
+  Constructor,
+  PollingTokenSetId,
+  IPollingController,
+} from './types';
 
 export const getKey = (
   networkClientId: NetworkClientId,
   options: Json,
 ): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
-
-export type PollingTokenSetId = `${NetworkClientId}:${string}`;
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor = new (...args: any[]) => object;
 
 /**
  * AbstractPollingControllerBaseMixin

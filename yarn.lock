@@ -1686,7 +1686,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1761,7 +1761,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
     "@metamask/contract-metadata": ^2.4.0
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/keyring-api": ^3.0.0
@@ -1914,7 +1914,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@^9.0.1, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@^9.0.2, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -2031,7 +2031,7 @@ __metadata:
     "@ethersproject/providers": ^5.7.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/network-controller": ^18.0.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2328,7 +2328,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
     "@metamask/network-controller": ^18.0.1
@@ -2493,7 +2493,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2511,7 +2511,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2559,7 +2559,7 @@ __metadata:
     "@json-rpc-specification/meta-schema": ^1.0.6
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-json-rpc-infura": ^9.1.0
     "@metamask/eth-json-rpc-middleware": ^12.1.0
     "@metamask/eth-json-rpc-provider": ^3.0.1
@@ -2636,14 +2636,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/permission-controller@^9.0.1, @metamask/permission-controller@workspace:packages/permission-controller":
+"@metamask/permission-controller@^9.0.2, @metamask/permission-controller@workspace:packages/permission-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
     "@metamask/approval-controller": ^6.0.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/json-rpc-engine": ^8.0.1
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
@@ -2722,7 +2722,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@types/jest": ^27.4.1
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
@@ -2744,7 +2744,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/network-controller": ^18.0.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2779,7 +2779,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/keyring-controller": ^14.0.1
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2820,7 +2820,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/json-rpc-engine": ^8.0.1
     "@metamask/network-controller": ^18.0.1
     "@metamask/rpc-errors": ^6.2.1
@@ -2904,7 +2904,7 @@ __metadata:
     "@metamask/base-controller": ^5.0.1
     "@metamask/json-rpc-engine": ^8.0.1
     "@metamask/network-controller": ^18.0.1
-    "@metamask/permission-controller": ^9.0.1
+    "@metamask/permission-controller": ^9.0.2
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2931,7 +2931,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/keyring-controller": ^14.0.1
     "@metamask/logging-controller": ^3.0.1
     "@metamask/message-manager": ^8.0.1
@@ -3135,11 +3135,10 @@ __metadata:
     "@ethereumjs/tx": ^4.2.0
     "@ethereumjs/util": ^8.1.0
     "@ethersproject/abi": ^5.7.0
-    "@ethersproject/providers": ^5.7.0
     "@metamask/approval-controller": ^6.0.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^14.0.1
@@ -3181,7 +3180,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/gas-fee-controller": ^14.0.1
     "@metamask/keyring-controller": ^14.0.1
