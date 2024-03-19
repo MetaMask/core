@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `CodefiTokenPricesServiceV2` exports `SUPPORTED_CHAIN_IDS`, an array of chain IDs supported by Codefi Price API V2. ([#4079](https://github.com/MetaMask/core/pull/4079))
 
+- Added `tokenURI` key to `compareNftMetadata` function to compare nft metadata entries with. ([#3865](https://github.com/MetaMask/core/pull/3856))
+
 ## [27.1.0]
 
 ### Added
