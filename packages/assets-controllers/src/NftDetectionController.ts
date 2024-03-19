@@ -185,7 +185,6 @@ export type TokenResponse = {
   chainId: number;
   contract: string;
   tokenId: string;
-  /** @description Can be erc721, erc115, etc. */
   kind?: string;
   name?: string;
   image?: string;
@@ -193,29 +192,21 @@ export type TokenResponse = {
   imageLarge?: string;
   metadata?: Metadata;
   description?: string;
-  /** @description Can be higher than one if erc1155. */
   supply?: number;
   remainingSupply?: number;
-  /** @description No rarity for collections over 100k */
   rarityScore?: number;
   rarity?: number;
-  /** @description No rarity rank for collections over 100k */
   rarityRank?: number;
   media?: string;
-  /** @default false */
   isFlagged?: boolean;
-  /** @default false */
   isSpam?: boolean;
-  /** @default false */
   isNsfw?: boolean;
-  /** @default false */
   metadataDisabled?: boolean;
   lastFlagUpdate?: string;
   lastFlagChange?: string;
   collection?: Collection;
   lastSale?: LastSale;
   topBid?: TopBid;
-  /** @description The value of the last sale.Can be null. */
   lastAppraisalValue?: number;
   attributes?: Attributes[];
 };
@@ -233,9 +224,6 @@ export type TopBid = {
 };
 
 export type LastSale = {
-  /** @description Deprecated. Use `saleId` instead. */
-  id?: string;
-  /** @description Unique identifier made from txn hash, price, etc. */
   saleId?: string;
   token?: {
     contract?: string;
@@ -248,10 +236,6 @@ export type LastSale = {
     };
   };
   orderSource?: string;
-  /**
-   * @description Can be `ask` or `bid`.
-   * @enum {string}
-   */
   orderSide?: 'ask' | 'bid';
   orderKind?: string;
   orderId?: string;
@@ -263,7 +247,6 @@ export type LastSale = {
   txHash?: string;
   logIndex?: number;
   batchIndex?: number;
-  /** @description Time added on the blockchain */
   timestamp?: number;
   price?: Price;
   washTradingScore?: number;
@@ -272,9 +255,7 @@ export type LastSale = {
   paidFullRoyalty?: boolean;
   feeBreakdown?: FeeBreakdown[];
   isDeleted?: boolean;
-  /** @description Time when added to indexer */
   createdAt?: string;
-  /** @description Time when updated in indexer */
   updatedAt?: string;
 };
 
@@ -287,35 +268,27 @@ export type FeeBreakdown = {
 };
 
 export type Attributes = {
-  /** @description Case sensitive */
   key?: string;
-  /** @description Can be `string`, `number, `date, or `range`. */
   kind?: string;
-  /** @description Case sensitive. */
   value: string;
   tokenCount?: number;
   onSaleCount?: number;
-  floorAskPrice?: Price;
-  /** @description Can be null. */
-  topBidValue?: number;
+  floorAskPrice?: Price | null;
+  topBidValue?: number | null;
   createdAt?: string;
 };
 
 export type Collection = {
   id?: string;
   name?: string;
-  /** @description Open Sea slug */
   slug?: string;
   symbol?: string;
   imageUrl?: string;
   image?: string;
-  /** @default false */
   isSpam?: boolean;
-  /** @default false */
   isNsfw?: boolean;
   creator?: string;
   tokenCount?: string;
-  /** @default false */
   metadataDisabled?: boolean;
   openseaVerificationStatus?: string;
   floorAskPrice?: Price;
@@ -609,7 +582,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     }
 
     const apiNfts = await this.getOwnerNfts(userAddress);
-    const addNftPromises = apiNfts.map(async (nft: TokensResponse) => {
+    const addNftPromises = apiNfts.map(async (nft) => {
       const {
         tokenId: token_id,
         contract,

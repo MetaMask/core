@@ -9,7 +9,6 @@ import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
-// import type { ApiNftContract } from './NftDetectionController';
 import type { AbstractTokenPricesService } from './token-prices-service';
 import { type ContractExchangeRates } from './TokenRatesController';
 
