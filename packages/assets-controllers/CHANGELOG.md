@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [27.2.0]
 
-### Uncategorized
+### Added
 
-- fix: export const ([#4079](https://github.com/MetaMask/core/pull/4079))
+- Add export for const `SUPPORTED_CHAIN_IDS` in `token-prices-service.ts` and `index.ts` ([#4079](https://github.com/MetaMask/core/pull/4079))
 
 ## [27.1.0]
 
