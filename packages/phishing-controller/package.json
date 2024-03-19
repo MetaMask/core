@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "8.0.2",
+  "version": "9.0.1",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/phishing-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/phishing-controller",
@@ -31,8 +41,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.3",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/controller-utils": "^9.0.2",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
     "punycode": "^2.1.1"

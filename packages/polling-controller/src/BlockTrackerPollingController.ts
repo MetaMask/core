@@ -9,11 +9,7 @@ import {
   AbstractPollingControllerBaseMixin,
   getKey,
 } from './AbstractPollingController';
-import type { PollingTokenSetId } from './AbstractPollingController';
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor = new (...args: any[]) => object;
+import type { Constructor, PollingTokenSetId } from './types';
 
 /**
  * BlockTrackerPollingControllerMixin

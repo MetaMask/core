@@ -11,7 +11,7 @@ import type {
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import type { BN } from 'ethereumjs-util';
+import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
 import { SupportedTokenDetectionNetworks } from './assetsUtil';

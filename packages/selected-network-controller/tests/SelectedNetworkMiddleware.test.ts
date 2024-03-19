@@ -4,13 +4,19 @@ import type { JsonRpcResponse } from '@metamask/utils';
 
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
 import type {
-  SelectedNetworkMiddlewareJsonRpcRequest,
-  SelectedNetworkMiddlewareMessenger,
-} from '../src/SelectedNetworkMiddleware';
+  AllowedActions,
+  AllowedEvents,
+  SelectedNetworkControllerActions,
+  SelectedNetworkControllerEvents,
+} from '../src/SelectedNetworkController';
+import type { SelectedNetworkMiddlewareJsonRpcRequest } from '../src/SelectedNetworkMiddleware';
 import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
-const buildMessenger = (): SelectedNetworkMiddlewareMessenger => {
-  return new ControllerMessenger();
+const buildMessenger = () => {
+  return new ControllerMessenger<
+    SelectedNetworkControllerActions | AllowedActions,
+    SelectedNetworkControllerEvents | AllowedEvents
+  >();
 };
 
 const noop = jest.fn();
@@ -18,7 +24,13 @@ const noop = jest.fn();
 describe('createSelectedNetworkMiddleware', () => {
   it('throws if not provided an origin', async () => {
     const messenger = buildMessenger();
-    const middleware = createSelectedNetworkMiddleware(messenger);
+    const middleware = createSelectedNetworkMiddleware(
+      messenger.getRestricted({
+        name: 'SelectedNetworkController',
+        allowedActions: [],
+        allowedEvents: [],
+      }),
+    );
     const req: SelectedNetworkMiddlewareJsonRpcRequest = {
       id: '123',
       jsonrpc: '2.0',
@@ -36,7 +48,13 @@ describe('createSelectedNetworkMiddleware', () => {
 
   it('puts networkClientId on request', async () => {
     const messenger = buildMessenger();
-    const middleware = createSelectedNetworkMiddleware(messenger);
+    const middleware = createSelectedNetworkMiddleware(
+      messenger.getRestricted({
+        name: 'SelectedNetworkController',
+        allowedActions: [],
+        allowedEvents: [],
+      }),
+    );
 
     const req = {
       origin: 'example.com',
@@ -58,48 +76,6 @@ describe('createSelectedNetworkMiddleware', () => {
     expect(req.networkClientId).toBe('mockNetworkClientId');
   });
 
-  it('sets the networkClientId for the domain to the current network from networkController if one is not set', async () => {
-    const messenger = buildMessenger();
-    const middleware = createSelectedNetworkMiddleware(messenger);
-
-    const req = {
-      origin: 'example.com',
-    } as SelectedNetworkMiddlewareJsonRpcRequest;
-
-    const mockGetNetworkClientIdForDomain = jest
-      .fn()
-      .mockReturnValueOnce(undefined)
-      .mockReturnValueOnce('defaultNetworkClientId');
-    const mockSetNetworkClientIdForDomain = jest.fn();
-    const mockNetworkControllerGetState = jest.fn().mockReturnValue({
-      selectedNetworkClientId: 'defaultNetworkClientId',
-    });
-    messenger.registerActionHandler(
-      SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
-      mockGetNetworkClientIdForDomain,
-    );
-    messenger.registerActionHandler(
-      SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
-      mockSetNetworkClientIdForDomain,
-    );
-    messenger.registerActionHandler(
-      'NetworkController:getState',
-      mockNetworkControllerGetState,
-    );
-
-    await new Promise((resolve) =>
-      middleware(req, {} as JsonRpcResponse<typeof req>, resolve, noop),
-    );
-
-    expect(mockGetNetworkClientIdForDomain).toHaveBeenCalledWith('example.com');
-    expect(mockNetworkControllerGetState).toHaveBeenCalled();
-    expect(mockSetNetworkClientIdForDomain).toHaveBeenCalledWith(
-      'example.com',
-      'defaultNetworkClientId',
-    );
-    expect(req.networkClientId).toBe('defaultNetworkClientId');
-  });
-
   it('implements the json-rpc-engine middleware interface appropriately', async () => {
     const engine = new JsonRpcEngine();
     const messenger = buildMessenger();
@@ -107,7 +83,15 @@ describe('createSelectedNetworkMiddleware', () => {
       req.origin = 'foobar';
       next();
     });
-    engine.push(createSelectedNetworkMiddleware(messenger));
+    engine.push(
+      createSelectedNetworkMiddleware(
+        messenger.getRestricted({
+          name: 'SelectedNetworkController',
+          allowedActions: [],
+          allowedEvents: [],
+        }),
+      ),
+    );
     const mockNextMiddleware = jest
       .fn()
       .mockImplementation((req, res, _, end) => {

@@ -4,7 +4,8 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { BN, stripHexPrefix } from 'ethereumjs-util';
+import { remove0x } from '@metamask/utils';
+import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
 import type {
@@ -44,6 +45,7 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
     'animation',
     'animationOriginal',
     'externalLink',
+    'tokenURI',
   ];
   const differentValues = keys.reduce((value, key) => {
     if (newNftMetadata[key] && newNftMetadata[key] !== nft[key]) {
@@ -240,7 +242,7 @@ export function addUrlProtocolPrefix(urlString: string): string {
  * @returns A BN object.
  */
 export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
-  return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
+  return new BN(remove0x(bigNumber.toHexString()), 'hex');
 }
 
 /**

@@ -95,6 +95,12 @@ const INFURA_NETWORKS = [
     blockExplorerUrl: 'https://goerli.lineascan.build',
   },
   {
+    networkType: NetworkType['linea-sepolia'],
+    chainId: toHex(59141),
+    ticker: 'LineaETH',
+    blockExplorerUrl: 'https://sepolia.lineascan.build',
+  },
+  {
     networkType: NetworkType['linea-mainnet'],
     chainId: toHex(59144),
     ticker: 'ETH',
@@ -1319,6 +1325,18 @@ describe('NetworkController', () => {
                 },
               ],
               [
+                'linea-sepolia',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  chainId:
+                    BUILT_IN_NETWORKS[NetworkType['linea-sepolia']].chainId,
+                  ticker:
+                    BUILT_IN_NETWORKS[NetworkType['linea-sepolia']].ticker,
+                  network: InfuraNetworkType['linea-sepolia'],
+                },
+              ],
+              [
                 'mainnet',
                 {
                   type: NetworkClientType.Infura,
@@ -1438,6 +1456,18 @@ describe('NetworkController', () => {
                 },
               ],
               [
+                'linea-sepolia',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  chainId:
+                    BUILT_IN_NETWORKS[NetworkType['linea-sepolia']].chainId,
+                  ticker:
+                    BUILT_IN_NETWORKS[NetworkType['linea-sepolia']].ticker,
+                  network: InfuraNetworkType['linea-sepolia'],
+                },
+              ],
+              [
                 'mainnet',
                 {
                   type: NetworkClientType.Infura,
@@ -1537,6 +1567,20 @@ describe('NetworkController', () => {
                     BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                       .ticker,
                   network: InfuraNetworkType['linea-mainnet'],
+                },
+              ],
+              [
+                'linea-sepolia',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  chainId:
+                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                      .chainId,
+                  ticker:
+                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                      .ticker,
+                  network: InfuraNetworkType['linea-sepolia'],
                 },
               ],
               [
@@ -1668,6 +1712,20 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
+                    'linea-sepolia',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                          .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                          .ticker,
+                      network: InfuraNetworkType['linea-sepolia'],
+                    },
+                  ],
+                  [
                     'mainnet',
                     {
                       type: NetworkClientType.Infura,
@@ -1786,6 +1844,20 @@ describe('NetworkController', () => {
                         BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                           .ticker,
                       network: InfuraNetworkType['linea-mainnet'],
+                    },
+                  ],
+                  [
+                    'linea-sepolia',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                          .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                          .ticker,
+                      network: InfuraNetworkType['linea-sepolia'],
                     },
                   ],
                   [
@@ -1910,6 +1982,20 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
+                    'linea-sepolia',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                          .chainId,
+                      ticker:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                          .ticker,
+                      network: InfuraNetworkType['linea-sepolia'],
+                    },
+                  ],
+                  [
                     'mainnet',
                     {
                       type: NetworkClientType.Infura,
@@ -2029,6 +2115,20 @@ describe('NetworkController', () => {
                       BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
                         .ticker,
                     network: InfuraNetworkType['linea-mainnet'],
+                  },
+                ],
+                [
+                  'linea-sepolia',
+                  {
+                    type: NetworkClientType.Infura,
+                    infuraProjectId: 'some-infura-project-id',
+                    chainId:
+                      BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                        .chainId,
+                    ticker:
+                      BUILT_IN_NETWORKS[InfuraNetworkType['linea-sepolia']]
+                        .ticker,
+                    network: InfuraNetworkType['linea-sepolia'],
                   },
                 ],
                 [
@@ -3768,6 +3868,14 @@ describe('NetworkController', () => {
             blockExplorerUrl: 'https://goerli.lineascan.build',
           },
         },
+        [InfuraNetworkType['linea-sepolia']]: {
+          rpcUrl: 'https://linea-sepolia.infura.io/v3/some-infura-project-id',
+          chainId: '0xe705' as const,
+          ticker: 'LineaETH',
+          rpcPrefs: {
+            blockExplorerUrl: 'https://sepolia.lineascan.build',
+          },
+        },
         [InfuraNetworkType['linea-mainnet']]: {
           rpcUrl: 'https://linea-mainnet.infura.io/v3/some-infura-project-id',
           chainId: '0xe708' as const,
@@ -3974,7 +4082,7 @@ describe('NetworkController', () => {
             );
 
             const networkClients = controller.getNetworkClientRegistry();
-            expect(Object.keys(networkClients)).toHaveLength(6);
+            expect(Object.keys(networkClients)).toHaveLength(7);
             expect(networkClients).toMatchObject({
               'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                 configuration: {
@@ -4554,7 +4662,7 @@ describe('NetworkController', () => {
 
                 const networkClients = controller.getNetworkClientRegistry();
                 expect(networkClientToDestroy.destroy).toHaveBeenCalled();
-                expect(Object.keys(networkClients)).toHaveLength(6);
+                expect(Object.keys(networkClients)).toHaveLength(7);
                 expect(networkClients).not.toMatchObject({
                   [oldRpcUrl]: expect.objectContaining({
                     configuration: {
@@ -4610,7 +4718,7 @@ describe('NetworkController', () => {
                 );
 
                 const networkClients = controller.getNetworkClientRegistry();
-                expect(Object.keys(networkClients)).toHaveLength(6);
+                expect(Object.keys(networkClients)).toHaveLength(7);
                 expect(networkClients).toMatchObject({
                   'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                     configuration: {
@@ -7342,6 +7450,8 @@ function buildMessenger() {
 function buildNetworkControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'NetworkController',
+    allowedActions: [],
+    allowedEvents: [],
   });
 }
 

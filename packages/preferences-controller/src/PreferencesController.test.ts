@@ -139,6 +139,35 @@ describe('PreferencesController', () => {
       expect(controller.state.selectedAddress).toBe('0x00');
     });
 
+    it('should maintain existing identities when no accounts are present in keyrings', () => {
+      const identitiesState = {
+        '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
+        '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
+        '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
+      };
+      const messenger = getControllerMessenger();
+      const controller = setupPreferencesController({
+        options: {
+          state: {
+            identities: cloneDeep(identitiesState),
+            selectedAddress: '0x00',
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        {
+          ...getDefaultKeyringState(),
+          keyrings: [{ accounts: [], type: 'CustomKeyring' }],
+        },
+        [],
+      );
+
+      expect(controller.state.identities).toStrictEqual(identitiesState);
+    });
+
     it('should not update existing identities', () => {
       const identitiesState = {
         '0x00': { address: '0x00', importTime: 1, name: 'Account 1' },
@@ -305,110 +334,6 @@ describe('PreferencesController', () => {
     expect(controller.state.identities['0x01'].name).toBe('qux');
   });
 
-  it('should sync identities', () => {
-    const controller = setupPreferencesController();
-    controller.addIdentities(['0x00', '0x01']);
-    controller.syncIdentities(['0x00', '0x01']);
-    expect(controller.state.identities['0x00'].address).toBe('0x00');
-    expect(controller.state.identities['0x00'].name).toBe('Account 1');
-    expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
-      Date.now(),
-    );
-    expect(controller.state.identities['0x01'].address).toBe('0x01');
-    expect(controller.state.identities['0x01'].name).toBe('Account 2');
-    expect(controller.state.identities['0x01'].importTime).toBeLessThanOrEqual(
-      Date.now(),
-    );
-    controller.syncIdentities(['0x00']);
-    expect(controller.state.identities['0x00'].address).toBe('0x00');
-    expect(controller.state.identities['0x00'].name).toBe('Account 1');
-    expect(controller.state.selectedAddress).toBe('0x00');
-  });
-
-  it('should add new identities', () => {
-    const controller = setupPreferencesController();
-    controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.identities['0x00'].address).toBe('0x00');
-    expect(controller.state.identities['0x00'].name).toBe('Account 1');
-    expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
-      Date.now(),
-    );
-    expect(controller.state.identities['0x01'].address).toBe('0x01');
-    expect(controller.state.identities['0x01'].name).toBe('Account 2');
-    expect(controller.state.identities['0x01'].importTime).toBeLessThanOrEqual(
-      Date.now(),
-    );
-  });
-
-  it('should not update existing identities', () => {
-    const controller = setupPreferencesController({
-      options: {
-        state: {
-          identities: { '0x01': { address: '0x01', name: 'Custom name' } },
-        },
-      },
-    });
-    controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.identities['0x00'].address).toBe('0x00');
-    expect(controller.state.identities['0x00'].name).toBe('Account 1');
-    expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
-      Date.now(),
-    );
-    expect(controller.state.identities['0x01'].address).toBe('0x01');
-    expect(controller.state.identities['0x01'].name).toBe('Custom name');
-    expect(controller.state.identities['0x01'].importTime).toBeUndefined();
-  });
-
-  it('should remove identities', () => {
-    const controller = setupPreferencesController({
-      options: {
-        state: {
-          identities: {
-            '0x01': { address: '0x01', name: 'Account 2' },
-            '0x00': { address: '0x00', name: 'Account 1' },
-          },
-        },
-      },
-    });
-    controller.updateIdentities(['0x00']);
-    expect(controller.state.identities).toStrictEqual({
-      '0x00': { address: '0x00', name: 'Account 1' },
-    });
-  });
-
-  it('should not update selected address if it is still among identities', () => {
-    const controller = setupPreferencesController({
-      options: {
-        state: {
-          identities: {
-            '0x01': { address: '0x01', name: 'Account 2' },
-            '0x00': { address: '0x00', name: 'Account 1' },
-          },
-          selectedAddress: '0x01',
-        },
-      },
-    });
-    controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.selectedAddress).toBe('0x01');
-  });
-
-  it('should update selected address to first identity if it was removed from identities', () => {
-    const controller = setupPreferencesController({
-      options: {
-        state: {
-          identities: {
-            '0x01': { address: '0x01', name: 'Account 2' },
-            '0x02': { address: '0x02', name: 'Account 3' },
-            '0x00': { address: '0x00', name: 'Account 1' },
-          },
-          selectedAddress: '0x02',
-        },
-      },
-    });
-    controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.selectedAddress).toBe('0x00');
-  });
-
   it('should set IPFS gateway', () => {
     const controller = setupPreferencesController();
     controller.setIpfsGateway('https://ipfs.infura.io/ipfs/');
@@ -434,6 +359,24 @@ describe('PreferencesController', () => {
     controller.setOpenSeaEnabled(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toBe(true);
+  });
+
+  it('should throw an error when useNftDetection is set and openSeaEnabled is false', () => {
+    const controller = setupPreferencesController();
+    controller.setOpenSeaEnabled(false);
+    expect(() => controller.setUseNftDetection(true)).toThrow(
+      'useNftDetection cannot be enabled if openSeaEnabled is false',
+    );
+  });
+
+  it('should set featureFlags', () => {
+    const controller = setupPreferencesController();
+    controller.setFeatureFlag('Feature A', true);
+    controller.setFeatureFlag('Feature B', false);
+    expect(controller.state.featureFlags).toStrictEqual({
+      'Feature A': true,
+      'Feature B': false,
+    });
   });
 
   it('should set securityAlertsEnabled', () => {
@@ -517,6 +460,7 @@ function setupPreferencesController({
     AllowedEvents['type']
   >({
     name: 'PreferencesController',
+    allowedActions: [],
     allowedEvents: ['KeyringController:stateChange'],
   });
   return new PreferencesController({

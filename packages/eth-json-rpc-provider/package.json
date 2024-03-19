@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-json-rpc-provider",
-  "version": "2.3.2",
+  "version": "3.0.1",
   "description": "Create an Ethereum provider using a JSON-RPC engine or middleware",
   "keywords": [
     "MetaMask",
@@ -15,14 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "ISC",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "build:clean": "rimraf dist && yarn build",
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-json-rpc-provider",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-provider",
@@ -38,7 +46,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/json-rpc-engine": "^7.3.2",
+    "@metamask/json-rpc-engine": "^8.0.1",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^8.3.0"
   },

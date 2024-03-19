@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "9.0.0",
+  "version": "10.0.1",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "MetaMask",
@@ -15,12 +15,22 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/ens-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ens-controller",
@@ -32,15 +42,14 @@
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^4.1.1",
-    "@metamask/controller-utils": "^8.0.3",
+    "@metamask/base-controller": "^5.0.1",
+    "@metamask/controller-utils": "^9.0.2",
     "@metamask/utils": "^8.3.0",
-    "ethereum-ens-network-map": "^1.0.2",
     "punycode": "^2.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^17.2.0",
+    "@metamask/network-controller": "^18.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -50,7 +59,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^17.2.0"
+    "@metamask/network-controller": "^18.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

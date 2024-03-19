@@ -1,5 +1,6 @@
 import { hexToBN } from '@metamask/controller-utils';
-import { BN, addHexPrefix } from 'ethereumjs-util';
+import { add0x } from '@metamask/utils';
+import BN from 'bn.js';
 
 import { VALUE_ZERO } from '../constants';
 import { Bundler } from '../helpers/Bundler';
@@ -86,5 +87,5 @@ function normalizeGasEstimate(rawValue: string | number): string {
 
   const bufferedValue = value.muln(GAS_ESTIMATE_MULTIPLIER);
 
-  return addHexPrefix(bufferedValue.toString(16));
+  return add0x(bufferedValue.toString(16));
 }

@@ -497,7 +497,7 @@ describe('TokenRatesController', () => {
 
       it('should not update exchange rates if none of the addresses in "all tokens" or "all detected tokens" change, when normalized to checksum addresses', async () => {
         const chainId = '0xC';
-        const selectedAddress = '0xA';
+        const selectedAddress = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
         await withController(
           {
             options: {
@@ -510,7 +510,7 @@ describe('TokenRatesController', () => {
                 [chainId]: {
                   [selectedAddress]: [
                     {
-                      address: '0xE2',
+                      address: '0x0EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE2',
                       decimals: 3,
                       symbol: '',
                       aggregators: [],
@@ -533,7 +533,7 @@ describe('TokenRatesController', () => {
                 [chainId]: {
                   [selectedAddress]: [
                     {
-                      address: '0xe2',
+                      address: '0x0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee2',
                       decimals: 7,
                       symbol: '',
                       aggregators: [],

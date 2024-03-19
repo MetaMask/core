@@ -1,5 +1,5 @@
 import EthQuery from '@metamask/eth-query';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import { when } from 'jest-when';
 
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';

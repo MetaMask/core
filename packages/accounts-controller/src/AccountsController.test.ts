@@ -10,6 +10,8 @@ import type {
   AccountsControllerActions,
   AccountsControllerEvents,
   AccountsControllerState,
+  AllowedActions,
+  AllowedEvents,
 } from './AccountsController';
 import { AccountsController } from './AccountsController';
 import { keyringTypeToName } from './utils';
@@ -180,8 +182,8 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
  */
 function buildMessenger() {
   return new ControllerMessenger<
-    AccountsControllerActions,
-    AccountsControllerEvents
+    AccountsControllerActions | AllowedActions,
+    AccountsControllerEvents | AllowedEvents
   >();
 }
 
@@ -196,7 +198,6 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
     name: 'AccountsController',
     allowedEvents: [
       'SnapController:stateChange',
-      'KeyringController:accountRemoved',
       'KeyringController:stateChange',
     ],
     allowedActions: [
@@ -221,8 +222,8 @@ function setupAccountsController({
 }: {
   initialState?: Partial<AccountsControllerState>;
   messenger?: ControllerMessenger<
-    AccountsControllerActions,
-    AccountsControllerEvents
+    AccountsControllerActions | AllowedActions,
+    AccountsControllerEvents | AllowedEvents
   >;
 }): AccountsController {
   const accountsControllerMessenger =

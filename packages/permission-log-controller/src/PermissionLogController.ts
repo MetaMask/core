@@ -83,9 +83,6 @@ const defaultState: PermissionLogControllerState = {
   permissionActivityLog: [],
 };
 
-/**
- * The name of the {@link PermissionController}.
- */
 const name = 'PermissionLogController';
 
 /**

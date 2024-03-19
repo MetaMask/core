@@ -11,10 +11,8 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
-import { addHexPrefix } from 'ethereumjs-util';
+import { add0x, createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
@@ -22,24 +20,33 @@ import type {
   TransactionParams,
   TransactionMeta,
   TransactionType,
+  GasFeeFlow,
 } from '../types';
 import { UserFeeLevel } from '../types';
+import { getGasFeeFlow } from './gas-flow';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
-  getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  gasFeeFlows: GasFeeFlow[];
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
+  getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
   txMeta: TransactionMeta;
 };
 
 export type GetGasFeeRequest = UpdateGasFeesRequest & {
-  savedGasFees?: SavedGasFees;
   initialParams: TransactionParams;
-  suggestedGasFees: Awaited<ReturnType<typeof getSuggestedGasFees>>;
+  savedGasFees?: SavedGasFees;
+  suggestedGasFees: SuggestedGasFees;
+};
+
+type SuggestedGasFees = {
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  gasPrice?: string;
 };
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
@@ -59,10 +66,10 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
 
   log('Suggested gas fees', suggestedGasFees);
 
-  const getGasFeeRequest = {
+  const getGasFeeRequest: GetGasFeeRequest = {
     ...request,
-    savedGasFees,
     initialParams,
+    savedGasFees,
     suggestedGasFees,
   };
 
@@ -90,6 +97,10 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   }
 
   updateDefaultGasEstimates(txMeta);
+}
+
+export function gweiDecimalToWeiHex(value: string) {
+  return toHex(gweiDecToWEIBN(value));
 }
 
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
@@ -202,6 +213,11 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
     return initialParams.gasPrice;
   }
 
+  if (suggestedGasFees.maxFeePerGas) {
+    log('Using suggested maxFeePerGas', suggestedGasFees.maxFeePerGas);
+    return suggestedGasFees.maxFeePerGas;
+  }
+
   if (suggestedGasFees.gasPrice) {
     log('Using suggested gasPrice', suggestedGasFees.gasPrice);
     return suggestedGasFees.gasPrice;
@@ -263,8 +279,11 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
   txMeta.defaultGasEstimates.estimateType = txMeta.userFeeLevel;
 }
 
-async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
-  const { eip1559, ethQuery, getGasFeeEstimates, txMeta } = request;
+async function getSuggestedGasFees(
+  request: UpdateGasFeesRequest,
+): Promise<SuggestedGasFees> {
+  const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
+    request;
 
   if (
     (!eip1559 && txMeta.txParams.gasPrice) ||
@@ -275,41 +294,16 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
     return {};
   }
 
+  const gasFeeFlow = getGasFeeFlow(txMeta, gasFeeFlows) as GasFeeFlow;
+
   try {
-    const { gasFeeEstimates, gasEstimateType } = await getGasFeeEstimates({
-      networkClientId: txMeta.networkClientId,
+    const response = await gasFeeFlow.getGasFees({
+      ethQuery,
+      getGasFeeControllerEstimates: getGasFeeEstimates,
+      transactionMeta: txMeta,
     });
 
-    if (eip1559 && gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
-      const {
-        medium: { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } = {},
-      } = gasFeeEstimates;
-
-      if (suggestedMaxPriorityFeePerGas && suggestedMaxFeePerGas) {
-        return {
-          maxFeePerGas: gweiDecimalToWeiHex(suggestedMaxFeePerGas),
-          maxPriorityFeePerGas: gweiDecimalToWeiHex(
-            suggestedMaxPriorityFeePerGas,
-          ),
-        };
-      }
-    }
-
-    if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
-      // The LEGACY type includes low, medium and high estimates of
-      // gas price values.
-      return {
-        gasPrice: gweiDecimalToWeiHex(gasFeeEstimates.medium),
-      };
-    }
-
-    if (gasEstimateType === GAS_ESTIMATE_TYPES.ETH_GASPRICE) {
-      // The ETH_GASPRICE type just includes a single gas price property,
-      // which we can assume was retrieved from eth_gasPrice
-      return {
-        gasPrice: gweiDecimalToWeiHex(gasFeeEstimates.gasPrice),
-      };
-    }
+    return response.estimates.medium;
   } catch (error) {
     log('Failed to get suggested gas fees', error);
   }
@@ -317,12 +311,8 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
   const gasPriceDecimal = (await query(ethQuery, 'gasPrice')) as number;
 
   const gasPrice = gasPriceDecimal
-    ? addHexPrefix(gasPriceDecimal.toString(16))
+    ? add0x(gasPriceDecimal.toString(16))
     : undefined;
 
   return { gasPrice };
-}
-
-function gweiDecimalToWeiHex(value: string) {
-  return toHex(gweiDecToWEIBN(value));
 }

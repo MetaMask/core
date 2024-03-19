@@ -7,7 +7,6 @@ import type {
   AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
-  ApprovalControllerMessenger,
   ErrorOptions,
   StartFlowOptions,
   SuccessOptions,
@@ -231,12 +230,10 @@ function getRestrictedMessenger() {
     ApprovalControllerActions,
     ApprovalControllerEvents
   >();
-  const messenger = controllerMessenger.getRestricted<
-    typeof controllerName,
-    never,
-    never
-  >({
+  const messenger = controllerMessenger.getRestricted({
     name: 'ApprovalController',
+    allowedActions: [],
+    allowedEvents: [],
   });
   return messenger;
 }
@@ -1151,7 +1148,9 @@ describe('approval controller', () => {
       approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
-        }) as ApprovalControllerMessenger,
+          allowedActions: [],
+          allowedEvents: [],
+        }),
         showApprovalRequest,
       });
 
@@ -1173,7 +1172,9 @@ describe('approval controller', () => {
       approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
-        }) as ApprovalControllerMessenger,
+          allowedActions: [],
+          allowedEvents: [],
+        }),
         showApprovalRequest,
       });
 
@@ -1195,7 +1196,9 @@ describe('approval controller', () => {
       approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
-        }) as ApprovalControllerMessenger,
+          allowedActions: [],
+          allowedEvents: [],
+        }),
         showApprovalRequest,
       });
 

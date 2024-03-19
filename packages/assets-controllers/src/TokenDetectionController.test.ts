@@ -8,18 +8,21 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
-import {
-  defaultState as defaultNetworkState,
-  type NetworkState,
-  type NetworkConfiguration,
-  type NetworkController,
+import type {
+  NetworkState,
+  NetworkConfiguration,
+  NetworkController,
+  NetworkClientId,
 } from '@metamask/network-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
+import type { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import { BN } from 'ethereumjs-util';
+import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
@@ -138,8 +141,11 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
+      'AccountsController:getSelectedAccount',
       'KeyringController:getState',
+      'NetworkController:getNetworkClientById',
       'NetworkController:getNetworkConfigurationByNetworkClientId',
+      'NetworkController:getState',
       'TokensController:getState',
       'TokensController:addDetectedTokens',
       'TokenListController:getState',
@@ -266,10 +272,13 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.goerli,
           },
         },
-        async ({ controller }) => {
+        async ({ controller, mockNetworkState }) => {
+          mockNetworkState({
+            ...defaultNetworkState,
+            selectedNetworkClientId: NetworkType.goerli,
+          });
           await controller.start();
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
@@ -286,22 +295,26 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           });
@@ -329,22 +342,43 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: 'polygon',
             selectedAddress,
           },
         },
-        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockNetworkState,
+          mockGetNetworkClientById,
+          callActionSpy,
+        }) => {
+          mockNetworkState({
+            ...defaultNetworkState,
+            selectedNetworkClientId: 'polygon',
+          });
+          mockGetNetworkClientById(
+            () =>
+              ({
+                configuration: { chainId: '0x89' },
+              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+          );
+
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              '0x89': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           });
@@ -375,29 +409,33 @@ describe('TokenDetectionController', () => {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             interval,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
           const tokenListState = {
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           };
           mockTokenListGetState(tokenListState);
           await controller.start();
 
-          tokenListState.tokenList[sampleTokenB.address] = {
+          tokenListState.tokensChainsCache['0x1'].data[sampleTokenB.address] = {
             name: sampleTokenB.name,
             symbol: sampleTokenB.symbol,
             decimals: sampleTokenB.decimals,
@@ -430,7 +468,6 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -446,15 +483,20 @@ describe('TokenDetectionController', () => {
           });
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           });
@@ -476,22 +518,25 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
-            selectedAddress: '',
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           });
@@ -530,7 +575,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -541,15 +585,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
                 },
               },
             });
@@ -581,7 +630,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -592,15 +640,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
                 },
               },
             });
@@ -631,7 +684,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress: firstSelectedAddress,
               },
               isKeyringUnlocked: false,
@@ -643,15 +695,20 @@ describe('TokenDetectionController', () => {
             }) => {
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
+                tokensChainsCache: {
+                  '0x1': {
+                    timestamp: 0,
+                    data: {
+                      [sampleTokenA.address]: {
+                        name: sampleTokenA.name,
+                        symbol: sampleTokenA.symbol,
+                        decimals: sampleTokenA.decimals,
+                        address: sampleTokenA.address,
+                        occurrences: 1,
+                        aggregators: sampleTokenA.aggregators,
+                        iconUrl: sampleTokenA.image,
+                      },
+                    },
                   },
                 },
               });
@@ -684,7 +741,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -695,15 +751,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
                 },
               },
             });
@@ -746,7 +807,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -757,15 +817,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
                 },
               },
             });
@@ -799,7 +864,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -810,15 +874,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
                 },
               },
             });
@@ -862,7 +931,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -910,7 +978,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -962,7 +1029,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress: firstSelectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1011,7 +1077,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1073,7 +1138,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress: firstSelectedAddress,
             },
           },
@@ -1121,7 +1185,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1189,7 +1252,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1200,15 +1262,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x89': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
                 },
               },
             });
@@ -1241,7 +1308,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1252,15 +1318,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x5': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
                 },
               },
             });
@@ -1288,7 +1359,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1336,7 +1406,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1387,7 +1456,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1447,7 +1515,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1456,17 +1523,24 @@ describe('TokenDetectionController', () => {
             callActionSpy,
             triggerTokenListStateChange,
           }) => {
+            const tokenList = {
+              [sampleTokenA.address]: {
+                name: sampleTokenA.name,
+                symbol: sampleTokenA.symbol,
+                decimals: sampleTokenA.decimals,
+                address: sampleTokenA.address,
+                occurrences: 1,
+                aggregators: sampleTokenA.aggregators,
+                iconUrl: sampleTokenA.image,
+              },
+            };
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokenList,
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: tokenList,
                 },
               },
             };
@@ -1497,7 +1571,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1533,7 +1606,6 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                networkClientId: NetworkType.mainnet,
                 selectedAddress,
               },
               isKeyringUnlocked: false,
@@ -1582,7 +1654,6 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              networkClientId: NetworkType.mainnet,
               selectedAddress,
             },
           },
@@ -1639,7 +1710,6 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -1676,19 +1746,19 @@ describe('TokenDetectionController', () => {
           await advanceTime({ clock, duration: 0 });
 
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
           ]);
 
           await advanceTime({ clock, duration: DEFAULT_INTERVAL });
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
-            [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', accountAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
+            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
+            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
+            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
           ]);
         },
       );
@@ -1706,22 +1776,26 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.goerli,
             selectedAddress,
           },
         },
         async ({
           controller,
+          mockNetworkState,
           triggerPreferencesStateChange,
           callActionSpy,
         }) => {
+          mockNetworkState({
+            ...defaultNetworkState,
+            selectedNetworkClientId: NetworkType.goerli,
+          });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
           });
           await controller.detectTokens({
             networkClientId: NetworkType.goerli,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
@@ -1746,7 +1820,6 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
@@ -1761,22 +1834,17 @@ describe('TokenDetectionController', () => {
           });
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
             'TokensController:addDetectedTokens',
             Object.values(STATIC_MAINNET_TOKEN_LIST).map((token) => {
-              const newToken = {
-                ...token,
+              const { iconUrl, ...tokenMetadata } = token;
+              return {
+                ...tokenMetadata,
                 image: token.iconUrl,
                 isERC721: false,
               };
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              delete (newToken as any).erc20;
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              delete (newToken as any).erc721;
-              delete newToken.iconUrl;
-              return newToken;
             }),
             {
               selectedAddress,
@@ -1797,29 +1865,33 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           });
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -1847,29 +1919,33 @@ describe('TokenDetectionController', () => {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
-            networkClientId: NetworkType.mainnet,
             selectedAddress,
           },
         },
         async ({ controller, mockTokenListGetState }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
               },
             },
           });
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            accountAddress: selectedAddress,
+            selectedAddress,
           });
 
           expect(mockTrackMetaMetricsEvent).toHaveBeenCalledWith({
@@ -1901,10 +1977,14 @@ function getTokensPath(chainId: Hex) {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  mockGetSelectedAccount,
   mockKeyringGetState,
   mockTokensGetState,
   mockTokenListGetState,
   mockPreferencesGetState,
+  mockGetNetworkClientById,
+  mockGetNetworkConfigurationByNetworkClientId,
+  mockNetworkState,
   callActionSpy,
   triggerKeyringUnlock,
   triggerKeyringLock,
@@ -1914,13 +1994,20 @@ type WithControllerCallback<ReturnValue> = ({
   triggerNetworkDidChange,
 }: {
   controller: TokenDetectionController;
+  mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
   mockTokensGetState: (state: TokensState) => void;
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
-  mockGetNetworkConfigurationByNetworkClientId: (
-    handler: (networkClientId: string) => NetworkConfiguration,
+  mockGetNetworkClientById: (
+    handler: (
+      networkClientId: NetworkClientId,
+    ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
   ) => void;
+  mockGetNetworkConfigurationByNetworkClientId: (
+    handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
+  ) => void;
+  mockNetworkState: (state: NetworkState) => void;
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
@@ -1957,12 +2044,34 @@ async function withController<ReturnValue>(
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
 
+  const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
+  controllerMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount.mockReturnValue({
+      address: '0x1',
+    } as InternalAccount),
+  );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
   controllerMessenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: isKeyringUnlocked ?? true,
     } as KeyringControllerState),
+  );
+  const mockGetNetworkClientById = jest.fn<
+    ReturnType<NetworkController['getNetworkClientById']>,
+    Parameters<NetworkController['getNetworkClientById']>
+  >();
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    mockGetNetworkClientById.mockImplementation(() => {
+      return {
+        configuration: { chainId: '0x1' },
+        provider: {},
+        destroy: {},
+        blockTracker: {},
+      } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+    }),
   );
   const mockGetNetworkConfigurationByNetworkClientId = jest.fn<
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
@@ -1971,10 +2080,15 @@ async function withController<ReturnValue>(
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
     mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
-      (networkClientId: string) => {
+      (networkClientId: NetworkClientId) => {
         return mockNetworkConfigurations[networkClientId];
       },
     ),
+  );
+  const mockNetworkState = jest.fn<NetworkState, []>();
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getState',
+    mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
   );
   const mockTokensState = jest.fn<TokensState, []>();
   controllerMessenger.registerActionHandler(
@@ -2005,7 +2119,6 @@ async function withController<ReturnValue>(
   const callActionSpy = jest.spyOn(controllerMessenger, 'call');
 
   const controller = new TokenDetectionController({
-    networkClientId: NetworkType.mainnet,
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
@@ -2014,6 +2127,9 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      mockGetSelectedAccount: (address: string) => {
+        mockGetSelectedAccount.mockReturnValue({ address } as InternalAccount);
+      },
       mockKeyringGetState: (state: KeyringControllerState) => {
         mockKeyringState.mockReturnValue(state);
       },
@@ -2026,12 +2142,22 @@ async function withController<ReturnValue>(
       mockTokenListGetState: (state: TokenListState) => {
         mockTokenListState.mockReturnValue(state);
       },
+      mockGetNetworkClientById: (
+        handler: (
+          networkClientId: NetworkClientId,
+        ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+      ) => {
+        mockGetNetworkClientById.mockImplementation(handler);
+      },
       mockGetNetworkConfigurationByNetworkClientId: (
-        handler: (networkClientId: string) => NetworkConfiguration,
+        handler: (networkClientId: NetworkClientId) => NetworkConfiguration,
       ) => {
         mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
           handler,
         );
+      },
+      mockNetworkState: (state: NetworkState) => {
+        mockNetworkState.mockReturnValue(state);
       },
       callActionSpy,
       triggerKeyringUnlock: () => {

@@ -1,3 +1,4 @@
+import { toBuffer } from '@ethereumjs/util';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -10,19 +11,19 @@ import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
-  KeyringControllerEvents,
   KeyringControllerGetKeyringForAccountAction,
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetAccountsAction,
+  KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
 import type {
-  SnapControllerEvents,
   SnapControllerState,
+  SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
-import { sha256FromString } from 'ethereumjs-util';
+import { sha256 } from 'ethereum-cryptography/sha256';
 import type { Draft } from 'immer';
 import { v4 as uuid } from 'uuid';
 
@@ -77,6 +78,11 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
+export type AllowedActions =
+  | KeyringControllerGetKeyringForAccountAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerGetAccountsAction;
+
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
@@ -85,10 +91,7 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountAction
-  | KeyringControllerGetKeyringForAccountAction
-  | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetAccountsAction;
+  | AccountsControllerGetAccountAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -100,18 +103,18 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
+
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent
-  | SnapControllerEvents
-  | KeyringControllerEvents;
+  | AccountsControllerSelectedAccountChangeEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  AccountsControllerActions,
-  AccountsControllerEvents,
-  string,
-  string
+  AccountsControllerActions | AllowedActions,
+  AccountsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 type AddressAndKeyringTypeObject = {
@@ -455,7 +458,7 @@ export class AccountsController extends BaseController<
         address,
       );
       const v4options = {
-        random: sha256FromString(address).slice(0, 16),
+        random: sha256(toBuffer(address)).slice(0, 16),
       };
 
       internalAccounts.push({

@@ -1,51 +1,38 @@
 import type { AccessList } from '@ethereumjs/tx';
+import type EthQuery from '@metamask/eth-query';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
-export type Events = {
-  ['incomingTransactionBlock']: [blockNumber: number];
-  ['post-transaction-balance-updated']: [
-    {
-      transactionMeta: TransactionMeta;
-      approvalTransactionMeta?: TransactionMeta;
-    },
-  ];
-  ['transaction-approved']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-confirmed']: [{ transactionMeta: TransactionMeta }];
+/**
+ * Given a record, ensures that each property matches the `Json` type.
+ */
+type MakeJsonCompatible<T> = T extends Json
+  ? T
+  : {
+      [K in keyof T]: T[K] extends Json ? T[K] : never;
+    };
 
-  ['transaction-dropped']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-failed']: [
-    {
-      actionId?: string;
-      error: string;
-      transactionMeta: TransactionMeta;
-    },
-  ];
-  ['transaction-new-swap']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-new-swap-approval']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-rejected']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['transaction-status-update']: [{ transactionMeta: TransactionMeta }];
-  ['transaction-submitted']: [
-    { transactionMeta: TransactionMeta; actionId?: string },
-  ];
-  ['unapprovedTransaction']: [transactionMeta: TransactionMeta];
-  [key: `${string}:confirmed`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:finished`]: [transactionMeta: TransactionMeta];
-  [key: `${string}:publish-skip`]: [tansactionMeta: TransactionMeta];
-  [key: `${string}:speedup`]: [transactionMeta: TransactionMeta];
-};
+/**
+ * `Json` from `@metamask/utils` is defined as a recursive type alias, but
+ * `Operation` is defined as an interface, and the two are not compatible with
+ * each other. Therefore, this is a variant of Operation from `fast-json-patch`
+ * which is guaranteed to be type-compatible with `Json`.
+ */
+type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
  * Representation of transaction metadata.
  */
 export type TransactionMeta = TransactionMetaBase &
   (
-    | { status: Exclude<TransactionStatus, TransactionStatus.failed> }
+    | {
+        status: Exclude<TransactionStatus, TransactionStatus.failed>;
+      }
     | {
         status: TransactionStatus.failed;
         error: TransactionError;
@@ -176,6 +163,12 @@ type TransactionMetaBase = {
    */
   firstRetryBlockNumber?: string;
 
+  /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
+  gasFeeEstimates?: GasFeeEstimates;
+
+  /** Whether the gas fee estimates have been checked at least once. */
+  gasFeeEstimatesLoaded?: boolean;
+
   /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
@@ -200,6 +193,11 @@ type TransactionMetaBase = {
    * Whether the transaction entry is generated from a user operation.
    */
   isUserOperation?: boolean;
+
+  /**
+   * Additional gas fees to cover the cost of persisting data on layer 1 for layer 2 networks.
+   */
+  layer1GasFee?: Hex;
 
   /**
    * The ID of the network client used by the transaction.
@@ -312,6 +310,11 @@ type TransactionMetaBase = {
    * This is purely attached to state logs for troubleshooting and support.
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /**
+   * Simulation data for the transaction used to predict its outcome.
+   */
+  simulationData?: SimulationData;
 
   /**
    * If the gas estimation fails, an object containing error and block information.
@@ -568,10 +571,7 @@ export enum TransactionType {
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TransactionParams {
+export type TransactionParams = {
   /**
    * A list of addresses and storage keys that the transaction plans to access.
    */
@@ -663,15 +663,12 @@ export interface TransactionParams {
    * 0x0 indicates a legacy transaction.
    */
   type?: string;
-}
+};
 
 /**
  * Standard data concerning a transaction processed by the blockchain.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface TransactionReceipt {
+export type TransactionReceipt = {
   /**
    * The block hash of the block that this transaction was included in.
    */
@@ -711,15 +708,12 @@ export interface TransactionReceipt {
    * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
   transactionIndex?: string;
-}
+};
 
 /**
  * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface Log {
+export type Log = {
   /**
    * Address of the contract that generated log.
    */
@@ -728,7 +722,7 @@ export interface Log {
    * List of topics for log.
    */
   topics?: string;
-}
+};
 
 /**
  * The configuration required to fetch transaction data from a RemoteTransactionSource.
@@ -789,15 +783,12 @@ export interface RemoteTransactionSource {
 /**
  * Gas values initially suggested by the dApp.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DappSuggestedGasFees {
+export type DappSuggestedGasFees = {
   gas?: string;
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
-}
+};
 
 /**
  * Gas values saved by the user for a specific chain.
@@ -812,7 +803,7 @@ export interface SavedGasFees {
 /**
  * A transaction history operation that includes a note and timestamp.
  */
-type ExtendedHistoryOperation = Operation & {
+type ExtendedHistoryOperation = JsonCompatibleOperation & {
   note?: string;
   timestamp?: number;
 };
@@ -822,7 +813,7 @@ type ExtendedHistoryOperation = Operation & {
  */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
-  ...Operation[],
+  ...JsonCompatibleOperation[],
 ];
 
 /**
@@ -954,7 +945,12 @@ export type TransactionError = {
   /**
    * The rpc property holds additional information related to the error.
    */
-  rpc?: unknown;
+  // We are intentionally using `any` here instead of `Json` because it causes
+  // `WritableDraft<TransactionMeta>` from Immer to cause TypeScript to error
+  // with "Type instantiation is excessively deep and possibly infinite". See:
+  // <https://github.com/immerjs/immer/issues/839>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rpc?: any;
 };
 
 /**
@@ -965,4 +961,165 @@ export type SecurityAlertResponse = {
   features?: string[];
   result_type: string;
   providerRequestsCount?: Record<string, number>;
+};
+
+/** Gas fee estimates for a specific priority level. */
+export type GasFeeEstimatesForLevel = {
+  /** Maximum amount to pay per gas. */
+  maxFeePerGas: Hex;
+
+  /** Maximum amount per gas to give to the validator as an incentive. */
+  maxPriorityFeePerGas: Hex;
+};
+
+/** Alternate priority levels for which values are provided in gas fee estimates. */
+export enum GasFeeEstimateLevel {
+  low = 'low',
+  medium = 'medium',
+  high = 'high',
+}
+
+/** Gas fee estimates for a transaction. */
+export type GasFeeEstimates = {
+  /** The gas fee estimate for a low priority transaction. */
+  [GasFeeEstimateLevel.low]: GasFeeEstimatesForLevel;
+
+  /** The gas fee estimate for a medium priority transaction. */
+  [GasFeeEstimateLevel.medium]: GasFeeEstimatesForLevel;
+
+  /** The gas fee estimate for a high priority transaction. */
+  [GasFeeEstimateLevel.high]: GasFeeEstimatesForLevel;
+};
+
+/** Request to a gas fee flow to obtain gas fee estimates. */
+export type GasFeeFlowRequest = {
+  /** An EthQuery instance to enable queries to the associated RPC provider. */
+  ethQuery: EthQuery;
+
+  /** Callback to get the GasFeeController estimates. */
+  getGasFeeControllerEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
+
+  /** The metadata of the transaction to obtain estimates for. */
+  transactionMeta: TransactionMeta;
+};
+
+/** Response from a gas fee flow containing gas fee estimates. */
+export type GasFeeFlowResponse = {
+  /** The gas fee estimates for the transaction. */
+  estimates: GasFeeEstimates;
+};
+
+/** A method of obtaining gas fee estimates for a specific transaction. */
+export type GasFeeFlow = {
+  /**
+   * Determine if the gas fee flow supports the specified transaction.
+   * @param transactionMeta - The transaction metadata.
+   * @returns Whether the gas fee flow supports the transaction.
+   */
+  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+
+  /**
+   * Get gas fee estimates for a specific transaction.
+   * @param request - The gas fee flow request.
+   * @returns The gas fee flow response containing the gas fee estimates.
+   */
+  getGasFees: (request: GasFeeFlowRequest) => Promise<GasFeeFlowResponse>;
+};
+
+/** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
+export type Layer1GasFeeFlowRequest = {
+  /** An EthQuery instance to enable queries to the associated RPC provider. */
+  ethQuery: EthQuery;
+
+  /** The metadata of the transaction to obtain estimates for. */
+  transactionMeta: TransactionMeta;
+};
+
+/** Response from a layer 1 gas fee flow containing layer 1 fee estimate. */
+export type Layer1GasFeeFlowResponse = {
+  /** The gas fee estimates for the transaction. */
+  layer1Fee: Hex;
+};
+
+/** A method of obtaining layer 1 gas fee estimates for a specific transaction. */
+export type Layer1GasFeeFlow = {
+  /**
+   * Determine if the gas fee flow supports the specified transaction.
+   * @param transactionMeta - The transaction metadata.
+   * @returns Whether the layer1 gas fee flow supports the transaction.
+   */
+  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+
+  /**
+   * Get layer 1 gas fee estimates for a specific transaction.
+   * @param request - The gas fee flow request.
+   * @returns The gas fee flow response containing the layer 1 gas fee estimate.
+   */
+  getLayer1Fee: (
+    request: Layer1GasFeeFlowRequest,
+  ) => Promise<Layer1GasFeeFlowResponse>;
+};
+
+/** Simulation data concerning an update to a native or token balance. */
+export type SimulationBalanceChange = {
+  /** The balance before the transaction. */
+  previousBalance: Hex;
+
+  /** The balance after the transaction. */
+  newBalance: Hex;
+
+  /** The difference in balance. */
+  difference: Hex;
+
+  /** Whether the balance is increasing or decreasing. */
+  isDecrease: boolean;
+};
+
+/** Token standards supported by simulation. */
+export enum SimulationTokenStandard {
+  erc20 = 'erc20',
+  erc721 = 'erc721',
+  erc1155 = 'erc1155',
+}
+
+/** Simulation data concerning an updated token. */
+export type SimulationToken = {
+  /** The token's contract address. */
+  address: Hex;
+
+  /** The standard of the token. */
+  standard: SimulationTokenStandard;
+
+  /** The ID of the token if supported by the standard. */
+  id?: Hex;
+};
+
+/** Simulation data concerning a change to the a token balance. */
+export type SimulationTokenBalanceChange = SimulationToken &
+  SimulationBalanceChange;
+
+/** Error data for a failed simulation. */
+export type SimulationError = {
+  /** Error code to identify the error type. */
+  code?: number;
+
+  /** Error message to describe the error. */
+  message?: string;
+
+  /** Whether the error is due to the transaction being reverted. */
+  isReverted: boolean;
+};
+
+/** Simulation data for a transaction. */
+export type SimulationData = {
+  /** Error data if the simulation failed or the transaction reverted. */
+  error?: SimulationError;
+
+  /** Data concerning a change to the user's native balance. */
+  nativeBalanceChange?: SimulationBalanceChange;
+
+  /** Data concerning a change to the user's token balances. */
+  tokenBalanceChanges: SimulationTokenBalanceChange[];
 };

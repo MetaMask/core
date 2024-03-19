@@ -53,9 +53,11 @@ export type ExtractEventPayload<
 
 export type GenericEventHandler = (...args: unknown[]) => void;
 
-export type SelectorFunction<Event extends EventConstraint, ReturnValue> = (
-  ...args: ExtractEventPayload<Event>
-) => ReturnValue;
+export type SelectorFunction<
+  Event extends EventConstraint,
+  EventType extends Event['type'],
+  ReturnValue,
+> = (...args: ExtractEventPayload<Event, EventType>) => ReturnValue;
 export type SelectorEventHandler<SelectorReturnValue> = (
   newValue: SelectorReturnValue,
   previousValue: SelectorReturnValue | undefined,
@@ -75,7 +77,7 @@ type EventSubscriptionMap<
   ReturnValue = unknown,
 > = Map<
   GenericEventHandler | SelectorEventHandler<ReturnValue>,
-  SelectorFunction<ExtractEventPayload<Event>, ReturnValue> | undefined
+  SelectorFunction<Event, Event['type'], ReturnValue> | undefined
 >;
 
 /**
@@ -88,12 +90,12 @@ type EventSubscriptionMap<
  */
 export type NamespacedBy<
   Namespace extends string,
-  Name,
+  Name extends string,
 > = Name extends `${Namespace}:${string}` ? Name : never;
 
 export type NotNamespacedBy<
   Namespace extends string,
-  Name,
+  Name extends string,
 > = Name extends `${Namespace}:${string}` ? never : Name;
 
 export type NamespacedName<Namespace extends string = string> =
@@ -320,19 +322,13 @@ export class ControllerMessenger<
   subscribe<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
     handler: SelectorEventHandler<SelectorReturnValue>,
-    selector: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+    selector: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ): void;
 
   subscribe<EventType extends Event['type'], SelectorReturnValue>(
     eventType: EventType,
     handler: ExtractEventHandler<Event, EventType>,
-    selector?: SelectorFunction<
-      ExtractEventPayload<Event, EventType>,
-      SelectorReturnValue
-    >,
+    selector?: SelectorFunction<Event, EventType, SelectorReturnValue>,
   ): void {
     let subscribers = this.#events.get(eventType);
     if (!subscribers) {
@@ -430,19 +426,19 @@ export class ControllerMessenger<
    */
   getRestricted<
     Namespace extends string,
-    AllowedAction extends NotNamespacedBy<Namespace, Action['type']>,
-    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']>,
+    AllowedAction extends NotNamespacedBy<Namespace, Action['type']> = never,
+    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']> = never,
   >({
     name,
     allowedActions,
     allowedEvents,
   }: {
     name: Namespace;
-    allowedActions?: NotNamespacedBy<
+    allowedActions: NotNamespacedBy<
       Namespace,
       Extract<Action['type'], AllowedAction>
     >[];
-    allowedEvents?: NotNamespacedBy<
+    allowedEvents: NotNamespacedBy<
       Namespace,
       Extract<Event['type'], AllowedEvent>
     >[];
@@ -454,15 +450,7 @@ export class ControllerMessenger<
     AllowedAction,
     AllowedEvent
   > {
-    return new RestrictedControllerMessenger<
-      Namespace,
-      | NarrowToNamespace<Action, Namespace>
-      | NarrowToAllowed<Action, AllowedAction>,
-      | NarrowToNamespace<Event, Namespace>
-      | NarrowToAllowed<Event, AllowedEvent>,
-      AllowedAction,
-      AllowedEvent
-    >({
+    return new RestrictedControllerMessenger({
       controllerMessenger: this,
       name,
       allowedActions,

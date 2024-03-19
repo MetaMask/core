@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [5.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+
 ## [4.0.2]
 
 ### Changed
@@ -92,7 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@5.0.0...@metamask/notification-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.2...@metamask/notification-controller@5.0.0
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.1...@metamask/notification-controller@4.0.2
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@4.0.0...@metamask/notification-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.3...@metamask/notification-controller@4.0.0

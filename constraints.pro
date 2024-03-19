@@ -238,10 +238,31 @@ gen_enforced_field(WorkspaceCwd, 'main', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % The type definitions entrypoint for all publishable packages must be the same.
-gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts') :-
+gen_enforced_field(WorkspaceCwd, 'types', './dist/types/index.d.ts') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 % Non-published packages must not specify a type definitions entrypoint.
 gen_enforced_field(WorkspaceCwd, 'types', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
+
+% The exports for all published packages must be the same.
+gen_enforced_field(WorkspaceCwd, 'exports["."].import', './dist/index.mjs') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'exports["."].require', './dist/index.js') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'exports["."].types', './dist/types/index.d.ts') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'exports["./package.json"]', './package.json') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+% Non-published packages must not specify exports.
+gen_enforced_field(WorkspaceCwd, 'exports', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
+
+% Published packages must not have side effects.
+gen_enforced_field(WorkspaceCwd, 'sideEffects', false) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/base-controller'.
+% Non-published packages must not specify side effects.
+gen_enforced_field(WorkspaceCwd, 'sideEffects', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % The list of files included in published packages must only include files
@@ -253,6 +274,10 @@ gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
 % as otherwise the `node/no-unpublished-require` ESLint rule will disallow it.)
 gen_enforced_field(WorkspaceCwd, 'files', []) :-
   WorkspaceCwd = '.'.
+
+% All non-root packages must have the same "build" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.build', 'tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean') :-
+  WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "build:docs" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-

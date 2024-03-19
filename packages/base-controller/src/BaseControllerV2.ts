@@ -1,11 +1,18 @@
 import type { Json } from '@metamask/utils';
-import { enablePatches, produceWithPatches, applyPatches } from 'immer';
+import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
 import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
 import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
 enablePatches();
+
+/**
+ * A type that constrains the state of all controllers.
+ *
+ * In other words, the narrowest supertype encompassing all controller state.
+ */
+export type StateConstraint = Record<string, Json>;
 
 /**
  * A state change listener.
@@ -37,7 +44,7 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
  * This metadata describes which parts of state should be persisted, and how to
  * get an anonymized representation of the state.
  */
-export type StateMetadata<T extends Record<string, Json>> = {
+export type StateMetadata<T extends StateConstraint> = {
   [P in keyof T]: StatePropertyMetadata<T[P]>;
 };
 
@@ -52,17 +59,14 @@ export type StateMetadata<T extends Record<string, Json>> = {
  * identifiable), or is set to a function that returns an anonymized
  * representation of this state.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface StatePropertyMetadata<T extends Json> {
+export type StatePropertyMetadata<T extends Json> = {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
-}
+};
 
 export type ControllerGetStateAction<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = {
   type: `${ControllerName}:getState`;
   handler: () => ControllerState;
@@ -70,7 +74,7 @@ export type ControllerGetStateAction<
 
 export type ControllerStateChangeEvent<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = {
   type: `${ControllerName}:stateChange`;
   payload: [ControllerState, Patch[]];
@@ -78,12 +82,12 @@ export type ControllerStateChangeEvent<
 
 export type ControllerActions<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = ControllerGetStateAction<ControllerName, ControllerState>;
 
 export type ControllerEvents<
   ControllerName extends string,
-  ControllerState extends Record<string, unknown>,
+  ControllerState extends StateConstraint,
 > = ControllerStateChangeEvent<ControllerName, ControllerState>;
 
 /**
@@ -91,7 +95,7 @@ export type ControllerEvents<
  */
 export class BaseController<
   ControllerName extends string,
-  ControllerState extends Record<string, Json>,
+  ControllerState extends StateConstraint,
   messenger extends RestrictedControllerMessenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,
@@ -112,17 +116,6 @@ export class BaseController<
   public readonly name: ControllerName;
 
   public readonly metadata: StateMetadata<ControllerState>;
-
-  /**
-   * The existence of the `subscribe` property is how the ComposableController used to detect
-   * whether a controller extends the old BaseController or the new one. We set it to `undefined` here to
-   * ensure the ComposableController never mistakes them for an older style controller.
-   *
-   * This property is no longer used, and will be removed in a future release.
-   *
-   * @deprecated This will be removed in a future release
-   */
-  public readonly subscribe: undefined;
 
   /**
    * Creates a BaseController instance.
@@ -147,7 +140,12 @@ export class BaseController<
   }) {
     this.messagingSystem = messenger;
     this.name = name;
-    this.#internalState = state;
+    // Here we use `freeze` from Immer to enforce that the state is deeply
+    // immutable. Note that this is a runtime check, not a compile-time check.
+    // That is, unlike `Object.freeze`, this does not narrow the type
+    // recursively to `Readonly`. The equivalent in Immer is `Immutable`, but
+    // `Immutable` does not handle recursive types such as our `Json` type.
+    this.#internalState = freeze(state, true);
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(
@@ -255,12 +253,10 @@ export class BaseController<
  * anonymized state.
  * @returns The anonymized controller state.
  */
-export function getAnonymizedState<
-  ControllerState extends Record<string, Json>,
->(
+export function getAnonymizedState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
-): Record<string, Json> {
+): Record<keyof ControllerState, Json> {
   return deriveStateFromMetadata(state, metadata, 'anonymous');
 }
 
@@ -271,12 +267,10 @@ export function getAnonymizedState<
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
  * @returns The subset of controller state that should be persisted.
  */
-export function getPersistentState<
-  ControllerState extends Record<string, Json>,
->(
+export function getPersistentState<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
-): Record<string, Json> {
+): Record<keyof ControllerState, Json> {
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
 
@@ -288,13 +282,13 @@ export function getPersistentState<
  * @param metadataProperty - The metadata property to use to derive state.
  * @returns The metadata-derived controller state.
  */
-function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
+function deriveStateFromMetadata<ControllerState extends StateConstraint>(
   state: ControllerState,
   metadata: StateMetadata<ControllerState>,
   metadataProperty: 'anonymous' | 'persist',
-): Record<string, Json> {
+): Record<keyof ControllerState, Json> {
   return (Object.keys(state) as (keyof ControllerState)[]).reduce<
-    Partial<Record<keyof ControllerState, Json>>
+    Record<keyof ControllerState, Json>
   >((persistedState, key) => {
     try {
       const stateMetadata = metadata[key];
@@ -317,5 +311,5 @@ function deriveStateFromMetadata<ControllerState extends Record<string, Json>>(
       });
       return persistedState;
     }
-  }, {}) as Record<keyof ControllerState, Json>;
+  }, {} as never);
 }
