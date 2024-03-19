@@ -45,7 +45,6 @@
     "@ethereumjs/tx": "^4.2.0",
     "@ethereumjs/util": "^8.1.0",
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
     "@metamask/approval-controller": "^6.0.1",
     "@metamask/base-controller": "^5.0.1",
     "@metamask/controller-utils": "^9.0.2",
