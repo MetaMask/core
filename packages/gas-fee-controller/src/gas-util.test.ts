@@ -14,6 +14,7 @@ jest.mock('@metamask/controller-utils', () => {
     handleFetch: jest.fn(),
   };
 });
+const handleFetchMock = jest.mocked(handleFetch);
 
 const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   {
@@ -76,11 +77,8 @@ const INFURA_AUTH_TOKEN_MOCK = 'test';
 const INFURA_GAS_API_URL_MOCK = 'https://gas.api.infura.io';
 
 describe('gas utils', () => {
-  let handleFetchMock: jest.Mock;
-
   beforeEach(() => {
-    handleFetchMock = handleFetch as jest.Mock;
-    handleFetchMock.mockReset();
+    jest.resetAllMocks();
   });
 
   describe('fetchGasEstimates', () => {
