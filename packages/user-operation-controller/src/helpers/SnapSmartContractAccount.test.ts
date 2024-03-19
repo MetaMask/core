@@ -34,6 +34,7 @@ const UPDATE_USER_OPERATION_REQUEST_MOCK: UpdateUserOperationRequest = {
     signature: '0xa',
     verificationGasLimit: '0xb',
   },
+  chainId: '0x1',
 };
 
 const SIGN_USER_OPERATION_REQUEST_MOCK: SignUserOperationRequest = {
@@ -145,6 +146,9 @@ describe('SnapSmartContractAccount', () => {
             value: PREPARE_USER_OPERATION_REQUEST_MOCK.value,
           },
         ],
+        {
+          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+        },
       );
     });
 
@@ -166,6 +170,9 @@ describe('SnapSmartContractAccount', () => {
             value: PREPARE_USER_OPERATION_REQUEST_MOCK.value,
           },
         ],
+        {
+          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+        },
       );
     });
 
@@ -187,6 +194,9 @@ describe('SnapSmartContractAccount', () => {
             value: PREPARE_USER_OPERATION_REQUEST_MOCK.value,
           },
         ],
+        {
+          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+        },
       );
     });
 
@@ -208,6 +218,9 @@ describe('SnapSmartContractAccount', () => {
             value: VALUE_ZERO,
           },
         ],
+        {
+          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+        },
       );
     });
   });
@@ -228,6 +241,9 @@ describe('SnapSmartContractAccount', () => {
       expect(patchMock).toHaveBeenCalledWith(
         UPDATE_USER_OPERATION_REQUEST_MOCK.userOperation.sender,
         UPDATE_USER_OPERATION_REQUEST_MOCK.userOperation,
+        {
+          chainId: UPDATE_USER_OPERATION_REQUEST_MOCK.chainId,
+        },
       );
     });
 
@@ -264,6 +280,9 @@ describe('SnapSmartContractAccount', () => {
       expect(signMock).toHaveBeenCalledWith(
         SIGN_USER_OPERATION_REQUEST_MOCK.userOperation.sender,
         SIGN_USER_OPERATION_REQUEST_MOCK.userOperation,
+        {
+          chainId: SIGN_USER_OPERATION_REQUEST_MOCK.chainId,
+        },
       );
     });
   });

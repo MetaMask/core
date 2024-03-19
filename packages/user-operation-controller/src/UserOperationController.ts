@@ -532,6 +532,7 @@ export class UserOperationController extends BaseController<
 
     const response = await smartContractAccount.updateUserOperation({
       userOperation,
+      chainId: metadata.chainId,
     });
 
     validateUpdateUserOperationResponse(response);

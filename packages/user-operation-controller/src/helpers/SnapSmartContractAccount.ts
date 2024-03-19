@@ -35,6 +35,9 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:prepareUserOperation',
       sender,
       [{ data, to, value }],
+      {
+        chainId: request.chainId,
+      },
     );
 
     const {
@@ -70,6 +73,9 @@ export class SnapSmartContractAccount implements SmartContractAccount {
         'KeyringController:patchUserOperation',
         sender,
         userOperation,
+        {
+          chainId: request.chainId,
+        },
       );
 
     const paymasterAndData =
@@ -92,6 +98,9 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:signUserOperation',
       sender,
       userOperation,
+      {
+        chainId: request.chainId,
+      },
     );
 
     return { signature };
