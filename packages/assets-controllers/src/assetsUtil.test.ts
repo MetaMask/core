@@ -57,6 +57,30 @@ describe('assetsUtil', () => {
       expect(different).toBe(true);
     });
 
+    it('should resolve true if only tokenURI is different', () => {
+      const nftMetadata: NftMetadata = {
+        description: null,
+        favorite: false,
+        image: 'test',
+        name: null,
+        standard: 'ERC1155',
+        tokenURI: 'foo',
+      };
+      const nft: Nft = {
+        address: '0x1D03117e63c3A476a236a897147a1358579F2c45',
+        description: null,
+        favorite: false,
+        image: 'test',
+        name: null,
+        standard: 'ERC1155',
+        tokenId: '1',
+        tokenURI: 'bar',
+      };
+
+      const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
+      expect(different).toBe(true);
+    });
+
     it('should resolve true if any key is different as always as metadata is not undefined', () => {
       const nftMetadata: NftMetadata = {
         name: 'name',
