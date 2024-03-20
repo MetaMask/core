@@ -558,7 +558,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
           response.error = serializeError(parsedError);
         }
         // True indicates that the request should end
-        resolve([parsedError ?? null, true]);
+        resolve([parsedError, true]);
       };
 
       const next: JsonRpcEngineNextCallback = (
