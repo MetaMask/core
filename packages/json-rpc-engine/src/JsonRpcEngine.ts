@@ -219,6 +219,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
       if (callback) {
         return this.#handleBatch(
           req,
+          // This assertion is safe because of the runtime checks validating that `req` is an array and `callback` is defined.
+          // There is only one overload signature that satisfies both conditions, and its `callback` type is the one that's being asserted.
           callback as (
             error: unknown,
             responses?: JsonRpcResponse<Json>[],
