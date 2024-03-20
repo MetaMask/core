@@ -23,9 +23,7 @@ import type {
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
-import { sha256 } from 'ethereum-cryptography/sha256';
 import type { Draft } from 'immer';
-import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
 
@@ -457,12 +455,9 @@ export class AccountsController extends BaseController<
         'KeyringController:getKeyringForAccount',
         address,
       );
-      const v4options = {
-        random: sha256(toBuffer(address)).slice(0, 16),
-      };
 
       internalAccounts.push({
-        id: uuid(v4options),
+        id: getUUIDFromAddressOfNormalAccount(address),
         address,
         options: {},
         methods: [
