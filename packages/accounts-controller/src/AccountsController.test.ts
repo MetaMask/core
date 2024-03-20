@@ -5,6 +5,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
+import type { V4Options } from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -14,10 +15,14 @@ import type {
   AllowedEvents,
 } from './AccountsController';
 import { AccountsController } from './AccountsController';
-import { keyringTypeToName } from './utils';
+import {
+  getUUIDOptionsFromAddressOfNormalAccount,
+  keyringTypeToName,
+} from './utils';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
+const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
   internalAccounts: {
@@ -100,6 +105,31 @@ const mockAccount4: InternalAccount = {
     lastSelected: 1955565967656,
   },
 };
+
+/**
+ * Mock generated normal account ID to an actual "hard-coded" one.
+ */
+class MockNormalAccountUUID {
+  #accountIds: Record<string, string> = {};
+
+  constructor(accounts: InternalAccount[]) {
+    for (const account of accounts) {
+      const accountId = actualUUID(
+        getUUIDOptionsFromAddressOfNormalAccount(account.address),
+      );
+
+      // Register "hard-coded" (from test) account ID with the actual account UUID
+      this.#accountIds[accountId] = account.id;
+    }
+  }
+
+  mock(options?: V4Options | undefined) {
+    const accountId = actualUUID(options);
+
+    // If not found, we returns the generated UUID
+    return this.#accountIds[accountId] ?? accountId;
+  }
+}
 
 /**
  * Creates an `InternalAccount` object from the given normal account properties.
