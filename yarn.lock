@@ -1664,7 +1664,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/keyring-controller": ^14.0.0
+    "@metamask/keyring-controller": ^14.0.1
     "@metamask/snaps-controllers": ^6.0.3
   languageName: unknown
   linkType: soft
@@ -1764,7 +1764,7 @@ __metadata:
     "@metamask/controller-utils": ^9.0.1
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
-    "@metamask/keyring-api": ^4.0.2
+    "@metamask/keyring-api": ^5.1.0
     "@metamask/keyring-controller": ^14.0.1
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": ^18.0.1
@@ -2431,20 +2431,6 @@ __metadata:
     "@noble/secp256k1": ^1.5.5
     "@scure/base": ^1.0.0
   checksum: 5c81f07351ca59b37570d52edcc80d60424630b2a8403ed7149c3343c264878ac5d3fc0584a61635ea7ddda4a789295ded1247846606dc529d8e2fd42f6fc61a
-  languageName: node
-  linkType: hard
-
-"@metamask/keyring-api@npm:^4.0.2":
-  version: 4.0.2
-  resolution: "@metamask/keyring-api@npm:4.0.2"
-  dependencies:
-    "@metamask/providers": ^15.0.0
-    "@metamask/snaps-sdk": ^3.1.1
-    "@metamask/utils": ^8.3.0
-    "@types/uuid": ^9.0.1
-    superstruct: ^1.0.3
-    uuid: ^9.0.0
-  checksum: 0e15d7d7d6e35c62f5ab9dcee834113d14ef1cee87682efbd05407eda74edc7c6c504769108274e3fc5077c32c41b00ba00dda2e262af58ee2ca2208eae02551
   languageName: node
   linkType: hard
 
