@@ -7,7 +7,6 @@ import type {
   RestrictedControllerMessenger,
   StateConstraint,
   StateMetadata,
-  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { Patch } from 'immer';
 
@@ -119,50 +118,49 @@ type LegacyControllerStateChangeEvent<
 };
 
 // TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
-export type ComposableControllerState = {
+export type ComposableControllerStateConstraint = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
   // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: Record<string, any>;
 };
 
-export type ComposableControllerStateChangeEvent =
-  LegacyControllerStateChangeEvent<
-    typeof controllerName,
-    ComposableControllerState
-  >;
-
-export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
-
-type AllowedEvents = LegacyControllerStateChangeEvent<
-  string,
-  ControllerInstance['state']
+export type ComposableControllerStateChangeEvent<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = LegacyControllerStateChangeEvent<
+  typeof controllerName,
+  ComposableControllerState
 >;
 
-export type ComposableControllerMessenger = RestrictedControllerMessenger<
+export type ComposableControllerEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerStateChangeEvent<ComposableControllerState>;
+
+type ChildControllerStateChangeEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerState extends Record<infer ControllerName, never>
+  ? ControllerName extends string
+    ? {
+        type: `${ControllerName}:stateChange`;
+        payload: [ComposableControllerState[ControllerName], Patch[]];
+      }
+    : never
+  : never;
+
+type AllowedEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ChildControllerStateChangeEvents<ComposableControllerState>;
+
+export type ComposableControllerMessenger<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = RestrictedControllerMessenger<
   typeof controllerName,
   never,
-  ComposableControllerEvents | AllowedEvents,
+  | ComposableControllerEvents<ComposableControllerState>
+  | AllowedEvents<ComposableControllerState>,
   never,
-  AllowedEvents['type']
+  AllowedEvents<ComposableControllerState>['type']
 >;
-
-/**
- *
- */
-type GetStateChangeEvents<Controller extends ControllerInstance> =
-  Controller extends BaseControllerInstance
-    ? ControllerStateChangeEvent<Controller['name'], Controller['state']>
-    : Controller extends BaseControllerV1Instance
-    ? Controller extends {
-        messagingSystem: RestrictedControllerMessengerConstraint;
-      }
-      ? LegacyControllerStateChangeEvent<
-          Controller['name'],
-          Controller['state']
-        >
-      : never
-    : never;
 
 /**
  * Controller that can be used to compose multiple controllers together.
@@ -174,30 +172,12 @@ type GetStateChangeEvents<Controller extends ControllerInstance> =
  * @template MessengerArgument
  */
 export class ComposableController<
-  ChildControllers extends ControllerInstance,
-  ComposedControllerState extends ComposableControllerState = {
-    [P in ChildControllers as P['name']]: P['state'];
-  },
-  ComposedControllerStateChangeEvent extends EventConstraint & {
-    type: `${typeof controllerName}:stateChange`;
-  } = ControllerStateChangeEvent<
-    typeof controllerName,
-    ComposedControllerState
-  >,
-  ChildControllersStateChangeEvents extends EventConstraint & {
-    type: `${string}:stateChange`;
-  } = GetStateChangeEvents<ChildControllers>,
-  ComposedControllerMessenger extends ComposableControllerMessenger = RestrictedControllerMessenger<
-    typeof controllerName,
-    never,
-    ComposedControllerStateChangeEvent | ChildControllersStateChangeEvents,
-    never,
-    ChildControllersStateChangeEvents['type']
-  >,
+  ComposableControllerState extends ComposableControllerStateConstraint,
+  ComposedControllerMessenger extends ComposableControllerMessenger<ComposableControllerState>,
   MessengerArgument extends ComposedControllerMessenger = ComposedControllerMessenger,
 > extends BaseController<
   typeof controllerName,
-  ComposedControllerState,
+  ComposableControllerState,
   ComposedControllerMessenger
 > {
   /**
@@ -212,7 +192,7 @@ export class ComposableController<
     controllers,
     messenger,
   }: {
-    controllers: ChildControllers[];
+    controllers: ControllerInstance[];
     messenger: MessengerArgument;
   }) {
     if (messenger === undefined) {
@@ -221,7 +201,7 @@ export class ComposableController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposedControllerState>>(
+      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
@@ -230,7 +210,7 @@ export class ComposableController<
         }),
         {} as never,
       ),
-      state: controllers.reduce<ComposedControllerState>(
+      state: controllers.reduce<ComposableControllerState>(
         (state, controller) => {
           return { ...state, [controller.name]: controller.state };
         },
