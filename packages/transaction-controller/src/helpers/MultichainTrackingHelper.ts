@@ -1,4 +1,3 @@
-import { NetworkType } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
@@ -9,14 +8,6 @@ import type {
   NetworkControllerStateChangeEvent,
   ProviderConfig,
 } from '@metamask/network-controller';
-import {
-  NetworkClientType,
-  type NetworkClientConfiguration,
-} from '@metamask/network-controller';
-import type {
-  AutoManagedNetworkClient,
-  ProxyWithAccessibleTarget,
-} from '@metamask/network-controller/src/create-auto-managed-network-client';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { NonceLock, NonceTracker } from 'nonce-tracker';
@@ -59,18 +50,17 @@ export type MultichainTrackingHelperOptions = {
   createNonceTracker: (opts: {
     provider: Provider;
     blockTracker: BlockTracker;
-    chainId: Hex;
+    chainId?: Hex;
   }) => NonceTracker;
   createIncomingTransactionHelper: (opts: {
-    getNetworkClient: () =>
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
     etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
   }) => IncomingTransactionHelper;
   createPendingTransactionTracker: (opts: {
-    getNetworkClient: () =>
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
+    getEthQuery: () => EthQuery | undefined;
   }) => PendingTransactionTracker;
   onNetworkStateChange: (
     listener: (
@@ -109,20 +99,19 @@ export class MultichainTrackingHelper {
   readonly #createNonceTracker: (opts: {
     provider: Provider;
     blockTracker: BlockTracker;
-    chainId: Hex;
+    chainId?: Hex;
   }) => NonceTracker;
 
   readonly #createIncomingTransactionHelper: (opts: {
-    getNetworkClient: () =>
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
     etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
   }) => IncomingTransactionHelper;
 
   readonly #createPendingTransactionTracker: (opts: {
-    getNetworkClient: () =>
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
+    getEthQuery: () => EthQuery | undefined;
   }) => PendingTransactionTracker;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
@@ -208,11 +197,8 @@ export class MultichainTrackingHelper {
     chainId?: Hex;
   } = {}): EthQuery | undefined {
     if (!this.#isMultichainEnabled || (!networkClientId && !chainId)) {
-      const selectedNetworkClient = this.getSelectedNetworkClient();
-
-      return selectedNetworkClient
-        ? new EthQuery(selectedNetworkClient.provider)
-        : undefined;
+      const globalProvider = this.#getGlobalProviderAndBlockTracker()?.provider;
+      return globalProvider ? new EthQuery(globalProvider) : undefined;
     }
 
     let networkClient: NetworkClient | undefined;
@@ -282,7 +268,7 @@ export class MultichainTrackingHelper {
     let nonceTracker: NonceTracker | undefined;
 
     if (!networkClientId || !this.#isMultichainEnabled) {
-      this.#globalNonceTracker ??= this.#getSelectedNonceTracker();
+      this.#globalNonceTracker ??= this.#getGlobalNonceTracker();
       nonceTracker = this.#globalNonceTracker;
     }
 
@@ -371,38 +357,6 @@ export class MultichainTrackingHelper {
     }
   }
 
-  getSelectedNetworkClient():
-    | AutoManagedNetworkClient<NetworkClientConfiguration>
-    | undefined {
-    const providerBlockTracker = this.#getGlobalProviderAndBlockTracker();
-    const providerConfig = this.#getGlobalProviderConfig();
-
-    if (!providerBlockTracker || !providerConfig) {
-      log('Cannot get global network client as provider is unavailable');
-      return undefined;
-    }
-
-    log(
-      'Retrieved global network client',
-      providerConfig.chainId,
-      providerConfig.type,
-    );
-
-    const { blockTracker, provider } = providerBlockTracker;
-
-    return {
-      provider: provider as ProxyWithAccessibleTarget<Provider>,
-      blockTracker: blockTracker as ProxyWithAccessibleTarget<BlockTracker>,
-      configuration: {
-        chainId: providerConfig.chainId,
-        type:
-          providerConfig.type === NetworkType.rpc
-            ? NetworkClientType.Custom
-            : NetworkClientType.Infura,
-      },
-    } as AutoManagedNetworkClient<NetworkClientConfiguration>;
-  }
-
   #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
     this.#refreshEtherscanRemoteTransactionSources(networkClients);
 
@@ -471,12 +425,15 @@ export class MultichainTrackingHelper {
     });
 
     const incomingTransactionHelper = this.#createIncomingTransactionHelper({
-      getNetworkClient: () => networkClient,
+      getBlockTracker: () => blockTracker,
+      getChainId: () => chainId,
       etherscanRemoteTransactionSource,
     });
 
     const pendingTransactionTracker = this.#createPendingTransactionTracker({
-      getNetworkClient: () => networkClient,
+      getBlockTracker: () => blockTracker,
+      getChainId: () => chainId,
+      getEthQuery: () => new EthQuery(provider),
     });
 
     this.#trackingMap.set(networkClientId, {
@@ -508,17 +465,20 @@ export class MultichainTrackingHelper {
     });
   };
 
-  #getSelectedNonceTracker(): NonceTracker | undefined {
-    const selectedNetworkClient = this.getSelectedNetworkClient();
+  #getGlobalNonceTracker(): NonceTracker | undefined {
+    const globalProvider = this.#getGlobalProviderAndBlockTracker()?.provider;
 
-    if (!selectedNetworkClient) {
-      log('Cannot get nonce lock as selected network client is unavailable');
+    const globalBlockTracker =
+      this.#getGlobalProviderAndBlockTracker()?.blockTracker;
+
+    if (!globalProvider || !globalBlockTracker) {
+      log('Cannot get nonce lock as selected network is not available');
       return undefined;
     }
 
-    const { provider, blockTracker, configuration } = selectedNetworkClient;
-    const { chainId } = configuration;
-
-    return this.#createNonceTracker({ provider, blockTracker, chainId });
+    return this.#createNonceTracker({
+      provider: globalProvider,
+      blockTracker: globalBlockTracker,
+    });
   }
 }

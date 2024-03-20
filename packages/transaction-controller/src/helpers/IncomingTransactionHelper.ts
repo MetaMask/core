@@ -1,8 +1,4 @@
-import type {
-  BlockTracker,
-  NetworkClientConfiguration,
-} from '@metamask/network-controller';
-import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
+import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
@@ -37,17 +33,17 @@ export type IncomingTransactionOptions = {
 export class IncomingTransactionHelper {
   hub: EventEmitter;
 
-  #blockTracker: BlockTracker | undefined;
+  #currentBlockTracker?: BlockTracker;
+
+  #getBlockTracker: () => BlockTracker | undefined;
+
+  #getChainId: () => Hex | undefined;
 
   #getCurrentAccount: () => string;
 
   #getLastFetchedBlockNumbers: () => Record<string, number>;
 
   #getLocalTransactions: () => TransactionMeta[];
-
-  #getNetworkClient: () =>
-    | AutoManagedNetworkClient<NetworkClientConfiguration>
-    | undefined;
 
   #isEnabled: () => boolean;
 
@@ -66,22 +62,22 @@ export class IncomingTransactionHelper {
   #updateTransactions: boolean;
 
   constructor({
+    getBlockTracker,
+    getChainId,
     getCurrentAccount,
     getLastFetchedBlockNumbers,
     getLocalTransactions,
-    getNetworkClient,
     isEnabled,
     queryEntireHistory,
     remoteTransactionSource,
     transactionLimit,
     updateTransactions,
   }: {
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
     getCurrentAccount: () => string;
     getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
-    getNetworkClient: () =>
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
     isEnabled?: () => boolean;
     queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
@@ -90,10 +86,11 @@ export class IncomingTransactionHelper {
   }) {
     this.hub = new EventEmitter();
 
+    this.#getBlockTracker = getBlockTracker;
+    this.#getChainId = getChainId;
     this.#getCurrentAccount = getCurrentAccount;
     this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
     this.#getLocalTransactions = getLocalTransactions || (() => []);
-    this.#getNetworkClient = getNetworkClient;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
     this.#queryEntireHistory = queryEntireHistory ?? true;
@@ -117,25 +114,25 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    const networkClient = this.#getNetworkClient();
+    const { blockTracker, chainId } = this.#getNetworkObjects();
 
-    if (!networkClient) {
-      log('Cannot start as network client is not available');
+    if (!blockTracker || !chainId) {
+      log('Cannot start as network is not available');
       return;
     }
 
-    if (!this.#canStart(networkClient.configuration.chainId)) {
+    if (!this.#canStart(chainId)) {
       return;
     }
 
-    this.#blockTracker = networkClient.blockTracker;
-    this.#blockTracker.addListener('latest', this.#onLatestBlock);
+    this.#currentBlockTracker = blockTracker;
+    this.#currentBlockTracker.addListener('latest', this.#onLatestBlock);
     this.#isRunning = true;
   }
 
   stop() {
-    this.#blockTracker?.removeListener('latest', this.#onLatestBlock);
-    this.#blockTracker = undefined;
+    this.#currentBlockTracker?.removeListener('latest', this.#onLatestBlock);
+    this.#currentBlockTracker = undefined;
     this.#isRunning = false;
   }
 
@@ -145,32 +142,28 @@ export class IncomingTransactionHelper {
     log('Checking for incoming transactions');
 
     try {
-      const networkClient = this.#getNetworkClient();
+      const { blockTracker, chainId } = this.#getNetworkObjects();
 
-      if (!networkClient || !this.#blockTracker) {
+      if (!blockTracker || !chainId) {
         log('Cannot update as network client is not available');
         return;
       }
 
-      if (!this.#canStart(networkClient.configuration.chainId)) {
+      if (!this.#canStart(chainId)) {
         return;
       }
 
       const latestBlockNumber = parseInt(
-        latestBlockNumberHex || (await this.#blockTracker.getLatestBlock()),
+        latestBlockNumberHex || (await blockTracker.getLatestBlock()),
         16,
       );
 
       const additionalLastFetchedKeys =
         this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
 
-      const fromBlock = this.#getFromBlock(
-        latestBlockNumber,
-        networkClient.configuration.chainId,
-      );
-
+      const fromBlock = this.#getFromBlock(latestBlockNumber, chainId);
       const address = this.#getCurrentAccount();
-      const currentChainId = networkClient.configuration.chainId;
+      const currentChainId = chainId;
 
       let remoteTransactions = [];
 
@@ -345,5 +338,12 @@ export class IncomingTransactionHelper {
       this.#remoteTransactionSource.isSupportedNetwork(chainId);
 
     return isEnabled && isSupportedNetwork;
+  }
+
+  #getNetworkObjects() {
+    const blockTracker = this.#getBlockTracker();
+    const chainId = this.#getChainId();
+
+    return { blockTracker, chainId };
   }
 }

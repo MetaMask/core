@@ -1,7 +1,6 @@
 import { query } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
-import type { NetworkClientConfiguration } from '@metamask/network-controller';
-import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
+import type EthQuery from '@metamask/eth-query';
+import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -65,13 +64,17 @@ export class PendingTransactionTracker {
 
   #beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
+  #currentBlockTracker?: BlockTracker;
+
   #droppedBlockCountByHash: Map<string, number>;
 
-  #getGlobalLock: (chainId: Hex) => Promise<() => void>;
+  #getBlockTracker: () => BlockTracker | undefined;
 
-  #getNetworkClient: () =>
-    | AutoManagedNetworkClient<NetworkClientConfiguration>
-    | undefined;
+  #getChainId: () => Hex | undefined;
+
+  #getEthQuery: () => EthQuery | undefined;
+
+  #getGlobalLock: (chainId: Hex) => Promise<() => void>;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -81,15 +84,15 @@ export class PendingTransactionTracker {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #listener: any;
 
-  #networkClient?: AutoManagedNetworkClient<NetworkClientConfiguration>;
-
   #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
 
   #running: boolean;
 
   constructor({
     approveTransaction,
-    getNetworkClient,
+    getBlockTracker,
+    getChainId,
+    getEthQuery,
     getTransactions,
     isResubmitEnabled,
     getGlobalLock,
@@ -97,9 +100,9 @@ export class PendingTransactionTracker {
     hooks,
   }: {
     approveTransaction: (transactionId: string) => Promise<void>;
-    getNetworkClient: () =>
-      | AutoManagedNetworkClient<NetworkClientConfiguration>
-      | undefined;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
+    getEthQuery: () => EthQuery | undefined;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
     getGlobalLock: (chainId: Hex) => Promise<() => void>;
@@ -115,7 +118,9 @@ export class PendingTransactionTracker {
 
     this.#approveTransaction = approveTransaction;
     this.#droppedBlockCountByHash = new Map();
-    this.#getNetworkClient = getNetworkClient;
+    this.#getBlockTracker = getBlockTracker;
+    this.#getChainId = getChainId;
+    this.#getEthQuery = getEthQuery;
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? true;
     this.#listener = this.#onLatestBlock.bind(this);
@@ -128,19 +133,19 @@ export class PendingTransactionTracker {
   }
 
   startIfPendingTransactions = () => {
-    this.#networkClient = this.#getNetworkClient();
+    const { blockTracker, chainId } = this.#getNetworkObjects();
 
-    if (!this.#networkClient) {
-      log('Unable to start as network client is not available');
+    if (!blockTracker || !chainId) {
+      log('Unable to start as network is not available');
       return;
     }
 
-    const pendingTransactions = this.#getPendingTransactions(
-      this.#networkClient.configuration.chainId,
-    );
+    this.#currentBlockTracker = blockTracker;
+
+    const pendingTransactions = this.#getPendingTransactions(chainId);
 
     if (pendingTransactions.length) {
-      this.#start(this.#networkClient);
+      this.#start(blockTracker);
     } else {
       this.stop();
     }
@@ -155,27 +160,19 @@ export class PendingTransactionTracker {
     let releaseLock: (() => void) | undefined;
 
     try {
-      const networkClient = this.#getNetworkClient();
+      const { blockTracker, chainId, ethQuery } = this.#getNetworkObjects();
 
-      if (!networkClient) {
+      if (!blockTracker || !chainId || !ethQuery) {
         log(
-          'Cannot force check transaction as network client not available',
+          'Cannot force check transaction as network not available',
           txMeta.id,
         );
         return;
       }
 
-      releaseLock = await this.#getGlobalLock(
-        networkClient.configuration.chainId,
-      );
+      releaseLock = await this.#getGlobalLock(chainId);
 
-      const ethQuery = new EthQuery(networkClient.provider);
-
-      await this.#checkTransaction(
-        txMeta,
-        ethQuery,
-        networkClient.configuration.chainId,
-      );
+      await this.#checkTransaction(txMeta, ethQuery, chainId);
     } catch (error) {
       /* istanbul ignore next */
       log('Failed to force check transaction', error);
@@ -184,12 +181,12 @@ export class PendingTransactionTracker {
     }
   }
 
-  #start(networkClient: AutoManagedNetworkClient<NetworkClientConfiguration>) {
+  #start(blockTracker: BlockTracker) {
     if (this.#running) {
       return;
     }
 
-    networkClient.blockTracker.on('latest', this.#listener);
+    blockTracker.on('latest', this.#listener);
     this.#running = true;
 
     log('Started polling');
@@ -200,8 +197,8 @@ export class PendingTransactionTracker {
       return;
     }
 
-    this.#networkClient?.blockTracker?.removeListener('latest', this.#listener);
-    this.#networkClient = undefined;
+    this.#currentBlockTracker?.removeListener('latest', this.#listener);
+    this.#currentBlockTracker = undefined;
     this.#running = false;
 
     log('Stopped polling');
@@ -209,19 +206,17 @@ export class PendingTransactionTracker {
 
   async #onLatestBlock(latestBlockNumber: string) {
     try {
-      const networkClient = this.#getNetworkClient();
+      const { blockTracker, chainId, ethQuery } = this.#getNetworkObjects();
 
-      if (!networkClient) {
-        log('Cannot process latest block as network client not available');
+      if (!blockTracker || !chainId || !ethQuery) {
+        log('Cannot process latest block as network not available');
         return;
       }
 
-      const releaseLock = await this.#getGlobalLock(
-        networkClient.configuration.chainId,
-      );
+      const releaseLock = await this.#getGlobalLock(chainId);
 
       try {
-        await this.#checkTransactions(networkClient);
+        await this.#checkTransactions(chainId, ethQuery);
       } catch (error) {
         /* istanbul ignore next */
         log('Failed to check transactions', error);
@@ -230,7 +225,7 @@ export class PendingTransactionTracker {
       }
 
       try {
-        await this.#resubmitTransactions(latestBlockNumber, networkClient);
+        await this.#resubmitTransactions(latestBlockNumber, chainId, ethQuery);
       } catch (error) {
         /* istanbul ignore next */
         log('Failed to resubmit transactions', error);
@@ -240,14 +235,10 @@ export class PendingTransactionTracker {
     }
   }
 
-  async #checkTransactions(
-    networkClient: AutoManagedNetworkClient<NetworkClientConfiguration>,
-  ) {
+  async #checkTransactions(chainId: Hex, ethQuery: EthQuery) {
     log('Checking transactions');
 
-    const pendingTransactions = this.#getPendingTransactions(
-      networkClient.configuration.chainId,
-    );
+    const pendingTransactions = this.#getPendingTransactions(chainId);
 
     if (!pendingTransactions.length) {
       log('No pending transactions to check');
@@ -259,22 +250,17 @@ export class PendingTransactionTracker {
       ids: pendingTransactions.map((tx) => tx.id),
     });
 
-    const ethQuery = new EthQuery(networkClient.provider);
-
     await Promise.all(
       pendingTransactions.map((tx) =>
-        this.#checkTransaction(
-          tx,
-          ethQuery,
-          networkClient.configuration.chainId,
-        ),
+        this.#checkTransaction(tx, ethQuery, chainId),
       ),
     );
   }
 
   async #resubmitTransactions(
     latestBlockNumber: string,
-    networkClient: AutoManagedNetworkClient<NetworkClientConfiguration>,
+    chainId: Hex,
+    ethQuery: EthQuery,
   ) {
     if (!this.#isResubmitEnabled || !this.#running) {
       return;
@@ -282,9 +268,7 @@ export class PendingTransactionTracker {
 
     log('Resubmitting transactions');
 
-    const pendingTransactions = this.#getPendingTransactions(
-      networkClient.configuration.chainId,
-    );
+    const pendingTransactions = this.#getPendingTransactions(chainId);
 
     if (!pendingTransactions.length) {
       log('No pending transactions to resubmit');
@@ -295,8 +279,6 @@ export class PendingTransactionTracker {
       count: pendingTransactions.length,
       ids: pendingTransactions.map((tx) => tx.id),
     });
-
-    const ethQuery = new EthQuery(networkClient.provider);
 
     for (const txMeta of pendingTransactions) {
       try {
@@ -331,7 +313,7 @@ export class PendingTransactionTracker {
   async #resubmitTransaction(
     txMeta: TransactionMeta,
     latestBlockNumber: string,
-    ethQuery: EthQuery | undefined,
+    ethQuery: EthQuery,
   ) {
     if (!this.#isResubmitDue(txMeta, latestBlockNumber)) {
       return;
@@ -339,7 +321,7 @@ export class PendingTransactionTracker {
 
     log('Resubmitting transaction', txMeta.id);
 
-    const { id, rawTx } = txMeta;
+    const { rawTx } = txMeta;
 
     if (!this.#beforePublish(txMeta)) {
       return;
@@ -348,11 +330,6 @@ export class PendingTransactionTracker {
     if (!rawTx?.length) {
       log('Approving transaction as no raw value');
       await this.#approveTransaction(txMeta.id);
-      return;
-    }
-
-    if (!ethQuery) {
-      log('Cannot resubmit transaction as provider not available', id);
       return;
     }
 
@@ -623,5 +600,13 @@ export class PendingTransactionTracker {
     return this.#getTransactions().filter(
       (tx) => tx.chainId === currentChainId,
     );
+  }
+
+  #getNetworkObjects() {
+    const blockTracker = this.#getBlockTracker();
+    const chainId = this.#getChainId();
+    const ethQuery = this.#getEthQuery();
+
+    return { blockTracker, chainId, ethQuery };
   }
 }
