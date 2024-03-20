@@ -1253,7 +1253,6 @@ describe('TransactionController', () => {
         origin: undefined,
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
-        simulationData: undefined,
         status: TransactionStatus.unapproved as const,
         time: expect.any(Number),
         txParams: expect.anything(),
@@ -1561,7 +1560,7 @@ describe('TransactionController', () => {
       });
     });
 
-    it('updates simulation data by default', async () => {
+    it('updates simulation data', async () => {
       getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
 
       const { controller } = setupController();
@@ -1587,7 +1586,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('does not update simulation data if simulation disabled', async () => {
+    it('includes simulation data with error if simulation disabled', async () => {
       getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
 
       const { controller } = setupController({
@@ -1600,7 +1599,13 @@ describe('TransactionController', () => {
       });
 
       expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
-      expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      expect(controller.state.transactions[0].simulationData).toStrictEqual({
+        error: {
+          message: 'Simulation disabled',
+          isReverted: false,
+        },
+        tokenBalanceChanges: [],
+      });
     });
 
     describe('on approve', () => {
@@ -4268,7 +4273,7 @@ describe('TransactionController', () => {
 
       expect(signSpy).toHaveBeenCalledTimes(1);
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(3);
       expect(updateTransactionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
@@ -4312,7 +4317,7 @@ describe('TransactionController', () => {
       await wait(0);
 
       expect(signSpy).toHaveBeenCalledTimes(1);
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
     });
 
     it('adds a transaction, signs and skips publish the transaction', async () => {
@@ -4338,7 +4343,7 @@ describe('TransactionController', () => {
 
       expect(signSpy).toHaveBeenCalledTimes(1);
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(3);
       expect(updateTransactionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
@@ -5351,6 +5356,34 @@ describe('TransactionController', () => {
         .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
       Current tx status: ${TransactionStatus.submitted}`);
     });
+
+    it.each(['value', 'to', 'data'])(
+      'updates simulation data if %s changes',
+      async (param) => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...transactionMeta,
+                },
+              ],
+            },
+          },
+        });
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          ...transactionMeta.txParams,
+          [param]: ACCOUNT_2_MOCK,
+        });
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 
   describe('abortTransactionSigning', () => {
