@@ -1100,8 +1100,23 @@ export type SimulationToken = {
 export type SimulationTokenBalanceChange = SimulationToken &
   SimulationBalanceChange;
 
+/** Error data for a failed simulation. */
+export type SimulationError = {
+  /** Error code to identify the error type. */
+  code?: number;
+
+  /** Error message to describe the error. */
+  message?: string;
+
+  /** Whether the error is due to the transaction being reverted. */
+  isReverted: boolean;
+};
+
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error data if the simulation failed or the transaction reverted. */
+  error?: SimulationError;
+
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
 

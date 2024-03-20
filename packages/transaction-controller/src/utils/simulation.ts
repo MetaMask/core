@@ -12,13 +12,13 @@ import type {
   SimulationToken,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
+import { simulateTransactions } from './simulation-api';
 import type {
   SimulationResponseLog,
   SimulationRequestTransaction,
   SimulationResponse,
   SimulationResponseCallTrace,
 } from './simulation-api';
-import { simulateTransactions } from './simulation-api';
 
 const log = createModuleLogger(projectLogger, 'simulation');
 
@@ -52,17 +52,33 @@ type ParsedEvent = {
  */
 export async function getSimulationData(
   request: GetSimulationDataRequest,
-): Promise<SimulationData | undefined> {
+): Promise<SimulationData> {
   const { chainId, from, to, value, data } = request;
 
   log('Getting simulation data', request);
 
   try {
     const response = await simulateTransactions(chainId, {
-      transactions: [{ from, to, value, data }],
+      transactions: [
+        {
+          data,
+          from,
+          maxFeePerGas: '0x0',
+          maxPriorityFeePerGas: '0x0',
+          to,
+          value,
+        },
+      ],
       withCallTrace: true,
       withLogs: true,
     });
+
+    const transactionError = response.transactions?.[0]?.error;
+
+    if (transactionError) {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal
+      throw { message: transactionError };
+    }
 
     const nativeBalanceChange = getNativeBalanceChange(request.from, response);
     const events = getEvents(response);
@@ -77,7 +93,17 @@ export async function getSimulationData(
     };
   } catch (error) {
     log('Failed to get simulation data', error, request);
-    return undefined;
+
+    const rawError = error as { code?: number; message?: string };
+
+    return {
+      tokenBalanceChanges: [],
+      error: {
+        code: rawError.code,
+        message: rawError.message,
+        isReverted: rawError.message?.includes('execution reverted') ?? false,
+      },
+    };
   }
 }
 
@@ -99,8 +125,8 @@ function getNativeBalanceChange(
   }
 
   const { stateDiff } = transactionResponse;
-  const previousBalance = stateDiff.pre[userAddress]?.balance;
-  const newBalance = stateDiff.post[userAddress]?.balance;
+  const previousBalance = stateDiff?.pre?.[userAddress]?.balance;
+  const newBalance = stateDiff?.post?.[userAddress]?.balance;
 
   if (!previousBalance || !newBalance) {
     return undefined;
@@ -116,7 +142,9 @@ function getNativeBalanceChange(
  */
 function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
-  const logs = extractLogs(response.transactions[0]?.callTrace ?? {});
+  const logs = extractLogs(
+    response.transactions[0]?.callTrace ?? ({} as SimulationResponseCallTrace),
+  );
 
   log('Extracted logs', logs);
 

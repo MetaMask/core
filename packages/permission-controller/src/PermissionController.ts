@@ -365,8 +365,8 @@ export type SideEffectMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events,
-  AllowedActions['type'],
-  never
+  AllowedActions['type'] | Actions['type'],
+  Events['type']
 >;
 
 /**

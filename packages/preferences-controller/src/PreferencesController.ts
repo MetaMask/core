@@ -254,7 +254,9 @@ export class PreferencesController extends BaseController<
    * @param addresses - List of addresses to use to generate new identities.
    */
   addIdentities(addresses: string[]) {
-    const checksummedAddresses = addresses.map(toChecksumHexAddress);
+    const checksummedAddresses = addresses.map((address) =>
+      toChecksumHexAddress(address),
+    );
     this.update((state) => {
       const { identities } = state;
       for (const address of checksummedAddresses) {

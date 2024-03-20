@@ -762,7 +762,12 @@ describe('TransactionController Integration', () => {
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
-            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetTransactionReceiptRequestMock(
+              '0x1',
+              '0x1',
+              '0x3',
+              '0x2',
+            ),
             buildEthGetBlockByHashRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x3'),
           ],
@@ -783,7 +788,12 @@ describe('TransactionController Integration', () => {
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
-            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetTransactionReceiptRequestMock(
+              '0x1',
+              '0x1',
+              '0x3',
+              '0x2',
+            ),
             buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
