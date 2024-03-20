@@ -298,7 +298,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   async start() {
     this.#stopPoll();
     this.#pollState = PollState.Active;
-    
+
     const nextPollTime = Math.max(
       this.config.interval - (Date.now() - this.lastPollTime),
       0,
