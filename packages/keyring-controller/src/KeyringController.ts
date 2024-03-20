@@ -26,7 +26,6 @@ import type {
   Eip1024EncryptedData,
   Hex,
   Json,
-  Keyring,
   KeyringClass,
 } from '@metamask/utils';
 import {
