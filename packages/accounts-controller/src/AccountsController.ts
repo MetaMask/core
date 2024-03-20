@@ -1,4 +1,3 @@
-import { toBuffer } from '@ethereumjs/util';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -657,23 +656,21 @@ export class AccountsController extends BaseController<
    * @returns The list of accounts associcated with this keyring type.
    */
   #getAccountsByKeyringType(keyringType: string) {
-    return this.listAccounts().filter(
-      (internalAccount) => {
-        // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
-        // to group those accounts together!
-        if (
-          keyringType === KeyringTypes.hd ||
-          keyringType === KeyringTypes.simple
-        ) {
-          return (
-            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-            internalAccount.metadata.keyring.type === KeyringTypes.simple
-          );
-        }
+    return this.listAccounts().filter((internalAccount) => {
+      // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
+      // to group those accounts together!
+      if (
+        keyringType === KeyringTypes.hd ||
+        keyringType === KeyringTypes.simple
+      ) {
+        return (
+          internalAccount.metadata.keyring.type === KeyringTypes.hd ||
+          internalAccount.metadata.keyring.type === KeyringTypes.simple
+        );
+      }
 
-        return internalAccount.metadata.keyring.type === keyringType;
-      },
-    );
+      return internalAccount.metadata.keyring.type === keyringType;
+    });
   }
 
   /**
@@ -687,27 +684,27 @@ export class AccountsController extends BaseController<
   } {
     const keyringName = keyringTypeToName(keyringType);
     const keyringAccounts = this.#getAccountsByKeyringType(keyringType);
-    const lastDefaultIndexUsedForKeyringType =
-      keyringAccounts
-        .reduce((maxInternalAccountIndex, internalAccount) => {
-          // We **DO NOT USE** `\d+` here to only consider valid "human"
-          // number (rounded decimal number)
-          const match = (new RegExp(`${keyringName} ([0-9]+)$`, 'u')).exec(
-            internalAccount.metadata.name,
-          );
+    const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
+      (maxInternalAccountIndex, internalAccount) => {
+        // We **DO NOT USE** `\d+` here to only consider valid "human"
+        // number (rounded decimal number)
+        const match = new RegExp(`${keyringName} ([0-9]+)$`, 'u').exec(
+          internalAccount.metadata.name,
+        );
 
-          if (match) {
-            // Quoting `RegExp.exec` documentation:
-            // > The returned array has the matched text as the first item, and then one item for
-            // > each capturing group of the matched text.
-            // So use `match[1]` to get the captured value
-            const internalAccountIndex = parseInt(match[1], 10);
-            return Math.max(maxInternalAccountIndex, internalAccountIndex);
-          }
+        if (match) {
+          // Quoting `RegExp.exec` documentation:
+          // > The returned array has the matched text as the first item, and then one item for
+          // > each capturing group of the matched text.
+          // So use `match[1]` to get the captured value
+          const internalAccountIndex = parseInt(match[1], 10);
+          return Math.max(maxInternalAccountIndex, internalAccountIndex);
+        }
 
-          return maxInternalAccountIndex;
-
-        }, 0);
+        return maxInternalAccountIndex;
+      },
+      0,
+    );
 
     const indexToUse = Math.max(
       keyringAccounts.length + 1,
