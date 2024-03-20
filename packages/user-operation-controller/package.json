@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "MetaMask",

@@ -7,12 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [25.2.0]
 
-- Query networks supporting simulation ([#4087](https://github.com/MetaMask/core/pull/4087))
-- Include errors in simulation data ([#4067](https://github.com/MetaMask/core/pull/4067))
-- Release 127.0.0 ([#4065](https://github.com/MetaMask/core/pull/4065))
-- Fix intermittently failing TransactionController test ([#4057](https://github.com/MetaMask/core/pull/4057))
+### Added
+
+- Add simulation types ([#4067](https://github.com/MetaMask/core/pull/4067))
+  - SimulationBalanceChange
+  - SimulationData
+  - SimulationError
+  - SimulationToken
+  - SimulationTokenBalanceChange
+  - SimulationTokenStandard
+
+### Changed
+
+- No longer wait for simulation to complete before creating approval request ([#4067](https://github.com/MetaMask/core/pull/4067))
+- Automatically update simulation data if transaction parameters are updated ([#4067](https://github.com/MetaMask/core/pull/4067))
+- Determine networks supporting simulation dynamically using API ([#4087](https://github.com/MetaMask/core/pull/4087))
 
 ## [25.1.0]
 
@@ -691,7 +702,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.0...HEAD
+[25.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...@metamask/transaction-controller@25.2.0
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.0.0...@metamask/transaction-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@24.0.0...@metamask/transaction-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...@metamask/transaction-controller@24.0.0
