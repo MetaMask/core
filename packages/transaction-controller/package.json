@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "25.1.0",
+  "version": "25.2.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -45,10 +45,9 @@
     "@ethereumjs/tx": "^4.2.0",
     "@ethereumjs/util": "^8.1.0",
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
     "@metamask/approval-controller": "^6.0.1",
     "@metamask/base-controller": "^5.0.1",
-    "@metamask/controller-utils": "^9.0.1",
+    "@metamask/controller-utils": "^9.0.2",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/gas-fee-controller": "^14.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",

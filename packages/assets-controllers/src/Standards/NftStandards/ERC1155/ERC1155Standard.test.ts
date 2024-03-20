@@ -48,4 +48,21 @@ describe('ERC1155Standard', () => {
       );
     expect(contractSupportsUri).toBe(true);
   });
+
+  it('should determine if contract supports token receiver interface correctly', async () => {
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035')
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 1,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+      .persist();
+    const contractSupportsUri =
+      await erc1155Standard.contractSupportsTokenReceiverInterface(
+        ERC1155_ADDRESS,
+      );
+    expect(contractSupportsUri).toBe(true);
+  });
 });
