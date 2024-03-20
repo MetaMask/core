@@ -54,4 +54,7 @@ export {
   getFormattedIpfsUrl,
   fetchTokenContractExchangeRates,
 } from './assetsUtil';
-export { CodefiTokenPricesServiceV2 } from './token-prices-service';
+export {
+  CodefiTokenPricesServiceV2,
+  SUPPORTED_CHAIN_IDS,
+} from './token-prices-service';
