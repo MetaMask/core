@@ -1,6 +1,6 @@
 {
   "references": [
-    {
+   /*  {
       "path": "./packages/address-book-controller/tsconfig.build.json"
     },
     {
@@ -8,11 +8,11 @@
     },
     {
       "path": "./packages/approval-controller/tsconfig.build.json"
-    },
+    }, */
     {
       "path": "./packages/assets-controllers/tsconfig.build.json"
     },
-    {
+   /*  {
       "path": "./packages/base-controller/tsconfig.build.json"
     },
     {
@@ -59,7 +59,7 @@
     },
     {
       "path": "./packages/transaction-controller/tsconfig.build.json"
-    }
+    } */
   ],
   "files": [],
   "include": []

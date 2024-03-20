@@ -1,6 +1,6 @@
-import { InfuraNetworkType } from '@metamask/controller-utils';
+import type { InfuraNetworkType } from '@metamask/controller-utils';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import type { PollingBlockTracker } from 'eth-block-tracker';
 
 export type Provider = SafeEventEmitterProvider;
@@ -30,6 +30,7 @@ export type CustomNetworkClientConfiguration = {
  * network.
  */
 export type InfuraNetworkClientConfiguration = {
+  chainId: Hex;
   network: InfuraNetworkType;
   infuraProjectId: string;
   type: NetworkClientType.Infura;

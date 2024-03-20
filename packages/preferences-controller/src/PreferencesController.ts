@@ -42,7 +42,6 @@ export interface PreferencesState extends BaseState {
   isMultiAccountBalancesEnabled: boolean;
   isIpfsGatewayEnabled: boolean;
   showTestNetworks: boolean;
-  isIpfsGatewayEnabled: boolean;
 }
 
 /**
@@ -80,7 +79,6 @@ export class PreferencesController extends BaseController<
       isMultiAccountBalancesEnabled: true,
       isIpfsGatewayEnabled: true,
       showTestNetworks: false,
-      isIpfsGatewayEnabled: true,
     };
     this.initialize();
   }
