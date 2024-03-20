@@ -31,6 +31,7 @@ import { GAS_ESTIMATE_TYPES } from './GasFeeController';
  * @param args.calculateTimeEstimate - A function that determine time estimate bounds.
  * @param args.clientId - An identifier that an API can use to know who is asking for estimates.
  * @param args.ethQuery - An EthQuery instance we can use to talk to Ethereum directly.
+ * @param args.nonRPCGasFeeApisDisabled - Whether to disable requests to the legacyAPIEndpoint and the EIP1559APIEndpoint
  * @returns The gas fee calculations.
  */
 export default async function determineGasFeeCalculations({
@@ -45,6 +46,7 @@ export default async function determineGasFeeCalculations({
   calculateTimeEstimate,
   clientId,
   ethQuery,
+  nonRPCGasFeeApisDisabled = false,
 }: {
   isEIP1559Compatible: boolean;
   isLegacyGasAPICompatible: boolean;
@@ -75,14 +77,19 @@ export default async function determineGasFeeCalculations({
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ethQuery: any;
+  nonRPCGasFeeApisDisabled?: boolean;
 }): Promise<GasFeeCalculations> {
   try {
     if (isEIP1559Compatible) {
       let estimates: GasFeeEstimates;
-      try {
-        estimates = await fetchGasEstimates(fetchGasEstimatesUrl, clientId);
-      } catch {
+      if (nonRPCGasFeeApisDisabled) {
         estimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
+      } else {
+        try {
+          estimates = await fetchGasEstimates(fetchGasEstimatesUrl, clientId);
+        } catch {
+          estimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
+        }
       }
       const { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } =
         estimates.medium;
@@ -96,7 +103,7 @@ export default async function determineGasFeeCalculations({
         estimatedGasFeeTimeBounds,
         gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
       };
-    } else if (isLegacyGasAPICompatible) {
+    } else if (isLegacyGasAPICompatible && !nonRPCGasFeeApisDisabled) {
       const estimates = await fetchLegacyGasPriceEstimates(
         fetchLegacyGasPriceEstimatesUrl,
         clientId,
