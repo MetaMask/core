@@ -303,7 +303,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       this.config.interval - (Date.now() - this.lastPollTime),
       0,
     );
-    this.handle = setTimeout(() => this.#poll(), nextPollTime);
+
+    nextPollTime === 0
+      ? await this.#poll()
+      : (this.handle = setTimeout(() => this.#poll(), nextPollTime));
   }
 
   /**
