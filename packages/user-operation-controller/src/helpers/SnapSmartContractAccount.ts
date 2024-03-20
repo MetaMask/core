@@ -91,7 +91,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
   async signUserOperation(
     request: SignUserOperationRequest,
   ): Promise<SignUserOperationResponse> {
-    const { userOperation } = request;
+    const { userOperation, chainId } = request;
     const { sender } = userOperation;
 
     const signature = await this.#messenger.call(
@@ -99,7 +99,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       sender,
       userOperation,
       {
-        chainId: request.chainId,
+        chainId,
       },
     );
 
