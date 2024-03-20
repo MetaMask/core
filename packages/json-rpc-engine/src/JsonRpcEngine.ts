@@ -384,7 +384,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   async #handle(
     callerReq: JsonRpcRequest | JsonRpcNotification,
-    callback: (error?: unknown, response?: JsonRpcResponse<Json>) => void,
+    callback: (error: unknown, response?: JsonRpcResponse<Json>) => void,
   ): Promise<void> {
     if (
       !callerReq ||
