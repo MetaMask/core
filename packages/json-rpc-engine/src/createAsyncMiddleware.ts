@@ -1,11 +1,14 @@
-import {
-  type Json,
-  type JsonRpcParams,
-  type JsonRpcRequest,
-  type PendingJsonRpcResponse,
+import type {
+  Json,
+  JsonRpcParams,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngine';
+import type {
+  JsonRpcEngineReturnHandler,
+  JsonRpcMiddleware,
+} from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
@@ -18,7 +21,7 @@ export type AsyncJsonrpcMiddleware<
   next: AsyncJsonRpcEngineNextCallback,
 ) => Promise<void>;
 
-type ReturnHandlerCallback = (error: null | Error) => void;
+type ReturnHandlerCallback = Parameters<JsonRpcEngineReturnHandler>[0];
 
 /**
  * JsonRpcEngine only accepts callback-based middleware directly.
@@ -84,7 +87,7 @@ export function createAsyncMiddleware<
         end(null);
       }
     } catch (error) {
-      if (returnHandlerCallback && error instanceof Error) {
+      if (returnHandlerCallback) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);
       } else {
         end(error);

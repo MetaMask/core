@@ -11,7 +11,6 @@ import type {
 } from '@metamask/utils';
 import {
   hasProperty,
-  isJsonRpcError,
   isJsonRpcNotification,
   isJsonRpcRequest,
 } from '@metamask/utils';
@@ -19,7 +18,7 @@ import {
 export type JsonRpcEngineCallbackError = Error | SerializedJsonRpcError | null;
 
 export type JsonRpcEngineReturnHandler = (
-  done: (error?: JsonRpcEngineCallbackError) => void,
+  done: (error?: unknown) => void,
 ) => void;
 
 export type JsonRpcEngineNextCallback = (
@@ -263,10 +262,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
           try {
             await JsonRpcEngine.#runReturnHandlers(returnHandlers);
           } catch (error) {
-            // Errors thrown by `#runReturnHandlers` are of type `Error | SerializedJsonRpcError`
-            if (error instanceof Error || isJsonRpcError(error)) {
-              return handlerCallback(error);
-            }
+            return handlerCallback(error);
           }
           return handlerCallback();
         });
@@ -418,7 +414,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       return callback(error, {
         // Typecast: This could be a notification, but we want to access the
         // `id` even if it doesn't exist.
-        id: 'id' in callerReq ? callerReq.id : null,
+        id: (callerReq as JsonRpcRequest).id,
         jsonrpc: '2.0',
         error,
       });
