@@ -416,7 +416,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       return callback(error, {
         // Typecast: This could be a notification, but we want to access the
         // `id` even if it doesn't exist.
-        id: (callerReq as JsonRpcRequest).id,
+        id: (callerReq as JsonRpcRequest).id ?? null,
         jsonrpc: '2.0',
         error,
       });
