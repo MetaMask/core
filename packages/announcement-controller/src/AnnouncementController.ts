@@ -101,7 +101,7 @@ export class AnnouncementController extends BaseController<
   }) {
     const mergedState = { ...defaultState, ...state };
     super({ messenger, metadata, name: controllerName, state: mergedState });
-    this.addAnnouncements(allAnnouncements);
+    this.#addAnnouncements(allAnnouncements);
   }
 
   /**
@@ -112,7 +112,7 @@ export class AnnouncementController extends BaseController<
    *
    * @param allAnnouncements - all announcements to compare with the announcements from state
    */
-  addAnnouncements(allAnnouncements: AnnouncementMap): void {
+  #addAnnouncements(allAnnouncements: AnnouncementMap): void {
     this.update((state) => {
       Object.values(allAnnouncements).forEach((announcement: Announcement) => {
         state.announcements[announcement.id] = state.announcements[
