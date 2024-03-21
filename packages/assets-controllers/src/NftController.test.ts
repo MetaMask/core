@@ -3446,7 +3446,12 @@ describe('NftController', () => {
       const spy = jest.spyOn(nftController, 'updateNft');
       const testNetworkClientId = 'sepolia';
       await nftController.addNft('0xtest', '3', {
-        nftMetadata: { name: '', description: '', image: '', standard: '' },
+        nftMetadata: {
+          name: '',
+          description: '',
+          image: '',
+          standard: 'ERC721',
+        },
         networkClientId: testNetworkClientId,
       });
       sinon
@@ -3455,23 +3460,10 @@ describe('NftController', () => {
           name: 'name pudgy',
           image: 'url pudgy',
           description: 'description pudgy',
-        });
-      const testInputNfts: Nft[] = [
-        {
-          address: '0xtest',
-          description: null,
-          favorite: false,
-          image: null,
-          isCurrentlyOwned: true,
-          name: null,
-          standard: 'ERC721',
-          tokenId: '3',
           tokenURI: 'https://api.pudgypenguins.io/lil/4',
-        },
-      ];
+        });
 
       await nftController.updateNftMetadata({
-        nfts: testInputNfts,
         networkClientId: testNetworkClientId,
       });
       expect(spy).toHaveBeenCalledTimes(1);
@@ -3508,21 +3500,8 @@ describe('NftController', () => {
       sinon
         .stub(nftController, 'getNftInformation' as keyof typeof nftController)
         .rejects(new Error('Error'));
-      const testInputNfts: Nft[] = [
-        {
-          address: '0xtest',
-          description: null,
-          favorite: false,
-          image: null,
-          isCurrentlyOwned: true,
-          name: null,
-          standard: 'ERC721',
-          tokenId: '3',
-        },
-      ];
 
       await nftController.updateNftMetadata({
-        nfts: testInputNfts,
         networkClientId: testNetworkClientId,
       });
 
@@ -3591,41 +3570,7 @@ describe('NftController', () => {
         .onThirdCall()
         .rejects(new Error('Error'));
 
-      const testInputNfts: Nft[] = [
-        {
-          address: '0xtest1',
-          description: null,
-          favorite: false,
-          image: null,
-          isCurrentlyOwned: true,
-          name: null,
-          standard: 'ERC721',
-          tokenId: '1',
-        },
-        {
-          address: '0xtest2',
-          description: null,
-          favorite: false,
-          image: null,
-          isCurrentlyOwned: true,
-          name: null,
-          standard: 'ERC721',
-          tokenId: '2',
-        },
-        {
-          address: '0xtest3',
-          description: null,
-          favorite: false,
-          image: null,
-          isCurrentlyOwned: true,
-          name: null,
-          standard: 'ERC721',
-          tokenId: '3',
-        },
-      ];
-
       await nftController.updateNftMetadata({
-        nfts: testInputNfts,
         networkClientId: testNetworkClientId,
       });
 
