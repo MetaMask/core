@@ -9,6 +9,7 @@ import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
+  isSafeDynamicKey,
   toChecksumHexAddress,
   CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
@@ -194,6 +195,7 @@ export class EnsController extends BaseController<
   delete(chainId: Hex, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
     if (
+      !isSafeDynamicKey(chainId) ||
       !normalizedEnsName ||
       !this.state.ensEntries[chainId] ||
       !this.state.ensEntries[chainId][normalizedEnsName]
