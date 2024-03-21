@@ -2113,6 +2113,10 @@ export class TransactionController extends BaseController<
         `${controllerName}:transactionFinished`,
         updatedTransactionMeta,
       );
+      this.#internalEvents.emit(
+        `${updatedTransactionMeta.id}:finished`,
+        updatedTransactionMeta,
+      );
     }
   }
 
