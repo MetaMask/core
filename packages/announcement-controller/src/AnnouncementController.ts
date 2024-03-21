@@ -127,13 +127,9 @@ export class AnnouncementController extends BaseController<
    */
   resetIsShownStates(): void {
     this.update(({ announcements }) => {
-      Object.values(announcements).forEach(
-        (announcement: StateAnnouncement) => {
-          if (announcement.isShown) {
-            announcement.isShown = false;
-          }
-        },
-      );
+      for (const announcement of Object.values(announcements)) {
+        announcement.isShown = false;
+      }
     });
   }
 
