@@ -125,7 +125,7 @@ export class AnnouncementController extends BaseController<
   /**
    * Resets the isShown status for all announcements
    */
-  resetIsShownStates(): void {
+  resetViewed(): void {
     this.update(({ announcements }) => {
       for (const announcement of Object.values(announcements)) {
         announcement.isShown = false;
