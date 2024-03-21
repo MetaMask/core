@@ -33,7 +33,6 @@ import { v4 } from 'uuid';
 
 import { getFormattedIpfsUrl } from './assetsUtil';
 import { Source } from './constants';
-import type { Nft } from './NftController';
 import { NftController } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
