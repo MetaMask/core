@@ -716,7 +716,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
    * @param options - options.
    * @param options.tokenAddress - Hex address of the NFT contract.
    * @param options.userAddress - The address of the account where the NFT is being added.
-   * @param options.nftMetadata - The retrirved NFTMetadata from API.
+   * @param options.nftMetadata - The retrieved NFTMetadata from API.
    * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns Promise resolving to the current NFT contracts list.
