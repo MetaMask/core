@@ -11,7 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Adds `tokenMethodIncreaseAllowance` transaction type ([#4069](https://github.com/MetaMask/core/pull/4069))
+- Add support for transactions with type `increaseAllowance` ([#4069](https://github.com/MetaMask/core/pull/4069))
+  - Also add "increaseAllowance" to `TransactionType` under `tokenMethodIncreaseAllowance`
+
+### Changed
+
+- Bump `@metamask/metamask-eth-abis` to `^3.1.1` ([#4069](https://github.com/MetaMask/core/pull/4069))
+
+### Fixed
+
+- Provide updated transaction metadata to publish hook ([#4101](https://github.com/MetaMask/core/pull/4101))
 
 ## [25.2.1]
 
