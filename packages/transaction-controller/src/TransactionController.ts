@@ -2620,7 +2620,7 @@ export class TransactionController extends BaseController<
       log('Publishing transaction', txParams);
 
       let { transactionHash: hash } = await this.publish(
-        transactionMeta,
+        updatedTransactionMeta,
         rawTx,
       );
 
