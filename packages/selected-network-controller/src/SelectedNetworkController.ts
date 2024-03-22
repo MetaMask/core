@@ -222,9 +222,18 @@ export class SelectedNetworkController extends BaseController<
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-    const networkProxy = this.getProviderAndBlockTracker(domain)
-    networkProxy.provider.setTarget(networkClient.provider);
-    networkProxy.blockTracker.setTarget(networkClient.blockTracker);
+    const networkProxy = this.#proxies.get(domain);
+    if (networkProxy === undefined) {
+      this.#proxies.set(domain, {
+        provider: createEventEmitterProxy(networkClient.provider),
+        blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
+          eventFilter: 'skipInternal',
+        }),
+      });
+    } else {
+      networkProxy.provider.setTarget(networkClient.provider);
+      networkProxy.blockTracker.setTarget(networkClient.blockTracker);
+    }
 
     this.update((state) => {
       state.domains[domain] = networkClientId;
@@ -318,16 +327,5 @@ export class SelectedNetworkController extends BaseController<
     }
 
     return networkProxy;
-  }
-
-  #getProxy(domain: Domain): NetworkProxy | undefined {
-    if (this.#proxies.has(domain)) {
-      return this.#proxies.get(domain)!.deref();
-    }
-    return undefined
-  }
-
-  #setProxy(domain: Domain, networkProxy: NetworkProxy) {
-    this.#proxies.set(domain, new WeakRef(networkProxy));
   }
 }
