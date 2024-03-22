@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core.git/pull/4084))
-
 ## [2.0.1]
 
 ### Fixed
@@ -42,9 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/build-utils@2.0.1...HEAD
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/build-utils@2.0.0...@metamask/build-utils@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/build-utils@1.0.2...@metamask/build-utils@2.0.0
-[1.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/build-utils@1.0.1...@metamask/build-utils@1.0.2
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/build-utils@1.0.0...@metamask/build-utils@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/build-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.0...@metamask/build-utils@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.2...@metamask/build-utils@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.1...@metamask/build-utils@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@1.0.0...@metamask/build-utils@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/build-utils@1.0.0

@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Adds 'tokenMethodIncreaseAllowance' ([#4069](https://github.com/MetaMask/core.git/pull/4069))
-- Release 131.0.0 ([#4093](https://github.com/MetaMask/core.git/pull/4093))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core.git/pull/4084))
-
 ## [6.0.2]
 
 ### Fixed
@@ -98,12 +92,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@6.0.2...HEAD
-[6.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@6.0.1...@metamask/user-operation-controller@6.0.2
-[6.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@6.0.0...@metamask/user-operation-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@5.0.0...@metamask/user-operation-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@4.0.0...@metamask/user-operation-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@3.0.0...@metamask/user-operation-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@2.0.0...@metamask/user-operation-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/user-operation-controller@1.0.0...@metamask/user-operation-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/user-operation-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@6.0.2...HEAD
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@6.0.1...@metamask/user-operation-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@6.0.0...@metamask/user-operation-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@5.0.0...@metamask/user-operation-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@4.0.0...@metamask/user-operation-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@3.0.0...@metamask/user-operation-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@2.0.0...@metamask/user-operation-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@1.0.0...@metamask/user-operation-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/user-operation-controller@1.0.0

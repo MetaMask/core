@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.3.0]
+
 ### Uncategorized
 
 - Adds 'tokenMethodIncreaseAllowance' ([#4069](https://github.com/MetaMask/core.git/pull/4069))
@@ -716,7 +718,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@25.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@25.3.0...HEAD
+[25.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@25.2.1...@metamask/transaction-controller@25.3.0
 [25.2.1]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@25.2.0...@metamask/transaction-controller@25.2.1
 [25.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@25.1.0...@metamask/transaction-controller@25.2.0
 [25.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@25.0.0...@metamask/transaction-controller@25.1.0

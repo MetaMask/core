@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core.git/pull/4084))
-
 ## [2.0.1]
 
 ### Fixed
@@ -36,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@2.0.1...HEAD
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@2.0.0...@metamask/permission-log-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@1.0.0...@metamask/permission-log-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/permission-log-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.0...@metamask/permission-log-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@1.0.0...@metamask/permission-log-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/permission-log-controller@1.0.0
