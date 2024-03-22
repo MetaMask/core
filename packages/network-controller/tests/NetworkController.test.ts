@@ -7426,6 +7426,33 @@ function lookupNetworkTests({
       );
     });
   });
+
+  describe('getSelectedNetworkClient', () => {
+    it('returns the selected network provider and blockTracker proxy when initialized', async () => {
+      await withController(async ({ controller }) => {
+        const fakeProvider = buildFakeProvider();
+        const fakeNetworkClient = buildFakeClient(fakeProvider);
+        mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+        await controller.initializeProvider();
+        const defaultNetworkClient = controller.getProviderAndBlockTracker();
+
+        const selectedNetworkClient = controller.getSelectedNetworkClient();
+        expect(defaultNetworkClient.provider).toBe(
+          selectedNetworkClient?.provider,
+        );
+        expect(defaultNetworkClient.blockTracker).toBe(
+          selectedNetworkClient?.blockTracker,
+        );
+      });
+    });
+
+    it('returns undefined when the selected network provider and blockTracker proxy are not initialized', async () => {
+      await withController(async ({ controller }) => {
+        const selectedNetworkClient = controller.getSelectedNetworkClient();
+        expect(selectedNetworkClient).toBeUndefined();
+      });
+    });
+  });
 }
 
 /**
