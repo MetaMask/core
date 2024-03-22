@@ -24,7 +24,7 @@ const stateMetadata = {
 
 const getDefaultState = () => ({ domains: {} });
 
-type Domain = string;
+export type Domain = string;
 
 export const METAMASK_DOMAIN = 'metamask' as const;
 
@@ -96,6 +96,7 @@ export type SelectedNetworkControllerOptions = {
   state?: SelectedNetworkControllerState;
   messenger: SelectedNetworkControllerMessenger;
   getUseRequestQueue: GetUseRequestQueue;
+  domainProxyMap: Map<Domain, NetworkProxy>;
 };
 
 export type NetworkProxy = {
@@ -111,7 +112,7 @@ export class SelectedNetworkController extends BaseController<
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger
 > {
-  #proxies = new Map<Domain, NetworkProxy>();
+  #domainProxyMap: Map<Domain, NetworkProxy>;
 
   #getUseRequestQueue: GetUseRequestQueue;
 
@@ -122,11 +123,13 @@ export class SelectedNetworkController extends BaseController<
    * @param options.messenger - The restricted controller messenger for the EncryptionPublicKey controller.
    * @param options.state - The controllers initial state.
    * @param options.getUseRequestQueue - feature flag for perDappNetwork & request queueing features
+   * @param options.domainProxyMap - an object that implements the Map interface for Domain to NetworkProxy
    */
   constructor({
     messenger,
     state = getDefaultState(),
     getUseRequestQueue,
+    domainProxyMap,
   }: SelectedNetworkControllerOptions) {
     super({
       name: controllerName,
@@ -135,6 +138,7 @@ export class SelectedNetworkController extends BaseController<
       state,
     });
     this.#getUseRequestQueue = getUseRequestQueue;
+    this.#domainProxyMap = domainProxyMap;
     this.#registerMessageHandlers();
 
     // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
@@ -218,9 +222,9 @@ export class SelectedNetworkController extends BaseController<
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-    const networkProxy = this.#proxies.get(domain);
+    const networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
-      this.#proxies.set(domain, {
+      this.#domainProxyMap.set(domain, {
         provider: createEventEmitterProxy(networkClient.provider),
         blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
           eventFilter: 'skipInternal',
@@ -289,7 +293,7 @@ export class SelectedNetworkController extends BaseController<
         'NetworkClientId has not been set for the requested domain',
       );
     }
-    let networkProxy = this.#proxies.get(domain);
+    let networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
       const networkClient = this.messagingSystem.call(
         'NetworkController:getNetworkClientById',
@@ -301,7 +305,7 @@ export class SelectedNetworkController extends BaseController<
           eventFilter: 'skipInternal',
         }),
       };
-      this.#proxies.set(domain, networkProxy);
+      this.#domainProxyMap.set(domain, networkProxy);
     }
 
     return networkProxy;

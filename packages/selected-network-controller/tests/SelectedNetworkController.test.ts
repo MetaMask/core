@@ -9,6 +9,8 @@ import type {
   SelectedNetworkControllerEvents,
   SelectedNetworkControllerMessenger,
   SelectedNetworkControllerState,
+  Domain,
+  NetworkProxy,
 } from '../src/SelectedNetworkController';
 import {
   SelectedNetworkController,
@@ -92,11 +94,13 @@ const setup = ({
   getSubjectNames = [],
   state,
   getUseRequestQueue = () => false,
+  domainProxyMap = new Map<Domain, NetworkProxy>(),
 }: {
   hasPermissions?: boolean;
   state?: SelectedNetworkControllerState;
   getSubjectNames?: string[];
   getUseRequestQueue?: GetUseRequestQueue;
+  domainProxyMap?: Map<Domain, NetworkProxy>;
 } = {}) => {
   const mockProviderProxy = {
     setTarget: jest.fn(),
@@ -143,6 +147,7 @@ const setup = ({
     messenger: selectedNetworkControllerMessenger,
     state,
     getUseRequestQueue,
+    domainProxyMap,
   });
   return {
     controller,
