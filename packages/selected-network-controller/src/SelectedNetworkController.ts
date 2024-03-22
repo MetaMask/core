@@ -300,7 +300,7 @@ export class SelectedNetworkController extends BaseController<
           'NetworkController:getSelectedNetworkClient',
         );
         if (networkClient === undefined) {
-          throw new Error('Network not initialized');
+          throw new Error('Selected network not initialized');
         }
       } else {
         networkClient = this.messagingSystem.call(
