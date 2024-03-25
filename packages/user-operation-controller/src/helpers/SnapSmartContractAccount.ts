@@ -35,6 +35,9 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:prepareUserOperation',
       sender,
       [{ data, to, value }],
+      {
+        chainId: request.chainId,
+      },
     );
 
     const {
@@ -70,6 +73,9 @@ export class SnapSmartContractAccount implements SmartContractAccount {
         'KeyringController:patchUserOperation',
         sender,
         userOperation,
+        {
+          chainId: request.chainId,
+        },
       );
 
     const paymasterAndData =
@@ -85,13 +91,16 @@ export class SnapSmartContractAccount implements SmartContractAccount {
   async signUserOperation(
     request: SignUserOperationRequest,
   ): Promise<SignUserOperationResponse> {
-    const { userOperation } = request;
+    const { userOperation, chainId } = request;
     const { sender } = userOperation;
 
     const signature = await this.#messenger.call(
       'KeyringController:signUserOperation',
       sender,
       userOperation,
+      {
+        chainId,
+      },
     );
 
     return { signature };

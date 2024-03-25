@@ -1644,6 +1644,10 @@ describe('KeyringController', () => {
   });
 
   describe('prepareUserOperation', () => {
+    const chainId = '0x1';
+    const executionContext = {
+      chainId,
+    };
     describe('when the keyring for the given address supports prepareUserOperation', () => {
       it('should prepare base user operation', async () => {
         const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
@@ -1674,6 +1678,7 @@ describe('KeyringController', () => {
                 data: '0x7064',
               },
             ];
+
             jest
               .spyOn(mockKeyring, 'prepareUserOperation')
               .mockResolvedValueOnce(baseUserOp);
@@ -1681,6 +1686,7 @@ describe('KeyringController', () => {
             const result = await controller.prepareUserOperation(
               address,
               baseTxs,
+              executionContext,
             );
 
             expect(result).toStrictEqual(baseUserOp);
@@ -1688,6 +1694,7 @@ describe('KeyringController', () => {
             expect(mockKeyring.prepareUserOperation).toHaveBeenCalledWith(
               address,
               baseTxs,
+              executionContext,
             );
           },
         );
@@ -1704,7 +1711,7 @@ describe('KeyringController', () => {
             await controller.addNewKeyring(MockKeyring.type);
 
             await expect(
-              controller.prepareUserOperation(address, []),
+              controller.prepareUserOperation(address, [], executionContext),
             ).rejects.toThrow(
               KeyringControllerError.UnsupportedPrepareUserOperation,
             );
@@ -1715,6 +1722,11 @@ describe('KeyringController', () => {
   });
 
   describe('patchUserOperation', () => {
+    const chainId = '0x1';
+    const executionContext = {
+      chainId,
+    };
+
     describe('when the keyring for the given address supports patchUserOperation', () => {
       it('should patch an user operation', async () => {
         const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
@@ -1745,13 +1757,18 @@ describe('KeyringController', () => {
               .spyOn(mockKeyring, 'patchUserOperation')
               .mockResolvedValueOnce(patch);
 
-            const result = await controller.patchUserOperation(address, userOp);
+            const result = await controller.patchUserOperation(
+              address,
+              userOp,
+              executionContext,
+            );
 
             expect(result).toStrictEqual(patch);
             expect(mockKeyring.patchUserOperation).toHaveBeenCalledTimes(1);
             expect(mockKeyring.patchUserOperation).toHaveBeenCalledWith(
               address,
               userOp,
+              executionContext,
             );
           },
         );
@@ -1781,7 +1798,7 @@ describe('KeyringController', () => {
             };
 
             await expect(
-              controller.patchUserOperation(address, userOp),
+              controller.patchUserOperation(address, userOp, executionContext),
             ).rejects.toThrow(
               KeyringControllerError.UnsupportedPatchUserOperation,
             );
@@ -1792,6 +1809,10 @@ describe('KeyringController', () => {
   });
 
   describe('signUserOperation', () => {
+    const chainId = '0x1';
+    const executionContext = {
+      chainId,
+    };
     describe('when the keyring for the given address supports signUserOperation', () => {
       it('should sign an user operation', async () => {
         const address = '0x660265edc169bab511a40c0e049cc1e33774443d';
@@ -1820,13 +1841,18 @@ describe('KeyringController', () => {
               .spyOn(mockKeyring, 'signUserOperation')
               .mockResolvedValueOnce(signature);
 
-            const result = await controller.signUserOperation(address, userOp);
+            const result = await controller.signUserOperation(
+              address,
+              userOp,
+              executionContext,
+            );
 
             expect(result).toStrictEqual(signature);
             expect(mockKeyring.signUserOperation).toHaveBeenCalledTimes(1);
             expect(mockKeyring.signUserOperation).toHaveBeenCalledWith(
               address,
               userOp,
+              executionContext,
             );
           },
         );
@@ -1856,7 +1882,7 @@ describe('KeyringController', () => {
             };
 
             await expect(
-              controller.signUserOperation(address, userOp),
+              controller.signUserOperation(address, userOp, executionContext),
             ).rejects.toThrow(
               KeyringControllerError.UnsupportedSignUserOperation,
             );
@@ -2902,6 +2928,11 @@ describe('KeyringController', () => {
     });
 
     describe('prepareUserOperation', () => {
+      const chainId = '0x1';
+      const executionContext = {
+        chainId,
+      };
+
       it('should return a base UserOp', async () => {
         await withController(
           async ({ controller, messenger, initialState }) => {
@@ -2917,11 +2948,13 @@ describe('KeyringController', () => {
               'KeyringController:prepareUserOperation',
               initialState.keyrings[0].accounts[0],
               baseTxs,
+              executionContext,
             );
 
             expect(controller.prepareUserOperation).toHaveBeenCalledWith(
               initialState.keyrings[0].accounts[0],
               baseTxs,
+              executionContext,
             );
           },
         );
@@ -2929,6 +2962,10 @@ describe('KeyringController', () => {
     });
 
     describe('patchUserOperation', () => {
+      const chainId = '0x1';
+      const executionContext = {
+        chainId,
+      };
       it('should return an UserOp patch', async () => {
         await withController(
           async ({ controller, messenger, initialState }) => {
@@ -2950,11 +2987,13 @@ describe('KeyringController', () => {
               'KeyringController:patchUserOperation',
               initialState.keyrings[0].accounts[0],
               userOp,
+              executionContext,
             );
 
             expect(controller.patchUserOperation).toHaveBeenCalledWith(
               initialState.keyrings[0].accounts[0],
               userOp,
+              executionContext,
             );
           },
         );
@@ -2962,6 +3001,10 @@ describe('KeyringController', () => {
     });
 
     describe('signUserOperation', () => {
+      const chainId = '0x1';
+      const executionContext = {
+        chainId,
+      };
       it('should return an UserOp signature', async () => {
         await withController(
           async ({ controller, messenger, initialState }) => {
@@ -2983,11 +3026,13 @@ describe('KeyringController', () => {
               'KeyringController:signUserOperation',
               initialState.keyrings[0].accounts[0],
               userOp,
+              executionContext,
             );
 
             expect(controller.signUserOperation).toHaveBeenCalledWith(
               initialState.keyrings[0].accounts[0],
               userOp,
+              executionContext,
             );
           },
         );
