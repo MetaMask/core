@@ -54,6 +54,7 @@ import type {
   SimulationData,
 } from './types';
 import {
+  SimulationErrorCode,
   SimulationTokenStandard,
   TransactionStatus,
   TransactionType,
@@ -1685,51 +1686,70 @@ describe('TransactionController', () => {
       });
     });
 
-    it('updates simulation data', async () => {
-      getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+    describe('updates simulation data', () => {
+      it('by default', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
 
-      const { controller } = setupController();
+        const { controller } = setupController();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
+        await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+        expect(getSimulationDataMock).toHaveBeenCalledWith({
+          chainId: MOCK_NETWORK.state.providerConfig.chainId,
+          data: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        });
+
+        expect(controller.state.transactions[0].simulationData).toStrictEqual(
+          SIMULATION_DATA_MOCK,
+        );
       });
 
-      await flushPromises();
+      it('with error if simulation disabled', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
 
-      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-      expect(getSimulationDataMock).toHaveBeenCalledWith({
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
-        data: undefined,
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-        value: '0x0',
+        const { controller } = setupController({
+          options: { isSimulationEnabled: () => false },
+        });
+
+        await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].simulationData).toStrictEqual({
+          error: {
+            code: SimulationErrorCode.Disabled,
+            message: 'Simulation disabled',
+          },
+          tokenBalanceChanges: [],
+        });
       });
 
-      expect(controller.state.transactions[0].simulationData).toStrictEqual(
-        SIMULATION_DATA_MOCK,
-      );
-    });
+      it('unless approval not required', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
 
-    it('includes simulation data with error if simulation disabled', async () => {
-      getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        const { controller } = setupController();
 
-      const { controller } = setupController({
-        options: { isSimulationEnabled: () => false },
-      });
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          { requireApproval: false },
+        );
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-
-      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
-      expect(controller.state.transactions[0].simulationData).toStrictEqual({
-        error: {
-          message: 'Simulation disabled',
-          isReverted: false,
-        },
-        tokenBalanceChanges: [],
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].simulationData).toBeUndefined();
       });
     });
 

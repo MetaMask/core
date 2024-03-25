@@ -74,6 +74,7 @@ import {
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
+  SimulationErrorCode,
 } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
@@ -1074,8 +1075,12 @@ export class TransactionController extends BaseController<
 
       this.addMetadata(addedTransactionMeta);
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#updateSimulationData(addedTransactionMeta);
+      if (requireApproval !== false) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.#updateSimulationData(addedTransactionMeta);
+      } else {
+        log('Skipping simulation as approval not required');
+      }
 
       this.messagingSystem.publish(
         `${controllerName}:unapprovedTransactionAdded`,
@@ -3572,8 +3577,8 @@ export class TransactionController extends BaseController<
 
     let simulationData: SimulationData = {
       error: {
+        code: SimulationErrorCode.Disabled,
         message: 'Simulation disabled',
-        isReverted: false,
       },
       tokenBalanceChanges: [],
     };

@@ -1,7 +1,11 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 
-import { SimulationTokenStandard } from '../types';
+import {
+  SimulationInvalidResponseError,
+  SimulationRevertedError,
+} from '../errors';
+import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 import { getSimulationData, type GetSimulationDataRequest } from './simulation';
 import type { SimulationResponseLog } from './simulation-api';
 import {
@@ -548,7 +552,6 @@ describe('Simulation Utils', () => {
           error: {
             code: ERROR_CODE_MOCK,
             message: ERROR_MESSAGE_MOCK,
-            isReverted: false,
           },
           tokenBalanceChanges: [],
         });
@@ -563,7 +566,6 @@ describe('Simulation Utils', () => {
           error: {
             code: ERROR_CODE_MOCK,
             message: undefined,
-            isReverted: false,
           },
           tokenBalanceChanges: [],
         });
@@ -582,9 +584,8 @@ describe('Simulation Utils', () => {
 
         expect(simulationData).toStrictEqual({
           error: {
-            code: undefined,
-            message: 'Invalid response from simulation API',
-            isReverted: false,
+            code: SimulationErrorCode.InvalidResponse,
+            message: new SimulationInvalidResponseError().message,
           },
           tokenBalanceChanges: [],
         });
@@ -604,9 +605,29 @@ describe('Simulation Utils', () => {
 
         expect(simulationData).toStrictEqual({
           error: {
+            code: SimulationErrorCode.Reverted,
+            message: new SimulationRevertedError().message,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('if response has transaction error', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              error: 'test 1 2 3',
+              return: '0x',
+            },
+          ],
+        });
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
             code: undefined,
-            message: 'test execution reverted test',
-            isReverted: true,
+            message: 'test 1 2 3',
           },
           tokenBalanceChanges: [],
         });
