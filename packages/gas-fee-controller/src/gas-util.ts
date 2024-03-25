@@ -43,11 +43,7 @@ export async function fetchGasEstimates(
   clientId?: string,
 ): Promise<GasFeeEstimates> {
   const estimates = await handleFetch(url, {
-    headers: {
-      Authorization: `Basic ${infuraAuthToken}`,
-      // Only add the clientId header if clientId is a non-empty string
-      ...(clientId?.trim() ? makeClientIdHeader(clientId) : {}),
-    },
+    headers: getHeaders(infuraAuthToken, clientId),
   });
   return {
     low: {
@@ -106,12 +102,7 @@ export async function fetchLegacyGasPriceEstimates(
     referrerPolicy: 'no-referrer-when-downgrade',
     method: 'GET',
     mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Basic ${infuraAuthToken}`,
-      // Only add the clientId header if clientId is a non-empty string
-      ...(clientId?.trim() ? makeClientIdHeader(clientId) : {}),
-    },
+    headers: getHeaders(infuraAuthToken, clientId),
   });
   return {
     low: result.SafeGasPrice,
@@ -198,5 +189,37 @@ export function calculateTimeEstimate(
   return {
     lowerTimeBound,
     upperTimeBound,
+  };
+}
+
+/**
+ * Build an infura auth token from the given API key and secret.
+ *
+ * @param infuraAPIKey - The Infura API key.
+ * @param infuraAPIKeySecret - The Infura API key secret.
+ * @returns The base64 encoded auth token.
+ */
+export function buildInfuraAuthToken(
+  infuraAPIKey: string,
+  infuraAPIKeySecret: string,
+) {
+  return Buffer.from(`${infuraAPIKey}:${infuraAPIKeySecret}`).toString(
+    'base64',
+  );
+}
+
+/**
+ * Get the headers for a request to the gas fee API.
+ *
+ * @param infuraAuthToken - The Infura auth token to use for the request.
+ * @param clientId - The client ID used to identify to the API who is asking for estimates.
+ * @returns The headers for the request.
+ */
+function getHeaders(infuraAuthToken: string, clientId?: string) {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Basic ${infuraAuthToken}`,
+    // Only add the clientId header if clientId is a non-empty string
+    ...(clientId?.trim() ? makeClientIdHeader(clientId) : {}),
   };
 }

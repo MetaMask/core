@@ -91,9 +91,9 @@ describe('gas utils', () => {
 
       expect(handleFetchMock).toHaveBeenCalledTimes(1);
       expect(handleFetchMock).toHaveBeenCalledWith(INFURA_GAS_API_URL_MOCK, {
-        headers: {
+        headers: expect.objectContaining({
           Authorization: `Basic ${INFURA_AUTH_TOKEN_MOCK}`,
-        },
+        }),
       });
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
     });
@@ -109,10 +109,10 @@ describe('gas utils', () => {
 
       expect(handleFetchMock).toHaveBeenCalledTimes(1);
       expect(handleFetchMock).toHaveBeenCalledWith(INFURA_GAS_API_URL_MOCK, {
-        headers: {
+        headers: expect.objectContaining({
           Authorization: `Basic ${INFURA_AUTH_TOKEN_MOCK}`,
           'X-Client-Id': clientIdMock,
-        },
+        }),
       });
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
     });
