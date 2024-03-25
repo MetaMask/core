@@ -372,7 +372,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       ...oldState,
       ...{ [userAddress]: newAddressState },
     };
-
     this.update({
       [baseStateKey]: newState,
     });
@@ -1194,7 +1193,14 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
         if (needsUpdateNftMetadata) {
-          this.updateNftMetadata({ userAddress: selectedAddress });
+          const { chainId } = this.config;
+          const nfts: Nft[] =
+            this.state.allNfts[selectedAddress]?.[chainId] ?? [];
+
+          this.updateNftMetadata({
+            nfts,
+            userAddress: selectedAddress,
+          });
         }
       },
     );
@@ -1504,19 +1510,20 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
    * Refetches NFT metadata and updates the state
    *
    * @param options - Options for refetching NFT metadata
-   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options.nfts - nfts to update metadata for.
    * @param options.userAddress - The current user address
+   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    */
   async updateNftMetadata({
+    nfts,
     userAddress = this.config.selectedAddress,
     networkClientId,
   }: {
+    nfts: Nft[];
     userAddress?: string;
     networkClientId?: NetworkClientId;
   }) {
     const chainId = this.getCorrectChainId({ networkClientId });
-    const { allNfts } = this.state;
-    const nfts: Nft[] = allNfts[userAddress]?.[chainId] || [];
     // We want to update only nfts missing name/image or description
     const nftsToUpdate = nfts.filter(
       (singleNft) =>
@@ -1842,7 +1849,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       updatedNft,
       ...nfts.slice(nftInfo.index + 1),
     ];
-
     this.updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY, {
       chainId,
       userAddress: selectedAddress,
