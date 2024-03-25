@@ -566,6 +566,11 @@ export enum TransactionType {
    * spend on behalf of the user.
    */
   tokenMethodSetApprovalForAll = 'setapprovalforall',
+
+  /**
+   * Increase the allowance by a given increment
+   */
+  tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
 
 /**

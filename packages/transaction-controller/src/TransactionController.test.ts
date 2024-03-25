@@ -4552,6 +4552,37 @@ describe('TransactionController', () => {
 
       expect(mockEthQuery.sendRawTransaction).toHaveBeenCalledTimes(1);
     });
+
+    it('submits to publish hook with final transaction meta', async () => {
+      const publishHook = jest
+        .fn()
+        .mockResolvedValue({ transactionHash: TRANSACTION_META_MOCK.hash });
+
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            publish: publishHook,
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      const { result } = await controller.addTransaction(paramsMock);
+
+      await result;
+
+      expect(publishHook).toHaveBeenCalledTimes(1);
+      expect(publishHook).toHaveBeenCalledWith(
+        expect.objectContaining({
+          txParams: expect.objectContaining({ nonce: toHex(NONCE_MOCK) }),
+        }),
+        expect.any(String),
+      );
+    });
   });
 
   describe('updateSecurityAlertResponse', () => {

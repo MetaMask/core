@@ -1766,7 +1766,7 @@ __metadata:
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/keyring-api": ^3.0.0
     "@metamask/keyring-controller": ^14.0.1
-    "@metamask/metamask-eth-abis": 3.0.0
+    "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.0.1
     "@metamask/polling-controller": ^6.0.1
     "@metamask/preferences-controller": ^9.0.1
@@ -2527,10 +2527,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/metamask-eth-abis@npm:3.0.0, @metamask/metamask-eth-abis@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "@metamask/metamask-eth-abis@npm:3.0.0"
-  checksum: a9e3020dd8deda91b4957cc38f0041944fd60a374d7f9d19b3bc2706c5ca70b3c2a5f679b5ef390b722a2c047a2852ebecd3aaa91c054cf5a60d9ca02ee45fe6
+"@metamask/metamask-eth-abis@npm:^3.1.1":
+  version: 3.1.1
+  resolution: "@metamask/metamask-eth-abis@npm:3.1.1"
+  checksum: b453fafbcf43462af0deae44182bbf4a7b0a2c4e7bc36e80c4a6cc854a8a87be28cf60e8203f1b5ec21bd53d996f6a379cd8f4268facd2bb042af211b3db83dc
   languageName: node
   linkType: hard
 
@@ -2540,6 +2540,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
+    "@metamask/controller-utils": ^9.0.2
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     async-mutex: ^0.2.6
@@ -3126,7 +3127,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^25.2.1, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@^25.3.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3142,7 +3143,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^14.0.1
-    "@metamask/metamask-eth-abis": ^3.0.0
+    "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.0.1
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
@@ -3187,7 +3188,7 @@ __metadata:
     "@metamask/network-controller": ^18.0.1
     "@metamask/polling-controller": ^6.0.1
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/transaction-controller": ^25.2.1
+    "@metamask/transaction-controller": ^25.3.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     bn.js: ^5.2.1
