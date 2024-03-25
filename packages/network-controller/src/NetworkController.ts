@@ -760,7 +760,6 @@ export class NetworkController extends BaseController<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.#applyNetworkSelection();
-    await this.lookupNetwork();
   }
 
   /**
