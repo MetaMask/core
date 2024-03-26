@@ -123,7 +123,7 @@ export class SelectedNetworkController extends BaseController<
    * @param options.messenger - The restricted controller messenger for the EncryptionPublicKey controller.
    * @param options.state - The controllers initial state.
    * @param options.getUseRequestQueue - feature flag for perDappNetwork & request queueing features
-   * @param options.domainProxyMap - an object that implements the Map interface for Domain to NetworkProxy
+   * @param options.domainProxyMap - A map for storing domain-specific proxies that are held in memory only during use.
    */
   constructor({
     messenger,
