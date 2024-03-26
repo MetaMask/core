@@ -73,7 +73,8 @@ const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   },
 ];
 
-const INFURA_AUTH_TOKEN_MOCK = 'test';
+const INFURA_API_KEY_MOCK = 'test';
+const INFURA_AUTH_TOKEN_MOCK = 'dGVzdDo=';
 const INFURA_GAS_API_URL_MOCK = 'https://gas.api.infura.io';
 
 describe('gas utils', () => {
@@ -86,7 +87,7 @@ describe('gas utils', () => {
       handleFetchMock.mockResolvedValue(mockEIP1559ApiResponses[0]);
       const result = await fetchGasEstimates(
         INFURA_GAS_API_URL_MOCK,
-        INFURA_AUTH_TOKEN_MOCK,
+        INFURA_API_KEY_MOCK,
       );
 
       expect(handleFetchMock).toHaveBeenCalledTimes(1);
@@ -103,7 +104,7 @@ describe('gas utils', () => {
       handleFetchMock.mockResolvedValue(mockEIP1559ApiResponses[0]);
       const result = await fetchGasEstimates(
         INFURA_GAS_API_URL_MOCK,
-        INFURA_AUTH_TOKEN_MOCK,
+        INFURA_API_KEY_MOCK,
         clientIdMock,
       );
 
@@ -143,7 +144,7 @@ describe('gas utils', () => {
       handleFetchMock.mockResolvedValue(mockEIP1559ApiResponses[1]);
       const result = await fetchGasEstimates(
         INFURA_GAS_API_URL_MOCK,
-        INFURA_AUTH_TOKEN_MOCK,
+        INFURA_API_KEY_MOCK,
       );
       expect(result).toMatchObject(expectedResult);
     });
@@ -158,7 +159,7 @@ describe('gas utils', () => {
       });
       const result = await fetchLegacyGasPriceEstimates(
         INFURA_GAS_API_URL_MOCK,
-        INFURA_AUTH_TOKEN_MOCK,
+        INFURA_API_KEY_MOCK,
       );
 
       expect(handleFetchMock).toHaveBeenCalledTimes(1);
@@ -187,7 +188,7 @@ describe('gas utils', () => {
       });
       const result = await fetchLegacyGasPriceEstimates(
         INFURA_GAS_API_URL_MOCK,
-        INFURA_AUTH_TOKEN_MOCK,
+        INFURA_API_KEY_MOCK,
         clientIdMock,
       );
 

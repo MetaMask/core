@@ -25,7 +25,6 @@ import { v1 as random } from 'uuid';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
-  buildInfuraAuthToken,
   calculateTimeEstimate,
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
@@ -275,7 +274,7 @@ export class GasFeeController extends StaticIntervalPollingController<
 
   private readonly getCurrentAccountEIP1559Compatibility;
 
-  private readonly infuraAuthToken: string;
+  private readonly infuraAPIKey: string;
 
   private currentChainId;
 
@@ -350,7 +349,7 @@ export class GasFeeController extends StaticIntervalPollingController<
     this.EIP1559APIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/suggestedGasFees`;
     this.legacyAPIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/gasPrices`;
     this.clientId = clientId;
-    this.infuraAuthToken = buildInfuraAuthToken(infuraAPIKey);
+    this.infuraAPIKey = infuraAPIKey;
 
     this.ethQuery = new EthQuery(this.#getProvider());
 
@@ -473,7 +472,7 @@ export class GasFeeController extends StaticIntervalPollingController<
       calculateTimeEstimate,
       clientId: this.clientId,
       ethQuery,
-      infuraAuthToken: this.infuraAuthToken,
+      infuraAPIKey: this.infuraAPIKey,
     });
 
     if (shouldUpdateState) {

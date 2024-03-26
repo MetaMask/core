@@ -344,7 +344,7 @@ describe('GasFeeController', () => {
             calculateTimeEstimate,
             clientId: '99999',
             ethQuery: expect.any(EthQuery),
-            infuraAuthToken: expect.any(String),
+            infuraAPIKey: expect.any(String),
           });
         });
 
@@ -400,7 +400,7 @@ describe('GasFeeController', () => {
             calculateTimeEstimate,
             clientId: '99999',
             ethQuery: expect.any(EthQuery),
-            infuraAuthToken: expect.any(String),
+            infuraAPIKey: expect.any(String),
           });
         });
 
@@ -707,7 +707,7 @@ describe('GasFeeController', () => {
           calculateTimeEstimate,
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
-          infuraAuthToken: expect.any(String),
+          infuraAPIKey: expect.any(String),
         });
       });
 
@@ -815,7 +815,7 @@ describe('GasFeeController', () => {
           calculateTimeEstimate,
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
-          infuraAuthToken: expect.any(String),
+          infuraAPIKey: expect.any(String),
         });
       });
 
@@ -912,7 +912,7 @@ describe('GasFeeController', () => {
           calculateTimeEstimate,
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
-          infuraAuthToken: expect.any(String),
+          infuraAPIKey: expect.any(String),
         });
       });
 

@@ -31,7 +31,7 @@ import { GAS_ESTIMATE_TYPES } from './GasFeeController';
  * @param args.calculateTimeEstimate - A function that determine time estimate bounds.
  * @param args.clientId - An identifier that an API can use to know who is asking for estimates.
  * @param args.ethQuery - An EthQuery instance we can use to talk to Ethereum directly.
- * @param args.infuraAuthToken - Infura auth token to use for the requests.
+ * @param args.infuraAPIKey - Infura API key to use for requests to Infura.
  * @returns The gas fee calculations.
  */
 export default async function determineGasFeeCalculations({
@@ -46,13 +46,13 @@ export default async function determineGasFeeCalculations({
   calculateTimeEstimate,
   clientId,
   ethQuery,
-  infuraAuthToken,
+  infuraAPIKey,
 }: {
   isEIP1559Compatible: boolean;
   isLegacyGasAPICompatible: boolean;
   fetchGasEstimates: (
     url: string,
-    infuraAuthToken: string,
+    infuraAPIKey: string,
     clientId?: string,
   ) => Promise<GasFeeEstimates>;
   fetchGasEstimatesUrl: string;
@@ -63,7 +63,7 @@ export default async function determineGasFeeCalculations({
   ) => Promise<GasFeeEstimates>;
   fetchLegacyGasPriceEstimates: (
     url: string,
-    infuraAuthToken: string,
+    infuraAPIKey: string,
     clientId?: string,
   ) => Promise<LegacyGasPriceEstimate>;
   fetchLegacyGasPriceEstimatesUrl: string;
@@ -79,7 +79,7 @@ export default async function determineGasFeeCalculations({
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ethQuery: any;
-  infuraAuthToken: string;
+  infuraAPIKey: string;
 }): Promise<GasFeeCalculations> {
   try {
     if (isEIP1559Compatible) {
@@ -87,7 +87,7 @@ export default async function determineGasFeeCalculations({
       try {
         estimates = await fetchGasEstimates(
           fetchGasEstimatesUrl,
-          infuraAuthToken,
+          infuraAPIKey,
           clientId,
         );
       } catch {
@@ -108,7 +108,7 @@ export default async function determineGasFeeCalculations({
     } else if (isLegacyGasAPICompatible) {
       const estimates = await fetchLegacyGasPriceEstimates(
         fetchLegacyGasPriceEstimatesUrl,
-        infuraAuthToken,
+        infuraAPIKey,
         clientId,
       );
       return {
