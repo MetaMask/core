@@ -172,6 +172,7 @@ const setup = ({
     messenger,
     mockProviderProxy,
     mockBlockTrackerProxy,
+    domainProxyMap,
     createEventEmitterProxyMock,
     ...mockMessengerActions,
   };
@@ -538,6 +539,7 @@ describe('SelectedNetworkController', () => {
         const {
           controller,
           messenger,
+          domainProxyMap,
           mockProviderProxy,
           mockGetSelectedNetworkClient,
         } = setup({
@@ -546,7 +548,7 @@ describe('SelectedNetworkController', () => {
         controller.getProviderAndBlockTracker('example.com');
 
         mockGetSelectedNetworkClient.mockReturnValue(undefined);
-
+        expect(domainProxyMap.get('example.com')).toBeDefined();
         messenger.publish(
           'PermissionController:stateChange',
           { subjects: {} },
@@ -558,8 +560,8 @@ describe('SelectedNetworkController', () => {
           ],
         );
 
-        // TODO(JL): replace this with a test that the proxy is removed from cache when the domainProxyMap PR is merged
         expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(0);
+        expect(domainProxyMap.get('example.com')).toBeUndefined();
       });
     });
   });
