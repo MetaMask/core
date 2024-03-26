@@ -155,7 +155,6 @@ describe('SignatureController', () => {
   };
   const messengerMock = createMessengerMock();
   const getAllStateMock = jest.fn();
-  const securityProviderRequestMock = jest.fn();
   const isEthSignEnabledMock = jest.fn();
   const getCurrentChainIdMock = jest.fn();
   const keyringErrorMessageMock = 'Keyring Error';
@@ -199,7 +198,6 @@ describe('SignatureController', () => {
     signatureController = new SignatureController({
       messenger: messengerMock,
       getAllState: getAllStateMock,
-      securityProviderRequest: securityProviderRequestMock,
       isEthSignEnabled: isEthSignEnabledMock,
       getCurrentChainId: getCurrentChainIdMock,
     } as SignatureControllerOptions);

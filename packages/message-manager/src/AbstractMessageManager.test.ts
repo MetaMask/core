@@ -1,4 +1,3 @@
-import type { SecurityProviderRequest } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import type {
   TypedMessage,
@@ -119,14 +118,7 @@ describe('AbstractTestManager', () => {
 
   it('adds a valid message with provider security response', async () => {
     const securityProviderResponseMock = { flagAsDangerous: 2 };
-    const securityProviderRequestMock: SecurityProviderRequest = jest
-      .fn()
-      .mockResolvedValue(securityProviderResponseMock);
-    const controller = new AbstractTestManager(
-      undefined,
-      undefined,
-      securityProviderRequestMock,
-    );
+    const controller = new AbstractTestManager(undefined, undefined);
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -148,7 +140,6 @@ describe('AbstractTestManager', () => {
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
-    expect(securityProviderRequestMock).toHaveBeenCalled();
     expect(message).toHaveProperty('securityProviderResponse');
     expect(message.securityProviderResponse).toBe(securityProviderResponseMock);
   });

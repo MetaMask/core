@@ -92,14 +92,6 @@ export interface MessageManagerState<M extends AbstractMessage>
   unapprovedMessagesCount: number;
 }
 
-/**
- * A function for verifying a message, whether it is malicious or not
- */
-export type SecurityProviderRequest = (
-  requestData: AbstractMessage,
-  messageType: string,
-) => Promise<Json>;
-
 type getCurrentChainId = () => Hex;
 
 /**
@@ -113,8 +105,6 @@ export abstract class AbstractMessageManager<
   protected messages: M[];
 
   protected getCurrentChainId: getCurrentChainId | undefined;
-
-  private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
   private readonly additionalFinishStatuses: string[];
 
@@ -170,26 +160,6 @@ export abstract class AbstractMessageManager<
       this.messages[index] = message;
     }
     this.saveMessageList(emitUpdateBadge);
-  }
-
-  /**
-   * Verifies a message is malicious or not by checking it against a security provider.
-   *
-   * @param message - The message to verify.
-   * @returns A promise that resolves to a secured message with additional security provider response data.
-   */
-  private async securityCheck(message: M): Promise<M> {
-    if (this.securityProviderRequest) {
-      const securityProviderResponse = await this.securityProviderRequest(
-        message,
-        message.type,
-      );
-      return {
-        ...message,
-        securityProviderResponse,
-      };
-    }
-    return message;
   }
 
   /**
@@ -257,8 +227,7 @@ export abstract class AbstractMessageManager<
    * @param message - The Message to add to this.messages.
    */
   async addMessage(message: M) {
-    const securedMessage = await this.securityCheck(message);
-    this.messages.push(securedMessage);
+    this.messages.push(message);
     this.saveMessageList();
   }
 
