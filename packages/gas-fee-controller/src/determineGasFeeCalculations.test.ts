@@ -40,7 +40,7 @@ const mockedFetchGasEstimatesViaEthFeeHistory =
     Parameters<typeof fetchGasEstimatesViaEthFeeHistory>
   >;
 
-const INFURA_AUTH_TOKEN_MOCK = 'test';
+const INFURA_API_KEY_MOCK = 'test';
 
 /**
  * Builds mock data for the `fetchGasEstimates` function. All of the data here is filled in to make
@@ -134,7 +134,7 @@ describe('determineGasFeeCalculations', () => {
     calculateTimeEstimate: mockedCalculateTimeEstimate,
     clientId: 'some-client-id',
     ethQuery: {},
-    infuraAuthToken: INFURA_AUTH_TOKEN_MOCK,
+    infuraAPIKey: INFURA_API_KEY_MOCK,
   };
 
   describe('when isEIP1559Compatible is true', () => {
