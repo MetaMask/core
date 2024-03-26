@@ -76,13 +76,26 @@ describe('OptimismLayer1GasFeeFlow', () => {
       });
     });
 
-    it('throws if getL1Fee fails', async () => {
-      contractGetL1FeeMock.mockRejectedValue(new Error('error'));
+    describe('throws', () => {
+      it('if getL1Fee fails', async () => {
+        contractGetL1FeeMock.mockRejectedValue(new Error('error'));
 
-      const flow = new OptimismLayer1GasFeeFlow();
-      await expect(flow.getLayer1Fee(request)).rejects.toThrow(
-        'Failed to get Optimism layer 1 gas fee',
-      );
+        const flow = new OptimismLayer1GasFeeFlow();
+        await expect(flow.getLayer1Fee(request)).rejects.toThrow(
+          'Failed to get Optimism layer 1 gas fee',
+        );
+      });
+
+      it('if getL1Fee returns undefined', async () => {
+        contractGetL1FeeMock.mockResolvedValue(
+          undefined as unknown as ReturnType<typeof contractGetL1FeeMock>,
+        );
+
+        const flow = new OptimismLayer1GasFeeFlow();
+        await expect(flow.getLayer1Fee(request)).rejects.toThrow(
+          'Failed to get Optimism layer 1 gas fee',
+        );
+      });
     });
   });
 });

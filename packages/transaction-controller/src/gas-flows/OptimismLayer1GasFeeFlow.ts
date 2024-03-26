@@ -79,13 +79,16 @@ export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
     const serializedTransaction =
       buildUnserializedTransaction(transactionMeta).serialize();
 
-    console.log({
-      s: buildUnserializedTransaction(transactionMeta).serialize(),
-    });
     const result = await contract.getL1Fee(serializedTransaction);
 
+    if (result === undefined) {
+      throw new Error(
+        'Failed to retrieve layer 1 gas fee from Optimism Gas Price Oracle.',
+      );
+    }
+
     return {
-      layer1Fee: result?.toHexString(),
+      layer1Fee: result.toHexString(),
     };
   }
 }
