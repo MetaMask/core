@@ -231,6 +231,12 @@ export class SelectedNetworkController extends BaseController<
     });
   }
 
+  /**
+   * This method is used when a domain is removed from the PermissionsController.
+   * It will remove re-point the network proxy to the globally selected network in the domainProxyMap or, if no globally selected network client is available, delete the proxy.
+   *
+   * @param domain - The domain for which to unset the network client ID.
+   */
   #unsetNetworkClientIdForDomain(domain: Domain) {
     const globallySelectedNetworkClient = this.messagingSystem.call(
       'NetworkController:getSelectedNetworkClient',

@@ -650,8 +650,8 @@ export class NetworkController extends BaseController<
 
   /**
    * Accesses the provider and block tracker for the currently selected network.
-   *
    * @returns The proxy and block tracker proxies.
+   * @deprecated This method has been replaced by `getSelectedNetworkClient` (which has a more easily used return type) and will be removed in a future release.
    */
   getProviderAndBlockTracker(): {
     provider: SwappableProxy<ProxyWithAccessibleTarget<Provider>> | undefined;
@@ -665,6 +665,11 @@ export class NetworkController extends BaseController<
     };
   }
 
+  /**
+   * Accesses the provider and block tracker for the currently selected network.
+   *
+   * @returns an object with the provider and block tracker proxies for the currently selected network.
+   */
   getSelectedNetworkClient():
     | {
         provider: SwappableProxy<ProxyWithAccessibleTarget<Provider>>;
