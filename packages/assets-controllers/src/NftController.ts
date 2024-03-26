@@ -1176,7 +1176,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     this.messagingSystem = messenger;
 
     onPreferencesStateChange(
-      ({
+      async ({
         selectedAddress,
         ipfsGateway,
         openSeaEnabled,
@@ -1196,11 +1196,18 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           const { chainId } = this.config;
           const nfts: Nft[] =
             this.state.allNfts[selectedAddress]?.[chainId] ?? [];
+          // filter only nfts
+          const nftsToUpdate = nfts.filter(
+            (singleNft) =>
+              !singleNft.name && !singleNft.description && !singleNft.image,
+          );
+          if (nftsToUpdate.length !== 0) {
+            await this.updateNftMetadata({
+              nfts: nftsToUpdate,
+              userAddress: selectedAddress,
+            });
+          }
 
-          this.updateNftMetadata({
-            nfts,
-            userAddress: selectedAddress,
-          });
         }
       },
     );
@@ -1524,13 +1531,8 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     networkClientId?: NetworkClientId;
   }) {
     const chainId = this.getCorrectChainId({ networkClientId });
-    // We want to update only nfts missing name/image or description
-    const nftsToUpdate = nfts.filter(
-      (singleNft) =>
-        !singleNft.name && !singleNft.description && !singleNft.image,
-    );
 
-    const nftsWithChecksumAdr = nftsToUpdate.map((nft) => {
+    const nftsWithChecksumAdr = nfts.map((nft) => {
       return {
         ...nft,
         address: toChecksumHexAddress(nft.address),
