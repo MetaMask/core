@@ -294,6 +294,13 @@ describe('AddressBookController', () => {
     ).toBe(true);
   });
 
+  it('should return false to indicate an address book entry has NOT been deleted due to unsafe input', () => {
+    const controller = new AddressBookController();
+    // @ts-expect-error Suppressing error to test runtime behavior
+    expect(controller.delete('__proto__', '0x01')).toBe(false);
+    expect(controller.delete(toHex(1), 'constructor')).toBe(false);
+  });
+
   it('should return false to indicate an address book entry has NOT been deleted', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', '0x00');
