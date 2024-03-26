@@ -187,23 +187,7 @@ export class MultichainTrackingHelper {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   } = {}): EthQuery {
-    if (!this.#isMultichainEnabled) {
-      return new EthQuery(this.#provider);
-    }
-
-    const networkClient = this.#getNetworkClient({
-      networkClientId,
-      chainId,
-    });
-
-    if (networkClient) {
-      return new EthQuery(networkClient.provider);
-    }
-
-    // NOTE(JL): we're not ready to drop globally selected ethQuery yet.
-    // Some calls to getEthQuery only have access to optional networkClientId
-    // throw new Error('failed to get eth query instance');
-    return new EthQuery(this.#provider);
+    return new EthQuery(this.getProvider({ networkClientId, chainId }));
   }
 
   getProvider({
@@ -477,8 +461,9 @@ export class MultichainTrackingHelper {
     }
     if (!networkClient && chainId) {
       try {
-        networkClientId = this.#findNetworkClientIdByChainId(chainId);
-        networkClient = this.#getNetworkClientById(networkClientId);
+        const networkClientIdForChainId =
+          this.#findNetworkClientIdByChainId(chainId);
+        networkClient = this.#getNetworkClientById(networkClientIdForChainId);
       } catch (err) {
         log('failed to get network client by chainId');
       }
