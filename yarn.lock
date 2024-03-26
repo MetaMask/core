@@ -2637,7 +2637,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/permission-controller@^9.0.2, @metamask/permission-controller@workspace:packages/permission-controller":
+"@metamask/permission-controller@^9.0.1, @metamask/permission-controller@^9.0.2, @metamask/permission-controller@workspace:packages/permission-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
@@ -2897,7 +2897,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@^10.0.1, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@npm:^10.0.1":
+  version: 10.0.1
+  resolution: "@metamask/selected-network-controller@npm:10.0.1"
+  dependencies:
+    "@metamask/base-controller": ^5.0.1
+    "@metamask/json-rpc-engine": ^8.0.1
+    "@metamask/network-controller": ^18.0.1
+    "@metamask/permission-controller": ^9.0.1
+    "@metamask/swappable-obj-proxy": ^2.2.0
+    "@metamask/utils": ^8.3.0
+  peerDependencies:
+    "@metamask/network-controller": ^18.0.0
+    "@metamask/permission-controller": ^9.0.0
+  checksum: 070ae1654ba883c08d15ea3480607f7f0a8250ed75c4bded1b39b788b527487f38198d82460f187faf0ba0335c660cc728d603e6ee9c64e6f76922501f04b32f
+  languageName: node
+  linkType: hard
+
+"@metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
