@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-- Release 127.0.0 ([#4065](https://github.com/MetaMask/core/pull/4065))
-
 ## [3.0.1]
 
 ### Fixed
@@ -90,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial Release
-  - Add logging controller ([#1089](https://github.com/MetaMask/core/pull/1089))
+  - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.1...HEAD
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.0...@metamask/logging-controller@3.0.1

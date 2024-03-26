@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/132.0.0 ([#4103](https://github.com/MetaMask/core/pull/4103))
-- Adds 'tokenMethodIncreaseAllowance' ([#4069](https://github.com/MetaMask/core/pull/4069))
-- Release 131.0.0 ([#4093](https://github.com/MetaMask/core/pull/4093))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-
 ## [6.0.2]
 
 ### Fixed
