@@ -1,6 +1,10 @@
+import { Common, Hardfork } from '@ethereumjs/common';
+import { TransactionFactory } from '@ethereumjs/tx';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger, type Hex, remove0x } from '@metamask/utils';
+import BN from 'bn.js';
+import { omit } from 'lodash';
 
 import { CHAIN_IDS } from '../constants';
 import { projectLogger } from '../logger';
@@ -10,7 +14,6 @@ import type {
   Layer1GasFeeFlowResponse,
   TransactionMeta,
 } from '../types';
-import { buildUnserializedTransaction } from '../utils/layer1-gas-fee-flow';
 
 // This gas flow to be used for the following OP stack chains
 const OPTIMISM_STACK_CHAIN_IDS: Hex[] = [
@@ -50,6 +53,17 @@ export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
     return OPTIMISM_STACK_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 
+  async getLayer1Fee(
+    request: Layer1GasFeeFlowRequest,
+  ): Promise<Layer1GasFeeFlowResponse> {
+    try {
+      return await this.#getOptimisimLayer1GasFee(request);
+    } catch (error) {
+      log('Failed to get Optimism layer 1 gas fee due to error', error);
+      throw new Error(`Failed to get Optimism layer 1 gas fee`);
+    }
+  }
+
   async #getOptimisimLayer1GasFee(
     request: Layer1GasFeeFlowRequest,
   ): Promise<Layer1GasFeeFlowResponse> {
@@ -64,21 +78,61 @@ export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
 
     const serializedTransaction =
       buildUnserializedTransaction(transactionMeta).serialize();
+
+    console.log({
+      s: buildUnserializedTransaction(transactionMeta).serialize(),
+    });
     const result = await contract.getL1Fee(serializedTransaction);
 
     return {
       layer1Fee: result?.toHexString(),
     };
   }
+}
 
-  async getLayer1Fee(
-    request: Layer1GasFeeFlowRequest,
-  ): Promise<Layer1GasFeeFlowResponse> {
-    try {
-      return await this.#getOptimisimLayer1GasFee(request);
-    } catch (error) {
-      log('Failed to get Optimism layer 1 gas fee due to error', error);
-      throw new Error(`Failed to get Optimism layer 1 gas fee`);
-    }
-  }
+/**
+ * Build an unserialized transaction for a transaction.
+ *
+ * @param transactionMeta - The transaction to build an unserialized transaction for.
+ * @returns The unserialized transaction.
+ */
+export function buildUnserializedTransaction(transactionMeta: TransactionMeta) {
+  const txParams = buildTransactionParams(transactionMeta);
+  const common = buildTransactionCommon(transactionMeta);
+  return TransactionFactory.fromTxData(txParams, { common });
+}
+
+/**
+ * Build transactionParams to be used in the unserialized transaction.
+ *
+ * @param transactionMeta - The transaction to build transactionParams.
+ * @returns The transactionParams for the unserialized transaction.
+ */
+function buildTransactionParams(
+  transactionMeta: TransactionMeta,
+): TransactionMeta['txParams'] {
+  return {
+    ...omit(transactionMeta.txParams, 'gas'),
+    gasLimit: transactionMeta.txParams.gas,
+  };
+}
+
+/**
+ * This produces a transaction whose information does not completely match an
+ * Optimism transaction — for instance, DEFAULT_CHAIN is still 'mainnet' and
+ * genesis points to the mainnet genesis, not the Optimism genesis — but
+ * considering that all we want to do is serialize a transaction, this works
+ * fine for our use case.
+ *
+ * @param transactionMeta - The transaction to build an unserialized transaction for.
+ * @returns The unserialized transaction.
+ */
+function buildTransactionCommon(transactionMeta: TransactionMeta) {
+  return Common.custom({
+    chainId: new BN(remove0x(transactionMeta.chainId), 16) as unknown as number,
+    // Optimism only supports type-0 transactions; it does not support any of
+    // the newer EIPs since EIP-155. Source:
+    // <https://github.com/ethereum-optimism/optimism/blob/develop/specs/l2geth/transaction-types.md>
+    defaultHardfork: Hardfork.London,
+  });
 }

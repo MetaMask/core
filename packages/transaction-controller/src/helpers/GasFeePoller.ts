@@ -44,7 +44,6 @@ export class GasFeePoller {
    * Constructs a new instance of the GasFeePoller.
    * @param options - The options for this instance.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
-   * @param options.getEthQuery - Callback to obtain an EthQuery instance.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
    * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.

@@ -1,4 +1,3 @@
-import type EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
