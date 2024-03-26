@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add AnnouncementController#resetViewed ([#4088](https://github.com/MetaMask/core/pull/4088))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+
 ## [6.0.1]
 
 ### Fixed

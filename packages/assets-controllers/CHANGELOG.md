@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: reservoir migration ([#4030](https://github.com/MetaMask/core/pull/4030))
+- Adds 'tokenMethodIncreaseAllowance' ([#4069](https://github.com/MetaMask/core/pull/4069))
+- fix: mantle token mispriced ([#4045](https://github.com/MetaMask/core/pull/4045))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+
 ## [27.2.0]
 
 ### Added

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Fix: `SelectedNetworkController` should return globally selected networkClient from `getProviderAndBlockTracker` when domain not in state ([#4063](https://github.com/MetaMask/core/pull/4063))
+- Refactor: Expose `SelectedNetworkController` proxies map in the constructor params ([#4104](https://github.com/MetaMask/core/pull/4104))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+- Release 126.0.0 ([#4060](https://github.com/MetaMask/core/pull/4060))
+
 ## [10.0.1]
 
 ### Fixed
