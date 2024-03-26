@@ -58,6 +58,7 @@ export type EthPhishingResponse = {
 export type PhishingStalelist = {
   eth_phishing_detect_config: Record<ListTypes, string[]>;
   phishfort_hotlist: Record<ListTypes, string[]>;
+  chainpatrol_list: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
   lastUpdated: number;
@@ -140,6 +141,7 @@ export type Hotlist = HotlistDiff[];
  */
 export enum ListKeys {
   PhishfortHotlist = 'phishfort_hotlist',
+  ChainPatrolList = 'chainpatrol_list',
   EthPhishingDetectConfig = 'eth_phishing_detect_config',
 }
 
@@ -149,6 +151,7 @@ export enum ListKeys {
 export enum ListNames {
   MetaMask = 'MetaMask',
   Phishfort = 'Phishfort',
+  ChainPatrol = 'ChainPatrol',
 }
 
 /**
@@ -157,6 +160,7 @@ export enum ListNames {
  */
 const phishingListNameKeyMap = {
   [ListNames.Phishfort]: ListKeys.PhishfortHotlist,
+  [ListNames.ChainPatrol]: ListKeys.ChainPatrolList,
   [ListNames.MetaMask]: ListKeys.EthPhishingDetectConfig,
 };
 
@@ -167,6 +171,7 @@ const phishingListNameKeyMap = {
 export const phishingListKeyNameMap = {
   [ListKeys.EthPhishingDetectConfig]: ListNames.MetaMask,
   [ListKeys.PhishfortHotlist]: ListNames.Phishfort,
+  [ListKeys.ChainPatrolList]: ListNames.ChainPatrol,
 };
 
 const controllerName = 'PhishingController';
@@ -489,7 +494,7 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const { phishfort_hotlist, eth_phishing_detect_config, ...partialState } =
+    const { phishfort_hotlist, chainpatrol_list, eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
     const phishfortListState: PhishingListState = {
@@ -498,6 +503,11 @@ export class PhishingController extends BaseController<
       fuzzylist: [], // Phishfort hotlist doesn't contain a fuzzylist
       allowlist: [], // Phishfort hotlist doesn't contain an allowlist
       name: phishingListKeyNameMap.phishfort_hotlist,
+    };
+    const chainPatrolListState: PhishingListState = {
+      ...chainpatrol_list,
+      ...partialState,
+      name: phishingListKeyNameMap.chainpatrol_list,
     };
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
@@ -510,6 +520,11 @@ export class PhishingController extends BaseController<
       hotlistDiffsResponse.data,
       ListKeys.PhishfortHotlist,
     );
+    const newChainPatrolListState: PhishingListState = applyDiffs(
+      chainPatrolListState,
+      hotlistDiffsResponse.data,
+      ListKeys.ChainPatrolList,
+    );
     const newMetaMaskListState: PhishingListState = applyDiffs(
       metamaskListState,
       hotlistDiffsResponse.data,
@@ -517,7 +532,7 @@ export class PhishingController extends BaseController<
     );
 
     this.update((draftState) => {
-      draftState.phishingLists = [newMetaMaskListState, newPhishfortListState];
+      draftState.phishingLists = [newMetaMaskListState, newPhishfortListState, newChainPatrolListState];
     });
     this.updatePhishingDetector();
   }
