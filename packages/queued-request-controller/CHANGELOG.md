@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2]
+
+- Bump `@metamask/controller-utils` to `v9.0.2` a patch release ([#4065](https://github.com/MetaMask/core/pull/4065))
+
 ## [0.6.1]
 
 ### Fixed
@@ -147,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.2...HEAD
+[0.6.2]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...@metamask/queued-request-controller@0.6.2
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.0...@metamask/queued-request-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.5.0...@metamask/queued-request-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.4.0...@metamask/queued-request-controller@0.5.0
