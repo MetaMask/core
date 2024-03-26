@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `getSelectedNetworkClient` method that returns the provider and blockTracker for the currently selected network but with a more easily used type than `getProviderAndBlockTracker` ([#4063](https://github.com/MetaMask/core/pull/4063))
- - `getProviderAndBlockTracker` is now marked deprecated and will be removed in a future release.
+- `getProviderAndBlockTracker` is now marked deprecated and will be removed in a future release.
 - Add `NetworkController:getSelectedNetworkClient` action ([#4063](https://github.com/MetaMask/core/pull/4063))
 
 ## [18.0.1]

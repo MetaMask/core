@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.2]
 
+### Changed
+
 - Bump `@metamask/controller-utils` to `v9.0.2` a patch release ([#4065](https://github.com/MetaMask/core/pull/4065))
 
 ## [0.6.1]

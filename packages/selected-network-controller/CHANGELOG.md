@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [11.0.0]
 
 ### Added
--  Now exports the `Domain` type ([#4104](https://github.com/MetaMask/core/pull/4104))
+
+- Now exports the `Domain` type ([#4104](https://github.com/MetaMask/core/pull/4104))
 
 ### Changed
 
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Previously `getProviderAndBlockTracker` threw an error if there was no `networkClientId` set for the passed domain. Now it returns a proxy pointed at the globally selected network instead.
 
 ### Fixed
+
 - Previously when a domain's permission was removed from `PermissionsController`, it's network client proxy would continue to point at the networkClientId it was last set to. Now it is set to follow the globally selected network ([#4063](https://github.com/MetaMask/core/pull/4063))
 
 ## [10.0.1]
