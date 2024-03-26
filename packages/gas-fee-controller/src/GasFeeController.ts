@@ -305,7 +305,6 @@ export class GasFeeController extends StaticIntervalPollingController<
    * @param options.clientId - The client ID used to identify to the gas estimation API who is
    * asking for estimates.
    * @param options.infuraAPIKey - The Infura API key used for infura API requests.
-   * @param options.infuraAPIKeySecret - The Infura API key secret used for infura API requests.
    */
   constructor({
     interval = 15000,
@@ -319,7 +318,6 @@ export class GasFeeController extends StaticIntervalPollingController<
     onNetworkDidChange,
     clientId,
     infuraAPIKey,
-    infuraAPIKeySecret,
   }: {
     interval?: number;
     messenger: GasFeeMessenger;
@@ -332,7 +330,6 @@ export class GasFeeController extends StaticIntervalPollingController<
     onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
     clientId?: string;
     infuraAPIKey: string;
-    infuraAPIKeySecret: string;
   }) {
     super({
       name,
@@ -353,10 +350,7 @@ export class GasFeeController extends StaticIntervalPollingController<
     this.EIP1559APIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/suggestedGasFees`;
     this.legacyAPIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/gasPrices`;
     this.clientId = clientId;
-    this.infuraAuthToken = buildInfuraAuthToken(
-      infuraAPIKey,
-      infuraAPIKeySecret,
-    );
+    this.infuraAuthToken = buildInfuraAuthToken(infuraAPIKey);
 
     this.ethQuery = new EthQuery(this.#getProvider());
 

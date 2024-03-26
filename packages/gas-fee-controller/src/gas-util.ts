@@ -196,16 +196,11 @@ export function calculateTimeEstimate(
  * Build an infura auth token from the given API key and secret.
  *
  * @param infuraAPIKey - The Infura API key.
- * @param infuraAPIKeySecret - The Infura API key secret.
  * @returns The base64 encoded auth token.
  */
-export function buildInfuraAuthToken(
-  infuraAPIKey: string,
-  infuraAPIKeySecret: string,
-) {
-  return Buffer.from(`${infuraAPIKey}:${infuraAPIKeySecret}`).toString(
-    'base64',
-  );
+export function buildInfuraAuthToken(infuraAPIKey: string) {
+  // We intentionally leave the password empty, as Infura does not require one
+  return Buffer.from(`${infuraAPIKey}:`).toString('base64');
 }
 
 /**

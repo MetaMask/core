@@ -228,7 +228,6 @@ describe('GasFeeController', () => {
    * @param options.interval - The polling interval.
    * @param options.state - The initial GasFeeController state
    * @param options.infuraAPIKey - The Infura API key.
-   * @param options.infuraAPIKeySecret - The Infura API key secret.
    */
   async function setupGasFeeController({
     getIsEIP1559Compatible = jest.fn().mockResolvedValue(true),
@@ -236,7 +235,6 @@ describe('GasFeeController', () => {
       .fn()
       .mockReturnValue(false),
     infuraAPIKey = 'INFURA_API_KEY',
-    infuraAPIKeySecret = 'INFURA_API_KEY_SECRET',
     clientId,
     getChainId,
     networkControllerState = {},
@@ -251,7 +249,6 @@ describe('GasFeeController', () => {
     state?: GasFeeState;
     interval?: number;
     infuraAPIKey?: string;
-    infuraAPIKeySecret?: string;
   } = {}) {
     const controllerMessenger = getControllerMessenger();
     networkController = await setupNetworkController({
@@ -270,7 +267,6 @@ describe('GasFeeController', () => {
       clientId,
       interval,
       infuraAPIKey,
-      infuraAPIKeySecret,
     });
   }
 
