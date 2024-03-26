@@ -1,7 +1,11 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 
-import { SimulationTokenStandard } from '../types';
+import {
+  SimulationInvalidResponseError,
+  SimulationRevertedError,
+} from '../errors';
+import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 import { getSimulationData, type GetSimulationDataRequest } from './simulation';
 import type { SimulationResponseLog } from './simulation-api';
 import {
@@ -19,6 +23,8 @@ const BALANCE_2_MOCK = '0x3';
 const DIFFERENCE_MOCK = '0x2';
 const VALUE_MOCK = '0x4';
 const TOKEN_ID_MOCK = '0x5';
+const ERROR_CODE_MOCK = 123;
+const ERROR_MESSAGE_MOCK = 'Test Error';
 
 const REQUEST_MOCK: GetSimulationDataRequest = {
   chainId: '0x1',
@@ -535,24 +541,97 @@ describe('Simulation Utils', () => {
       });
     });
 
-    it('returns undefined if API request throws', async () => {
-      simulateTransactionsMock.mockRejectedValueOnce(new Error());
+    describe('returns error', () => {
+      it('if API request throws', async () => {
+        simulateTransactionsMock.mockRejectedValueOnce({
+          code: ERROR_CODE_MOCK,
+          message: ERROR_MESSAGE_MOCK,
+        });
 
-      expect(await getSimulationData(REQUEST_MOCK)).toBeUndefined();
-    });
+        expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
+          error: {
+            code: ERROR_CODE_MOCK,
+            message: ERROR_MESSAGE_MOCK,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
 
-    it('returns undefined if API response has missing transactions', async () => {
-      mockParseLog({ erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK });
+      it('if API request throws without message', async () => {
+        simulateTransactionsMock.mockRejectedValueOnce({
+          code: ERROR_CODE_MOCK,
+        });
 
-      simulateTransactionsMock
-        .mockResolvedValueOnce(
-          createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
-        )
-        .mockResolvedValueOnce(createBalanceOfResponse([], []));
+        expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
+          error: {
+            code: ERROR_CODE_MOCK,
+            message: undefined,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
 
-      const simulationData = await getSimulationData(REQUEST_MOCK);
+      it('if API response has missing transactions', async () => {
+        mockParseLog({ erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK });
 
-      expect(simulationData).toBeUndefined();
+        simulateTransactionsMock
+          .mockResolvedValueOnce(
+            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+          )
+          .mockResolvedValueOnce(createBalanceOfResponse([], []));
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
+            code: SimulationErrorCode.InvalidResponse,
+            message: new SimulationInvalidResponseError().message,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('if response has reverted transaction', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              error: 'test execution reverted test',
+              return: '0x',
+            },
+          ],
+        });
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
+            code: SimulationErrorCode.Reverted,
+            message: new SimulationRevertedError().message,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('if response has transaction error', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              error: 'test 1 2 3',
+              return: '0x',
+            },
+          ],
+        });
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
+            code: undefined,
+            message: 'test 1 2 3',
+          },
+          tokenBalanceChanges: [],
+        });
+      });
     });
   });
 });

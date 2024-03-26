@@ -566,6 +566,11 @@ export enum TransactionType {
    * spend on behalf of the user.
    */
   tokenMethodSetApprovalForAll = 'setapprovalforall',
+
+  /**
+   * Increase the allowance by a given increment
+   */
+  tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
 
 /**
@@ -1100,8 +1105,27 @@ export type SimulationToken = {
 export type SimulationTokenBalanceChange = SimulationToken &
   SimulationBalanceChange;
 
+export enum SimulationErrorCode {
+  ChainNotSupported = 'chain-not-supported',
+  Disabled = 'disabled',
+  InvalidResponse = 'invalid-response',
+  Reverted = 'reverted',
+}
+
+/** Error data for a failed simulation. */
+export type SimulationError = {
+  /** Error code to identify the error type. */
+  code?: string | number;
+
+  /** Error message to describe the error. */
+  message?: string;
+};
+
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error data if the simulation failed or the transaction reverted. */
+  error?: SimulationError;
+
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
 
