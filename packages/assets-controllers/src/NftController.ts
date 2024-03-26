@@ -1207,7 +1207,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
               userAddress: selectedAddress,
             });
           }
-
         }
       },
     );

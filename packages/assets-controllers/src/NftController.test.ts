@@ -3672,7 +3672,8 @@ describe('NftController', () => {
     });
 
     it('should not update metadata when nfts has image/name/description already', async () => {
-      const { nftController, triggerPreferencesStateChange } = setupController();
+      const { nftController, triggerPreferencesStateChange } =
+        setupController();
       const spy = jest.spyOn(nftController, 'updateNftMetadata');
       const testNetworkClientId = 'sepolia';
 
