@@ -857,11 +857,6 @@ export class TransactionController extends BaseController<
     const gasFeePoller = new GasFeePoller({
       // Default gas fee polling is not yet supported by the clients
       gasFeeFlows: this.gasFeeFlows.slice(0, -1),
-      getEthQuery: (chainId, networkClientId) =>
-        this.#multichainTrackingHelper.getEthQuery({
-          networkClientId,
-          chainId,
-        }),
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
       getProvider: (chainId, networkClientId) =>
         this.#multichainTrackingHelper.getProvider({

@@ -1,4 +1,4 @@
-import type EthQuery from '@metamask/eth-query';
+import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -28,8 +28,6 @@ export class GasFeePoller {
 
   #gasFeeFlows: GasFeeFlow[];
 
-  #getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
-
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
 
   #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
@@ -55,7 +53,6 @@ export class GasFeePoller {
    */
   constructor({
     gasFeeFlows,
-    getEthQuery,
     getGasFeeControllerEstimates,
     getProvider,
     getTransactions,
@@ -63,7 +60,6 @@ export class GasFeePoller {
     onStateChange,
   }: {
     gasFeeFlows: GasFeeFlow[];
-    getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
     getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
@@ -72,7 +68,6 @@ export class GasFeePoller {
   }) {
     this.#gasFeeFlows = gasFeeFlows;
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
-    this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
     this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
@@ -140,7 +135,7 @@ export class GasFeePoller {
   async #updateTransactionSuggestedFees(transactionMeta: TransactionMeta) {
     const { chainId, networkClientId } = transactionMeta;
 
-    const ethQuery = this.#getEthQuery(chainId, networkClientId);
+    const ethQuery = new EthQuery(this.#getProvider(chainId, networkClientId));
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
     if (!gasFeeFlow) {
