@@ -120,10 +120,10 @@ describe('Simulation API Utils', () => {
 
       await expect(
         simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK),
-      ).rejects.toStrictEqual({
+      ).rejects.toThrow({
         code: ERROR_CODE_MOCK,
         message: ERROR_MESSAGE_MOCK,
-      });
+      } as unknown as Error);
     });
   });
 });

@@ -54,6 +54,7 @@ export type {
   TransactionReceipt,
 } from './types';
 export {
+  SimulationErrorCode,
   SimulationTokenStandard,
   TransactionEnvelopeType,
   TransactionStatus,
