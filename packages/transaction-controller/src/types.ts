@@ -1105,16 +1105,20 @@ export type SimulationToken = {
 export type SimulationTokenBalanceChange = SimulationToken &
   SimulationBalanceChange;
 
+export enum SimulationErrorCode {
+  ChainNotSupported = 'chain-not-supported',
+  Disabled = 'disabled',
+  InvalidResponse = 'invalid-response',
+  Reverted = 'reverted',
+}
+
 /** Error data for a failed simulation. */
 export type SimulationError = {
   /** Error code to identify the error type. */
-  code?: number;
+  code?: string | number;
 
   /** Error message to describe the error. */
   message?: string;
-
-  /** Whether the error is due to the transaction being reverted. */
-  isReverted: boolean;
 };
 
 /** Simulation data for a transaction. */

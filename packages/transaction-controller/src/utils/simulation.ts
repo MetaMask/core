@@ -4,6 +4,11 @@ import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
+import {
+  SimulationError,
+  SimulationInvalidResponseError,
+  SimulationRevertedError,
+} from '../errors';
 import { projectLogger } from '../logger';
 import type {
   SimulationBalanceChange,
@@ -21,6 +26,8 @@ import type {
 } from './simulation-api';
 
 const log = createModuleLogger(projectLogger, 'simulation');
+
+const REVERTED_ERRORS = ['execution reverted', 'insufficient funds for gas'];
 
 type ABI = Fragment[];
 
@@ -75,9 +82,12 @@ export async function getSimulationData(
 
     const transactionError = response.transactions?.[0]?.error;
 
+    if (REVERTED_ERRORS.some((error) => transactionError?.includes(error))) {
+      throw new SimulationRevertedError();
+    }
+
     if (transactionError) {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal
-      throw { message: transactionError };
+      throw new SimulationError(transactionError);
     }
 
     const nativeBalanceChange = getNativeBalanceChange(request.from, response);
@@ -101,7 +111,6 @@ export async function getSimulationData(
       error: {
         code: rawError.code,
         message: rawError.message,
-        isReverted: rawError.message?.includes('execution reverted') ?? false,
       },
     };
   }
@@ -252,7 +261,7 @@ async function getTokenBalanceChanges(
   log('Balance simulation response', response);
 
   if (response.transactions.length !== balanceTransactions.length * 2 + 1) {
-    throw new Error('Invalid response from simulation API');
+    throw new SimulationInvalidResponseError();
   }
 
   return [...balanceTransactionsByToken.keys()]
