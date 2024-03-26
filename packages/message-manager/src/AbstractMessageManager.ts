@@ -207,14 +207,12 @@ export abstract class AbstractMessageManager<
    *
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
-   * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
    * @param getCurrentChainId - Optional function to get the current chainId.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
-    securityProviderRequest?: SecurityProviderRequest,
     additionalFinishStatuses?: string[],
     getCurrentChainId?: getCurrentChainId,
   ) {
@@ -224,7 +222,6 @@ export abstract class AbstractMessageManager<
       unapprovedMessagesCount: 0,
     };
     this.messages = [];
-    this.securityProviderRequest = securityProviderRequest;
     this.additionalFinishStatuses = additionalFinishStatuses ?? [];
     this.getCurrentChainId = getCurrentChainId;
     this.initialize();
