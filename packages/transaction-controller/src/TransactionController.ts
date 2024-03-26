@@ -1933,14 +1933,11 @@ export class TransactionController extends BaseController<
     ) as TransactionParams;
 
     const updatedTransaction = merge({}, transactionMeta, editableParams);
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
-      networkClientId: transactionMeta.networkClientId,
-      chainId: transactionMeta.chainId,
-    });
     const provider = this.#multichainTrackingHelper.getProvider({
       chainId: transactionMeta.chainId,
       networkClientId: transactionMeta.networkClientId,
     });
+    const ethQuery = new EthQuery(provider);
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
       ethQuery,
