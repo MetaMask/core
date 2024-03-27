@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Added
+
+- Run `OptimismLayer1GasFeeFlow` on Optimism stack based transactions ([#4055](https://github.com/MetaMask/core/pull/4055))
+- Add `SimulationErrorCode` enum ([#4106](https://github.com/MetaMask/core/pull/4106))
+
+### Changed
+
+- **BREAKING**: Remove `isReverted` property from `SimulationError` type. ([#4106](https://github.com/MetaMask/core/pull/4106))
+- Skip simulation if no approval ([#4106](https://github.com/MetaMask/core/pull/4106))
+- Provide simulation error code in locally generated errors. ([#4106](https://github.com/MetaMask/core/pull/4106))
+
 ## [25.3.0]
 
 ### Added
@@ -727,7 +740,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.3.0...@metamask/transaction-controller@26.0.0
 [25.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.1...@metamask/transaction-controller@25.3.0
 [25.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.0...@metamask/transaction-controller@25.2.1
 [25.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...@metamask/transaction-controller@25.2.0
