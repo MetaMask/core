@@ -811,6 +811,18 @@ describe('TransactionController', () => {
       );
     });
 
+    it('checks pending transactions', () => {
+      expect(
+        pendingTransactionTrackerMock.startIfPendingTransactions,
+      ).toHaveBeenCalledTimes(0);
+
+      setupController();
+
+      expect(
+        pendingTransactionTrackerMock.startIfPendingTransactions,
+      ).toHaveBeenCalledTimes(1);
+    });
+
     describe('nonce tracker', () => {
       it('uses external pending transactions', async () => {
         const nonceTrackerMock = jest

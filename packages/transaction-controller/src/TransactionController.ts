@@ -229,7 +229,7 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
  * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
-  isResubmitEnabled?: boolean;
+  isResubmitEnabled?: () => boolean;
 };
 
 /**
@@ -891,6 +891,7 @@ export class TransactionController extends BaseController<
     });
 
     this.onBootCleanup();
+    this.#checkForPendingTransactionAndStartPolling();
   }
 
   /**
