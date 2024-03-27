@@ -77,7 +77,7 @@ export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
     );
 
     const serializedTransaction =
-      buildUnserializedTransaction(transactionMeta).serialize();
+      this.#buildUnserializedTransaction(transactionMeta).serialize();
 
     const result = await contract.getL1Fee(serializedTransaction);
 
@@ -91,51 +91,54 @@ export class OptimismLayer1GasFeeFlow implements Layer1GasFeeFlow {
       layer1Fee: result.toHexString(),
     };
   }
-}
 
-/**
- * Build an unserialized transaction for a transaction.
- *
- * @param transactionMeta - The transaction to build an unserialized transaction for.
- * @returns The unserialized transaction.
- */
-export function buildUnserializedTransaction(transactionMeta: TransactionMeta) {
-  const txParams = buildTransactionParams(transactionMeta);
-  const common = buildTransactionCommon(transactionMeta);
-  return TransactionFactory.fromTxData(txParams, { common });
-}
+  /**
+   * Build an unserialized transaction for a transaction.
+   *
+   * @param transactionMeta - The transaction to build an unserialized transaction for.
+   * @returns The unserialized transaction.
+   */
+  #buildUnserializedTransaction(transactionMeta: TransactionMeta) {
+    const txParams = this.#buildTransactionParams(transactionMeta);
+    const common = this.#buildTransactionCommon(transactionMeta);
+    return TransactionFactory.fromTxData(txParams, { common });
+  }
 
-/**
- * Build transactionParams to be used in the unserialized transaction.
- *
- * @param transactionMeta - The transaction to build transactionParams.
- * @returns The transactionParams for the unserialized transaction.
- */
-function buildTransactionParams(
-  transactionMeta: TransactionMeta,
-): TransactionMeta['txParams'] {
-  return {
-    ...omit(transactionMeta.txParams, 'gas'),
-    gasLimit: transactionMeta.txParams.gas,
-  };
-}
+  /**
+   * Build transactionParams to be used in the unserialized transaction.
+   *
+   * @param transactionMeta - The transaction to build transactionParams.
+   * @returns The transactionParams for the unserialized transaction.
+   */
+  #buildTransactionParams(
+    transactionMeta: TransactionMeta,
+  ): TransactionMeta['txParams'] {
+    return {
+      ...omit(transactionMeta.txParams, 'gas'),
+      gasLimit: transactionMeta.txParams.gas,
+    };
+  }
 
-/**
- * This produces a transaction whose information does not completely match an
- * Optimism transaction — for instance, DEFAULT_CHAIN is still 'mainnet' and
- * genesis points to the mainnet genesis, not the Optimism genesis — but
- * considering that all we want to do is serialize a transaction, this works
- * fine for our use case.
- *
- * @param transactionMeta - The transaction to build an unserialized transaction for.
- * @returns The unserialized transaction.
- */
-function buildTransactionCommon(transactionMeta: TransactionMeta) {
-  return Common.custom({
-    chainId: new BN(remove0x(transactionMeta.chainId), 16) as unknown as number,
-    // Optimism only supports type-0 transactions; it does not support any of
-    // the newer EIPs since EIP-155. Source:
-    // <https://github.com/ethereum-optimism/optimism/blob/develop/specs/l2geth/transaction-types.md>
-    defaultHardfork: Hardfork.London,
-  });
+  /**
+   * This produces a transaction whose information does not completely match an
+   * Optimism transaction — for instance, DEFAULT_CHAIN is still 'mainnet' and
+   * genesis points to the mainnet genesis, not the Optimism genesis — but
+   * considering that all we want to do is serialize a transaction, this works
+   * fine for our use case.
+   *
+   * @param transactionMeta - The transaction to build an unserialized transaction for.
+   * @returns The unserialized transaction.
+   */
+  #buildTransactionCommon(transactionMeta: TransactionMeta) {
+    return Common.custom({
+      chainId: new BN(
+        remove0x(transactionMeta.chainId),
+        16,
+      ) as unknown as number,
+      // Optimism only supports type-0 transactions; it does not support any of
+      // the newer EIPs since EIP-155. Source:
+      // <https://github.com/ethereum-optimism/optimism/blob/develop/specs/l2geth/transaction-types.md>
+      defaultHardfork: Hardfork.London,
+    });
+  }
 }
