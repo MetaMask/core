@@ -562,6 +562,8 @@ export class NetworkController extends BaseController<
 
   #autoManagedNetworkClientRegistry?: AutoManagedNetworkClientRegistry;
 
+  #destroyed: boolean;
+
   constructor({
     messenger,
     state,
@@ -646,6 +648,7 @@ export class NetworkController extends BaseController<
     );
 
     this.#previousProviderConfig = this.state.providerConfig;
+    this.#destroyed = false;
   }
 
   /**
@@ -944,7 +947,7 @@ export class NetworkController extends BaseController<
       }
     }
 
-    if (networkChanged) {
+    if (networkChanged || this.#destroyed) {
       // If the network has changed, then `lookupNetwork` either has been or is
       // in the process of being called, so we don't need to go further.
       return;
@@ -1376,6 +1379,7 @@ export class NetworkController extends BaseController<
    * In-progress requests will not be aborted.
    */
   async destroy() {
+    this.#destroyed = true;
     await this.#blockTrackerProxy?.destroy();
   }
 
