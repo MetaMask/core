@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
+### Changed
+
+- **BREAKING**: The controller's constructor now requires `infuraAPIKey`. This is used to construct and send the `Authorization` header for Infura gas API requests. ([#4068](https://github.com/MetaMask/core/pull/4068))
+- Bump dependency `@metamask/network-controller` to `^18.1.0`
+
+### Removed
+
+- **BREAKING**: Remove the constructor options `legacyAPIEndpoint` and `EIP1559APIEndpoint`. These URLs are now hardcoded within the controller. [#4068](https://github.com/MetaMask/core/pull/4068))
+
 ## [14.0.1]
 
 ### Fixed
@@ -238,7 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.1...@metamask/gas-fee-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.0...@metamask/gas-fee-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.2...@metamask/gas-fee-controller@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.1...@metamask/gas-fee-controller@13.0.2
