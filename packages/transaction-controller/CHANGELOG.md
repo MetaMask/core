@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING**: Remove `isReverted` property from `SimulationError` type. ([#4106](https://github.com/MetaMask/core/pull/4106))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^15.0.0` ([#4111](https://github.com/MetaMask/core/pull/4111))
+- Bump `@metamask/network-controller` to `^18.1.0` ([#4111](https://github.com/MetaMask/core/pull/4111))
 - Skip simulation if no approval. ([#4106](https://github.com/MetaMask/core/pull/4106))
 - Provide simulation error code in locally generated errors. ([#4106](https://github.com/MetaMask/core/pull/4106))
 
