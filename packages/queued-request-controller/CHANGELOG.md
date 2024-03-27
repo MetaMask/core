@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.2]
+## [0.7.0]
 
 ### Changed
-
+- **BREAKING:** Bump peer dependency on `@metamask/selected-network-controller` to `^11.0.0` ([#4111](https://github.com/MetaMask/core/pull/4111))
 - Bump `@metamask/controller-utils` to `v9.0.2` a patch release ([#4065](https://github.com/MetaMask/core/pull/4065))
 
 ## [0.6.1]
