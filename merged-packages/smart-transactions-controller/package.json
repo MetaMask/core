@@ -25,6 +25,7 @@
     "test:watch": "jest --watchAll"
   },
   "dependencies": {
+    "@babel/runtime": "^7.24.1",
     "@ethereumjs/tx": "^5.2.1",
     "@ethereumjs/util": "^9.0.2",
     "@ethersproject/bytes": "^5.7.0",
@@ -33,6 +34,7 @@
     "@metamask/eth-query": "^4.0.0",
     "@metamask/network-controller": "^17.2.0",
     "@metamask/polling-controller": "^5.0.0",
+    "@metamask/transaction-controller": "^25.1.0",
     "bignumber.js": "^9.0.1",
     "events": "^3.3.0",
     "fast-json-patch": "^3.1.0",

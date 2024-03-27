@@ -10,6 +10,8 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 // eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
@@ -29,6 +31,7 @@ import type {
   SmartTransaction,
   SmartTransactionsStatus,
   UnsignedTransaction,
+  GetTransactionsOptions,
 } from './types';
 import { APIType, SmartTransactionStatuses } from './types';
 import {
@@ -91,6 +94,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   public confirmExternalTransaction: any;
 
+  public getRegularTransactions: (
+    options?: GetTransactionsOptions,
+  ) => TransactionMeta[];
+
   private readonly trackMetaMetricsEvent: any;
 
   public eventEmitter: EventEmitter;
@@ -117,6 +124,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       getNonceLock,
       provider,
       confirmExternalTransaction,
+      getTransactions,
       trackMetaMetricsEvent,
       getNetworkClientById,
     }: {
@@ -126,6 +134,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       getNonceLock: any;
       provider: Provider;
       confirmExternalTransaction: any;
+      getTransactions: (options?: GetTransactionsOptions) => TransactionMeta[];
       trackMetaMetricsEvent: any;
       getNetworkClientById: NetworkController['getNetworkClientById'];
     },
@@ -173,6 +182,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.getNonceLock = getNonceLock;
     this.ethQuery = undefined;
     this.confirmExternalTransaction = confirmExternalTransaction;
+    this.getRegularTransactions = getTransactions;
     this.trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.getNetworkClientById = getNetworkClientById;
 
@@ -447,6 +457,31 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     }
   }
 
+  #doesTransactionNeedConfirmation(
+    smartTransaction: SmartTransaction,
+  ): boolean {
+    const smartTransactionMinedTxHash =
+      smartTransaction.statusMetadata?.minedHash;
+    if (!smartTransactionMinedTxHash) {
+      return false;
+    }
+    const transactions = this.getRegularTransactions();
+    const foundTransaction = transactions?.find((tx) => {
+      return (
+        tx.hash?.toLowerCase() === smartTransactionMinedTxHash.toLowerCase()
+      );
+    });
+    if (!foundTransaction) {
+      return false;
+    }
+    // If a found transaction is either confirmed or submitted, it doesn't need confirmation from the STX controller.
+    // When it's in the submitted state, the TransactionController checks its status and confirms it,
+    // so no need to confirm it again here.
+    return ![TransactionStatus.confirmed, TransactionStatus.submitted].includes(
+      foundTransaction.status,
+    );
+  }
+
   async #confirmSmartTransaction(
     smartTransaction: SmartTransaction,
     {
@@ -490,7 +525,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         const originalTxMeta = {
           ...smartTransaction,
           id: smartTransaction.uuid,
-          status: 'confirmed',
+          status: TransactionStatus.confirmed,
           hash: txHash,
           txParams: updatedTxParams,
         };
@@ -512,11 +547,13 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
               }
             : originalTxMeta;
 
-        this.confirmExternalTransaction(
-          txMeta,
-          transactionReceipt,
-          baseFeePerGas,
-        );
+        if (this.#doesTransactionNeedConfirmation(smartTransaction)) {
+          this.confirmExternalTransaction(
+            txMeta,
+            transactionReceipt,
+            baseFeePerGas,
+          );
+        }
 
         this.trackMetaMetricsEvent({
           event: MetaMetricsEventName.StxConfirmed,

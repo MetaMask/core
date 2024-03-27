@@ -9,6 +9,7 @@ describe('default export', () => {
       getNonceLock: null,
       provider: { sendAsync: jest.fn() },
       confirmExternalTransaction: jest.fn(),
+      getTransactions: jest.fn(),
       trackMetaMetricsEvent: jest.fn(),
       getNetworkClientById: jest.fn(),
     });

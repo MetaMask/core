@@ -27,7 +27,7 @@ describe('src/utils.js', () => {
           minedTx: SmartTransactionMinedTx.NOT_MINED,
           cancellationFeeWei: 10000,
           deadlineRatio: 10,
-          minedHash: undefined,
+          minedHash: '',
           isSettled: true,
         },
       };
@@ -215,7 +215,7 @@ describe('src/utils.js', () => {
         cancellationFeeWei: 10000,
         cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
         deadlineRatio: 10,
-        minedHash: undefined,
+        minedHash: '',
         isSettled: true,
         ...customProps,
       };
