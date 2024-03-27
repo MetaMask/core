@@ -279,7 +279,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       ...oldState,
       ...{ [userAddress]: newAddressState },
     };
-
     this.update({
       [baseStateKey]: newState,
     });
@@ -1041,7 +1040,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     this.messagingSystem = messenger;
 
     onPreferencesStateChange(
-      ({
+      async ({
         selectedAddress,
         ipfsGateway,
         openSeaEnabled,
@@ -1053,6 +1052,26 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           openSeaEnabled,
           isIpfsGatewayEnabled,
         });
+
+        const needsUpdateNftMetadata =
+          (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
+
+        if (needsUpdateNftMetadata) {
+          const { chainId } = this.config;
+          const nfts: Nft[] =
+            this.state.allNfts[selectedAddress]?.[chainId] ?? [];
+          // filter only nfts
+          const nftsToUpdate = nfts.filter(
+            (singleNft) =>
+              !singleNft.name && !singleNft.description && !singleNft.image,
+          );
+          if (nftsToUpdate.length !== 0) {
+            await this.updateNftMetadata({
+              nfts: nftsToUpdate,
+              userAddress: selectedAddress,
+            });
+          }
+        }
       },
     );
 
@@ -1363,20 +1382,21 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
    * Refetches NFT metadata and updates the state
    *
    * @param options - Options for refetching NFT metadata
-   * @param options.nfts - Array of nfts
-   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options.nfts - nfts to update metadata for.
    * @param options.userAddress - The current user address
+   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    */
   async updateNftMetadata({
     nfts,
-    networkClientId,
     userAddress = this.config.selectedAddress,
+    networkClientId,
   }: {
     nfts: Nft[];
-    networkClientId?: NetworkClientId;
     userAddress?: string;
+    networkClientId?: NetworkClientId;
   }) {
     const chainId = this.getCorrectChainId({ networkClientId });
+
     const nftsWithChecksumAdr = nfts.map((nft) => {
       return {
         ...nft,
@@ -1696,7 +1716,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       updatedNft,
       ...nfts.slice(nftInfo.index + 1),
     ];
-
     this.updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY, {
       chainId,
       userAddress: selectedAddress,

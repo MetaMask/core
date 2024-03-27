@@ -1,6 +1,7 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
+import { SimulationChainNotSupportedError, SimulationError } from '../errors';
 import { projectLogger } from '../logger';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
@@ -180,7 +181,8 @@ export async function simulateTransactions(
   log('Received response', responseJson);
 
   if (responseJson.error) {
-    throw responseJson.error;
+    const { code, message } = responseJson.error;
+    throw new SimulationError(message, code);
   }
 
   return responseJson?.result;
@@ -198,7 +200,7 @@ async function getSimulationUrl(chainId: Hex): Promise<string> {
 
   if (!network?.confirmations) {
     log('Chain is not supported', chainId);
-    throw new Error(`Chain is not supported: ${chainId}`);
+    throw new SimulationChainNotSupportedError(chainId);
   }
 
   return getUrl(network.network);
