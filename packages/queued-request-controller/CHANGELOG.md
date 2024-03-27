@@ -154,8 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.2...HEAD
-[0.6.2]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...@metamask/queued-request-controller@0.6.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.7.0...HEAD
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...@metamask/queued-request-controller@0.7.0
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.0...@metamask/queued-request-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.5.0...@metamask/queued-request-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.4.0...@metamask/queued-request-controller@0.5.0
