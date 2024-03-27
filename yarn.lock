@@ -2322,7 +2322,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/gas-fee-controller@^14.0.1, @metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
+"@metamask/gas-fee-controller@^15.0.0, @metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
   dependencies:
@@ -3126,7 +3126,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^25.3.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@^26.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3143,7 +3143,7 @@ __metadata:
     "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
-    "@metamask/gas-fee-controller": ^14.0.1
+    "@metamask/gas-fee-controller": ^15.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.1.0
     "@metamask/rpc-errors": ^6.2.1
@@ -3170,7 +3170,7 @@ __metadata:
   peerDependencies:
     "@babel/runtime": ^7.23.9
     "@metamask/approval-controller": ^6.0.0
-    "@metamask/gas-fee-controller": ^14.0.0
+    "@metamask/gas-fee-controller": ^15.0.0
     "@metamask/network-controller": ^18.0.0
   languageName: unknown
   linkType: soft
@@ -3184,12 +3184,12 @@ __metadata:
     "@metamask/base-controller": ^5.0.1
     "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-query": ^4.0.0
-    "@metamask/gas-fee-controller": ^14.0.1
+    "@metamask/gas-fee-controller": ^15.0.0
     "@metamask/keyring-controller": ^14.0.1
     "@metamask/network-controller": ^18.1.0
     "@metamask/polling-controller": ^6.0.1
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/transaction-controller": ^25.3.0
+    "@metamask/transaction-controller": ^26.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     bn.js: ^5.2.1
@@ -3205,10 +3205,10 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^6.0.0
-    "@metamask/gas-fee-controller": ^14.0.0
+    "@metamask/gas-fee-controller": ^15.0.0
     "@metamask/keyring-controller": ^14.0.0
     "@metamask/network-controller": ^18.0.0
-    "@metamask/transaction-controller": ^25.0.0
+    "@metamask/transaction-controller": ^26.0.0
   languageName: unknown
   linkType: soft
 
