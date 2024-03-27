@@ -12,11 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING**: The controller's constructor now requires `infuraAPIKey`. This is used to construct and send the `Authorization` header for Infura gas API requests. ([#4068](https://github.com/MetaMask/core/pull/4068))
-- Bump dependency `@metamask/network-controller` to `^18.1.0`
+- Bump dependency `@metamask/network-controller` to `^18.1.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
 
 ### Removed
 
-- **BREAKING**: Remove the constructor options `legacyAPIEndpoint` and `EIP1559APIEndpoint`. These URLs are now hardcoded within the controller. [#4068](https://github.com/MetaMask/core/pull/4068))
+- **BREAKING**: Remove the constructor options `legacyAPIEndpoint` and `EIP1559APIEndpoint`. These URLs are now hardcoded within the controller. ([#4068](https://github.com/MetaMask/core/pull/4068))
 
 ## [14.0.1]
 

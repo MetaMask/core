@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** `SelectedNetworkController` now requires `NetworkController:getSelectedNetworkClient` as an allowed action ([#4063](https://github.com/MetaMask/core/pull/4063))
   - `getProviderAndBlockTracker` method no longer throws an error if the `useRequestQueue` flag is false ([#4063](https://github.com/MetaMask/core/pull/4063))
   - `getProviderAndBlockTracker` method no longer throws an error if there is no `networkClientId` set for the passed domain. Now it returns a proxy pointed at the globally selected network instead. ([#4063](https://github.com/MetaMask/core/pull/4063))
-- Bump dependency `@metamask/network-controller` to `^18.1.0`
+- Bump dependency `@metamask/network-controller` to `^18.1.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
 
 ### Fixed
 
