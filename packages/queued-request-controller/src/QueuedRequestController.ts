@@ -11,6 +11,7 @@ import type {
 import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
+import { methodsRequiringNetworkSwitch } from './constants';
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
 export const controllerName = 'QueuedRequestController';
@@ -282,7 +283,7 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (request.method !== 'eth_requestAccounts') {
+      } else if (methodsRequiringNetworkSwitch.includes(request.method)) {
         // Process request immediately
         // Requires switching network now if necessary
         // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
