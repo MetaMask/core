@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `SelectedNetworkController` now expects a `domainProxyMap` param - which is a Map of Domain to NetworkProxy - in its constructor ([#4104](https://github.com/MetaMask/core/pull/4104))
-- **BREAKING:** `SelectedNetworkController` now requires the `NetworkController:getSelectedNetworkClient` as an allowed action ([#4063](https://github.com/MetaMask/core/pull/4063))
+- **BREAKING:** `SelectedNetworkController` now requires `NetworkController:getSelectedNetworkClient` as an allowed action ([#4063](https://github.com/MetaMask/core/pull/4063))
 - `getProviderAndBlockTracker` method no longer throws an error if the `useRequestQueue` flag is false
 - Previously `getProviderAndBlockTracker` threw an error if there was no `networkClientId` set for the passed domain. Now it returns a proxy pointed at the globally selected network instead.
 
