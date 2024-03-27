@@ -1,6 +1,6 @@
 {
   "name": "@metamask/queued-request-controller",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Includes a controller and middleware that implements a request queue",
   "keywords": [
     "MetaMask",
