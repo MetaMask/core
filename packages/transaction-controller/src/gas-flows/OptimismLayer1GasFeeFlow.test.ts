@@ -1,3 +1,4 @@
+import { TransactionFactory } from '@ethereumjs/tx';
 import { Contract } from '@ethersproject/contracts';
 import type { Provider } from '@metamask/network-controller';
 
@@ -16,14 +17,17 @@ jest.mock('../utils/layer1-gas-fee-flow', () => ({
 
 jest.mock('@ethersproject/providers');
 
+const TRANSACTION_PARAMS_MOCK = {
+  from: '0x123',
+  gas: '0x1234',
+};
+
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
   chainId: CHAIN_IDS.OPTIMISM,
   status: TransactionStatus.unapproved,
   time: 0,
-  txParams: {
-    from: '0x123',
-  },
+  txParams: TRANSACTION_PARAMS_MOCK,
 };
 const OPTIMISIM_LAYER_1_GAS_FEE_RESPONSE_MOCK = '0x123';
 
@@ -66,10 +70,18 @@ describe('OptimismLayer1GasFeeFlow', () => {
 
   describe('getLayer1GasFee', () => {
     it('returns layer 1 gas fee', async () => {
+      const txFactorySpy = jest.spyOn(TransactionFactory, 'fromTxData');
       const flow = new OptimismLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
 
       expect(contractGetL1FeeMock).toHaveBeenCalledTimes(1);
+      expect(txFactorySpy).toHaveBeenCalledWith(
+        {
+          from: TRANSACTION_PARAMS_MOCK.from,
+          gasLimit: TRANSACTION_PARAMS_MOCK.gas,
+        },
+        expect.anything(),
+      );
 
       expect(response).toStrictEqual({
         layer1Fee: OPTIMISIM_LAYER_1_GAS_FEE_RESPONSE_MOCK,
