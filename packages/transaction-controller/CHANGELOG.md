@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Run `OptimismLayer1GasFeeFlow` on Optimism stack based transactions ([#4055](https://github.com/MetaMask/core/pull/4055))
+- Run `OptimismLayer1GasFeeFlow` on Optimism stack based transactions in order to add `layer1GasFee` property to transaction meta. ([#4055](https://github.com/MetaMask/core/pull/4055))
 - Add `SimulationErrorCode` enum ([#4106](https://github.com/MetaMask/core/pull/4106))
 
 ### Changed
 
 - **BREAKING**: Remove `isReverted` property from `SimulationError` type. ([#4106](https://github.com/MetaMask/core/pull/4106))
-- Skip simulation if no approval ([#4106](https://github.com/MetaMask/core/pull/4106))
+- Skip simulation if no approval. ([#4106](https://github.com/MetaMask/core/pull/4106))
 - Provide simulation error code in locally generated errors. ([#4106](https://github.com/MetaMask/core/pull/4106))
 
 ## [25.3.0]
