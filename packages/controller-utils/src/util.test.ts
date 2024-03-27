@@ -11,12 +11,21 @@ const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
 describe('util', () => {
+  it('isSafeDynamicKey', () => {
+    expect(util.isSafeDynamicKey(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);
+    expect(util.isSafeDynamicKey('')).toBe(true);
+    for (const badKey of util.PROTOTYPE_POLLUTION_BLOCKLIST) {
+      expect(util.isSafeDynamicKey(badKey)).toBe(false);
+    }
+    // @ts-expect-error - ensure that non-string input return false.
+    expect(util.isSafeDynamicKey(null)).toBe(false);
+  });
   it('isSafeChainId', () => {
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID + 1))).toBe(false);
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);
     expect(util.isSafeChainId(util.toHex(0))).toBe(false);
     expect(util.isSafeChainId('0xinvalid')).toBe(false);
-    // @ts-expect-error - ensure that string args return false.
+    // @ts-expect-error - ensure that non-string args return false.
     expect(util.isSafeChainId('test')).toBe(false);
   });
 

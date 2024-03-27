@@ -26,6 +26,7 @@ export const CHAIN_IDS = {
   GNOSIS: '0x64',
   ARBITRUM: '0xa4b1',
   ZKSYNC_ERA: '0x144',
+  ZORA: '0x76adf1',
 } as const;
 
 export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';

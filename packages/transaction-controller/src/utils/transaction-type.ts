@@ -2,7 +2,12 @@ import type { TransactionDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import { abiERC721, abiERC20, abiERC1155 } from '@metamask/metamask-eth-abis';
+import {
+  abiERC721,
+  abiERC20,
+  abiERC1155,
+  abiFiatTokenV2,
+} from '@metamask/metamask-eth-abis';
 
 import type { InferTransactionTypeResult, TransactionParams } from '../types';
 import { TransactionType } from '../types';
@@ -12,6 +17,7 @@ export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 const ERC20Interface = new Interface(abiERC20);
 const ERC721Interface = new Interface(abiERC721);
 const ERC1155Interface = new Interface(abiERC1155);
+const USDCInterface = new Interface(abiFiatTokenV2);
 
 /**
  * Determines the type of the transaction by analyzing the txParams.
@@ -62,7 +68,10 @@ export async function determineTransactionType(
     TransactionType.tokenMethodTransfer,
     TransactionType.tokenMethodTransferFrom,
     TransactionType.tokenMethodSafeTransferFrom,
-  ].find((methodName) => methodName.toLowerCase() === name.toLowerCase());
+    TransactionType.tokenMethodIncreaseAllowance,
+  ].find(
+    (methodName) => methodName.toLowerCase() === (name as string).toLowerCase(),
+  );
 
   if (tokenMethodName) {
     return { type: tokenMethodName, getCodeResponse };
@@ -100,6 +109,12 @@ function parseStandardTokenTransactionData(
 
   try {
     return ERC1155Interface.parseTransaction({ data });
+  } catch {
+    // ignore and return undefined
+  }
+
+  try {
+    return USDCInterface.parseTransaction({ data });
   } catch {
     // ignore and return undefined
   }

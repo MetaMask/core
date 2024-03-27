@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Added
+
+- Run `OptimismLayer1GasFeeFlow` on Optimism stack based transactions in order to add `layer1GasFee` property to transaction meta. ([#4055](https://github.com/MetaMask/core/pull/4055))
+- Add `SimulationErrorCode` enum ([#4106](https://github.com/MetaMask/core/pull/4106))
+
+### Changed
+
+- **BREAKING**: Remove `isReverted` property from `SimulationError` type. ([#4106](https://github.com/MetaMask/core/pull/4106))
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^15.0.0` ([#4111](https://github.com/MetaMask/core/pull/4111))
+- Bump `@metamask/network-controller` to `^18.1.0` ([#4111](https://github.com/MetaMask/core/pull/4111))
+- Skip simulation if no approval. ([#4106](https://github.com/MetaMask/core/pull/4106))
+- Provide simulation error code in locally generated errors. ([#4106](https://github.com/MetaMask/core/pull/4106))
+
+## [25.3.0]
+
+### Added
+
+- Add support for transactions with type `increaseAllowance` ([#4069](https://github.com/MetaMask/core/pull/4069))
+  - Also add "increaseAllowance" to `TransactionType` under `tokenMethodIncreaseAllowance`
+
+### Changed
+
+- Bump `@metamask/metamask-eth-abis` to `^3.1.1` ([#4069](https://github.com/MetaMask/core/pull/4069))
+
+### Fixed
+
+- Provide updated transaction metadata to publish hook ([#4101](https://github.com/MetaMask/core/pull/4101))
+
+## [25.2.1]
+
+### Changed
+
+- Bump `TypeScript` version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+
+### Fixed
+
+- Emit finished event for custodial transactions when updating status to `submitted` or `failed` ([#4092](https://github.com/MetaMask/core/pull/4092))
+
+## [25.2.0]
+
+### Added
+
+- Add simulation types ([#4067](https://github.com/MetaMask/core/pull/4067))
+  - SimulationBalanceChange
+  - SimulationData
+  - SimulationError
+  - SimulationToken
+  - SimulationTokenBalanceChange
+  - SimulationTokenStandard
+
+### Changed
+
+- No longer wait for simulation to complete before creating approval request ([#4067](https://github.com/MetaMask/core/pull/4067))
+- Automatically update simulation data if transaction parameters are updated ([#4067](https://github.com/MetaMask/core/pull/4067))
+- Determine networks supporting simulation dynamically using API ([#4087](https://github.com/MetaMask/core/pull/4087))
+
 ## [25.1.0]
 
 ### Added
@@ -684,7 +742,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.3.0...@metamask/transaction-controller@26.0.0
+[25.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.1...@metamask/transaction-controller@25.3.0
+[25.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.0...@metamask/transaction-controller@25.2.1
+[25.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...@metamask/transaction-controller@25.2.0
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.0.0...@metamask/transaction-controller@25.1.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@24.0.0...@metamask/transaction-controller@25.0.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@23.1.0...@metamask/transaction-controller@24.0.0

@@ -187,35 +187,26 @@ export class MultichainTrackingHelper {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   } = {}): EthQuery {
+    return new EthQuery(this.getProvider({ networkClientId, chainId }));
+  }
+
+  getProvider({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  } = {}): Provider {
     if (!this.#isMultichainEnabled) {
-      return new EthQuery(this.#provider);
-    }
-    let networkClient: NetworkClient | undefined;
-
-    if (networkClientId) {
-      try {
-        networkClient = this.#getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by networkClientId');
-      }
-    }
-    if (!networkClient && chainId) {
-      try {
-        networkClientId = this.#findNetworkClientIdByChainId(chainId);
-        networkClient = this.#getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by chainId');
-      }
+      return this.#provider;
     }
 
-    if (networkClient) {
-      return new EthQuery(networkClient.provider);
-    }
+    const networkClient = this.#getNetworkClient({
+      networkClientId,
+      chainId,
+    });
 
-    // NOTE(JL): we're not ready to drop globally selected ethQuery yet.
-    // Some calls to getEthQuery only have access to optional networkClientId
-    // throw new Error('failed to get eth query instance');
-    return new EthQuery(this.#provider);
+    return networkClient?.provider || this.#provider;
   }
 
   /**
@@ -451,4 +442,32 @@ export class MultichainTrackingHelper {
       this.#etherscanRemoteTransactionSourcesMap.delete(chainId);
     });
   };
+
+  #getNetworkClient({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  } = {}): NetworkClient | undefined {
+    let networkClient: NetworkClient | undefined;
+
+    if (networkClientId) {
+      try {
+        networkClient = this.#getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('failed to get network client by networkClientId');
+      }
+    }
+    if (!networkClient && chainId) {
+      try {
+        const networkClientIdForChainId =
+          this.#findNetworkClientIdByChainId(chainId);
+        networkClient = this.#getNetworkClientById(networkClientIdForChainId);
+      } catch (err) {
+        log('failed to get network client by chainId');
+      }
+    }
+    return networkClient;
+  }
 }

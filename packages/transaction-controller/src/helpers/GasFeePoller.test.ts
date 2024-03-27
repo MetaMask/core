@@ -1,4 +1,4 @@
-import type EthQuery from '@metamask/eth-query';
+import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import { flushPromises } from '../../../../tests/helpers';
@@ -94,13 +94,13 @@ describe('GasFeePoller', () => {
 
     constructorOptions = {
       gasFeeFlows: [gasFeeFlowMock],
-      getEthQuery: () => ({} as EthQuery),
       getGasFeeControllerEstimates: jest.fn(),
       getTransactions: getTransactionsMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
       onStateChange: (listener: () => void) => {
         triggerOnStateChange = listener;
       },
+      getProvider: () => ({} as Provider),
     };
   });
 
@@ -156,7 +156,7 @@ describe('GasFeePoller', () => {
 
         expect(updateTransactionLayer1GasFeeMock).toHaveBeenCalledTimes(1);
         expect(updateTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
-          ethQuery: expect.any(Object),
+          provider: expect.any(Object),
           layer1GasFeeFlows: layer1GasFeeFlowsMock,
           transactionMeta: TRANSACTION_META_MOCK,
         });

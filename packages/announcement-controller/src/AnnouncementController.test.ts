@@ -120,6 +120,25 @@ describe('announcement controller', () => {
     expect(controller.state.announcements[3].isShown).toBe(false);
   });
 
+  describe('resetViewed', () => {
+    it('resets all announcement isShown states to false', () => {
+      const controller = new AnnouncementController({
+        messenger: getRestrictedMessenger(),
+        state: state2,
+        allAnnouncements: allAnnouncements2,
+      });
+
+      controller.updateViewed({ 1: true, 3: true });
+      expect(controller.state.announcements[1].isShown).toBe(true);
+      expect(controller.state.announcements[3].isShown).toBe(true);
+
+      controller.resetViewed();
+      Object.values(controller.state.announcements).forEach((announcement) => {
+        expect(announcement.isShown).toBe(false);
+      });
+    });
+  });
+
   describe('update viewed announcements', () => {
     it('should update isShown status', () => {
       const controller = new AnnouncementController({

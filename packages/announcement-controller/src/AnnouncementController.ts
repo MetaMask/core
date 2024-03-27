@@ -123,6 +123,17 @@ export class AnnouncementController extends BaseController<
   }
 
   /**
+   * Resets the isShown status for all announcements
+   */
+  resetViewed(): void {
+    this.update(({ announcements }) => {
+      for (const announcement of Object.values(announcements)) {
+        announcement.isShown = false;
+      }
+    });
+  }
+
+  /**
    * Updates the status of the status of the specified announcements
    * once it is read by the user.
    *
