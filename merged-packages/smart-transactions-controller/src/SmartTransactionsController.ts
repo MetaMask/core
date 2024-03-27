@@ -457,22 +457,16 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     }
   }
 
-  #doesTransactionNeedConfirmation(
-    smartTransaction: SmartTransaction,
-  ): boolean {
-    const smartTransactionMinedTxHash =
-      smartTransaction.statusMetadata?.minedHash;
-    if (!smartTransactionMinedTxHash) {
-      return false;
+  #doesTransactionNeedConfirmation(txHash: string | undefined): boolean {
+    if (!txHash) {
+      return true;
     }
     const transactions = this.getRegularTransactions();
     const foundTransaction = transactions?.find((tx) => {
-      return (
-        tx.hash?.toLowerCase() === smartTransactionMinedTxHash.toLowerCase()
-      );
+      return tx.hash?.toLowerCase() === txHash.toLowerCase();
     });
     if (!foundTransaction) {
-      return false;
+      return true;
     }
     // If a found transaction is either confirmed or submitted, it doesn't need confirmation from the STX controller.
     // When it's in the submitted state, the TransactionController checks its status and confirms it,
@@ -547,7 +541,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
               }
             : originalTxMeta;
 
-        if (this.#doesTransactionNeedConfirmation(smartTransaction)) {
+        if (this.#doesTransactionNeedConfirmation(txHash)) {
           this.confirmExternalTransaction(
             txMeta,
             transactionReceipt,

@@ -925,6 +925,106 @@ describe('SmartTransactionsController', () => {
       ]);
     });
 
+    it('confirms a smart transaction that was not found in the list of regular transactions', async () => {
+      const { smartTransactionsState } = smartTransactionsController.state;
+      const pendingStx = {
+        ...createStateAfterPending()[0],
+        history: testHistory,
+      };
+
+      jest
+        .spyOn(smartTransactionsController, 'getRegularTransactions')
+        .mockImplementation(() => {
+          return [];
+        });
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+          },
+        },
+      });
+      const updateTransaction = {
+        ...pendingStx,
+        statusMetadata: {
+          ...pendingStx.statusMetadata,
+          minedHash: txHash,
+        },
+        status: SmartTransactionStatuses.SUCCESS,
+      };
+
+      smartTransactionsController.updateSmartTransaction(
+        updateTransaction as SmartTransaction,
+        {
+          networkClientId: 'mainnet',
+        },
+      );
+      await flushPromises();
+      expect(
+        smartTransactionsController.confirmExternalTransaction,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[CHAIN_IDS.ETHEREUM],
+      ).toStrictEqual([
+        {
+          ...updateTransaction,
+          confirmed: true,
+        },
+      ]);
+    });
+
+    it('confirms a smart transaction that does not have a minedHash', async () => {
+      const { smartTransactionsState } = smartTransactionsController.state;
+      const pendingStx = {
+        ...createStateAfterPending()[0],
+        history: testHistory,
+      };
+
+      jest
+        .spyOn(smartTransactionsController, 'getRegularTransactions')
+        .mockImplementation(() => {
+          return [createTransactionMeta(TransactionStatus.confirmed)];
+        });
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+          },
+        },
+      });
+      const updateTransaction = {
+        ...pendingStx,
+        statusMetadata: {
+          ...pendingStx.statusMetadata,
+          minedHash: '',
+        },
+        status: SmartTransactionStatuses.SUCCESS,
+      };
+
+      smartTransactionsController.updateSmartTransaction(
+        updateTransaction as SmartTransaction,
+        {
+          networkClientId: 'mainnet',
+        },
+      );
+      await flushPromises();
+      expect(
+        smartTransactionsController.confirmExternalTransaction,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[CHAIN_IDS.ETHEREUM],
+      ).toStrictEqual([
+        {
+          ...updateTransaction,
+          confirmed: true,
+        },
+      ]);
+    });
+
     it('does not call the "confirmExternalTransaction" fn if a tx is already confirmed', async () => {
       const { smartTransactionsState } = smartTransactionsController.state;
       const pendingStx = {
