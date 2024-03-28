@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../accounts-controller" },
+    { "path": "../approval-controller" },
+    { "path": "../assets-controllers" },
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../json-rpc-engine" },
+    { "path": "../keyring-controller" },
+    { "path": "../network-controller" },
+    { "path": "../permission-controller" },
+    { "path": "../preferences-controller" },
+    { "path": "../transaction-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}
