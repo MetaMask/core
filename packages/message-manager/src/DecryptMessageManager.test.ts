@@ -52,7 +52,7 @@ describe('DecryptMessageManager', () => {
 
   describe('addUnapprovedMessageAsync', () => {
     beforeEach(() => {
-      controller = new DecryptMessageManager(undefined, undefined, undefined, [
+      controller = new DecryptMessageManager(undefined, undefined, [
         'decrypted',
       ]);
 

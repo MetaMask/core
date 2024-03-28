@@ -124,14 +124,6 @@ export type SignatureControllerOptions = {
   messenger: SignatureControllerMessenger;
   isEthSignEnabled: () => boolean;
   getAllState: () => unknown;
-  securityProviderRequest?: (
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    requestData: any,
-    methodName: string,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) => Promise<any>;
   getCurrentChainId: () => Hex;
 };
 
@@ -164,14 +156,12 @@ export class SignatureController extends BaseController<
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
-   * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param options.getCurrentChainId - A function for retrieving the current chainId.
    */
   constructor({
     messenger,
     isEthSignEnabled,
     getAllState,
-    securityProviderRequest,
     getCurrentChainId,
   }: SignatureControllerOptions) {
     super({
@@ -185,20 +175,14 @@ export class SignatureController extends BaseController<
     this.#getAllState = getAllState;
 
     this.hub = new EventEmitter();
-    this.#messageManager = new MessageManager(
-      undefined,
-      undefined,
-      securityProviderRequest,
-    );
+    this.#messageManager = new MessageManager(undefined, undefined);
     this.#personalMessageManager = new PersonalMessageManager(
       undefined,
       undefined,
-      securityProviderRequest,
     );
     this.#typedMessageManager = new TypedMessageManager(
       undefined,
       undefined,
-      securityProviderRequest,
       undefined,
       getCurrentChainId,
     );

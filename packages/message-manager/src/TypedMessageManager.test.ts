@@ -56,7 +56,6 @@ describe('TypedMessageManager', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       getCurrentChainIdStub,
     );
   });
@@ -237,7 +236,6 @@ describe('TypedMessageManager', () => {
     ).rejects.toThrow('Invalid message "data":');
 
     const controllerWithGetCurrentChainIdCallback = new TypedMessageManager(
-      undefined,
       undefined,
       undefined,
       undefined,

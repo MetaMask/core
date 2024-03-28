@@ -1,4 +1,3 @@
-import type { SecurityProviderRequest } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import type {
   TypedMessage,
@@ -117,42 +116,6 @@ describe('AbstractTestManager', () => {
     expect(messages).toStrictEqual([message, message2]);
   });
 
-  it('adds a valid message with provider security response', async () => {
-    const securityProviderResponseMock = { flagAsDangerous: 2 };
-    const securityProviderRequestMock: SecurityProviderRequest = jest
-      .fn()
-      .mockResolvedValue(securityProviderResponseMock);
-    const controller = new AbstractTestManager(
-      undefined,
-      undefined,
-      securityProviderRequestMock,
-    );
-    await controller.addMessage({
-      id: messageId,
-      messageParams: {
-        data: typedMessage,
-        from,
-      },
-      status: messageStatus,
-      time: messageTime,
-      type: messageType,
-    });
-
-    const message = controller.getMessage(messageId);
-    if (!message) {
-      throw new Error('"message" is falsy');
-    }
-    expect(message.id).toBe(messageId);
-    expect(message.messageParams.from).toBe(from);
-    expect(message.messageParams.data).toBe(messageData);
-    expect(message.time).toBe(messageTime);
-    expect(message.status).toBe(messageStatus);
-    expect(message.type).toBe(messageType);
-    expect(securityProviderRequestMock).toHaveBeenCalled();
-    expect(message).toHaveProperty('securityProviderResponse');
-    expect(message.securityProviderResponse).toBe(securityProviderResponseMock);
-  });
-
   it('should reject a message', async () => {
     const controller = new AbstractTestManager();
     await controller.addMessage({
@@ -195,12 +158,9 @@ describe('AbstractTestManager', () => {
   });
 
   it('sets message to one of the allowed statuses', async () => {
-    const controller = new AbstractTestManager(
-      undefined,
-      undefined,
-      undefined,
-      ['test-status'],
-    );
+    const controller = new AbstractTestManager(undefined, undefined, [
+      'test-status',
+    ]);
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -220,12 +180,9 @@ describe('AbstractTestManager', () => {
   });
 
   it('should set a status to inProgress', async () => {
-    const controller = new AbstractTestManager(
-      undefined,
-      undefined,
-      undefined,
-      ['test-status'],
-    );
+    const controller = new AbstractTestManager(undefined, undefined, [
+      'test-status',
+    ]);
     await controller.addMessage({
       id: messageId,
       messageParams: {
