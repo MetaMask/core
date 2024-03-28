@@ -1,6 +1,5 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
-  safelyExecute,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
   toHex,
@@ -73,11 +72,6 @@ export interface ContractExchangeRates {
   [address: string]: number | undefined;
 }
 
-enum PollState {
-  Active = 'Active',
-  Inactive = 'Inactive',
-}
-
 /**
  * @type TokenRatesState
  *
@@ -141,10 +135,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   TokenRatesConfig,
   TokenRatesState
 > {
-  private handle?: ReturnType<typeof setTimeout>;
-
-  #pollState = PollState.Inactive;
-
   #tokenPricesService: AbstractTokenPricesService;
 
   #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
@@ -234,9 +224,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     onPreferencesStateChange(async ({ selectedAddress }) => {
       if (this.config.selectedAddress !== selectedAddress) {
         this.configure({ selectedAddress });
-        if (this.#pollState === PollState.Active) {
-          await this.updateExchangeRates();
-        }
+        await this.updateExchangeRates();
       }
     });
 
@@ -246,10 +234,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       );
       this.configure({ allTokens, allDetectedTokens });
       const newTokenAddresses = this.#getTokenAddresses(this.config.chainId);
-      if (
-        !isEqual(previousTokenAddresses, newTokenAddresses) &&
-        this.#pollState === PollState.Active
-      ) {
+      if (!isEqual(previousTokenAddresses, newTokenAddresses)) {
         await this.updateExchangeRates();
       }
     });
@@ -262,9 +247,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       ) {
         this.update({ contractExchangeRates: {} });
         this.configure({ chainId, nativeCurrency: ticker });
-        if (this.#pollState === PollState.Active) {
-          await this.updateExchangeRates();
-        }
+        await this.updateExchangeRates();
       }
     });
   }
@@ -288,45 +271,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         ),
       ),
     ].sort();
-  }
-
-  /**
-   * Start (or restart) polling.
-   */
-  async start() {
-    this.#stopPoll();
-    this.#pollState = PollState.Active;
-    await this.#poll();
-  }
-
-  /**
-   * Stop polling.
-   */
-  stop() {
-    this.#stopPoll();
-    this.#pollState = PollState.Inactive;
-  }
-
-  /**
-   * Clear the active polling timer, if present.
-   */
-  #stopPoll() {
-    if (this.handle) {
-      clearTimeout(this.handle);
-    }
-  }
-
-  /**
-   * Poll for exchange rate updates.
-   */
-  async #poll() {
-    await safelyExecute(() => this.updateExchangeRates());
-
-    // Poll using recursive `setTimeout` instead of `setInterval` so that
-    // requests don't stack if they take longer than the polling interval
-    this.handle = setTimeout(() => {
-      this.#poll();
-    }, this.config.interval);
   }
 
   /**
