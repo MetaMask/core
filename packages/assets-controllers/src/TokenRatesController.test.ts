@@ -1451,7 +1451,7 @@ describe('TokenRatesController', () => {
             },
           );
 
-          controller.startPollingByNetworkClientId('mainnet');
+          const pollToken = controller.startPollingByNetworkClientId('mainnet');
           // flush promises and advance setTimeouts they enqueue 3 times
           // needed because fetch() doesn't resolve immediately, so any
           // downstream promises aren't flushed until the next advanceTime loop
@@ -1468,7 +1468,7 @@ describe('TokenRatesController', () => {
               },
             },
           );
-          controller.stopAllPolling();
+          controller.stopPollingByPollingToken(pollToken);
         });
 
         it('returns the an empty object when market does not exist for pair', async () => {
@@ -1517,7 +1517,7 @@ describe('TokenRatesController', () => {
             },
           );
 
-          controller.startPollingByNetworkClientId('mainnet');
+          const pollToken = controller.startPollingByNetworkClientId('mainnet');
           // flush promises and advance setTimeouts they enqueue 3 times
           // needed because fetch() doesn't resolve immediately, so any
           // downstream promises aren't flushed until the next advanceTime loop
@@ -1530,7 +1530,7 @@ describe('TokenRatesController', () => {
               },
             },
           );
-          controller.stopAllPolling();
+          controller.stopPollingByPollingToken(pollToken);
         });
       });
     });

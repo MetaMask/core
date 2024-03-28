@@ -5,6 +5,7 @@ import type { Json } from '@metamask/utils';
 import {
   AbstractPollingControllerBaseMixin,
   getKey,
+  parseKey,
 } from './AbstractPollingController';
 import type {
   Constructor,
@@ -26,9 +27,14 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
     extends AbstractPollingControllerBaseMixin(Base)
     implements IPollingController
   {
-    readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
+    readonly pollers: Record<
+      PollingTokenSetId,
+      { timeoutId?: NodeJS.Timeout; lastPollTime?: number }
+    > = {};
 
     #intervalLength: number | undefined = 1000;
+
+    isPaused = false;
 
     setIntervalLength(intervalLength: number) {
       this.#intervalLength = intervalLength;
@@ -47,27 +53,57 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
       }
 
       const key = getKey(networkClientId, options);
-      const existingInterval = this.#intervalIds[key];
+      const lastPollTime = this.pollers[key]?.lastPollTime;
       this._stopPollingByPollingTokenSetId(key);
 
-      this.#intervalIds[key] = setTimeout(
-        async () => {
-          try {
-            await this._executePoll(networkClientId, options);
-          } catch (error) {
-            console.error(error);
-          }
-          this._startPollingByNetworkClientId(networkClientId, options);
-        },
-        existingInterval ? this.#intervalLength : 0,
-      );
+      this.pollers[key] = this.isPaused
+        ? {}
+        : {
+            lastPollTime: Date.now(),
+            timeoutId: setTimeout(
+              async () => {
+                try {
+                  await this._executePoll(networkClientId, options);
+                } catch (error) {
+                  console.error(error);
+                }
+                this._startPollingByNetworkClientId(networkClientId, options);
+              },
+              lastPollTime === undefined ? 0 : this.#intervalLength,
+            ),
+          };
     }
 
     _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
-      const intervalId = this.#intervalIds[key];
-      if (intervalId) {
-        clearTimeout(intervalId);
-        delete this.#intervalIds[key];
+      clearTimeout(this.pollers[key]?.timeoutId);
+      delete this.pollers[key];
+    }
+
+    pause(): void {
+      if (!this.isPaused) {
+        Object.values(this.pollers).forEach((p) => clearTimeout(p.timeoutId));
+        this.isPaused = true;
+      }
+    }
+
+    resume(): void {
+      if (this.isPaused && this.#intervalLength) {
+        const keys = Object.keys(this.pollers) as PollingTokenSetId[];
+        for (const key of keys) {
+          const nextPoll = Math.max(
+            this.#intervalLength -
+              (Date.now() - (this.pollers[key]?.lastPollTime ?? 0)),
+            0,
+          );
+
+          this.pollers[key] = {
+            timeoutId: setTimeout(
+              () => this._startPollingByNetworkClientId(...parseKey(key)),
+              nextPoll,
+            ),
+          };
+        }
+        this.isPaused = false;
       }
     }
   }

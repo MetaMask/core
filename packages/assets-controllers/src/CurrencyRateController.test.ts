@@ -92,8 +92,6 @@ describe('CurrencyRateController', () => {
         },
       },
     });
-
-    controller.destroy();
   });
 
   it('should initialize with initial state', () => {
@@ -114,14 +112,12 @@ describe('CurrencyRateController', () => {
         },
       },
     });
-
-    controller.destroy();
   });
 
   it('should not poll before being started', async () => {
     const fetchExchangeRateStub = jest.fn();
     const messenger = getRestrictedMessenger();
-    const controller = new CurrencyRateController({
+    new CurrencyRateController({
       interval: 100,
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
@@ -130,8 +126,6 @@ describe('CurrencyRateController', () => {
     await advanceTime({ clock, duration: 200 });
 
     expect(fetchExchangeRateStub).not.toHaveBeenCalled();
-
-    controller.destroy();
   });
 
   it('should poll and update state in the right interval', async () => {
@@ -156,7 +150,7 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    controller.startPollingByNetworkClientId('mainnet');
+    const pollToken = controller.startPollingByNetworkClientId('mainnet');
     await advanceTime({ clock, duration: 0 });
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     expect(controller.state.currencyRates).toStrictEqual({
@@ -181,7 +175,7 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    controller.destroy();
+    controller.stopPollingByPollingToken(pollToken);
   });
 
   it('should not poll after being stopped', async () => {
@@ -193,11 +187,11 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    controller.startPollingByNetworkClientId('sepolia');
+    const pollToken = controller.startPollingByNetworkClientId('sepolia');
 
     await advanceTime({ clock, duration: 0 });
 
-    controller.stopAllPolling();
+    controller.stopPollingByPollingToken(pollToken);
 
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
@@ -205,8 +199,6 @@ describe('CurrencyRateController', () => {
     await advanceTime({ clock, duration: 150, stepSize: 50 });
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
-
-    controller.destroy();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
@@ -218,15 +210,15 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    controller.startPollingByNetworkClientId('sepolia');
+    const pollToken1 = controller.startPollingByNetworkClientId('sepolia');
     await advanceTime({ clock, duration: 0 });
 
-    controller.stopAllPolling();
+    controller.stopPollingByPollingToken(pollToken1);
 
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    controller.startPollingByNetworkClientId('sepolia');
+    const pollToken2 = controller.startPollingByNetworkClientId('sepolia');
     await advanceTime({ clock, duration: 0 });
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
@@ -234,6 +226,7 @@ describe('CurrencyRateController', () => {
     await advanceTime({ clock, duration: 100 });
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(3);
+    controller.stopPollingByPollingToken(pollToken2);
   });
 
   it('should update exchange rate', async () => {
@@ -265,8 +258,6 @@ describe('CurrencyRateController', () => {
         usdConversionRate: 111,
       },
     });
-
-    controller.destroy();
   });
 
   it('should use the exchange rate for ETH when native currency is testnet ETH', async () => {
@@ -313,8 +304,6 @@ describe('CurrencyRateController', () => {
         usdConversionRate: 110,
       },
     });
-
-    controller.destroy();
   });
 
   it('should update current currency then clear and refetch rates', async () => {
@@ -373,8 +362,6 @@ describe('CurrencyRateController', () => {
         },
       },
     });
-
-    controller.destroy();
   });
 
   it('should add usd rate to state when includeUsdRate is configured true', async () => {
@@ -392,8 +379,6 @@ describe('CurrencyRateController', () => {
     expect(fetchExchangeRateStub.mock.calls).toMatchObject([
       ['xyz', 'ETH', true],
     ]);
-
-    controller.destroy();
   });
 
   it('should default to fetching exchange rate from crypto-compare', async () => {
@@ -421,8 +406,6 @@ describe('CurrencyRateController', () => {
         },
       },
     });
-
-    controller.destroy();
   });
 
   it('should throw unexpected errors', async () => {
@@ -444,8 +427,6 @@ describe('CurrencyRateController', () => {
     await expect(controller.updateExchangeRate('ETH')).rejects.toThrow(
       'this method has been deprecated',
     );
-
-    controller.destroy();
   });
 
   it('should catch expected errors', async () => {
@@ -476,7 +457,5 @@ describe('CurrencyRateController', () => {
         },
       },
     });
-
-    controller.destroy();
   });
 });

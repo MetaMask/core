@@ -9,8 +9,6 @@ export type IPollingController = {
     options: Json,
   ): string;
 
-  stopAllPolling(): void;
-
   stopPollingByPollingToken(pollingToken: string): void;
 
   onPollingCompleteByNetworkClientId(

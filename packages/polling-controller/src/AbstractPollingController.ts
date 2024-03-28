@@ -14,6 +14,11 @@ export const getKey = (
   options: Json,
 ): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
 
+export const parseKey = (key: PollingTokenSetId): [NetworkClientId, Json] => {
+  const [networkClientId, options] = key.split(':');
+  return [networkClientId, JSON.parse(options)];
+};
+
 /**
  * AbstractPollingControllerBaseMixin
  *
@@ -62,14 +67,6 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
       }
 
       return pollToken;
-    }
-
-    stopAllPolling() {
-      this.#pollingTokenSets.forEach((tokenSet, _key) => {
-        tokenSet.forEach((token) => {
-          this.stopPollingByPollingToken(token);
-        });
-      });
     }
 
     stopPollingByPollingToken(pollingToken: string) {

@@ -535,7 +535,8 @@ describe('AccountTrackerController', () => {
 
     const refreshSpy = jest.spyOn(controller, 'refresh').mockResolvedValue();
 
-    controller.startPollingByNetworkClientId('networkClientId1');
+    const pollToken1 =
+      controller.startPollingByNetworkClientId('networkClientId1');
 
     await advanceTime({ clock, duration: 0 });
     expect(refreshSpy).toHaveBeenNthCalledWith(1, 'networkClientId1');
@@ -546,7 +547,7 @@ describe('AccountTrackerController', () => {
     expect(refreshSpy).toHaveBeenNthCalledWith(2, 'networkClientId1');
     expect(refreshSpy).toHaveBeenCalledTimes(2);
 
-    const pollToken =
+    const pollToken2 =
       controller.startPollingByNetworkClientId('networkClientId2');
 
     await advanceTime({ clock, duration: 0 });
@@ -557,13 +558,13 @@ describe('AccountTrackerController', () => {
     expect(refreshSpy).toHaveBeenNthCalledWith(5, 'networkClientId2');
     expect(refreshSpy).toHaveBeenCalledTimes(5);
 
-    controller.stopPollingByPollingToken(pollToken);
+    controller.stopPollingByPollingToken(pollToken2);
 
     await advanceTime({ clock, duration: 100 });
     expect(refreshSpy).toHaveBeenNthCalledWith(6, 'networkClientId1');
     expect(refreshSpy).toHaveBeenCalledTimes(6);
 
-    controller.stopAllPolling();
+    controller.stopPollingByPollingToken(pollToken1);
 
     await advanceTime({ clock, duration: 100 });
 

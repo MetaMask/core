@@ -1734,15 +1734,18 @@ describe('TokenDetectionController', () => {
               return Promise.resolve();
             });
 
-          controller.startPollingByNetworkClientId('mainnet', {
-            address: '0x1',
-          });
-          controller.startPollingByNetworkClientId('sepolia', {
-            address: '0xdeadbeef',
-          });
-          controller.startPollingByNetworkClientId('goerli', {
-            address: '0x3',
-          });
+          const pollTokens = [
+            controller.startPollingByNetworkClientId('mainnet', {
+              address: '0x1',
+            }),
+            controller.startPollingByNetworkClientId('sepolia', {
+              address: '0xdeadbeef',
+            }),
+            controller.startPollingByNetworkClientId('goerli', {
+              address: '0x3',
+            }),
+          ];
+
           await advanceTime({ clock, duration: 0 });
 
           expect(spy.mock.calls).toMatchObject([
@@ -1760,6 +1763,8 @@ describe('TokenDetectionController', () => {
             [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
             [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
           ]);
+
+          pollTokens.forEach((pt) => controller.stopPollingByPollingToken(pt));
         },
       );
     });
@@ -2195,6 +2200,5 @@ async function withController<ReturnValue>(
     });
   } finally {
     controller.stop();
-    controller.stopAllPolling();
   }
 }

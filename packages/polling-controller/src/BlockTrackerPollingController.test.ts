@@ -94,8 +94,8 @@ describe('BlockTrackerPollingController', () => {
 
   describe('startPollingByNetworkClientId', () => {
     it('should call _executePoll on "latest" block events emitted by blockTrackers for each networkClientId passed to startPollingByNetworkClientId', async () => {
-      controller.startPollingByNetworkClientId('mainnet');
-      controller.startPollingByNetworkClientId('goerli');
+      const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
+      const pollingToken2 = controller.startPollingByNetworkClientId('goerli');
       // await advanceTime({ clock, duration: 5 });
       mainnetBlockTracker.emitBlockEvent();
 
@@ -137,7 +137,7 @@ describe('BlockTrackerPollingController', () => {
         2,
       );
 
-      controller.startPollingByNetworkClientId('sepolia');
+      const pollingToken3 = controller.startPollingByNetworkClientId('sepolia');
 
       mainnetBlockTracker.emitBlockEvent();
       sepoliaBlockTracker.emitBlockEvent();
@@ -155,7 +155,9 @@ describe('BlockTrackerPollingController', () => {
         2,
       );
 
-      controller.stopAllPolling();
+      controller.stopPollingByPollingToken(pollingToken1);
+      controller.stopPollingByPollingToken(pollingToken2);
+      controller.stopPollingByPollingToken(pollingToken3);
     });
   });
 
@@ -204,7 +206,7 @@ describe('BlockTrackerPollingController', () => {
       ]);
     });
 
-    it('should should stop polling for one networkClientId when all polling tokens for that networkClientId are deleted, without stopping polling for networkClientIds with active pollingTokens', async () => {
+    it('should stop polling for one networkClientId when all polling tokens for that networkClientId are deleted, without stopping polling for networkClientIds with active pollingTokens', async () => {
       const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
 
       mainnetBlockTracker.emitBlockEvent();
@@ -220,7 +222,7 @@ describe('BlockTrackerPollingController', () => {
         ['mainnet', {}, 2],
       ]);
 
-      controller.startPollingByNetworkClientId('goerli');
+      const pollingToken3 = controller.startPollingByNetworkClientId('goerli');
 
       mainnetBlockTracker.emitBlockEvent();
 
@@ -263,7 +265,7 @@ describe('BlockTrackerPollingController', () => {
         ['goerli', {}, 3],
       ]);
 
-      controller.stopAllPolling();
+      controller.stopPollingByPollingToken(pollingToken3);
     });
   });
 

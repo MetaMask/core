@@ -54,33 +54,36 @@ describe('StaticIntervalPollingController', () => {
 
   describe('startPollingByNetworkClientId', () => {
     it('should start polling if not already polling', async () => {
-      controller.startPollingByNetworkClientId('mainnet');
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
       await advanceTime({ clock, duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
-      controller.stopAllPolling();
+      controller.stopPollingByPollingToken(pollingToken);
     });
 
     it('should call _executePoll immediately once and continue calling _executePoll on interval when called again with the same networkClientId', async () => {
-      controller.startPollingByNetworkClientId('mainnet');
+      const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
-      controller.startPollingByNetworkClientId('mainnet');
+      const pollingToken2 = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
       await advanceTime({ clock, duration: TICK_TIME * 2 });
 
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
-      controller.stopAllPolling();
+      controller.stopPollingByPollingToken(pollingToken1);
+      controller.stopPollingByPollingToken(pollingToken2);
     });
     describe('multiple networkClientIds', () => {
       it('should poll for each networkClientId', async () => {
-        controller.startPollingByNetworkClientId('mainnet');
+        const pollingToken1 =
+          controller.startPollingByNetworkClientId('mainnet');
         await advanceTime({ clock, duration: 0 });
 
-        controller.startPollingByNetworkClientId('rinkeby');
+        const pollingToken2 =
+          controller.startPollingByNetworkClientId('rinkeby');
         await advanceTime({ clock, duration: 0 });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -105,7 +108,8 @@ describe('StaticIntervalPollingController', () => {
           ['mainnet', {}],
           ['rinkeby', {}],
         ]);
-        controller.stopAllPolling();
+        controller.stopPollingByPollingToken(pollingToken1);
+        controller.stopPollingByPollingToken(pollingToken2);
       });
 
       it('should poll multiple networkClientIds when setting interval length', async () => {
@@ -172,26 +176,27 @@ describe('StaticIntervalPollingController', () => {
       controller.stopPollingByPollingToken(pollingToken);
       await advanceTime({ clock, duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
-      controller.stopAllPolling();
+      controller.stopPollingByPollingToken(pollingToken);
     });
     it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
       const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
 
-      controller.startPollingByNetworkClientId('mainnet');
+      const pollingToken2 = controller.startPollingByNetworkClientId('mainnet');
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
       await advanceTime({ clock, duration: TICK_TIME });
       controller.stopPollingByPollingToken(pollingToken1);
       await advanceTime({ clock, duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
-      controller.stopAllPolling();
+      controller.stopPollingByPollingToken(pollingToken1);
+      controller.stopPollingByPollingToken(pollingToken2);
     });
     it('should error if no pollingToken is passed', () => {
-      controller.startPollingByNetworkClientId('mainnet');
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       expect(() => {
         controller.stopPollingByPollingToken();
       }).toThrow('pollingToken required');
-      controller.stopAllPolling();
+      controller.stopPollingByPollingToken(pollingToken);
     });
 
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
@@ -246,6 +251,89 @@ describe('StaticIntervalPollingController', () => {
       controller.stopPollingByPollingToken(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);
       expect(pollingComplete).toHaveBeenCalledWith('mainnet:{}');
+    });
+  });
+
+  describe('pause / resume', () => {
+    it('should pause and resume polling execution', async () => {
+      // Execution on initial start
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      await advanceTime({ clock, duration: 0 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+
+      // Execution after first interval
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+
+      // No execution while paused
+      controller.pause();
+      await advanceTime({ clock, duration: 5 * TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+
+      // Resume execution
+      controller.resume();
+      await advanceTime({ clock, duration: 1 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(3);
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(4);
+      controller.stopPollingByPollingToken(pollingToken);
+    });
+
+    it('should resume polling with correct delay based on the previous poll time', async () => {
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      await advanceTime({ clock, duration: 0 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+
+      controller.pause();
+      await advanceTime({ clock, duration: TICK_TIME - 2 });
+      controller.resume();
+
+      await advanceTime({ clock, duration: 2 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      await advanceTime({ clock, duration: 1 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+
+      controller.stopPollingByPollingToken(pollingToken);
+    });
+
+    it('should allow registering new pollers while paused', async () => {
+      controller.pause();
+      const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
+      const pollingToken2 =
+        controller.startPollingByNetworkClientId('linea-mainnet');
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(0);
+      controller.resume();
+      await advanceTime({ clock, duration: 1 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+      expect(controller._executePoll.mock.calls).toMatchObject([
+        ['mainnet', {}],
+        ['linea-mainnet', {}],
+      ]);
+      controller.stopPollingByPollingToken(pollingToken1);
+      controller.stopPollingByPollingToken(pollingToken2);
+    });
+
+    it('should no-op when pause() or resume() is called multuple times', async () => {
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      await advanceTime({ clock, duration: 0 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+
+      controller.pause();
+      await advanceTime({ clock, duration: TICK_TIME });
+      controller.pause();
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+
+      controller.resume();
+      await advanceTime({ clock, duration: 1 });
+      controller.resume();
+      await advanceTime({ clock, duration: 1 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(3);
+      controller.stopPollingByPollingToken(pollingToken);
     });
   });
 });

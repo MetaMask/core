@@ -318,7 +318,7 @@ describe('NftDetectionController', () => {
           return Promise.resolve();
         });
 
-      controller.startPollingByNetworkClientId('mainnet', {
+      const pollToken = controller.startPollingByNetworkClientId('mainnet', {
         address: '0x1',
       });
 
@@ -355,6 +355,8 @@ describe('NftDetectionController', () => {
           },
         ],
       ]);
+
+      controller.stopPollingByPollingToken(pollToken);
     });
   });
 
@@ -896,6 +898,5 @@ async function withController<ReturnValue>(
     });
   } finally {
     controller.stop();
-    controller.stopAllPolling();
   }
 }

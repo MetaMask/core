@@ -218,16 +218,6 @@ export class CurrencyRateController extends StaticIntervalPollingController<
   }
 
   /**
-   * Prepare to discard this controller.
-   *
-   * This stops any active polling.
-   */
-  override destroy() {
-    super.destroy();
-    this.stopAllPolling();
-  }
-
-  /**
    * Updates exchange rate for the current currency.
    *
    * @param networkClientId - The network client ID used to get a ticker value.
