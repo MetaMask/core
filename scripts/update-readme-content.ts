@@ -52,6 +52,7 @@ async function retrieveWorkspaces(): Promise<Workspace[]> {
     'workspaces',
     'list',
     '--json',
+    '--no-private',
     '--verbose',
   ]);
 
