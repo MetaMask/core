@@ -155,6 +155,17 @@ export class QueuedRequestController extends BaseController<
     );
   }
 
+  async #flushQueueForOrigin(flushOrigin: string) {
+    this.#requestQueue
+      .filter(({ origin }) => origin === flushOrigin)
+      .forEach(({ processRequest }) => {
+        processRequest(new Error('The request has been rejected due to a change in selected network. Please verify the selected network retry the request.'));
+      });
+    this.#requestQueue = this.#requestQueue.filter(
+      ({ origin }) => origin !== flushOrigin,
+    );
+  }
+
   /**
    * Process the next batch of requests.
    *
@@ -262,6 +273,7 @@ export class QueuedRequestController extends BaseController<
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin
       ) {
+        console.log('queuing request!');
         const {
           promise: waitForDequeue,
           reject,
@@ -282,15 +294,19 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (request.method !== 'eth_requestAccounts') {
+      } else if (request.method === 'eth_requestAccounts') {
         // Process request immediately
         // Requires switching network now if necessary
         // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
         await this.#switchNetworkIfNecessary();
       }
+      console.log('processing request count:', this.#processingRequestCount);
       this.#processingRequestCount += 1;
       try {
         await requestNext();
+        if (request.method === 'wallet_switchEthereumChain') {
+          this.#flushQueueForOrigin(request.origin);
+        }
       } finally {
         this.#processingRequestCount -= 1;
       }
