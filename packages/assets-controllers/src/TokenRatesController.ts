@@ -247,7 +247,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       ) {
         this.update({ contractExchangeRates: {} });
         this.configure({ chainId, nativeCurrency: ticker });
-        await this.updateExchangeRates();
       }
     });
   }
