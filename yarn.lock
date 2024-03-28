@@ -1843,6 +1843,7 @@ __metadata:
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^27.5.1
+    just-compare: ^2.3.0
     sinon: ^9.2.4
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
@@ -8833,6 +8834,13 @@ __metadata:
   version: 1.4.1
   resolution: "jsonschema@npm:1.4.1"
   checksum: 1ef02a6cd9bc32241ec86bbf1300bdbc3b5f2d8df6eb795517cf7d1cd9909e7beba1e54fdf73990fd66be98a182bda9add9607296b0cb00b1348212988e424b2
+  languageName: node
+  linkType: hard
+
+"just-compare@npm:^2.3.0":
+  version: 2.3.0
+  resolution: "just-compare@npm:2.3.0"
+  checksum: 4fbad740d2697c357b203b6f5ddcce0d9b0d38abb25bb92fbb101687c86b6cf33678332469ebf6282c4f717f20baed41b33b49f2643d07dd64e4bf7a95306464
   languageName: node
   linkType: hard
 

@@ -1,3 +1,5 @@
+import compare from 'just-compare';
+
 import { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
 export type ActionHandler<
@@ -269,7 +271,7 @@ export class ControllerMessenger<
             const previousValue = this.#eventPayloadCache.get(handler);
             const newValue = selector(...payload);
 
-            if (newValue !== previousValue) {
+            if (!compare(newValue, previousValue)) {
               this.#eventPayloadCache.set(handler, newValue);
               handler(newValue, previousValue);
             }

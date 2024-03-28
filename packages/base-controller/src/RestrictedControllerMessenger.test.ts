@@ -490,7 +490,7 @@ describe('RestrictedControllerMessenger', () => {
       expect(handler.callCount).toBe(1);
     });
 
-    it('should not publish event if selected payload is the same', () => {
+    it('should not publish event if selected payload is strictly equal to initial', () => {
       const state = {
         propA: 1,
         propB: 1,
@@ -513,11 +513,47 @@ describe('RestrictedControllerMessenger', () => {
         getPayload: () => [state],
       });
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.propA);
       restrictedControllerMessenger.subscribe(
         'MessageController:complexMessage',
         handler,
-        selector,
+        (obj) => obj.propA,
+      );
+
+      restrictedControllerMessenger.publish(
+        'MessageController:complexMessage',
+        state,
+      );
+
+      expect(handler.callCount).toBe(0);
+    });
+
+    it('should not publish event if selected payload is deeply equal to initial', () => {
+      const state = {
+        propA: 1,
+        propB: 1,
+      };
+      type MessageEvent = {
+        type: 'MessageController:complexMessage';
+        payload: [typeof state];
+      };
+      const controllerMessenger = new ControllerMessenger<
+        never,
+        MessageEvent
+      >();
+      const restrictedControllerMessenger = controllerMessenger.getRestricted({
+        name: 'MessageController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      restrictedControllerMessenger.registerInitialEventPayload({
+        eventType: 'MessageController:complexMessage',
+        getPayload: () => [state],
+      });
+      const handler = sinon.stub();
+      restrictedControllerMessenger.subscribe(
+        'MessageController:complexMessage',
+        handler,
+        (obj) => [obj.propA, obj.propB],
       );
 
       restrictedControllerMessenger.publish(
@@ -713,7 +749,7 @@ describe('RestrictedControllerMessenger', () => {
       expect(handler.callCount).toBe(1);
     });
 
-    it('should not publish event with selector if selector return value is unchanged', () => {
+    it('should not publish event with selector if selector return value is strictly equal to previous', () => {
       type MessageEvent = {
         type: 'MessageController:complexMessage';
         payload: [Record<string, unknown>];
@@ -729,11 +765,10 @@ describe('RestrictedControllerMessenger', () => {
       });
 
       const handler = sinon.stub();
-      const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
       restrictedControllerMessenger.subscribe(
         'MessageController:complexMessage',
         handler,
-        selector,
+        (obj) => obj.prop1,
       );
       restrictedControllerMessenger.publish(
         'MessageController:complexMessage',
@@ -751,6 +786,48 @@ describe('RestrictedControllerMessenger', () => {
       );
 
       expect(handler.calledWithExactly('a', undefined)).toBe(true);
+      expect(handler.callCount).toBe(1);
+    });
+
+    it('should not publish event with selector if selector return value is deeply equal to previous', () => {
+      type MessageEvent = {
+        type: 'MessageController:complexMessage';
+        payload: [Record<string, unknown>];
+      };
+      const controllerMessenger = new ControllerMessenger<
+        never,
+        MessageEvent
+      >();
+      const restrictedControllerMessenger = controllerMessenger.getRestricted({
+        name: 'MessageController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+
+      const handler = sinon.stub();
+      restrictedControllerMessenger.subscribe(
+        'MessageController:complexMessage',
+        handler,
+        (obj) => [obj.prop1, obj.prop2],
+      );
+      restrictedControllerMessenger.publish(
+        'MessageController:complexMessage',
+        {
+          prop1: 'a',
+          prop2: 'b',
+          prop3: 'x',
+        },
+      );
+      restrictedControllerMessenger.publish(
+        'MessageController:complexMessage',
+        {
+          prop1: 'a',
+          prop2: 'b',
+          prop3: 'y',
+        },
+      );
+
+      expect(handler.calledWithExactly(['a', 'b'], undefined)).toBe(true);
       expect(handler.callCount).toBe(1);
     });
   });

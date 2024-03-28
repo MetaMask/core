@@ -284,7 +284,7 @@ describe('ControllerMessenger', () => {
       expect(handler.callCount).toBe(1);
     });
 
-    it('should not publish event if selected payload is the same', () => {
+    it('should not publish event if selected payload is strictly equal to initial', () => {
       const state = {
         propA: 1,
         propB: 1,
@@ -307,6 +307,34 @@ describe('ControllerMessenger', () => {
         handler,
         (obj) => obj.propA,
       );
+
+      controllerMessenger.publish('complexMessage', state);
+
+      expect(handler.callCount).toBe(0);
+    });
+
+    it('should not publish event if selected payload is deeply equal to initial', () => {
+      const state = {
+        propA: 1,
+        propB: 1,
+      };
+      type MessageEvent = {
+        type: 'complexMessage';
+        payload: [typeof state];
+      };
+      const controllerMessenger = new ControllerMessenger<
+        never,
+        MessageEvent
+      >();
+      controllerMessenger.registerInitialEventPayload({
+        eventType: 'complexMessage',
+        getPayload: () => [state],
+      });
+      const handler = sinon.stub();
+      controllerMessenger.subscribe('complexMessage', handler, (obj) => [
+        obj.propA,
+        obj.propB,
+      ]);
 
       controllerMessenger.publish('complexMessage', state);
 
@@ -342,7 +370,7 @@ describe('ControllerMessenger', () => {
       expect(handler.callCount).toBe(1);
     });
 
-    it('should publish event even when selected payload does not change', () => {
+    it('should publish event even when selected payload is unchanged', () => {
       const state = {
         propA: 1,
         propB: 1,
@@ -441,7 +469,7 @@ describe('ControllerMessenger', () => {
       expect(handler.callCount).toBe(1);
     });
 
-    it('should not publish event with selector if selector return value is unchanged', () => {
+    it('should not publish event with selector if selector return value is strictly equal to previous', () => {
       type MessageEvent = {
         type: 'complexMessage';
         payload: [Record<string, unknown>];
@@ -461,6 +489,36 @@ describe('ControllerMessenger', () => {
       controllerMessenger.publish('complexMessage', { prop1: 'a', prop3: 'c' });
 
       expect(handler.calledWithExactly('a', undefined)).toBe(true);
+      expect(handler.callCount).toBe(1);
+    });
+
+    it('should not publish event with selector if selector return value is deeply equal to previous', () => {
+      type MessageEvent = {
+        type: 'complexMessage';
+        payload: [Record<string, unknown>];
+      };
+      const controllerMessenger = new ControllerMessenger<
+        never,
+        MessageEvent
+      >();
+
+      const handler = sinon.stub();
+      controllerMessenger.subscribe('complexMessage', handler, (obj) => [
+        obj.prop1,
+        obj.prop2,
+      ]);
+      controllerMessenger.publish('complexMessage', {
+        prop1: 'a',
+        prop2: 'b',
+        prop3: 'x',
+      });
+      controllerMessenger.publish('complexMessage', {
+        prop1: 'a',
+        prop2: 'b',
+        prop3: 'y',
+      });
+
+      expect(handler.calledWithExactly(['a', 'b'], undefined)).toBe(true);
       expect(handler.callCount).toBe(1);
     });
   });
