@@ -1,10 +1,13 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import type {
+  ProviderProxy,
+  BlockTrackerProxy,
+} from '@metamask/network-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 
 import type {
   AllowedActions,
   AllowedEvents,
-  GetUseRequestQueue,
   SelectedNetworkControllerActions,
   SelectedNetworkControllerEvents,
   SelectedNetworkControllerState,
@@ -113,12 +116,15 @@ jest.mock('@metamask/swappable-obj-proxy');
 const setup = ({
   getSubjectNames = [],
   state,
-  getUseRequestQueue = () => false,
+  useRequestQueuePreference = false,
   domainProxyMap = new Map<Domain, NetworkProxy>(),
 }: {
   state?: SelectedNetworkControllerState;
   getSubjectNames?: string[];
-  getUseRequestQueue?: GetUseRequestQueue;
+  useRequestQueuePreference?: boolean;
+  onPreferencesStateChange?: (
+    listener: (preferencesState: { useRequestQueue: boolean }) => void,
+  ) => void;
   domainProxyMap?: Map<Domain, NetworkProxy>;
 } = {}) => {
   const mockProviderProxy = {
@@ -161,18 +167,35 @@ const setup = ({
       messenger,
       getSubjectNames,
     });
+
+  const preferencesStateChangeListeners: ((state: {
+    useRequestQueue: boolean;
+  }) => void)[] = [];
   const controller = new SelectedNetworkController({
     messenger: restrictedMessenger,
     state,
-    getUseRequestQueue,
+    useRequestQueuePreference,
+    onPreferencesStateChange: (listener) => {
+      preferencesStateChangeListeners.push(listener);
+    },
     domainProxyMap,
   });
+
+  const triggerPreferencesStateChange = (preferencesState: {
+    useRequestQueue: boolean;
+  }) => {
+    for (const listener of preferencesStateChangeListeners) {
+      listener(preferencesState);
+    }
+  };
+
   return {
     controller,
     messenger,
     mockProviderProxy,
     mockBlockTrackerProxy,
     domainProxyMap,
+    triggerPreferencesStateChange,
     createEventEmitterProxyMock,
     ...mockMessengerActions,
   };
@@ -279,7 +302,7 @@ describe('SelectedNetworkController', () => {
         it('sets the networkClientId for the passed in domain', () => {
           const { controller, mockHasPermissions } = setup({
             state: { domains: {} },
-            getUseRequestQueue: () => true,
+            useRequestQueuePreference: true,
           });
           mockHasPermissions.mockReturnValue(true);
           const domain = 'example.com';
@@ -291,7 +314,7 @@ describe('SelectedNetworkController', () => {
         it('updates the provider and block tracker proxy when they already exist for the domain', () => {
           const { controller, mockProviderProxy, mockHasPermissions } = setup({
             state: { domains: {} },
-            getUseRequestQueue: () => true,
+            useRequestQueuePreference: true,
           });
           mockHasPermissions.mockReturnValue(true);
           const initialNetworkClientId = '123';
@@ -366,7 +389,7 @@ describe('SelectedNetworkController', () => {
       it('returns the networkClientId for the passed in domain, when a networkClientId has been set for the requested domain', () => {
         const { controller } = setup({
           state: { domains: {} },
-          getUseRequestQueue: () => true,
+          useRequestQueuePreference: true,
         });
 
         const networkClientId1 = 'network5';
@@ -382,7 +405,7 @@ describe('SelectedNetworkController', () => {
       it('returns the selectedNetworkClientId from the NetworkController when no networkClientId has been set for the domain requested', () => {
         const { controller } = setup({
           state: { domains: {} },
-          getUseRequestQueue: () => true,
+          useRequestQueuePreference: true,
         });
         expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
           'mainnet',
@@ -400,7 +423,7 @@ describe('SelectedNetworkController', () => {
               'example.com': 'mainnet',
             },
           },
-          getUseRequestQueue: () => true,
+          useRequestQueuePreference: true,
         });
         const result = controller.getProviderAndBlockTracker('example.com');
         expect(result).toBeDefined();
@@ -413,7 +436,7 @@ describe('SelectedNetworkController', () => {
               'example.com': 'mainnet',
             },
           },
-          getUseRequestQueue: () => true,
+          useRequestQueuePreference: true,
         });
         mockGetNetworkClientById.mockImplementation(() => {
           throw new Error('No network client was found with the ID');
@@ -431,7 +454,7 @@ describe('SelectedNetworkController', () => {
           state: {
             domains: {},
           },
-          getUseRequestQueue: () => true,
+          useRequestQueuePreference: true,
         });
         const result = controller.getProviderAndBlockTracker('test.com');
         expect(result).toBeDefined();
@@ -442,7 +465,7 @@ describe('SelectedNetworkController', () => {
           state: {
             domains: {},
           },
-          getUseRequestQueue: () => true,
+          useRequestQueuePreference: false,
         });
         mockGetSelectedNetworkClient.mockReturnValue(undefined);
         expect(() => controller.getProviderAndBlockTracker('test.com')).toThrow(
@@ -457,7 +480,7 @@ describe('SelectedNetworkController', () => {
           state: {
             domains: {},
           },
-          getUseRequestQueue: () => true,
+          useRequestQueuePreference: true,
         });
         controller.setNetworkClientIdForDomain('example.com', 'network7');
         const result = controller.getProviderAndBlockTracker('example.com');
@@ -565,6 +588,7 @@ describe('SelectedNetworkController', () => {
       });
     });
   });
+
   describe('Constructor checks for domains in permissions', () => {
     it('should set networkClientId for domains not already in state', async () => {
       const getSubjectNamesMock = ['newdomain.com'];
@@ -591,6 +615,160 @@ describe('SelectedNetworkController', () => {
       expect(controller.state.domains['existingdomain.com']).toBe(
         'initialNetworkId',
       );
+    });
+  });
+
+  // because of the opacity of the networkClient and proxy implementations,
+  // its impossible to make valuable assertions around which networkClient proxies
+  // should be targeted when the useRequestQueue state is toggled on and off:
+  // When toggled on, the networkClient for the globally selected networkClientId should be used - **not** the NetworkController's proxy of this networkClient.
+  // When toggled off, the NetworkControllers proxy of the globally selected networkClient should be used
+  // TODO - improve these tests by using a full NetworkController and doing more robust behavioral testing
+  describe('On useRequestQueue toggle state change', () => {
+    const mockProxyProvider = {
+      setTarget: jest.fn(),
+    } as unknown as ProviderProxy;
+    const mockProxyBlockTracker = {
+      setTarget: jest.fn(),
+    } as unknown as BlockTrackerProxy;
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+    describe('when toggled from off to on', () => {
+      describe('when domains have permissions', () => {
+        it('loops through domains in the domainsProxyMap and sets the target of the existing proxies to an independent networkClient for the globally selected networkClientId', () => {
+          const domainProxyMap = new Map<Domain, NetworkProxy>([
+            [
+              'example.com',
+              {
+                provider: mockProxyProvider,
+                blockTracker: mockProxyBlockTracker,
+              },
+            ],
+            [
+              'test.com',
+              {
+                provider: mockProxyProvider,
+                blockTracker: mockProxyBlockTracker,
+              },
+            ],
+          ]);
+
+          const {
+            mockHasPermissions,
+            triggerPreferencesStateChange,
+            messenger,
+          } = setup({
+            state: {
+              domains: {
+                'example.com': 'foo',
+                'test.com': 'bar',
+              },
+            },
+            useRequestQueuePreference: false,
+            domainProxyMap,
+          });
+          jest.spyOn(messenger, 'call');
+
+          mockHasPermissions.mockReturnValue(true);
+
+          triggerPreferencesStateChange({ useRequestQueue: true });
+
+          // this is a very imperfect way to test this, but networkClients and proxies are opaque
+          // when the proxy is set with the networkClient fetched via NetworkController:getNetworkClientById
+          // it **is not** tied to the NetworkController's own proxy of the networkClient
+          expect(messenger.call).toHaveBeenCalledWith(
+            'NetworkController:getNetworkClientById',
+            'mainnet',
+          );
+          expect(mockProxyProvider.setTarget).toHaveBeenCalledTimes(2);
+          expect(mockProxyBlockTracker.setTarget).toHaveBeenCalledTimes(2);
+        });
+      });
+      describe('when domains do not have permissions', () => {
+        it('does not set the target of the existing proxy to the networkClient for the globally selectedNetworkClientId', () => {
+          const domainProxyMap = new Map<Domain, NetworkProxy>([
+            [
+              'example.com',
+              {
+                provider: mockProxyProvider,
+                blockTracker: mockProxyBlockTracker,
+              },
+            ],
+            [
+              'test.com',
+              {
+                provider: mockProxyProvider,
+                blockTracker: mockProxyBlockTracker,
+              },
+            ],
+          ]);
+          const { mockHasPermissions, triggerPreferencesStateChange } = setup({
+            state: {
+              domains: {
+                'example.com': 'foo',
+                'test.com': 'bar',
+              },
+            },
+            useRequestQueuePreference: false,
+            domainProxyMap,
+          });
+
+          mockHasPermissions.mockReturnValue(false);
+
+          triggerPreferencesStateChange({ useRequestQueue: true });
+
+          expect(mockProxyProvider.setTarget).toHaveBeenCalledTimes(0);
+          expect(mockProxyBlockTracker.setTarget).toHaveBeenCalledTimes(0);
+        });
+      });
+    });
+    describe('when toggled from on to off', () => {
+      it('loops through domains in the domainsProxyMap and sets the target of the existing proxies to the (itself proxied) networkClient for the globally selectedNetworkClient', () => {
+        const domainProxyMap = new Map<Domain, NetworkProxy>([
+          [
+            'example.com',
+            {
+              provider: mockProxyProvider,
+              blockTracker: mockProxyBlockTracker,
+            },
+          ],
+          [
+            'test.com',
+            {
+              provider: mockProxyProvider,
+              blockTracker: mockProxyBlockTracker,
+            },
+          ],
+        ]);
+
+        const { mockHasPermissions, triggerPreferencesStateChange, messenger } =
+          setup({
+            state: {
+              domains: {
+                'example.com': 'foo',
+                'test.com': 'bar',
+              },
+            },
+            useRequestQueuePreference: true,
+            domainProxyMap,
+          });
+        jest.spyOn(messenger, 'call');
+
+        mockHasPermissions.mockReturnValue(true);
+
+        triggerPreferencesStateChange({ useRequestQueue: false });
+
+        // this is a very imperfect way to test this, but networkClients and proxies are opaque
+        // when the proxy is set with the networkClient fetched via NetworkController:getSelectedNetworkClient
+        // it **is** tied to the NetworkController's own proxy of the networkClient
+        expect(messenger.call).toHaveBeenCalledWith(
+          'NetworkController:getSelectedNetworkClient',
+        );
+        expect(mockProxyProvider.setTarget).toHaveBeenCalledTimes(2);
+        expect(mockProxyBlockTracker.setTarget).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });
