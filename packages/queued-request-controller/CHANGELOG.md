@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<<<<<<< HEAD
 ### Fixed
 
 - `QueuedRequestMiddleware` now enqueues the following methods that can trigger confirmations: ([#4066](https://github.com/MetaMask/core/pull/4066))
@@ -35,8 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `eth_signTypedData_v4`
   - `personal_sign`
 
-||||||| 7da8ef70
-=======
 ## [0.7.0]
 
 ### Changed
@@ -44,7 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump peer dependency `@metamask/selected-network-controller` to `^11.0.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
 - Bump `@metamask/controller-utils` to `^9.0.2` ([#4065](https://github.com/MetaMask/core/pull/4065))
 
->>>>>>> main
 ## [0.6.1]
 
 ### Fixed
