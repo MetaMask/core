@@ -66,7 +66,7 @@ const SUPPORTED_EVENTS = [
   'Withdrawal',
 ];
 
-const SUPPORTED_TOKENS = {
+const SUPPORTED_TOKEN_ABIS = {
   [SupportedToken.ERC20]: {
     abi: abiERC20,
     standard: SimulationTokenStandard.erc20,
@@ -126,10 +126,6 @@ export async function getSimulationData(
 
     const transactionError = response.transactions?.[0]?.error;
 
-    if (REVERTED_ERRORS.some((error) => transactionError?.includes(error))) {
-      throw new SimulationRevertedError();
-    }
-
     if (transactionError) {
       throw new SimulationError(transactionError);
     }
@@ -148,13 +144,23 @@ export async function getSimulationData(
   } catch (error) {
     log('Failed to get simulation data', error, request);
 
-    const rawError = error as { code?: number; message?: string };
+    let simulationError = error as SimulationError;
+
+    if (
+      REVERTED_ERRORS.some((revertErrorMessage) =>
+        simulationError.message?.includes(revertErrorMessage),
+      )
+    ) {
+      simulationError = new SimulationRevertedError();
+    }
+
+    const { code, message } = simulationError;
 
     return {
       tokenBalanceChanges: [],
       error: {
-        code: rawError.code,
-        message: rawError.message,
+        code,
+        message,
       },
     };
   }
@@ -490,7 +496,7 @@ function parseLog(
   for (const token of supportedTokens) {
     try {
       const contractInterface = interfaces.get(token) as Interface;
-      const { abi, standard } = SUPPORTED_TOKENS[token];
+      const { abi, standard } = SUPPORTED_TOKEN_ABIS[token];
 
       return {
         ...contractInterface.parseLog(eventLog),
@@ -568,10 +574,11 @@ function normalizeReturnValue(value: Hex): Hex {
 function getContractInterfaces(): Map<SupportedToken, Interface> {
   const supportedTokens = Object.values(SupportedToken);
 
-  return supportedTokens.reduce((acc, key) => {
-    const { abi } = SUPPORTED_TOKENS[key];
-    const contractInterface = new Interface(abi);
-    acc.set(key, contractInterface);
-    return acc;
-  }, new Map<SupportedToken, Interface>());
+  return new Map(
+    supportedTokens.map((tokenType) => {
+      const { abi } = SUPPORTED_TOKEN_ABIS[tokenType];
+      const contractInterface = new Interface(abi);
+      return [tokenType, contractInterface];
+    }),
+  );
 }

@@ -701,7 +701,7 @@ describe('Simulation Utils', () => {
         });
       });
 
-      it('if response has reverted transaction', async () => {
+      it('if API response has transaction revert error', async () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
@@ -722,7 +722,7 @@ describe('Simulation Utils', () => {
         });
       });
 
-      it('if response has transaction error', async () => {
+      it('if API response has transaction error', async () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
@@ -738,6 +738,23 @@ describe('Simulation Utils', () => {
           error: {
             code: undefined,
             message: 'test 1 2 3',
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('if API response has insufficient gas error', async () => {
+        simulateTransactionsMock.mockRejectedValueOnce({
+          code: ERROR_CODE_MOCK,
+          message: 'test insufficient funds for gas test',
+        });
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
+            code: SimulationErrorCode.Reverted,
+            message: new SimulationRevertedError().message,
           },
           tokenBalanceChanges: [],
         });
