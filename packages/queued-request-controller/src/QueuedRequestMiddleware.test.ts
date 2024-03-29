@@ -1,42 +1,13 @@
 import { errorCodes } from '@metamask/rpc-errors';
 import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { methodsWithConfirmation } from './constants';
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { createQueuedRequestMiddleware } from './QueuedRequestMiddleware';
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
-const getRequestDefaults = (): QueuedRequestMiddlewareJsonRpcRequest => {
-  return {
-    method: 'doesnt matter',
-    id: 'doesnt matter',
-    jsonrpc: '2.0' as const,
-    origin: 'example.com',
-    networkClientId: 'mainnet',
-  };
-};
-
-const getPendingResponseDefault = (): PendingJsonRpcResponse<Json> => {
-  return {
-    id: 'doesnt matter',
-    jsonrpc: '2.0' as const,
-  };
-};
-
-const getMockEnqueueRequest = () =>
-  jest
-    .fn<
-      ReturnType<QueuedRequestControllerEnqueueRequestAction['handler']>,
-      Parameters<QueuedRequestControllerEnqueueRequestAction['handler']>
-    >()
-    .mockImplementation((_request, requestNext) => requestNext());
-
 describe('createQueuedRequestMiddleware', () => {
   it('throws if not provided an origin', async () => {
-    const middleware = createQueuedRequestMiddleware({
-      enqueueRequest: getMockEnqueueRequest(),
-      useRequestQueue: () => false,
-    });
+    const middleware = buildQueuedRequestMiddleware();
     const request = getRequestDefaults();
     // @ts-expect-error Intentionally invalid request
     delete request.origin;
@@ -50,10 +21,7 @@ describe('createQueuedRequestMiddleware', () => {
   });
 
   it('throws if provided an invalid origin', async () => {
-    const middleware = createQueuedRequestMiddleware({
-      enqueueRequest: getMockEnqueueRequest(),
-      useRequestQueue: () => false,
-    });
+    const middleware = buildQueuedRequestMiddleware();
     const request = getRequestDefaults();
     // @ts-expect-error Intentionally invalid request
     request.origin = 1;
@@ -67,10 +35,7 @@ describe('createQueuedRequestMiddleware', () => {
   });
 
   it('throws if not provided an networkClientId', async () => {
-    const middleware = createQueuedRequestMiddleware({
-      enqueueRequest: getMockEnqueueRequest(),
-      useRequestQueue: () => false,
-    });
+    const middleware = buildQueuedRequestMiddleware();
     const request = getRequestDefaults();
     // @ts-expect-error Intentionally invalid request
     delete request.networkClientId;
@@ -84,10 +49,7 @@ describe('createQueuedRequestMiddleware', () => {
   });
 
   it('throws if provided an invalid networkClientId', async () => {
-    const middleware = createQueuedRequestMiddleware({
-      enqueueRequest: getMockEnqueueRequest(),
-      useRequestQueue: () => false,
-    });
+    const middleware = buildQueuedRequestMiddleware();
     const request = getRequestDefaults();
     // @ts-expect-error Intentionally invalid request
     request.networkClientId = 1;
@@ -104,9 +66,8 @@ describe('createQueuedRequestMiddleware', () => {
 
   it('does not enqueue the request when useRequestQueue is false', async () => {
     const mockEnqueueRequest = getMockEnqueueRequest();
-    const middleware = createQueuedRequestMiddleware({
+    const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: mockEnqueueRequest,
-      useRequestQueue: () => false,
     });
 
     await new Promise((resolve, reject) =>
@@ -123,7 +84,7 @@ describe('createQueuedRequestMiddleware', () => {
 
   it('does not enqueue request that has no confirmation', async () => {
     const mockEnqueueRequest = getMockEnqueueRequest();
-    const middleware = createQueuedRequestMiddleware({
+    const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: mockEnqueueRequest,
       useRequestQueue: () => true,
     });
@@ -140,36 +101,31 @@ describe('createQueuedRequestMiddleware', () => {
     expect(mockEnqueueRequest).not.toHaveBeenCalled();
   });
 
-  it.each(methodsWithConfirmation)(
-    'enqueues the `%s` request that has a confirmation',
-    async (method) => {
-      const mockEnqueueRequest = getMockEnqueueRequest();
-      const middleware = createQueuedRequestMiddleware({
-        enqueueRequest: mockEnqueueRequest,
-        useRequestQueue: () => true,
-      });
-      const request = {
-        ...getRequestDefaults(),
-        origin: 'exampleorigin.com',
-        method,
-      };
+  it('enqueues the request if the method is in the methodsWithConfirmation param', async () => {
+    const mockEnqueueRequest = getMockEnqueueRequest();
+    const middleware = buildQueuedRequestMiddleware({
+      enqueueRequest: mockEnqueueRequest,
+      useRequestQueue: () => true,
+      methodsWithConfirmation: ['method_with_confirmation'],
+    });
+    const request = {
+      ...getRequestDefaults(),
+      origin: 'exampleorigin.com',
+      method: 'method_with_confirmation',
+    };
 
-      await new Promise((resolve, reject) =>
-        middleware(request, getPendingResponseDefault(), resolve, reject),
-      );
+    await new Promise((resolve, reject) =>
+      middleware(request, getPendingResponseDefault(), resolve, reject),
+    );
 
-      expect(mockEnqueueRequest).toHaveBeenCalledWith(
-        request,
-        expect.any(Function),
-      );
-    },
-  );
+    expect(mockEnqueueRequest).toHaveBeenCalledWith(
+      request,
+      expect.any(Function),
+    );
+  });
 
   it('calls next when a request is not queued', async () => {
-    const middleware = createQueuedRequestMiddleware({
-      enqueueRequest: getMockEnqueueRequest(),
-      useRequestQueue: () => false,
-    });
+    const middleware = buildQueuedRequestMiddleware();
     const mockNext = jest.fn();
 
     await new Promise((resolve) => {
@@ -186,7 +142,7 @@ describe('createQueuedRequestMiddleware', () => {
   });
 
   it('calls next after a request is queued and processed', async () => {
-    const middleware = createQueuedRequestMiddleware({
+    const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: getMockEnqueueRequest(),
       useRequestQueue: () => true,
     });
@@ -206,15 +162,16 @@ describe('createQueuedRequestMiddleware', () => {
 
   describe('when enqueueRequest throws', () => {
     it('ends without calling next', async () => {
-      const middleware = createQueuedRequestMiddleware({
+      const middleware = buildQueuedRequestMiddleware({
         enqueueRequest: jest
           .fn()
           .mockRejectedValue(new Error('enqueuing error')),
         useRequestQueue: () => true,
+        methodsWithConfirmation: ['method_should_be_enqueued'],
       });
       const request = {
         ...getRequestDefaults(),
-        method: 'eth_sendTransaction',
+        method: 'method_should_be_enqueued',
       };
       const mockNext = jest.fn();
       const mockEnd = jest.fn();
@@ -229,15 +186,16 @@ describe('createQueuedRequestMiddleware', () => {
     });
 
     it('serializes processing errors and attaches them to the response', async () => {
-      const middleware = createQueuedRequestMiddleware({
+      const middleware = buildQueuedRequestMiddleware({
         enqueueRequest: jest
           .fn()
           .mockRejectedValue(new Error('enqueuing error')),
         useRequestQueue: () => true,
+        methodsWithConfirmation: ['method_should_be_enqueued'],
       });
       const request = {
         ...getRequestDefaults(),
-        method: 'eth_sendTransaction',
+        method: 'method_should_be_enqueued',
       };
       const response = getPendingResponseDefault();
 
@@ -257,3 +215,65 @@ describe('createQueuedRequestMiddleware', () => {
     });
   });
 });
+
+/**
+ * Build a valid JSON-RPC request that includes all required properties
+ *
+ * @returns A valid JSON-RPC request with all required properties.
+ */
+function getRequestDefaults(): QueuedRequestMiddlewareJsonRpcRequest {
+  return {
+    method: 'doesnt matter',
+    id: 'doesnt matter',
+    jsonrpc: '2.0' as const,
+    origin: 'example.com',
+    networkClientId: 'mainnet',
+  };
+}
+
+/**
+ * Build a partial JSON-RPC response
+ *
+ * @returns A partial response request
+ */
+function getPendingResponseDefault(): PendingJsonRpcResponse<Json> {
+  return {
+    id: 'doesnt matter',
+    jsonrpc: '2.0' as const,
+  };
+}
+
+/**
+ * Builds a mock QueuedRequestController.enqueueRequest function
+ *
+ * @returns A mock function that calls the next request in the middleware chain
+ */
+function getMockEnqueueRequest() {
+  return jest
+    .fn<
+      ReturnType<QueuedRequestControllerEnqueueRequestAction['handler']>,
+      Parameters<QueuedRequestControllerEnqueueRequestAction['handler']>
+    >()
+    .mockImplementation((_request, requestNext) => requestNext());
+}
+
+/**
+ * Builds the QueuedRequestMiddleware
+ *
+ * @param overrideOptions - The optional options object.
+ * @returns The QueuedRequestMiddleware.
+ */
+function buildQueuedRequestMiddleware(
+  overrideOptions?: Partial<
+    Parameters<typeof createQueuedRequestMiddleware>[0]
+  >,
+) {
+  const options = {
+    enqueueRequest: getMockEnqueueRequest(),
+    useRequestQueue: () => false,
+    methodsWithConfirmation: [],
+    ...overrideOptions,
+  };
+
+  return createQueuedRequestMiddleware(options);
+}
