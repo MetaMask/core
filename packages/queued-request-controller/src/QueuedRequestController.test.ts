@@ -8,7 +8,6 @@ import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from 
 import { createDeferredPromise } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { methodsRequiringNetworkSwitch } from './constants';
 import type {
   AllowedActions,
   QueuedRequestControllerActions,
@@ -26,6 +25,7 @@ describe('QueuedRequestController', () => {
   it('can be instantiated with default values', () => {
     const options: QueuedRequestControllerOptions = {
       messenger: buildQueuedRequestControllerMessenger(),
+      methodsRequiringNetworkSwitch: [],
     };
 
     const controller = new QueuedRequestController(options);
@@ -34,10 +34,7 @@ describe('QueuedRequestController', () => {
 
   describe('enqueueRequest', () => {
     it('skips the queue if the queue is empty and no request is being processed', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
 
       await controller.enqueueRequest(buildRequest(), async () => {
         expect(controller.state.queuedRequestCount).toBe(0);
@@ -46,10 +43,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('skips the queue if the queue is empty and the request being processed has the same origin', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
       // Trigger first request
       const firstRequest = controller.enqueueRequest(
         buildRequest(),
@@ -66,7 +60,7 @@ describe('QueuedRequestController', () => {
       await firstRequest;
     });
 
-    it('switches network if a request comes in for a different network client', async () => {
+    it('switches network if a request comes in for a different network client and the method is in the methodsRequiringNetworkSwitch param', async () => {
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
@@ -83,13 +77,13 @@ describe('QueuedRequestController', () => {
         'QueuedRequestController:networkSwitched',
         onNetworkSwitched,
       );
-      const options: QueuedRequestControllerOptions = {
+      const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
-      };
-      const controller = new QueuedRequestController(options);
+        methodsRequiringNetworkSwitch: ['method_requiring_network_switch'],
+      });
 
       await controller.enqueueRequest(
-        buildRequest(),
+        { ...buildRequest(), method: 'method_requiring_network_switch' },
         () => new Promise((resolve) => setTimeout(resolve, 10)),
       );
 
@@ -101,39 +95,36 @@ describe('QueuedRequestController', () => {
       );
     });
 
-    it.each(methodsRequiringNetworkSwitch)(
-      'does not switch networks if the method is `%s`',
-      async (method) => {
-        const mockSetActiveNetwork = jest.fn();
-        const { messenger } = buildControllerMessenger({
-          networkControllerGetState: jest.fn().mockReturnValue({
-            ...cloneDeep(defaultNetworkState),
-            selectedNetworkClientId: 'selectedNetworkClientId',
-          }),
-          networkControllerSetActiveNetwork: mockSetActiveNetwork,
-          selectedNetworkControllerGetNetworkClientIdForDomain: jest
-            .fn()
-            .mockImplementation((_origin) => 'differentNetworkClientId'),
-        });
-        const onNetworkSwitched = jest.fn();
-        messenger.subscribe(
-          'QueuedRequestController:networkSwitched',
-          onNetworkSwitched,
-        );
-        const options: QueuedRequestControllerOptions = {
-          messenger: buildQueuedRequestControllerMessenger(messenger),
-        };
-        const controller = new QueuedRequestController(options);
+    it('does not switch networks if the method is not in the methodsRequiringNetworkSwitch param', async () => {
+      const mockSetActiveNetwork = jest.fn();
+      const { messenger } = buildControllerMessenger({
+        networkControllerGetState: jest.fn().mockReturnValue({
+          ...cloneDeep(defaultNetworkState),
+          selectedNetworkClientId: 'selectedNetworkClientId',
+        }),
+        networkControllerSetActiveNetwork: mockSetActiveNetwork,
+        selectedNetworkControllerGetNetworkClientIdForDomain: jest
+          .fn()
+          .mockImplementation((_origin) => 'differentNetworkClientId'),
+      });
+      const onNetworkSwitched = jest.fn();
+      messenger.subscribe(
+        'QueuedRequestController:networkSwitched',
+        onNetworkSwitched,
+      );
+      const controller = buildQueuedRequestController({
+        messenger: buildQueuedRequestControllerMessenger(messenger),
+        methodsRequiringNetworkSwitch: [],
+      });
 
-        await controller.enqueueRequest(
-          { ...buildRequest(), method },
-          () => new Promise((resolve) => setTimeout(resolve, 10)),
-        );
+      await controller.enqueueRequest(
+        { ...buildRequest(), method: 'not_in_methodsRequiringNetworkSwitch' },
+        () => new Promise((resolve) => setTimeout(resolve, 10)),
+      );
 
-        expect(mockSetActiveNetwork).not.toHaveBeenCalled();
-        expect(onNetworkSwitched).not.toHaveBeenCalled();
-      },
-    );
+      expect(mockSetActiveNetwork).not.toHaveBeenCalled();
+      expect(onNetworkSwitched).not.toHaveBeenCalled();
+    });
 
     it('does not switch networks if a request comes in for the same network client', async () => {
       const mockSetActiveNetwork = jest.fn();
@@ -152,10 +143,9 @@ describe('QueuedRequestController', () => {
         'QueuedRequestController:networkSwitched',
         onNetworkSwitched,
       );
-      const options: QueuedRequestControllerOptions = {
+      const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
-      };
-      const controller = new QueuedRequestController(options);
+      });
 
       await controller.enqueueRequest(
         buildRequest(),
@@ -167,10 +157,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('queues request if a request from another origin is being processed', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
       // Trigger first request
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://exampleorigin1.metamask.io' },
@@ -193,10 +180,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('drains batch from queue when current batch finishes', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
       // Trigger first batch
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://firstbatch.metamask.io' },
@@ -240,10 +224,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('drains batch from queue when current batch finishes with requests out-of-order', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
       // Trigger first batch
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://firstbatch.metamask.io' },
@@ -287,10 +268,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('processes requests from each batch in parallel', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
         async () => {
@@ -346,10 +324,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('preserves request order within each batch', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
       const executionOrder: string[] = [];
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
@@ -402,10 +377,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('preserves request order even when interlaced with requests from other origins', async () => {
-      const options: QueuedRequestControllerOptions = {
-        messenger: buildQueuedRequestControllerMessenger(),
-      };
-      const controller = new QueuedRequestController(options);
+      const controller = buildQueuedRequestController();
       const executionOrder: string[] = [];
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
@@ -465,10 +437,9 @@ describe('QueuedRequestController', () => {
         'QueuedRequestController:networkSwitched',
         onNetworkSwitched,
       );
-      const options: QueuedRequestControllerOptions = {
+      const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
-      };
-      const controller = new QueuedRequestController(options);
+      });
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
         () => new Promise((resolve) => setTimeout(resolve, 10)),
@@ -517,10 +488,9 @@ describe('QueuedRequestController', () => {
         'QueuedRequestController:networkSwitched',
         onNetworkSwitched,
       );
-      const options: QueuedRequestControllerOptions = {
+      const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
-      };
-      const controller = new QueuedRequestController(options);
+      });
       const firstRequest = controller.enqueueRequest(
         { ...buildRequest(), origin: 'firstorigin.metamask.io' },
         () => new Promise((resolve) => setTimeout(resolve, 10)),
@@ -562,14 +532,18 @@ describe('QueuedRequestController', () => {
             .fn()
             .mockImplementation((_origin) => 'differentNetworkClientId'),
         });
-        const options: QueuedRequestControllerOptions = {
+        const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-        };
-        const controller = new QueuedRequestController(options);
+          methodsRequiringNetworkSwitch: ['method_requiring_network_switch'],
+        });
 
         await expect(() =>
           controller.enqueueRequest(
-            { ...buildRequest(), origin: 'https://example.metamask.io' },
+            {
+              ...buildRequest(),
+              method: 'method_requiring_network_switch',
+              origin: 'https://example.metamask.io',
+            },
             jest.fn(),
           ),
         ).rejects.toThrow(switchError);
@@ -593,12 +567,16 @@ describe('QueuedRequestController', () => {
                 : 'selectedNetworkClientId',
             ),
         });
-        const options: QueuedRequestControllerOptions = {
+        const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-        };
-        const controller = new QueuedRequestController(options);
+          methodsRequiringNetworkSwitch: ['method_requiring_network_switch'],
+        });
         const firstRequest = controller.enqueueRequest(
-          { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
+          {
+            ...buildRequest(),
+            method: 'method_requiring_network_switch',
+            origin: 'https://firstorigin.metamask.io',
+          },
           () => new Promise((resolve) => setTimeout(resolve, 10)),
         );
         // ensure first request skips queue
@@ -609,7 +587,11 @@ describe('QueuedRequestController', () => {
             () => new Promise((resolve) => setTimeout(resolve, 100)),
           );
         const secondRequest = controller.enqueueRequest(
-          { ...buildRequest(), origin: 'https://secondorigin.metamask.io' },
+          {
+            ...buildRequest(),
+            method: 'method_requiring_network_switch',
+            origin: 'https://secondorigin.metamask.io',
+          },
           secondRequestNext,
         );
 
@@ -639,12 +621,16 @@ describe('QueuedRequestController', () => {
                 : 'selectedNetworkClientId',
             ),
         });
-        const options: QueuedRequestControllerOptions = {
+        const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-        };
-        const controller = new QueuedRequestController(options);
+          methodsRequiringNetworkSwitch: ['method_requiring_network_switch'],
+        });
         const firstRequest = controller.enqueueRequest(
-          { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
+          {
+            ...buildRequest(),
+            method: 'method_requiring_network_switch',
+            origin: 'https://firstorigin.metamask.io',
+          },
           () => new Promise((resolve) => setTimeout(resolve, 10)),
         );
         // ensure first request skips queue
@@ -655,7 +641,11 @@ describe('QueuedRequestController', () => {
             () => new Promise((resolve) => setTimeout(resolve, 100)),
           );
         const secondRequest = controller.enqueueRequest(
-          { ...buildRequest(), origin: 'https://secondorigin.metamask.io' },
+          {
+            ...buildRequest(),
+            method: 'method_requiring_network_switch',
+            origin: 'https://secondorigin.metamask.io',
+          },
           secondRequestNext,
         );
         // ensure test starts with one request queued up
@@ -684,12 +674,16 @@ describe('QueuedRequestController', () => {
                 : 'selectedNetworkClientId',
             ),
         });
-        const options: QueuedRequestControllerOptions = {
+        const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-        };
-        const controller = new QueuedRequestController(options);
+          methodsRequiringNetworkSwitch: ['method_requiring_network_switch'],
+        });
         const firstRequest = controller.enqueueRequest(
-          { ...buildRequest(), origin: 'https://firstorigin.metamask.io' },
+          {
+            ...buildRequest(),
+            method: 'method_requiring_network_switch',
+            origin: 'https://firstorigin.metamask.io',
+          },
           () => new Promise((resolve) => setTimeout(resolve, 10)),
         );
         // ensure first request skips queue
@@ -700,7 +694,11 @@ describe('QueuedRequestController', () => {
             () => new Promise((resolve) => setTimeout(resolve, 100)),
           );
         const secondRequest = controller.enqueueRequest(
-          { ...buildRequest(), origin: 'https://secondorigin.metamask.io' },
+          {
+            ...buildRequest(),
+            method: 'method_requiring_network_switch',
+            origin: 'https://secondorigin.metamask.io',
+          },
           secondRequestNext,
         );
         const thirdRequestNext = jest
@@ -709,7 +707,11 @@ describe('QueuedRequestController', () => {
             () => new Promise((resolve) => setTimeout(resolve, 100)),
           );
         const thirdRequest = controller.enqueueRequest(
-          { ...buildRequest(), origin: 'https://thirdorigin.metamask.io' },
+          {
+            ...buildRequest(),
+            method: 'method_requiring_network_switch',
+            origin: 'https://thirdorigin.metamask.io',
+          },
           thirdRequestNext,
         );
         // ensure test starts with two requests queued up
@@ -726,11 +728,7 @@ describe('QueuedRequestController', () => {
 
     describe('when a request fails', () => {
       it('throws error', async () => {
-        const options: QueuedRequestControllerOptions = {
-          messenger: buildQueuedRequestControllerMessenger(),
-        };
-
-        const controller = new QueuedRequestController(options);
+        const controller = buildQueuedRequestController();
 
         // Mock a request that throws an error
         const requestWithError = jest.fn(() =>
@@ -748,10 +746,7 @@ describe('QueuedRequestController', () => {
       });
 
       it('correctly updates the request queue count upon failure', async () => {
-        const options: QueuedRequestControllerOptions = {
-          messenger: buildQueuedRequestControllerMessenger(),
-        };
-        const controller = new QueuedRequestController(options);
+        const controller = buildQueuedRequestController();
 
         await expect(() =>
           controller.enqueueRequest(
@@ -765,11 +760,7 @@ describe('QueuedRequestController', () => {
       });
 
       it('correctly processes the next item in the queue', async () => {
-        const options: QueuedRequestControllerOptions = {
-          messenger: buildQueuedRequestControllerMessenger(),
-        };
-
-        const controller = new QueuedRequestController(options);
+        const controller = buildQueuedRequestController();
 
         // Mock requests with one request throwing an error
         const request1 = jest.fn(async () => {
@@ -902,6 +893,24 @@ function buildQueuedRequestControllerMessenger(
     ],
     allowedEvents: [],
   });
+}
+
+/**
+ * Builds a QueuedRequestController
+ *
+ * @param overrideOptions - The optional options object.
+ * @returns The QueuedRequestController.
+ */
+function buildQueuedRequestController(
+  overrideOptions?: Partial<QueuedRequestControllerOptions>,
+): QueuedRequestController {
+  const options: QueuedRequestControllerOptions = {
+    messenger: buildQueuedRequestControllerMessenger(),
+    methodsRequiringNetworkSwitch: [],
+    ...overrideOptions,
+  };
+
+  return new QueuedRequestController(options);
 }
 
 /**
