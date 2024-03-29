@@ -4,6 +4,7 @@ import type {
   BlockTrackerProxy,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
   ProviderProxy,
@@ -24,7 +25,7 @@ const stateMetadata = {
 
 const getDefaultState = () => ({ domains: {} });
 
-type Domain = string;
+export type Domain = string;
 
 export const METAMASK_DOMAIN = 'metamask' as const;
 
@@ -71,6 +72,7 @@ export type SelectedNetworkControllerActions =
 
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetStateAction
   | PermissionControllerHasPermissions
   | PermissionControllerGetSubjectsAction;
@@ -96,6 +98,7 @@ export type SelectedNetworkControllerOptions = {
   state?: SelectedNetworkControllerState;
   messenger: SelectedNetworkControllerMessenger;
   getUseRequestQueue: GetUseRequestQueue;
+  domainProxyMap: Map<Domain, NetworkProxy>;
 };
 
 export type NetworkProxy = {
@@ -111,7 +114,7 @@ export class SelectedNetworkController extends BaseController<
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger
 > {
-  #proxies = new Map<Domain, NetworkProxy>();
+  #domainProxyMap: Map<Domain, NetworkProxy>;
 
   #getUseRequestQueue: GetUseRequestQueue;
 
@@ -122,11 +125,13 @@ export class SelectedNetworkController extends BaseController<
    * @param options.messenger - The restricted controller messenger for the EncryptionPublicKey controller.
    * @param options.state - The controllers initial state.
    * @param options.getUseRequestQueue - feature flag for perDappNetwork & request queueing features
+   * @param options.domainProxyMap - A map for storing domain-specific proxies that are held in memory only during use.
    */
   constructor({
     messenger,
     state = getDefaultState(),
     getUseRequestQueue,
+    domainProxyMap,
   }: SelectedNetworkControllerOptions) {
     super({
       name: controllerName,
@@ -135,6 +140,7 @@ export class SelectedNetworkController extends BaseController<
       state,
     });
     this.#getUseRequestQueue = getUseRequestQueue;
+    this.#domainProxyMap = domainProxyMap;
     this.#registerMessageHandlers();
 
     // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
@@ -167,9 +173,7 @@ export class SelectedNetworkController extends BaseController<
               op === 'remove' &&
               this.state.domains[domain] !== undefined
             ) {
-              this.update(({ domains }) => {
-                delete domains[domain];
-              });
+              this.#unsetNetworkClientIdForDomain(domain);
             }
           }
         });
@@ -218,21 +222,36 @@ export class SelectedNetworkController extends BaseController<
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-    const networkProxy = this.#proxies.get(domain);
-    if (networkProxy === undefined) {
-      this.#proxies.set(domain, {
-        provider: createEventEmitterProxy(networkClient.provider),
-        blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
-          eventFilter: 'skipInternal',
-        }),
-      });
-    } else {
-      networkProxy.provider.setTarget(networkClient.provider);
-      networkProxy.blockTracker.setTarget(networkClient.blockTracker);
-    }
+    const networkProxy = this.getProviderAndBlockTracker(domain);
+    networkProxy.provider.setTarget(networkClient.provider);
+    networkProxy.blockTracker.setTarget(networkClient.blockTracker);
 
     this.update((state) => {
       state.domains[domain] = networkClientId;
+    });
+  }
+
+  /**
+   * This method is used when a domain is removed from the PermissionsController.
+   * It will remove re-point the network proxy to the globally selected network in the domainProxyMap or, if no globally selected network client is available, delete the proxy.
+   *
+   * @param domain - The domain for which to unset the network client ID.
+   */
+  #unsetNetworkClientIdForDomain(domain: Domain) {
+    const globallySelectedNetworkClient = this.messagingSystem.call(
+      'NetworkController:getSelectedNetworkClient',
+    );
+    const networkProxy = this.#domainProxyMap.get(domain);
+    if (networkProxy && globallySelectedNetworkClient) {
+      networkProxy.provider.setTarget(globallySelectedNetworkClient.provider);
+      networkProxy.blockTracker.setTarget(
+        globallySelectedNetworkClient.blockTracker,
+      );
+    } else if (networkProxy) {
+      this.#domainProxyMap.delete(domain);
+    }
+    this.update((state) => {
+      delete state.domains[domain];
     });
   }
 
@@ -278,30 +297,30 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
-    if (!this.#getUseRequestQueue()) {
-      throw new Error(
-        'Provider and BlockTracker should be fetched from NetworkController when useRequestQueue is false',
-      );
-    }
     const networkClientId = this.state.domains[domain];
-    if (!networkClientId) {
-      throw new Error(
-        'NetworkClientId has not been set for the requested domain',
-      );
-    }
-    let networkProxy = this.#proxies.get(domain);
+    let networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
-      const networkClient = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
+      let networkClient;
+      if (networkClientId === undefined) {
+        networkClient = this.messagingSystem.call(
+          'NetworkController:getSelectedNetworkClient',
+        );
+        if (networkClient === undefined) {
+          throw new Error('Selected network not initialized');
+        }
+      } else {
+        networkClient = this.messagingSystem.call(
+          'NetworkController:getNetworkClientById',
+          networkClientId,
+        );
+      }
       networkProxy = {
         provider: createEventEmitterProxy(networkClient.provider),
         blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
           eventFilter: 'skipInternal',
         }),
       };
-      this.#proxies.set(domain, networkProxy);
+      this.#domainProxyMap.set(domain, networkProxy);
     }
 
     return networkProxy;
