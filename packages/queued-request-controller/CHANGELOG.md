@@ -7,32 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- `QueuedRequestMiddleware` now enqueues the following methods that can trigger confirmations: ([#4066](https://github.com/MetaMask/core/pull/4066))
-  - `eth_sendTransaction`
-  - `eth_sendRawTransaction`
-  - `wallet_switchEthereumChain`
-  - `wallet_addEthereumChain`
-  - `wallet_watchAsset`
-  - `eth_signTypedData_v4`
-  - `personal_sign`
-  - `wallet_requestPermissions`
-  - `wallet_requestSnaps`
-  - `wallet_snap`
-  - `wallet_invokeSnap`
-  - `eth_decrypt`
-  - `eth_sign`
-  - `eth_requestAccounts`
-  - `eth_getEncryptionPublicKey`
-- `QueuedRequestController.enqueueRequest()` now ensures the globally selected network matches the dapp selected network before processing the following methods: ([#4066](https://github.com/MetaMask/core/pull/4066))
-  - `eth_sendTransaction`
-  - `eth_sendRawTransaction`
-  - `wallet_switchEthereumChain`
-  - `wallet_addEthereumChain`
-  - `wallet_watchAsset`
-  - `eth_signTypedData_v4`
-  - `personal_sign`
+- **BREAKING**: The `QueuedRequestMiddleware` constructor now requires the `methodsWithConfirmation` param which should be a list of methods that can trigger confirmations ([#4066](https://github.com/MetaMask/core/pull/4066))
+- **BREAKING**: The `QueuedRequestController` constructor now requires the `methodsRequiringNetworkSwitch` param which should be a list of methods that need the globally selected network to switched to the dapp selected network before being processed ([#4066](https://github.com/MetaMask/core/pull/4066))
+
+### Changed
+
+- **BREAKING**: `QueuedRequestController.enqueueRequest()` now ensures the globally selected network matches the dapp selected network before processing methods listed in the `methodsRequiringNetworkSwitch` constructor param. This replaces the previous behavior of switching for all methods except `eth_requestAccounts`. ([#4066](https://github.com/MetaMask/core/pull/4066))
 
 ## [0.7.0]
 
