@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Support dynamic enablement of automatic resubmit ([#4113](https://github.com/MetaMask/core/pull/4113))
+
 ## [26.0.0]
 
 ### Added
