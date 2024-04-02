@@ -7,17 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 133.0.0 ([#4121](https://github.com/MetaMask/core/pull/4121))
-- Revert "Release v133.0.0 (#4111)" ([#4111](https://github.com/MetaMask/core/pull/4111))
-- Release v133.0.0 ([#4111](https://github.com/MetaMask/core/pull/4111))
-- fix: fix update nft metadata when toggles off ([#4096](https://github.com/MetaMask/core/pull/4096))
-- feat: reservoir migration ([#4030](https://github.com/MetaMask/core/pull/4030))
-- Adds 'tokenMethodIncreaseAllowance' ([#4069](https://github.com/MetaMask/core/pull/4069))
-- fix: mantle token mispriced ([#4045](https://github.com/MetaMask/core/pull/4045))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-
 ## [27.2.0]
 
 ### Added
