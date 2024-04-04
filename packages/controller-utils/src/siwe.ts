@@ -2,6 +2,7 @@ import { remove0x } from '@metamask/utils';
 import { ParsedMessage } from '@spruceid/siwe-parser';
 
 import { projectLogger, createModuleLogger } from './logger';
+import { looksLikeSIWE } from './util';
 
 const log = createModuleLogger(projectLogger, 'detect-siwe');
 
@@ -148,8 +149,8 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
  * @param {ParsedMessage} parsedMessage - The data parsed out of the message
  */
 export type SIWEMessage =
-  | { isSIWEMessage: true; parsedMessage: ParsedMessage }
-  | { isSIWEMessage: false; parsedMessage: null };
+  | { isSIWEMessage: true; parsedMessage: ParsedMessage; looksLikeSIWE: true }
+  | { isSIWEMessage: false; parsedMessage: null; looksLikeSIWE: boolean };
 
 /**
  * This function intercepts a sign message, detects if it's a
@@ -163,13 +164,14 @@ export type SIWEMessage =
  * @returns An object with the relevant SIWE data
  */
 export const detectSIWE = (msgParams: { data: string }): SIWEMessage => {
-  try {
-    const { data } = msgParams;
-    const message = msgHexToText(data);
-    const parsedMessage = new ParsedMessage(message);
+  const { data } = msgParams;
+  const message = msgHexToText(data);
 
+  try {
+    const parsedMessage = new ParsedMessage(message);
     return {
       isSIWEMessage: true,
+      looksLikeSIWE: true,
       parsedMessage,
     };
   } catch (error) {
@@ -177,6 +179,7 @@ export const detectSIWE = (msgParams: { data: string }): SIWEMessage => {
     return {
       isSIWEMessage: false,
       parsedMessage: null,
+      looksLikeSIWE: looksLikeSIWE(message),
     };
   }
 };

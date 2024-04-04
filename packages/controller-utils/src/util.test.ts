@@ -604,4 +604,26 @@ describe('util', () => {
       expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
     });
   });
+
+  describe('looksLikeSIWE', () => {
+    it('should return false for empty string', () => {
+      expect(util.looksLikeSIWE('')).toBe(true);
+    });
+
+    it('should return false for a message that does not look like a SIWE message', () => {
+      expect(
+        util.looksLikeSIWE(
+          'metamask.io wants you to sign in with your Bitcoin account',
+        ),
+      ).toBe(false);
+    });
+
+    it('should return true for a message that looks like a SIWE message', () => {
+      expect(
+        util.looksLikeSIWE(
+          'metamask.io wants you to sign in with your Ethereum account',
+        ),
+      ).toBe(true);
+    });
+  });
 });

@@ -608,3 +608,14 @@ function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
     throw error;
   }
 }
+
+/**
+ * Utility to check if a personal_sign message looks like it's a SIWE message
+ * This is reccomended by https://eips.ethereum.org/EIPS/eip-4361#wallet-implementer-steps
+ *
+ * @param message - The message provided to be signed.
+ * @returns Whether the message looks like a Sign-In With Ethereum (SIWE) message.
+ */
+export function looksLikeSIWE(message: string) {
+  return message.includes('wants you to sign in with your Ethereum account');
+}
