@@ -37,24 +37,35 @@ import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import { merge } from 'lodash';
-import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
+import { mapValues, merge, pickBy, sortBy } from 'lodash';
+import type {
+  NonceLock,
+  Transaction as NonceTrackerTransaction,
+} from 'nonce-tracker/dist/NonceTracker';
 import { NonceTracker } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import { validateConfirmedExternalTransaction } from './external-transactions';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { projectLogger as log } from './logger';
+import { updatePostTransactionBalance } from './swaps';
 import type {
   SecurityAlertResponse,
   Transaction,
   TransactionMeta,
+  TransactionReceipt,
   WalletDevice,
   SubmitHistoryEntry,
   GasFeeFlow,
 } from './types';
-import { TransactionStatus } from './types';
+import {
+  TransactionEnvelopeType,
+  TransactionStatus,
+  TransactionType,
+} from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransactionParams,
@@ -190,6 +201,17 @@ export class TransactionController extends BaseController<
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
 
+  private readonly inProcessOfSigning: Set<string> = new Set();
+
+  private readonly publish: (
+    transactionMeta: TransactionMeta,
+    rawTx: string,
+  ) => Promise<{ transactionHash?: string | undefined }>;
+
+  private readonly getExternalPendingTransactions: (
+    address: string,
+  ) => NonceTrackerTransaction[];
+
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
       ...transactionMeta,
@@ -232,6 +254,7 @@ export class TransactionController extends BaseController<
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
+   * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
@@ -240,6 +263,8 @@ export class TransactionController extends BaseController<
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
+   * @param options.hooks - The controller hooks.
+   * @param options.hooks.publish - Alternate logic to publish a transaction.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -249,15 +274,20 @@ export class TransactionController extends BaseController<
       getGasFeeEstimates,
       getNetworkState,
       getSelectedAddress,
+      getExternalPendingTransactions,
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
       provider,
+      hooks = {},
     }: {
       blockTracker: BlockTracker;
       getGasFeeEstimates: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
+      getExternalPendingTransactions?: (
+        address: string,
+      ) => NonceTrackerTransaction[];
       incomingTransactions: {
         apiKey?: string;
         includeTokenTransfers?: boolean;
@@ -267,6 +297,11 @@ export class TransactionController extends BaseController<
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
+      hooks: {
+        publish?: (
+          transactionMeta: TransactionMeta,
+        ) => Promise<{ transactionHash: string | undefined }>;
+      };
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -292,14 +327,16 @@ export class TransactionController extends BaseController<
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
+    this.getExternalPendingTransactions =
+      getExternalPendingTransactions ?? (() => []);
+    this.publish =
+      hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
-      getPendingTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.submitted,
-      ),
+      getPendingTransactions:
+        this.getNonceTrackerPendingTransactions.bind(this),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
         TransactionStatus.confirmed,
@@ -496,6 +533,7 @@ export class TransactionController extends BaseController<
     if (
       chain !== RPC &&
       chain !== NetworkType['linea-goerli'] &&
+      chain !== NetworkType['linea-sepolia'] &&
       chain !== NetworkType['linea-mainnet']
     ) {
       return new Common({ chain, hardfork: HARDFORK });
@@ -949,6 +987,109 @@ export class TransactionController extends BaseController<
     });
   }
 
+  /**
+   * Search transaction metadata for matching entries.
+   *
+   * @param opts - Options bag.
+   * @param opts.searchCriteria - An object containing values or functions for transaction properties to filter transactions with.
+   * @param opts.initialList - The transactions to search. Defaults to the current state.
+   * @param opts.filterToCurrentNetwork - Whether to filter the results to the current network. Defaults to true.
+   * @param opts.limit - The maximum number of transactions to return. No limit by default.
+   * @returns An array of transactions matching the provided options.
+   */
+  getTransactions({
+    searchCriteria = {},
+    initialList,
+    filterToCurrentNetwork = true,
+    limit,
+  }: {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    searchCriteria?: any;
+    initialList?: TransactionMeta[];
+    filterToCurrentNetwork?: boolean;
+    limit?: number;
+  } = {}): TransactionMeta[] {
+    const chainId = this.getChainId();
+    // searchCriteria is an object that might have values that aren't predicate
+    // methods. When providing any other value type (string, number, etc), we
+    // consider this shorthand for "check the value at key for strict equality
+    // with the provided value". To conform this object to be only methods, we
+    // mapValues (lodash) such that every value on the object is a method that
+    // returns a boolean.
+    const predicateMethods = mapValues(searchCriteria, (predicate) => {
+      return typeof predicate === 'function'
+        ? predicate
+        : // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (v: any) => v === predicate;
+    });
+
+    const transactionsToFilter = initialList ?? this.state.transactions;
+
+    // Combine sortBy and pickBy to transform our state object into an array of
+    // matching transactions that are sorted by time.
+    const filteredTransactions = sortBy(
+      pickBy(transactionsToFilter, (transaction) => {
+        if (filterToCurrentNetwork && transaction.chainId !== chainId) {
+          return false;
+        }
+        // iterate over the predicateMethods keys to check if the transaction
+        // matches the searchCriteria
+        for (const [key, predicate] of Object.entries(predicateMethods)) {
+          // We return false early as soon as we know that one of the specified
+          // search criteria do not match the transaction. This prevents
+          // needlessly checking all criteria when we already know the criteria
+          // are not fully satisfied. We check both transaction and the base
+          // object as predicate keys can be either.
+          if (key in transaction.transaction) {
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (predicate((transaction.transaction as any)[key]) === false) {
+              return false;
+            }
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } else if (predicate((transaction as any)[key]) === false) {
+            return false;
+          }
+        }
+
+        return true;
+      }),
+      'time',
+    );
+    if (limit !== undefined) {
+      // We need to have all transactions of a given nonce in order to display
+      // necessary details in the UI. We use the size of this set to determine
+      // whether we have reached the limit provided, thus ensuring that all
+      // transactions of nonces we include will be sent to the UI.
+      const nonces = new Set();
+      const txs = [];
+      // By default, the transaction list we filter from is sorted by time ASC.
+      // To ensure that filtered results prefers the newest transactions we
+      // iterate from right to left, inserting transactions into front of a new
+      // array. The original order is preserved, but we ensure that newest txs
+      // are preferred.
+      for (let i = filteredTransactions.length - 1; i > -1; i--) {
+        const txMeta = filteredTransactions[i];
+        const { nonce } = txMeta.transaction;
+        if (!nonces.has(nonce)) {
+          if (nonces.size < limit) {
+            nonces.add(nonce);
+          } else {
+            continue;
+          }
+        }
+        // Push transaction into the beginning of our array to ensure the
+        // original order is preserved.
+        txs.unshift(txMeta);
+      }
+      return txs;
+    }
+    return filteredTransactions;
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
   ): Promise<string> {
@@ -1020,6 +1161,121 @@ export class TransactionController extends BaseController<
    */
   async getNonceLock(address: string): Promise<NonceLock> {
     return this.nonceTracker.getNonceLock(address);
+  }
+
+  /**
+   * Signs and returns the raw transaction data for provided transaction params list.
+   *
+   * @param listOfTxParams - The list of transaction params to approve.
+   * @param opts - Options bag.
+   * @param opts.hasNonce - Whether the transactions already have a nonce.
+   * @returns The raw transactions.
+   */
+  async approveTransactionsWithSameNonce(
+    listOfTxParams: Transaction[] = [],
+    { hasNonce }: { hasNonce?: boolean } = {},
+  ): Promise<string | string[]> {
+    log('Approving transactions with same nonce', {
+      transactions: listOfTxParams,
+    });
+
+    if (listOfTxParams.length === 0) {
+      return '';
+    }
+
+    const initialTx = listOfTxParams[0];
+    const common = this.getCommonConfiguration();
+
+    const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
+      common,
+    });
+
+    const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
+
+    if (this.inProcessOfSigning.has(initialTxAsSerializedHex)) {
+      return '';
+    }
+
+    this.inProcessOfSigning.add(initialTxAsSerializedHex);
+
+    let rawTransactions, nonceLock;
+    try {
+      // TODO: we should add a check to verify that all transactions have the same from address
+      const fromAddress = initialTx.from;
+      const requiresNonce = hasNonce !== true;
+
+      nonceLock = requiresNonce
+        ? await this.nonceTracker.getNonceLock(fromAddress)
+        : undefined;
+
+      const nonce = nonceLock
+        ? addHexPrefix(nonceLock.nextNonce.toString(16))
+        : initialTx.nonce;
+
+      if (nonceLock) {
+        log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+      }
+
+      rawTransactions = await Promise.all(
+        listOfTxParams.map((txParams) => {
+          txParams.nonce = nonce;
+          return this.signExternalTransaction(txParams);
+        }),
+      );
+    } catch (err) {
+      log('Error while signing transactions with same nonce', err);
+      // Must set transaction to submitted/failed before releasing lock
+      // continue with error chain
+      throw err;
+    } finally {
+      nonceLock?.releaseLock();
+      this.inProcessOfSigning.delete(initialTxAsSerializedHex);
+    }
+    return rawTransactions;
+  }
+
+  /**
+   * Adds external provided transaction to state as confirmed transaction.
+   *
+   * @param transactionMeta - TransactionMeta to add transactions.
+   * @param transactionReceipt - TransactionReceipt of the external transaction.
+   * @param baseFeePerGas - Base fee per gas of the external transaction.
+   */
+  async confirmExternalTransaction(
+    transactionMeta: TransactionMeta,
+    transactionReceipt: TransactionReceipt,
+    baseFeePerGas: Hex,
+  ) {
+    // Run validation and add external transaction to state.
+    this.addExternalTransaction(transactionMeta);
+
+    try {
+      const transactionId = transactionMeta.id;
+
+      // Make sure status is confirmed and define gasUsed as in receipt.
+      transactionMeta.status = TransactionStatus.confirmed;
+      transactionMeta.txReceipt = transactionReceipt;
+      if (baseFeePerGas) {
+        transactionMeta.baseFeePerGas = baseFeePerGas;
+      }
+
+      // Update same nonce local transactions as dropped and define replacedBy properties.
+      this.markNonceDuplicatesDropped(transactionId);
+
+      // Update external provided transaction with updated gas values and confirmed status.
+      this.updateTransaction(transactionMeta);
+      this.onTransactionStatusChange(transactionMeta);
+
+      // Intentional given potential duration of process.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.updatePostBalance(transactionMeta);
+
+      this.hub.emit('transaction-confirmed', {
+        transactionMeta,
+      });
+    } catch (error) {
+      console.error('Failed to confirm external transaction', error);
+    }
   }
 
   /**
@@ -1252,6 +1508,11 @@ export class TransactionController extends BaseController<
         return;
       }
 
+      if (this.inProcessOfSigning.has(transactionID)) {
+        log('Skipping approval as signing in progress', transactionID);
+        return;
+      }
+
       const { approved: status } = TransactionStatus;
       let nonceToUse = nonce;
       // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
@@ -1290,6 +1551,7 @@ export class TransactionController extends BaseController<
       }
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+      this.inProcessOfSigning.add(transactionMeta.id);
       const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
@@ -1298,14 +1560,21 @@ export class TransactionController extends BaseController<
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
 
-      const transactionHash = await this.publishTransaction(
+      let { transactionHash: hash } = await this.publish(
+        transactionMeta,
         rawTransaction,
-        txParams,
-        currentChainId,
-        transactionMeta.origin,
       );
 
-      transactionMeta.transactionHash = transactionHash;
+      if (hash === undefined) {
+        hash = await this.publishTransaction(
+          rawTransaction,
+          txParams,
+          currentChainId,
+          transactionMeta.origin,
+        );
+      }
+
+      transactionMeta.transactionHash = hash;
       transactionMeta.status = TransactionStatus.submitted;
 
       this.updateTransaction(transactionMeta);
@@ -1314,6 +1583,7 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
+      this.inProcessOfSigning.delete(transactionID);
       // must set transaction to submitted/failed before releasing lock
       if (nonceLock) {
         nonceLock.releaseLock();
@@ -1471,6 +1741,164 @@ export class TransactionController extends BaseController<
 
   private getGasFeeFlows(): GasFeeFlow[] {
     return [new LineaGasFeeFlow()];
+  }
+
+  private getNonceTrackerPendingTransactions(address: string) {
+    const standardPendingTransactions = this.getNonceTrackerTransactions(
+      TransactionStatus.submitted,
+      address,
+    );
+
+    const externalPendingTransactions =
+      this.getExternalPendingTransactions(address);
+
+    return [...standardPendingTransactions, ...externalPendingTransactions];
+  }
+
+  /**
+   * Validates and adds external provided transaction to state.
+   *
+   * @param transactionMeta - Nominated external transaction to be added to state.
+   */
+  private addExternalTransaction(transactionMeta: TransactionMeta) {
+    const chainId = this.getChainId();
+    const { transactions } = this.state;
+    const fromAddress = transactionMeta?.transaction?.from;
+    const sameFromAndNetworkTransactions = transactions.filter(
+      (transaction) =>
+        transaction.transaction.from === fromAddress &&
+        transaction.chainId === chainId,
+    );
+    const confirmedTxs = sameFromAndNetworkTransactions.filter(
+      (transaction) => transaction.status === TransactionStatus.confirmed,
+    );
+    const pendingTxs = sameFromAndNetworkTransactions.filter(
+      (transaction) => transaction.status === TransactionStatus.submitted,
+    );
+
+    validateConfirmedExternalTransaction(
+      transactionMeta,
+      confirmedTxs,
+      pendingTxs,
+    );
+
+    const updatedTransactions = [...transactions, transactionMeta];
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+  }
+
+  /**
+   * Sets other txMeta statuses to dropped if the txMeta that has been confirmed has other transactions
+   * in the transactions have the same nonce.
+   *
+   * @param transactionId - Used to identify original transaction.
+   */
+  private markNonceDuplicatesDropped(transactionId: string) {
+    const chainId = this.getChainId();
+    const transactionMeta = this.getTransaction(transactionId);
+    const nonce = transactionMeta?.transaction?.nonce;
+    const from = transactionMeta?.transaction?.from;
+
+    const sameNonceTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.id !== transactionId &&
+        transaction.transaction.from === from &&
+        transaction.transaction.nonce === nonce &&
+        transaction.chainId === chainId &&
+        transaction.type !== TransactionType.incoming,
+    );
+
+    if (!sameNonceTxs.length) {
+      return;
+    }
+
+    // Mark all same nonce transactions as dropped and give it a replacedBy hash
+    for (const transaction of sameNonceTxs) {
+      transaction.replacedBy = transactionMeta?.transactionHash;
+      transaction.replacedById = transactionMeta?.id;
+      // Drop any transaction that wasn't previously failed (off chain failure)
+      if (transaction.status !== TransactionStatus.failed) {
+        this.setTransactionStatusDropped(transaction);
+      }
+    }
+  }
+
+  /**
+   * Method to set transaction status to dropped.
+   *
+   * @param transactionMeta - TransactionMeta of transaction to be marked as dropped.
+   */
+  private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
+    transactionMeta.status = TransactionStatus.dropped;
+    this.hub.emit('transaction-dropped', {
+      transactionMeta,
+    });
+    this.updateTransaction(transactionMeta);
+    this.onTransactionStatusChange(transactionMeta);
+  }
+
+  private async updatePostBalance(transactionMeta: TransactionMeta) {
+    try {
+      if (transactionMeta.type !== TransactionType.swap) {
+        return;
+      }
+
+      const { updatedTransactionMeta, approvalTransactionMeta } =
+        await updatePostTransactionBalance(transactionMeta, {
+          ethQuery: this.ethQuery,
+          getTransaction: this.getTransaction.bind(this),
+          updateTransaction: this.updateTransaction.bind(this),
+        });
+
+      this.hub.emit('post-transaction-balance-updated', {
+        transactionMeta: updatedTransactionMeta,
+        approvalTransactionMeta,
+      });
+    } catch (error) {
+      console.error('Error while updating post transaction balance', error);
+    }
+  }
+
+  private async signExternalTransaction(
+    transactionParams: Transaction,
+  ): Promise<string> {
+    if (!this.sign) {
+      throw new Error('No sign method defined.');
+    }
+
+    const normalizedTransactionParams =
+      normalizeTransactionParams(transactionParams);
+    const chainId = this.getChainId();
+    const type = isEIP1559Transaction(normalizedTransactionParams)
+      ? TransactionEnvelopeType.feeMarket
+      : TransactionEnvelopeType.legacy;
+    const updatedTransactionParams = {
+      ...normalizedTransactionParams,
+      type,
+      gasLimit: normalizedTransactionParams.gas,
+      chainId,
+    };
+
+    const { from } = updatedTransactionParams;
+    const common = this.getCommonConfiguration();
+    const unsignedTransaction = TransactionFactory.fromTxData(
+      updatedTransactionParams,
+      { common },
+    );
+    const signedTransaction = await this.sign(unsignedTransaction, from);
+
+    const rawTransaction = bufferToHex(signedTransaction.serialize());
+    return rawTransaction;
+  }
+
+  private onTransactionStatusChange(transactionMeta: TransactionMeta) {
+    this.hub.emit('transaction-status-update', { transactionMeta });
+  }
+
+  private getChainId(): string {
+    const { providerConfig } = this.getNetworkState();
+    return providerConfig.chainId;
   }
 }
 

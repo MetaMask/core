@@ -243,7 +243,7 @@ export class IncomingTransactionHelper {
     const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
     const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 
-    if (previousValue === lastFetchedBlockNumber) {
+    if (previousValue >= lastFetchedBlockNumber) {
       return;
     }
 
