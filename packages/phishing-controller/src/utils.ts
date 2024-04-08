@@ -4,6 +4,10 @@ import type {
   PhishingListState,
 } from './PhishingController';
 import { phishingListKeyNameMap } from './PhishingController';
+import { type PhishingDetectorConfiguration } from './PhishingDetector';
+
+const DEFAULT_TOLERANCE = 3;
+
 /**
  * Fetches current epoch time in seconds.
  *
@@ -80,4 +84,108 @@ export const applyDiffs = (
     tolerance: listState.tolerance,
     lastUpdated: latestDiffTimestamp,
   };
+};
+
+/**
+ * Validates the configuration object for the phishing detector.
+ *
+ * @param config - the configuration object to validate.
+ * @throws an error if the configuration is invalid.
+ */
+export const validateConfig = (config: PhishingDetectorConfiguration) => {
+  if (config === null || typeof config !== 'object') {
+    throw new Error('Invalid config');
+  }
+
+  if (config.tolerance && !config.fuzzylist) {
+    throw new Error('Fuzzylist tolerance provided without fuzzylist');
+  }
+
+  if (typeof config.name !== 'string' || config.name === '') {
+    throw new Error("Invalid config parameter: 'name'");
+  }
+
+  if (
+    !['number', 'string'].includes(typeof config.version) ||
+    config.version === ''
+  ) {
+    throw new Error("Invalid config parameter: 'version'");
+  }
+};
+
+export const domainToParts = (domain: string) => {
+  try {
+    return domain.split('.').reverse();
+  } catch (e) {
+    throw new Error(JSON.stringify(domain));
+  }
+};
+
+export const processDomainList = (list: string[]) => {
+  return list.map(domainToParts);
+};
+
+export const getDefaultPhishingDetectorConfig = (override?: {
+  allowlist?: string[];
+  blocklist?: string[];
+  fuzzylist?: string[];
+  tolerance?: number;
+}): PhishingDetectorConfiguration => ({
+  allowlist: processDomainList(override?.allowlist || []),
+  blocklist: processDomainList(override?.blocklist || []),
+  fuzzylist: processDomainList(override?.fuzzylist || []),
+  tolerance: override?.tolerance || DEFAULT_TOLERANCE,
+});
+
+/**
+ * Processes the configurations for the phishing detector.
+ *
+ * @param configs - the configurations to process.
+ * @returns the processed configurations.
+ */
+export const processConfigs = (
+  configs: PhishingDetectorConfiguration[] = [],
+) => {
+  return configs.map((config) => {
+    validateConfig(config);
+    return Object.assign({}, config, getDefaultPhishingDetectorConfig());
+  });
+};
+
+/**
+ * Converts a list of domain parts to a domain string.
+ *
+ * @param domainParts - the list of domain parts.
+ * @returns the domain string.
+ */
+export const domainPartsToDomain = (domainParts: string[]) => {
+  return domainParts.slice().reverse().join('.');
+};
+
+/**
+ * Converts a list of domain parts to a fuzzy form.
+ *
+ * @param domainParts - the list of domain parts.
+ * @returns the fuzzy form of the domain.
+ */
+export const domainPartsToFuzzyForm = (domainParts: string[]) => {
+  return domainParts.slice(1).reverse().join('.');
+};
+
+/**
+ * Matches the target parts, ignoring extra subdomains on source.
+ *
+ * @param source - the source domain parts.
+ * @param list - the list of domain parts to match against.
+ * @returns the parts for the first found matching entry.
+ */
+export const matchPartsAgainstList = (source: string[], list: string[]) => {
+  return list.find((target: string) => {
+    // target domain has more parts than source, fail
+    if (target.length > source.length) {
+      return false;
+    }
+    // source matches target or (is deeper subdomain)
+    return Array.from(target).every((part, index) => source[index] === part);
+  });
 };
