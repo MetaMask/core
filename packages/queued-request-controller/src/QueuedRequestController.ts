@@ -73,6 +73,7 @@ export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
 
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
+  methodsRequiringNetworkSwitch: string[];
 };
 
 /**
@@ -128,12 +129,26 @@ export class QueuedRequestController extends BaseController<
   #processingRequestCount = 0;
 
   /**
+   * This is a list of methods that require the globally selected network
+   * to match the dapp selected network before being processed. These can
+   * be for UI/UX reasons where the currently selected network is displayed
+   * in the confirmation even though it will be submitted on the correct
+   * network for the dapp. It could also be that a method expects the
+   * globally selected network to match some value in the request params itself.
+   */
+  readonly #methodsRequiringNetworkSwitch: string[];
+
+  /**
    * Construct a QueuedRequestController.
    *
    * @param options - Controller options.
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
+   * @param options.methodsRequiringNetworkSwitch - A list of methods that require the globally selected network to match the dapp selected network.
    */
-  constructor({ messenger }: QueuedRequestControllerOptions) {
+  constructor({
+    messenger,
+    methodsRequiringNetworkSwitch,
+  }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
       metadata: {
@@ -145,6 +160,7 @@ export class QueuedRequestController extends BaseController<
       messenger,
       state: { queuedRequestCount: 0 },
     });
+    this.#methodsRequiringNetworkSwitch = methodsRequiringNetworkSwitch;
     this.#registerMessageHandlers();
   }
 
@@ -282,10 +298,9 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (request.method !== 'eth_requestAccounts') {
+      } else if (this.#methodsRequiringNetworkSwitch.includes(request.method)) {
         // Process request immediately
         // Requires switching network now if necessary
-        // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
         await this.#switchNetworkIfNecessary();
       }
       this.#processingRequestCount += 1;
