@@ -1,4 +1,4 @@
-import nock from 'nock';
+import { handleFetch } from '@metamask/controller-utils';
 
 import {
   fetchLegacyGasPriceEstimates,
@@ -7,6 +7,14 @@ import {
   calculateTimeEstimate,
 } from './gas-util';
 import type { GasFeeEstimates } from './GasFeeController';
+
+jest.mock('@metamask/controller-utils', () => {
+  return {
+    ...jest.requireActual('@metamask/controller-utils'),
+    handleFetch: jest.fn(),
+  };
+});
+const handleFetchMock = jest.mocked(handleFetch);
 
 const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   {
@@ -65,27 +73,49 @@ const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   },
 ];
 
+const INFURA_API_KEY_MOCK = 'test';
+const INFURA_AUTH_TOKEN_MOCK = 'dGVzdDo=';
+const INFURA_GAS_API_URL_MOCK = 'https://gas.api.infura.io';
+
 describe('gas utils', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   describe('fetchGasEstimates', () => {
     it('should fetch external gasFeeEstimates when data is valid', async () => {
-      const scope = nock('https://not-a-real-url/')
-        .get(/.+/u)
-        .reply(200, mockEIP1559ApiResponses[0])
-        .persist();
-      const result = await fetchGasEstimates('https://not-a-real-url/');
+      handleFetchMock.mockResolvedValue(mockEIP1559ApiResponses[0]);
+      const result = await fetchGasEstimates(
+        INFURA_GAS_API_URL_MOCK,
+        INFURA_API_KEY_MOCK,
+      );
+
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(INFURA_GAS_API_URL_MOCK, {
+        headers: expect.objectContaining({
+          Authorization: `Basic ${INFURA_AUTH_TOKEN_MOCK}`,
+        }),
+      });
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
-      scope.done();
     });
 
     it('should fetch external gasFeeEstimates with client id header when clientId arg is added', async () => {
-      const scope = nock('https://not-a-real-url/')
-        .matchHeader('x-client-id', 'test')
-        .get(/.+/u)
-        .reply(200, mockEIP1559ApiResponses[0])
-        .persist();
-      const result = await fetchGasEstimates('https://not-a-real-url/', 'test');
+      const clientIdMock = 'test';
+      handleFetchMock.mockResolvedValue(mockEIP1559ApiResponses[0]);
+      const result = await fetchGasEstimates(
+        INFURA_GAS_API_URL_MOCK,
+        INFURA_API_KEY_MOCK,
+        clientIdMock,
+      );
+
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(INFURA_GAS_API_URL_MOCK, {
+        headers: expect.objectContaining({
+          Authorization: `Basic ${INFURA_AUTH_TOKEN_MOCK}`,
+          'X-Client-Id': clientIdMock,
+        }),
+      });
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
-      scope.done();
     });
 
     it('should fetch and normalize external gasFeeEstimates when data is has an invalid number of decimals', async () => {
@@ -111,57 +141,73 @@ describe('gas utils', () => {
         estimatedBaseFee: '32.000000017',
       };
 
-      const scope = nock('https://not-a-real-url/')
-        .get(/.+/u)
-        .reply(200, mockEIP1559ApiResponses[1])
-        .persist();
-      const result = await fetchGasEstimates('https://not-a-real-url/');
+      handleFetchMock.mockResolvedValue(mockEIP1559ApiResponses[1]);
+      const result = await fetchGasEstimates(
+        INFURA_GAS_API_URL_MOCK,
+        INFURA_API_KEY_MOCK,
+      );
       expect(result).toMatchObject(expectedResult);
-      scope.done();
     });
   });
 
   describe('fetchLegacyGasPriceEstimates', () => {
     it('should fetch external gasPrices and return high/medium/low', async () => {
-      const scope = nock('https://not-a-real-url/')
-        .get(/.+/u)
-        .reply(200, {
-          SafeGasPrice: '22',
-          ProposeGasPrice: '25',
-          FastGasPrice: '30',
-        })
-        .persist();
+      handleFetchMock.mockResolvedValue({
+        SafeGasPrice: '22',
+        ProposeGasPrice: '25',
+        FastGasPrice: '30',
+      });
       const result = await fetchLegacyGasPriceEstimates(
-        'https://not-a-real-url/',
+        INFURA_GAS_API_URL_MOCK,
+        INFURA_API_KEY_MOCK,
+      );
+
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(
+        INFURA_GAS_API_URL_MOCK,
+
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Basic ${INFURA_AUTH_TOKEN_MOCK}`,
+          }),
+        }),
       );
       expect(result).toMatchObject({
         high: '30',
         medium: '25',
         low: '22',
       });
-      scope.done();
     });
 
     it('should fetch external gasPrices with client id header when clientId arg is passed', async () => {
-      const scope = nock('https://not-a-real-url/')
-        .matchHeader('x-client-id', 'test')
-        .get(/.+/u)
-        .reply(200, {
-          SafeGasPrice: '22',
-          ProposeGasPrice: '25',
-          FastGasPrice: '30',
-        })
-        .persist();
+      const clientIdMock = 'test';
+      handleFetchMock.mockResolvedValue({
+        SafeGasPrice: '22',
+        ProposeGasPrice: '25',
+        FastGasPrice: '30',
+      });
       const result = await fetchLegacyGasPriceEstimates(
-        'https://not-a-real-url/',
-        'test',
+        INFURA_GAS_API_URL_MOCK,
+        INFURA_API_KEY_MOCK,
+        clientIdMock,
+      );
+
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(
+        INFURA_GAS_API_URL_MOCK,
+
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Basic ${INFURA_AUTH_TOKEN_MOCK}`,
+            'X-Client-Id': clientIdMock,
+          }),
+        }),
       );
       expect(result).toMatchObject({
         high: '30',
         medium: '25',
         low: '22',
       });
-      scope.done();
     });
   });
 

@@ -4,6 +4,15 @@ import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
+import {
+  ABI_SIMULATION_ERC20_WRAPPED,
+  ABI_SIMULATION_ERC721_LEGACY,
+} from '../constants';
+import {
+  SimulationError,
+  SimulationInvalidResponseError,
+  SimulationRevertedError,
+} from '../errors';
 import { projectLogger } from '../logger';
 import type {
   SimulationBalanceChange,
@@ -12,15 +21,22 @@ import type {
   SimulationToken,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
+import { simulateTransactions } from './simulation-api';
 import type {
   SimulationResponseLog,
   SimulationRequestTransaction,
   SimulationResponse,
   SimulationResponseCallTrace,
+  SimulationResponseTransaction,
 } from './simulation-api';
-import { simulateTransactions } from './simulation-api';
 
-const log = createModuleLogger(projectLogger, 'simulation');
+export enum SupportedToken {
+  ERC20 = 'erc20',
+  ERC721 = 'erc721',
+  ERC1155 = 'erc1155',
+  ERC20_WRAPPED = 'erc20Wrapped',
+  ERC721_LEGACY = 'erc721Legacy',
+}
 
 type ABI = Fragment[];
 
@@ -40,6 +56,41 @@ type ParsedEvent = {
   abi: ABI;
 };
 
+const log = createModuleLogger(projectLogger, 'simulation');
+
+const SUPPORTED_EVENTS = [
+  'Transfer',
+  'TransferSingle',
+  'TransferBatch',
+  'Deposit',
+  'Withdrawal',
+];
+
+const SUPPORTED_TOKEN_ABIS = {
+  [SupportedToken.ERC20]: {
+    abi: abiERC20,
+    standard: SimulationTokenStandard.erc20,
+  },
+  [SupportedToken.ERC721]: {
+    abi: abiERC721,
+    standard: SimulationTokenStandard.erc721,
+  },
+  [SupportedToken.ERC1155]: {
+    abi: abiERC1155,
+    standard: SimulationTokenStandard.erc1155,
+  },
+  [SupportedToken.ERC20_WRAPPED]: {
+    abi: ABI_SIMULATION_ERC20_WRAPPED,
+    standard: SimulationTokenStandard.erc20,
+  },
+  [SupportedToken.ERC721_LEGACY]: {
+    abi: ABI_SIMULATION_ERC721_LEGACY,
+    standard: SimulationTokenStandard.erc721,
+  },
+};
+
+const REVERTED_ERRORS = ['execution reverted', 'insufficient funds for gas'];
+
 /**
  * Generate simulation data for a transaction.
  * @param request - The transaction to simulate.
@@ -52,17 +103,32 @@ type ParsedEvent = {
  */
 export async function getSimulationData(
   request: GetSimulationDataRequest,
-): Promise<SimulationData | undefined> {
+): Promise<SimulationData> {
   const { chainId, from, to, value, data } = request;
 
   log('Getting simulation data', request);
 
   try {
     const response = await simulateTransactions(chainId, {
-      transactions: [{ from, to, value, data }],
+      transactions: [
+        {
+          data,
+          from,
+          maxFeePerGas: '0x0',
+          maxPriorityFeePerGas: '0x0',
+          to,
+          value,
+        },
+      ],
       withCallTrace: true,
       withLogs: true,
     });
+
+    const transactionError = response.transactions?.[0]?.error;
+
+    if (transactionError) {
+      throw new SimulationError(transactionError);
+    }
 
     const nativeBalanceChange = getNativeBalanceChange(request.from, response);
     const events = getEvents(response);
@@ -77,7 +143,26 @@ export async function getSimulationData(
     };
   } catch (error) {
     log('Failed to get simulation data', error, request);
-    return undefined;
+
+    let simulationError = error as SimulationError;
+
+    if (
+      REVERTED_ERRORS.some((revertErrorMessage) =>
+        simulationError.message?.includes(revertErrorMessage),
+      )
+    ) {
+      simulationError = new SimulationRevertedError();
+    }
+
+    const { code, message } = simulationError;
+
+    return {
+      tokenBalanceChanges: [],
+      error: {
+        code,
+        message,
+      },
+    };
   }
 }
 
@@ -99,8 +184,8 @@ function getNativeBalanceChange(
   }
 
   const { stateDiff } = transactionResponse;
-  const previousBalance = stateDiff.pre[userAddress]?.balance;
-  const newBalance = stateDiff.post[userAddress]?.balance;
+  const previousBalance = stateDiff?.pre?.[userAddress]?.balance;
+  const newBalance = stateDiff?.post?.[userAddress]?.balance;
 
   if (!previousBalance || !newBalance) {
     return undefined;
@@ -116,22 +201,17 @@ function getNativeBalanceChange(
  */
 function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
-  const logs = extractLogs(response.transactions[0]?.callTrace ?? {});
+  const logs = extractLogs(
+    response.transactions[0]?.callTrace ?? ({} as SimulationResponseCallTrace),
+  );
 
   log('Extracted logs', logs);
 
-  const erc20Interface = new Interface(abiERC20);
-  const erc721Interface = new Interface(abiERC721);
-  const erc1155Interface = new Interface(abiERC1155);
+  const interfaces = getContractInterfaces();
 
   return logs
     .map((currentLog) => {
-      const event = parseLog(
-        currentLog,
-        erc20Interface,
-        erc721Interface,
-        erc1155Interface,
-      );
+      const event = parseLog(currentLog, interfaces);
 
       if (!event) {
         log('Failed to parse log', currentLog);
@@ -224,17 +304,21 @@ async function getTokenBalanceChanges(
   log('Balance simulation response', response);
 
   if (response.transactions.length !== balanceTransactions.length * 2 + 1) {
-    throw new Error('Invalid response from simulation API');
+    throw new SimulationInvalidResponseError();
   }
 
   return [...balanceTransactionsByToken.keys()]
     .map((token, index) => {
-      const previousBalance = normalizeReturnValue(
-        response.transactions[index].return,
+      const previousBalance = getValueFromBalanceTransaction(
+        request.from,
+        token,
+        response.transactions[index],
       );
 
-      const newBalance = normalizeReturnValue(
-        response.transactions[index + balanceTransactions.length + 1].return,
+      const newBalance = getValueFromBalanceTransaction(
+        request.from,
+        token,
+        response.transactions[index + balanceTransactions.length + 1],
       );
 
       const balanceChange = getSimulationBalanceChange(
@@ -266,35 +350,16 @@ function getTokenBalanceTransactions(
 ): Map<SimulationToken, SimulationRequestTransaction> {
   const tokenKeys = new Set();
 
-  return events.reduce((result, event) => {
-    if (
-      !['Transfer', 'TransferSingle', 'TransferBatch'].includes(event.name) ||
-      ![event.args.from, event.args.to].includes(request.from)
-    ) {
-      log('Ignoring event', event);
-      return result;
-    }
+  const userEvents = events.filter(
+    (event) =>
+      SUPPORTED_EVENTS.includes(event.name) &&
+      [event.args.from, event.args.to].includes(request.from),
+  );
 
-    // ERC-20 does not have a token ID so default to undefined.
-    let tokenIds: (Hex | undefined)[] = [undefined];
+  log('Filtered user events', userEvents);
 
-    if (event.tokenStandard === SimulationTokenStandard.erc721) {
-      tokenIds = [event.args.tokenId as Hex];
-    }
-
-    if (
-      event.tokenStandard === SimulationTokenStandard.erc1155 &&
-      event.name === 'TransferSingle'
-    ) {
-      tokenIds = [event.args.id as Hex];
-    }
-
-    if (
-      event.tokenStandard === SimulationTokenStandard.erc1155 &&
-      event.name === 'TransferBatch'
-    ) {
-      tokenIds = event.args.ids as Hex[];
-    }
+  return userEvents.reduce((result, event) => {
+    const tokenIds = getEventTokenIds(event);
 
     log('Extracted token ids', tokenIds);
 
@@ -317,19 +382,16 @@ function getTokenBalanceTransactions(
 
       tokenKeys.add(tokenKey);
 
-      const parameters = [request.from];
-
-      if (event.tokenStandard === SimulationTokenStandard.erc1155) {
-        parameters.push(tokenId as Hex);
-      }
+      const data = getBalanceTransactionData(
+        event.tokenStandard,
+        request.from,
+        tokenId,
+      );
 
       result.set(simulationToken, {
         from: request.from,
         to: event.contractAddress,
-        data: new Interface(event.abi).encodeFunctionData(
-          'balanceOf',
-          parameters,
-        ) as Hex,
+        data,
       });
     }
 
@@ -338,41 +400,104 @@ function getTokenBalanceTransactions(
 }
 
 /**
+ * Extract token IDs from a parsed event.
+ * @param event - The parsed event.
+ * @returns An array of token IDs.
+ */
+function getEventTokenIds(event: ParsedEvent): (Hex | undefined)[] {
+  if (event.tokenStandard === SimulationTokenStandard.erc721) {
+    return [event.args.tokenId as Hex];
+  }
+
+  if (
+    event.tokenStandard === SimulationTokenStandard.erc1155 &&
+    event.name === 'TransferSingle'
+  ) {
+    return [event.args.id as Hex];
+  }
+
+  if (
+    event.tokenStandard === SimulationTokenStandard.erc1155 &&
+    event.name === 'TransferBatch'
+  ) {
+    return event.args.ids as Hex[];
+  }
+
+  // ERC-20 does not have a token ID so default to undefined.
+  return [undefined];
+}
+
+/**
+ * Extract the value from a balance transaction response.
+ * @param from - The address to check the balance of.
+ * @param token - The token to check the balance of.
+ * @param response - The balance transaction response.
+ * @returns The value of the balance transaction.
+ */
+function getValueFromBalanceTransaction(
+  from: Hex,
+  token: SimulationToken,
+  response: SimulationResponseTransaction,
+): Hex {
+  const normalizedReturn = normalizeReturnValue(response.return);
+
+  if (token.standard === SimulationTokenStandard.erc721) {
+    return normalizedReturn === from ? '0x1' : '0x0';
+  }
+
+  return normalizedReturn;
+}
+
+/**
+ * Generate the balance transaction data for a token.
+ * @param tokenStandard - The token standard.
+ * @param from - The address to check the balance of.
+ * @param tokenId - The token ID to check the balance of.
+ * @returns The balance transaction data.
+ */
+function getBalanceTransactionData(
+  tokenStandard: SimulationTokenStandard,
+  from: Hex,
+  tokenId?: Hex,
+): Hex {
+  switch (tokenStandard) {
+    case SimulationTokenStandard.erc721:
+      return new Interface(abiERC721).encodeFunctionData('ownerOf', [
+        tokenId,
+      ]) as Hex;
+
+    case SimulationTokenStandard.erc1155:
+      return new Interface(abiERC1155).encodeFunctionData('balanceOf', [
+        from,
+        tokenId,
+      ]) as Hex;
+
+    default:
+      return new Interface(abiERC20).encodeFunctionData('balanceOf', [
+        from,
+      ]) as Hex;
+  }
+}
+
+/**
  * Parse a raw event log using known ABIs.
  * @param eventLog - The raw event log.
- * @param erc20 - The ERC-20 ABI interface.
- * @param erc721 - The ERC-721 ABI interface.
- * @param erc1155 - The ERC-1155 ABI interface.
+ * @param interfaces - The contract interfaces.
  * @returns The parsed event log or undefined if it could not be parsed.
  */
 function parseLog(
   eventLog: SimulationResponseLog,
-  erc20: Interface,
-  erc721: Interface,
-  erc1155: Interface,
+  interfaces: Map<SupportedToken, Interface>,
 ):
   | (LogDescription & { abi: ABI; standard: SimulationTokenStandard })
   | undefined {
-  const abisByStandard = [
-    {
-      abi: abiERC20,
-      contractInterface: erc20,
-      standard: SimulationTokenStandard.erc20,
-    },
-    {
-      abi: abiERC721,
-      contractInterface: erc721,
-      standard: SimulationTokenStandard.erc721,
-    },
-    {
-      abi: abiERC1155,
-      contractInterface: erc1155,
-      standard: SimulationTokenStandard.erc1155,
-    },
-  ];
+  const supportedTokens = Object.values(SupportedToken);
 
-  for (const { abi, contractInterface, standard } of abisByStandard) {
+  for (const token of supportedTokens) {
     try {
+      const contractInterface = interfaces.get(token) as Interface;
+      const { abi, standard } = SUPPORTED_TOKEN_ABIS[token];
+
       return {
         ...contractInterface.parseLog(eventLog),
         abi,
@@ -440,4 +565,20 @@ function getSimulationBalanceChange(
  */
 function normalizeReturnValue(value: Hex): Hex {
   return toHex(hexToBN(value));
+}
+
+/**
+ * Get the contract interfaces for all supported tokens.
+ * @returns A map of supported tokens to their contract interfaces.
+ */
+function getContractInterfaces(): Map<SupportedToken, Interface> {
+  const supportedTokens = Object.values(SupportedToken);
+
+  return new Map(
+    supportedTokens.map((tokenType) => {
+      const { abi } = SUPPORTED_TOKEN_ABIS[tokenType];
+      const contractInterface = new Interface(abi);
+      return [tokenType, contractInterface];
+    }),
+  );
 }

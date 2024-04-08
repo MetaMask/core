@@ -41,6 +41,11 @@ export type {
   SecurityAlertResponse,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
+  SimulationBalanceChange,
+  SimulationData,
+  SimulationError,
+  SimulationToken,
+  SimulationTokenBalanceChange,
   TransactionError,
   TransactionHistory,
   TransactionHistoryEntry,
@@ -49,6 +54,8 @@ export type {
   TransactionReceipt,
 } from './types';
 export {
+  SimulationErrorCode,
+  SimulationTokenStandard,
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
