@@ -49,6 +49,7 @@ import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
@@ -74,6 +75,7 @@ import {
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
+  SimulationErrorCode,
 } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
@@ -82,7 +84,10 @@ import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
 } from './utils/history';
-import { updateTransactionLayer1GasFee } from './utils/layer1-gas-fee-flow';
+import {
+  getTransactionLayer1GasFee,
+  updateTransactionLayer1GasFee,
+} from './utils/layer1-gas-fee-flow';
 import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
@@ -228,7 +233,7 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
  * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
-  isResubmitEnabled?: boolean;
+  isResubmitEnabled?: () => boolean;
 };
 
 /**
@@ -854,12 +859,12 @@ export class TransactionController extends BaseController<
     const gasFeePoller = new GasFeePoller({
       // Default gas fee polling is not yet supported by the clients
       gasFeeFlows: this.gasFeeFlows.slice(0, -1),
-      getEthQuery: (chainId, networkClientId) =>
-        this.#multichainTrackingHelper.getEthQuery({
+      getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      getProvider: (chainId, networkClientId) =>
+        this.#multichainTrackingHelper.getProvider({
           networkClientId,
           chainId,
         }),
-      getGasFeeControllerEstimates: this.getGasFeeEstimates,
       getTransactions: () => this.state.transactions,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
       onStateChange: (listener) => {
@@ -890,6 +895,7 @@ export class TransactionController extends BaseController<
     });
 
     this.onBootCleanup();
+    this.#checkForPendingTransactionAndStartPolling();
   }
 
   /**
@@ -1074,8 +1080,12 @@ export class TransactionController extends BaseController<
 
       this.addMetadata(addedTransactionMeta);
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#updateSimulationData(addedTransactionMeta);
+      if (requireApproval !== false) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.#updateSimulationData(addedTransactionMeta);
+      } else {
+        log('Skipping simulation as approval not required');
+      }
 
       this.messagingSystem.publish(
         `${controllerName}:unapprovedTransactionAdded`,
@@ -1931,10 +1941,11 @@ export class TransactionController extends BaseController<
     ) as TransactionParams;
 
     const updatedTransaction = merge({}, transactionMeta, editableParams);
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
-      networkClientId: transactionMeta.networkClientId,
+    const provider = this.#multichainTrackingHelper.getProvider({
       chainId: transactionMeta.chainId,
+      networkClientId: transactionMeta.networkClientId,
     });
+    const ethQuery = new EthQuery(provider);
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
       ethQuery,
@@ -1942,8 +1953,8 @@ export class TransactionController extends BaseController<
     updatedTransaction.type = type;
 
     await updateTransactionLayer1GasFee({
-      ethQuery,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider,
       transactionMeta: updatedTransaction,
     });
 
@@ -2247,6 +2258,34 @@ export class TransactionController extends BaseController<
     return filteredTransactions;
   }
 
+  /**
+   * Utility method to get the layer 1 gas fee for given transaction params.
+   *
+   * @param chainId - Estimated transaction chainId.
+   * @param networkClientId - Estimated transaction networkClientId.
+   * @param transactionParams - The transaction params to estimate layer 1 gas fee for.
+   */
+  async getLayer1GasFee(
+    chainId: Hex,
+    networkClientId: NetworkClientId,
+    transactionParams: TransactionParams,
+  ): Promise<Hex | undefined> {
+    const provider = this.#multichainTrackingHelper.getProvider({
+      networkClientId,
+      chainId,
+    });
+
+    const layer1GasFee = await getTransactionLayer1GasFee({
+      layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider,
+      transactionMeta: {
+        txParams: transactionParams,
+        chainId,
+      } as TransactionMeta,
+    });
+    return layer1GasFee;
+  }
+
   private async signExternalTransaction(
     chainId: Hex,
     transactionParams: TransactionParams,
@@ -2344,6 +2383,11 @@ export class TransactionController extends BaseController<
       chainId,
     });
 
+    const provider = this.#multichainTrackingHelper.getProvider({
+      networkClientId,
+      chainId,
+    });
+
     await updateGas({
       ethQuery,
       chainId,
@@ -2361,8 +2405,8 @@ export class TransactionController extends BaseController<
     });
 
     await updateTransactionLayer1GasFee({
-      ethQuery,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      provider,
       transactionMeta,
     });
   }
@@ -3484,7 +3528,7 @@ export class TransactionController extends BaseController<
   }
 
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
-    return [];
+    return [new OptimismLayer1GasFeeFlow()];
   }
 
   #updateTransactionInternal(
@@ -3572,8 +3616,8 @@ export class TransactionController extends BaseController<
 
     let simulationData: SimulationData = {
       error: {
+        code: SimulationErrorCode.Disabled,
         message: 'Simulation disabled',
-        isReverted: false,
       },
       tokenBalanceChanges: [],
     };

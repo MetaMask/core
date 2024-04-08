@@ -3408,6 +3408,7 @@ describe('NftController', () => {
         nftMetadata: { name: '', description: '', image: '', standard: '' },
         networkClientId: testNetworkClientId,
       });
+
       sinon
         .stub(nftController, 'getNftInformation' as keyof typeof nftController)
         .returns({
@@ -3464,6 +3465,7 @@ describe('NftController', () => {
         },
         networkClientId: testNetworkClientId,
       });
+
       sinon
         .stub(nftController, 'getNftInformation' as keyof typeof nftController)
         .rejects(new Error('Error'));
@@ -3500,7 +3502,7 @@ describe('NftController', () => {
       });
     });
 
-    it('should  update metadata when some calls to fetch metadata succeed', async () => {
+    it('should update metadata when some calls to fetch metadata succeed', async () => {
       const { nftController } = setupController();
       const { selectedAddress } = nftController.config;
       const spy = jest.spyOn(nftController, 'updateNft');
@@ -3515,6 +3517,7 @@ describe('NftController', () => {
         },
         networkClientId: testNetworkClientId,
       });
+
       await nftController.addNft('0xtest2', '2', {
         nftMetadata: {
           name: '',
@@ -3524,6 +3527,7 @@ describe('NftController', () => {
         },
         networkClientId: testNetworkClientId,
       });
+
       await nftController.addNft('0xtest3', '3', {
         nftMetadata: {
           name: '',
@@ -3533,6 +3537,7 @@ describe('NftController', () => {
         },
         networkClientId: testNetworkClientId,
       });
+
       sinon
         .stub(nftController, 'getNftInformation' as keyof typeof nftController)
         .onFirstCall()
@@ -3623,6 +3628,121 @@ describe('NftController', () => {
           standard: 'ERC721',
         },
       ]);
+    });
+
+    it('should not update metadata when nfts has image/name/description already', async () => {
+      const { nftController, triggerPreferencesStateChange } =
+        setupController();
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      const testNetworkClientId = 'sepolia';
+
+      // Add nfts
+      await nftController.addNft('0xtest', '3', {
+        nftMetadata: {
+          name: 'test name',
+          description: 'test description',
+          image: 'test image',
+          standard: 'ERC721',
+        },
+        userAddress: OWNER_ADDRESS,
+        networkClientId: testNetworkClientId,
+      });
+
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        isIpfsGatewayEnabled: false,
+        openSeaEnabled: true,
+        selectedAddress: OWNER_ADDRESS,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(0);
+    });
+
+    it('should trigger calling updateNftMetadata when preferences change - openseaEnabled', async () => {
+      const { nftController, triggerPreferencesStateChange, changeNetwork } =
+        setupController();
+      changeNetwork(SEPOLIA);
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+
+      const testNetworkClientId = 'sepolia';
+      // Add nfts
+      await nftController.addNft('0xtest', '1', {
+        nftMetadata: {
+          name: '',
+          description: '',
+          image: '',
+          standard: 'ERC721',
+        },
+        userAddress: OWNER_ADDRESS,
+        networkClientId: testNetworkClientId,
+      });
+
+      expect(
+        nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
+          .isCurrentlyOwned,
+      ).toBe(true);
+
+      sinon
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
+        .returns({
+          name: 'name pudgy',
+          image: 'url pudgy',
+          description: 'description pudgy',
+        });
+
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        isIpfsGatewayEnabled: false,
+        openSeaEnabled: true,
+        selectedAddress: OWNER_ADDRESS,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should trigger calling updateNftMetadata when preferences change - ipfs enabled', async () => {
+      const { nftController, triggerPreferencesStateChange, changeNetwork } =
+        setupController();
+      changeNetwork(SEPOLIA);
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+
+      const testNetworkClientId = 'sepolia';
+      // Add nfts
+      await nftController.addNft('0xtest', '1', {
+        nftMetadata: {
+          name: '',
+          description: '',
+          image: '',
+          standard: 'ERC721',
+        },
+        userAddress: OWNER_ADDRESS,
+        networkClientId: testNetworkClientId,
+      });
+
+      expect(
+        nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
+          .isCurrentlyOwned,
+      ).toBe(true);
+
+      sinon
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
+        .returns({
+          name: 'name pudgy',
+          image: 'url pudgy',
+          description: 'description pudgy',
+        });
+
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        isIpfsGatewayEnabled: true,
+        openSeaEnabled: false,
+        selectedAddress: OWNER_ADDRESS,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
     });
   });
 });
