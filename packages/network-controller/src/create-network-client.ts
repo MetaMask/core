@@ -57,7 +57,7 @@ export function createNetworkClient(
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          network: networkConfig.network,
+          network: networkConfig.network as any,
           projectId: networkConfig.infuraProjectId,
           maxAttempts: 5,
           source: 'metamask',

@@ -81,6 +81,13 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: 'https://explorer.goerli.linea.build',
     },
   },
+  [NetworkType['linea-sepolia']]: {
+    chainId: ChainId['linea-sepolia'],
+    ticker: NetworksTicker['linea-sepolia'],
+    rpcPrefs: {
+      blockExplorerUrl: 'https://explorer.sepolia.linea.build',
+    },
+  },
   [NetworkType['linea-mainnet']]: {
     chainId: ChainId['linea-mainnet'],
     ticker: NetworksTicker['linea-mainnet'],
@@ -138,6 +145,7 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId.sepolia]: BuiltInNetworkName.Sepolia,
   [ChainId.mainnet]: BuiltInNetworkName.Mainnet,
   [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
+  [ChainId['linea-sepolia']]: BuiltInNetworkName.LineaSepolia,
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
   [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };
