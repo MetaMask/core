@@ -2727,6 +2727,7 @@ __metadata:
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
     eth-phishing-detect: ^1.2.0
+    fastest-levenshtein: ^1.0.16
     jest: ^27.5.1
     nock: ^13.3.1
     punycode: ^2.1.1
@@ -6744,6 +6745,13 @@ __metadata:
   bin:
     fxparser: src/cli/cli.js
   checksum: d8b0c9e04756f6c43fa0399428f30149acadae21350e42e26e8fe98e24e6afa6b9b00aa554453795036b00e9fee974a1b556fe2ba18be391d51a9bf1ab790e7c
+  languageName: node
+  linkType: hard
+
+"fastest-levenshtein@npm:^1.0.16":
+  version: 1.0.16
+  resolution: "fastest-levenshtein@npm:1.0.16"
+  checksum: a78d44285c9e2ae2c25f3ef0f8a73f332c1247b7ea7fb4a191e6bb51aa6ee1ef0dfb3ed113616dcdc7023e18e35a8db41f61c8d88988e877cf510df8edafbc71
   languageName: node
   linkType: hard
 
