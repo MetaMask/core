@@ -826,6 +826,42 @@ describe('UserOperationController', () => {
       expect(prepareMock).toHaveBeenCalledTimes(1);
     });
 
+    it('uses gas limits suggested by smart contract account during #addPaymasterData', async () => {
+      const controller = new UserOperationController(optionsMock);
+      const UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK: UpdateUserOperationResponse =
+        {
+          paymasterAndData: '0xA',
+          callGasLimit: '0x123',
+          preVerificationGas: '0x456',
+          verificationGasLimit: '0x789',
+        };
+      smartContractAccount.updateUserOperation.mockResolvedValue(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK,
+      );
+      const { id, hash } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      await hash();
+
+      expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
+      expect(
+        controller.state.userOperations[id].userOperation.callGasLimit,
+      ).toBe(UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.callGasLimit);
+      expect(
+        controller.state.userOperations[id].userOperation.verificationGasLimit,
+      ).toBe(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.verificationGasLimit,
+      );
+      expect(
+        controller.state.userOperations[id].userOperation.preVerificationGas,
+      ).toBe(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.preVerificationGas,
+      );
+    });
+
     describe('if approval request resolved with updated transaction', () => {
       it('updates gas fees without regeneration if paymaster data not set', async () => {
         const controller = new UserOperationController(optionsMock);
