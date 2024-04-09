@@ -538,6 +538,15 @@ export class UserOperationController extends BaseController<
     validateUpdateUserOperationResponse(response);
 
     userOperation.paymasterAndData = response.paymasterAndData ?? EMPTY_BYTES;
+    if (response.callGasLimit) {
+      userOperation.callGasLimit = response.callGasLimit;
+    }
+    if (response.preVerificationGas) {
+      userOperation.preVerificationGas = response.preVerificationGas;
+    }
+    if (response.verificationGasLimit) {
+      userOperation.verificationGasLimit = response.verificationGasLimit;
+    }
 
     this.#updateMetadata(metadata);
   }

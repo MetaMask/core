@@ -62,6 +62,9 @@ const PATCH_USER_OPERATION_RESPONSE_MOCK: Awaited<
   ReturnType<KeyringController['patchUserOperation']>
 > = {
   paymasterAndData: '0x123',
+  callGasLimit: '0x444',
+  verificationGasLimit: '0x555',
+  preVerificationGas: '0x667',
 };
 
 const SIGN_USER_OPERATION_RESPONSE_MOCK: Awaited<
@@ -235,6 +238,11 @@ describe('SnapSmartContractAccount', () => {
 
       expect(response).toStrictEqual<UpdateUserOperationResponse>({
         paymasterAndData: PATCH_USER_OPERATION_RESPONSE_MOCK.paymasterAndData,
+        callGasLimit: PATCH_USER_OPERATION_RESPONSE_MOCK.callGasLimit,
+        preVerificationGas:
+          PATCH_USER_OPERATION_RESPONSE_MOCK.preVerificationGas,
+        verificationGasLimit:
+          PATCH_USER_OPERATION_RESPONSE_MOCK.verificationGasLimit,
       });
 
       expect(patchMock).toHaveBeenCalledTimes(1);
@@ -260,6 +268,9 @@ describe('SnapSmartContractAccount', () => {
 
       expect(response).toStrictEqual<UpdateUserOperationResponse>({
         paymasterAndData: undefined,
+        callGasLimit: undefined,
+        preVerificationGas: undefined,
+        verificationGasLimit: undefined,
       });
     });
   });
