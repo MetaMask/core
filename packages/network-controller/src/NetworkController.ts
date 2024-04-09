@@ -426,6 +426,11 @@ export type NetworkControllerGetNetworkClientByIdAction = {
   handler: NetworkController['getNetworkClientById'];
 };
 
+export type NetworkControllerGetSelectedNetworkClientAction = {
+  type: `NetworkController:getSelectedNetworkClient`;
+  handler: NetworkController['getSelectedNetworkClient'];
+};
+
 export type NetworkControllerGetEIP1559CompatibilityAction = {
   type: `NetworkController:getEIP1559Compatibility`;
   handler: NetworkController['getEIP1559Compatibility'];
@@ -462,6 +467,7 @@ export type NetworkControllerActions =
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetEIP1559CompatibilityAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerSetActiveNetworkAction
@@ -634,13 +640,18 @@ export class NetworkController extends BaseController<
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
 
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getSelectedNetworkClient`,
+      this.getSelectedNetworkClient.bind(this),
+    );
+
     this.#previousProviderConfig = this.state.providerConfig;
   }
 
   /**
    * Accesses the provider and block tracker for the currently selected network.
-   *
    * @returns The proxy and block tracker proxies.
+   * @deprecated This method has been replaced by `getSelectedNetworkClient` (which has a more easily used return type) and will be removed in a future release.
    */
   getProviderAndBlockTracker(): {
     provider: SwappableProxy<ProxyWithAccessibleTarget<Provider>> | undefined;
@@ -652,6 +663,26 @@ export class NetworkController extends BaseController<
       provider: this.#providerProxy,
       blockTracker: this.#blockTrackerProxy,
     };
+  }
+
+  /**
+   * Accesses the provider and block tracker for the currently selected network.
+   *
+   * @returns an object with the provider and block tracker proxies for the currently selected network.
+   */
+  getSelectedNetworkClient():
+    | {
+        provider: SwappableProxy<ProxyWithAccessibleTarget<Provider>>;
+        blockTracker: SwappableProxy<ProxyWithAccessibleTarget<BlockTracker>>;
+      }
+    | undefined {
+    if (this.#providerProxy && this.#blockTrackerProxy) {
+      return {
+        provider: this.#providerProxy,
+        blockTracker: this.#blockTrackerProxy,
+      };
+    }
+    return undefined;
   }
 
   /**

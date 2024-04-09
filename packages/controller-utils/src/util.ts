@@ -16,6 +16,26 @@ import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
 
+export const PROTOTYPE_POLLUTION_BLOCKLIST = [
+  '__proto__',
+  'constructor',
+  'prototype',
+] as const;
+
+/**
+ * Checks whether a dynamic property key could be used in
+ * a [prototype pollution attack](https://portswigger.net/web-security/prototype-pollution).
+ *
+ * @param key - The dynamic key to validate.
+ * @returns Whether the given dynamic key is safe to use.
+ */
+export function isSafeDynamicKey(key: string): boolean {
+  return (
+    typeof key === 'string' &&
+    !PROTOTYPE_POLLUTION_BLOCKLIST.some((blockedKey) => key === blockedKey)
+  );
+}
+
 /**
  * Checks whether the given number primitive chain ID is safe.
  * Because some cryptographic libraries we use expect the chain ID to be a
@@ -251,20 +271,45 @@ export async function safelyExecuteWithTimeout<Result>(
 }
 
 /**
- * Convert an address to a checksummed hexidecimal address.
+ * Convert an address to a checksummed hexadecimal address.
  *
  * @param address - The address to convert.
- * @returns A 0x-prefixed hexidecimal checksummed address, if address is valid. Otherwise original input 0x-prefixe, if address is valid. Otherwise original input 0x-prefixed.
+ * @returns The address in 0x-prefixed hexadecimal checksummed form if it is valid.
  */
-export function toChecksumHexAddress(address: string) {
+export function toChecksumHexAddress(address: string): string;
+
+/**
+ * Convert an address to a checksummed hexadecimal address.
+ *
+ * Note that this particular overload does nothing.
+ *
+ * @param address - A value that is not a string (e.g. `undefined` or `null`).
+ * @returns The `address` untouched.
+ * @deprecated This overload is designed to gracefully handle an invalid input
+ * and is only present for backward compatibility. It may be removed in a future
+ * major version. Please pass a string to `toChecksumHexAddress` instead.
+ */
+export function toChecksumHexAddress<T>(address: T): T;
+
+// Tools only see JSDocs for overloads and ignore them for the implementation.
+// eslint-disable-next-line jsdoc/require-jsdoc
+export function toChecksumHexAddress(address: unknown) {
+  if (typeof address !== 'string') {
+    // Mimic behavior of `addHexPrefix` from `ethereumjs-util` (which this
+    // function was previously using) for backward compatibility.
+    return address;
+  }
+
   const hexPrefixed = add0x(address);
+
   if (!isHexString(hexPrefixed)) {
-    // Version 5.1 of ethereumjs-utils would have returned '0xY' for input 'y'
+    // Version 5.1 of ethereumjs-util would have returned '0xY' for input 'y'
     // but we shouldn't waste effort trying to change case on a clearly invalid
     // string. Instead just return the hex prefixed original string which most
     // closely mimics the original behavior.
     return hexPrefixed;
   }
+
   return toChecksumAddress(hexPrefixed);
 }
 

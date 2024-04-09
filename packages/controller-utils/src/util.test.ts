@@ -11,12 +11,21 @@ const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
 describe('util', () => {
+  it('isSafeDynamicKey', () => {
+    expect(util.isSafeDynamicKey(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);
+    expect(util.isSafeDynamicKey('')).toBe(true);
+    for (const badKey of util.PROTOTYPE_POLLUTION_BLOCKLIST) {
+      expect(util.isSafeDynamicKey(badKey)).toBe(false);
+    }
+    // @ts-expect-error - ensure that non-string input return false.
+    expect(util.isSafeDynamicKey(null)).toBe(false);
+  });
   it('isSafeChainId', () => {
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID + 1))).toBe(false);
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);
     expect(util.isSafeChainId(util.toHex(0))).toBe(false);
     expect(util.isSafeChainId('0xinvalid')).toBe(false);
-    // @ts-expect-error - ensure that string args return false.
+    // @ts-expect-error - ensure that non-string args return false.
     expect(util.isSafeChainId('test')).toBe(false);
   });
 
@@ -277,13 +286,33 @@ describe('util', () => {
   });
 
   describe('toChecksumHexAddress', () => {
-    const fullAddress = `0x${VALID}`;
-    it('should return address for valid address', () => {
-      expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
+    it('should return an 0x-prefixed checksum address untouched', () => {
+      const address = '0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+      expect(util.toChecksumHexAddress(address)).toBe(address);
     });
 
-    it('should return address for non prefix address', () => {
-      expect(util.toChecksumHexAddress(VALID)).toBe(fullAddress);
+    it('should prefix a non-0x-prefixed checksum address with 0x', () => {
+      expect(
+        util.toChecksumHexAddress('4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0'),
+      ).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
+    });
+
+    it('should convert a non-checksum address to a checksum address', () => {
+      expect(
+        util.toChecksumHexAddress('0x4e1ff7229bddaf0a73df183a88d9c3a04cc975e0'),
+      ).toBe('0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0');
+    });
+
+    it('should return "0x" if given an empty string', () => {
+      expect(util.toChecksumHexAddress('')).toBe('0x');
+    });
+
+    it('should return the input untouched if it is undefined', () => {
+      expect(util.toChecksumHexAddress(undefined)).toBeUndefined();
+    });
+
+    it('should return the input untouched if it is null', () => {
+      expect(util.toChecksumHexAddress(null)).toBeNull();
     });
   });
 

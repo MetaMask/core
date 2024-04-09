@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING**: The `QueuedRequestMiddleware` constructor now requires the `methodsWithConfirmation` param which should be a list of methods that can trigger confirmations ([#4066](https://github.com/MetaMask/core/pull/4066))
+- **BREAKING**: The `QueuedRequestController` constructor now requires the `methodsRequiringNetworkSwitch` param which should be a list of methods that need the globally selected network to switched to the dapp selected network before being processed ([#4066](https://github.com/MetaMask/core/pull/4066))
+
+### Changed
+
+- **BREAKING**: `QueuedRequestController.enqueueRequest()` now ensures the globally selected network matches the dapp selected network before processing methods listed in the `methodsRequiringNetworkSwitch` constructor param. This replaces the previous behavior of switching for all methods except `eth_requestAccounts`. ([#4066](https://github.com/MetaMask/core/pull/4066))
+
+## [0.7.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/selected-network-controller` to `^11.0.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+- Bump `@metamask/controller-utils` to `^9.0.2` ([#4065](https://github.com/MetaMask/core/pull/4065))
+
 ## [0.6.1]
 
 ### Fixed
@@ -147,7 +163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.7.0...HEAD
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...@metamask/queued-request-controller@0.7.0
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.0...@metamask/queued-request-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.5.0...@metamask/queued-request-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.4.0...@metamask/queued-request-controller@0.5.0
