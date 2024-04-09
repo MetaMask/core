@@ -125,6 +125,12 @@ export const validateConfig = (
   return true;
 };
 
+/**
+ * Converts a domain string to a list of domain parts.
+ *
+ * @param domain - the domain string to convert.
+ * @returns the list of domain parts.
+ */
 export const domainToParts = (domain: string) => {
   try {
     return domain.split('.').reverse();
@@ -133,10 +139,26 @@ export const domainToParts = (domain: string) => {
   }
 };
 
+/**
+ * Converts a list of domain strings to a list of domain parts.
+ *
+ * @param list - the list of domain strings to convert.
+ * @returns the list of domain parts.
+ */
 export const processDomainList = (list: string[]) => {
   return list.map(domainToParts);
 };
 
+/**
+ * Gets the default phishing detector configuration.
+ *
+ * @param override - the optional override for the configuration.
+ * @param override.allowlist - the optional allowlist to override.
+ * @param override.blocklist - the optional blocklist to override.
+ * @param override.fuzzylist - the optional fuzzylist to override.
+ * @param override.tolerance - the optional tolerance to override.
+ * @returns the default phishing detector configuration.
+ */
 export const getDefaultPhishingDetectorConfig = (override?: {
   allowlist?: string[];
   blocklist?: string[];
