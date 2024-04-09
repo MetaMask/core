@@ -954,6 +954,7 @@ describe('UserOperationController', () => {
             maxFeePerGas: '0x6',
             maxPriorityFeePerGas: '0x7',
           }),
+          chainId: CHAIN_ID_MOCK,
         });
       });
 
