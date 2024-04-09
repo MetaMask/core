@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: reservoir migration ([#4030](https://github.com/MetaMask/core/pull/4030))
+- Fix prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+
 ## [9.0.2]
 
 ### Fixed

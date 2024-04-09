@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Support wrapped ERC20 and legacy ERC721 in simulations ([#4122](https://github.com/MetaMask/core/pull/4122))
+
 ## [27.0.0]
 
 ### Changed
