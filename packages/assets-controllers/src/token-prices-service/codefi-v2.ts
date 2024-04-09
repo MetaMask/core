@@ -167,6 +167,7 @@ type SupportedCurrency =
  * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
  * endpoint, but in hexadecimal form (for consistency with how we represent
  * chain IDs in other places).
+ * @see Used by {@link CodefiTokenPricesServiceV2} to validate that a given chain ID is supported by V2 of the Codefi Price API.
  */
 export const SUPPORTED_CHAIN_IDS = [
   // Ethereum Mainnet

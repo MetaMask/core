@@ -1,25 +1,14 @@
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
-import { CHAIN_IDS } from '../constants';
+import { SimulationChainNotSupportedError, SimulationError } from '../errors';
 import { projectLogger } from '../logger';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
 const RPC_METHOD = 'infura_simulateTransactions';
 const BASE_URL = 'https://tx-sentinel-{0}.api.cx.metamask.io/';
-
-const SUBDOMAIN_BY_CHAIN_ID: Record<Hex, string> = {
-  [CHAIN_IDS.MAINNET]: 'ethereum-mainnet',
-  [CHAIN_IDS.GOERLI]: 'ethereum-goerli',
-  [CHAIN_IDS.SEPOLIA]: 'ethereum-sepolia',
-  [CHAIN_IDS.LINEA_MAINNET]: 'linea-mainnet',
-  [CHAIN_IDS.LINEA_GOERLI]: 'linea-goerli',
-  [CHAIN_IDS.ARBITRUM]: 'arbitrum-mainnet',
-  [CHAIN_IDS.AVALANCHE]: 'avalanche-mainnet',
-  [CHAIN_IDS.OPTIMISM]: 'optimism-mainnet',
-  [CHAIN_IDS.POLYGON]: 'polygon-mainnet',
-  [CHAIN_IDS.BSC]: 'bsc-mainnet',
-};
+const ENDPOINT_NETWORKS = 'networks';
 
 /** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
@@ -145,6 +134,20 @@ export type SimulationResponse = {
   transactions: SimulationResponseTransaction[];
 };
 
+/** Data for a network supported by the Simulation API. */
+type SimulationNetwork = {
+  /** Subdomain of the API for the network.  */
+  network: string;
+
+  /** Whether the network supports confirmation simulations. */
+  confirmations: boolean;
+};
+
+/** Response from the simulation API containing supported networks. */
+type SimulationNetworkResponse = {
+  [chainIdDecimal: string]: SimulationNetwork;
+};
+
 let requestIdCounter = 0;
 
 /**
@@ -156,7 +159,7 @@ export async function simulateTransactions(
   chainId: Hex,
   request: SimulationRequest,
 ): Promise<SimulationResponse> {
-  const url = getUrl(chainId);
+  const url = await getSimulationUrl(chainId);
 
   log('Sending request', url, request);
 
@@ -178,7 +181,8 @@ export async function simulateTransactions(
   log('Received response', responseJson);
 
   if (responseJson.error) {
-    throw responseJson.error;
+    const { code, message } = responseJson.error;
+    throw new SimulationError(message, code);
   }
 
   return responseJson?.result;
@@ -189,13 +193,33 @@ export async function simulateTransactions(
  * @param chainId - The chain ID to get the URL for.
  * @returns The URL for the transaction simulation API.
  */
-function getUrl(chainId: Hex): string {
-  const subdomain = SUBDOMAIN_BY_CHAIN_ID[chainId];
+async function getSimulationUrl(chainId: Hex): Promise<string> {
+  const networkData = await getNetworkData();
+  const chainIdDecimal = convertHexToDecimal(chainId);
+  const network = networkData[chainIdDecimal];
 
-  if (!subdomain) {
+  if (!network?.confirmations) {
     log('Chain is not supported', chainId);
-    throw new Error(`Chain is not supported: ${chainId}`);
+    throw new SimulationChainNotSupportedError(chainId);
   }
 
+  return getUrl(network.network);
+}
+
+/**
+ * Retrieve the supported network data from the simulation API.
+ */
+async function getNetworkData(): Promise<SimulationNetworkResponse> {
+  const url = `${getUrl('ethereum-mainnet')}${ENDPOINT_NETWORKS}`;
+  const response = await fetch(url);
+  return response.json();
+}
+
+/**
+ * Generate the URL for the specified subdomain in the simulation API.
+ * @param subdomain - The subdomain to generate the URL for.
+ * @returns The URL for the transaction simulation API.
+ */
+function getUrl(subdomain: string): string {
   return BASE_URL.replace('{0}', subdomain);
 }

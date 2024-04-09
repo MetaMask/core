@@ -307,7 +307,7 @@ describe('validation', () => {
         'type',
         'wrong type',
         123,
-        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_sign","eth_signTypedData","smart","swap","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall"`, but received: 123',
+        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_sign","eth_signTypedData","smart","swap","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall","increaseAllowance"`, but received: 123',
       ],
     ])(
       'throws if %s is %s',

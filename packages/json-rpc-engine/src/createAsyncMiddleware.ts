@@ -5,7 +5,10 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngine';
+import type {
+  JsonRpcEngineReturnHandler,
+  JsonRpcMiddleware,
+} from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
@@ -18,7 +21,7 @@ export type AsyncJsonrpcMiddleware<
   next: AsyncJsonRpcEngineNextCallback,
 ) => Promise<void>;
 
-type ReturnHandlerCallback = (error: null | Error) => void;
+type ReturnHandlerCallback = Parameters<JsonRpcEngineReturnHandler>[0];
 
 /**
  * JsonRpcEngine only accepts callback-based middleware directly.
@@ -83,9 +86,7 @@ export function createAsyncMiddleware<
       } else {
         end(null);
       }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error) {
       if (returnHandlerCallback) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);
       } else {

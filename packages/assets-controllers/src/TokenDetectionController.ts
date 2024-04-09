@@ -286,10 +286,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         this.#selectedAddress = newSelectedAddress;
         this.#isDetectionEnabledFromPreferences = useTokenDetection;
 
-        if (
-          useTokenDetection &&
-          (isSelectedAddressChanged || isDetectionChangedFromPreferences)
-        ) {
+        if (isSelectedAddressChanged || isDetectionChangedFromPreferences) {
           await this.#restartTokenDetection({
             selectedAddress: this.#selectedAddress,
           });
@@ -302,10 +299,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       async ({ address: newSelectedAddress }) => {
         const isSelectedAddressChanged =
           this.#selectedAddress !== newSelectedAddress;
-        if (
-          isSelectedAddressChanged &&
-          this.#isDetectionEnabledFromPreferences
-        ) {
+        if (isSelectedAddressChanged) {
           this.#selectedAddress = newSelectedAddress;
           await this.#restartTokenDetection({
             selectedAddress: this.#selectedAddress,
