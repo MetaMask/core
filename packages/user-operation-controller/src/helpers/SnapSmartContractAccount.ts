@@ -9,6 +9,7 @@ import type {
   UpdateUserOperationResponse,
 } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
+import { toEip155ChainId } from '../utils/chain-id';
 
 export class SnapSmartContractAccount implements SmartContractAccount {
   #messenger: UserOperationControllerMessenger;
@@ -21,6 +22,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
     request: PrepareUserOperationRequest,
   ): Promise<PrepareUserOperationResponse> {
     const {
+      chainId,
       data: requestData,
       from: sender,
       to: requestTo,
@@ -35,9 +37,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:prepareUserOperation',
       sender,
       [{ data, to, value }],
-      {
-        chainId: request.chainId,
-      },
+      { chainId: toEip155ChainId(chainId) },
     );
 
     const {
@@ -77,9 +77,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:patchUserOperation',
       sender,
       userOperation,
-      {
-        chainId,
-      },
+      { chainId: toEip155ChainId(chainId) },
     );
 
     const paymasterAndData =
@@ -105,9 +103,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:signUserOperation',
       sender,
       userOperation,
-      {
-        chainId,
-      },
+      { chainId: toEip155ChainId(chainId) },
     );
 
     return { signature };

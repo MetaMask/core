@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import { type PrepareUserOperationRequest } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
+import { toEip155ChainId } from '../utils/chain-id';
 import { SnapSmartContractAccount } from './SnapSmartContractAccount';
 
 const PREPARE_USER_OPERATION_REQUEST_MOCK: PrepareUserOperationRequest = {
@@ -150,7 +151,7 @@ describe('SnapSmartContractAccount', () => {
           },
         ],
         {
-          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
         },
       );
     });
@@ -174,7 +175,7 @@ describe('SnapSmartContractAccount', () => {
           },
         ],
         {
-          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
         },
       );
     });
@@ -198,7 +199,7 @@ describe('SnapSmartContractAccount', () => {
           },
         ],
         {
-          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
         },
       );
     });
@@ -222,7 +223,7 @@ describe('SnapSmartContractAccount', () => {
           },
         ],
         {
-          chainId: PREPARE_USER_OPERATION_REQUEST_MOCK.chainId,
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
         },
       );
     });
@@ -250,7 +251,7 @@ describe('SnapSmartContractAccount', () => {
         UPDATE_USER_OPERATION_REQUEST_MOCK.userOperation.sender,
         UPDATE_USER_OPERATION_REQUEST_MOCK.userOperation,
         {
-          chainId: UPDATE_USER_OPERATION_REQUEST_MOCK.chainId,
+          chainId: toEip155ChainId(UPDATE_USER_OPERATION_REQUEST_MOCK.chainId),
         },
       );
     });
@@ -292,7 +293,7 @@ describe('SnapSmartContractAccount', () => {
         SIGN_USER_OPERATION_REQUEST_MOCK.userOperation.sender,
         SIGN_USER_OPERATION_REQUEST_MOCK.userOperation,
         {
-          chainId: SIGN_USER_OPERATION_REQUEST_MOCK.chainId,
+          chainId: toEip155ChainId(SIGN_USER_OPERATION_REQUEST_MOCK.chainId),
         },
       );
     });
