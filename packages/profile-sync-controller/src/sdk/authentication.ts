@@ -50,7 +50,10 @@ export abstract class BaseAuth {
     protected userProfile: UserProfile | null = null;
     protected envUrls: { authApiUrl: string; oidcApiUrl: string };
 
-    constructor(protected config: AuthConfig) {
+    constructor(
+        protected config: AuthConfig,
+        protected customSignMessage?: (message: string) => Promise<string>,
+        protected customGetIdentifier?: () => Promise<string>) {
         this.envUrls = getEnvUrls(config.env);
     }
 
@@ -83,6 +86,28 @@ export abstract class BaseAuth {
         } catch (e) {
             throw new NonceRetrievalError(`failed to generate nonce ${e}`);
         }
+    }
+
+    public async signMessage(message: string): Promise<string> {
+        if (this.customSignMessage) {
+            return this.customSignMessage(message);
+        }
+
+        // in order to use the automatic message signing snap, 
+        // all messages have to start with "metamask:" prefix
+        if (!message.startsWith('metamask:')) {
+            throw new ValidationError('Message must start with "metamask:"');
+        }
+
+        const formattedMessage = message as `metamask:${string}`;
+        return MESSAGE_SIGNING_SNAP.signMessage(formattedMessage)
+    }
+
+    public async getIdentifier(): Promise<string> {
+        if (this.customGetIdentifier) {
+            return this.customGetIdentifier();
+        }
+        return MESSAGE_SIGNING_SNAP.getPublicKey();
     }
 }
 
@@ -151,12 +176,10 @@ export class JwtBearerAuth extends BaseAuth {
     protected async login(): Promise<LoginResponse> {
         switch (this.config.type) {
             case AuthType.SRP: {
-                await connectSnap();
-                const publicKey = await MESSAGE_SIGNING_SNAP.getPublicKey();
+                const publicKey = await this.getIdentifier()
                 const nonceRes = await this.getNonce(publicKey);
-
                 const rawMessage = this.#createSrpLoginRawMessage(nonceRes.nonce, publicKey);
-                const signature = await MESSAGE_SIGNING_SNAP.signMessage(rawMessage);
+                const signature = await this.signMessage(rawMessage);
                 const loginResponse = await this.#srpLogin(rawMessage, signature);
                 if (!loginResponse) {
                     throw new SignInError('SRP login failed');
@@ -226,13 +249,13 @@ export class JwtBearerAuth extends BaseAuth {
         return `metamask:${nonce}:${publicKey}` as const;
     }
 
-    #getOidcClientId(env: Env):string{
-        switch(env){
+    #getOidcClientId(env: Env): string {
+        switch (env) {
             case Env.DEV:
                 return 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3';
             case Env.PROD:
                 return '1132f10a-b4e5-4390-a5f2-d9c6022db564';
-            default: 
+            default:
                 throw new ValidationError('missing oidc client id');
         }
     }

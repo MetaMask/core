@@ -37,7 +37,7 @@ export class UserStorage {
             throw new SignInError('unable to create storage key: user profile missing');
         }
 
-        const storageKeySignature = await MESSAGE_SIGNING_SNAP.signMessage(`metamask:${userProfile.profileId}`);
+        const storageKeySignature = await this.config.auth.signMessage(`metamask:${userProfile.profileId}`)
         return createSHA256Hash(storageKeySignature);
     }
 
