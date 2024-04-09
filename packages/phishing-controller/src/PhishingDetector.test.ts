@@ -154,6 +154,59 @@ describe('PhishingDetector', () => {
         ).rejects.toThrow("Invalid config parameter: 'version'");
       });
     });
+
+    describe('with legacy config', () => {
+      it('constructs a phishing detector when whitelist is missing', async () => {
+        await withPhishingDetector(
+          {
+            blacklist: [],
+            fuzzylist: [],
+            tolerance: 2,
+          },
+          ({ detector }) => {
+            expect(detector).toBeDefined();
+          },
+        );
+      });
+
+      it('constructs a phishing detector when blacklist is missing', async () => {
+        await withPhishingDetector(
+          {
+            fuzzylist: [],
+            tolerance: 2,
+            whitelist: [],
+          },
+          ({ detector }) => {
+            expect(detector).toBeDefined();
+          },
+        );
+      });
+
+      it('constructs a phishing detector when fuzzylist and tolerance are missing', async () => {
+        await withPhishingDetector(
+          {
+            whitelist: [],
+            blacklist: [],
+          },
+          ({ detector }) => {
+            expect(detector).toBeDefined();
+          },
+        );
+      });
+
+      it('constructs a phishing detector when tolerance is missing', async () => {
+        await withPhishingDetector(
+          {
+            blacklist: [],
+            fuzzylist: [],
+            whitelist: [],
+          },
+          ({ detector }) => {
+            expect(detector).toBeDefined();
+          },
+        );
+      });
+    });
   });
 
   describe('check', () => {
@@ -837,6 +890,63 @@ describe('PhishingDetector', () => {
           expect(name).toBe('first');
         },
       );
+    });
+
+    it('blocks a blocklisted domain when it ends with a dot', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: [],
+            blocklist: ['blocked.com'],
+            fuzzylist: [],
+            name: 'first',
+            tolerance: 2,
+            version: 1,
+          },
+        ],
+        async ({ detector }) => {
+          const { result, type } = detector.check('blocked.com.');
+
+          expect(result).toBe(true);
+          expect(type).toBe('blocklist');
+        },
+      );
+    });
+
+    describe('with legacy config', () => {
+      it('changes the type to whitelist when the result is allowlist', async () => {
+        await withPhishingDetector(
+          {
+            blacklist: [],
+            fuzzylist: [],
+            tolerance: 2,
+            whitelist: ['allowed.com'],
+          },
+          async ({ detector }) => {
+            const { type, result } = detector.check('allowed.com');
+
+            expect(type).toBe('whitelist');
+            expect(result).toBe(false);
+          },
+        );
+      });
+
+      it('changes the type to blacklist when the result is blocklist', async () => {
+        await withPhishingDetector(
+          {
+            blacklist: ['blocked.com'],
+            fuzzylist: [],
+            tolerance: 2,
+            whitelist: [],
+          },
+          async ({ detector }) => {
+            const { type, result } = detector.check('blocked.com');
+
+            expect(type).toBe('blacklist');
+            expect(result).toBe(true);
+          },
+        );
+      });
     });
   });
 });

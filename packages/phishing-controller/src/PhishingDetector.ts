@@ -10,11 +10,9 @@ import {
 } from './utils';
 
 export type LegacyPhishingDetectorList = {
-  whitelist: string[];
-  blacklist: string[];
-  fuzzylist: string[];
-  tolerance: number;
-};
+  whitelist?: string[];
+  blacklist?: string[];
+} & FuzzyTolerance;
 
 export type PhishingDetectorList = {
   allowlist?: string[];
@@ -57,7 +55,7 @@ export type PhishingDetectorResult = {
 export class PhishingDetector {
   #configs: PhishingDetectorConfiguration[];
 
-  legacyConfig: boolean;
+  #legacyConfig: boolean;
 
   /**
    * Construct a phishing detector, which can check whether origins are known
@@ -73,7 +71,7 @@ export class PhishingDetector {
     // recommended configuration
     if (Array.isArray(opts)) {
       this.#configs = processConfigs(opts);
-      this.legacyConfig = false;
+      this.#legacyConfig = false;
       // legacy configuration
     } else {
       this.#configs = [
@@ -84,17 +82,8 @@ export class PhishingDetector {
           tolerance: opts.tolerance,
         }),
       ];
-      this.legacyConfig = true;
+      this.#legacyConfig = true;
     }
-  }
-
-  /**
-   * Get the configurations used by the detector.
-   *
-   * @returns the configurations used by the detector.
-   */
-  get configs(): PhishingDetectorConfiguration[] {
-    return this.#configs;
   }
 
   /**
@@ -107,7 +96,7 @@ export class PhishingDetector {
   check(domain: string): PhishingDetectorResult {
     const result = this.#check(domain);
 
-    if (this.legacyConfig) {
+    if (this.#legacyConfig) {
       let legacyType = result.type as PhishingDetectorResult['type'];
       if (legacyType === 'allowlist') {
         legacyType = 'whitelist';
