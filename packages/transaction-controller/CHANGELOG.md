@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Support wrapped ERC20 and legacy ERC721 in simulations ([#4122](https://github.com/MetaMask/core/pull/4122))
+- Include wrapped ERC-20 and legacy ERC-721 tokens in simulation balance changes ([#4122](https://github.com/MetaMask/core/pull/4122))
 
 ## [27.0.0]
 
