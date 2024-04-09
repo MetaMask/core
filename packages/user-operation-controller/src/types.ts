@@ -100,10 +100,10 @@ export type UserOperationError = {
  */
 export type UserOperationMetadata = {
   /** Confirmed total cost of the gas for the user operation. */
-  actualGasCost: string | null;
+  actualGasCost: number | string | null;
 
   /** Confirmed total amount of gas used by the user operation. */
-  actualGasUsed: string | null;
+  actualGasUsed: number | string | null;
 
   /** Base fee of the transaction block as a hex value. */
   baseFeePerGas: string | null;

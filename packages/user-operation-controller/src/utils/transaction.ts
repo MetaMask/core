@@ -48,8 +48,8 @@ export function getTransactionMetadata(
   const effectiveGasPrice =
     actualGasCost && actualGasUsed
       ? add0x(
-          new BN(remove0x(actualGasCost), 16)
-            .div(new BN(remove0x(actualGasUsed), 16))
+          new BN(remove0x(actualGasCost.toString()), 16)
+            .div(new BN(remove0x(actualGasUsed.toString()), 16))
             .toString(16),
         )
       : undefined;
@@ -132,7 +132,7 @@ export function getTransactionMetadata(
     txParams,
     txReceipt: {
       effectiveGasPrice: effectiveGasPrice ?? undefined,
-      gasUsed: actualGasUsed ?? undefined,
+      gasUsed: actualGasUsed?.toString(),
     },
     type: transactionType ?? undefined,
     userFeeLevel: userFeeLevel as string,
