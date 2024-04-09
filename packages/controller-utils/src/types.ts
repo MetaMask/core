@@ -39,6 +39,9 @@ export enum BuiltInNetworkName {
   Mainnet = 'mainnet',
   Goerli = 'goerli',
   Sepolia = 'sepolia',
+  LineaGoerli = 'linea-goerli',
+  LineaSepolia = 'linea-sepolia',
+  LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
 }
 
@@ -52,18 +55,11 @@ export const ChainId = {
   [BuiltInNetworkName.Goerli]: '0x5', // toHex(5)
   [BuiltInNetworkName.Sepolia]: '0xaa36a7', // toHex(11155111)
   [BuiltInNetworkName.Aurora]: '0x4e454152', // toHex(1313161554)
+  [BuiltInNetworkName.LineaGoerli]: '0xe704',
+  [BuiltInNetworkName.LineaSepolia]: '0xe705',
+  [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
 } as const;
 export type ChainId = typeof ChainId[keyof typeof ChainId];
-
-/**
- * Decimal string network IDs of built-in Infura networks, by name.
- */
-export const NetworkId = {
-  [InfuraNetworkType.mainnet]: '1',
-  [InfuraNetworkType.goerli]: '5',
-  [InfuraNetworkType.sepolia]: '11155111',
-} as const;
-export type NetworkId = typeof NetworkId[keyof typeof NetworkId];
 
 export enum NetworksTicker {
   mainnet = 'ETH',

@@ -515,10 +515,11 @@ function buildNetworkControllerStateWithProviderConfig(
 ): NetworkState {
   return {
     providerConfig,
-    networkId: '1',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: {
-      EIPS: {},
+    networksMetadata: {
+      [selectedNetworkClientId]: {
+        EIPS: {},
+        status: NetworkStatus.Available,
+      },
     },
     networkConfigurations: {},
   };

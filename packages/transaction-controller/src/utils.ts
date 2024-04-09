@@ -5,6 +5,8 @@ import {
   handleFetch,
   isValidHexAddress,
 } from '@metamask/controller-utils';
+import { rpcErrors } from '@metamask/rpc-errors';
+import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 import {
   Transaction,
@@ -88,8 +90,8 @@ export function validateTransaction(transaction: Transaction) {
     typeof transaction.from !== 'string' ||
     !isValidHexAddress(transaction.from)
   ) {
-    throw new Error(
-      `Invalid "from" address: ${transaction.from} must be a valid string.`,
+    throw rpcErrors.invalidParams(
+      `Invalid "from" address: ${txParams.from} must be a valid string.`,
     );
   }
 
@@ -97,27 +99,26 @@ export function validateTransaction(transaction: Transaction) {
     if (transaction.data) {
       delete transaction.to;
     } else {
-      throw new Error(
-        `Invalid "to" address: ${transaction.to} must be a valid string.`,
+      throw rpcErrors.invalidParams(
+        `Invalid "to" address: ${txParams.to} must be a valid string.`,
       );
     }
-  } else if (
-    transaction.to !== undefined &&
-    !isValidHexAddress(transaction.to)
-  ) {
-    throw new Error(
-      `Invalid "to" address: ${transaction.to} must be a valid string.`,
+  } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
+    throw rpcErrors.invalidParams(
+      `Invalid "to" address: ${txParams.to} must be a valid string.`,
     );
   }
 
   if (transaction.value !== undefined) {
     const value = transaction.value.toString();
     if (value.includes('-')) {
-      throw new Error(`Invalid "value": ${value} is not a positive number.`);
+      throw rpcErrors.invalidParams(
+        `Invalid "value": ${value} is not a positive number.`,
+      );
     }
 
     if (value.includes('.')) {
-      throw new Error(
+      throw rpcErrors.invalidParams(
         `Invalid "value": ${value} number must be denominated in wei.`,
       );
     }
@@ -128,7 +129,7 @@ export function validateTransaction(transaction: Transaction) {
       !isNaN(Number(value)) &&
       Number.isSafeInteger(intValue);
     if (!isValid) {
-      throw new Error(
+      throw rpcErrors.invalidParams(
         `Invalid "value": ${value} number must be a valid number.`,
       );
     }
@@ -299,4 +300,23 @@ export function getAndFormatTransactionsForNonceTracker(
         },
       };
     });
+}
+
+/**
+ * Validates that a transaction is unapproved.
+ * Throws if the transaction is not unapproved.
+ *
+ * @param transactionMeta - The transaction metadata to check.
+ * @param fnName - The name of the function calling this helper.
+ */
+export function validateIfTransactionUnapproved(
+  transactionMeta: TransactionMeta | undefined,
+  fnName: string,
+) {
+  if (transactionMeta?.status !== TransactionStatus.unapproved) {
+    throw new Error(
+      `Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${transactionMeta?.status}`,
+    );
+  }
 }

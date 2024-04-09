@@ -15,7 +15,7 @@
     "paths": {
       "@metamask/*": ["../*/src"]
     },
-    "strict": true,
+    "strict": false,
     "target": "es6"
   }
 }

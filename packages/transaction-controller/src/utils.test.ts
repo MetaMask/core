@@ -1,3 +1,4 @@
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 import {
   Transaction,
@@ -6,8 +7,6 @@ import {
   TransactionStatus,
 } from './TransactionController';
 import * as util from './utils';
-import type { TransactionMeta } from './TransactionController';
-import { getAndFormatTransactionsForNonceTracker } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -16,46 +15,12 @@ const FAIL = 'lol';
 const PASS = '0x1';
 
 describe('utils', () => {
-  describe('getEtherscanApiUrl', () => {
-    const networkType = 'mainnet';
-    const address = '0xC7D3BFDeA106B446Cf9f2Db354D496e6Dd8b2525';
-    const action = 'txlist';
-
-    it('should return a correctly structured url', () => {
-      const url = util.getEtherscanApiUrl(networkType, { address, action });
-      expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with from block', () => {
-      const fromBlock = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: fromBlock,
-      });
-      expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with testnet subdomain', () => {
-      const goerli = 'goerli';
-      const url = util.getEtherscanApiUrl(goerli, { address, action });
-      expect(url.indexOf(`https://api-${goerli}`)).toBe(0);
-    });
-
-    it('should return a correctly structured url with apiKey', () => {
-      const apiKey = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: 'xxxxxx',
-        apikey: apiKey,
-      });
-      expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
-    });
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  it('normalizeTransaction', () => {
-    const normalized = util.normalizeTransaction({
+  it('normalizeTxParams', () => {
+    const normalized = util.normalizeTxParams({
       data: 'data',
       from: 'FROM',
       gas: 'gas',
@@ -83,20 +48,26 @@ describe('utils', () => {
 
   describe('validateTransaction', () => {
     it('should throw if no from address', () => {
-      expect(() => util.validateTransaction({} as any)).toThrow(
-        'Invalid "from" address: undefined must be a valid string.',
+      expect(() => util.validateTxParams({} as any)).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "from" address: undefined must be a valid string.',
+        ),
       );
     });
 
     it('should throw if non-string from address', () => {
-      expect(() => util.validateTransaction({ from: 1337 } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
+      expect(() => util.validateTxParams({ from: 1337 } as any)).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
       );
     });
 
     it('should throw if invalid from address', () => {
-      expect(() => util.validateTransaction({ from: '1337' } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
+      expect(() => util.validateTxParams({ from: '1337' } as any)).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
       );
     });
 
@@ -106,13 +77,21 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x',
         } as any),
-      ).toThrow('Invalid "to" address: 0x must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 0x must be a valid string.',
+        ),
+      );
 
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "to" address: undefined must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: undefined must be a valid string.',
+        ),
+      );
     });
 
     it('should delete data', () => {
@@ -131,7 +110,11 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '1337',
         } as any),
-      ).toThrow('Invalid "to" address: 1337 must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 1337 must be a valid string.',
+        ),
+      );
     });
 
     it('should throw if value is invalid', () => {
@@ -141,7 +124,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133-7',
         } as any),
-      ).toThrow('Invalid "value": 133-7 is not a positive number.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133-7 is not a positive number.',
+        ),
+      );
 
       expect(() =>
         util.validateTransaction({
@@ -149,7 +136,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133.7',
         } as any),
-      ).toThrow('Invalid "value": 133.7 number must be denominated in wei.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133.7 number must be denominated in wei.',
+        ),
+      );
 
       expect(() =>
         util.validateTransaction({
@@ -157,7 +148,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'hello',
         } as any),
-      ).toThrow('Invalid "value": hello number must be a valid number.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": hello number must be a valid number.',
+        ),
+      );
 
       expect(() =>
         util.validateTransaction({
@@ -166,7 +161,9 @@ describe('utils', () => {
           value: 'one million dollar$',
         } as any),
       ).toThrow(
-        'Invalid "value": one million dollar$ number must be a valid number.',
+        rpcErrors.invalidParams(
+          'Invalid "value": one million dollar$ number must be a valid number.',
+        ),
       );
 
       expect(() =>
@@ -292,6 +289,7 @@ describe('utils', () => {
       const inputTransactions: TransactionMeta[] = [
         {
           id: '1',
+          chainId: '0x1',
           time: 123456,
           transaction: {
             from: fromAddress,
@@ -303,6 +301,7 @@ describe('utils', () => {
         },
         {
           id: '2',
+          chainId: '0x1',
           time: 123457,
           transaction: {
             from: '0x124',
@@ -314,6 +313,7 @@ describe('utils', () => {
         },
         {
           id: '3',
+          chainId: '0x1',
           time: 123458,
           transaction: {
             from: fromAddress,
@@ -338,7 +338,7 @@ describe('utils', () => {
         },
       ];
 
-      const result = getAndFormatTransactionsForNonceTracker(
+      const result = util.getAndFormatTransactionsForNonceTracker(
         fromAddress,
         TransactionStatus.confirmed,
         inputTransactions,

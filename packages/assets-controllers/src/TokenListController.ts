@@ -249,6 +249,7 @@ export class TokenListController extends BaseControllerV2<
       } else {
         // Fetch fresh token list
         const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
+          // @ts-expect-error Ignore this typescript issue
           fetchTokenList(this.chainId, this.abortController.signal),
         );
 

@@ -159,8 +159,8 @@ export const SUPPORTED_CURRENCIES = [
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
 type SupportedCurrency =
-  | typeof SUPPORTED_CURRENCIES[number]
-  | Uppercase<typeof SUPPORTED_CURRENCIES[number]>;
+  | (typeof SUPPORTED_CURRENCIES)[number]
+  | Uppercase<(typeof SUPPORTED_CURRENCIES)[number]>;
 
 /**
  * The list of chain IDs that can be supplied in the URL for the `/spot-prices`
@@ -232,13 +232,15 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x4e454152',
   // Harmony Mainnet Shard 0
   '0x63564c40',
+  // Linea Mainnet
+  '0xe708',
 ] as const;
 /**
  * A chain ID that can be supplied in the URL for the `/spot-prices` endpoint,
  * but in hexadecimal form (for consistency with how we represent chain IDs in
  * other places).
  */
-type SupportedChainId = typeof SUPPORTED_CHAIN_IDS[number];
+type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 
 /**
  * All requests to V2 of the Price API start with this.

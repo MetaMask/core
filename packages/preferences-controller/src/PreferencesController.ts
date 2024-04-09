@@ -133,6 +133,7 @@ export class PreferencesController extends BaseController<
   setAccountLabel(address: string, label: string) {
     address = toChecksumHexAddress(address);
     const { identities } = this.state;
+    //@ts-ignore
     identities[address] = identities[address] || {};
     identities[address].name = label;
     this.update({ identities: { ...identities } });

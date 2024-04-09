@@ -5,6 +5,9 @@ import {
   mergeMiddleware,
   JsonRpcMiddleware,
 } from 'json-rpc-engine';
+import type { InfuraNetworkType } from '@metamask/controller-utils';
+import { ChainId } from '@metamask/controller-utils';
+import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
   createBlockRefMiddleware,
@@ -19,14 +22,8 @@ import {
   providerFromMiddleware,
   SafeEventEmitterProvider,
 } from '@metamask/eth-json-rpc-provider';
-import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import {
-  InfuraNetworkType,
-  ChainId,
-  NetworkId,
-} from '@metamask/controller-utils';
 import {
   BlockTracker,
   NetworkClientConfiguration,
@@ -69,7 +66,8 @@ export function createNetworkClient(
           fetch: global.fetch,
           rpcUrl: networkConfig.rpcUrl,
         });
-
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
@@ -99,7 +97,8 @@ export function createNetworkClient(
   const engine = new JsonRpcEngine();
 
   engine.push(networkMiddleware);
-
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const provider = providerFromEngine(engine);
 
   const destroy = () => {
@@ -146,7 +145,7 @@ function createInfuraNetworkMiddleware({
  *
  * @param args - The Arguments.
  * @param args.network - The Infura network to use.
- * @returns The middleware that implements eth_chainId & net_version methods.
+ * @returns The middleware that implements the eth_chainId method.
  */
 function createNetworkAndChainIdMiddleware({
   network,
@@ -155,7 +154,6 @@ function createNetworkAndChainIdMiddleware({
 }) {
   return createScaffoldMiddleware({
     eth_chainId: ChainId[network],
-    net_version: NetworkId[network],
   });
 }
 

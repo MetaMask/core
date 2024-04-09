@@ -40,9 +40,9 @@
     "@metamask/controller-utils": "workspace:^",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "3.0.0",
-    "@metamask/network-controller": "workspace:^",
-    "@metamask/preferences-controller": "workspace:^",
-    "@metamask/rpc-errors": "^5.1.1",
+    "@metamask/network-controller": "^13.0.0",
+    "@metamask/preferences-controller": "^4.4.1",
+    "@metamask/rpc-errors": "^6.0.0",
     "@metamask/utils": "^6.2.0",
     "@types/uuid": "^8.3.0",
     "abort-controller": "^3.0.0",
@@ -66,9 +66,9 @@
     "nock": "^13.0.7",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3"
+    "typedoc": "^0.23.15",
+    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typescript": "~4.8.4"
   },
   "peerDependencies": {
     "@metamask/approval-controller": "workspace:^",

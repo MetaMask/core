@@ -12,5 +12,5 @@
       "path": "../controller-utils"
     }
   ],
-  "include": ["../../types", "../../tests", "./src", "./tests"]
+  "include": ["../../types", "../../tests", "./src", "./tests", "./src"]
 }

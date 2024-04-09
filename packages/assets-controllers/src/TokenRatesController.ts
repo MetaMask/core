@@ -608,7 +608,6 @@ function createDeferredPromise({
     });
   }
 
-  // @ts-expect-error We know that these are assigned, but TypeScript doesn't
   return { promise, resolve, reject };
 }
 

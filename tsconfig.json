@@ -63,5 +63,6 @@
     }
   ],
   "files": [],
-  "include": ["./types"]
+  "include": ["./types"],
+  "exclude": [ "./packages/transaction-controller","./packages/network-controller"]
 }

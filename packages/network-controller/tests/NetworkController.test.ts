@@ -115,14 +115,6 @@ const SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE = {
 };
 
 /**
- * A response object for a successful request to `net_version`. It is assumed
- * that the network ID here is insignificant to the test.
- */
-const SUCCESSFUL_NET_VERSION_RESPONSE = {
-  result: '42',
-};
-
-/**
  * A response object for a request that has been geoblocked by Infura.
  */
 const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
@@ -174,11 +166,7 @@ describe('NetworkController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "networkConfigurations": Object {},
-            "networkDetails": Object {
-              "EIPS": Object {},
-            },
-            "networkId": null,
-            "networkStatus": "unknown",
+            "networksMetadata": Object {},
             "providerConfig": Object {
               "chainId": "0x1",
               "type": "mainnet",
@@ -209,9 +197,12 @@ describe('NetworkController', () => {
           expect(controller.state).toMatchInlineSnapshot(`
             Object {
               "networkConfigurations": Object {},
-              "networkDetails": Object {
-                "EIPS": Object {
-                  "1559": true,
+              "networksMetadata": Object {
+                "mainnet": Object {
+                  "EIPS": Object {
+                    "1559": true,
+                  },
+                  "status": "unknown",
                 },
               },
               "networkId": null,
@@ -1572,469 +1563,38 @@ describe('NetworkController', () => {
   });
 
   describe('lookupNetwork', () => {
-    describe('if a provider has not been set', () => {
-      it('does not change network in state', async () => {
-        await withController(async ({ controller, messenger }) => {
-          const promiseForNetworkChanges = waitForStateChanges({
-            messenger,
-            propertyPath: ['networkId'],
-          });
+    describe('if a networkClientId param is passed', () => {
+      it('updates the network status', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+            await controller.lookupNetwork('mainnet');
 
-          await controller.lookupNetwork();
-
-          await expect(promiseForNetworkChanges).toNeverResolve();
-        });
+            expect(controller.state.networksMetadata.mainnet.status).toBe(
+              'available',
+            );
+          },
+        );
+      });
+      it('throws an error if the network is not found', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            await expect(() =>
+              controller.lookupNetwork('non-existent-network-id'),
+            ).rejects.toThrow(
+              'No custom network client was found with the ID "non-existent-network-id".',
+            );
+          },
+        );
       });
     });
 
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
         describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
-          describe('if the network was switched after the net_version request started but before it completed', () => {
-            it('stores the network status of the second network, not the first', async () => {
-              await withController(
-                {
-                  state: {
-                    providerConfig: buildProviderConfig({ type: networkType }),
-                    networkConfigurations: {
-                      testNetworkConfigurationId: {
-                        id: 'testNetworkConfigurationId',
-                        rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
-                        ticker: 'ABC',
-                      },
-                    },
-                  },
-                  infuraProjectId: 'some-infura-project-id',
-                },
-                async ({ controller, messenger }) => {
-                  const fakeProviders = [
-                    buildFakeProvider([
-                      // Called during provider initialization
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      },
-                      // Called via `lookupNetwork` directly
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                        beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
-                          );
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      },
-                    ]),
-                    buildFakeProvider([
-                      // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        error: GENERIC_JSON_RPC_ERROR,
-                      },
-                    ]),
-                  ];
-                  const fakeNetworkClients = [
-                    buildFakeClient(fakeProviders[0]),
-                    buildFakeClient(fakeProviders[1]),
-                  ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      type: NetworkClientType.Infura,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
-                  await controller.initializeProvider();
-                  expect(controller.state.networkStatus).toBe('available');
-
-                  await waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkStatus'],
-                    operation: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  });
-
-                  expect(controller.state.networkStatus).toBe('unknown');
-                },
-              );
-            });
-
-            it('stores the ID of the second network, not the first', async () => {
-              await withController(
-                {
-                  state: {
-                    providerConfig: buildProviderConfig({ type: networkType }),
-                    networkConfigurations: {
-                      testNetworkConfigurationId: {
-                        id: 'testNetworkConfigurationId',
-                        rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
-                        ticker: 'ABC',
-                      },
-                    },
-                  },
-                  infuraProjectId: 'some-infura-project-id',
-                },
-                async ({ controller, messenger }) => {
-                  const fakeProviders = [
-                    buildFakeProvider([
-                      // Called during provider initialization
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      },
-                      // Called via `lookupNetwork` directly
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                        beforeCompleting: async () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
-                          );
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      },
-                    ]),
-                    buildFakeProvider([
-                      // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
-                    ]),
-                  ];
-                  const fakeNetworkClients = [
-                    buildFakeClient(fakeProviders[0]),
-                    buildFakeClient(fakeProviders[1]),
-                  ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      type: NetworkClientType.Infura,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
-                  await waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkId'],
-                    operation: async () => {
-                      await controller.initializeProvider();
-                    },
-                  });
-                  expect(controller.state.networkId).toBe('1');
-
-                  await waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkId'],
-                    operation: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  });
-
-                  expect(controller.state.networkId).toBe('2');
-                },
-              );
-            });
-
-            it('stores the EIP-1559 support of the second network, not the first', async () => {
-              await withController(
-                {
-                  state: {
-                    providerConfig: buildProviderConfig({ type: networkType }),
-                    networkConfigurations: {
-                      testNetworkConfigurationId: {
-                        id: 'testNetworkConfigurationId',
-                        rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
-                        ticker: 'ABC',
-                      },
-                    },
-                  },
-                  infuraProjectId: 'some-infura-project-id',
-                },
-                async ({ controller, messenger }) => {
-                  const fakeProviders = [
-                    buildFakeProvider([
-                      // Called during provider initialization
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: {
-                          result: POST_1559_BLOCK,
-                        },
-                      },
-                      // Called via `lookupNetwork` directly
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                        beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
-                          );
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: {
-                          result: POST_1559_BLOCK,
-                        },
-                      },
-                    ]),
-                    buildFakeProvider([
-                      // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: {
-                          result: PRE_1559_BLOCK,
-                        },
-                      },
-                    ]),
-                  ];
-                  const fakeNetworkClients = [
-                    buildFakeClient(fakeProviders[0]),
-                    buildFakeClient(fakeProviders[1]),
-                  ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      type: NetworkClientType.Infura,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
-                  await controller.initializeProvider();
-                  expect(controller.state.networkDetails).toStrictEqual({
-                    EIPS: {
-                      1559: true,
-                    },
-                  });
-
-                  await waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkDetails'],
-                    operation: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  });
-
-                  expect(controller.state.networkDetails).toStrictEqual({
-                    EIPS: {
-                      1559: false,
-                    },
-                  });
-                },
-              );
-            });
-
-            it('emits infuraIsUnblocked, not infuraIsBlocked, assuming that the first network was blocked', async () => {
-              await withController(
-                {
-                  state: {
-                    providerConfig: buildProviderConfig({ type: networkType }),
-                    networkConfigurations: {
-                      testNetworkConfigurationId: {
-                        id: 'testNetworkConfigurationId',
-                        rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
-                        ticker: 'ABC',
-                      },
-                    },
-                  },
-                  infuraProjectId: 'some-infura-project-id',
-                },
-                async ({ controller, messenger }) => {
-                  const fakeProviders = [
-                    buildFakeProvider([
-                      // Called during provider initialization
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      },
-                      // Called via `lookupNetwork` directly
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                        beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
-                          );
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                      },
-                    ]),
-                    buildFakeProvider([
-                      // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      },
-                    ]),
-                  ];
-                  const fakeNetworkClients = [
-                    buildFakeClient(fakeProviders[0]),
-                    buildFakeClient(fakeProviders[1]),
-                  ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      type: NetworkClientType.Infura,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
-                  await controller.initializeProvider();
-                  const promiseForInfuraIsUnblockedEvents =
-                    waitForPublishedEvents({
-                      messenger,
-                      eventType: 'NetworkController:infuraIsUnblocked',
-                    });
-                  const promiseForNoInfuraIsBlockedEvents =
-                    waitForPublishedEvents({
-                      messenger,
-                      eventType: 'NetworkController:infuraIsBlocked',
-                      count: 0,
-                    });
-
-                  await waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkStatus'],
-                    operation: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  });
-
-                  await expect(
-                    promiseForInfuraIsUnblockedEvents,
-                  ).toBeFulfilled();
-                  await expect(
-                    promiseForNoInfuraIsBlockedEvents,
-                  ).toBeFulfilled();
-                },
-              );
-            });
-          });
-
           describe('if the network was switched after the eth_getBlockByNumber request started but before it completed', () => {
             it('stores the network status of the second network, not the first', async () => {
               await withController(
@@ -2058,12 +1618,6 @@ describe('NetworkController', () => {
                       // Called during provider initialization
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
@@ -2071,18 +1625,10 @@ describe('NetworkController', () => {
                       // Called via `lookupNetwork` directly
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                         beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2093,7 +1639,7 @@ describe('NetworkController', () => {
                       // Called when switching networks
                       {
                         request: {
-                          method: 'net_version',
+                          method: 'eth_getBlockByNumber',
                         },
                         error: GENERIC_JSON_RPC_ERROR,
                       },
@@ -2132,114 +1678,6 @@ describe('NetworkController', () => {
               );
             });
 
-            it('stores the ID of the second network, not the first', async () => {
-              await withController(
-                {
-                  state: {
-                    providerConfig: buildProviderConfig({ type: networkType }),
-                    networkConfigurations: {
-                      testNetworkConfigurationId: {
-                        id: 'testNetworkConfigurationId',
-                        rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
-                        ticker: 'ABC',
-                      },
-                    },
-                  },
-                  infuraProjectId: 'some-infura-project-id',
-                },
-                async ({ controller, messenger }) => {
-                  const fakeProviders = [
-                    buildFakeProvider([
-                      // Called during provider initialization
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                      },
-                      // Called via `lookupNetwork` directly
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                        },
-                        response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                        beforeCompleting: async () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
-                          );
-                        },
-                      },
-                    ]),
-                    buildFakeProvider([
-                      // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
-                    ]),
-                  ];
-                  const fakeNetworkClients = [
-                    buildFakeClient(fakeProviders[0]),
-                    buildFakeClient(fakeProviders[1]),
-                  ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      network: networkType,
-                      infuraProjectId: 'some-infura-project-id',
-                      type: NetworkClientType.Infura,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      chainId: toHex(1337),
-                      rpcUrl: 'https://mock-rpc-url',
-                      type: NetworkClientType.Custom,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
-                  await waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkId'],
-                    operation: async () => {
-                      await controller.initializeProvider();
-                    },
-                  });
-                  expect(controller.state.networkId).toBe('1');
-
-                  await waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkId'],
-                    operation: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  });
-
-                  expect(controller.state.networkId).toBe('2');
-                },
-              );
-            });
-
             it('stores the EIP-1559 support of the second network, not the first', async () => {
               await withController(
                 {
@@ -2262,14 +1700,6 @@ describe('NetworkController', () => {
                       // Called during provider initialization
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         response: {
@@ -2279,22 +1709,12 @@ describe('NetworkController', () => {
                       // Called via `lookupNetwork` directly
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         response: {
                           result: POST_1559_BLOCK,
                         },
                         beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2303,14 +1723,6 @@ describe('NetworkController', () => {
                     ]),
                     buildFakeProvider([
                       // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
                       {
                         request: {
                           method: 'eth_getBlockByNumber',
@@ -2384,12 +1796,6 @@ describe('NetworkController', () => {
                       // Called during provider initialization
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
@@ -2397,18 +1803,10 @@ describe('NetworkController', () => {
                       // Called via `lookupNetwork` directly
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         error: BLOCKED_INFURA_JSON_RPC_ERROR,
                         beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2417,12 +1815,6 @@ describe('NetworkController', () => {
                     ]),
                     buildFakeProvider([
                       // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                      },
                       {
                         request: {
                           method: 'eth_getBlockByNumber',
@@ -2494,422 +1886,6 @@ describe('NetworkController', () => {
     );
 
     describe(`when the provider config in state contains a network type of "rpc"`, () => {
-      describe('if the network was switched after the net_version request started but before it completed', () => {
-        it('stores the network status of the second network, not the first', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                }),
-              },
-              infuraProjectId: 'some-infura-project-id',
-            },
-            async ({ controller, messenger }) => {
-              const fakeProviders = [
-                buildFakeProvider([
-                  // Called during provider initialization
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                  // Called via `lookupNetwork` directly
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                    beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                ]),
-                buildFakeProvider([
-                  // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    error: GENERIC_JSON_RPC_ERROR,
-                  },
-                ]),
-              ];
-              const fakeNetworkClients = [
-                buildFakeClient(fakeProviders[0]),
-                buildFakeClient(fakeProviders[1]),
-              ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
-              await controller.initializeProvider();
-              expect(controller.state.networkStatus).toBe('available');
-
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkStatus'],
-                operation: async () => {
-                  await controller.lookupNetwork();
-                },
-              });
-
-              expect(controller.state.networkStatus).toBe('unknown');
-            },
-          );
-        });
-
-        it('stores the ID of the second network, not the first', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                }),
-              },
-              infuraProjectId: 'some-infura-project-id',
-            },
-            async ({ controller, messenger }) => {
-              const fakeProviders = [
-                buildFakeProvider([
-                  // Called during provider initialization
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                  // Called via `lookupNetwork` directly
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                    beforeCompleting: async () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                ]),
-                buildFakeProvider([
-                  // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
-                ]),
-              ];
-              const fakeNetworkClients = [
-                buildFakeClient(fakeProviders[0]),
-                buildFakeClient(fakeProviders[1]),
-              ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkId'],
-                operation: async () => {
-                  await controller.initializeProvider();
-                },
-              });
-              expect(controller.state.networkId).toBe('1');
-
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkId'],
-                operation: async () => {
-                  await controller.lookupNetwork();
-                },
-              });
-
-              expect(controller.state.networkId).toBe('2');
-            },
-          );
-        });
-
-        it('stores the EIP-1559 support of the second network, not the first', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                }),
-              },
-              infuraProjectId: 'some-infura-project-id',
-            },
-            async ({ controller, messenger }) => {
-              const fakeProviders = [
-                buildFakeProvider([
-                  // Called during provider initialization
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: {
-                      result: POST_1559_BLOCK,
-                    },
-                  },
-                  // Called via `lookupNetwork` directly
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                    beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: {
-                      result: POST_1559_BLOCK,
-                    },
-                  },
-                ]),
-                buildFakeProvider([
-                  // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: {
-                      result: PRE_1559_BLOCK,
-                    },
-                  },
-                ]),
-              ];
-              const fakeNetworkClients = [
-                buildFakeClient(fakeProviders[0]),
-                buildFakeClient(fakeProviders[1]),
-              ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
-              await controller.initializeProvider();
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: true,
-                },
-              });
-
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkDetails'],
-                operation: async () => {
-                  await controller.lookupNetwork();
-                },
-              });
-
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: false,
-                },
-              });
-            },
-          );
-        });
-
-        it('emits infuraIsBlocked, not infuraIsUnblocked, if the second network was blocked and the first network was not', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                }),
-              },
-              infuraProjectId: 'some-infura-project-id',
-            },
-            async ({ controller, messenger }) => {
-              const fakeProviders = [
-                buildFakeProvider([
-                  // Called during provider initialization
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                  // Called via `lookupNetwork` directly
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                    beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                ]),
-                buildFakeProvider([
-                  // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                  },
-                ]),
-              ];
-              const fakeNetworkClients = [
-                buildFakeClient(fakeProviders[0]),
-                buildFakeClient(fakeProviders[1]),
-              ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
-              await controller.initializeProvider();
-              const promiseForNoInfuraIsUnblockedEvents =
-                waitForPublishedEvents({
-                  messenger,
-                  eventType: 'NetworkController:infuraIsUnblocked',
-                  count: 0,
-                });
-              const promiseForInfuraIsBlockedEvents = waitForPublishedEvents({
-                messenger,
-                eventType: 'NetworkController:infuraIsBlocked',
-              });
-
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkStatus'],
-                operation: async () => {
-                  await controller.lookupNetwork();
-                },
-              });
-
-              await expect(promiseForNoInfuraIsUnblockedEvents).toBeFulfilled();
-              await expect(promiseForInfuraIsBlockedEvents).toBeFulfilled();
-            },
-          );
-        });
-      });
-
       describe('if the network was switched after the eth_getBlockByNumber request started but before it completed', () => {
         it('stores the network status of the second network, not the first', async () => {
           await withController(
@@ -2929,12 +1905,6 @@ describe('NetworkController', () => {
                   // Called during provider initialization
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
@@ -2942,18 +1912,10 @@ describe('NetworkController', () => {
                   // Called via `lookupNetwork` directly
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                     beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
@@ -2962,7 +1924,7 @@ describe('NetworkController', () => {
                   // Called when switching networks
                   {
                     request: {
-                      method: 'net_version',
+                      method: 'eth_getBlockByNumber',
                     },
                     error: GENERIC_JSON_RPC_ERROR,
                   },
@@ -3001,108 +1963,6 @@ describe('NetworkController', () => {
           );
         });
 
-        it('stores the ID of the second network, not the first', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                }),
-              },
-              infuraProjectId: 'some-infura-project-id',
-            },
-            async ({ controller, messenger }) => {
-              const fakeProviders = [
-                buildFakeProvider([
-                  // Called during provider initialization
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                  },
-                  // Called via `lookupNetwork` directly
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-                    beforeCompleting: async () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
-                    },
-                  },
-                ]),
-                buildFakeProvider([
-                  // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
-                ]),
-              ];
-              const fakeNetworkClients = [
-                buildFakeClient(fakeProviders[0]),
-                buildFakeClient(fakeProviders[1]),
-              ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  chainId: toHex(1337),
-                  rpcUrl: 'https://mock-rpc-url',
-                  type: NetworkClientType.Custom,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  network: NetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkId'],
-                operation: async () => {
-                  await controller.initializeProvider();
-                },
-              });
-              expect(controller.state.networkId).toBe('1');
-
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkId'],
-                operation: async () => {
-                  await controller.lookupNetwork();
-                },
-              });
-
-              expect(controller.state.networkId).toBe('2');
-            },
-          );
-        });
-
         it('stores the EIP-1559 support of the second network, not the first', async () => {
           await withController(
             {
@@ -3121,14 +1981,6 @@ describe('NetworkController', () => {
                   // Called during provider initialization
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: {
@@ -3138,36 +1990,18 @@ describe('NetworkController', () => {
                   // Called via `lookupNetwork` directly
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: {
                       result: POST_1559_BLOCK,
                     },
                     beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
                 ]),
                 buildFakeProvider([
                   // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
                   {
                     request: {
                       method: 'eth_getBlockByNumber',
@@ -3237,12 +2071,6 @@ describe('NetworkController', () => {
                   // Called during provider initialization
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
@@ -3250,30 +2078,16 @@ describe('NetworkController', () => {
                   // Called via `lookupNetwork` directly
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                     beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
                 ]),
                 buildFakeProvider([
                   // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
                   {
                     request: {
                       method: 'eth_getBlockByNumber',
@@ -3390,6 +2204,20 @@ describe('NetworkController', () => {
             });
           },
         );
+      });
+
+      it(`updates state.selectedNetworkClientId, setting it to ${networkType}`, async () => {
+        await withController({}, async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          await controller.setProviderType(networkType);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            networkType,
+          );
+        });
       });
     }
 
@@ -3725,7 +2553,88 @@ describe('NetworkController', () => {
       });
     });
 
-    describe('if a provider has been set but networkDetails.EIPS in state already has a "1559" property', () => {
+    describe('if a networkClientId is passed in', () => {
+      it('uses the built in state for networksMetadata', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {
+                    1559: true,
+                  },
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+      it('uses the built in false state for networksMetadata', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {
+                    1559: false,
+                  },
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(false);
+          },
+        );
+      });
+      it('calls provider of the networkClientId and returns true', async () => {
+        await withController(
+          {
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            await setFakeProvider(controller, {
+              stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+              ],
+            });
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+    });
+
+    describe('if a provider has been set but networksMetadata[selectedNetworkClientId].EIPS in state already has a "1559" property', () => {
       it('does not make any state changes', async () => {
         await withController(
           {
@@ -3779,7 +2688,7 @@ describe('NetworkController', () => {
       });
     });
 
-    describe('if a provider has been set and networkDetails.EIPS in state does not already have a "1559" property', () => {
+    describe('if a provider has been set and networksMetadata[selectedNetworkClientId].EIPS in state does not already have a "1559" property', () => {
       describe('if the request for the latest block is successful', () => {
         describe('if the latest block has a "baseFeePerGas" property', () => {
           it('sets the "1559" property to true', async () => {
@@ -5430,12 +4339,6 @@ describe('NetworkController', () => {
                   buildFakeProvider([
                     {
                       request: {
-                        method: 'net_version',
-                      },
-                      response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                    },
-                    {
-                      request: {
                         method: 'eth_getBlockByNumber',
                       },
                       response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
@@ -5772,7 +4675,7 @@ describe('NetworkController', () => {
                   buildFakeProvider([
                     {
                       request: {
-                        method: 'net_version',
+                        method: 'eth_getBlockByNumber',
                       },
                       error: ethErrors.rpc.methodNotFound(),
                     },
@@ -5780,9 +4683,9 @@ describe('NetworkController', () => {
                   buildFakeProvider([
                     {
                       request: {
-                        method: 'net_version',
+                        method: 'eth_getBlockByNumber',
                       },
-                      response: SUCCESSFUL_NET_VERSION_RESPONSE,
+                      response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                     },
                   ]),
                 ];
@@ -6046,12 +4949,6 @@ describe('NetworkController', () => {
             async ({ controller, messenger }) => {
               const fakeProviders = [
                 buildFakeProvider([
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
                   {
                     request: {
                       method: 'eth_getBlockByNumber',
@@ -6340,18 +5237,12 @@ describe('NetworkController', () => {
                 buildFakeProvider([
                   {
                     request: {
-                      method: 'net_version',
+                      method: 'eth_getBlockByNumber',
                     },
                     error: ethErrors.rpc.methodNotFound(),
                   },
                 ]),
                 buildFakeProvider([
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: SUCCESSFUL_NET_VERSION_RESPONSE,
-                  },
                   {
                     request: {
                       method: 'eth_getBlockByNumber',
@@ -6636,180 +5527,6 @@ function refreshNetworkTests({
     );
   });
 
-  it('clears network id from state', async () => {
-    await withController(
-      {
-        infuraProjectId: 'infura-project-id',
-        state: initialState,
-      },
-      async ({ controller, messenger }) => {
-        const fakeProvider = buildFakeProvider([
-          // Called during provider initialization
-          {
-            request: {
-              method: 'net_version',
-            },
-            response: {
-              result: '1',
-            },
-          },
-          // Called during network lookup after resetting connection.
-          // Delayed to ensure that we can check the network id
-          // before this resolves.
-          {
-            delay: 1,
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ]);
-        const fakeNetworkClient = buildFakeClient(fakeProvider);
-        createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
-        expect(controller.state.networkId).toBe('1');
-
-        await waitForStateChanges({
-          messenger,
-          propertyPath: ['networkDetails'],
-          // We only care about the first state change, because it
-          // happens before the network lookup
-          count: 1,
-          operation: () => {
-            // Intentionally not awaited because we want to check state
-            // partway through the operation
-            operation(controller);
-          },
-        });
-
-        expect(controller.state.networkId).toBeNull();
-      },
-    );
-  });
-
-  it('clears network status from state', async () => {
-    await withController(
-      {
-        infuraProjectId: 'infura-project-id',
-        state: initialState,
-      },
-      async ({ controller, messenger }) => {
-        const fakeProvider = buildFakeProvider([
-          // Called during provider initialization
-          {
-            request: {
-              method: 'net_version',
-            },
-            response: SUCCESSFUL_NET_VERSION_RESPONSE,
-          },
-          {
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-          },
-          // Called during network lookup after resetting connection.
-          // Delayed to ensure that we can check the network status
-          // before this resolves.
-          {
-            delay: 1,
-            request: {
-              method: 'net_version',
-            },
-            response: SUCCESSFUL_NET_VERSION_RESPONSE,
-          },
-          {
-            delay: 1,
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-          },
-        ]);
-        const fakeNetworkClient = buildFakeClient(fakeProvider);
-        createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
-        expect(controller.state.networkStatus).toBe(NetworkStatus.Available);
-
-        await waitForStateChanges({
-          messenger,
-          propertyPath: ['networkStatus'],
-          // We only care about the first state change, because it
-          // happens before the network lookup
-          count: 1,
-          operation: () => {
-            // Intentionally not awaited because we want to check state
-            // partway through the operation
-            operation(controller);
-          },
-        });
-
-        expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
-      },
-    );
-  });
-
-  it('clears network details from state', async () => {
-    await withController(
-      {
-        infuraProjectId: 'infura-project-id',
-        state: initialState,
-      },
-      async ({ controller, messenger }) => {
-        const fakeProvider = buildFakeProvider([
-          // Called during provider initialization
-          {
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // Called during network lookup after resetting connection.
-          // Delayed to ensure that we can check the network details
-          // before this resolves.
-          {
-            delay: 1,
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ]);
-        const fakeNetworkClient = buildFakeClient(fakeProvider);
-        createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
-        expect(controller.state.networkDetails).toStrictEqual({
-          EIPS: {
-            1559: false,
-          },
-        });
-
-        await waitForStateChanges({
-          messenger,
-          propertyPath: ['networkDetails'],
-          // We only care about the first state change, because it
-          // happens before the network lookup
-          count: 1,
-          operation: () => {
-            // Intentionally not awaited because we want to check state
-            // partway through the operation
-            operation(controller);
-          },
-        });
-
-        expect(controller.state.networkDetails).toStrictEqual({
-          EIPS: {},
-        });
-      },
-    );
-  });
-
   if (expectedProviderConfig.type === NetworkType.rpc) {
     it('sets the provider to a custom RPC provider initialized with the RPC target and chain ID', async () => {
       await withController(
@@ -6981,114 +5698,7 @@ function lookupNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
 }) {
-  describe('if the network ID and network details requests resolve successfully', () => {
-    const validNetworkIds = [12345, '12345', toHex(12345)];
-    for (const networkId of validNetworkIds) {
-      describe(`with a network id of '${networkId}'`, () => {
-        describe('if the current network is different from the network in state', () => {
-          it('updates the network in state to match', async () => {
-            await withController(
-              {
-                state: initialState,
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: { method: 'net_version' },
-                      response: { result: networkId },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                await operation(controller);
-
-                expect(controller.state.networkId).toBe('12345');
-              },
-            );
-          });
-        });
-
-        describe('if the version of the current network is the same as that in state', () => {
-          it('does not change network ID in state', async () => {
-            await withController(
-              {
-                state: initialState,
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: { method: 'net_version' },
-                      response: { result: networkId },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                await operation(controller);
-
-                await expect(controller.state.networkId).toBe('12345');
-              },
-            );
-          });
-
-          it('updates the network details', async () => {
-            await withController(
-              {
-                state: initialState,
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    // Called during provider initialization
-                    {
-                      request: {
-                        method: 'net_version',
-                      },
-                      response: { result: networkId },
-                    },
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                      },
-                      response: {
-                        result: PRE_1559_BLOCK,
-                      },
-                    },
-                    // Called via `lookupNetwork` directly
-                    {
-                      request: {
-                        method: 'net_version',
-                      },
-                      response: { result: networkId },
-                    },
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                      },
-                      response: {
-                        result: POST_1559_BLOCK,
-                      },
-                    },
-                  ],
-                });
-
-                await operation(controller);
-
-                await expect(controller.state.networkDetails).toStrictEqual({
-                  EIPS: {
-                    1559: true,
-                  },
-                });
-              },
-            );
-          });
-        });
-      });
-    }
-
+  describe('if the network details request resolve successfully', () => {
     describe('if the network details of the current network are different from the network details in state', () => {
       it('updates the network in state to match', async () => {
         await withController(
@@ -7205,732 +5815,6 @@ function lookupNetworkTests({
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
-            stubLookupNetworkWhileSetting: true,
-          });
-
-          const infuraIsBlocked = waitForPublishedEvents({
-            messenger,
-            eventType: 'NetworkController:infuraIsBlocked',
-            count: 0,
-            operation: async () => {
-              await operation(controller);
-            },
-          });
-
-          await expect(infuraIsBlocked).toBeFulfilled();
-        },
-      );
-    });
-  });
-
-  describe('if an RPC error is encountered while retrieving the version of the current network', () => {
-    it('updates the network in state to "unavailable"', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              {
-                request: { method: 'net_version' },
-                error: ethErrors.rpc.limitExceeded('some error'),
-              },
-            ],
-            stubLookupNetworkWhileSetting: true,
-          });
-
-          await operation(controller);
-
-          expect(controller.state.networkStatus).toBe(
-            NetworkStatus.Unavailable,
-          );
-        },
-      );
-    });
-
-    it('resets the network details in state', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              // Called during provider initialization
-              {
-                request: { method: 'net_version' },
-                response: SUCCESSFUL_NET_VERSION_RESPONSE,
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: PRE_1559_BLOCK,
-                },
-              },
-              // Called when calling the operation directly
-              {
-                request: { method: 'net_version' },
-                error: ethErrors.rpc.limitExceeded('some error'),
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: POST_1559_BLOCK,
-                },
-              },
-            ],
-          });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
-
-          await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
-        },
-      );
-    });
-
-    if (expectedProviderConfig.type === NetworkType.rpc) {
-      it('emits infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: ethErrors.rpc.limitExceeded('some error'),
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-    } else {
-      it('does not emit infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: ethErrors.rpc.limitExceeded('some error'),
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              count: 0,
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-    }
-
-    it('does not emit infuraIsBlocked', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller, messenger }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              {
-                request: { method: 'net_version' },
-                error: ethErrors.rpc.limitExceeded('some error'),
-              },
-            ],
-            stubLookupNetworkWhileSetting: true,
-          });
-
-          const infuraIsBlocked = waitForPublishedEvents({
-            messenger,
-            eventType: 'NetworkController:infuraIsBlocked',
-            count: 0,
-            operation: async () => {
-              await operation(controller);
-            },
-          });
-
-          await expect(infuraIsBlocked).toBeFulfilled();
-        },
-      );
-    });
-  });
-
-  describe('if a country blocked error is encountered while retrieving the version of the current network', () => {
-    if (expectedProviderConfig.type === NetworkType.rpc) {
-      it('updates the network in state to "unknown"', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            await operation(controller);
-
-            expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
-          },
-        );
-      });
-
-      it('emits infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-
-      it('does not emit infuraIsBlocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsBlocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsBlocked',
-              count: 0,
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsBlocked).toBeFulfilled();
-          },
-        );
-      });
-    } else {
-      it('updates the network in state to "blocked"', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            await operation(controller);
-
-            expect(controller.state.networkStatus).toBe(NetworkStatus.Blocked);
-          },
-        );
-      });
-
-      it('does not emit infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              count: 0,
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-
-      it('emits infuraIsBlocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: BLOCKED_INFURA_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsBlocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsBlocked',
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsBlocked).toBeFulfilled();
-          },
-        );
-      });
-    }
-
-    it('resets the network details in state', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              // Called during provider initialization
-              {
-                request: { method: 'net_version' },
-                response: SUCCESSFUL_NET_VERSION_RESPONSE,
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: PRE_1559_BLOCK,
-                },
-              },
-              // Called when calling the operation directly
-              {
-                request: { method: 'net_version' },
-                error: BLOCKED_INFURA_JSON_RPC_ERROR,
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: POST_1559_BLOCK,
-                },
-              },
-            ],
-          });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
-
-          await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
-        },
-      );
-    });
-  });
-
-  describe('if an internal error is encountered while retrieving the version of the current network', () => {
-    it('updates the network in state to "unknown"', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              {
-                request: { method: 'net_version' },
-                error: GENERIC_JSON_RPC_ERROR,
-              },
-            ],
-            stubLookupNetworkWhileSetting: true,
-          });
-
-          await operation(controller);
-
-          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
-        },
-      );
-    });
-
-    it('resets the network details in state', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              // Called during provider initialization
-              {
-                request: { method: 'net_version' },
-                response: SUCCESSFUL_NET_VERSION_RESPONSE,
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: PRE_1559_BLOCK,
-                },
-              },
-              // Called when calling the operation directly
-              {
-                request: { method: 'net_version' },
-                error: GENERIC_JSON_RPC_ERROR,
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: POST_1559_BLOCK,
-                },
-              },
-            ],
-          });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
-
-          await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
-        },
-      );
-    });
-
-    if (expectedProviderConfig.type === NetworkType.rpc) {
-      it('emits infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: GENERIC_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-    } else {
-      it('does not emit infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  error: GENERIC_JSON_RPC_ERROR,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              count: 0,
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-    }
-
-    it('does not emit infuraIsBlocked', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller, messenger }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              {
-                request: { method: 'net_version' },
-                error: GENERIC_JSON_RPC_ERROR,
-              },
-            ],
-            stubLookupNetworkWhileSetting: true,
-          });
-
-          const infuraIsBlocked = waitForPublishedEvents({
-            messenger,
-            eventType: 'NetworkController:infuraIsBlocked',
-            count: 0,
-            operation: async () => {
-              await operation(controller);
-            },
-          });
-
-          await expect(infuraIsBlocked).toBeFulfilled();
-        },
-      );
-    });
-  });
-
-  describe('if an invalid network ID is returned', () => {
-    it('updates the network in state to "unknown"', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              {
-                request: { method: 'net_version' },
-                response: { result: 'invalid' },
-              },
-            ],
-            stubLookupNetworkWhileSetting: true,
-          });
-
-          await operation(controller);
-
-          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
-        },
-      );
-    });
-
-    it('resets the network details in state', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              // Called during provider initialization
-              {
-                request: { method: 'net_version' },
-                response: SUCCESSFUL_NET_VERSION_RESPONSE,
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: PRE_1559_BLOCK,
-                },
-              },
-              // Called when calling the operation directly
-              {
-                request: { method: 'net_version' },
-                response: { result: 'invalid' },
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: POST_1559_BLOCK,
-                },
-              },
-            ],
-          });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
-
-          await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
-        },
-      );
-    });
-
-    if (expectedProviderConfig.type === NetworkType.rpc) {
-      it('emits infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  response: { result: 'invalid' },
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-    } else {
-      it('does not emit infuraIsUnblocked', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  response: { result: 'invalid' },
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            const infuraIsUnblocked = waitForPublishedEvents({
-              messenger,
-              eventType: 'NetworkController:infuraIsUnblocked',
-              count: 0,
-              operation: async () => {
-                await operation(controller);
-              },
-            });
-
-            await expect(infuraIsUnblocked).toBeFulfilled();
-          },
-        );
-      });
-    }
-
-    it('does not emit infuraIsBlocked', async () => {
-      await withController(
-        {
-          state: initialState,
-        },
-        async ({ controller, messenger }) => {
-          await setFakeProvider(controller, {
-            stubs: [
-              {
-                request: { method: 'net_version' },
-                response: { result: 'invalid' },
-              },
-            ],
             stubLookupNetworkWhileSetting: true,
           });
 
@@ -8659,8 +6543,7 @@ function buildFakeClient(
  * optionally provided for certain RPC methods.
  *
  * @param stubs - The list of RPC methods you want to stub along with their
- * responses. `eth_getBlockByNumber` and `net_version` will be stubbed by
- * default.
+ * responses. `eth_getBlockByNumber` will be stubbed by default.
  * @returns The object.
  */
 function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
@@ -8669,18 +6552,6 @@ function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
     completeStubs.unshift({
       request: { method: 'eth_getBlockByNumber' },
       response: { result: '0x1' },
-      discardAfterMatching: false,
-    });
-  }
-  if (!stubs.some((stub) => stub.request.method === 'net_version')) {
-    completeStubs.unshift({
-      request: { method: 'net_version' },
-      response: { result: '1' },
-      discardAfterMatching: false,
-    });
-    completeStubs.unshift({
-      request: { method: 'net_version' },
-      response: { result: '1' },
       discardAfterMatching: false,
     });
   }

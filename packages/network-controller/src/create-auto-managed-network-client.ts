@@ -86,7 +86,6 @@ export function createAutoManagedNetworkClient<
           // the target, *not* the proxy (which happens by default) —
           // this allows private properties to be accessed
           return function (this: unknown, ...args: any[]) {
-            // @ts-expect-error We don't care that `this` may not be compatible
             // with the signature of the method being called, as technically
             // it can be anything.
             return value.apply(this === receiver ? provider : this, args);
@@ -133,7 +132,6 @@ export function createAutoManagedNetworkClient<
             // the target, *not* the proxy (which happens by default) —
             // this allows private properties to be accessed
             return function (this: unknown, ...args: any[]) {
-              // @ts-expect-error We don't care that `this` may not be
               // compatible with the signature of the method being called, as
               // technically it can be anything.
               return value.apply(this === receiver ? blockTracker : this, args);
