@@ -1,9 +1,9 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { toASCII } from 'punycode/';
 
+import { PhishingDetector } from './PhishingDetector';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =

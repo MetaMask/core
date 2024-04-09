@@ -1,10 +1,9 @@
-const test = require('tape')
-const PhishingDetector = require('../src/detector.js')
-const { testDomain } = require('./test.util.js')
+const test = require('tape');
+const PhishingDetector = require('../src/detector.js');
+const { testDomain } = require('./test.util.js');
 
-function runTests () {
+function runTests() {
   test('config schema', (t) => {
-
     // return version with match
     testDomain(t, {
       domain: 'blocked-by-first.com',
@@ -17,10 +16,10 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-    })
+    });
 
     // return name with match
     testDomain(t, {
@@ -34,10 +33,10 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-    })
+    });
     // allow missing allowlist
     try {
       new PhishingDetector([
@@ -47,12 +46,12 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
-      ])
-      t.pass('Passed validation')
+      ]);
+      t.pass('Passed validation');
     } catch (error) {
-      t.fail(error.message)
+      t.fail(error.message);
     }
 
     // allow missing blocklist
@@ -63,12 +62,12 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
-      ])
-      t.pass('Passed validation')
+      ]);
+      t.pass('Passed validation');
     } catch (error) {
-      t.fail(error.message)
+      t.fail(error.message);
     }
 
     // allow missing fuzzylist and tolerance
@@ -78,12 +77,12 @@ function runTests () {
           allowlist: [],
           blocklist: [],
           name: 'first',
-          version: 1
+          version: 1,
         },
-      ])
-      t.pass('Passed validation')
+      ]);
+      t.pass('Passed validation');
     } catch (error) {
-      t.fail(error.message)
+      t.fail(error.message);
     }
 
     // allow missing tolerance
@@ -94,12 +93,12 @@ function runTests () {
           blocklist: [],
           fuzzylist: [],
           name: 'first',
-          version: 1
+          version: 1,
         },
-      ])
-      t.pass('Passed validation')
+      ]);
+      t.pass('Passed validation');
     } catch (error) {
-      t.fail(error.message)
+      t.fail(error.message);
     }
 
     // throw when config is invalid
@@ -114,15 +113,15 @@ function runTests () {
       '',
       'test',
       () => {
-        return {name: 'test', version: 1 }
+        return { name: 'test', version: 1 };
       },
-    ]
+    ];
     for (const invalidValue of invalidConfigValues) {
       try {
-        new PhishingDetector([invalidValue])
-        t.fail('Did not fail validation')
+        new PhishingDetector([invalidValue]);
+        t.fail('Did not fail validation');
       } catch (error) {
-        t.equal(error.message, 'Invalid config')
+        t.equal(error.message, 'Invalid config');
       }
     }
 
@@ -136,10 +135,10 @@ function runTests () {
           tolerance: 2,
           version: 1,
         },
-      ])
-      t.fail('Did not fail validation')
+      ]);
+      t.fail('Did not fail validation');
     } catch (error) {
-      t.equal(error.message, 'Fuzzylist tolerance provided without fuzzylist')
+      t.equal(error.message, 'Fuzzylist tolerance provided without fuzzylist');
     }
 
     // throw when config name is invalid
@@ -153,10 +152,10 @@ function runTests () {
       1.1,
       '',
       () => {
-        return {name: 'test', version: 1 }
+        return { name: 'test', version: 1 };
       },
-      {}
-    ]
+      {},
+    ];
     for (const invalidValue of invalidNameValues) {
       try {
         new PhishingDetector([
@@ -166,12 +165,12 @@ function runTests () {
             fuzzylist: [],
             name: invalidValue,
             tolerance: 2,
-            version: 1
+            version: 1,
           },
-        ])
-        t.fail('Did not fail validation')
+        ]);
+        t.fail('Did not fail validation');
       } catch (error) {
-        t.equal(error.message, "Invalid config parameter: 'name'")
+        t.equal(error.message, "Invalid config parameter: 'name'");
       }
     }
 
@@ -183,10 +182,10 @@ function runTests () {
       false,
       '',
       () => {
-        return {name: 'test', version: 1 }
+        return { name: 'test', version: 1 };
       },
-      {}
-    ]
+      {},
+    ];
     for (const invalidValue of invalidVersionValues) {
       try {
         new PhishingDetector([
@@ -196,26 +195,25 @@ function runTests () {
             fuzzylist: [],
             name: 'first',
             tolerance: 2,
-            version: invalidValue
+            version: invalidValue,
           },
-        ])
-        t.fail('Did not fail validation')
+        ]);
+        t.fail('Did not fail validation');
       } catch (error) {
-        t.equal(error.message, "Invalid config parameter: 'version'")
+        t.equal(error.message, "Invalid config parameter: 'version'");
       }
     }
-    t.end()
-  })
+    t.end();
+  });
 
   test('multiple configs', (t) => {
-
     // allow no config
     testDomain(t, {
       domain: 'default.com',
       expected: false,
       options: [],
-      type: 'all'
-    })
+      type: 'all',
+    });
 
     // allow by default
     testDomain(t, {
@@ -228,7 +226,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -236,11 +234,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'all'
-    })
+      type: 'all',
+    });
 
     // block origin in first config
     testDomain(t, {
@@ -254,7 +252,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -262,11 +260,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'blocklist'
-    })
+      type: 'blocklist',
+    });
 
     // block origin in second config
     testDomain(t, {
@@ -280,7 +278,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -288,11 +286,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'blocklist'
-    })
+      type: 'blocklist',
+    });
 
     // prefer first config when origin blocked by both
     testDomain(t, {
@@ -306,7 +304,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -314,11 +312,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'blocklist'
-    })
+      type: 'blocklist',
+    });
 
     // test first fuzzylist
     testDomain(t, {
@@ -332,7 +330,7 @@ function runTests () {
           fuzzylist: ['fuzzy-first.com'],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -340,11 +338,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'fuzzy'
-    })
+      type: 'fuzzy',
+    });
 
     // test first fuzzylist at tolerance
     testDomain(t, {
@@ -358,7 +356,7 @@ function runTests () {
           fuzzylist: ['fuzzy-first.com'],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -366,11 +364,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'fuzzy'
-    })
+      type: 'fuzzy',
+    });
 
     // allow first fuzzylist beyond tolerance
     testDomain(t, {
@@ -383,7 +381,7 @@ function runTests () {
           fuzzylist: ['fuzzy-first.com'],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -391,11 +389,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'all'
-    })
+      type: 'all',
+    });
 
     // test second fuzzylist
     testDomain(t, {
@@ -409,7 +407,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -417,11 +415,11 @@ function runTests () {
           fuzzylist: ['fuzzy-second.com'],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'fuzzy'
-    })
+      type: 'fuzzy',
+    });
 
     // test second fuzzylist at tolerance
     testDomain(t, {
@@ -435,7 +433,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -443,11 +441,11 @@ function runTests () {
           fuzzylist: ['fuzzy-second.com'],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'fuzzy'
-    })
+      type: 'fuzzy',
+    });
 
     // allow second fuzzylist past tolerance
     testDomain(t, {
@@ -460,7 +458,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -468,11 +466,11 @@ function runTests () {
           fuzzylist: ['fuzzy-second.com'],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'all'
-    })
+      type: 'all',
+    });
 
     // prefer first config when blocked by both fuzzylists
     testDomain(t, {
@@ -486,7 +484,7 @@ function runTests () {
           fuzzylist: ['fuzzy-both.com'],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -494,11 +492,11 @@ function runTests () {
           fuzzylist: ['fuzzy-both.com'],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'fuzzy'
-    })
+      type: 'fuzzy',
+    });
 
     // prefer first config when blocked by first and fuzzy blocked by second
     testDomain(t, {
@@ -512,7 +510,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -520,11 +518,11 @@ function runTests () {
           fuzzylist: ['blocked-first-fuzzy-second.com'],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'blocklist'
-    })
+      type: 'blocklist',
+    });
 
     // prefer first config when fuzzy blocked by first and blocked by second
     testDomain(t, {
@@ -538,7 +536,7 @@ function runTests () {
           fuzzylist: ['fuzzy-first-blocked-second.com'],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -546,11 +544,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'fuzzy'
-    })
+      type: 'fuzzy',
+    });
 
     // allow origin that is allowed and not blocked on first config
     testDomain(t, {
@@ -564,7 +562,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -572,11 +570,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin that is allowed and not blocked on second config
     testDomain(t, {
@@ -590,7 +588,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: ['allowed-second.com'],
@@ -598,11 +596,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin that is blocklisted and allowlisted, both on first config
     testDomain(t, {
@@ -616,7 +614,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -624,11 +622,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin blocked by fuzzylist and allowlisted, both on first config
     testDomain(t, {
@@ -642,7 +640,7 @@ function runTests () {
           fuzzylist: ['allowed-and-fuzzy-first.com'],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -650,11 +648,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin that is blocklisted and allowlisted, both on second config
     testDomain(t, {
@@ -668,7 +666,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: ['allowed-and-blocked-second.com'],
@@ -676,11 +674,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin blocked by fuzzylist and allowlisted, both on second config
     testDomain(t, {
@@ -694,7 +692,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: ['allowed-and-fuzzy-second.com'],
@@ -702,11 +700,11 @@ function runTests () {
           fuzzylist: ['allowed-and-fuzzy-second.com'],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin blocked by first config but allowedlisted by second
     testDomain(t, {
@@ -720,7 +718,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: ['blocked-first-allowed-second.com'],
@@ -728,11 +726,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin allowed by first config but blocked by second
     testDomain(t, {
@@ -746,7 +744,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -754,11 +752,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin fuzzylist blocked by first config but allowed by second
     testDomain(t, {
@@ -772,7 +770,7 @@ function runTests () {
           fuzzylist: ['fuzzy-first-allowed-second.com'],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: ['fuzzy-first-allowed-second.com'],
@@ -780,11 +778,11 @@ function runTests () {
           fuzzylist: [],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
     // allow origin allowed by first config but fuzzylist blocked by second
     testDomain(t, {
@@ -798,7 +796,7 @@ function runTests () {
           fuzzylist: [],
           name: 'first',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
         {
           allowlist: [],
@@ -806,16 +804,16 @@ function runTests () {
           fuzzylist: ['allowed-first-fuzzy-second.com'],
           name: 'second',
           tolerance: 2,
-          version: 1
+          version: 1,
         },
       ],
-      type: 'allowlist'
-    })
+      type: 'allowlist',
+    });
 
-    t.end()
-  })
+    t.end();
+  });
 }
 
 module.exports = {
   runTests,
-}
+};
