@@ -55,7 +55,7 @@ export type PhishingDetectorResult = {
 };
 
 export class PhishingDetector {
-  configs: PhishingDetectorConfiguration[];
+  #configs: PhishingDetectorConfiguration[];
 
   legacyConfig: boolean;
 
@@ -72,11 +72,11 @@ export class PhishingDetector {
   constructor(opts: PhishingDetectorOptions) {
     // recommended configuration
     if (Array.isArray(opts)) {
-      this.configs = processConfigs(opts);
+      this.#configs = processConfigs(opts);
       this.legacyConfig = false;
       // legacy configuration
     } else {
-      this.configs = [
+      this.#configs = [
         getDefaultPhishingDetectorConfig({
           allowlist: opts.whitelist,
           blocklist: opts.blacklist,
@@ -88,6 +88,22 @@ export class PhishingDetector {
     }
   }
 
+  /**
+   * Get the configurations used by the detector.
+   *
+   * @returns the configurations used by the detector.
+   */
+  get configs(): PhishingDetectorConfiguration[] {
+    return this.#configs;
+  }
+
+  /**
+   * Check if a domain is known to be malicious or similar to a common phishing
+   * target.
+   *
+   * @param domain - The domain to check.
+   * @returns The result of the check.
+   */
   check(domain: string): PhishingDetectorResult {
     const result = this.#check(domain);
 
@@ -112,7 +128,7 @@ export class PhishingDetector {
 
     const source = domainToParts(fqdn);
 
-    for (const { allowlist, name, version } of this.configs) {
+    for (const { allowlist, name, version } of this.#configs) {
       // if source matches allowlist hostname (or subdomain thereof), PASS
       const allowlistMatch = matchPartsAgainstList(source, allowlist);
       if (allowlistMatch) {
@@ -128,7 +144,7 @@ export class PhishingDetector {
     }
 
     for (const { blocklist, fuzzylist, name, tolerance, version } of this
-      .configs) {
+      .#configs) {
       // if source matches blocklist hostname (or subdomain thereof), FAIL
       const blocklistMatch = matchPartsAgainstList(source, blocklist);
       if (blocklistMatch) {
