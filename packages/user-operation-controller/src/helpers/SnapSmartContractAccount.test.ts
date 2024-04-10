@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import { type PrepareUserOperationRequest } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
+import { toEip155ChainId } from '../utils/chain-id';
 import { SnapSmartContractAccount } from './SnapSmartContractAccount';
 
 const PREPARE_USER_OPERATION_REQUEST_MOCK: PrepareUserOperationRequest = {
@@ -34,6 +35,7 @@ const UPDATE_USER_OPERATION_REQUEST_MOCK: UpdateUserOperationRequest = {
     signature: '0xa',
     verificationGasLimit: '0xb',
   },
+  chainId: '0x1',
 };
 
 const SIGN_USER_OPERATION_REQUEST_MOCK: SignUserOperationRequest = {
@@ -148,6 +150,9 @@ describe('SnapSmartContractAccount', () => {
             value: PREPARE_USER_OPERATION_REQUEST_MOCK.value,
           },
         ],
+        {
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
+        },
       );
     });
 
@@ -169,6 +174,9 @@ describe('SnapSmartContractAccount', () => {
             value: PREPARE_USER_OPERATION_REQUEST_MOCK.value,
           },
         ],
+        {
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
+        },
       );
     });
 
@@ -190,6 +198,9 @@ describe('SnapSmartContractAccount', () => {
             value: PREPARE_USER_OPERATION_REQUEST_MOCK.value,
           },
         ],
+        {
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
+        },
       );
     });
 
@@ -211,6 +222,9 @@ describe('SnapSmartContractAccount', () => {
             value: VALUE_ZERO,
           },
         ],
+        {
+          chainId: toEip155ChainId(PREPARE_USER_OPERATION_REQUEST_MOCK.chainId),
+        },
       );
     });
   });
@@ -236,6 +250,9 @@ describe('SnapSmartContractAccount', () => {
       expect(patchMock).toHaveBeenCalledWith(
         UPDATE_USER_OPERATION_REQUEST_MOCK.userOperation.sender,
         UPDATE_USER_OPERATION_REQUEST_MOCK.userOperation,
+        {
+          chainId: toEip155ChainId(UPDATE_USER_OPERATION_REQUEST_MOCK.chainId),
+        },
       );
     });
 
@@ -275,6 +292,9 @@ describe('SnapSmartContractAccount', () => {
       expect(signMock).toHaveBeenCalledWith(
         SIGN_USER_OPERATION_REQUEST_MOCK.userOperation.sender,
         SIGN_USER_OPERATION_REQUEST_MOCK.userOperation,
+        {
+          chainId: toEip155ChainId(SIGN_USER_OPERATION_REQUEST_MOCK.chainId),
+        },
       );
     });
   });

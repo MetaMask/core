@@ -9,6 +9,7 @@ import type {
   UpdateUserOperationResponse,
 } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
+import { toEip155ChainId } from '../utils/chain-id';
 
 export class SnapSmartContractAccount implements SmartContractAccount {
   #messenger: UserOperationControllerMessenger;
@@ -21,6 +22,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
     request: PrepareUserOperationRequest,
   ): Promise<PrepareUserOperationResponse> {
     const {
+      chainId,
       data: requestData,
       from: sender,
       to: requestTo,
@@ -35,6 +37,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:prepareUserOperation',
       sender,
       [{ data, to, value }],
+      { chainId: toEip155ChainId(chainId) },
     );
 
     const {
@@ -62,7 +65,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
   async updateUserOperation(
     request: UpdateUserOperationRequest,
   ): Promise<UpdateUserOperationResponse> {
-    const { userOperation } = request;
+    const { userOperation, chainId } = request;
     const { sender } = userOperation;
 
     const {
@@ -74,6 +77,7 @@ export class SnapSmartContractAccount implements SmartContractAccount {
       'KeyringController:patchUserOperation',
       sender,
       userOperation,
+      { chainId: toEip155ChainId(chainId) },
     );
 
     const paymasterAndData =
@@ -92,13 +96,14 @@ export class SnapSmartContractAccount implements SmartContractAccount {
   async signUserOperation(
     request: SignUserOperationRequest,
   ): Promise<SignUserOperationResponse> {
-    const { userOperation } = request;
+    const { userOperation, chainId } = request;
     const { sender } = userOperation;
 
     const signature = await this.#messenger.call(
       'KeyringController:signUserOperation',
       sender,
       userOperation,
+      { chainId: toEip155ChainId(chainId) },
     );
 
     return { signature };

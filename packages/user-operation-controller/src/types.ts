@@ -177,6 +177,9 @@ export type PrepareUserOperationRequest = {
 export type UpdateUserOperationRequest = {
   /** The user operation to update including the dummy signature and dummy paymasterAndData values. */
   userOperation: UserOperation;
+
+  /** The hexadecimal chain ID of the target network. */
+  chainId: string;
 };
 
 /**
