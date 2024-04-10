@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+### Changed
+- Update a URL for transaction-api from `https://transaction.metaswap.codefi.network` to `https://transaction.api.cx.metamask.io`, since we shouldn't be using `codefi.network` anymore ([#314](https://github.com/MetaMask/smart-transactions-controller/pull/314))
+- Add a new function called `getSmartTransactionByMinedTxHash`, which can be used to get a smart transaction by its `minedHash` prop ([#314](https://github.com/MetaMask/smart-transactions-controller/pull/314))
+- Add new props on the `SmartTransactionsStatus` type, so they can be used e.g. as event props ([#314](https://github.com/MetaMask/smart-transactions-controller/pull/314))
+
 ## [8.0.0]
 ### Changed
 - **BREAKING:** The constructor now requires a `getTransactions` option, which can be used to get a list of existing transactions ([#301](https://github.com/MetaMask/smart-transactions-controller/pull/301))
@@ -248,7 +254,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.0.0...v8.1.0
 [8.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v7.0.0...v8.0.0
 [7.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v6.2.2...v7.0.0
 [6.2.2]: https://github.com/MetaMask/smart-transactions-controller/compare/v6.2.1...v6.2.2
