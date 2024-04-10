@@ -1,45 +1,30 @@
-import type { ParsedMessage } from '@spruceid/siwe-parser';
+import { ParsedMessage } from '@spruceid/siwe-parser';
 
 import { detectSIWE, isValidSIWEOrigin } from './siwe';
 
 const siweMessage =
   'example.com wants you to sign in with your Ethereum account:\n0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2\n\n\nURI: https://example.com/login\nVersion: 1\nChain ID: 1\nNonce: 32891756\nIssued At: 2021-09-30T16:25:24Z';
-
-const expectedParsedMessage: Omit<
-  ParsedMessage,
-  | 'scheme'
-  | 'statement'
-  | 'resources'
-  | 'expirationTime'
-  | 'notBefore'
-  | 'requestId'
-> = {
-  domain: 'example.com',
-  address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-  uri: 'https://example.com/login',
-  version: '1',
-  chainId: 1,
-  nonce: '32891756',
-  issuedAt: '2021-09-30T16:25:24Z',
-};
+const parsedMessage = new ParsedMessage(siweMessage);
 
 describe('siwe', () => {
   describe('detectSIWE', () => {
+    const textAsHex = (string: string) => {
+      return Buffer.from(string, 'utf8').toString('hex');
+    };
+
     it('returns an object with isSIWEMessage set to true and parsedMessage', () => {
       const result = detectSIWE({ data: textAsHex(siweMessage) });
       expect(result.isSIWEMessage).toBe(true);
-      // eslint-disable-next-line jest/prefer-strict-equal
-      expect(result.parsedMessage).toEqual(expectedParsedMessage);
+      expect(result.parsedMessage).toStrictEqual(parsedMessage);
     });
 
     it('returns an object with isSIWEMessage set to true and parsedMessage when scheme is provided', () => {
-      const result = detectSIWE({ data: textAsHex(`https://${siweMessage}`) });
+      const messageWithScheme = `https://${siweMessage}`;
+      const parsedMessageWithScheme = new ParsedMessage(messageWithScheme);
+      const result = detectSIWE({ data: textAsHex(messageWithScheme) });
+
       expect(result.isSIWEMessage).toBe(true);
-      // eslint-disable-next-line jest/prefer-strict-equal
-      expect(result.parsedMessage).toEqual({
-        ...expectedParsedMessage,
-        scheme: 'https',
-      });
+      expect(result.parsedMessage).toStrictEqual(parsedMessageWithScheme);
     });
 
     it('returns an object with isSIWEMessage set to false and parsedMessage set to null', () => {
@@ -50,23 +35,6 @@ describe('siwe', () => {
   });
 
   describe('isValidSIWEOrigin', () => {
-    const optionalFields: Pick<
-      ParsedMessage,
-      | 'scheme'
-      | 'expirationTime'
-      | 'notBefore'
-      | 'requestId'
-      | 'resources'
-      | 'statement'
-    > = {
-      scheme: null,
-      expirationTime: null,
-      notBefore: null,
-      requestId: null,
-      resources: null,
-      statement: null,
-    };
-
     const checks = [
       {
         name: 'identical domain',
@@ -277,8 +245,7 @@ describe('siwe', () => {
             siwe: {
               isSIWEMessage: true,
               parsedMessage: {
-                ...optionalFields,
-                ...expectedParsedMessage,
+                ...parsedMessage,
                 domain,
               },
             },
@@ -289,12 +256,3 @@ describe('siwe', () => {
     }
   });
 });
-
-/**
- * Converts the text to hex.
- * @param string - text to convert
- * @returns hex string
- */
-function textAsHex(string: string): string {
-  return Buffer.from(string, 'utf8').toString('hex');
-}
