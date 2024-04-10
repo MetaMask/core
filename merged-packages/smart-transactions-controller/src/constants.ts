@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'https://transaction.metaswap.codefi.network';
+export const API_BASE_URL = 'https://transaction.api.cx.metamask.io';
 export const CHAIN_IDS = {
   ETHEREUM: '0x1',
   GOERLI: '0x5',

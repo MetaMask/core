@@ -67,6 +67,9 @@ export type SmartTransactionsStatus = {
   minedHash: string;
   minedTx: SmartTransactionMinedTx;
   isSettled: boolean;
+  duplicated?: boolean;
+  timedOut?: boolean;
+  proxied?: boolean;
 };
 
 export type SmartTransaction = {

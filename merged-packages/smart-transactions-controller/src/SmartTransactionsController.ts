@@ -852,6 +852,16 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     }
   }
 
+  #getCurrentSmartTransactions(): SmartTransaction[] {
+    const { smartTransactions } = this.state.smartTransactionsState;
+    const { chainId } = this.config;
+    const currentSmartTransactions = smartTransactions?.[chainId];
+    if (!currentSmartTransactions || currentSmartTransactions.length === 0) {
+      return [];
+    }
+    return currentSmartTransactions;
+  }
+
   getTransactions({
     addressFrom,
     status,
@@ -859,15 +869,24 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     addressFrom: string;
     status: SmartTransactionStatuses;
   }): SmartTransaction[] {
-    const { smartTransactions } = this.state.smartTransactionsState;
-    const { chainId } = this.config;
-    const currentSmartTransactions = smartTransactions?.[chainId];
-    if (!currentSmartTransactions || currentSmartTransactions.length === 0) {
-      return [];
-    }
-
+    const currentSmartTransactions = this.#getCurrentSmartTransactions();
     return currentSmartTransactions.filter((stx) => {
       return stx.status === status && stx.txParams?.from === addressFrom;
+    });
+  }
+
+  getSmartTransactionByMinedTxHash(
+    txHash: string | undefined,
+  ): SmartTransaction | undefined {
+    if (!txHash) {
+      return undefined;
+    }
+    const currentSmartTransactions = this.#getCurrentSmartTransactions();
+    return currentSmartTransactions.find((smartTransaction) => {
+      return (
+        smartTransaction.statusMetadata?.minedHash?.toLowerCase() ===
+        txHash.toLowerCase()
+      );
     });
   }
 }

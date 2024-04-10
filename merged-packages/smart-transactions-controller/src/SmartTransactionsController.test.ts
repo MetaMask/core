@@ -1186,6 +1186,48 @@ describe('SmartTransactionsController', () => {
     });
   });
 
+  describe('getSmartTransactionByMinedTxHash', () => {
+    it('retrieves a smart transaction by a mined tx hash', () => {
+      const { smartTransactionsState } = smartTransactionsController.state;
+      const successfulSmartTransaction = createStateAfterSuccess()[0];
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: [
+              successfulSmartTransaction,
+            ] as SmartTransaction[],
+          },
+        },
+      });
+      const smartTransaction =
+        smartTransactionsController.getSmartTransactionByMinedTxHash(
+          successfulSmartTransaction.statusMetadata.minedHash,
+        );
+      expect(smartTransaction).toStrictEqual(successfulSmartTransaction);
+    });
+
+    it('returns undefined if there is no smart transaction found by tx hash', () => {
+      const { smartTransactionsState } = smartTransactionsController.state;
+      const successfulSmartTransaction = createStateAfterSuccess()[0];
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: [
+              successfulSmartTransaction,
+            ] as SmartTransaction[],
+          },
+        },
+      });
+      const smartTransaction =
+        smartTransactionsController.getSmartTransactionByMinedTxHash(
+          'nonStxTxHash',
+        );
+      expect(smartTransaction).toBeUndefined();
+    });
+  });
+
   describe('isNewSmartTransaction', () => {
     it('returns true if it is a new STX', () => {
       const actual =
