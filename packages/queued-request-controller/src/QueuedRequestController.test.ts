@@ -808,6 +808,7 @@ describe('QueuedRequestController', () => {
 
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(messenger),
+        methodsRequiringNetworkSwitch: ['eth_sendTransaction'],
       };
 
       const controller = new QueuedRequestController(options);
