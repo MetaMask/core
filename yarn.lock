@@ -1748,7 +1748,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/contract-metadata": ^2.4.0
+    "@metamask/contract-metadata": ^2.5.0
     "@metamask/controller-utils": ^9.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
@@ -1885,10 +1885,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/contract-metadata@npm:^2.4.0":
-  version: 2.4.0
-  resolution: "@metamask/contract-metadata@npm:2.4.0"
-  checksum: dce2d91153f4f97d8e073d6a1465dc2519f149009f2c68dd982c0534fa853a871d9c824bb78b1caa091b7265103b094ced48ea21975de9f97e8b5a4e93e993dc
+"@metamask/contract-metadata@npm:^2.5.0":
+  version: 2.5.0
+  resolution: "@metamask/contract-metadata@npm:2.5.0"
+  checksum: b66919b867356b045f29f4a64e63f4001ed73f99c2d674eacf5d965581894347dec2788b36eeeec5b02d5c351c4b08b2ab1ce57aac5e23884f630b0ca435e453
   languageName: node
   linkType: hard
 
