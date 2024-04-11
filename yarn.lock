@@ -1649,7 +1649,7 @@ __metadata:
     "@metamask/keyring-api": ^5.1.0
     "@metamask/keyring-controller": ^14.0.1
     "@metamask/snaps-controllers": ^6.0.3
-    "@metamask/snaps-sdk": ^3.1.1
+    "@metamask/snaps-sdk": ^4.0.0
     "@metamask/snaps-utils": ^7.0.3
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2963,6 +2963,20 @@ __metadata:
     fast-xml-parser: ^4.3.4
     superstruct: ^1.0.3
   checksum: a95f10403b50be7b6b35b49eef3724eabb8ef0763db6434e6c77a6d56fb18deab928764dee2738ee6428e77ea582b3dd71e5cbdb19dfb37389dc4c6d34294891
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-sdk@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "@metamask/snaps-sdk@npm:4.0.0"
+  dependencies:
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/providers": ^16.0.0
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/utils": ^8.3.0
+    fast-xml-parser: ^4.3.4
+    superstruct: ^1.0.3
+  checksum: 01b485b05715f7fff3527b8cac5be180f2443797b05839f615c59ac2c95860b68509c7e7c0eec0d921b04b099f5e7bc99bcb2447373e866649b8bc8f29b738ec
   languageName: node
   linkType: hard
 
