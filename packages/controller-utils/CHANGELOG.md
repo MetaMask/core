@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.0.3]
 
-### Uncategorized
+### Added
 
-- Bump @spruceid/siwe-parser to 2.1.0 ([#4141](https://github.com/MetaMask/core.git/pull/4141))
-- feat: reservoir migration ([#4030](https://github.com/MetaMask/core.git/pull/4030))
-- Fix prototype-polluting assignments ([#4041](https://github.com/MetaMask/core.git/pull/4041))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core.git/pull/4084))
+- Add guards against prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
 
 ## [9.0.2]
 
