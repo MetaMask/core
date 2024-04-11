@@ -1334,7 +1334,7 @@ export class TransactionController extends BaseController<
       // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
       // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
       if (!nonceToUse) {
-        nonceLock = await this.nonceTracker.getNonceLock(from);
+        nonceLock = await this.getNonceLock(from);
         nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
       }
 
@@ -1400,6 +1400,9 @@ export class TransactionController extends BaseController<
       this.failTransaction(transactionMeta, error);
     } finally {
       releaseLock();
+      if (nonceLock) {
+        nonceLock.releaseLock();
+      }
     }
   }
 
