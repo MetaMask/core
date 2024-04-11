@@ -177,6 +177,9 @@ export type PrepareUserOperationRequest = {
 export type UpdateUserOperationRequest = {
   /** The user operation to update including the dummy signature and dummy paymasterAndData values. */
   userOperation: UserOperation;
+
+  /** The hexadecimal chain ID of the target network. */
+  chainId: string;
 };
 
 /**
@@ -253,6 +256,15 @@ export type UpdateUserOperationResponse = {
    * Not required if a paymaster is not sponsoring the transaction.
    */
   paymasterAndData?: string;
+
+  /**
+   * The final gas limits for the user operation suggested by the smart contract account.
+   * The simulated gas limits may be different after the bundler estimates gas with the use
+   * of the paymaster.
+   */
+  callGasLimit?: string;
+  preVerificationGas?: string;
+  verificationGasLimit?: string;
 };
 
 /**
