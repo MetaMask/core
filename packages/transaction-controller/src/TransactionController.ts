@@ -70,6 +70,7 @@ import type {
   SecurityAlertResponse,
   GasFeeFlow,
   SimulationData,
+  GasFeeEstimates,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -875,8 +876,37 @@ export class TransactionController extends BaseController<
       },
     });
 
-    gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
-      this.#updateTransactionInternal(transactionMeta, { skipHistory: true }),
+    gasFeePoller.hub.on(
+      'transaction-updated',
+      ({
+        transactionId,
+        gasFeeEstimates,
+        gasFeeEstimatesLoaded,
+        layer1GasFee,
+      }: {
+        transactionId: string;
+        gasFeeEstimates?: GasFeeEstimates;
+        gasFeeEstimatesLoaded?: boolean;
+        layer1GasFee?: Hex;
+      }) => {
+        this.#updateTransactionInternal(
+          transactionId,
+          (txMeta) => {
+            if (gasFeeEstimates) {
+              txMeta.gasFeeEstimates = gasFeeEstimates;
+            }
+
+            if (gasFeeEstimatesLoaded !== undefined) {
+              txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+            }
+
+            if (layer1GasFee) {
+              txMeta.layer1GasFee = layer1GasFee;
+            }
+          },
+          { skipHistory: true },
+        );
+      },
     );
 
     // when transactionsController state changes
@@ -1553,10 +1583,14 @@ export class TransactionController extends BaseController<
    * @param note - A note or update reason to include in the transaction history.
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
-    this.#updateTransactionInternal(transactionMeta, {
-      note,
-      skipHistory: this.isHistoryDisabled,
-    });
+    this.#updateTransactionInternal(
+      transactionMeta.id,
+      () => ({ ...transactionMeta }),
+      {
+        note,
+        skipHistory: this.isHistoryDisabled,
+      },
+    );
   }
 
   /**
@@ -3532,38 +3566,48 @@ export class TransactionController extends BaseController<
   }
 
   #updateTransactionInternal(
-    transactionMeta: TransactionMeta,
-    { note, skipHistory }: { note?: string; skipHistory?: boolean },
+    transactionId: string,
+    callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
+    { note, skipHistory }: { note?: string; skipHistory?: boolean } = {},
   ) {
-    const normalizedTransaction = {
-      ...transactionMeta,
-      txParams: normalizeTransactionParams(transactionMeta.txParams),
-    };
-
-    validateTxParams(normalizedTransaction.txParams);
-
-    const updatedTransactionParams = this.#checkIfTransactionParamsUpdated(
-      normalizedTransaction,
-    );
-
-    const transactionWithUpdatedHistory =
-      skipHistory === true
-        ? normalizedTransaction
-        : updateTransactionHistory(
-            normalizedTransaction,
-            note ?? 'Transaction updated',
-          );
+    let updatedTransactionParams: (keyof TransactionParams)[] = [];
 
     this.update((state) => {
       const index = state.transactions.findIndex(
-        ({ id }) => transactionMeta.id === id,
+        ({ id }) => id === transactionId,
       );
-      state.transactions[index] = transactionWithUpdatedHistory;
+
+      let transactionMeta = state.transactions[index];
+
+      // eslint-disable-next-line n/callback-return
+      transactionMeta = callback(transactionMeta) ?? transactionMeta;
+
+      transactionMeta.txParams = normalizeTransactionParams(
+        transactionMeta.txParams,
+      );
+
+      validateTxParams(transactionMeta.txParams);
+
+      updatedTransactionParams =
+        this.#checkIfTransactionParamsUpdated(transactionMeta);
+
+      if (skipHistory !== true) {
+        transactionMeta = updateTransactionHistory(
+          transactionMeta,
+          note ?? 'Transaction updated',
+        );
+      }
+
+      state.transactions[index] = transactionMeta;
     });
+
+    const transactionMeta = this.getTransaction(
+      transactionId,
+    ) as TransactionMeta;
 
     if (updatedTransactionParams.length > 0) {
       this.#onTransactionParamsUpdated(
-        normalizedTransaction,
+        transactionMeta,
         updatedTransactionParams,
       );
     }
@@ -3624,7 +3668,10 @@ export class TransactionController extends BaseController<
 
     if (this.#isSimulationEnabled()) {
       this.#updateTransactionInternal(
-        { ...transactionMeta, simulationData: undefined },
+        id,
+        (txMeta) => {
+          txMeta.simulationData = undefined;
+        },
         { skipHistory: true },
       );
 
@@ -3649,9 +3696,14 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    this.updateTransaction(
-      { ...finalTransactionMeta, simulationData },
-      'TransactionController#updateSimulationData - Update simulation data',
+    this.#updateTransactionInternal(
+      id,
+      (txMeta) => {
+        txMeta.simulationData = simulationData;
+      },
+      {
+        note: 'TransactionController#updateSimulationData - Update simulation data',
+      },
     );
 
     log('Updated simulation data', id, simulationData);
