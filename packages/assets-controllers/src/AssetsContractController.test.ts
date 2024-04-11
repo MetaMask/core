@@ -612,7 +612,11 @@ describe('AssetsContractController', () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
     assetsContract.configure({ provider });
-    const errorLogSpy = jest.spyOn(console, 'error').mockImplementationOnce(() => {});
+    const errorLogSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementationOnce(() => {
+        /**/
+      });
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -655,7 +659,9 @@ describe('AssetsContractController', () => {
     );
     expect(uri).toBe('https://api.godsunchained.com/card/0');
     expect(errorLogSpy).toHaveBeenCalledTimes(1);
-    expect(errorLogSpy.mock.calls).toContainEqual(['Contract does not support ERC721 metadata interface.']);
+    expect(errorLogSpy.mock.calls).toContainEqual([
+      'Contract does not support ERC721 metadata interface.',
+    ]);
 
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
