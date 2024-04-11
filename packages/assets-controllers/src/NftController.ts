@@ -77,6 +77,10 @@ export interface Nft extends NftMetadata {
   address: string;
   isCurrentlyOwned?: boolean;
 }
+type NftUpdate = {
+  nft: Nft;
+  newMetadata: NftMetadata;
+};
 
 /**
  * @type NftContract
@@ -1114,7 +1118,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.messagingSystem = messenger;
 
     onPreferencesStateChange(
-      ({
+      async ({
         selectedAddress,
         ipfsGateway,
         displayNftMedia,
@@ -1126,6 +1130,26 @@ export class NftController extends BaseController<NftConfig, NftState> {
           displayNftMedia,
           isIpfsGatewayEnabled,
         });
+
+        const needsUpdateNftMetadata =
+        (isIpfsGatewayEnabled && ipfsGateway !== '') || displayNftMedia;
+
+      if (needsUpdateNftMetadata) {
+        const { chainId } = this.config;
+        const nfts: Nft[] =
+          this.state.allNfts[selectedAddress]?.[chainId] ?? [];
+        // filter only nfts
+        const nftsToUpdate = nfts.filter(
+          (singleNft) =>
+            !singleNft.name && !singleNft.description && !singleNft.image,
+        );
+        if (nftsToUpdate.length !== 0) {
+          await this.updateNftMetadata({
+            nfts: nftsToUpdate,
+            userAddress: selectedAddress,
+          });
+        }
+      }
       },
     );
 
@@ -1346,6 +1370,82 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
     }
   }
+
+   /**
+   * Refetches NFT metadata and updates the state
+   *
+   * @param options - Options for refetching NFT metadata
+   * @param options.nfts - nfts to update metadata for.
+   * @param options.userAddress - The current user address
+   */
+   async updateNftMetadata({
+    nfts,
+    userAddress = this.config.selectedAddress,
+  }: {
+    nfts: Nft[];
+    userAddress?: string;
+  }) {
+    const { chainId } = this.config;
+
+    const nftsWithChecksumAdr = nfts.map((nft) => {
+      return {
+        ...nft,
+        address: toChecksumHexAddress(nft.address),
+      };
+    });
+    const nftMetadataResults = await Promise.allSettled(
+      nftsWithChecksumAdr.map(async (nft) => {
+        const resMetadata = await this.getNftInformation(
+          nft.address,
+          nft.tokenId,
+        );
+        return {
+          nft,
+          newMetadata: resMetadata,
+        };
+      }),
+    );
+    const successfulNewFetchedNfts = nftMetadataResults.filter(
+      (result): result is PromiseFulfilledResult<NftUpdate> =>
+        result.status === 'fulfilled',
+    );
+    // We want to avoid updating the state if the state and fetched nft info are the same
+    const nftsWithDifferentMetadata: PromiseFulfilledResult<NftUpdate>[] = [];
+    const { allNfts } = this.state;
+    const stateNfts = allNfts[userAddress]?.[chainId] || [];
+
+    successfulNewFetchedNfts.forEach((singleNft) => {
+      const existingEntry: Nft | undefined = stateNfts.find(
+        (nft) =>
+          nft.address.toLowerCase() ===
+            singleNft.value.nft.address.toLowerCase() &&
+          nft.tokenId === singleNft.value.nft.tokenId,
+      );
+
+      if (existingEntry) {
+        const differentMetadata = compareNftMetadata(
+          singleNft.value.newMetadata,
+          existingEntry,
+        );
+
+        if (differentMetadata) {
+          nftsWithDifferentMetadata.push(singleNft);
+        }
+      }
+    });
+
+    if (nftsWithDifferentMetadata.length !== 0) {
+      nftsWithDifferentMetadata.forEach((elm) =>
+        this.updateNft(
+          elm.value.nft,
+          elm.value.newMetadata,
+          userAddress,
+          chainId,
+        ),
+      );
+    }
+  }
+
 
   /**
    * Removes an NFT from the stored token list.
