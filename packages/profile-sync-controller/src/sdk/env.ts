@@ -1,7 +1,7 @@
 export enum Env {
     DEV = 'dev',
     UAT = 'uat',
-    PROD = 'prod',
+    PRD = 'prd',
 }
 
 const ENV_URLS = {
@@ -15,7 +15,7 @@ const ENV_URLS = {
         oidcApiUrl: 'https://oidc.uat-api.cx.metamask.io',
         userStorageApiUrl: 'https://user-storage.uat-api.cx.metamask.io',
     },
-    prod: {
+    prd: {
         authApiUrl: 'https://authentication.api.cx.metamask.io',
         oidcApiUrl: 'https://oidc.api.cx.metamask.io',
         userStorageApiUrl: 'https://user-storage.api.cx.metamask.io',

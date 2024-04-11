@@ -125,8 +125,6 @@ function getMetaMaskProviderEIP6963(
         handleProviderEvent
       );
 
-      console.log("providers", { providers });
-
       let provider: Eip1193Provider | null;
       if (type === "all") {
         // return the first MM client we find
