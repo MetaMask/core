@@ -57,7 +57,8 @@ export function createNetworkClient(
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          network: networkConfig.network as any,
+          // @ts-expect-error @metamask/eth-json-rpc-infura is not aware of the linea-sepolia network, that only enters on controller-utils v8
+          network: networkConfig.network,
           projectId: networkConfig.infuraProjectId,
           maxAttempts: 5,
           source: 'metamask',
