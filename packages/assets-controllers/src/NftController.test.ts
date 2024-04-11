@@ -3451,6 +3451,116 @@ describe('NftController', () => {
       });
     });
 
+    it('should not update metadata when state nft and fetched nft are the same', async () => {
+      const { nftController } = setupController();
+      const { selectedAddress } = nftController.config;
+      const spy = jest.spyOn(nftController, 'updateNft');
+      const testNetworkClientId = 'sepolia';
+      await nftController.addNft('0xtest', '3', {
+        nftMetadata: {
+          name: 'toto',
+          description: 'description',
+          image: 'image.png',
+          standard: 'ERC721',
+        },
+        networkClientId: testNetworkClientId,
+      });
+
+      sinon
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
+        .returns({
+          name: 'toto',
+          image: 'image.png',
+          description: 'description',
+        });
+      const testInputNfts: Nft[] = [
+        {
+          address: '0xtest',
+          description: 'description',
+          favorite: false,
+          image: 'image.png',
+          isCurrentlyOwned: true,
+          name: "toto",
+          standard: 'ERC721',
+          tokenId: '3',
+        },
+      ];
+
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+        networkClientId: testNetworkClientId,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(0);
+      expect(
+        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
+      ).toStrictEqual({
+        address: '0xtest',
+        description: 'description',
+        favorite: false,
+        image: 'image.png',
+        isCurrentlyOwned: true,
+        name: 'toto',
+        standard: 'ERC721',
+        tokenId: '3',
+      });
+    });
+
+    it('should trigger update metadata when state nft and fetched nft are not the same', async () => {
+      const { nftController } = setupController();
+      const { selectedAddress } = nftController.config;
+      const spy = jest.spyOn(nftController, 'updateNft');
+      const testNetworkClientId = 'sepolia';
+      await nftController.addNft('0xtest', '3', {
+        nftMetadata: {
+          name: 'toto',
+          description: 'description',
+          image: 'image.png',
+          standard: 'ERC721',
+        },
+        networkClientId: testNetworkClientId,
+      });
+
+      sinon
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
+        .returns({
+          name: 'toto',
+          image: 'image-updated.png',
+          description: 'description',
+        });
+      const testInputNfts: Nft[] = [
+        {
+          address: '0xtest',
+          description: 'description',
+          favorite: false,
+          image: 'image.png',
+          isCurrentlyOwned: true,
+          name: "toto",
+          standard: 'ERC721',
+          tokenId: '3',
+        },
+      ];
+
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+        networkClientId: testNetworkClientId,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(
+        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
+      ).toStrictEqual({
+        address: '0xtest',
+        description: 'description',
+        favorite: false,
+        image: 'image-updated.png',
+        isCurrentlyOwned: true,
+        name: 'toto',
+        standard: 'ERC721',
+        tokenId: '3',
+      });
+    });
+
     it('should not update metadata when calls to fetch metadata fail', async () => {
       const { nftController } = setupController();
       const { selectedAddress } = nftController.config;
