@@ -8,7 +8,11 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
-import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
+import type {
+  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerStateChangeEvent,
+} from '@metamask/selected-network-controller';
+import { SelectedNetworkControllerEventTypes } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
@@ -63,12 +67,14 @@ export type AllowedActions =
   | NetworkControllerSetActiveNetworkAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
 
+export type AllowedEvents = SelectedNetworkControllerStateChangeEvent;
+
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   QueuedRequestControllerActions | AllowedActions,
-  QueuedRequestControllerEvents,
+  QueuedRequestControllerEvents | AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 export type QueuedRequestControllerOptions = {
@@ -168,6 +174,37 @@ export class QueuedRequestController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:enqueueRequest`,
       this.enqueueRequest.bind(this),
+    );
+
+    this.messagingSystem.subscribe(
+      SelectedNetworkControllerEventTypes.stateChange,
+      (_, patch) => {
+        patch.forEach(({ op, path }) => {
+          if (
+            (op === 'replace' || op === 'add') &&
+            path.length === 2 &&
+            path[0] === 'domains' &&
+            typeof path[1] === 'string'
+          ) {
+            this.#flushQueueForOrigin(path[1]);
+          }
+        });
+      },
+    );
+  }
+
+  #flushQueueForOrigin(flushOrigin: string) {
+    this.#requestQueue
+      .filter(({ origin }) => origin === flushOrigin)
+      .forEach(({ processRequest }) => {
+        processRequest(
+          new Error(
+            'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+          ),
+        );
+      });
+    this.#requestQueue = this.#requestQueue.filter(
+      ({ origin }) => origin !== flushOrigin,
     );
   }
 
