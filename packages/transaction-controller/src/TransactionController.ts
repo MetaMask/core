@@ -878,35 +878,7 @@ export class TransactionController extends BaseController<
 
     gasFeePoller.hub.on(
       'transaction-updated',
-      ({
-        transactionId,
-        gasFeeEstimates,
-        gasFeeEstimatesLoaded,
-        layer1GasFee,
-      }: {
-        transactionId: string;
-        gasFeeEstimates?: GasFeeEstimates;
-        gasFeeEstimatesLoaded?: boolean;
-        layer1GasFee?: Hex;
-      }) => {
-        this.#updateTransactionInternal(
-          transactionId,
-          (txMeta) => {
-            if (gasFeeEstimates) {
-              txMeta.gasFeeEstimates = gasFeeEstimates;
-            }
-
-            if (gasFeeEstimatesLoaded !== undefined) {
-              txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
-            }
-
-            if (layer1GasFee) {
-              txMeta.layer1GasFee = layer1GasFee;
-            }
-          },
-          { skipHistory: true },
-        );
-      },
+      this.#onGasFeePollerTransactionUpdate.bind(this),
     );
 
     // when transactionsController state changes
@@ -1583,13 +1555,11 @@ export class TransactionController extends BaseController<
    * @param note - A note or update reason to include in the transaction history.
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
+    const { id: transactionId } = transactionMeta;
+
     this.#updateTransactionInternal(
-      transactionMeta.id,
+      { transactionId, note, skipHistory: this.isHistoryDisabled },
       () => ({ ...transactionMeta }),
-      {
-        note,
-        skipHistory: this.isHistoryDisabled,
-      },
     );
   }
 
@@ -2293,23 +2263,28 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Utility method to get the layer 1 gas fee for given transaction params.
+   * Determine the layer 1 gas fee for the given transaction parameters.
    *
-   * @param chainId - Estimated transaction chainId.
-   * @param networkClientId - Estimated transaction networkClientId.
-   * @param transactionParams - The transaction params to estimate layer 1 gas fee for.
+   * @param request - The request object.
+   * @param request.transactionParams - The transaction parameters to estimate the layer 1 gas fee for.
+   * @param request.chainId - The ID of the chain where the transaction will be executed.
+   * @param request.networkClientId - The ID of a specific network client to process the transaction.
    */
-  async getLayer1GasFee(
-    chainId: Hex,
-    networkClientId: NetworkClientId,
-    transactionParams: TransactionParams,
-  ): Promise<Hex | undefined> {
+  async getLayer1GasFee({
+    transactionParams,
+    chainId,
+    networkClientId,
+  }: {
+    transactionParams: TransactionParams;
+    chainId?: Hex;
+    networkClientId?: NetworkClientId;
+  }): Promise<Hex | undefined> {
     const provider = this.#multichainTrackingHelper.getProvider({
       networkClientId,
       chainId,
     });
 
-    const layer1GasFee = await getTransactionLayer1GasFee({
+    return await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.layer1GasFeeFlows,
       provider,
       transactionMeta: {
@@ -2317,7 +2292,6 @@ export class TransactionController extends BaseController<
         chainId,
       } as TransactionMeta,
     });
-    return layer1GasFee;
   }
 
   private async signExternalTransaction(
@@ -3566,9 +3540,12 @@ export class TransactionController extends BaseController<
   }
 
   #updateTransactionInternal(
-    transactionId: string,
+    {
+      transactionId,
+      note,
+      skipHistory,
+    }: { transactionId: string; note?: string; skipHistory?: boolean },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
-    { note, skipHistory }: { note?: string; skipHistory?: boolean } = {},
   ) {
     let updatedTransactionParams: (keyof TransactionParams)[] = [];
 
@@ -3655,7 +3632,7 @@ export class TransactionController extends BaseController<
   }
 
   async #updateSimulationData(transactionMeta: TransactionMeta) {
-    const { id, chainId, txParams } = transactionMeta;
+    const { id: transactionId, chainId, txParams } = transactionMeta;
     const { from, to, value, data } = txParams;
 
     let simulationData: SimulationData = {
@@ -3668,11 +3645,10 @@ export class TransactionController extends BaseController<
 
     if (this.#isSimulationEnabled()) {
       this.#updateTransactionInternal(
-        id,
+        { transactionId, skipHistory: true },
         (txMeta) => {
           txMeta.simulationData = undefined;
         },
-        { skipHistory: true },
       );
 
       simulationData = await getSimulationData({
@@ -3684,12 +3660,12 @@ export class TransactionController extends BaseController<
       });
     }
 
-    const finalTransactionMeta = this.getTransaction(id);
+    const finalTransactionMeta = this.getTransaction(transactionId);
 
     if (!finalTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
-        id,
+        transactionId,
         simulationData,
       );
 
@@ -3697,15 +3673,44 @@ export class TransactionController extends BaseController<
     }
 
     this.#updateTransactionInternal(
-      id,
+      {
+        transactionId,
+        note: 'TransactionController#updateSimulationData - Update simulation data',
+      },
       (txMeta) => {
         txMeta.simulationData = simulationData;
       },
-      {
-        note: 'TransactionController#updateSimulationData - Update simulation data',
-      },
     );
 
-    log('Updated simulation data', id, simulationData);
+    log('Updated simulation data', transactionId, simulationData);
+  }
+
+  #onGasFeePollerTransactionUpdate({
+    transactionId,
+    gasFeeEstimates,
+    gasFeeEstimatesLoaded,
+    layer1GasFee,
+  }: {
+    transactionId: string;
+    gasFeeEstimates?: GasFeeEstimates;
+    gasFeeEstimatesLoaded?: boolean;
+    layer1GasFee?: Hex;
+  }) {
+    this.#updateTransactionInternal(
+      { transactionId, skipHistory: true },
+      (txMeta) => {
+        if (gasFeeEstimates) {
+          txMeta.gasFeeEstimates = gasFeeEstimates;
+        }
+
+        if (gasFeeEstimatesLoaded !== undefined) {
+          txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+        }
+
+        if (layer1GasFee) {
+          txMeta.layer1GasFee = layer1GasFee;
+        }
+      },
+    );
   }
 }
