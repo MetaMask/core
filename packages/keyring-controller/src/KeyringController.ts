@@ -570,35 +570,36 @@ export class KeyringController extends BaseController<
     keyringState: KeyringControllerMemState;
     addedAccountAddress: string;
   }> {
-    const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-      | EthKeyring<Json>
-      | undefined;
-    if (!primaryKeyring) {
-      throw new Error('No HD keyring found');
-    }
-    const oldAccounts = await this.getAccounts();
-
-    if (accountCount && oldAccounts.length !== accountCount) {
-      if (accountCount > oldAccounts.length) {
-        throw new Error('Account out of sequence');
+    return this.#withControllerLock(async () => {
+      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+        | EthKeyring<Json>
+        | undefined;
+      if (!primaryKeyring) {
+        throw new Error('No HD keyring found');
       }
-      // we return the account already existing at index `accountCount`
-      const primaryKeyringAccounts = await primaryKeyring.getAccounts();
+      const oldAccounts = await this.getAccounts();
+
+      if (accountCount && oldAccounts.length !== accountCount) {
+        if (accountCount > oldAccounts.length) {
+          throw new Error('Account out of sequence');
+        }
+        // we return the account already existing at index `accountCount`
+        const primaryKeyringAccounts = await primaryKeyring.getAccounts();
+        return {
+          keyringState: this.#getMemState(),
+          addedAccountAddress: primaryKeyringAccounts[accountCount],
+        };
+      }
+
+      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
+      await this.verifySeedPhrase();
+      await this.persistAllKeyrings();
+
       return {
         keyringState: this.#getMemState(),
-        addedAccountAddress: primaryKeyringAccounts[accountCount],
+        addedAccountAddress,
       };
-    }
-
-    const addedAccountAddress = await this.addNewAccountForKeyring(
-      primaryKeyring,
-    );
-    await this.verifySeedPhrase();
-
-    return {
-      keyringState: this.#getMemState(),
-      addedAccountAddress,
-    };
+    });
   }
 
   /**
