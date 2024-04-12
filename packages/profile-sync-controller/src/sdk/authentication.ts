@@ -255,7 +255,7 @@ export class JwtBearerAuth extends BaseAuth {
                 return 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3';
             case Env.UAT:
                 return 'a9de167c-c9a6-43d8-af39-d301fd44c485';
-            case Env.PROD:
+            case Env.PRD:
                 return '1132f10a-b4e5-4390-a5f2-d9c6022db564';
             default:
                 throw new ValidationError('missing oidc client id');
