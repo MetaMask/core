@@ -39,6 +39,7 @@ import {
   remove0x,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 
@@ -487,7 +488,7 @@ export class KeyringController extends BaseController<
 > {
   readonly #initVaultMutex = new Mutex();
 
-  readonly #vaultUpdateMutex = new Mutex();
+  readonly #vaultOperationMutex = new Mutex();
 
   #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
 
@@ -933,9 +934,7 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    const releaseLock = await this.#vaultUpdateMutex.acquire();
-
-    try {
+    return this.#withVaultLock(async () => {
       const { encryptionKey, encryptionSalt } = this.state;
 
       if (!this.#password && !encryptionKey) {
@@ -1007,9 +1006,7 @@ export class KeyringController extends BaseController<
       });
 
       return true;
-    } finally {
-      releaseLock();
-    }
+    });
   }
 
   /**
@@ -1738,86 +1735,94 @@ export class KeyringController extends BaseController<
     encryptionKey?: string,
     encryptionSalt?: string,
   ): Promise<EthKeyring<Json>[]> {
-    const encryptedVault = this.state.vault;
-    if (!encryptedVault) {
-      throw new Error(KeyringControllerError.VaultError);
-    }
+    return this.#withVaultLock(async ({ releaseLock }) => {
+      const encryptedVault = this.state.vault;
+      if (!encryptedVault) {
+        throw new Error(KeyringControllerError.VaultError);
+      }
 
-    await this.#clearKeyrings(true);
+      await this.#clearKeyrings({ skipStateUpdate: true });
 
-    let vault;
-    const updatedState: Partial<KeyringControllerState> = {};
+      let vault;
+      const updatedState: Partial<KeyringControllerState> = {};
 
-    if (this.#cacheEncryptionKey) {
-      assertIsExportableKeyEncryptor(this.#encryptor);
+      if (this.#cacheEncryptionKey) {
+        assertIsExportableKeyEncryptor(this.#encryptor);
 
-      if (password) {
-        const result = await this.#encryptor.decryptWithDetail(
-          password,
-          encryptedVault,
-        );
-        vault = result.vault;
-        this.#password = password;
+        if (password) {
+          const result = await this.#encryptor.decryptWithDetail(
+            password,
+            encryptedVault,
+          );
+          vault = result.vault;
+          this.#password = password;
 
-        updatedState.encryptionKey = result.exportedKeyString;
-        updatedState.encryptionSalt = result.salt;
-      } else {
-        const parsedEncryptedVault = JSON.parse(encryptedVault);
+          updatedState.encryptionKey = result.exportedKeyString;
+          updatedState.encryptionSalt = result.salt;
+        } else {
+          const parsedEncryptedVault = JSON.parse(encryptedVault);
 
-        if (encryptionSalt !== parsedEncryptedVault.salt) {
-          throw new Error(KeyringControllerError.ExpiredCredentials);
+          if (encryptionSalt !== parsedEncryptedVault.salt) {
+            throw new Error(KeyringControllerError.ExpiredCredentials);
+          }
+
+          if (typeof encryptionKey !== 'string') {
+            throw new TypeError(KeyringControllerError.WrongPasswordType);
+          }
+
+          const key = await this.#encryptor.importKey(encryptionKey);
+          vault = await this.#encryptor.decryptWithKey(
+            key,
+            parsedEncryptedVault,
+          );
+
+          // This call is required on the first call because encryptionKey
+          // is not yet inside the memStore
+          updatedState.encryptionKey = encryptionKey;
+          // we can safely assume that encryptionSalt is defined here
+          // because we compare it with the salt from the vault
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          updatedState.encryptionSalt = encryptionSalt!;
         }
-
-        if (typeof encryptionKey !== 'string') {
+      } else {
+        if (typeof password !== 'string') {
           throw new TypeError(KeyringControllerError.WrongPasswordType);
         }
 
-        const key = await this.#encryptor.importKey(encryptionKey);
-        vault = await this.#encryptor.decryptWithKey(key, parsedEncryptedVault);
-
-        // This call is required on the first call because encryptionKey
-        // is not yet inside the memStore
-        updatedState.encryptionKey = encryptionKey;
-        // we can safely assume that encryptionSalt is defined here
-        // because we compare it with the salt from the vault
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        updatedState.encryptionSalt = encryptionSalt!;
-      }
-    } else {
-      if (typeof password !== 'string') {
-        throw new TypeError(KeyringControllerError.WrongPasswordType);
+        vault = await this.#encryptor.decrypt(password, encryptedVault);
+        this.#password = password;
       }
 
-      vault = await this.#encryptor.decrypt(password, encryptedVault);
-      this.#password = password;
-    }
-
-    if (!isSerializedKeyringsArray(vault)) {
-      throw new Error(KeyringControllerError.VaultDataError);
-    }
-
-    await Promise.all(vault.map(this.#restoreKeyring.bind(this)));
-    const updatedKeyrings = await this.#getUpdatedKeyrings();
-
-    this.update((state) => {
-      state.keyrings = updatedKeyrings;
-      if (updatedState.encryptionKey || updatedState.encryptionSalt) {
-        state.encryptionKey = updatedState.encryptionKey;
-        state.encryptionSalt = updatedState.encryptionSalt;
+      if (!isSerializedKeyringsArray(vault)) {
+        throw new Error(KeyringControllerError.VaultDataError);
       }
+
+      await Promise.all(vault.map(this.#restoreKeyring.bind(this)));
+      const updatedKeyrings = await this.#getUpdatedKeyrings();
+
+      this.update((state) => {
+        state.keyrings = updatedKeyrings;
+        if (updatedState.encryptionKey || updatedState.encryptionSalt) {
+          state.encryptionKey = updatedState.encryptionKey;
+          state.encryptionSalt = updatedState.encryptionSalt;
+        }
+      });
+
+      if (
+        this.#password &&
+        (!this.#cacheEncryptionKey || !encryptionKey) &&
+        this.#encryptor.isVaultUpdated &&
+        !this.#encryptor.isVaultUpdated(encryptedVault)
+      ) {
+        // The lock needs to be released before persisting the keyrings
+        // to avoid deadlock
+        releaseLock();
+        // Re-encrypt the vault with safer method if one is available
+        await this.persistAllKeyrings();
+      }
+
+      return this.#keyrings;
     });
-
-    if (
-      this.#password &&
-      (!this.#cacheEncryptionKey || !encryptionKey) &&
-      this.#encryptor.isVaultUpdated &&
-      !this.#encryptor.isVaultUpdated(encryptedVault)
-    ) {
-      // Re-encrypt the vault with safer method if one is available
-      await this.persistAllKeyrings();
-    }
-
-    return this.#keyrings;
   }
 
   /**
@@ -1871,14 +1876,17 @@ export class KeyringController extends BaseController<
    * Remove all managed keyrings, destroying all their
    * instances in memory.
    *
-   * @param skipStateUpdate - Whether to skip updating the constroller state.
+   * @param options - Operations options.
+   * @param options.skipStateUpdate - Whether to skip updating the controller state.
    */
-  async #clearKeyrings(skipStateUpdate = false) {
+  async #clearKeyrings(
+    options: { skipStateUpdate: boolean } = { skipStateUpdate: false },
+  ) {
     for (const keyring of this.#keyrings) {
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
-    if (!skipStateUpdate) {
+    if (!options.skipStateUpdate) {
       this.update((state) => {
         state.keyrings = [];
       });
@@ -2006,6 +2014,22 @@ export class KeyringController extends BaseController<
       isUnlocked: this.state.isUnlocked,
       keyrings: this.state.keyrings,
     };
+  }
+
+  async #withVaultLock<T>(
+    fn: ({
+      releaseLock,
+    }: {
+      releaseLock: MutexInterface.Releaser;
+    }) => Promise<T>,
+  ): Promise<T> {
+    const releaseLock = await this.#vaultOperationMutex.acquire();
+
+    try {
+      return fn({ releaseLock });
+    } finally {
+      releaseLock();
+    }
   }
 }
 
