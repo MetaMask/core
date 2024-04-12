@@ -953,8 +953,7 @@ export class KeyringController extends BaseController<
 
       serializedKeyrings.push(...this.#unsupportedKeyrings);
 
-      let vault: string | undefined;
-      let newEncryptionKey: string | undefined;
+      const updatedState: Partial<KeyringControllerState> = {};
 
       if (this.#cacheEncryptionKey) {
         assertIsExportableKeyEncryptor(this.#encryptor);
@@ -966,7 +965,7 @@ export class KeyringController extends BaseController<
             serializedKeyrings,
           );
           vaultJSON.salt = encryptionSalt;
-          vault = JSON.stringify(vaultJSON);
+          updatedState.vault = JSON.stringify(vaultJSON);
         } else if (this.#password) {
           const { vault: newVault, exportedKeyString } =
             await this.#encryptor.encryptWithDetail(
@@ -974,20 +973,20 @@ export class KeyringController extends BaseController<
               serializedKeyrings,
             );
 
-          vault = newVault;
-          newEncryptionKey = exportedKeyString;
+          updatedState.vault = newVault;
+          updatedState.encryptionKey = exportedKeyString;
         }
       } else {
         if (typeof this.#password !== 'string') {
           throw new TypeError(KeyringControllerError.WrongPasswordType);
         }
-        vault = await this.#encryptor.encrypt(
+        updatedState.vault = await this.#encryptor.encrypt(
           this.#password,
           serializedKeyrings,
         );
       }
 
-      if (!vault) {
+      if (!updatedState.vault) {
         throw new Error(KeyringControllerError.MissingVaultData);
       }
 
@@ -997,11 +996,11 @@ export class KeyringController extends BaseController<
       // in the extension.
       const updatedKeyrings = await this.#getUpdatedKeyrings();
       this.update((state) => {
-        state.vault = vault;
+        state.vault = updatedState.vault;
         state.keyrings = updatedKeyrings;
-        if (newEncryptionKey) {
-          state.encryptionKey = newEncryptionKey;
-          state.encryptionSalt = JSON.parse(vault as string).salt;
+        if (updatedState.encryptionKey) {
+          state.encryptionKey = updatedState.encryptionKey;
+          state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
         }
       });
 
