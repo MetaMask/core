@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.0.3]
+## [9.1.0]
 
 ### Added
+
+- Export new constant for the NFT API's url ([#4030](https://github.com/MetaMask/core/pull/4030))
+- Add support for wider range of SIWE messages ([#4141](https://github.com/MetaMask/core/pull/4141))
+
+### Changed
+
+- Bump TypeScript version to ~4.9.5 ([#4084](https://github.com/MetaMask/core/pull/4084))
+
+### Fixed
 
 - Add guards against prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
 
@@ -318,8 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.3...HEAD
-[9.0.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.0.3
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.1...@metamask/controller-utils@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.0...@metamask/controller-utils@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.4...@metamask/controller-utils@9.0.0
