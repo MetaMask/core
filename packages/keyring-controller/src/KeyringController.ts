@@ -485,7 +485,9 @@ export class KeyringController extends BaseController<
   KeyringControllerState,
   KeyringControllerMessenger
 > {
-  private readonly mutex = new Mutex();
+  readonly #initVaultMutex = new Mutex();
+
+  readonly #vaultUpdateMutex = new Mutex();
 
   #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
 
@@ -664,7 +666,7 @@ export class KeyringController extends BaseController<
     password: string,
     seed: Uint8Array,
   ): Promise<KeyringControllerMemState> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#initVaultMutex.acquire();
     if (!password || !password.length) {
       throw new Error('Invalid password');
     }
@@ -690,7 +692,7 @@ export class KeyringController extends BaseController<
    * @returns Newly-created keychain object.
    */
   async createNewVaultAndKeychain(password: string) {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#initVaultMutex.acquire();
     try {
       const accounts = await this.getAccounts();
       if (!accounts.length) {
@@ -926,76 +928,83 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    const { encryptionKey, encryptionSalt } = this.state;
+    const releaseLock = await this.#vaultUpdateMutex.acquire();
 
-    if (!this.#password && !encryptionKey) {
-      throw new Error(KeyringControllerError.MissingCredentials);
-    }
+    try {
+      const { encryptionKey, encryptionSalt } = this.state;
 
-    const serializedKeyrings = await Promise.all(
-      this.#keyrings.map(async (keyring) => {
-        const [type, data] = await Promise.all([
-          keyring.type,
-          keyring.serialize(),
-        ]);
-        return { type, data };
-      }),
-    );
+      if (!this.#password && !encryptionKey) {
+        throw new Error(KeyringControllerError.MissingCredentials);
+      }
 
-    serializedKeyrings.push(...this.#unsupportedKeyrings);
+      const serializedKeyrings = await Promise.all(
+        this.#keyrings.map(async (keyring) => {
+          const [type, data] = await Promise.all([
+            keyring.type,
+            keyring.serialize(),
+          ]);
+          return { type, data };
+        }),
+      );
 
-    let vault: string | undefined;
-    let newEncryptionKey: string | undefined;
+      serializedKeyrings.push(...this.#unsupportedKeyrings);
 
-    if (this.#cacheEncryptionKey) {
-      assertIsExportableKeyEncryptor(this.#encryptor);
+      let vault: string | undefined;
+      let newEncryptionKey: string | undefined;
 
-      if (encryptionKey) {
-        const key = await this.#encryptor.importKey(encryptionKey);
-        const vaultJSON = await this.#encryptor.encryptWithKey(
-          key,
-          serializedKeyrings,
-        );
-        vaultJSON.salt = encryptionSalt;
-        vault = JSON.stringify(vaultJSON);
-      } else if (this.#password) {
-        const { vault: newVault, exportedKeyString } =
-          await this.#encryptor.encryptWithDetail(
-            this.#password,
+      if (this.#cacheEncryptionKey) {
+        assertIsExportableKeyEncryptor(this.#encryptor);
+
+        if (encryptionKey) {
+          const key = await this.#encryptor.importKey(encryptionKey);
+          const vaultJSON = await this.#encryptor.encryptWithKey(
+            key,
             serializedKeyrings,
           );
+          vaultJSON.salt = encryptionSalt;
+          vault = JSON.stringify(vaultJSON);
+        } else if (this.#password) {
+          const { vault: newVault, exportedKeyString } =
+            await this.#encryptor.encryptWithDetail(
+              this.#password,
+              serializedKeyrings,
+            );
 
-        vault = newVault;
-        newEncryptionKey = exportedKeyString;
+          vault = newVault;
+          newEncryptionKey = exportedKeyString;
+        }
+      } else {
+        if (typeof this.#password !== 'string') {
+          throw new TypeError(KeyringControllerError.WrongPasswordType);
+        }
+        vault = await this.#encryptor.encrypt(
+          this.#password,
+          serializedKeyrings,
+        );
       }
-    } else {
-      if (typeof this.#password !== 'string') {
-        throw new TypeError(KeyringControllerError.WrongPasswordType);
+
+      if (!vault) {
+        throw new Error(KeyringControllerError.MissingVaultData);
       }
-      vault = await this.#encryptor.encrypt(this.#password, serializedKeyrings);
-    }
 
-    if (!vault) {
-      throw new Error(KeyringControllerError.MissingVaultData);
-    }
-
-    this.update((state) => {
-      state.vault = vault;
-    });
-
-    // The keyring updates need to be announced before updating the encryptionKey
-    // so that the updated keyring gets propagated to the extension first.
-    // Not calling {@link updateKeyringsInState} results in the wrong account being selected
-    // in the extension.
-    await this.#updateKeyringsInState();
-    if (newEncryptionKey) {
+      // The keyring updates need to be announced before updating the encryptionKey
+      // so that the updated keyring gets propagated to the extension first.
+      // Not calling {@link updateKeyringsInState} results in the wrong account being selected
+      // in the extension.
+      const updatedKeyrings = await this.#getUpdatedKeyrings();
       this.update((state) => {
-        state.encryptionKey = newEncryptionKey;
-        state.encryptionSalt = JSON.parse(vault as string).salt;
+        state.vault = vault;
+        state.keyrings = updatedKeyrings;
+        if (newEncryptionKey) {
+          state.encryptionKey = newEncryptionKey;
+          state.encryptionSalt = JSON.parse(vault as string).salt;
+        }
       });
-    }
 
-    return true;
+      return true;
+    } finally {
+      releaseLock();
+    }
   }
 
   /**
@@ -1701,13 +1710,13 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Update the controller state with its current keyrings.
+   * Get the updated array of each keyring's type and
+   * accounts list.
+   *
+   * @returns A promise resolving to the updated keyrings array.
    */
-  async #updateKeyringsInState(): Promise<void> {
-    const keyrings = await Promise.all(this.#keyrings.map(displayForKeyring));
-    this.update((state) => {
-      state.keyrings = keyrings;
-    });
+  async #getUpdatedKeyrings(): Promise<KeyringObject[]> {
+    return Promise.all(this.#keyrings.map(displayForKeyring));
   }
 
   /**
@@ -1729,9 +1738,10 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.VaultError);
     }
 
-    await this.#clearKeyrings();
+    await this.#clearKeyrings(true);
 
     let vault;
+    const updatedState: Partial<KeyringControllerState> = {};
 
     if (this.#cacheEncryptionKey) {
       assertIsExportableKeyEncryptor(this.#encryptor);
@@ -1744,10 +1754,8 @@ export class KeyringController extends BaseController<
         vault = result.vault;
         this.#password = password;
 
-        this.update((state) => {
-          state.encryptionKey = result.exportedKeyString;
-          state.encryptionSalt = result.salt;
-        });
+        updatedState.encryptionKey = result.exportedKeyString;
+        updatedState.encryptionSalt = result.salt;
       } else {
         const parsedEncryptedVault = JSON.parse(encryptedVault);
 
@@ -1764,13 +1772,11 @@ export class KeyringController extends BaseController<
 
         // This call is required on the first call because encryptionKey
         // is not yet inside the memStore
-        this.update((state) => {
-          state.encryptionKey = encryptionKey;
-          // we can safely assume that encryptionSalt is defined here
-          // because we compare it with the salt from the vault
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          state.encryptionSalt = encryptionSalt!;
-        });
+        updatedState.encryptionKey = encryptionKey;
+        // we can safely assume that encryptionSalt is defined here
+        // because we compare it with the salt from the vault
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        updatedState.encryptionSalt = encryptionSalt!;
       }
     } else {
       if (typeof password !== 'string') {
@@ -1786,7 +1792,15 @@ export class KeyringController extends BaseController<
     }
 
     await Promise.all(vault.map(this.#restoreKeyring.bind(this)));
-    await this.#updateKeyringsInState();
+    const updatedKeyrings = await this.#getUpdatedKeyrings();
+
+    this.update((state) => {
+      state.keyrings = updatedKeyrings;
+      if (updatedState.encryptionKey || updatedState.encryptionSalt) {
+        state.encryptionKey = updatedState.encryptionKey;
+        state.encryptionSalt = updatedState.encryptionSalt;
+      }
+    });
 
     if (
       this.#password &&
@@ -1851,15 +1865,19 @@ export class KeyringController extends BaseController<
   /**
    * Remove all managed keyrings, destroying all their
    * instances in memory.
+   *
+   * @param skipStateUpdate - Whether to skip updating the constroller state.
    */
-  async #clearKeyrings() {
+  async #clearKeyrings(skipStateUpdate = false) {
     for (const keyring of this.#keyrings) {
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
-    this.update((state) => {
-      state.keyrings = [];
-    });
+    if (!skipStateUpdate) {
+      this.update((state) => {
+        state.keyrings = [];
+      });
+    }
   }
 
   /**
