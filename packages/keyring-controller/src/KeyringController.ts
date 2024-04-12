@@ -2015,6 +2015,17 @@ export class KeyringController extends BaseController<
     };
   }
 
+  /**
+   * Lock the vault mutex before executing the given function,
+   * and release it after the function is resolved or after an
+   * error is thrown.
+   *
+   * This ensures that each operation that interacts with the vault
+   * is executed in a mutually exclusive way.
+   *
+   * @param fn - The function to execute while the vault mutex is locked.
+   * @returns The result of the function.
+   */
   async #withVaultLock<T>(
     fn: ({
       releaseLock,
