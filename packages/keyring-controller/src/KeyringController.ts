@@ -570,37 +570,35 @@ export class KeyringController extends BaseController<
     keyringState: KeyringControllerMemState;
     addedAccountAddress: string;
   }> {
-    return this.#withControllerLock(async () => {
-      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-        | EthKeyring<Json>
-        | undefined;
-      if (!primaryKeyring) {
-        throw new Error('No HD keyring found');
+    const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+      | EthKeyring<Json>
+      | undefined;
+    if (!primaryKeyring) {
+      throw new Error('No HD keyring found');
+    }
+    const oldAccounts = await this.getAccounts();
+
+    if (accountCount && oldAccounts.length !== accountCount) {
+      if (accountCount > oldAccounts.length) {
+        throw new Error('Account out of sequence');
       }
-      const oldAccounts = await this.getAccounts();
-
-      if (accountCount && oldAccounts.length !== accountCount) {
-        if (accountCount > oldAccounts.length) {
-          throw new Error('Account out of sequence');
-        }
-        // we return the account already existing at index `accountCount`
-        const primaryKeyringAccounts = await primaryKeyring.getAccounts();
-        return {
-          keyringState: this.#getMemState(),
-          addedAccountAddress: primaryKeyringAccounts[accountCount],
-        };
-      }
-
-      const addedAccountAddress = await this.addNewAccountForKeyring(
-        primaryKeyring,
-      );
-      await this.verifySeedPhrase();
-
+      // we return the account already existing at index `accountCount`
+      const primaryKeyringAccounts = await primaryKeyring.getAccounts();
       return {
         keyringState: this.#getMemState(),
-        addedAccountAddress,
+        addedAccountAddress: primaryKeyringAccounts[accountCount],
       };
-    });
+    }
+
+    const addedAccountAddress = await this.addNewAccountForKeyring(
+      primaryKeyring,
+    );
+    await this.verifySeedPhrase();
+
+    return {
+      keyringState: this.#getMemState(),
+      addedAccountAddress,
+    };
   }
 
   /**
@@ -719,32 +717,30 @@ export class KeyringController extends BaseController<
     type: KeyringTypes | string,
     opts?: unknown,
   ): Promise<unknown> {
-    return this.#withControllerLock(async () => {
-      if (type === KeyringTypes.qr) {
-        return this.getOrAddQRKeyring();
+    if (type === KeyringTypes.qr) {
+      return this.getOrAddQRKeyring();
+    }
+
+    const keyring = await this.#newKeyring(type, opts);
+
+    if (type === KeyringTypes.hd && (!isObject(opts) || !opts.mnemonic)) {
+      if (!keyring.generateRandomMnemonic) {
+        throw new Error(
+          KeyringControllerError.UnsupportedGenerateRandomMnemonic,
+        );
       }
 
-      const keyring = await this.#newKeyring(type, opts);
+      keyring.generateRandomMnemonic();
+      await keyring.addAccounts(1);
+    }
 
-      if (type === KeyringTypes.hd && (!isObject(opts) || !opts.mnemonic)) {
-        if (!keyring.generateRandomMnemonic) {
-          throw new Error(
-            KeyringControllerError.UnsupportedGenerateRandomMnemonic,
-          );
-        }
+    const accounts = await keyring.getAccounts();
+    await this.#checkForDuplicate(type, accounts);
 
-        keyring.generateRandomMnemonic();
-        await keyring.addAccounts(1);
-      }
+    this.#keyrings.push(keyring);
+    await this.persistAllKeyrings();
 
-      const accounts = await keyring.getAccounts();
-      await this.#checkForDuplicate(type, accounts);
-
-      this.#keyrings.push(keyring);
-      await this.persistAllKeyrings();
-
-      return keyring;
-    });
+    return keyring;
   }
 
   /**
