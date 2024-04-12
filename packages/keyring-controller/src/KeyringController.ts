@@ -990,10 +990,6 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.MissingVaultData);
       }
 
-      // The keyring updates need to be announced before updating the encryptionKey
-      // so that the updated keyring gets propagated to the extension first.
-      // Not calling {@link updateKeyringsInState} results in the wrong account being selected
-      // in the extension.
       const updatedKeyrings = await this.#getUpdatedKeyrings();
       this.update((state) => {
         state.vault = updatedState.vault;
