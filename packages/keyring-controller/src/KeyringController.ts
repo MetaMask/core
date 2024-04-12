@@ -2031,7 +2031,7 @@ export class KeyringController extends BaseController<
     const releaseLock = await this.#vaultOperationMutex.acquire();
 
     try {
-      return fn({ releaseLock });
+      return await fn({ releaseLock });
     } finally {
       releaseLock();
     }
