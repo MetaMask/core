@@ -190,8 +190,10 @@ describe('KeyringController', () => {
           expect(await controller.getAccounts()).toHaveLength(2);
 
           const accountCount = initialState.keyrings[0].accounts.length;
+          // We add a new account for "index 1" (not existing yet)
           const { addedAccountAddress: firstAccountAdded } =
             await controller.addNewAccount(accountCount);
+          // Adding an account for an existing index will return the existing account's address
           const { addedAccountAddress: secondAccountAdded } =
             await controller.addNewAccount(accountCount);
           expect(firstAccountAdded).toBe(secondAccountAdded);
@@ -201,6 +203,20 @@ describe('KeyringController', () => {
           expect(await controller.getAccounts()).toHaveLength(3);
         },
       );
+    });
+
+    it('should throw instead of returning undefined', async () => {
+      await withController(async ({ controller }) => {
+        jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
+          {
+            getAccounts: () => [undefined, undefined],
+          },
+        ]);
+
+        await expect(controller.addNewAccount(1)).rejects.toThrow(
+          "Can't find account at index 1",
+        );
+      });
     });
   });
 
