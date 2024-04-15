@@ -2063,6 +2063,10 @@ export class KeyringController extends BaseController<
       releaseLock: MutexInterface.Releaser;
     }) => Promise<T>,
   ): Promise<T> {
+    if (!this.#controllerOperationMutex.isLocked()) {
+      throw new Error(KeyringControllerError.ControllerLockRequired);
+    }
+
     return withLock(this.#vaultOperationMutex, fn);
   }
 }
