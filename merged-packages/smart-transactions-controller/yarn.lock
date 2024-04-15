@@ -1516,9 +1516,9 @@ __metadata:
   linkType: hard
 
 "@metamask/metamask-eth-abis@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "@metamask/metamask-eth-abis@npm:3.0.0"
-  checksum: a9e3020dd8deda91b4957cc38f0041944fd60a374d7f9d19b3bc2706c5ca70b3c2a5f679b5ef390b722a2c047a2852ebecd3aaa91c054cf5a60d9ca02ee45fe6
+  version: 3.1.1
+  resolution: "@metamask/metamask-eth-abis@npm:3.1.1"
+  checksum: b453fafbcf43462af0deae44182bbf4a7b0a2c4e7bc36e80c4a6cc854a8a87be28cf60e8203f1b5ec21bd53d996f6a379cd8f4268facd2bb042af211b3db83dc
   languageName: node
   linkType: hard
 
