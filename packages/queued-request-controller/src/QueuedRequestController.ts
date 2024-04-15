@@ -26,6 +26,7 @@ export type QueuedRequestControllerState = {
 export const QueuedRequestControllerActionTypes = {
   enqueueRequest: `${controllerName}:enqueueRequest` as const,
   getState: `${controllerName}:getState` as const,
+  getOriginOfCurrentBatch: `${controllerName}:getOriginOfCurrentBatch` as const,
 };
 
 export type QueuedRequestControllerGetStateAction = ControllerGetStateAction<
@@ -36,6 +37,11 @@ export type QueuedRequestControllerGetStateAction = ControllerGetStateAction<
 export type QueuedRequestControllerEnqueueRequestAction = {
   type: typeof QueuedRequestControllerActionTypes.enqueueRequest;
   handler: QueuedRequestController['enqueueRequest'];
+};
+
+export type QueuedRequestControllerGetOriginOfCurrentBatch = {
+  type: typeof QueuedRequestControllerActionTypes.getOriginOfCurrentBatch;
+  handler: QueuedRequestController['getOriginOfCurrentBatch'];
 };
 
 export const QueuedRequestControllerEventTypes = {
@@ -357,5 +363,16 @@ export class QueuedRequestController extends BaseController<
         }
       }
     }
+  }
+
+  /**
+   * Get the origin of the batch currently being executed.
+   *
+   * It is often helpful for other controllers, or users of this controller, to know what the current origin is.
+   *
+   * @returns A string containing the origin of the current batch.
+   */
+  getOriginOfCurrentBatch() {
+    return this.#originOfCurrentBatch;
   }
 }
