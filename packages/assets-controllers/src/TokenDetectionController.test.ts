@@ -1909,6 +1909,7 @@ describe('TokenDetectionController', () => {
     it('should invoke the `trackMetaMetricsEvent` callback when token detection is triggered', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
+        [sampleTokenB.address]: new BN(1),
       });
       const selectedAddress = '0x0000000000000000000000000000000000000001';
       const mockTrackMetaMetricsEvent = jest.fn();
@@ -1938,6 +1939,15 @@ describe('TokenDetectionController', () => {
                     aggregators: sampleTokenA.aggregators,
                     iconUrl: sampleTokenA.image,
                   },
+                  [sampleTokenB.address]: {
+                    name: sampleTokenB.name,
+                    symbol: sampleTokenB.symbol,
+                    decimals: sampleTokenB.decimals,
+                    address: sampleTokenB.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenB.aggregators,
+                    iconUrl: sampleTokenB.image,
+                  },
                 },
               },
             },
@@ -1952,9 +1962,15 @@ describe('TokenDetectionController', () => {
             event: 'Token Detected',
             category: 'Wallet',
             properties: {
-              tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
+              tokens: [
+                `${sampleTokenA.symbol} - ${sampleTokenA.address}`,
+                `${sampleTokenB.symbol} - ${sampleTokenB.address}`,
+              ],
               token_standard: 'ERC20',
               asset_type: 'TOKEN',
+              chain_id: '0x1',
+              number: 2,
+              selectedAddress,
             },
           });
         },

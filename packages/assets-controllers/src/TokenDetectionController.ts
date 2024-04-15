@@ -176,6 +176,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       tokens: string[];
       token_standard: string;
       asset_type: string;
+      chain_id: string;
+      number: number;
+      selectedAddress: string;
     };
   }) => void;
 
@@ -605,6 +608,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
             tokens: eventTokensDetails,
             token_standard: 'ERC20',
             asset_type: 'TOKEN',
+            chain_id: chainId,
+            number: tokensWithBalance.length,
+            selectedAddress,
           },
         });
 
