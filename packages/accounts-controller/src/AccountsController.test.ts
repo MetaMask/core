@@ -1697,7 +1697,7 @@ describe('AccountsController', () => {
       ).toStrictEqual(mockAccount2.id);
     });
 
-    it("should set the selected account to '' if the account is not found", () => {
+    it('should throw error if the account is not found', () => {
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1710,10 +1710,8 @@ describe('AccountsController', () => {
         },
       });
 
-      accountsController.setSelectedAccount('unknown');
-
-      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
-        '',
+      expect(() => accountsController.setSelectedAccount('unknown')).toThrow(
+        'Account Id unknown not found',
       );
     });
   });
