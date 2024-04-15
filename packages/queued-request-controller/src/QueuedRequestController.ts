@@ -181,7 +181,7 @@ export class QueuedRequestController extends BaseController<
       (_, patch) => {
         patch.forEach(({ op, path }) => {
           if (
-            (op === 'replace' || op === 'add') &&
+            (op === 'replace' || op === 'add' || op === 'remove') &&
             path.length === 2 &&
             path[0] === 'domains' &&
             typeof path[1] === 'string'
