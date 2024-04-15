@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Update snap and keyring api dependencies and fix tests ([#4090](https://github.com/MetaMask/core/pull/4090))
+- feat: allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+
 ## [12.0.1]
 
 ### Fixed

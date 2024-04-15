@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
+- Fix layer 1 gas fee polling ([#4149](https://github.com/MetaMask/core/pull/4149))
+
 ## [27.0.1]
 
 ### Fixed
