@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.1]
+
+### Fixed
+
+- Include wrapped ERC-20 and legacy ERC-721 tokens in simulation balance changes ([#4122](https://github.com/MetaMask/core/pull/4122))
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Change `pendingTransactions.isResubmitEnabled` from optional `boolean` to optional callback ([#4113](https://github.com/MetaMask/core/pull/4113))
+
+### Fixed
+
+- Check pending transactions on startup ([#4113](https://github.com/MetaMask/core/pull/4113))
+
 ## [26.0.0]
 
 ### Added
@@ -748,7 +764,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.1...HEAD
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.0...@metamask/transaction-controller@27.0.1
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@26.0.0...@metamask/transaction-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.3.0...@metamask/transaction-controller@26.0.0
 [25.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.1...@metamask/transaction-controller@25.3.0
 [25.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.0...@metamask/transaction-controller@25.2.1

@@ -51,7 +51,7 @@
     "@metamask/approval-controller": "^6.0.1",
     "@metamask/base-controller": "^5.0.1",
     "@metamask/contract-metadata": "^2.4.0",
-    "@metamask/controller-utils": "^9.0.2",
+    "@metamask/controller-utils": "^9.1.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/keyring-controller": "^14.0.1",
     "@metamask/metamask-eth-abis": "^3.1.1",
@@ -73,7 +73,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^3.0.0",
+    "@metamask/keyring-api": "^5.1.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
