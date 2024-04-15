@@ -10,6 +10,7 @@ import { projectLogger } from '../logger';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
+import { normalizeGasValue } from '../utils/utils';
 import { Bundler } from './Bundler';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
@@ -158,8 +159,8 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
       [blockHash, false],
     );
 
-    metadata.actualGasCost = actualGasCost;
-    metadata.actualGasUsed = actualGasUsed;
+    metadata.actualGasCost = normalizeGasValue(actualGasCost);
+    metadata.actualGasUsed = normalizeGasValue(actualGasUsed);
     metadata.baseFeePerGas = baseFeePerGas;
     metadata.status = UserOperationStatus.Confirmed;
     metadata.transactionHash = transactionHash;

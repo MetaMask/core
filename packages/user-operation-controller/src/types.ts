@@ -315,10 +315,10 @@ export type SmartContractAccount = {
  */
 export type UserOperationReceipt = {
   /** Confirmed total cost of the gas for the user operation. */
-  actualGasCost: string;
+  actualGasCost: string | number;
 
   /** Confirmed total amount of gas used by the user operation. */
-  actualGasUsed: string;
+  actualGasUsed: string | number;
 
   /** True if the user operation was successfully confirmed on chain. */
   success: boolean;
