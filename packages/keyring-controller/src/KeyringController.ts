@@ -573,17 +573,16 @@ export class KeyringController extends BaseController<
     if (!primaryKeyring) {
       throw new Error('No HD keyring found');
     }
-    const oldAccounts = await this.getAccounts();
+    const oldAccounts = await primaryKeyring.getAccounts();
 
     if (accountCount && oldAccounts.length !== accountCount) {
       if (accountCount > oldAccounts.length) {
         throw new Error('Account out of sequence');
       }
       // we return the account already existing at index `accountCount`
-      const primaryKeyringAccounts = await primaryKeyring.getAccounts();
       return {
         keyringState: this.#getMemState(),
-        addedAccountAddress: primaryKeyringAccounts[accountCount],
+        addedAccountAddress: oldAccounts[accountCount],
       };
     }
 
@@ -797,7 +796,7 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Returns the public addresses of all accounts for the current keyring.
+   * Returns the public addresses of all accounts from every keyring.
    *
    * @returns A promise resolving to an array of addresses.
    */

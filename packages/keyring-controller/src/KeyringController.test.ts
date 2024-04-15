@@ -176,6 +176,32 @@ describe('KeyringController', () => {
         },
       );
     });
+
+    // Testing fix for bug #4157 {@link https://github.com/MetaMask/core/issues/4157}
+    it('should return an existing HD account if the accountCount is lower than oldAccounts', async () => {
+      const mockAddress = '0x123';
+      stubKeyringClassWithAccount(MockKeyring, mockAddress);
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+        async ({ controller, initialState }) => {
+          await controller.addNewKeyring(MockKeyring.type);
+
+          // expect there to be two accounts, 1 from HD and 1 from MockKeyring
+          expect(await controller.getAccounts()).toHaveLength(2);
+
+          const accountCount = initialState.keyrings[0].accounts.length;
+          const { addedAccountAddress: firstAccountAdded } =
+            await controller.addNewAccount(accountCount);
+          const { addedAccountAddress: secondAccountAdded } =
+            await controller.addNewAccount(accountCount);
+          expect(firstAccountAdded).toBe(secondAccountAdded);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
+            accountCount + 1,
+          );
+          expect(await controller.getAccounts()).toHaveLength(3);
+        },
+      );
+    });
   });
 
   describe('addNewAccountForKeyring', () => {
