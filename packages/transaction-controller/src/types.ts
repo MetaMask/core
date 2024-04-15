@@ -956,6 +956,16 @@ export type TransactionError = {
   // <https://github.com/immerjs/immer/issues/839>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rpc?: any;
+
+  /**
+   * Additional data related to the error.
+   */
+  // We are intentionally using `any` here instead of `Json` because it causes
+  // `WritableDraft<TransactionMeta>` from Immer to cause TypeScript to error
+  // with "Type instantiation is excessively deep and possibly infinite". See:
+  // <https://github.com/immerjs/immer/issues/839>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
 };
 
 /**

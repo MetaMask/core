@@ -1,4 +1,5 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
+import { rpcErrors } from '@metamask/rpc-errors';
 import {
   add0x,
   getKnownPropertyNames,
@@ -156,14 +157,29 @@ export function validateIfTransactionUnapproved(
  * @returns Normalized transaction error.
  */
 export function normalizeTxError(
-  error: Error & { code?: string; value?: unknown },
+  error: Error & {
+    code?: string;
+    value?: Record<string, unknown>;
+    data?: Record<string, unknown>;
+  },
 ): TransactionError {
+  let errorMessage = error.message;
+
+  // If the error message is generic, check if there is a more specific message in the data field
+  if (
+    error.message === rpcErrors.internal().message.toString() &&
+    error.data &&
+    typeof error.data.message === 'string'
+  ) {
+    errorMessage = error.data.message;
+  }
   return {
     name: error.name,
-    message: error.message,
+    message: errorMessage,
     stack: error.stack,
     code: error.code,
     rpc: isJsonCompatible(error.value) ? error.value : undefined,
+    data: error.data,
   };
 }
 

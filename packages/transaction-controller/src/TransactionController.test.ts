@@ -4167,6 +4167,7 @@ describe('TransactionController', () => {
         stack: errorMock.stack,
         code: undefined,
         rpc: undefined,
+        data: undefined,
       };
 
       firePendingTransactionTrackerEvent(

@@ -1,3 +1,5 @@
+import { rpcErrors } from '@metamask/rpc-errors';
+
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
@@ -192,13 +194,14 @@ describe('utils', () => {
       message: 'An error occurred',
       stack: 'Error stack trace',
     };
-    it('returns the error object with no code and rpc properties', () => {
+    it('returns the error object with name, message and stack properties', () => {
       const normalizedError = util.normalizeTxError(errorBase);
 
       expect(normalizedError).toStrictEqual({
         ...errorBase,
         code: undefined,
         rpc: undefined,
+        data: undefined,
       });
     });
 
@@ -215,6 +218,25 @@ describe('utils', () => {
         ...errorBase,
         code: 'ERROR_CODE',
         rpc: { code: 'rpc data' },
+        data: undefined,
+      });
+    });
+
+    it('returns the message from data if message is generic', () => {
+      const error = {
+        ...errorBase,
+        code: 'ERROR_CODE',
+        message: rpcErrors.internal().message.toString(),
+        data: { message: 'data message mock' },
+      };
+
+      const normalizedError = util.normalizeTxError(error);
+
+      expect(normalizedError).toStrictEqual({
+        ...error,
+        code: 'ERROR_CODE',
+        rpc: undefined,
+        message: error.data.message,
       });
     });
   });
