@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Zb/queue flush event ([#4139](https://github.com/MetaMask/core/pull/4139))
-
 ### Added
 
 - **BREAKING**: The `QueuedRequestMiddleware` constructor now requires the `methodsWithConfirmation` param which should be a list of methods that can trigger confirmations ([#4066](https://github.com/MetaMask/core/pull/4066))

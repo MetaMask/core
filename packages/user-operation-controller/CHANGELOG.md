@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Update snap and keyring api dependencies and fix tests ([#4090](https://github.com/MetaMask/core/pull/4090))
-- Release 135.0.0 ([#4140](https://github.com/MetaMask/core/pull/4140))
-- feat: allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
-- Release 134.0.0 ([#4131](https://github.com/MetaMask/core/pull/4131))
-
 ## [7.0.0]
 
 ### Changed
