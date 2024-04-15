@@ -580,9 +580,15 @@ export class KeyringController extends BaseController<
         throw new Error('Account out of sequence');
       }
       // we return the account already existing at index `accountCount`
+      const existingAccount = oldAccounts[accountCount];
+
+      if (!existingAccount) {
+        throw new Error(`Can't find account at index ${accountCount}`);
+      }
+
       return {
         keyringState: this.#getMemState(),
-        addedAccountAddress: oldAccounts[accountCount],
+        addedAccountAddress: existingAccount,
       };
     }
 
