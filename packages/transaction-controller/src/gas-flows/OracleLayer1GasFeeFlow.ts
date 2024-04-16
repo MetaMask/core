@@ -14,7 +14,7 @@ import type {
   TransactionMeta,
 } from '../types';
 
-const log = createModuleLogger(projectLogger, 'optimisim-layer1-gas-fee-flow');
+const log = createModuleLogger(projectLogger, 'oracle-layer1-gas-fee-flow');
 
 const DUMMY_KEY =
   'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
