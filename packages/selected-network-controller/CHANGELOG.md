@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Uncategorized
 
 - Fix: Keep proxies in sync across "Select networks for each site" toggling on/off ([#4130](https://github.com/MetaMask/core.git/pull/4130))
@@ -182,7 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@11.0.0...@metamask/selected-network-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@10.0.1...@metamask/selected-network-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@10.0.0...@metamask/selected-network-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@9.0.0...@metamask/selected-network-controller@10.0.0
