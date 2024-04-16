@@ -1729,7 +1729,7 @@ describe('AccountsController', () => {
     });
 
     it('should throw error if the account is not found', () => {
-      const accountId = 'unknown';
+      const accountId = 'unknown id';
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1784,7 +1784,7 @@ describe('AccountsController', () => {
     });
 
     it('should throw an error if the account ID is not found', () => {
-      const accountId = 'unknown account';
+      const accountId = 'unknown id';
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
