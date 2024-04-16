@@ -1782,6 +1782,7 @@ describe('AccountsController', () => {
     });
 
     it('should throw an error if the account ID is not found', () => {
+      const accountId = 'unknown account';
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1791,8 +1792,8 @@ describe('AccountsController', () => {
         },
       });
       expect(() =>
-        accountsController.setAccountName('unknown account', 'new name'),
-      ).toThrow(`Account Id unknown account not found`);
+        accountsController.setAccountName(accountId, 'new name'),
+      ).toThrow(`Account Id ${accountId} not found`);
     });
   });
 
