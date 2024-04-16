@@ -230,7 +230,7 @@ export class AccountsController extends BaseController<
 
     const account = this.getAccount(accountId);
     if (account === undefined) {
-      throw new Error(`Account Id ${accountId} not found`);
+      throw new Error(`Account Id "${accountId}" not found`);
     }
     return account;
   }
@@ -262,25 +262,18 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccount(accountId);
+    const account = this.getAccountExpect(accountId);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      if (account) {
-        currentState.internalAccounts.accounts[
-          account.id
-        ].metadata.lastSelected = Date.now();
-        currentState.internalAccounts.selectedAccount = account.id;
-      } else {
-        currentState.internalAccounts.selectedAccount = '';
-      }
+      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    if (account) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedAccountChange',
-        account,
-      );
-    }
+    this.messagingSystem.publish(
+      'AccountsController:selectedAccountChange',
+      account,
+    );
   }
 
   /**
@@ -617,7 +610,14 @@ export class AccountsController extends BaseController<
 
         // if the accountToSelect is undefined, then there are no accounts
         // it mean the keyring was reinitialized.
-        this.setSelectedAccount(accountToSelect?.id);
+        if (!accountToSelect) {
+          this.update((currentState: Draft<AccountsControllerState>) => {
+            currentState.internalAccounts.selectedAccount = '';
+          });
+          return;
+        }
+
+        this.setSelectedAccount(accountToSelect.id);
       }
     }
   }
