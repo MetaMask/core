@@ -176,6 +176,48 @@ describe('KeyringController', () => {
         },
       );
     });
+
+    // Testing fix for bug #4157 {@link https://github.com/MetaMask/core/issues/4157}
+    it('should return an existing HD account if the accountCount is lower than oldAccounts', async () => {
+      const mockAddress = '0x123';
+      stubKeyringClassWithAccount(MockKeyring, mockAddress);
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+        async ({ controller, initialState }) => {
+          await controller.addNewKeyring(MockKeyring.type);
+
+          // expect there to be two accounts, 1 from HD and 1 from MockKeyring
+          expect(await controller.getAccounts()).toHaveLength(2);
+
+          const accountCount = initialState.keyrings[0].accounts.length;
+          // We add a new account for "index 1" (not existing yet)
+          const { addedAccountAddress: firstAccountAdded } =
+            await controller.addNewAccount(accountCount);
+          // Adding an account for an existing index will return the existing account's address
+          const { addedAccountAddress: secondAccountAdded } =
+            await controller.addNewAccount(accountCount);
+          expect(firstAccountAdded).toBe(secondAccountAdded);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
+            accountCount + 1,
+          );
+          expect(await controller.getAccounts()).toHaveLength(3);
+        },
+      );
+    });
+
+    it('should throw instead of returning undefined', async () => {
+      await withController(async ({ controller }) => {
+        jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
+          {
+            getAccounts: () => [undefined, undefined],
+          },
+        ]);
+
+        await expect(controller.addNewAccount(1)).rejects.toThrow(
+          "Can't find account at index 1",
+        );
+      });
+    });
   });
 
   describe('addNewAccountForKeyring', () => {
