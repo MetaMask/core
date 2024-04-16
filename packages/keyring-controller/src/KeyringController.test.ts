@@ -90,6 +90,23 @@ describe('KeyringController', () => {
         expect(controller.state).toStrictEqual(initialState);
       });
     });
+
+    it('should not allow side effects to break the state', async () => {
+      await withController(async ({ controller, initialState, messenger }) => {
+        let executed = false;
+        const listener = async () => {
+          if (!executed) {
+            await controller.persistAllKeyrings();
+            executed = true;
+          }
+        };
+        messenger.subscribe('KeyringController:stateChange', listener);
+
+        await controller.submitPassword(password);
+
+        expect(controller.state).toStrictEqual(initialState);
+      });
+    });
   });
 
   describe('constructor', () => {
