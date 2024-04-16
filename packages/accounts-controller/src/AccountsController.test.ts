@@ -5,6 +5,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
+import type { V4Options } from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -14,10 +15,14 @@ import type {
   AllowedEvents,
 } from './AccountsController';
 import { AccountsController } from './AccountsController';
-import { keyringTypeToName } from './utils';
+import {
+  getUUIDOptionsFromAddressOfNormalAccount,
+  keyringTypeToName,
+} from './utils';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
+const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
   internalAccounts: {
@@ -100,6 +105,31 @@ const mockAccount4: InternalAccount = {
     lastSelected: 1955565967656,
   },
 };
+
+/**
+ * Mock generated normal account ID to an actual "hard-coded" one.
+ */
+class MockNormalAccountUUID {
+  #accountIds: Record<string, string> = {};
+
+  constructor(accounts: InternalAccount[]) {
+    for (const account of accounts) {
+      const accountId = actualUUID(
+        getUUIDOptionsFromAddressOfNormalAccount(account.address),
+      );
+
+      // Register "hard-coded" (from test) account ID with the actual account UUID
+      this.#accountIds[accountId] = account.id;
+    }
+  }
+
+  mock(options?: V4Options | undefined) {
+    const accountId = actualUUID(options);
+
+    // If not found, we returns the generated UUID
+    return this.#accountIds[accountId] ?? accountId;
+  }
+}
 
 /**
  * Creates an `InternalAccount` object from the given normal account properties.
@@ -1767,6 +1797,43 @@ describe('AccountsController', () => {
   });
 
   describe('#getNextAccountNumber', () => {
+    // Account names start at 2 since have 1 HD account + 2 simple keypair accounts (and both
+    // those keyring types are "grouped" together)
+    const mockSimpleKeyring1 = createExpectedInternalAccount({
+      id: 'mock-id2',
+      name: 'Account 2',
+      address: '0x555',
+      keyringType: 'Simple Key Pair',
+    });
+    const mockSimpleKeyring2 = createExpectedInternalAccount({
+      id: 'mock-id3',
+      name: 'Account 3',
+      address: '0x666',
+      keyringType: 'Simple Key Pair',
+    });
+    const mockSimpleKeyring3 = createExpectedInternalAccount({
+      id: 'mock-id4',
+      name: 'Account 4',
+      address: '0x777',
+      keyringType: 'Simple Key Pair',
+    });
+
+    const mockNewKeyringStateWith = (simpleAddressess: string[]) => {
+      return {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockAccount.address],
+          },
+          {
+            type: 'Simple Key Pair',
+            accounts: simpleAddressess,
+          },
+        ],
+      };
+    };
+
     it('should return the next account number', async () => {
       const messenger = buildMessenger();
       mockUUID
@@ -1776,32 +1843,6 @@ describe('AccountsController', () => {
         .mockReturnValueOnce('mock-id2') // call to add account
         .mockReturnValueOnce('mock-id3'); // call to add account
 
-      const mockSimpleKeyring1 = createExpectedInternalAccount({
-        id: 'mock-id2',
-        name: 'Account 2',
-        address: '0x555',
-        keyringType: 'Simple Key Pair',
-      });
-      const mockSimpleKeyring2 = createExpectedInternalAccount({
-        id: 'mock-id3',
-        name: 'Account 3',
-        address: '0x666',
-        keyringType: 'Simple Key Pair',
-      });
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address],
-          },
-          {
-            type: 'Simple Key Pair',
-            accounts: [mockSimpleKeyring1.address, mockSimpleKeyring2.address],
-          },
-        ],
-      };
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1816,16 +1857,75 @@ describe('AccountsController', () => {
 
       messenger.publish(
         'KeyringController:stateChange',
-        mockNewKeyringState,
+        mockNewKeyringStateWith([
+          mockSimpleKeyring1.address,
+          mockSimpleKeyring2.address,
+        ]),
         [],
       );
 
       const accounts = accountsController.listAccounts();
-
       expect(accounts).toStrictEqual([
         mockAccount,
         setLastSelectedAsAny(mockSimpleKeyring1),
         setLastSelectedAsAny(mockSimpleKeyring2),
+      ]);
+    });
+
+    it('should return the next account number even with an index gap', async () => {
+      const messenger = buildMessenger();
+      const mockAccountUUIDs = new MockNormalAccountUUID([
+        mockAccount,
+        mockSimpleKeyring1,
+        mockSimpleKeyring2,
+        mockSimpleKeyring3,
+      ]);
+      mockUUID.mockImplementation(mockAccountUUIDs.mock.bind(mockAccountUUIDs));
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringStateWith([
+          mockSimpleKeyring1.address,
+          mockSimpleKeyring2.address,
+        ]),
+        [],
+      );
+
+      // We then remove "Acccount 2" to create a gap
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringStateWith([mockSimpleKeyring2.address]),
+        [],
+      );
+
+      // Finally we add a 3rd account, and it should be named "Account 4" (despite having a gap
+      // since "Account 2" no longer exists)
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringStateWith([
+          mockSimpleKeyring2.address,
+          mockSimpleKeyring3.address,
+        ]),
+        [],
+      );
+
+      const accounts = accountsController.listAccounts();
+      expect(accounts).toStrictEqual([
+        mockAccount,
+        setLastSelectedAsAny(mockSimpleKeyring2),
+        setLastSelectedAsAny(mockSimpleKeyring3),
       ]);
     });
   });
