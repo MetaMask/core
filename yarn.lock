@@ -1649,7 +1649,7 @@ __metadata:
     "@metamask/keyring-api": ^5.1.0
     "@metamask/keyring-controller": ^14.0.1
     "@metamask/snaps-controllers": ^6.0.3
-    "@metamask/snaps-sdk": ^3.1.1
+    "@metamask/snaps-sdk": ^3.2.0
     "@metamask/snaps-utils": ^7.0.3
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
