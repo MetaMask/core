@@ -37,3 +37,7 @@ done < <(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map
 
 echo "Installing dependencies..."
 yarn install --no-immutable
+
+echo "Debugging dependencies..."
+yarn why @metamask/snaps-sdk
+yarn why @metamask/providers
