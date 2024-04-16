@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/controllers/pull/4153))
-- Release 133.0.0 ([#4121](https://github.com/MetaMask/controllers/pull/4121))
-- Revert "Release v133.0.0 (#4111)" ([#4111](https://github.com/MetaMask/controllers/pull/4111))
-- Release v133.0.0 ([#4111](https://github.com/MetaMask/controllers/pull/4111))
-- Fix prototype-polluting assignments ([#4041](https://github.com/MetaMask/controllers/pull/4041))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/controllers/pull/4084))
-- Release 127.0.0 ([#4065](https://github.com/MetaMask/controllers/pull/4065))
-
 ## [10.0.1]
 
 ### Fixed
@@ -184,23 +174,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@10.0.1...HEAD
-[10.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@10.0.0...@metamask/ens-controller@10.0.1
-[10.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@9.0.0...@metamask/ens-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@8.0.0...@metamask/ens-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@7.0.0...@metamask/ens-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@6.0.1...@metamask/ens-controller@7.0.0
-[6.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@6.0.0...@metamask/ens-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@5.0.2...@metamask/ens-controller@6.0.0
-[5.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@5.0.1...@metamask/ens-controller@5.0.2
-[5.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@5.0.0...@metamask/ens-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@4.1.1...@metamask/ens-controller@5.0.0
-[4.1.1]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@4.1.0...@metamask/ens-controller@4.1.1
-[4.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@4.0.0...@metamask/ens-controller@4.1.0
-[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@3.1.0...@metamask/ens-controller@4.0.0
-[3.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@3.0.0...@metamask/ens-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@2.0.0...@metamask/ens-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@1.0.2...@metamask/ens-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@1.0.1...@metamask/ens-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/ens-controller@1.0.0...@metamask/ens-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/ens-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@10.0.1...HEAD
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@10.0.0...@metamask/ens-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@9.0.0...@metamask/ens-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@8.0.0...@metamask/ens-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@7.0.0...@metamask/ens-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@6.0.1...@metamask/ens-controller@7.0.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@6.0.0...@metamask/ens-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.2...@metamask/ens-controller@6.0.0
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.1...@metamask/ens-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.0...@metamask/ens-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.1...@metamask/ens-controller@5.0.0
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.0...@metamask/ens-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.0.0...@metamask/ens-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.1.0...@metamask/ens-controller@4.0.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.0.0...@metamask/ens-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@2.0.0...@metamask/ens-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.2...@metamask/ens-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.1...@metamask/ens-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.0...@metamask/ens-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/ens-controller@1.0.0
