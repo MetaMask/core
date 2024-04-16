@@ -208,24 +208,13 @@ export class SelectedNetworkController extends BaseController<
     onPreferencesStateChange(({ useRequestQueue }) => {
       if (this.#useRequestQueuePreference !== useRequestQueue) {
         if (!useRequestQueue) {
+          // Loop through all domains and points each domain's proxy
+          // to the NetworkController's own proxy of the globally selected networkClient
           Object.keys(this.state.domains).forEach((domain) => {
             this.#unsetNetworkClientIdForDomain(domain);
           });
         } else {
-          this.#domainProxyMap.forEach((_: NetworkProxy, domain: string) => {
-            const { selectedNetworkClientId } = this.messagingSystem.call(
-              'NetworkController:getState',
-            );
-            // can't use public setNetworkClientIdForDomain because it will throw an error
-            // rather than simply skip if the domain doesn't have permissions which can happen
-            // in this case since proxies are added for each site the user visits
-            if (this.#domainHasPermissions(domain)) {
-              this.#setNetworkClientIdForDomain(
-                domain,
-                selectedNetworkClientId,
-              );
-            }
-          });
+          this.#resetAllPermissionedDomains();
         }
         this.#useRequestQueuePreference = useRequestQueue;
       }
@@ -289,6 +278,23 @@ export class SelectedNetworkController extends BaseController<
       'PermissionController:hasPermissions',
       domain,
     );
+  }
+
+  // Loop through all domains and for those with permissions it points that domain's proxy
+  // to an unproxied instance of the globally selected network client.
+  // NOT the NetworkController's proxy of the globally selected networkClient
+  #resetAllPermissionedDomains() {
+    this.#domainProxyMap.forEach((_: NetworkProxy, domain: string) => {
+      const { selectedNetworkClientId } = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      // can't use public setNetworkClientIdForDomain because it will throw an error
+      // rather than simply skip if the domain doesn't have permissions which can happen
+      // in this case since proxies are added for each site the user visits
+      if (this.#domainHasPermissions(domain)) {
+        this.#setNetworkClientIdForDomain(domain, selectedNetworkClientId);
+      }
+    });
   }
 
   setNetworkClientIdForDomain(
