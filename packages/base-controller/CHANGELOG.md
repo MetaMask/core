@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: Fix misnamed parameter name ([#4108](https://github.com/MetaMask/controllers/pull/4108))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/controllers/pull/4084))
+
 ## [5.0.1]
 
 ### Fixed
@@ -201,21 +206,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@5.0.1...HEAD
-[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@5.0.0...@metamask/base-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.1.1...@metamask/base-controller@5.0.0
-[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.1.0...@metamask/base-controller@4.1.1
-[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.1...@metamask/base-controller@4.1.0
-[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@4.0.0...@metamask/base-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.3...@metamask/base-controller@4.0.0
-[3.2.3]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.2...@metamask/base-controller@3.2.3
-[3.2.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.1...@metamask/base-controller@3.2.2
-[3.2.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.0...@metamask/base-controller@3.2.1
-[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.1.0...@metamask/base-controller@3.2.0
-[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.0.0...@metamask/base-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@2.0.0...@metamask/base-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@1.1.2...@metamask/base-controller@2.0.0
-[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@1.1.1...@metamask/base-controller@1.1.2
-[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@1.1.0...@metamask/base-controller@1.1.1
-[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@1.0.0...@metamask/base-controller@1.1.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/base-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@5.0.0...@metamask/base-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@4.1.1...@metamask/base-controller@5.0.0
+[4.1.1]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@4.1.0...@metamask/base-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@4.0.1...@metamask/base-controller@4.1.0
+[4.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@4.0.0...@metamask/base-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@3.2.3...@metamask/base-controller@4.0.0
+[3.2.3]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@3.2.2...@metamask/base-controller@3.2.3
+[3.2.2]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@3.2.1...@metamask/base-controller@3.2.2
+[3.2.1]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@3.2.0...@metamask/base-controller@3.2.1
+[3.2.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@3.1.0...@metamask/base-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@3.0.0...@metamask/base-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@2.0.0...@metamask/base-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@1.1.2...@metamask/base-controller@2.0.0
+[1.1.2]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@1.1.1...@metamask/base-controller@1.1.2
+[1.1.1]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@1.1.0...@metamask/base-controller@1.1.1
+[1.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/base-controller@1.0.0...@metamask/base-controller@1.1.0
+[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/base-controller@1.0.0
