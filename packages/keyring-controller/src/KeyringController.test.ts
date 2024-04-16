@@ -78,6 +78,20 @@ describe('KeyringController', () => {
     sinon.restore();
   });
 
+  describe('run conditions', () => {
+    it('should not break state when lock and unlock are called multiple times', async () => {
+      await withController(async ({ controller, initialState }) => {
+        await Promise.all([
+          controller.submitPassword(password),
+          controller.persistAllKeyrings(),
+          controller.submitPassword(password),
+          controller.persistAllKeyrings(),
+        ]);
+        expect(controller.state).toStrictEqual(initialState);
+      });
+    });
+  });
+
   describe('constructor', () => {
     it('should use the default encryptor if none is provided', async () => {
       expect(
