@@ -2159,14 +2159,15 @@ export class PermissionController<
     try {
       this.validateRequestedPermissions(origin, permissions);
     } catch (error) {
-      if (error instanceof JsonRpcError) {
+      if (error instanceof Error) {
         // Re-throw as an internal error; we should never receive invalid approved
         // permissions.
         throw internalError(
           `Invalid approved permissions request: ${error.message}`,
-          error.data,
+          error instanceof JsonRpcError ? error.data : undefined,
         );
       }
+      /* istanbul ignore next: We should only throw well-formed errors */
       throw internalError('Unrecognized error type', { error });
     }
   }
