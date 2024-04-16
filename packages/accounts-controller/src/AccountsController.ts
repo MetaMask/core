@@ -230,7 +230,7 @@ export class AccountsController extends BaseController<
 
     const account = this.getAccount(accountId);
     if (account === undefined) {
-      throw new Error(`Account Id ${accountId} not found`);
+      throw new Error(`Account Id "${accountId}" not found`);
     }
     return account;
   }
@@ -265,7 +265,7 @@ export class AccountsController extends BaseController<
     const account = this.getAccount(accountId);
 
     if (!account) {
-      throw new Error(`Account Id ${accountId} not found`);
+      throw new Error(`Account Id "${accountId}" not found`);
     }
 
     this.update((currentState: Draft<AccountsControllerState>) => {
