@@ -637,7 +637,7 @@ describe('SelectedNetworkController', () => {
     });
     describe('when toggled from off to on', () => {
       describe('when domains have permissions', () => {
-        it('loops through domains in the domainsProxyMap and sets the target of the existing proxies to an independent networkClient for the globally selected networkClientId', () => {
+        it('sets the target of the existing proxies to the non-proxied networkClient for the globally selected networkClientId', () => {
           const domainProxyMap = new Map<Domain, NetworkProxy>([
             [
               'example.com',
