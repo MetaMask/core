@@ -30,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
       - name: Checkout pull request
         run: gh pr checkout "${PR_NUMBER}"
         env:
@@ -40,6 +42,8 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: yarn
+      # If for some reason, the node_modules exists already before yarn install, then exits
+      - run: '[ -d node_modules ] && exit 1'
       - run: yarn --immutable
       - name: Get commit SHA
         id: commit-sha
