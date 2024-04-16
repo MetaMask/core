@@ -11,20 +11,18 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
+      // @ts-expect-error Abusing types for testing purposes
+      implementation(req, res, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,
       }),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
     });
+    // @ts-expect-error Abusing types for testing purposes
     expect(response.result).toStrictEqual(['a', 'b', 'c']);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });
@@ -37,20 +35,18 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
+      // @ts-expect-error Abusing types for testing purposes
+      implementation(req, res, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,
       }),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
     });
+    // @ts-expect-error Abusing types for testing purposes
     expect(response.result).toStrictEqual([]);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });

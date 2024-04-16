@@ -23,22 +23,20 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
+      // @ts-expect-error Abusing types for testing purposes
+      implementation(req, res, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
       }),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
     });
 
+    // @ts-expect-error Abusing types for testing purposes
     expect(response.result).toStrictEqual(['a', 'b', 'c']);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledTimes(1);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledWith({});
@@ -53,39 +51,35 @@ describe('requestPermissions RPC method', () => {
       });
 
     const engine = new JsonRpcEngine();
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const end: any = () => undefined; // this won't be called
+    const end = () => undefined; // this won't be called
 
     // Pass the middleware function to createAsyncMiddleware so the error
     // is catched.
     engine.push(
-      createAsyncMiddleware(
-        (req, res, next) =>
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          implementation(req as any, res as any, next, end, {
-            requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any,
+      createAsyncMiddleware((req, res, next) =>
+        // @ts-expect-error Abusing types for testing purposes
+        implementation(req, res, next, end, {
+          requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
+        }),
       ),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
     });
 
+    // @ts-expect-error Abusing types for testing purposes
     expect(response.result).toBeUndefined();
+    // @ts-expect-error Abusing types for testing purposes
     delete response.error.stack;
+    // @ts-expect-error Abusing types for testing purposes
     delete response.error.data.cause.stack;
     const expectedError = new Error('foo');
     delete expectedError.stack;
+    // @ts-expect-error Abusing types for testing purposes
     expect(response.error).toStrictEqual(
       serializeError(expectedError, { shouldIncludeStack: false }),
     );
@@ -99,9 +93,8 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
+      // @ts-expect-error Abusing types for testing purposes
+      implementation(req, res, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
       }),
     );
@@ -121,10 +114,11 @@ describe('requestPermissions RPC method', () => {
         .serialize();
       delete expectedError.stack;
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await engine.handle(req as any);
+      // @ts-expect-error Abusing types for testing purposes
+      const response = await engine.handle(req);
+      // @ts-expect-error Abusing types for testing purposes
       delete response.error.stack;
+      // @ts-expect-error Abusing types for testing purposes
       expect(response.error).toStrictEqual(expectedError);
       expect(mockRequestPermissionsForOrigin).not.toHaveBeenCalled();
     }
