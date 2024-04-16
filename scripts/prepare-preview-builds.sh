@@ -29,6 +29,10 @@ prepare-preview-manifest() {
   mv temp.json "$manifest_file"
 }
 
+echo "Debugging dependencies (before manifest)..."
+yarn why @metamask/snaps-sdk
+yarn why @metamask/providers
+
 echo "Preparing manifests..."
 while IFS=$'\t' read -r location name; do
   echo "- $name"
