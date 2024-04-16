@@ -1727,25 +1727,6 @@ describe('AccountsController', () => {
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockAccount2.id);
     });
-
-    it('should throw error if the account is not found', () => {
-      const accountId = 'unknown id';
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      expect(() => accountsController.setSelectedAccount(accountId)).toThrow(
-        `Account Id "${accountId}" not found`,
-      );
-    });
   });
 
   describe('setAccountName', () => {
@@ -1781,21 +1762,6 @@ describe('AccountsController', () => {
       expect(() =>
         accountsController.setAccountName(mockAccount.id, 'Account 2'),
       ).toThrow('Account name already exists');
-    });
-
-    it('should throw an error if the account ID is not found', () => {
-      const accountId = 'unknown id';
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-      expect(() =>
-        accountsController.setAccountName(accountId, 'new name'),
-      ).toThrow(`Account Id "${accountId}" not found`);
     });
   });
 

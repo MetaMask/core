@@ -262,11 +262,7 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccount(accountId);
-
-    if (!account) {
-      throw new Error(`Account Id "${accountId}" not found`);
-    }
+    const account = this.getAccountExpect(accountId);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
       currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
