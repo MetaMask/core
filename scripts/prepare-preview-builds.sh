@@ -35,8 +35,12 @@ while IFS=$'\t' read -r location name; do
   prepare-preview-manifest "$location/package.json"
 done < <(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(select(.location != ".")) | map([.location, .name]) | map(@tsv) | .[]')
 
+echo "Debugging dependencies (before re-installing)..."
+yarn why @metamask/snaps-sdk
+yarn why @metamask/providers
+
 echo "Installing dependencies..."
-yarn install --no-immutable --check-cache
+yarn install --no-immutable
 
 echo "Debugging dependencies..."
 yarn why @metamask/snaps-sdk
