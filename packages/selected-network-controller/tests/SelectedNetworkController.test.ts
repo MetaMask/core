@@ -687,7 +687,7 @@ describe('SelectedNetworkController', () => {
         });
       });
       describe('when domains do not have permissions', () => {
-        it('does not set the target of the existing proxy to the networkClient for the globally selectedNetworkClientId', () => {
+        it('does not change the target of the existing proxy', () => {
           const domainProxyMap = new Map<Domain, NetworkProxy>([
             [
               'example.com',
