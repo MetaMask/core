@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: The `QueuedRequestMiddleware` constructor now requires the `methodsWithConfirmation` param which should be a list of methods that can trigger confirmations ([#4066](https://github.com/MetaMask/core/pull/4066))
 - **BREAKING**: The `QueuedRequestController` constructor now requires the `methodsRequiringNetworkSwitch` param which should be a list of methods that need the globally selected network to switched to the dapp selected network before being processed ([#4066](https://github.com/MetaMask/core/pull/4066))
-- **BREAKING**: Clear pending confirmations (non-queued requests) after processing revokePermissions. ([#4165](https://github.com/MetaMask/controllers/pull/4165))
-- **BREAKING**: Flush the RequestQueue after processing revokePermissions. ([#4139](https://github.com/MetaMask/controllers/pull/4139))
+- **BREAKING**: Clear pending confirmations (for both queued and non-queued requests) after processing revokePermissions. We now require a function to be passed into the constructor (`clearPendingConfirmations`) which will be called when permissions are revoked for a domain who currently has pending confirmations that are not queued. This is done by piggybacking on the SelectedNetworkController:stateChange in order to serve as a proxy for permissions being revoked. ([#4165](https://github.com/MetaMask/controllers/pull/4165))
+- **BREAKING**: The QueuedRequestController will now flush the RequestQueue after a dapp switches networks. QueuedRequestController now requires a subscription on `SelectedNetworkController:stateChange`, and upon receiving stateChanges for adding or replacing selectedNetworkController.state.domains, we flush the queue for the domain in question. ([#4139](https://github.com/MetaMask/controllers/pull/4139))
 
 ### Changed
 
