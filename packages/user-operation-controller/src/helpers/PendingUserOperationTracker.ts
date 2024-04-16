@@ -1,16 +1,15 @@
-import { query } from '@metamask/controller-utils';
+import { query, toHex } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { NetworkClient, Provider } from '@metamask/network-controller';
 import { BlockTrackerPollingControllerOnly } from '@metamask/polling-controller';
 import type { Json } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, type Hex } from '@metamask/utils';
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
 import type { UserOperationMetadata, UserOperationReceipt } from '../types';
 import { UserOperationStatus } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
-import { normalizeGasValue } from '../utils/utils';
 import { Bundler } from './Bundler';
 
 const log = createModuleLogger(projectLogger, 'pending-user-operations');
@@ -159,8 +158,8 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
       [blockHash, false],
     );
 
-    metadata.actualGasCost = normalizeGasValue(actualGasCost);
-    metadata.actualGasUsed = normalizeGasValue(actualGasUsed);
+    metadata.actualGasCost = this.#normalizeGasValue(actualGasCost);
+    metadata.actualGasUsed = this.#normalizeGasValue(actualGasUsed);
     metadata.baseFeePerGas = baseFeePerGas;
     metadata.status = UserOperationStatus.Confirmed;
     metadata.transactionHash = transactionHash;
@@ -205,5 +204,12 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
   ): Promise<UserOperationReceipt | undefined> {
     const bundler = new Bundler(bundlerUrl);
     return bundler.getUserOperationReceipt(hash);
+  }
+
+  #normalizeGasValue(gasValue: Hex | number): string {
+    if (typeof gasValue === 'number') {
+      return toHex(gasValue);
+    }
+    return gasValue;
   }
 }
