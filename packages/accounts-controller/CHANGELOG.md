@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: update setSelectedAccount to throw if the id is not found ([#4167](https://github.com/MetaMask/core/pull/4167))
+- fix(accounts): fix normal account indexing naming with index gap ([#4089](https://github.com/MetaMask/core/pull/4089))
+- Update snap and keyring api dependencies and fix tests ([#4090](https://github.com/MetaMask/core/pull/4090))
+- feat: allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+
 ## [12.0.1]
 
 ### Fixed
