@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Add layer 1 gas fee flow for Scroll network ([#4155](https://github.com/MetaMask/core/pull/4155))
-
 ## [28.0.0]
 
 ### Changed

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Uncategorized
 
 - fix!: bug 4157, use getAccounts on HD Keyring when calling addNewAccount ([#4158](https://github.com/MetaMask/core/pull/4158))
@@ -407,7 +409,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...@metamask/keyring-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
