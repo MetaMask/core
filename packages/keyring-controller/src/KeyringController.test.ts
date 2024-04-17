@@ -78,6 +78,169 @@ describe('KeyringController', () => {
     sinon.restore();
   });
 
+  describe('run conditions', () => {
+    it('should not break state when submitPassword and setLocked are called multiple times', async () => {
+      const initialOuterControllerState = keyringController.state;
+
+      await Promise.all([
+        keyringController.submitPassword(password),
+        keyringController.setLocked(),
+        keyringController.submitPassword(password),
+        keyringController.setLocked(),
+      ]);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not break state when setLocked and submitPassword are called multiple times', async () => {
+      const initialOuterControllerState = keyringController.state;
+
+      await Promise.all([
+        keyringController.setLocked(),
+        keyringController.submitPassword(password),
+        keyringController.setLocked(),
+        keyringController.submitPassword(password),
+      ]);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not change state when submitPassword is called multiple times', async () => {
+      const initialOuterControllerState = keyringController.state;
+
+      await Promise.all([
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+        keyringController.submitPassword(password),
+      ]);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not break state when submitPassword and fullUpdate are called multiple times', async () => {
+      const initialOuterControllerState = keyringController.state;
+
+      await Promise.all([
+        keyringController.submitPassword(password),
+        keyringController.fullUpdate(),
+        keyringController.submitPassword(password),
+        keyringController.fullUpdate(),
+      ]);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not break state when addNewKeyring and submitPassword are called multiple times', async () => {
+      const initialOuterControllerState = keyringController.state;
+
+      await Promise.all([
+        keyringController.submitPassword(password),
+        keyringController.addNewAccount(),
+        keyringController.submitPassword(password),
+        keyringController.addNewAccount(),
+        keyringController.submitPassword(password),
+        keyringController.addNewAccount(),
+        keyringController.submitPassword(password),
+        keyringController.addNewAccount(),
+        keyringController.submitPassword(password),
+        keyringController.addNewAccount(),
+        keyringController.submitPassword(password),
+        keyringController.addNewAccount(),
+        keyringController.submitPassword(password),
+      ]);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not break state when getOrAddQRKeyring and submitPassword are called multiple times', async () => {
+      const initialOuterControllerState = keyringController.state;
+
+      await Promise.all([
+        keyringController.submitPassword(password),
+        keyringController.getOrAddQRKeyring(),
+        keyringController.submitPassword(password),
+        keyringController.getOrAddQRKeyring(),
+        keyringController.submitPassword(password),
+        keyringController.getOrAddQRKeyring(),
+        keyringController.submitPassword(password),
+        keyringController.getOrAddQRKeyring(),
+        keyringController.submitPassword(password),
+        keyringController.getOrAddQRKeyring(),
+        keyringController.submitPassword(password),
+        keyringController.getOrAddQRKeyring(),
+        keyringController.submitPassword(password),
+      ]);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not allow side effects to break state with `setLocked`', async () => {
+      const initialOuterControllerState = keyringController.state;
+      keyringController.subscribe(async () => {
+        await keyringController.submitPassword(password);
+      });
+
+      await keyringController.setLocked();
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not allow side effects to break state with `addNewAccount`', async () => {
+      const initialOuterControllerState = keyringController.state;
+      keyringController.subscribe(async () => {
+        await keyringController.addNewAccount();
+      });
+
+
+      await keyringController.submitPassword(password);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+
+    it('should not change state if submitPassword is called when already unlocked', async () => {
+      const initialOuterControllerState = keyringController.state;
+
+      await keyringController.submitPassword(password);
+
+      expect(keyringController.state).toStrictEqual(
+        initialOuterControllerState,
+      );
+    });
+  });
+
   it('should set default state', () => {
     expect(keyringController.state.keyrings).not.toStrictEqual([]);
     const keyring = keyringController.state.keyrings[0];
