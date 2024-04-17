@@ -17,7 +17,7 @@ export const controllerName = 'ComposableController';
  * A universal subtype of all controller instances that extend from `BaseControllerV1`.
  * Any `BaseControllerV1` instance can be assigned to this type.
  *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseControllerV1` instances.
+ * Note that this type is not the widest subtype or narrowest supertype of all `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type BaseControllerV1Instance =
@@ -29,7 +29,7 @@ export type BaseControllerV1Instance =
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
  * Any `BaseController` instance can be assigned to this type.
  *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` instances.
+ * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  *
  * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
@@ -43,7 +43,7 @@ export type BaseControllerInstance = {
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
  * Any `BaseController` or `BaseControllerV1` instance can be assigned to this type.
  *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
+ * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
 export type ControllerInstance =
