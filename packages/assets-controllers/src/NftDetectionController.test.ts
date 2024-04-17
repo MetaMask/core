@@ -656,6 +656,33 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should not detectNfts when disabled is false and useNftDetection is true', async () => {
+    await withController(
+      { config: { interval: 10 }, options: { disabled: false } },
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const mockNfts = sinon.stub(controller, 'detectNfts');
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+        // Wait for detect call triggered by preferences state change to settle
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+
+        expect(mockNfts.calledOnce).toBe(false);
+
+        await advanceTime({
+          clock,
+          duration: 10,
+        });
+
+        expect(mockNfts.calledTwice).toBe(false);
+      },
+    );
+  });
+
   it('should not detect and add NFTs if preferences controller useNftDetection is set to false', async () => {
     const mockAddNft = jest.fn();
     await withController(
