@@ -9,6 +9,7 @@ import {
   isSafeChainId,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
@@ -18,7 +19,6 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
-import { errorCodes } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { v4 as random } from 'uuid';
 
@@ -430,11 +430,35 @@ export type NetworkControllerGetNetworkClientByIdAction = {
   handler: NetworkController['getNetworkClientById'];
 };
 
+export type NetworkControllerGetEIP1559CompatibilityAction = {
+  type: `NetworkController:getEIP1559Compatibility`;
+  handler: NetworkController['getEIP1559Compatibility'];
+};
+
+export type NetworkControllerFindNetworkClientIdByChainIdAction = {
+  type: `NetworkController:findNetworkClientIdByChainId`;
+  handler: NetworkController['findNetworkClientIdByChainId'];
+};
+
+export type NetworkControllerSetProviderTypeAction = {
+  type: `NetworkController:setProviderType`;
+  handler: NetworkController['setProviderType'];
+};
+
+export type NetworkControllerSetActiveNetworkAction = {
+  type: `NetworkController:setActiveNetwork`;
+  handler: NetworkController['setActiveNetwork'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetEIP1559CompatibilityAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerSetProviderTypeAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -577,6 +601,26 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getEIP1559Compatibility`,
+      this.getEIP1559Compatibility.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setActiveNetwork`,
+      this.setActiveNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setProviderType`,
+      this.setProviderType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:findNetworkClientIdByChainId`,
+      this.findNetworkClientIdByChainId.bind(this),
     );
 
     this.#previousProviderConfig = this.state.providerConfig;
@@ -969,8 +1013,7 @@ export class NetworkController extends BaseControllerV2<
     }
 
     const networkClient = this.getNetworkClientById(networkClientId);
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+    // @ts-expect-error TODO: Provider type alignment
     const ethQuery = new EthQuery(networkClient.provider);
 
     return new Promise((resolve, reject) => {
@@ -999,7 +1042,7 @@ export class NetworkController extends BaseControllerV2<
    */
   async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
     if (networkClientId) {
-      return this.get1555CompatibilityWithNetworkClientId(networkClientId);
+      return this.get1559CompatibilityWithNetworkClientId(networkClientId);
     }
     if (!this.#ethQuery) {
       return false;
@@ -1024,7 +1067,7 @@ export class NetworkController extends BaseControllerV2<
     return isEIP1559Compatible;
   }
 
-  async get1555CompatibilityWithNetworkClientId(
+  async get1559CompatibilityWithNetworkClientId(
     networkClientId: NetworkClientId,
   ) {
     let metadata = this.state.networksMetadata[networkClientId];
@@ -1180,6 +1223,7 @@ export class NetworkController extends BaseControllerV2<
           type: NetworkClientType.Custom,
           chainId,
           rpcUrl,
+          ticker,
         });
     }
 
@@ -1370,6 +1414,7 @@ export class NetworkController extends BaseControllerV2<
         network,
         infuraProjectId: this.#infuraProjectId,
         chainId: BUILT_IN_NETWORKS[network].chainId,
+        ticker: BUILT_IN_NETWORKS[network].ticker,
       };
       return [
         NetworkClientType.Infura,
@@ -1405,6 +1450,7 @@ export class NetworkController extends BaseControllerV2<
           type: NetworkClientType.Custom,
           chainId: networkConfiguration.chainId,
           rpcUrl: networkConfiguration.rpcUrl,
+          ticker: networkConfiguration.ticker,
         };
         return [
           NetworkClientType.Custom,
@@ -1444,6 +1490,7 @@ export class NetworkController extends BaseControllerV2<
         chainId: providerConfig.chainId,
         rpcUrl: providerConfig.rpcUrl,
         type: NetworkClientType.Custom,
+        ticker: providerConfig.ticker,
       };
       return [
         [NetworkClientType.Custom, networkClientId, networkClientConfiguration],
@@ -1535,8 +1582,8 @@ export class NetworkController extends BaseControllerV2<
         eventFilter: 'skipInternal',
       });
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+
+    // @ts-expect-error TODO: Provider type alignment
     this.#ethQuery = new EthQuery(this.#providerProxy);
   }
 }

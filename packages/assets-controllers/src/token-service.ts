@@ -45,6 +45,29 @@ const defaultTimeout = tenSecondsInMilliseconds;
  * @param options.timeout - The fetch timeout.
  * @returns The token list, or `undefined` if the request was cancelled.
  */
+export async function fetchTokenListByChainId(
+  chainId: Hex,
+  abortSignal: AbortSignal,
+  { timeout = defaultTimeout } = {},
+): Promise<unknown> {
+  const tokenURL = getTokensURL(chainId);
+  const response = await queryApi(tokenURL, abortSignal, timeout);
+  if (response) {
+    return parseJsonResponse(response);
+  }
+  return undefined;
+}
+
+/**
+ * Fetch the list of token metadata for a given network. This request is cancellable using the
+ * abort signal passed in.
+ *
+ * @param chainId - The chain ID of the network the requested tokens are on.
+ * @param abortSignal - The abort signal used to cancel the request if necessary.
+ * @param options - Additional fetch options.
+ * @param options.timeout - The fetch timeout.
+ * @returns The token list, or `undefined` if the request was cancelled.
+ */
 export async function fetchTokenList(
   chainId: Hex,
   abortSignal: AbortSignal,

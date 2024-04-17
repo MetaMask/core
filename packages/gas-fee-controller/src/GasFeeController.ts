@@ -374,6 +374,63 @@ export class GasFeeController extends BaseControllerV2<
     return _pollToken;
   }
 
+  async #fetchGasFeeEstimateForNetworkClientId(networkClientId: string) {
+    let isEIP1559Compatible = false;
+
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    const isLegacyGasAPICompatible =
+      networkClient.configuration.chainId === '0x38';
+
+    const decimalChainId = convertHexToDecimal(
+      networkClient.configuration.chainId,
+    );
+
+    try {
+      const result = await this.messagingSystem.call(
+        'NetworkController:getEIP1559Compatibility',
+        networkClientId,
+      );
+      isEIP1559Compatible = result || false;
+    } catch {
+      isEIP1559Compatible = false;
+    }
+
+    // @ts-expect-error TODO: Provider type alignment
+    const ethQuery = new EthQuery(networkClient.provider);
+
+    const gasFeeCalculations = await determineGasFeeCalculations({
+      isEIP1559Compatible,
+      isLegacyGasAPICompatible,
+      fetchGasEstimates,
+      fetchGasEstimatesUrl: this.EIP1559APIEndpoint.replace(
+        '<chain_id>',
+        `${decimalChainId}`,
+      ),
+      fetchGasEstimatesViaEthFeeHistory,
+      fetchLegacyGasPriceEstimates,
+      fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
+        '<chain_id>',
+        `${decimalChainId}`,
+      ),
+      fetchEthGasPriceEstimate,
+      calculateTimeEstimate,
+      clientId: this.clientId,
+      ethQuery,
+    });
+
+    this.update((state) => {
+      state.gasFeeEstimatesByChainId = state.gasFeeEstimatesByChainId || {};
+      state.gasFeeEstimatesByChainId[networkClient.configuration.chainId] = {
+        gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
+        estimatedGasFeeTimeBounds: gasFeeCalculations.estimatedGasFeeTimeBounds,
+        gasEstimateType: gasFeeCalculations.gasEstimateType,
+      } as any;
+    });
+  }
+
   /**
    * Gets and sets gasFeeEstimates in state.
    *
@@ -469,6 +526,17 @@ export class GasFeeController extends BaseControllerV2<
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);
+  }
+
+  /**
+   * Fetching token list from the Token Service API.
+   *
+   * @private
+   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @returns A promise that resolves when this operation completes.
+   */
+  async _executePoll(networkClientId: string): Promise<void> {
+    await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
   }
 
   private resetState() {

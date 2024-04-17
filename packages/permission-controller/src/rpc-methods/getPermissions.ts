@@ -8,7 +8,7 @@ import type { SubjectPermissions } from '../PermissionController';
 
 export const getPermissionsHandler: PermittedHandlerExport<
   GetPermissionsHooks,
-  undefined,
+  [],
   PermissionConstraint[]
 > = {
   methodNames: [MethodNames.getPermissions],

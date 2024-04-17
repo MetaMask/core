@@ -119,14 +119,11 @@ export class ERC20Standard {
     decimals: string | undefined;
     balance: BN | undefined;
   }> {
-    const [decimals, symbol] = await Promise.all([
+    const [decimals, symbol, balance] = await Promise.all([
       this.getTokenDecimals(address),
       this.getTokenSymbol(address),
+      userAddress ? this.getBalanceOf(address, userAddress) : undefined,
     ]);
-    let balance;
-    if (userAddress) {
-      balance = await this.getBalanceOf(address, userAddress);
-    }
     return {
       decimals,
       symbol,
