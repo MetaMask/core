@@ -51,6 +51,18 @@ export type ControllerInstance =
   | BaseControllerInstance;
 
 /**
+ * The narrowest supertype of all `RestrictedControllerMessenger` instances.
+ */
+export type RestrictedControllerMessengerConstraint =
+  RestrictedControllerMessenger<
+    string,
+    ActionConstraint,
+    EventConstraint,
+    string,
+    string
+  >;
+
+/**
  * Determines if the given controller is an instance of `BaseControllerV1`
  * @param controller - Controller instance to check
  * @returns True if the controller is an instance of `BaseControllerV1`
@@ -84,13 +96,7 @@ export function isBaseController(
 ): controller is BaseController<
   string,
   StateConstraint,
-  RestrictedControllerMessenger<
-    string,
-    ActionConstraint,
-    EventConstraint,
-    string,
-    string
-  >
+  RestrictedControllerMessengerConstraint
 > {
   return (
     'name' in controller &&

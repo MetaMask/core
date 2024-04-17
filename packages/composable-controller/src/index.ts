@@ -3,6 +3,7 @@ export type {
   ComposableControllerStateChangeEvent,
   ComposableControllerEvents,
   ComposableControllerMessenger,
+  RestrictedControllerMessengerConstraint,
 } from './ComposableController';
 export {
   ComposableController,
