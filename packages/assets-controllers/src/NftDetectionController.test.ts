@@ -876,6 +876,7 @@ async function withController<ReturnValue>(
       getNftApi: jest.fn(),
       getNetworkClientById,
       getNftState: getDefaultNftState,
+      disabled: true,
       ...options,
     },
     config,
