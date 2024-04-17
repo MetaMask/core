@@ -943,6 +943,21 @@ export class KeyringController extends BaseController<
 
     serializedKeyrings.push(...this.#unsupportedKeyrings);
 
+    /**
+     * ============================== PATCH INFORMATION ==============================
+     * The HD keyring is the default keyring for all wallets if this keyring is missing
+     * for some reason we should avoid saving the keyrings
+     *
+     * The upstream fix is here: https://github.com/MetaMask/core/pull/4168
+     *
+     * This patch can be found on the core branch `extension-keyring-controller-v13-patch`
+     */
+    if (
+      !serializedKeyrings.some((keyring) => keyring.type === KeyringTypes.hd)
+    ) {
+      throw new Error(KeyringControllerError.NoHdKeyring);
+    }
+
     let vault: string | undefined;
     let newEncryptionKey: string | undefined;
 
@@ -1616,9 +1631,18 @@ export class KeyringController extends BaseController<
    */
   async #addQRKeyring(): Promise<QRKeyring> {
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    const qrKeyring = (await this.#newKeyring(KeyringTypes.qr, {
-      accounts: [],
-    })) as unknown as QRKeyring;
+    /**
+     * Patch for @metamask/keyring-controller v13.0.0
+     * Below code change will fix the issue 23804, The intial code added a empty accounts as argument when creating a new QR keyring.
+     * cause the new Keystone MetamaskKeyring default properties all are undefined during deserialise() process.
+     * Please refer to PR 23903 for detail.
+     *
+     * This patch can be found on the core branch `extension-keyring-controller-v13-patch`
+     */
+    // @ts-expect-error See patch note
+    const qrKeyring = (await this.#newKeyring(
+      KeyringTypes.qr,
+    )) as unknown as QRKeyring;
 
     const accounts = await qrKeyring.getAccounts();
     await this.#checkForDuplicate(KeyringTypes.qr, accounts);
