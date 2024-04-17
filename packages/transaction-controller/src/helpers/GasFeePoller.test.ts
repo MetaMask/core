@@ -8,11 +8,11 @@ import {
   type GasFeeFlow,
   type TransactionMeta,
 } from '../types';
-import { updateTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
+import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 import { GasFeePoller } from './GasFeePoller';
 
 jest.mock('../utils/layer1-gas-fee-flow', () => ({
-  updateTransactionLayer1GasFee: jest.fn(),
+  getTransactionLayer1GasFee: jest.fn(),
 }));
 
 jest.useFakeTimers();
@@ -61,21 +61,11 @@ describe('GasFeePoller', () => {
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
   let triggerOnStateChange: () => void;
   let getTransactionsMock: jest.MockedFunction<() => TransactionMeta[]>;
-  const updateTransactionLayer1GasFeeMock =
-    updateTransactionLayer1GasFee as jest.MockedFunction<
-      typeof updateTransactionLayer1GasFee
-    >;
+  const getTransactionLayer1GasFeeMock = jest.mocked(
+    getTransactionLayer1GasFee,
+  );
   // As we mock implementation of updateTransactionLayer1GasFee, it does not matter if we pass matching flow here
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
-
-  const transactionLayer1GasFeeUpdater = ({
-    transactionMeta,
-  }: {
-    transactionMeta: TransactionMeta;
-  }) => {
-    transactionMeta.layer1GasFee = LAYER1_GAS_FEE_MOCK;
-    return Promise.resolve();
-  };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -88,9 +78,7 @@ describe('GasFeePoller', () => {
     getTransactionsMock = jest.fn();
     getTransactionsMock.mockReturnValue([{ ...TRANSACTION_META_MOCK }]);
 
-    updateTransactionLayer1GasFeeMock.mockImplementation(
-      transactionLayer1GasFeeUpdater,
-    );
+    getTransactionLayer1GasFeeMock.mockResolvedValue(LAYER1_GAS_FEE_MOCK);
 
     constructorOptions = {
       gasFeeFlows: [gasFeeFlowMock],
@@ -106,18 +94,7 @@ describe('GasFeePoller', () => {
 
   describe('on state change', () => {
     describe('if unapproved transaction', () => {
-      beforeEach(() => {
-        // to avoid side effect of the mock implementation
-        // otherwise argument assertion would fail because mock.calls[][] holds reference
-        updateTransactionLayer1GasFeeMock.mockResolvedValue(undefined);
-      });
-
       it('emits updated event', async () => {
-        // skip into original implementation
-        updateTransactionLayer1GasFeeMock.mockImplementationOnce(
-          transactionLayer1GasFeeUpdater,
-        );
-
         const listener = jest.fn();
 
         const gasFeePoller = new GasFeePoller(constructorOptions);
@@ -126,9 +103,9 @@ describe('GasFeePoller', () => {
         triggerOnStateChange();
         await flushPromises();
 
-        expect(listener).toHaveBeenCalledTimes(2);
+        expect(listener).toHaveBeenCalledTimes(1);
         expect(listener).toHaveBeenCalledWith({
-          ...TRANSACTION_META_MOCK,
+          transactionId: TRANSACTION_META_MOCK.id,
           gasFeeEstimates: GAS_FEE_FLOW_RESPONSE_MOCK.estimates,
           layer1GasFee: LAYER1_GAS_FEE_MOCK,
           gasFeeEstimatesLoaded: true,
@@ -149,13 +126,13 @@ describe('GasFeePoller', () => {
         });
       });
 
-      it('calls layer1 gas fee updater', async () => {
+      it('retrieves layer 1 gas fee', async () => {
         new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
 
-        expect(updateTransactionLayer1GasFeeMock).toHaveBeenCalledTimes(1);
-        expect(updateTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
+        expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledTimes(1);
+        expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
           provider: expect.any(Object),
           layer1GasFeeFlows: layer1GasFeeFlowsMock,
           transactionMeta: TRANSACTION_META_MOCK,
@@ -227,9 +204,7 @@ describe('GasFeePoller', () => {
         const listener = jest.fn();
 
         gasFeeFlowMock.matchesTransaction.mockReturnValue(false);
-        updateTransactionLayer1GasFeeMock.mockImplementation(() => {
-          return Promise.resolve();
-        });
+        getTransactionLayer1GasFeeMock.mockResolvedValue(undefined);
 
         getTransactionsMock.mockReturnValue([
           { ...TRANSACTION_META_MOCK, gasFeeEstimatesLoaded: true },
@@ -247,12 +222,8 @@ describe('GasFeePoller', () => {
       it('gas fee flow throws and already loaded', async () => {
         const listener = jest.fn();
 
-        // to make sure update will be called by gas fee flow
-        updateTransactionLayer1GasFeeMock.mockImplementation(() => {
-          return Promise.resolve();
-        });
-
         gasFeeFlowMock.getGasFees.mockRejectedValue(new Error('TestError'));
+        getTransactionLayer1GasFeeMock.mockResolvedValue(undefined);
 
         getTransactionsMock.mockReturnValue([
           { ...TRANSACTION_META_MOCK, gasFeeEstimatesLoaded: true },
