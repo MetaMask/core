@@ -429,6 +429,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.addNft - Add an NFT.
    * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
    * @param options.getNftState - Gets the current state of the Assets controller.
+   * @param options.disabled - Represents previous value of useNftDetection default to true.
    * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -458,7 +459,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       addNft: NftController['addNft'];
       getNftApi: NftController['getNftApi'];
       getNftState: () => NftState;
-      disabled: boolean
+      disabled: boolean;
     },
     config?: Partial<NftDetectionConfig>,
     state?: Partial<BaseState>,
@@ -477,17 +478,16 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       const { selectedAddress: previouslySelectedAddress, disabled } =
         this.config;
 
-      if(selectedAddress !== previouslySelectedAddress){
-          this.configure({ selectedAddress });
+      if (selectedAddress !== previouslySelectedAddress) {
+        this.configure({ selectedAddress });
       }
       if (!useNftDetection !== disabled) {
-          this.configure({ disabled: !useNftDetection });
-          if (useNftDetection) {
-              this.start();
-          }
-          else {
-              this.stop();
-          }
+        this.configure({ disabled: !useNftDetection });
+        if (useNftDetection) {
+          this.start();
+        } else {
+          this.stop();
+        }
       }
     });
 
