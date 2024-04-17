@@ -107,6 +107,20 @@ export function isBaseController(
   );
 }
 
+/**
+ * A controller state change event for any controller instance that extends from either `BaseControllerV1` or `BaseControllerV2`.
+ */
+// TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
+type LegacyControllerStateChangeEvent<
+  ControllerName extends string,
+  ControllerState extends
+    | (BaseState & Record<string, unknown>)
+    | StateConstraint,
+> = {
+  type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
+};
+
 // TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
 export type ComposableControllerState = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
