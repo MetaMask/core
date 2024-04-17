@@ -9,21 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [28.0.0]
 
-### Uncategorized
+### Added
 
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- fix: fix getting nft tokenURI ([#4136](https://github.com/MetaMask/core/pull/4136))
-- Update snap and keyring api dependencies and fix tests ([#4090](https://github.com/MetaMask/core/pull/4090))
-- feat: allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
-- fix: token detection during account change ([#4133](https://github.com/MetaMask/core/pull/4133))
-- Release 133.0.0 ([#4121](https://github.com/MetaMask/core/pull/4121))
-- Revert "Release v133.0.0 (#4111)" ([#4111](https://github.com/MetaMask/core/pull/4111))
-- Release v133.0.0 ([#4111](https://github.com/MetaMask/core/pull/4111))
-- fix: fix update nft metadata when toggles off ([#4096](https://github.com/MetaMask/core/pull/4096))
-- feat: reservoir migration ([#4030](https://github.com/MetaMask/core/pull/4030))
-- Adds 'tokenMethodIncreaseAllowance' ([#4069](https://github.com/MetaMask/core/pull/4069))
-- fix: mantle token mispriced ([#4045](https://github.com/MetaMask/core/pull/4045))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+- Add reservoir migration ([#4030](https://github.com/MetaMask/core/pull/4030))
+
+### Changed
+
+- Fix getting nft tokenURI ([#4136](https://github.com/MetaMask/core/pull/4136))
+- **BREAKING** Bump peer dependency on `@metamask/keyring-controller` ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Fix token detection during account change ([#4133](https://github.com/MetaMask/core/pull/4133))
+- Fix update nft metadata when toggles off ([#4096](https://github.com/MetaMask/core/pull/4096))
+- Adds `tokenMethodIncreaseAllowance` ([#4069](https://github.com/MetaMask/core/pull/4069))
+- Fix mantle token mispriced ([#4045](https://github.com/MetaMask/core/pull/4045))
 
 ## [27.2.0]
 

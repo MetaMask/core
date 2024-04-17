@@ -9,12 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 
-### Uncategorized
+### Changed
 
-- fix!: bug 4157, use getAccounts on HD Keyring when calling addNewAccount ([#4158](https://github.com/MetaMask/core/pull/4158))
-- Update snap and keyring api dependencies and fix tests ([#4090](https://github.com/MetaMask/core/pull/4090))
-- feat: allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+- **BREAKING** use getAccounts on HD Keyring when calling addNewAccount ([#4158](https://github.com/MetaMask/core/pull/4158))
+- Pass CAIP-2 scope to execution context ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
 
 ## [14.0.1]
 

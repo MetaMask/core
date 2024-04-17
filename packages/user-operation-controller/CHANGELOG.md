@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 137.0.0 ([#4159](https://github.com/MetaMask/core/pull/4159))
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Update snap and keyring api dependencies and fix tests ([#4090](https://github.com/MetaMask/core/pull/4090))
-- Release 135.0.0 ([#4140](https://github.com/MetaMask/core/pull/4140))
-- feat: allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
-- Release 134.0.0 ([#4131](https://github.com/MetaMask/core/pull/4131))
+- **BREAKING** Bump peer dependency on `@metamask/keyring-controller` to `^15.0.0` and Pass CAIP-2 scope to execution context ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
 
 ## [7.0.0]
 

@@ -9,11 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-- Release 127.0.0 ([#4065](https://github.com/MetaMask/core/pull/4065))
+- **BREAKING** Bump peer dependency on `@metamask/keyring-controller` to `^15.0.0` ([#4090](https://github.com/MetaMask/core/pull/4090))
 
 ## [14.0.1]
 
