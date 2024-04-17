@@ -121,8 +121,11 @@ type LegacyControllerStateChangeEvent<
   payload: [ControllerState, Patch[]];
 };
 
+/**
+ * A narrowest supertype for the composable controller state object.
+ */
 // TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
-export type ComposableControllerState = {
+export type ComposableControllerStateConstraint = {
   // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
   // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
