@@ -302,7 +302,6 @@ export class AccountsController extends BaseController<
         metadata: { ...account.metadata, name: accountName },
       };
       currentState.internalAccounts.accounts[accountId] =
-        // @ts-expect-error Assigning a complex type `T` to `Draft<T>` causes an excessive type instantiation depth error.
         internalAccount as Draft<InternalAccount>;
     });
   }
