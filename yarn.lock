@@ -1638,7 +1638,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@^12.0.1, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@^13.0.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -1647,7 +1647,7 @@ __metadata:
     "@metamask/base-controller": ^5.0.1
     "@metamask/eth-snap-keyring": ^3.0.0
     "@metamask/keyring-api": ^5.1.0
-    "@metamask/keyring-controller": ^14.0.1
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/snaps-controllers": ^6.0.3
     "@metamask/snaps-sdk": ^3.1.1
     "@metamask/snaps-utils": ^7.0.3
@@ -1664,7 +1664,7 @@ __metadata:
     typescript: ~4.9.5
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/keyring-controller": ^14.0.1
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/snaps-controllers": ^6.0.3
   languageName: unknown
   linkType: soft
@@ -1744,7 +1744,7 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.2
-    "@metamask/accounts-controller": ^12.0.1
+    "@metamask/accounts-controller": ^13.0.0
     "@metamask/approval-controller": ^6.0.1
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
@@ -1753,11 +1753,11 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/keyring-api": ^5.1.0
-    "@metamask/keyring-controller": ^14.0.1
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.1.0
     "@metamask/polling-controller": ^6.0.1
-    "@metamask/preferences-controller": ^9.0.1
+    "@metamask/preferences-controller": ^10.0.0
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
@@ -1782,11 +1782,11 @@ __metadata:
     typescript: ~4.9.5
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/accounts-controller": ^12.0.0
+    "@metamask/accounts-controller": ^13.0.0
     "@metamask/approval-controller": ^6.0.0
-    "@metamask/keyring-controller": ^14.0.0
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/network-controller": ^18.0.0
-    "@metamask/preferences-controller": ^9.0.0
+    "@metamask/preferences-controller": ^10.0.0
   languageName: unknown
   linkType: soft
 
@@ -2411,7 +2411,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@^14.0.1, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^15.0.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -2702,14 +2702,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@^9.0.1, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@^10.0.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
     "@metamask/controller-utils": ^9.1.0
-    "@metamask/keyring-controller": ^14.0.1
+    "@metamask/keyring-controller": ^15.0.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2719,7 +2719,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.9.5
   peerDependencies:
-    "@metamask/keyring-controller": ^14.0.0
+    "@metamask/keyring-controller": ^15.0.0
   languageName: unknown
   linkType: soft
 
@@ -2861,7 +2861,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
     "@metamask/controller-utils": ^9.1.0
-    "@metamask/keyring-controller": ^14.0.1
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/logging-controller": ^3.0.1
     "@metamask/message-manager": ^8.0.1
     "@metamask/rpc-errors": ^6.2.1
@@ -2876,7 +2876,7 @@ __metadata:
     typescript: ~4.9.5
   peerDependencies:
     "@metamask/approval-controller": ^6.0.0
-    "@metamask/keyring-controller": ^14.0.0
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/logging-controller": ^3.0.0
   languageName: unknown
   linkType: soft
@@ -3062,7 +3062,7 @@ __metadata:
     "@metamask/controller-utils": ^9.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/gas-fee-controller": ^15.0.0
-    "@metamask/keyring-controller": ^14.0.1
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/network-controller": ^18.1.0
     "@metamask/polling-controller": ^6.0.1
     "@metamask/rpc-errors": ^6.2.1
@@ -3083,7 +3083,7 @@ __metadata:
   peerDependencies:
     "@metamask/approval-controller": ^6.0.0
     "@metamask/gas-fee-controller": ^15.0.0
-    "@metamask/keyring-controller": ^14.0.0
+    "@metamask/keyring-controller": ^15.0.0
     "@metamask/network-controller": ^18.0.0
     "@metamask/transaction-controller": ^28.0.0
   languageName: unknown
