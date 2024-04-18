@@ -728,26 +728,7 @@ export class KeyringController extends BaseController<
       return this.getOrAddQRKeyring();
     }
 
-    const keyring = await this.#newKeyring(type, opts);
-
-    if (type === KeyringTypes.hd && (!isObject(opts) || !opts.mnemonic)) {
-      if (!keyring.generateRandomMnemonic) {
-        throw new Error(
-          KeyringControllerError.UnsupportedGenerateRandomMnemonic,
-        );
-      }
-
-      keyring.generateRandomMnemonic();
-      await keyring.addAccounts(1);
-    }
-
-    const accounts = await keyring.getAccounts();
-    await this.#checkForDuplicate(type, accounts);
-
-    this.#keyrings.push(keyring);
-    await this.persistAllKeyrings();
-
-    return keyring;
+    return this.#newKeyring(type, opts, true);
   }
 
   /**
@@ -1067,9 +1048,11 @@ export class KeyringController extends BaseController<
       default:
         throw new Error(`Unexpected import strategy: '${strategy}'`);
     }
-    const newKeyring = (await this.addNewKeyring(KeyringTypes.simple, [
-      privateKey,
-    ])) as EthKeyring<Json>;
+    const newKeyring = (await this.#newKeyring(
+      KeyringTypes.simple,
+      [privateKey],
+      true,
+    )) as EthKeyring<Json>;
     const accounts = await newKeyring.getAccounts();
     return {
       keyringState: this.#getMemState(),
@@ -1446,7 +1429,8 @@ export class KeyringController extends BaseController<
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
-    (await this.getOrAddQRKeyring()).deserialize(serialized);
+    const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
+    keyring.deserialize(serialized);
     await this.persistAllKeyrings();
   }
 
@@ -1489,7 +1473,7 @@ export class KeyringController extends BaseController<
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {
     try {
-      const keyring = await this.getOrAddQRKeyring();
+      const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
       let accounts;
       switch (page) {
         case -1:
@@ -1517,14 +1501,11 @@ export class KeyringController extends BaseController<
   }
 
   async unlockQRHardwareWalletAccount(index: number): Promise<void> {
-    const keyring = await this.getOrAddQRKeyring();
+    const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
 
     keyring.setAccountToUnlock(index);
-    // QRKeyring is not yet compatible with Keyring from
-    // @metamask/utils, but we can use the `addNewAccount` method
-    // as it internally calls `addAccounts` from on the keyring instance,
-    // which is supported by QRKeyring API.
-    await this.addNewAccountForKeyring(keyring as unknown as EthKeyring<Json>);
+    await keyring.addAccounts(1);
+
     await this.persistAllKeyrings();
   }
 
@@ -1539,7 +1520,12 @@ export class KeyringController extends BaseController<
     removedAccounts: string[];
     remainingAccounts: string[];
   }> {
-    const keyring = await this.getOrAddQRKeyring();
+    const keyring = this.getQRKeyring();
+
+    if (!keyring) {
+      return { removedAccounts: [], remainingAccounts: [] };
+    }
+
     const allAccounts = (await this.getAccounts()) as string[];
     keyring.forgetDevice();
     const remainingAccounts = (await this.getAccounts()) as string[];
@@ -1835,7 +1821,11 @@ export class KeyringController extends BaseController<
    * @returns A promise that resolves if the operation is successful.
    */
   async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
-    const keyring = (await this.addNewKeyring(type, opts)) as EthKeyring<Json>;
+    const keyring = (await this.#newKeyring(
+      type,
+      opts,
+      true,
+    )) as EthKeyring<Json>;
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
@@ -1848,11 +1838,18 @@ export class KeyringController extends BaseController<
    * using the given `opts`. The keyring is built using the keyring builder
    * registered for the given `type`.
    *
+   *
    * @param type - The type of keyring to add.
    * @param data - The data to restore a previously serialized keyring.
+   * @param persist - Whether to persist the keyring to the vault.
    * @returns The new keyring.
+   * @throws If the keyring includes duplicated accounts.
    */
-  async #newKeyring(type: string, data: unknown): Promise<EthKeyring<Json>> {
+  async #newKeyring(
+    type: string,
+    data: unknown,
+    persist = false,
+  ): Promise<EthKeyring<Json>> {
     const keyringBuilder = this.#getKeyringBuilderForType(type);
 
     if (!keyringBuilder) {
@@ -1868,6 +1865,24 @@ export class KeyringController extends BaseController<
 
     if (keyring.init) {
       await keyring.init();
+    }
+
+    if (type === KeyringTypes.hd && (!isObject(data) || !data.mnemonic)) {
+      if (!keyring.generateRandomMnemonic) {
+        throw new Error(
+          KeyringControllerError.UnsupportedGenerateRandomMnemonic,
+        );
+      }
+
+      keyring.generateRandomMnemonic();
+      await keyring.addAccounts(1);
+    }
+
+    await this.#checkForDuplicate(type, await keyring.getAccounts());
+
+    if (persist) {
+      this.#keyrings.push(keyring);
+      await this.persistAllKeyrings();
     }
 
     return keyring;
