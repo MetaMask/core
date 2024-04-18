@@ -1861,6 +1861,7 @@ export class PermissionController<
    * id.
    * @param options.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions. Defaults to `true`.
+   * @param options.metadata - Additional metadata about the permission request.
    * @returns The granted permissions and request metadata.
    */
   async requestPermissions(
