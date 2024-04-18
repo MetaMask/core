@@ -415,7 +415,7 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('getProviderAndBlockTracker', () => {
-    describe('when the domain already has a cached networkProxy the domainProxyMap', () => {
+    describe('when the domain already has a cached networkProxy in the domainProxyMap', () => {
       it('returns the cached proxy provider and block tracker', () => {
         const mockProxyProvider = {
           setTarget: jest.fn(),
