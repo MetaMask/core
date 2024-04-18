@@ -4,7 +4,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
+import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -1035,8 +1035,8 @@ export type GasFeeFlow = {
 
 /** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
 export type Layer1GasFeeFlowRequest = {
-  /** An EthQuery instance to enable queries to the associated RPC provider. */
-  ethQuery: EthQuery;
+  /** RPC Provider instance. */
+  provider: Provider;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
@@ -1105,16 +1105,20 @@ export type SimulationToken = {
 export type SimulationTokenBalanceChange = SimulationToken &
   SimulationBalanceChange;
 
+export enum SimulationErrorCode {
+  ChainNotSupported = 'chain-not-supported',
+  Disabled = 'disabled',
+  InvalidResponse = 'invalid-response',
+  Reverted = 'reverted',
+}
+
 /** Error data for a failed simulation. */
 export type SimulationError = {
   /** Error code to identify the error type. */
-  code?: number;
+  code?: string | number;
 
   /** Error message to describe the error. */
   message?: string;
-
-  /** Whether the error is due to the transaction being reverted. */
-  isReverted: boolean;
 };
 
 /** Simulation data for a transaction. */

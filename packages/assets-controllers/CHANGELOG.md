@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.0]
+
+### Added
+
+- Add reservoir migration ([#4030](https://github.com/MetaMask/core/pull/4030))
+
+### Changed
+
+- Fix getting nft tokenURI ([#4136](https://github.com/MetaMask/core/pull/4136))
+- **BREAKING** Bump peer dependency on `@metamask/keyring-controller` ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Fix token detection during account change ([#4133](https://github.com/MetaMask/core/pull/4133))
+- Fix update nft metadata when toggles off ([#4096](https://github.com/MetaMask/core/pull/4096))
+- Adds `tokenMethodIncreaseAllowance` ([#4069](https://github.com/MetaMask/core/pull/4069))
+- Fix mantle token mispriced ([#4045](https://github.com/MetaMask/core/pull/4045))
+
 ## [27.2.0]
 
 ### Added
@@ -737,7 +752,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@28.0.0...HEAD
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.2.0...@metamask/assets-controllers@28.0.0
 [27.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.1.0...@metamask/assets-controllers@27.2.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.1...@metamask/assets-controllers@27.1.0
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.0...@metamask/assets-controllers@27.0.1
