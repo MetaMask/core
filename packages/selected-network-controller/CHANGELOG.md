@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- When getProviderBlockTracker is called with domain for which there is no cached networkProxy in the domainProxyMap, if the useRequestQueue preference is off and the domain does not have permissions the newly created network proxy for this domain should be pointed at the NetworkController's own proxied selectedNetworkClient. ([#4187](https://github.com/MetaMask/core.git/pull/4187))
+- When getProviderBlockTracker is called with domain for which there is no cached networkProxy in the domainProxyMap, if the useRequestQueue preference is off and the domain does not have permissions the newly created network proxy for this domain should be pointed at the NetworkController's own proxied selectedNetworkClient. ([#4187](https://github.com/MetaMask/core/pull/4187))
 
 ## [12.0.0]
 
@@ -196,23 +196,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@12.0.1...HEAD
-[12.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@12.0.0...@metamask/selected-network-controller@12.0.1
-[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@11.0.0...@metamask/selected-network-controller@12.0.0
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@10.0.1...@metamask/selected-network-controller@11.0.0
-[10.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@10.0.0...@metamask/selected-network-controller@10.0.1
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@9.0.0...@metamask/selected-network-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@8.0.0...@metamask/selected-network-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@7.0.1...@metamask/selected-network-controller@8.0.0
-[7.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@7.0.0...@metamask/selected-network-controller@7.0.1
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@6.0.0...@metamask/selected-network-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@5.0.0...@metamask/selected-network-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@4.0.0...@metamask/selected-network-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.1.2...@metamask/selected-network-controller@4.0.0
-[3.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.1.1...@metamask/selected-network-controller@3.1.2
-[3.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.1.0...@metamask/selected-network-controller@3.1.1
-[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.0.0...@metamask/selected-network-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@2.0.1...@metamask/selected-network-controller@3.0.0
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@2.0.0...@metamask/selected-network-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@1.0.0...@metamask/selected-network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/selected-network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@12.0.0...@metamask/selected-network-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@11.0.0...@metamask/selected-network-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@10.0.1...@metamask/selected-network-controller@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@10.0.0...@metamask/selected-network-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@9.0.0...@metamask/selected-network-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@8.0.0...@metamask/selected-network-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@7.0.1...@metamask/selected-network-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@7.0.0...@metamask/selected-network-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@6.0.0...@metamask/selected-network-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@5.0.0...@metamask/selected-network-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@4.0.0...@metamask/selected-network-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.1.2...@metamask/selected-network-controller@4.0.0
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.1.1...@metamask/selected-network-controller@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.1.0...@metamask/selected-network-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.0.0...@metamask/selected-network-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@2.0.1...@metamask/selected-network-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@2.0.0...@metamask/selected-network-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@1.0.0...@metamask/selected-network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/selected-network-controller@1.0.0
