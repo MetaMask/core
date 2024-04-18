@@ -953,6 +953,12 @@ export class KeyringController extends BaseController<
 
       serializedKeyrings.push(...this.#unsupportedKeyrings);
 
+      if (
+        !serializedKeyrings.some((keyring) => keyring.type === KeyringTypes.hd)
+      ) {
+        throw new Error(KeyringControllerError.NoHdKeyring);
+      }
+
       const updatedState: Partial<KeyringControllerState> = {};
 
       if (this.#cacheEncryptionKey) {
