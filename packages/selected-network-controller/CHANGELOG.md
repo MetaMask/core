@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.0.1]
 
-### Uncategorized
+### Fixed
 
-- Fix `getProviderAndBlockTracker` client selection logic ([#4187](https://github.com/MetaMask/core.git/pull/4187))
+- When getProviderBlockTracker is called with domain for which there is no cached networkProxy in the domainProxyMap, if the useRequestQueue preference is off and the domain does not have permissions the newly created network proxy for this domain should be pointed at the NetworkController's own proxied selectedNetworkClient. ([#4187](https://github.com/MetaMask/core.git/pull/4187))
 
 ## [12.0.0]
 
