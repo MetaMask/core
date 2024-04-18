@@ -332,22 +332,25 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
-    const networkClientId = this.getNetworkClientIdForDomain(domain);
     let networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
       let networkClient;
-      if (networkClientId === undefined || !this.#useRequestQueuePreference) {
+      if (
+        this.#useRequestQueuePreference &&
+        this.#domainHasPermissions(domain)
+      ) {
+        const networkClientId = this.getNetworkClientIdForDomain(domain);
+        networkClient = this.messagingSystem.call(
+          'NetworkController:getNetworkClientById',
+          networkClientId,
+        );
+      } else {
         networkClient = this.messagingSystem.call(
           'NetworkController:getSelectedNetworkClient',
         );
         if (networkClient === undefined) {
           throw new Error('Selected network not initialized');
         }
-      } else {
-        networkClient = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          networkClientId,
-        );
       }
       networkProxy = {
         provider: createEventEmitterProxy(networkClient.provider),
