@@ -2943,6 +2943,58 @@ describe('PermissionController', () => {
       );
     });
 
+    it('allows caller passing additional metadata', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      expect(
+        await controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_getSecretArray]: {},
+          },
+          { metadata: { foo: 'bar' } },
+        ),
+      ).toMatchObject([
+        {
+          [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+            parentCapability: PermissionNames.wallet_getSecretArray,
+            caveats: null,
+            invoker: origin,
+          }),
+        },
+        { id: expect.any(String), origin },
+      ]);
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { foo: 'bar', id: expect.any(String), origin },
+            permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
     it('requests a permission that requires permitted side-effects', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
