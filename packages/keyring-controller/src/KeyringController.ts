@@ -595,10 +595,9 @@ export class KeyringController extends BaseController<
       };
     }
 
-    const addedAccountAddress = await this.addNewAccountForKeyring(
-      primaryKeyring,
-    );
+    const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
     await this.verifySeedPhrase();
+    await this.#updateVault();
 
     return {
       keyringState: this.#getMemState(),
