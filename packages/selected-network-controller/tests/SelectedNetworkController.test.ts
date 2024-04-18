@@ -458,7 +458,7 @@ describe('SelectedNetworkController', () => {
     describe('when the domain does not have a cached networkProxy in the domainProxyMap', () => {
       describe('when the useRequestQueue preference is true', () => {
         describe('when the domain has permissions', () => {
-          it('calls to NetworkController:getNetworkClientById and creates a new proxy provider and block tracker with the global network client', () => {
+          it('calls to NetworkController:getNetworkClientById and creates a new proxy provider and block tracker with the non-proxied globally selected network client', () => {
             const { controller, messenger } = setup({
               state: {
                 domains: {},
@@ -476,7 +476,7 @@ describe('SelectedNetworkController', () => {
               'mainnet',
             );
           });
-          it('throws an error if the global network client is not initialized', () => {
+          it('throws an error if the globally selected network client is not initialized', () => {
             const { controller, mockGetSelectedNetworkClient } = setup({
               state: {
                 domains: {},
@@ -490,7 +490,7 @@ describe('SelectedNetworkController', () => {
           });
         });
         describe('when the domain does not have permissions', () => {
-          it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the global network client', () => {
+          it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
             const { controller, messenger, mockHasPermissions } = setup({
               state: {
                 domains: {},
@@ -511,7 +511,7 @@ describe('SelectedNetworkController', () => {
         });
       });
       describe('when the useRequestQueue preference is false', () => {
-        it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the global network client', () => {
+        it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
           const { controller, messenger } = setup({
             state: {
               domains: {},
