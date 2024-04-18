@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: add HD keyring check to `persistAllKeyrings` ([#4168](https://github.com/MetaMask/core/pull/4168))
-- [keyring-controller] Update state in single call when persisting or unlocking ([#4154](https://github.com/MetaMask/core/pull/4154))
-
 ## [15.0.0]
 
 ### Changed
