@@ -571,7 +571,9 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         expect(controller.isUnlocked()).toBe(true);
         expect(controller.state.isUnlocked).toBe(true);
-        controller.setLocked();
+
+        await controller.setLocked();
+
         expect(controller.isUnlocked()).toBe(false);
         expect(controller.state.isUnlocked).toBe(false);
       });
