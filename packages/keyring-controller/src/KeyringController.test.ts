@@ -3151,6 +3151,36 @@ describe('KeyringController', () => {
       });
     });
   });
+
+  describe('run conditions', () => {
+    describe('submitPassword', () => {
+      it('should not cause run conditions when called multiple times', async () => {
+        await withController(async ({ controller, initialState }) => {
+          await Promise.all([
+            controller.submitPassword(password),
+            controller.submitPassword(password),
+            controller.submitPassword(password),
+            controller.submitPassword(password),
+          ]);
+
+          expect(controller.state).toStrictEqual(initialState);
+        });
+      });
+
+      it('should not cause run conditions when called multiple times in combination with persistAllKeyrings', async () => {
+        await withController(async ({ controller, initialState }) => {
+          await Promise.all([
+            controller.submitPassword(password),
+            controller.persistAllKeyrings(),
+            controller.submitPassword(password),
+            controller.persistAllKeyrings(),
+          ]);
+
+          expect(controller.state).toStrictEqual(initialState);
+        });
+      });
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
