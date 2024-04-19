@@ -1211,16 +1211,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@npm:^4.1.1":
-  version: 4.1.1
-  resolution: "@metamask/base-controller@npm:4.1.1"
-  dependencies:
-    "@metamask/utils": ^8.3.0
-    immer: ^9.0.6
-  checksum: adfbc9815506f41342036743b481236179ffd8378e58dad4ffd5b55158d1a5d5509b113d17af5fe1de35d02c448a7c92fffd5234da1893374aab498356585f76
-  languageName: node
-  linkType: hard
-
 "@metamask/base-controller@npm:^5.0.1":
   version: 5.0.1
   resolution: "@metamask/base-controller@npm:5.0.1"
@@ -1313,7 +1303,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-infura@npm:^9.0.0, @metamask/eth-json-rpc-infura@npm:^9.1.0":
+"@metamask/eth-json-rpc-infura@npm:^9.1.0":
   version: 9.1.0
   resolution: "@metamask/eth-json-rpc-infura@npm:9.1.0"
   dependencies:
@@ -1326,7 +1316,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^12.0.1, @metamask/eth-json-rpc-middleware@npm:^12.1.0":
+"@metamask/eth-json-rpc-middleware@npm:^12.1.0":
   version: 12.1.0
   resolution: "@metamask/eth-json-rpc-middleware@npm:12.1.0"
   dependencies:
@@ -1343,7 +1333,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-provider@npm:^2.1.0, @metamask/eth-json-rpc-provider@npm:^2.3.2":
+"@metamask/eth-json-rpc-provider@npm:^2.1.0":
   version: 2.3.2
   resolution: "@metamask/eth-json-rpc-provider@npm:2.3.2"
   dependencies:
@@ -1527,28 +1517,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/network-controller@npm:^17.2.0":
-  version: 17.2.0
-  resolution: "@metamask/network-controller@npm:17.2.0"
-  dependencies:
-    "@metamask/base-controller": ^4.1.1
-    "@metamask/controller-utils": ^8.0.2
-    "@metamask/eth-json-rpc-infura": ^9.0.0
-    "@metamask/eth-json-rpc-middleware": ^12.0.1
-    "@metamask/eth-json-rpc-provider": ^2.3.2
-    "@metamask/eth-query": ^4.0.0
-    "@metamask/json-rpc-engine": ^7.3.2
-    "@metamask/rpc-errors": ^6.1.0
-    "@metamask/swappable-obj-proxy": ^2.2.0
-    "@metamask/utils": ^8.3.0
-    async-mutex: ^0.2.6
-    eth-block-tracker: ^8.0.0
-    immer: ^9.0.6
-    uuid: ^8.3.2
-  checksum: 8fedec394888020a61379c2b64cc1c5bd1c8d43875f4a0c8c13be28f4e04f8375bc175b02c91281b172e1258d601e3e36d5fdd7321bd8eb39e89e3f2da92c1df
-  languageName: node
-  linkType: hard
-
 "@metamask/network-controller@npm:^18.0.1, @metamask/network-controller@npm:^18.1.0":
   version: 18.1.0
   resolution: "@metamask/network-controller@npm:18.1.0"
@@ -1581,23 +1549,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/polling-controller@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "@metamask/polling-controller@npm:5.0.0"
-  dependencies:
-    "@metamask/base-controller": ^4.1.1
-    "@metamask/controller-utils": ^8.0.2
-    "@metamask/network-controller": ^17.2.0
-    "@metamask/utils": ^8.3.0
-    "@types/uuid": ^8.3.0
-    fast-json-stable-stringify: ^2.1.0
-    uuid: ^8.3.2
-  peerDependencies:
-    "@metamask/network-controller": ^17.2.0
-  checksum: 78655074916c445594787e8573e10a992933477cf702aa458c28396b49dbcd13a60bfb1fac46f680819139f918eacff1f4c1e6386f5d74ceaa3715f8ee48d79f
-  languageName: node
-  linkType: hard
-
 "@metamask/polling-controller@npm:^6.0.1":
   version: 6.0.1
   resolution: "@metamask/polling-controller@npm:6.0.1"
@@ -1615,7 +1566,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/rpc-errors@npm:^6.0.0, @metamask/rpc-errors@npm:^6.1.0, @metamask/rpc-errors@npm:^6.2.1":
+"@metamask/rpc-errors@npm:^6.0.0, @metamask/rpc-errors@npm:^6.2.1":
   version: 6.2.1
   resolution: "@metamask/rpc-errors@npm:6.2.1"
   dependencies:
@@ -1650,7 +1601,7 @@ __metadata:
     "@metamask/eslint-config-typescript": ^12.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/network-controller": ^18.1.0
-    "@metamask/polling-controller": ^5.0.0
+    "@metamask/polling-controller": ^6.0.1
     "@metamask/transaction-controller": ^28.1.0
     "@types/jest": ^26.0.24
     "@types/lodash": ^4.14.194
