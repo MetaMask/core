@@ -990,7 +990,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving current state when this account removal completes.
    */
   async removeAccount(address: Hex): Promise<KeyringControllerMemState> {
-    return this.#withControllerLock(async () => {
+    const returnValue = await this.#withControllerLock(async () => {
       const keyring = (await this.getKeyringForAccount(
         address,
       )) as EthKeyring<Json>;
@@ -1013,9 +1013,12 @@ export class KeyringController extends BaseController<
 
       await this.#updateVault();
 
-      this.messagingSystem.publish(`${name}:accountRemoved`, address);
       return this.#getMemState();
     });
+
+    this.messagingSystem.publish(`${name}:accountRemoved`, address);
+
+    return returnValue;
   }
 
   /**
