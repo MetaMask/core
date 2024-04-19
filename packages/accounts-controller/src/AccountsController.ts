@@ -789,6 +789,12 @@ export class AccountsController extends BaseController<
     });
   }
 
+  /**
+   * Retrieves the value of a specific metadata key for an existing account.
+   * @param accountId - The ID of the account.
+   * @param metadataKey - The key of the metadata to retrieve.
+   * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
+   */
   #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
     accountId: string,
     metadataKey: T,
