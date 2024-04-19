@@ -1,5 +1,12 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcSuccess,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 
+import type { PermissionConstraint } from '../Permission';
 import { getPermissionsHandler } from './getPermissions';
 
 describe('getPermissions RPC method', () => {
@@ -10,11 +17,16 @@ describe('getPermissions RPC method', () => {
     });
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        getPermissionsForOrigin: mockGetPermissionsForOrigin,
-      }),
+    engine.push(
+      (
+        req: JsonRpcRequest<[]>,
+        res: PendingJsonRpcResponse<PermissionConstraint[]>,
+        next,
+        end,
+      ) =>
+        implementation(req, res, next, end, {
+          getPermissionsForOrigin: mockGetPermissionsForOrigin,
+        }),
     );
 
     const response = await engine.handle({
@@ -22,8 +34,11 @@ describe('getPermissions RPC method', () => {
       id: 1,
       method: 'arbitraryName',
     });
-    // @ts-expect-error Abusing types for testing purposes
-    expect(response.result).toStrictEqual(['a', 'b', 'c']);
+    expect((response as JsonRpcSuccess<Json>).result).toStrictEqual([
+      'a',
+      'b',
+      'c',
+    ]);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });
 
@@ -34,11 +49,16 @@ describe('getPermissions RPC method', () => {
       .mockImplementationOnce(() => null);
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        getPermissionsForOrigin: mockGetPermissionsForOrigin,
-      }),
+    engine.push(
+      (
+        req: JsonRpcRequest<[]>,
+        res: PendingJsonRpcResponse<PermissionConstraint[]>,
+        next,
+        end,
+      ) =>
+        implementation(req, res, next, end, {
+          getPermissionsForOrigin: mockGetPermissionsForOrigin,
+        }),
     );
 
     const response = await engine.handle({
@@ -46,8 +66,7 @@ describe('getPermissions RPC method', () => {
       id: 1,
       method: 'arbitraryName',
     });
-    // @ts-expect-error Abusing types for testing purposes
-    expect(response.result).toStrictEqual([]);
+    expect((response as JsonRpcSuccess<Json>).result).toStrictEqual([]);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });
 });
