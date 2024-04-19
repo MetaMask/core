@@ -793,7 +793,9 @@ export class KeyringController extends BaseController<
    * @returns A promise resolving to an array of addresses.
    */
   async getAccounts(): Promise<string[]> {
-    return this.#getAccountsFromKeyrings();
+    return this.#withControllerLock(async () =>
+      this.#getAccountsFromKeyrings(),
+    );
   }
 
   /**
