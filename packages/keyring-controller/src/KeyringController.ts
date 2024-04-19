@@ -2055,6 +2055,17 @@ export class KeyringController extends BaseController<
     this.messagingSystem.publish(`${name}:unlock`);
   }
 
+  /**
+   * Execute the given function after acquiring the controller lock
+   * and save the keyrings to state after it, or rolling back to their
+   * previous state in case of error.
+   *
+   * @param fn - The function to execute.
+   * @param options - Options for the operation.
+   * @param options.skipUpdate - Whether to skip updating the vault after the operation.
+   * @param options.onSuccess - Callback to execute after the operation is successful.
+   * @returns The result of the function.
+   */
   async #asAtomicOperation<T>(
     fn: MutuallyExclusiveCallback<T>,
     options: {
