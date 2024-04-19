@@ -471,7 +471,7 @@ export class AccountsController extends BaseController<
         ],
         type: EthAccountType.Eoa,
         metadata: {
-          name: '',
+          name: this.#populateExistingMetadata(id, 'name') ?? '',
           importTime:
             this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
           lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
