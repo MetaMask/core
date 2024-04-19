@@ -2769,7 +2769,7 @@ __metadata:
     typescript: ~4.9.5
   peerDependencies:
     "@metamask/network-controller": ^18.0.0
-    "@metamask/selected-network-controller": ^12.0.1
+    "@metamask/selected-network-controller": ^12.0.0
   languageName: unknown
   linkType: soft
 
