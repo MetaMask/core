@@ -900,9 +900,7 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    return this.#asAtomicOperation(async () => this.#updateVault(), {
-      skipUpdate: true,
-    });
+    return this.#asAtomicOperation(async () => true);
   }
 
   /**
