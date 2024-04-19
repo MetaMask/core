@@ -2075,25 +2075,29 @@ export class KeyringController extends BaseController<
       skipUpdate: false,
     },
   ): Promise<T> {
-    return this.#withControllerLock(async ({ releaseLock }) => {
-      const currentKeyrings = this.#keyrings.slice();
+    const operationResult = await this.#withControllerLock(
+      async ({ releaseLock }) => {
+        const currentKeyrings = this.#keyrings.slice();
 
-      try {
-        const operationResult = await fn({ releaseLock });
+        try {
+          const callbackResult = await fn({ releaseLock });
 
-        if (!options.skipUpdate) {
-          await this.#updateVault();
+          if (!options.skipUpdate) {
+            await this.#updateVault();
+          }
+
+          return callbackResult;
+        } catch (e) {
+          // We rollback the keyrings to the previous state
+          this.#keyrings = currentKeyrings;
+          throw e;
         }
+      },
+    );
 
-        options.onSuccess?.();
+    options.onSuccess?.();
 
-        return operationResult;
-      } catch (e) {
-        // We rollback the keyrings to the previous state
-        this.#keyrings = currentKeyrings;
-        throw e;
-      }
-    });
+    return operationResult;
   }
 
   /**
