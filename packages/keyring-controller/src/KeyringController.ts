@@ -2059,31 +2059,16 @@ export class KeyringController extends BaseController<
    * previous state in case of error.
    *
    * @param fn - The function to execute.
-   * @param options - Options for the operation.
-   * @param options.skipUpdate - Whether to skip updating the vault after the operation.
-   * @param options.onSuccess - Callback to execute after the operation is successful.
    * @returns The result of the function.
    */
-  async #asAtomicOperation<T>(
-    fn: MutuallyExclusiveCallback<T>,
-    options: {
-      skipUpdate?: boolean;
-      onSuccess?: () => void;
-    } = {
-      skipUpdate: false,
-    },
-  ): Promise<T> {
+  async #asAtomicOperation<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     const operationResult = await this.#withControllerLock(
       async ({ releaseLock }) => {
         const currentKeyrings = this.#keyrings.slice();
 
         try {
           const callbackResult = await fn({ releaseLock });
-
-          if (!options.skipUpdate) {
-            await this.#updateVault();
-          }
-
+          await this.#updateVault();
           return callbackResult;
         } catch (e) {
           // We rollback the keyrings to the previous state
@@ -2092,8 +2077,6 @@ export class KeyringController extends BaseController<
         }
       },
     );
-
-    options.onSuccess?.();
 
     return operationResult;
   }
