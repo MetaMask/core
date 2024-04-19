@@ -3213,6 +3213,39 @@ describe('KeyringController', () => {
       });
     });
   });
+
+  describe('atomic operations', () => {
+    describe('addNewKeyring', () => {
+      it('should rollback the controller keyrings if the keyring creation fails', async () => {
+        const mockAddress = '0x1234';
+        stubKeyringClassWithAccount(MockKeyring, mockAddress);
+        // Mocking the serialize method to throw an error will
+        // halt the controller everytime it tries to persist the keyring,
+        // making it impossible to update the vault
+        jest
+          .spyOn(MockKeyring.prototype, 'serialize')
+          .mockImplementation(async () => {
+            throw new Error('You will never be able to persist me!');
+          });
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller, initialState }) => {
+            await expect(
+              controller.addNewKeyring(MockKeyring.type),
+            ).rejects.toThrow('You will never be able to persist me!');
+
+            expect(controller.state.keyrings).toHaveLength(1);
+            // getAccounts calls each keyring to get its accounts
+            // resulting in an additional '0x1234' account being added
+            // in case of test failure
+            expect(await controller.getAccounts()).toStrictEqual(
+              initialState.keyrings[0].accounts,
+            );
+          },
+        );
+      });
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({

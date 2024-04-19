@@ -2068,7 +2068,10 @@ export class KeyringController extends BaseController<
 
         try {
           const callbackResult = await fn({ releaseLock });
+
+          // State is committed only if the operation is successful
           await this.#updateVault();
+
           return callbackResult;
         } catch (e) {
           // We rollback the keyrings to the previous state
