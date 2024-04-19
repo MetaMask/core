@@ -550,7 +550,7 @@ describe('KeyringController', () => {
                   password,
                 );
                 expect(initialSeedWord).toBeDefined();
-                expect(initialState).toBe(controller.state);
+                expect(initialState).toStrictEqual(controller.state);
                 expect(currentSeedWord).toBeDefined();
                 expect(initialSeedWord).toBe(currentSeedWord);
                 expect(initialVault).toStrictEqual(controller.state.vault);
