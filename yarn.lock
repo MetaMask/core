@@ -1645,12 +1645,12 @@ __metadata:
     "@ethereumjs/util": ^8.1.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/eth-snap-keyring": ^3.0.0
-    "@metamask/keyring-api": ^5.1.0
+    "@metamask/eth-snap-keyring": ^4.0.0
+    "@metamask/keyring-api": ^6.0.0
     "@metamask/keyring-controller": ^15.0.0
-    "@metamask/snaps-controllers": ^6.0.3
-    "@metamask/snaps-sdk": ^3.1.1
-    "@metamask/snaps-utils": ^7.0.3
+    "@metamask/snaps-controllers": ^7.0.1
+    "@metamask/snaps-sdk": ^4.0.1
+    "@metamask/snaps-utils": ^7.1.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
@@ -1665,7 +1665,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/keyring-controller": ^15.0.0
-    "@metamask/snaps-controllers": ^6.0.3
+    "@metamask/snaps-controllers": ^7.0.1
   languageName: unknown
   linkType: soft
 
@@ -1752,7 +1752,7 @@ __metadata:
     "@metamask/controller-utils": ^9.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
-    "@metamask/keyring-api": ^5.1.0
+    "@metamask/keyring-api": ^6.0.0
     "@metamask/keyring-controller": ^15.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.1.0
@@ -2169,21 +2169,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "@metamask/eth-snap-keyring@npm:3.0.0"
+"@metamask/eth-snap-keyring@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "@metamask/eth-snap-keyring@npm:4.0.0"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
     "@metamask/eth-sig-util": ^7.0.1
-    "@metamask/keyring-api": ^5.1.0
-    "@metamask/snaps-controllers": ^6.0.3
-    "@metamask/snaps-sdk": ^3.1.1
+    "@metamask/keyring-api": ^6.0.0
+    "@metamask/snaps-controllers": ^7.0.1
+    "@metamask/snaps-sdk": ^4.0.1
     "@metamask/snaps-utils": ^7.0.3
     "@metamask/utils": ^8.4.0
     "@types/uuid": ^9.0.1
     superstruct: ^1.0.3
     uuid: ^9.0.0
-  checksum: 3f1836b4feb1dd0950a842186a2fbdd894f2ac531955635a925ada50189def9a195b9ae4c664effe9c194e2a4c5dad942c5743a59923f811106372139385d25f
+  checksum: 9e38fe022b7d3c1a0178dc549ed24c22039b5d8da4f383a2eb7003de8778e980a28132b2c06f6fc759a83889df7971d64d5f3080a65783314ec5b279b7259e6f
   languageName: node
   linkType: hard
 
@@ -2396,18 +2396,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^5.1.0":
-  version: 5.1.0
-  resolution: "@metamask/keyring-api@npm:5.1.0"
+"@metamask/keyring-api@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@metamask/keyring-api@npm:6.0.0"
   dependencies:
-    "@metamask/snaps-sdk": ^3.1.1
+    "@metamask/snaps-sdk": ^4.0.0
     "@metamask/utils": ^8.3.0
     "@types/uuid": ^9.0.1
     superstruct: ^1.0.3
     uuid: ^9.0.0
   peerDependencies:
     "@metamask/providers": ">=15 <17"
-  checksum: 37cc4d35116285762be7167f294a31add9a978eca7652af014355ce691c9b90cfeb52ab8732ebc59d413aeb7ac87e785e4a2a49fd44d3c1563f3796e4ac1bb8f
+  checksum: d3d6d5d27945783ef74e8e1b9626d122a07df58a2a62e12c68ff0bda2894c6c0a16d6add40908159fb92dee0b98425c63fc494c9b86ae0d0a0be7dc74389997a
   languageName: node
   linkType: hard
 
@@ -2427,7 +2427,7 @@ __metadata:
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/eth-simple-keyring": ^6.0.1
-    "@metamask/keyring-api": ^5.1.0
+    "@metamask/keyring-api": ^6.0.0
     "@metamask/message-manager": ^8.0.1
     "@metamask/scure-bip39": ^2.1.1
     "@metamask/utils": ^8.3.0
@@ -2888,9 +2888,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-controllers@npm:^6.0.3":
-  version: 6.0.4
-  resolution: "@metamask/snaps-controllers@npm:6.0.4"
+"@metamask/snaps-controllers@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "@metamask/snaps-controllers@npm:7.0.1"
   dependencies:
     "@metamask/approval-controller": ^6.0.1
     "@metamask/base-controller": ^5.0.1
@@ -2901,10 +2901,10 @@ __metadata:
     "@metamask/phishing-controller": ^9.0.1
     "@metamask/post-message-stream": ^8.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/snaps-registry": ^3.0.1
-    "@metamask/snaps-rpc-methods": ^7.0.2
-    "@metamask/snaps-sdk": ^3.2.0
-    "@metamask/snaps-utils": ^7.0.4
+    "@metamask/snaps-registry": ^3.1.0
+    "@metamask/snaps-rpc-methods": ^8.0.0
+    "@metamask/snaps-sdk": ^4.0.0
+    "@metamask/snaps-utils": ^7.1.0
     "@metamask/utils": ^8.3.0
     "@xstate/fsm": ^2.0.0
     browserify-zlib: ^0.2.0
@@ -2916,15 +2916,15 @@ __metadata:
     readable-web-to-node-stream: ^3.0.2
     tar-stream: ^3.1.7
   peerDependencies:
-    "@metamask/snaps-execution-environments": ^5.0.4
+    "@metamask/snaps-execution-environments": ^6.0.0
   peerDependenciesMeta:
     "@metamask/snaps-execution-environments":
       optional: true
-  checksum: 937d2d8fe282cb278711731ecbe32e87cd9047d3cc1006de032891d46fa3d52ab1348e8bf07890f1fbb2c2cfa220615a70c03163bb8a060349ccf2e635d40887
+  checksum: d8a23ebf81b5a3276cec041588e56b23a7b18cc7d6ea4b7b244aac6db6b9276db0687efc95de02043e8907d4b1ddf5de74b36e4f93b6f8aab121dc22ba5d43a1
   languageName: node
   linkType: hard
 
-"@metamask/snaps-registry@npm:^3.0.1":
+"@metamask/snaps-registry@npm:^3.1.0":
   version: 3.1.0
   resolution: "@metamask/snaps-registry@npm:3.1.0"
   dependencies:
@@ -2936,25 +2936,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-rpc-methods@npm:^7.0.2":
-  version: 7.0.2
-  resolution: "@metamask/snaps-rpc-methods@npm:7.0.2"
+"@metamask/snaps-rpc-methods@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "@metamask/snaps-rpc-methods@npm:8.0.0"
   dependencies:
     "@metamask/key-tree": ^9.0.0
     "@metamask/permission-controller": ^9.0.2
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/snaps-sdk": ^3.2.0
-    "@metamask/snaps-utils": ^7.0.4
+    "@metamask/snaps-sdk": ^4.0.0
+    "@metamask/snaps-utils": ^7.1.0
     "@metamask/utils": ^8.3.0
     "@noble/hashes": ^1.3.1
     superstruct: ^1.0.3
-  checksum: 96097bb2b3d6d74d118969d30b5aaf8395294ea5a76e01f5b6d1af1bf98ae06b7cdf8b2f82f802104ff9580f4f9f531f923914940881fa2e3523be0d93155f6d
+  checksum: 219e166b9a1b0653db8c679319ee9022244e697575023dcccbab571faf9411bf88e1139049745a4d7949c1e6a4ae621e20a5e5e4c31f8b68e1f146117f0b8150
   languageName: node
   linkType: hard
 
-"@metamask/snaps-sdk@npm:^3.1.1, @metamask/snaps-sdk@npm:^3.2.0":
-  version: 3.2.0
-  resolution: "@metamask/snaps-sdk@npm:3.2.0"
+"@metamask/snaps-sdk@npm:^4.0.0, @metamask/snaps-sdk@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "@metamask/snaps-sdk@npm:4.0.1"
   dependencies:
     "@metamask/key-tree": ^9.0.0
     "@metamask/providers": ^16.0.0
@@ -2962,13 +2962,13 @@ __metadata:
     "@metamask/utils": ^8.3.0
     fast-xml-parser: ^4.3.4
     superstruct: ^1.0.3
-  checksum: a95f10403b50be7b6b35b49eef3724eabb8ef0763db6434e6c77a6d56fb18deab928764dee2738ee6428e77ea582b3dd71e5cbdb19dfb37389dc4c6d34294891
+  checksum: 21a2985258216c362f521c36ec2e63963268177ac0d811c6bf7409c489209e341f383db891e5051d0510e7a967565ed0fb5825be3232181fa46ccee79642e3d7
   languageName: node
   linkType: hard
 
-"@metamask/snaps-utils@npm:^7.0.3, @metamask/snaps-utils@npm:^7.0.4":
-  version: 7.0.4
-  resolution: "@metamask/snaps-utils@npm:7.0.4"
+"@metamask/snaps-utils@npm:^7.0.3, @metamask/snaps-utils@npm:^7.1.0":
+  version: 7.1.0
+  resolution: "@metamask/snaps-utils@npm:7.1.0"
   dependencies:
     "@babel/core": ^7.23.2
     "@babel/types": ^7.23.0
@@ -2977,8 +2977,8 @@ __metadata:
     "@metamask/permission-controller": ^9.0.2
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/slip44": ^3.1.0
-    "@metamask/snaps-registry": ^3.0.1
-    "@metamask/snaps-sdk": ^3.2.0
+    "@metamask/snaps-registry": ^3.1.0
+    "@metamask/snaps-sdk": ^4.0.0
     "@metamask/utils": ^8.3.0
     "@noble/hashes": ^1.3.1
     "@scure/base": ^1.1.1
@@ -2992,7 +2992,7 @@ __metadata:
     ses: ^1.1.0
     superstruct: ^1.0.3
     validate-npm-package-name: ^5.0.0
-  checksum: b874d686216dd04472a3eb9e541b169e9e37793234838650e05734b9b6a4148ed126857e05e4cb1436482bb9ad0f1d43a2b7498169219c8062f00e4d67e074d3
+  checksum: ecd081596930d8337b9f054e2612f04bfdab1c4d46fb395a8ad8cb7263d0f5ebb6e7a1988168a46a794ca065fe3537959b68cb7b07a80346ff372be160d68601
   languageName: node
   linkType: hard
 
