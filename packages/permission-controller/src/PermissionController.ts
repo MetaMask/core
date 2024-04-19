@@ -1350,7 +1350,8 @@ export class PermissionController<
           // The mutator may modify the caveat value in place, and must always
           // return a valid mutation result.
           const mutatorResult = mutator(targetCaveat.value);
-          switch (mutatorResult.operation) {
+          const { operation } = mutatorResult;
+          switch (operation) {
             case CaveatMutatorOperation.noop:
               break;
 
@@ -1383,15 +1384,10 @@ export class PermissionController<
               break;
 
             default: {
-              // This type check ensures that the switch statement is
-              // exhaustive.
-              const exhaustiveCheck: never = mutatorResult;
-              throw new Error(
-                `Unrecognized mutation result: "${
-                  // @ts-expect-error We need to override the "never"
-                  exhaustiveCheck.operation
-                }"`,
-              );
+              // Overriding as `never` is the expected result of exhaustiveness checking,
+              // and is intended to represent unchecked exception cases.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+              throw new Error(`Unrecognized mutation result: "${operation}"`);
             }
           }
         });
