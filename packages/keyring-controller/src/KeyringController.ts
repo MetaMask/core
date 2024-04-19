@@ -616,7 +616,7 @@ export class KeyringController extends BaseController<
     keyring: EthKeyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
-    const oldAccounts = await this.getAccounts();
+    const oldAccounts = await this.#getAccountsFromKeyrings();
 
     if (accountCount && oldAccounts.length !== accountCount) {
       if (accountCount > oldAccounts.length) {
@@ -632,7 +632,7 @@ export class KeyringController extends BaseController<
     await keyring.addAccounts(1);
     await this.#updateVault();
 
-    const addedAccountAddress = (await this.getAccounts()).find(
+    const addedAccountAddress = (await this.#getAccountsFromKeyrings()).find(
       (selectedAddress) => !oldAccounts.includes(selectedAddress),
     );
     assertIsStrictHexString(addedAccountAddress);
@@ -699,7 +699,7 @@ export class KeyringController extends BaseController<
   async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.#initVaultMutex.acquire();
     try {
-      const accounts = await this.getAccounts();
+      const accounts = await this.#getAccountsFromKeyrings();
       if (!accounts.length) {
         await this.#createNewVaultWithKeyring(password, {
           type: KeyringTypes.hd,
@@ -790,18 +790,7 @@ export class KeyringController extends BaseController<
    * @returns A promise resolving to an array of addresses.
    */
   async getAccounts(): Promise<string[]> {
-    const keyrings = this.#keyrings;
-
-    const keyringArrays = await Promise.all(
-      keyrings.map(async (keyring) => keyring.getAccounts()),
-    );
-    const addresses = keyringArrays.reduce((res, arr) => {
-      return res.concat(arr);
-    }, []);
-
-    // Cast to `Hex[]` here is safe here because `addresses` has no nullish
-    // values, and `normalize` returns `Hex` unless given a nullish value
-    return addresses.map(normalize) as Hex[];
+    return this.#getAccountsFromKeyrings();
   }
 
   /**
@@ -1452,9 +1441,10 @@ export class KeyringController extends BaseController<
       return { removedAccounts: [], remainingAccounts: [] };
     }
 
-    const allAccounts = (await this.getAccounts()) as string[];
+    const allAccounts = (await this.#getAccountsFromKeyrings()) as string[];
     keyring.forgetDevice();
-    const remainingAccounts = (await this.getAccounts()) as string[];
+    const remainingAccounts =
+      (await this.#getAccountsFromKeyrings()) as string[];
     const removedAccounts = allAccounts.filter(
       (address: string) => !remainingAccounts.includes(address),
     );
@@ -1821,6 +1811,27 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Retrieves all the accounts from keyrings instances
+   * that are currently in memory.
+   *
+   * @returns A promise resolving to an array of accounts.
+   */
+  async #getAccountsFromKeyrings(): Promise<Hex[]> {
+    const keyrings = this.#keyrings;
+
+    const keyringArrays = await Promise.all(
+      keyrings.map(async (keyring) => keyring.getAccounts()),
+    );
+    const addresses = keyringArrays.reduce((res, arr) => {
+      return res.concat(arr);
+    }, []);
+
+    // Cast to `Hex[]` here is safe here because `addresses` has no nullish
+    // values, and `normalize` returns `Hex` unless given a nullish value
+    return addresses.map(normalize) as Hex[];
+  }
+
+  /**
    * Create a new keyring, ensuring that the first account is
    * also created.
    *
@@ -1995,7 +2006,7 @@ export class KeyringController extends BaseController<
     type: string,
     newAccountArray: string[],
   ): Promise<string[]> {
-    const accounts = await this.getAccounts();
+    const accounts = await this.#getAccountsFromKeyrings();
 
     switch (type) {
       case KeyringTypes.simple: {
