@@ -1625,6 +1625,49 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Serialize the current array of keyring instances,
+   * including unsupported keyrings by default.
+   *
+   * @param options - Method options.
+   * @param options.includeUnsupported - Whether to include unsupported keyrings.
+   * @returns The serialized keyrings.
+   */
+  async #getSerializedKeyrings(
+    { includeUnsupported }: { includeUnsupported: boolean } = {
+      includeUnsupported: true,
+    },
+  ): Promise<SerializedKeyring[]> {
+    const serializedKeyrings = await Promise.all(
+      this.#keyrings.map(async (keyring) => {
+        const [type, data] = await Promise.all([
+          keyring.type,
+          keyring.serialize(),
+        ]);
+        return { type, data };
+      }),
+    );
+
+    if (includeUnsupported) {
+      serializedKeyrings.push(...this.#unsupportedKeyrings);
+    }
+
+    return serializedKeyrings;
+  }
+
+  /**
+   * Restore a serialized keyrings array.
+   *
+   * @param serializedKeyrings - The serialized keyrings array.
+   */
+  async #restoreSerializedKeyrings(
+    serializedKeyrings: SerializedKeyring[],
+  ): Promise<void> {
+    for (const serializedKeyring of serializedKeyrings) {
+      await this.#restoreKeyring(serializedKeyring);
+    }
+  }
+
+  /**
    * Unlock Keyrings, decrypting the vault and deserializing all
    * keyrings contained in it, using a password or an encryption key with salt.
    *
@@ -1700,7 +1743,7 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.VaultDataError);
       }
 
-      await Promise.all(vault.map(this.#restoreKeyring.bind(this)));
+      await this.#restoreSerializedKeyrings(vault);
       const updatedKeyrings = await this.#getUpdatedKeyrings();
 
       this.update((state) => {
@@ -1741,17 +1784,7 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.MissingCredentials);
       }
 
-      const serializedKeyrings = await Promise.all(
-        this.#keyrings.map(async (keyring) => {
-          const [type, data] = await Promise.all([
-            keyring.type,
-            keyring.serialize(),
-          ]);
-          return { type, data };
-        }),
-      );
-
-      serializedKeyrings.push(...this.#unsupportedKeyrings);
+      const serializedKeyrings = await this.#getSerializedKeyrings();
 
       if (
         !serializedKeyrings.some((keyring) => keyring.type === KeyringTypes.hd)
@@ -2063,7 +2096,7 @@ export class KeyringController extends BaseController<
    */
   async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return this.#withControllerLock(async ({ releaseLock }) => {
-      const currentKeyrings = this.#keyrings.slice();
+      const currentSerializedKeyrings = await this.#getSerializedKeyrings();
 
       try {
         const callbackResult = await fn({ releaseLock });
@@ -2072,10 +2105,10 @@ export class KeyringController extends BaseController<
 
         return callbackResult;
       } catch (e) {
-        // Keyrings are rolled back previous state
-        // TODO: `currentKeyrings` is an array of copies, so
-        // we need a way to keep/restore event subscriptions (see QRKeyring)
-        this.#keyrings = currentKeyrings;
+        // Keyrings are cleared and restored to their previous state
+        await this.#clearKeyrings({ skipStateUpdate: true });
+        await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
+
         throw e;
       }
     });
