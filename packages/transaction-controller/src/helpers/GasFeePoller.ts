@@ -1,5 +1,8 @@
 import EthQuery from '@metamask/eth-query';
-import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -28,7 +31,9 @@ export class GasFeePoller {
 
   #gasFeeFlows: GasFeeFlow[];
 
-  #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+  #getGasFeeControllerEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
 
   #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
 
@@ -59,7 +64,9 @@ export class GasFeePoller {
     onStateChange,
   }: {
     gasFeeFlows: GasFeeFlow[];
-    getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+    getGasFeeControllerEstimates: (
+      options: FetchGasFeeEstimateOptions,
+    ) => Promise<GasFeeState>;
     getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
