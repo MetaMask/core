@@ -572,7 +572,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the added account address.
    */
   async addNewAccount(accountCount?: number): Promise<string> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring<Json>
         | undefined;
@@ -613,7 +613,7 @@ export class KeyringController extends BaseController<
     keyring: EthKeyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       const oldAccounts = await this.#getAccountsFromKeyrings();
 
       if (accountCount && oldAccounts.length !== accountCount) {
@@ -644,7 +644,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the added account address.
    */
   async addNewAccountWithoutUpdate(): Promise<string> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring<Json>
         | undefined;
@@ -671,7 +671,7 @@ export class KeyringController extends BaseController<
     password: string,
     seed: Uint8Array,
   ): Promise<void> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       if (!password || !password.length) {
         throw new Error('Invalid password');
       }
@@ -693,7 +693,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndKeychain(password: string) {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       const accounts = await this.#getAccountsFromKeyrings();
       if (!accounts.length) {
         await this.#createNewVaultWithKeyring(password, {
@@ -719,7 +719,7 @@ export class KeyringController extends BaseController<
       return this.getOrAddQRKeyring();
     }
 
-    return this.#asAtomicOperation(async () =>
+    return this.#persistOrRollback(async () =>
       this.#newKeyring(type, opts, true),
     );
   }
@@ -900,7 +900,7 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    return this.#asAtomicOperation(async () => true);
+    return this.#persistOrRollback(async () => true);
   }
 
   /**
@@ -917,7 +917,7 @@ export class KeyringController extends BaseController<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
   ): Promise<string> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       let privateKey;
       switch (strategy) {
         case 'privateKey':
@@ -975,7 +975,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the account is removed.
    */
   async removeAccount(address: Hex): Promise<void> {
-    await this.#asAtomicOperation(async () => {
+    await this.#persistOrRollback(async () => {
       const keyring = (await this.getKeyringForAccount(
         address,
       )) as EthKeyring<Json>;
@@ -1331,14 +1331,14 @@ export class KeyringController extends BaseController<
   async getOrAddQRKeyring(): Promise<QRKeyring> {
     return (
       this.getQRKeyring() ||
-      (await this.#asAtomicOperation(async () => this.#addQRKeyring()))
+      (await this.#persistOrRollback(async () => this.#addQRKeyring()))
     );
   }
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
       keyring.deserialize(serialized);
     });
@@ -1382,7 +1382,7 @@ export class KeyringController extends BaseController<
   async connectQRHardware(
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       try {
         const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
         let accounts;
@@ -1413,7 +1413,7 @@ export class KeyringController extends BaseController<
   }
 
   async unlockQRHardwareWalletAccount(index: number): Promise<void> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
 
       keyring.setAccountToUnlock(index);
@@ -1432,7 +1432,7 @@ export class KeyringController extends BaseController<
     removedAccounts: string[];
     remainingAccounts: string[];
   }> {
-    return this.#asAtomicOperation(async () => {
+    return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring();
 
       if (!keyring) {
@@ -2055,33 +2055,30 @@ export class KeyringController extends BaseController<
 
   /**
    * Execute the given function after acquiring the controller lock
-   * and save the keyrings to state after it, or rolling back to their
+   * and save the keyrings to state after it, or rollback to their
    * previous state in case of error.
    *
    * @param fn - The function to execute.
    * @returns The result of the function.
    */
-  async #asAtomicOperation<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
-    const operationResult = await this.#withControllerLock(
-      async ({ releaseLock }) => {
-        const currentKeyrings = this.#keyrings.slice();
+  async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+    return this.#withControllerLock(async ({ releaseLock }) => {
+      const currentKeyrings = this.#keyrings.slice();
 
-        try {
-          const callbackResult = await fn({ releaseLock });
+      try {
+        const callbackResult = await fn({ releaseLock });
+        // State is committed only if the operation is successful
+        await this.#updateVault();
 
-          // State is committed only if the operation is successful
-          await this.#updateVault();
-
-          return callbackResult;
-        } catch (e) {
-          // We rollback the keyrings to the previous state
-          this.#keyrings = currentKeyrings;
-          throw e;
-        }
-      },
-    );
-
-    return operationResult;
+        return callbackResult;
+      } catch (e) {
+        // Keyrings are rolled back previous state
+        // TODO: `currentKeyrings` is an array of copies, so
+        // we need a way to keep/restore event subscriptions (see QRKeyring)
+        this.#keyrings = currentKeyrings;
+        throw e;
+      }
+    });
   }
 
   /**
