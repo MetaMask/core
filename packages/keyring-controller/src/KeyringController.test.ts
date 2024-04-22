@@ -2573,6 +2573,16 @@ describe('KeyringController', () => {
           remainingAccounts,
         );
       });
+
+      it('should return no removed and no remaining accounts if no QR keyring is not present', async () => {
+        await withController(async ({ controller }) => {
+          const { removedAccounts, remainingAccounts } =
+            await controller.forgetQRDevice();
+
+          expect(removedAccounts).toHaveLength(0);
+          expect(remainingAccounts).toHaveLength(0);
+        });
+      });
     });
 
     describe('restoreQRKeyring', () => {
