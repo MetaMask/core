@@ -7,6 +7,8 @@ export type TokenPrice<TokenAddress extends Hex, Currency extends string> = {
   tokenAddress: TokenAddress;
   value: number;
   currency: Currency;
+  pricePercentChange1d?: number;
+  priceChange1d?: number;
 };
 
 /**

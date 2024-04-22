@@ -19,14 +19,6 @@ import type {
 } from './abstract-token-prices-service';
 
 /**
- * The shape of the data that the /spot-prices endpoint returns.
- */
-type SpotPricesEndpointData<
-  TokenAddress extends Hex,
-  Currency extends string,
-> = Record<TokenAddress, Record<Currency, number>>;
-
-/**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint, in lowercase form.
  */
@@ -257,6 +249,29 @@ const DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES =
 
 const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
+type CryptoData = {
+  allTimeHigh: number;
+  allTimeLow: number;
+  circulatingSupply: number;
+  dilutedMarketCap: number;
+  high1d: number;
+  low1d: number;
+  marketCap: number;
+  marketCapPercentChange1d: number;
+  price: number;
+  priceChange1d: number;
+  pricePercentChange1d: number;
+  pricePercentChange1h: number;
+  pricePercentChange1y: number;
+  pricePercentChange7d: number;
+  pricePercentChange14d: number;
+  pricePercentChange30d: number;
+  pricePercentChange200d: number;
+  totalVolume: number;
+};
+
+type AddressCryptoDataMap = { [address: Hex]: CryptoData };
+
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
@@ -349,19 +364,23 @@ export class CodefiTokenPricesServiceV2
     currency: SupportedCurrency;
   }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
     const chainIdAsNumber = hexToNumber(chainId);
+    const ZERO_ADDRESS: `0x${string}` =
+      '0x0000000000000000000000000000000000000000';
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
-    url.searchParams.append('tokenAddresses', tokenAddresses.join(','));
-    url.searchParams.append('vsCurrency', currency);
-
-    const pricesByCurrencyByTokenAddress: SpotPricesEndpointData<
-      Lowercase<Hex>,
-      Lowercase<SupportedCurrency>
-    > = await this.#tokenPricePolicy.execute(() =>
-      handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+    url.searchParams.append(
+      'tokenAddresses',
+      [ZERO_ADDRESS, ...tokenAddresses].join(','),
     );
+    url.searchParams.append('vsCurrency', currency);
+    url.searchParams.append('includeMarketData', 'true');
 
-    return tokenAddresses.reduce(
+    const pricesByCurrencyByTokenAddress: AddressCryptoDataMap =
+      await this.#tokenPricePolicy.execute(() =>
+        handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+      );
+
+    return [ZERO_ADDRESS, ...tokenAddresses].reduce(
       (
         obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
         tokenAddress,
@@ -370,13 +389,16 @@ export class CodefiTokenPricesServiceV2
         // to keep track of them and make sure we return the original versions.
         const lowercasedTokenAddress =
           tokenAddress.toLowerCase() as Lowercase<Hex>;
-        const lowercasedCurrency =
-          currency.toLowerCase() as Lowercase<SupportedCurrency>;
 
         const price =
-          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.[
-            lowercasedCurrency
-          ];
+          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.price;
+
+        const pricePercentChange1d =
+          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]
+            ?.pricePercentChange1d;
+
+        const priceChange1d =
+          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.priceChange1d;
 
         if (!price) {
           // console error instead of throwing to not interrupt the fetching of other tokens in case just one fails
@@ -389,6 +411,8 @@ export class CodefiTokenPricesServiceV2
           tokenAddress,
           value: price,
           currency,
+          pricePercentChange1d,
+          priceChange1d,
         };
 
         return {
