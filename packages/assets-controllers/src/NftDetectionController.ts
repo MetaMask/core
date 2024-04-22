@@ -430,6 +430,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
    * @param options.getNftState - Gets the current state of the Assets controller.
    * @param options.disabled - Represents previous value of useNftDetection default to true.
+   * @param options.selectedAddress - Represents current selected address.
    * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -480,8 +481,10 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       const { selectedAddress: previouslySelectedAddress, disabled } =
         this.config;
 
-      if ( selectedAddress !== previouslySelectedAddress ||
-        !useNftDetection !== disabled) {
+      if (
+        selectedAddress !== previouslySelectedAddress ||
+        !useNftDetection !== disabled
+      ) {
         this.configure({ selectedAddress, disabled: !useNftDetection });
         if (useNftDetection) {
           this.start();
