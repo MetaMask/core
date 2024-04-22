@@ -2085,6 +2085,10 @@ export class KeyringController extends BaseController<
    * and release it after the function is resolved or after an
    * error is thrown.
    *
+   * This wrapper ensures that each mutable operation that interacts with the
+   * controller and that changes its state is executed in a mutually exclusive way,
+   * preventing unsafe concurrent access that could lead to unpredictable behavior.
+   *
    * @param fn - The function to execute while the controller mutex is locked.
    * @returns The result of the function.
    */
