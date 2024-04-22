@@ -429,7 +429,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.addNft - Add an NFT.
    * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
    * @param options.getNftState - Gets the current state of the Assets controller.
-   * @param options.disabled - Represents previous value of useNftDetection default to true.
+   * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
    * @param options.selectedAddress - Represents current selected address.
    * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
    * @param config - Initial options used to configure this controller.
