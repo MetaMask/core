@@ -1,4 +1,5 @@
 import { Env, getEnvUrls } from './env';
+import { SiweMessage } from "siwe";
 import { NonceRetrievalError, SignInError, UnsupportedAuthTypeError, ValidationError } from './errors';
 import { MESSAGE_SIGNING_SNAP, connectSnap } from './messaging-signing-snap';
 
@@ -39,15 +40,22 @@ type LoginResponse = {
     profile: UserProfile;
 };
 
-type SrpLoginResponse = {
+type Authentication = {
     token: string;
     expiresIn: number;
     profile: UserProfile;
 };
 
+export type SiweLogin = {
+    address: string;
+    domain: string;
+    chainId: number;
+};
+
 export abstract class BaseAuth {
     protected accessToken: AccessToken | null = null;
     protected userProfile: UserProfile | null = null;
+    protected siweLogin: SiweLogin | null = null;
     protected envUrls: { authApiUrl: string; oidcApiUrl: string };
 
     constructor(
@@ -91,6 +99,8 @@ export abstract class BaseAuth {
     public async signMessage(message: string): Promise<string> {
         if (this.customSignMessage) {
             return this.customSignMessage(message);
+        } else if (!this.customSignMessage && this.config.type === AuthType.SiWE){ 
+            throw new ValidationError('SiWE login requires signMessage callback to be set');
         }
 
         // in order to use the automatic message signing snap, 
@@ -106,8 +116,14 @@ export abstract class BaseAuth {
     public async getIdentifier(): Promise<string> {
         if (this.customGetIdentifier) {
             return this.customGetIdentifier();
+        } else if (this.config.type === AuthType.SiWE) {
+            return this.siweLogin?.address || '';
         }
         return MESSAGE_SIGNING_SNAP.getPublicKey();
+    }
+
+    public initialize(login: SiweLogin) {
+        this.siweLogin = login;
     }
 }
 
@@ -175,30 +191,48 @@ export class JwtBearerAuth extends BaseAuth {
 
     protected async login(): Promise<LoginResponse> {
         switch (this.config.type) {
-            case AuthType.SRP: {
-                const publicKey = await this.getIdentifier()
-                const nonceRes = await this.getNonce(publicKey);
-                const rawMessage = this.#createSrpLoginRawMessage(nonceRes.nonce, publicKey);
-                const signature = await this.signMessage(rawMessage);
-                const loginResponse = await this.#srpLogin(rawMessage, signature);
-                if (!loginResponse) {
-                    throw new SignInError('SRP login failed');
-                }
-
-                const tokenResponse = await this.#getAccessToken(loginResponse.token);
-                this.userProfile = loginResponse.profile;
-                this.accessToken = tokenResponse;
-                return {
-                    profile: this.userProfile,
-                    token: this.accessToken,
-                };
-            }
+            case AuthType.SRP:
+                return this.#handleSrpLogin();
+            case AuthType.SiWE:
+                return this.#handleSiweLogin();
             default:
                 throw new UnsupportedAuthTypeError('Unsupported login type');
         }
     }
 
-    async #srpLogin(rawMessage: string, signature: string): Promise<SrpLoginResponse> {
+    async #handleSrpLogin(): Promise<LoginResponse> {
+        const publicKey = await this.getIdentifier();
+        const nonceRes = await this.getNonce(publicKey);
+        const rawMessage = this.#createSrpLoginRawMessage(nonceRes.nonce, publicKey);
+        const signature = await this.signMessage(rawMessage);
+        const authResponse = await this.#srpLogin(rawMessage, signature);
+        return this.#finalizeLogin(authResponse);
+    }
+
+    async #handleSiweLogin(): Promise<LoginResponse> {
+        if (!this.siweLogin) {
+            throw new ValidationError('you must call the initialize function before using SiWE flow');
+        }
+        const address = await this.getIdentifier();
+        const nonceRes = await this.getNonce(address);
+        const rawMessage = this.#createSiWELoginRawMessage(nonceRes.nonce);
+        const signature = await this.signMessage(rawMessage);
+        const authResponse = await this.#siweLogin(rawMessage, signature);
+        return this.#finalizeLogin(authResponse);
+    }
+
+    async #finalizeLogin(authResponse: Authentication): Promise<LoginResponse> {
+        const tokenResponse = await this.#getAccessToken(authResponse.token);
+        this.accessToken = tokenResponse;
+        this.userProfile = authResponse.profile;
+        return {
+            profile: this.userProfile,
+            token: this.accessToken,
+        };
+    }
+
+
+    async #srpLogin(rawMessage: string, signature: string): Promise<Authentication> {
         try {
             const response = await fetch(`${this.envUrls.authApiUrl}/api/v2/srp/login`, {
                 method: 'POST',
@@ -231,6 +265,39 @@ export class JwtBearerAuth extends BaseAuth {
         }
     }
 
+    async #siweLogin(rawMessage: string, signature: string): Promise<Authentication> {
+        try {
+            const response = await fetch(`${this.envUrls.authApiUrl}/api/v2/siwe/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    signature,
+                    raw_message: rawMessage,
+                }),
+            });
+
+            if (!response.ok) {
+                const responseBody = await response.json();
+                throw new Error(`SiWE login HTTP error: ${responseBody.message}, error code: ${responseBody.error}`);
+            }
+
+            const loginResponse = await response.json();
+            return {
+                token: loginResponse.token,
+                expiresIn: loginResponse.expires_in,
+                profile: {
+                    identifierId: loginResponse.profile.identifier_id,
+                    metaMetricsId: loginResponse.profile.metametrics_id,
+                    profileId: loginResponse.profile.profile_id,
+                },
+            };
+        } catch (e) {
+            throw new SignInError(`unable to perform siwe login ${e}`);
+        }
+    }
+
     #hasValidAuthSession(): boolean {
         if (!this.accessToken || !this.accessToken.obtainedAt) {
             return false;
@@ -247,6 +314,18 @@ export class JwtBearerAuth extends BaseAuth {
         publicKey: string,
     ): `metamask:${string}:${string}` {
         return `metamask:${nonce}:${publicKey}` as const;
+    }
+
+    #createSiWELoginRawMessage(nonce: string): string {
+        return new SiweMessage({
+            domain: this.siweLogin?.domain,
+            address: this.siweLogin?.address,
+            uri: `${this.envUrls.authApiUrl}/api/v2/siwe/login`,
+            version: '1',
+            chainId: this.siweLogin?.chainId,
+            nonce: nonce,
+            issuedAt: new Date().toISOString()
+        }).prepareMessage();
     }
 
     #getOidcClientId(env: Env): string {
