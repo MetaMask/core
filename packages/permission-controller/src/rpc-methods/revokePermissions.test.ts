@@ -1,6 +1,13 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type {
+  Json,
+  JsonRpcFailure,
+  JsonRpcRequest,
+  JsonRpcSuccess,
+} from '@metamask/utils';
 
+import type { RevokePermissionArgs } from './revokePermissions';
 import { revokePermissionsHandler } from './revokePermissions';
 
 describe('revokePermissionsHandler', () => {
@@ -21,14 +28,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const response = await engine.handle({
+    const response = (await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -37,9 +44,8 @@ describe('revokePermissions RPC method', () => {
           snap_dialog: {},
         },
       ],
-    });
+    })) as JsonRpcSuccess<null>;
 
-    // @ts-expect-error Abusing types for testing purposes
     expect(response.result).toBeNull();
     expect(mockRevokePermissionsForOrigin).toHaveBeenCalledTimes(1);
     expect(mockRevokePermissionsForOrigin).toHaveBeenCalledWith([
@@ -52,14 +58,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<Record<string, Json>> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -73,11 +79,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // @ts-expect-error Abusing types for testing purposes
-    const response = await engine.handle(req);
-    // @ts-expect-error Abusing types for testing purposes
+    const response = (await engine.handle(req)) as JsonRpcFailure;
     delete response.error.stack;
-    // @ts-expect-error Abusing types for testing purposes
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
   });
@@ -87,14 +90,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<[Record<string, Json>]> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -108,11 +111,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // @ts-expect-error Abusing types for testing purposes
-    const response = await engine.handle(req);
-    // @ts-expect-error Abusing types for testing purposes
+    const response = (await engine.handle(req)) as JsonRpcFailure;
     delete response.error.stack;
-    // @ts-expect-error Abusing types for testing purposes
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
   });
@@ -122,14 +122,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<[]> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -142,11 +142,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // @ts-expect-error Abusing types for testing purposes
-    const response = await engine.handle(req);
-    // @ts-expect-error Abusing types for testing purposes
+    const response = (await engine.handle(req)) as JsonRpcFailure;
     delete response.error.stack;
-    // @ts-expect-error Abusing types for testing purposes
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
   });
@@ -156,14 +153,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<Json[]> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -177,11 +174,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // @ts-expect-error Abusing types for testing purposes
-    const response = await engine.handle(req);
-    // @ts-expect-error Abusing types for testing purposes
+    const response = (await engine.handle(req)) as JsonRpcFailure;
     delete response.error.stack;
-    // @ts-expect-error Abusing types for testing purposes
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
   });

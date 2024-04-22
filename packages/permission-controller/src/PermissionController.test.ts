@@ -7,7 +7,13 @@ import type {
 import { ControllerMessenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcFailure,
+  JsonRpcRequest,
+  JsonRpcSuccess,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 import assert from 'assert';
 
@@ -15,6 +21,7 @@ import type {
   AsyncRestrictedMethod,
   Caveat,
   CaveatConstraint,
+  CaveatMutator,
   ExtractSpecifications,
   PermissionConstraint,
   PermissionControllerActions,
@@ -693,7 +700,7 @@ describe('PermissionController', () => {
 
     it('throws if a permission specification lists unrecognized caveats', () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
-      // @ts-expect-error Abusing types for testing purposes
+      // @ts-expect-error Intentional destructive testing
       permissionSpecifications.wallet_getSecretArray.allowedCaveats.push('foo');
 
       expect(
@@ -2080,7 +2087,7 @@ describe('PermissionController', () => {
       const mutator = () => {
         counter += 1;
         return counter === 1
-          ? { operation: CaveatMutatorOperation.noop as const}
+          ? { operation: CaveatMutatorOperation.noop as const }
           : {
               operation: CaveatMutatorOperation.updateValue as const,
               value: ['a', 'b'],
@@ -2166,7 +2173,7 @@ describe('PermissionController', () => {
       const controller = getMultiCaveatController();
 
       let counter = 0;
-      const mutator = () => {
+      const mutator: CaveatMutator<FilterArrayCaveat> = () => {
         counter += 1;
         return {
           operation:
@@ -2178,12 +2185,11 @@ describe('PermissionController', () => {
 
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
-        // @ts-expect-error Abusing types for testing purposes
         mutator,
       );
 
       const matcher = getMultiCaveatStateMatcher();
-      // @ts-expect-error Abusing types for testing purposes
+      // @ts-expect-error Intentional destructive testing
       delete matcher.subjects[MultiCaveatOrigins.a];
 
       expect(controller.state).toStrictEqual(matcher);
@@ -2221,7 +2227,7 @@ describe('PermissionController', () => {
       expect(() =>
         controller.updatePermissionsByCaveat(
           CaveatTypes.filterArrayResponse,
-          // @ts-expect-error Abusing types for testing purposes
+          // @ts-expect-error Intentional destructive testing
           () => {
             return { operation: 'foobar' };
           },
@@ -2493,7 +2499,7 @@ describe('PermissionController', () => {
 
       expect(() =>
         controller.grantPermissions({
-          // @ts-expect-error Abusing types for testing purposes
+          // @ts-expect-error Intentional destructive testing
           subject: { origin: 2 },
           approvedPermissions: {
             wallet_getSecretArray: {},
@@ -2594,7 +2600,7 @@ describe('PermissionController', () => {
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
-              // @ts-expect-error Abusing types for testing purposes
+              // @ts-expect-error Intentional destructive testing
               caveats: [[]],
             },
           },
@@ -2612,7 +2618,7 @@ describe('PermissionController', () => {
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
-              // @ts-expect-error Abusing types for testing purposes
+              // @ts-expect-error Intentional destructive testing
               caveats: ['foo'],
             },
           },
@@ -2638,7 +2644,7 @@ describe('PermissionController', () => {
               caveats: [
                 {
                   ...{ type: CaveatTypes.filterArrayResponse, value: ['foo'] },
-                  // @ts-expect-error Abusing types for testing purposes
+                  // @ts-expect-error Intentional destructive testing
                   bar: 'bar',
                 },
               ],
@@ -2668,7 +2674,7 @@ describe('PermissionController', () => {
             wallet_getSecretArray: {
               caveats: [
                 {
-                  // @ts-expect-error Abusing types for testing purposes
+                  // @ts-expect-error Intentional destructive testing
                   type: 2,
                   value: ['foo'],
                 },
@@ -2722,7 +2728,7 @@ describe('PermissionController', () => {
               caveats: [
                 {
                   type: CaveatTypes.filterArrayResponse,
-                  // @ts-expect-error Abusing types for testing purposes
+                  // @ts-expect-error Intentional destructive testing
                   foo: 'bar',
                 },
               ],
@@ -3714,7 +3720,7 @@ describe('PermissionController', () => {
           async () =>
             await controller.requestPermissions(
               { origin },
-              // @ts-expect-error Abusing types for testing purposes
+              // @ts-expect-error Intentional destructive testing
               invalidInput,
             ),
         ).rejects.toThrow(
@@ -4007,7 +4013,7 @@ describe('PermissionController', () => {
               { origin },
               {
                 [PermissionNames.wallet_getSecretArray]: {
-                  // @ts-expect-error Abusing types for testing purposes
+                  // @ts-expect-error Intentional destructive testing
                   caveats: invalidCaveatsValue,
                 },
               },
@@ -4708,7 +4714,7 @@ describe('PermissionController', () => {
       await expect(
         controller.getEndowments(
           origin,
-          // @ts-expect-error Abusing types for testing purposes
+          // @ts-expect-error Intentional destructive testing
           PermissionNames.wallet_getSecretArray,
         ),
       ).rejects.toThrow(
@@ -4839,14 +4845,14 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       await expect(
-        // @ts-expect-error Abusing types for testing purposes
+        // @ts-expect-error Intentional destructive testing
         controller.executeRestrictedMethod(origin, 'wallet_getMeTacos'),
       ).rejects.toThrow(errors.methodNotFound('wallet_getMeTacos', { origin }));
     });
 
     it('throws if the restricted method returns undefined', async () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
-      // @ts-expect-error Abusing types for testing purposes
+      // @ts-expect-error Intentional destructive testing
       permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
         undefined;
 
@@ -5332,13 +5338,12 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const response = await engine.handle({
+      const response = (await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
-      });
+      })) as JsonRpcSuccess<string[]>;
 
-      // @ts-expect-error Abusing types for testing purposes
       expect(response.result).toStrictEqual(['a', 'b', 'c']);
     });
 
@@ -5358,13 +5363,12 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const response = await engine.handle({
+      const response = (await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
-      });
+      })) as JsonRpcSuccess<string[]>;
 
-      // @ts-expect-error Abusing types for testing purposes
       expect(response.result).toStrictEqual(['b']);
     });
 
@@ -5387,13 +5391,12 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const response = await engine.handle({
+      const response = (await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
-      });
+      })) as JsonRpcSuccess<string[]>;
 
-      // @ts-expect-error Abusing types for testing purposes
       expect(response.result).toStrictEqual(['c', 'a']);
     });
 
@@ -5415,13 +5418,12 @@ describe('PermissionController', () => {
         },
       );
 
-      const response = await engine.handle({
+      const response = (await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: 'wallet_unrestrictedMethod',
-      });
+      })) as JsonRpcSuccess<string[]>;
 
-      // @ts-expect-error Abusing types for testing purposes
       expect(response.result).toBe('success');
     });
 
@@ -5431,7 +5433,7 @@ describe('PermissionController', () => {
       ['', null, undefined, 2].forEach((invalidOrigin) => {
         expect(() =>
           controller.createPermissionMiddleware({
-            // @ts-expect-error Abusing types for testing purposes
+            // @ts-expect-error Intentional destructive testing
             origin: invalidOrigin,
           }),
         ).toThrow(
@@ -5447,7 +5449,7 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const request = {
+      const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
@@ -5463,8 +5465,7 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
-      // @ts-expect-error Abusing types for testing purposes
-      const { error } = await engine.handle(request);
+      const { error } = (await engine.handle(request)) as JsonRpcFailure;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
 
@@ -5475,7 +5476,7 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const request = {
+      const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
         id: 1,
         method: 'wallet_foo',
@@ -5483,19 +5484,19 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
-      // @ts-expect-error Abusing types for testing purposes
-      const { error } = await engine.handle(request);
+      const { error } = (await engine.handle(request)) as JsonRpcFailure;
 
       expect(error.message).toStrictEqual(expectedError.message);
-      expect(error.data.cause).toBeNull();
-      delete error.message;
+      // @ts-expect-error We do expect this property to exist.
+      expect(error.data?.cause).toBeNull();
+      // @ts-expect-error Intentional destructive testing
       delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
 
     it('returns an error if the restricted method returns undefined', async () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
-      // @ts-expect-error Abusing types for testing purposes
+      // @ts-expect-error Intentional destructive testing
       permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
         undefined;
 
@@ -5519,7 +5520,7 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const request = {
+      const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_doubleNumber,
@@ -5530,11 +5531,11 @@ describe('PermissionController', () => {
         { request: { ...request } },
       );
 
-      // @ts-expect-error Abusing types for testing purposes
-      const { error } = await engine.handle(request);
+      const { error } = (await engine.handle(request)) as JsonRpcFailure;
       expect(error.message).toStrictEqual(expectedError.message);
-      expect(error.data.cause).toBeNull();
-      delete error.message;
+      // @ts-expect-error We do expect this property to exist.
+      expect(error.data?.cause).toBeNull();
+      // @ts-expect-error Intentional destructive testing
       delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });

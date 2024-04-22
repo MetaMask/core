@@ -3,6 +3,12 @@ import {
   createAsyncMiddleware,
 } from '@metamask/json-rpc-engine';
 import { rpcErrors, serializeError } from '@metamask/rpc-errors';
+import type { JsonRpcFailure, JsonRpcSuccess } from '@metamask/utils';
+import { hasProperty } from '@metamask/utils';
+import type {
+  PermissionConstraint,
+  RequestedPermissions,
+} from 'src/Permission';
 
 import { requestPermissionsHandler } from './requestPermissions';
 
@@ -22,21 +28,20 @@ describe('requestPermissions RPC method', () => {
       });
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
-      }),
+    engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      (req, res, next, end) =>
+        implementation(req, res, next, end, {
+          requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
+        }),
     );
 
-    const response = await engine.handle({
+    const response = (await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
-    });
+    })) as JsonRpcSuccess<string[]>;
 
-    // @ts-expect-error Abusing types for testing purposes
     expect(response.result).toStrictEqual(['a', 'b', 'c']);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledTimes(1);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledWith({});
@@ -55,31 +60,27 @@ describe('requestPermissions RPC method', () => {
 
     // Pass the middleware function to createAsyncMiddleware so the error
     // is catched.
-    engine.push(
-      createAsyncMiddleware((req, res, next) =>
-        // @ts-expect-error Abusing types for testing purposes
+    engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      createAsyncMiddleware(async (req, res, next) =>
         implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
         }),
       ),
     );
 
-    const response = await engine.handle({
+    const response = (await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
-    });
+    })) as JsonRpcFailure;
 
-    // @ts-expect-error Abusing types for testing purposes
-    expect(response.result).toBeUndefined();
-    // @ts-expect-error Abusing types for testing purposes
+    expect(hasProperty(response, 'result')).toBe(false);
     delete response.error.stack;
-    // @ts-expect-error Abusing types for testing purposes
+    // @ts-expect-error We do expect this property to exist.
     delete response.error.data.cause.stack;
     const expectedError = new Error('foo');
     delete expectedError.stack;
-    // @ts-expect-error Abusing types for testing purposes
     expect(response.error).toStrictEqual(
       serializeError(expectedError, { shouldIncludeStack: false }),
     );
@@ -92,11 +93,12 @@ describe('requestPermissions RPC method', () => {
     const mockRequestPermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // @ts-expect-error Abusing types for testing purposes
-      implementation(req, res, next, end, {
-        requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
-      }),
+    engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      async (req, res, next, end) => {
+        await implementation(req, res, next, end, {
+          requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
+        });
+      },
     );
 
     for (const invalidParams of ['foo', ['bar']]) {
@@ -114,11 +116,9 @@ describe('requestPermissions RPC method', () => {
         .serialize();
       delete expectedError.stack;
 
-      // @ts-expect-error Abusing types for testing purposes
-      const response = await engine.handle(req);
-      // @ts-expect-error Abusing types for testing purposes
+      // @ts-expect-error Intentional destructive testing
+      const response = (await engine.handle(req)) as JsonRpcFailure;
       delete response.error.stack;
-      // @ts-expect-error Abusing types for testing purposes
       expect(response.error).toStrictEqual(expectedError);
       expect(mockRequestPermissionsForOrigin).not.toHaveBeenCalled();
     }
