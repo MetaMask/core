@@ -11,6 +11,7 @@ export type UserStorageConfig = {
 };
 
 export class UserStorage {
+    protected storageKey: string | null = null;
     protected envUrls: { userStorageApiUrl: string };
 
     constructor(protected config: UserStorageConfig) { 
@@ -21,14 +22,14 @@ export class UserStorage {
         if (!feature.trim() || !key.trim()) {
             throw new ValidationError('feature or key cannot be empty strings');
         }
-        await this.#upsertUserStorage(feature, key, value)
+        await this.#upsertUserStorage(feature, key, value);
     }
 
     async getItem(feature: string, key: string): Promise<string> {
         if (!feature.trim() || !key.trim()) {
             throw new ValidationError('feature or key cannot be empty strings');
         }
-        return this.#getUserStorage(feature, key)
+        return this.#getUserStorage(feature, key);
     }
 
     async #getStorageKey(): Promise<string> {
@@ -37,8 +38,13 @@ export class UserStorage {
             throw new SignInError('unable to create storage key: user profile missing');
         }
 
-        const storageKeySignature = await this.config.auth.signMessage(`metamask:${userProfile.profileId}`)
-        return createSHA256Hash(storageKeySignature);
+        // TODO: how can we persist the storage key for the SiWE flow as it cannot be recalculated
+        // NOTE: should be indexed per profile id
+        if(!this.storageKey){ 
+            const storageKeySignature = await this.config.auth.signMessage(`metamask:${userProfile.profileId}`);
+            this.storageKey = storageKeySignature;
+        }
+        return createSHA256Hash(this.storageKey);
     }
 
     async #upsertUserStorage(feature: string, key: string, data: string): Promise<void> {
@@ -59,7 +65,7 @@ export class UserStorage {
             });
 
             if (!response.ok) {
-                const responseBody = await response.json()
+                const responseBody = await response.json();
                 throw new Error(`HTTP error message: ${responseBody.message}, error: ${responseBody.error}`);
             }
         } catch (error) {
@@ -96,7 +102,7 @@ export class UserStorage {
                 throw error;
             }
 
-            throw new UserStorageError(`failed to get user storage for feature '${feature}' and key '${key}'. ${error}`, );
+            throw new UserStorageError(`failed to get user storage for feature '${feature}' and key '${key}'. ${error}`);
         }
     }
 

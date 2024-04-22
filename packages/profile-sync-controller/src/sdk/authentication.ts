@@ -110,7 +110,7 @@ export abstract class BaseAuth {
         }
 
         const formattedMessage = message as `metamask:${string}`;
-        return MESSAGE_SIGNING_SNAP.signMessage(formattedMessage)
+        return MESSAGE_SIGNING_SNAP.signMessage(formattedMessage);
     }
 
     public async getIdentifier(): Promise<string> {
@@ -148,7 +148,7 @@ export class JwtBearerAuth extends BaseAuth {
             });
 
             if (!response.ok) {
-                const responseBody = await response.json()
+                const responseBody = await response.json();
                 throw new Error(`HTTP error: ${responseBody.error_description}, error code: ${responseBody.error}`);
             }
 
