@@ -26,4 +26,5 @@ export enum KeyringControllerError {
   ExpiredCredentials = 'KeyringController - Encryption key and salt provided are expired',
   NoKeyringBuilder = 'KeyringController - No keyringBuilder found for keyring',
   DataType = 'KeyringController - Incorrect data type provided',
+  NoHdKeyring = 'KeyringController - No HD Keyring found',
 }
