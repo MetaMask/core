@@ -195,7 +195,9 @@ export class TransactionController extends BaseController<
 
   private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
 
-  private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+  private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<
+    boolean | undefined
+  >;
 
   private readonly gasFeeFlows: GasFeeFlow[];
 
@@ -284,7 +286,7 @@ export class TransactionController extends BaseController<
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
-      getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+      getCurrentNetworkEIP1559Compatibility: () => Promise<boolean | undefined>;
       getGasFeeEstimates: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
