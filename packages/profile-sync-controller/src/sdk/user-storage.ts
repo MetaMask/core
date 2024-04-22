@@ -1,7 +1,6 @@
 import { BaseAuth } from './authentication';
 import encryption from './encryption';
 import { createSHA256Hash } from './encryption'
-import { MESSAGE_SIGNING_SNAP } from './messaging-signing-snap';
 import { Env, getEnvUrls } from './env';
 import { NotFoundError, SignInError, UserStorageError, ValidationError } from './errors';
 
@@ -11,10 +10,13 @@ export type UserStorageConfig = {
 };
 
 export class UserStorage {
-    protected storageKey: string | null = null;
     protected envUrls: { userStorageApiUrl: string };
 
-    constructor(protected config: UserStorageConfig) { 
+    constructor(
+        protected config: UserStorageConfig,
+        protected persistStorageKey?: (key: string, message: string) => Promise<void>,
+        protected retrieveStorageKey?: (key: string) => Promise<string | null>,
+    ) { 
         this.envUrls = getEnvUrls(config.env);
     }
 
@@ -38,22 +40,27 @@ export class UserStorage {
             throw new SignInError('unable to create storage key: user profile missing');
         }
 
-        // TODO: how can we persist the storage key for the SiWE flow as it cannot be recalculated
-        // NOTE: should be indexed per profile id
-        if(!this.storageKey){ 
-            const storageKeySignature = await this.config.auth.signMessage(`metamask:${userProfile.profileId}`);
-            this.storageKey = storageKeySignature;
+        if(this.retrieveStorageKey){
+            const key = await this.retrieveStorageKey(userProfile.profileId);
+            if(key){ 
+                return key 
+            }
         }
-        return createSHA256Hash(this.storageKey);
+
+        const storageKeySignature = await this.config.auth.signMessage(`metamask:${userProfile.profileId}`);
+        const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
+        if(this.persistStorageKey){
+            await this.persistStorageKey(userProfile.profileId, hashedStorageKeySignature)
+        }
+        return hashedStorageKeySignature;
     }
 
     async #upsertUserStorage(feature: string, key: string, data: string): Promise<void> {
         try {
+            const headers = await this.#getAuthorizationHeader();
             const storageKey = await this.#getStorageKey();
             const encryptedData = encryption.encryptString(data, storageKey);
             const url = new URL(`${this.envUrls.userStorageApiUrl}/api/v1/userstorage/${this.#getEntryPath(feature, key, storageKey)}`);
-
-            const headers = await this.#getAuthorizationHeader();
 
             const response = await fetch(url.toString(), {
                 method: 'PUT',
@@ -75,9 +82,9 @@ export class UserStorage {
 
     async #getUserStorage(feature: string, key: string): Promise<string> {
         try {
+            const headers = await this.#getAuthorizationHeader();
             const storageKey = await this.#getStorageKey();
             const url = new URL(`${this.envUrls.userStorageApiUrl}/api/v1/userstorage/${this.#getEntryPath(feature, key, storageKey)}`);
-            const headers = await this.#getAuthorizationHeader();
 
             const response = await fetch(url.toString(), {
                 headers: {
