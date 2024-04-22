@@ -37,7 +37,7 @@ import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import { merge, pickBy } from 'lodash';
+import { merge, pickBy, isEqual } from 'lodash';
 import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import { NonceTracker } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
@@ -48,6 +48,7 @@ import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { projectLogger as log } from './logger';
 import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
@@ -59,8 +60,13 @@ import type {
   WalletDevice,
   SubmitHistoryEntry,
   GasFeeFlow,
+  SimulationData,
 } from './types';
-import { TransactionType, TransactionStatus } from './types';
+import {
+  TransactionType,
+  TransactionStatus,
+  SimulationErrorCode,
+} from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransactionParams,
@@ -74,6 +80,7 @@ import {
   validateTxParams,
   ESTIMATE_GAS_ERROR,
 } from './utils';
+import { getSimulationData } from './utils/simulation';
 
 const HARDFORK = Hardfork.London;
 const SUBMIT_HISTORY_LIMIT = 100;
@@ -207,6 +214,8 @@ export class TransactionController extends BaseController<
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
 
+  #isSimulationEnabled: () => boolean;
+
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
       ...transactionMeta,
@@ -261,6 +270,7 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
    * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
    * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
+   * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
@@ -278,6 +288,7 @@ export class TransactionController extends BaseController<
       getNetworkState,
       getSelectedAddress,
       incomingTransactions = {},
+      isSimulationEnabled,
       messenger,
       onNetworkStateChange,
       provider,
@@ -296,6 +307,7 @@ export class TransactionController extends BaseController<
         queryEntireHistory?: boolean;
         updateTransactions?: boolean;
       };
+      isSimulationEnabled?: () => boolean;
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
@@ -326,6 +338,7 @@ export class TransactionController extends BaseController<
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
+    this.#isSimulationEnabled = isSimulationEnabled ?? (() => false);
     this.registry = new MethodRegistry({ provider });
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
@@ -524,6 +537,14 @@ export class TransactionController extends BaseController<
       if (!this.isHistoryDisabled) {
         addInitialHistorySnapshot(transactionMeta);
       }
+
+      if (requireApproval !== false) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.#updateSimulationData(transactionMeta);
+      } else {
+        log('Skipping simulation as approval not required');
+      }
+
       transactions.push(transactionMeta);
       this.update({
         transactions: this.trimTransactionsForState(transactions),
@@ -955,17 +976,53 @@ export class TransactionController extends BaseController<
    * @param note - A note or update reason to include in the transaction history.
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
-    const { transactions } = this.state;
-    transactionMeta.txParams = normalizeTransactionParams(
-      transactionMeta.txParams,
+    const { id: transactionId } = transactionMeta;
+
+    this.#updateTransactionInternal(
+      { transactionId, note, skipHistory: this.isHistoryDisabled },
+      () => ({ ...transactionMeta }),
     );
-    validateTxParams(transactionMeta.txParams);
-    if (!this.isHistoryDisabled) {
-      updateTransactionHistory(transactionMeta, note);
+  }
+
+  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
+    const { id: transactionId, txParams: newParams } = newTransactionMeta;
+
+    const originalParams = this.getTransaction(transactionId)?.txParams;
+
+    if (!originalParams || isEqual(originalParams, newParams)) {
+      return [];
     }
-    const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
-    transactions[index] = transactionMeta;
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+
+    const params = Object.keys(newParams) as (keyof TransactionParams)[];
+
+    const updatedProperties = params.filter(
+      (param) => newParams[param] !== originalParams[param],
+    );
+
+    log(
+      'Transaction parameters have been updated',
+      transactionId,
+      updatedProperties,
+      originalParams,
+      newParams,
+    );
+
+    return updatedProperties;
+  }
+
+  #onTransactionParamsUpdated(
+    transactionMeta: TransactionMeta,
+    updatedParams: (keyof TransactionParams)[],
+  ) {
+    if (
+      (['to', 'value', 'data'] as const).some((param) =>
+        updatedParams.includes(param),
+      )
+    ) {
+      log('Updating simulation data due to transaction parameter update');
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#updateSimulationData(transactionMeta);
+    }
   }
 
   /**
@@ -2003,6 +2060,111 @@ export class TransactionController extends BaseController<
 
   private getGasFeeFlows(): GasFeeFlow[] {
     return [new LineaGasFeeFlow()];
+  }
+
+  async #updateSimulationData(transactionMeta: TransactionMeta) {
+    const { id: transactionId, chainId, txParams } = transactionMeta;
+    const { from, to, value, data } = txParams;
+
+    let simulationData: SimulationData = {
+      error: {
+        code: SimulationErrorCode.Disabled,
+        message: 'Simulation disabled',
+      },
+      tokenBalanceChanges: [],
+    };
+
+    if (this.#isSimulationEnabled()) {
+      this.#updateTransactionInternal(
+        { transactionId, skipHistory: true },
+        (txMeta) => {
+          txMeta.simulationData = undefined;
+        },
+      );
+
+      simulationData = await getSimulationData({
+        chainId,
+        from: from as Hex,
+        to: to as Hex,
+        value: value as Hex,
+        data: data as Hex,
+      });
+    }
+
+    const finalTransactionMeta = this.getTransaction(transactionId);
+
+    if (!finalTransactionMeta) {
+      log(
+        'Cannot update simulation data as transaction not found',
+        transactionId,
+        simulationData,
+      );
+
+      return;
+    }
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateSimulationData - Update simulation data',
+      },
+      (txMeta) => {
+        txMeta.simulationData = simulationData;
+      },
+    );
+
+    log('Updated simulation data', transactionId, simulationData);
+  }
+
+  #updateTransactionInternal(
+    {
+      transactionId,
+      note,
+      skipHistory,
+    }: { transactionId: string; note?: string; skipHistory?: boolean },
+    callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
+  ) {
+    let updatedTransactionParams: (keyof TransactionParams)[] = [];
+
+    this.update((state) => {
+      const index = state.transactions.findIndex(
+        ({ id }) => id === transactionId,
+      );
+
+      let transactionMeta = state.transactions[index];
+
+      // eslint-disable-next-line n/callback-return
+      transactionMeta = callback(transactionMeta) ?? transactionMeta;
+
+      transactionMeta.txParams = normalizeTransactionParams(
+        transactionMeta.txParams,
+      );
+
+      validateTxParams(transactionMeta.txParams);
+
+      updatedTransactionParams =
+        this.#checkIfTransactionParamsUpdated(transactionMeta);
+
+      if (skipHistory !== true) {
+        transactionMeta = updateTransactionHistory(
+          transactionMeta,
+          note ?? 'Transaction updated',
+        );
+      }
+
+      state.transactions[index] = transactionMeta;
+    });
+
+    const transactionMeta = this.getTransaction(
+      transactionId,
+    ) as TransactionMeta;
+
+    if (updatedTransactionParams.length > 0) {
+      this.#onTransactionParamsUpdated(
+        transactionMeta,
+        updatedTransactionParams,
+      );
+    }
   }
 }
 
