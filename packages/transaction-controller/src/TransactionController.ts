@@ -415,7 +415,7 @@ export class TransactionController extends BaseController<
    * @returns The method data object corresponding to the given signature prefix.
    */
   async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
-    const releaseLock = await this.mutex.acquire();
+    let releaseLock;
     try {
       const { methodData } = this.state;
       const knownMethod = Object.keys(methodData).find(
@@ -424,13 +424,17 @@ export class TransactionController extends BaseController<
       if (knownMethod) {
         return methodData[fourBytePrefix];
       }
+
+      releaseLock = await this.mutex.acquire();
       const registry = await this.registryLookup(fourBytePrefix);
       this.update({
         methodData: { ...methodData, ...{ [fourBytePrefix]: registry } },
       });
       return registry;
     } finally {
-      releaseLock();
+      if (releaseLock) {
+        releaseLock();
+      }
     }
   }
 
