@@ -3,6 +3,7 @@ import encryption from './encryption';
 import { createSHA256Hash } from './encryption'
 import { Env, getEnvUrls } from './env';
 import { NotFoundError, SignInError, UserStorageError, ValidationError } from './errors';
+import { InMemoryStorage, LocalStorage } from './local-storage';
 
 export type UserStorageConfig = {
     env: Env;
@@ -14,8 +15,7 @@ export class UserStorage {
 
     constructor(
         protected config: UserStorageConfig,
-        protected persistStorageKey?: (key: string, message: string) => Promise<void>,
-        protected retrieveStorageKey?: (key: string) => Promise<string | null>,
+        protected localStorage: LocalStorage = new InMemoryStorage()
     ) { 
         this.envUrls = getEnvUrls(config.env);
     }
@@ -40,18 +40,14 @@ export class UserStorage {
             throw new SignInError('unable to create storage key: user profile missing');
         }
 
-        if(this.retrieveStorageKey){
-            const key = await this.retrieveStorageKey(userProfile.profileId);
-            if(key){ 
-                return key 
-            }
+        const key = await this.localStorage.getItem(userProfile.profileId);
+        if(key){ 
+            return key;
         }
 
         const storageKeySignature = await this.config.auth.signMessage(`metamask:${userProfile.profileId}`);
         const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
-        if(this.persistStorageKey){
-            await this.persistStorageKey(userProfile.profileId, hashedStorageKeySignature)
-        }
+        await this.localStorage.setItem(userProfile.profileId, hashedStorageKeySignature)
         return hashedStorageKeySignature;
     }
 
