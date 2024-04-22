@@ -904,6 +904,7 @@ async function withController<ReturnValue>(
       getNetworkClientById,
       getNftState: getDefaultNftState,
       disabled: true,
+      selectedAddress: '',
       ...options,
     },
     config,

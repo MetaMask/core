@@ -445,6 +445,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       getNftApi,
       getNftState,
       disabled: initialDisabled,
+      selectedAddress: initialSelectedAddress,
     }: {
       chainId: Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -460,6 +461,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       getNftApi: NftController['getNftApi'];
       getNftState: () => NftState;
       disabled: boolean;
+      selectedAddress: string;
     },
     config?: Partial<NftDetectionConfig>,
     state?: Partial<BaseState>,
@@ -468,7 +470,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
       chainId: initialChainId,
-      selectedAddress: '',
+      selectedAddress: initialSelectedAddress,
       disabled: initialDisabled,
     };
     this.initialize();
@@ -478,11 +480,9 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       const { selectedAddress: previouslySelectedAddress, disabled } =
         this.config;
 
-      if (selectedAddress !== previouslySelectedAddress) {
-        this.configure({ selectedAddress });
-      }
-      if (!useNftDetection !== disabled) {
-        this.configure({ disabled: !useNftDetection });
+      if ( selectedAddress !== previouslySelectedAddress ||
+        !useNftDetection !== disabled) {
+        this.configure({ selectedAddress, disabled: !useNftDetection });
         if (useNftDetection) {
           this.start();
         } else {
