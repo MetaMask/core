@@ -1410,10 +1410,7 @@ export class PermissionController<
    * @param caveatType - The type of the caveat to remove.
    */
   removeCaveat<
-    TargetName extends ExtractPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >['parentCapability'],
+    TargetName extends ControllerPermissionSpecification['targetName'],
     CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): void {
     this.update((draftState) => {

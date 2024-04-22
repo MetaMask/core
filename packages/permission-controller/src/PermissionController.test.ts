@@ -1848,7 +1848,6 @@ describe('PermissionController', () => {
       expect(() =>
         controller.removeCaveat(
           origin,
-          // @ts-expect-error Abusing types for testing purposes
           PermissionNames.wallet_noopWithRequiredCaveat,
           CaveatTypes.noopCaveat,
         ),
@@ -2081,16 +2080,15 @@ describe('PermissionController', () => {
       const mutator = () => {
         counter += 1;
         return counter === 1
-          ? { operation: CaveatMutatorOperation.noop }
+          ? { operation: CaveatMutatorOperation.noop as const}
           : {
-              operation: CaveatMutatorOperation.updateValue,
+              operation: CaveatMutatorOperation.updateValue as const,
               value: ['a', 'b'],
             };
       };
 
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
-        // @ts-expect-error Abusing types for testing purposes
         mutator,
       );
 
