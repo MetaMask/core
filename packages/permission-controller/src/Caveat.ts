@@ -82,18 +82,16 @@ export type CaveatDecorator<ParentCaveat extends CaveatConstraint> = (
  * @template Decorator - The {@link CaveatDecorator} to extract a caveat value
  * type from.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ExtractCaveatValueFromDecorator<Decorator extends CaveatDecorator<any>> =
-  Decorator extends (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    decorated: any,
-    caveat: infer ParentCaveat,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ) => AsyncRestrictedMethod<any, any>
-    ? ParentCaveat extends CaveatConstraint
-      ? ParentCaveat['value']
-      : never
-    : never;
+type ExtractCaveatValueFromDecorator<
+  Decorator extends CaveatDecorator<CaveatConstraint>,
+> = Decorator extends (
+  decorated: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
+  caveat: infer ParentCaveat,
+) => AsyncRestrictedMethod<RestrictedMethodParameters, Json>
+  ? ParentCaveat extends CaveatConstraint
+    ? ParentCaveat['value']
+    : never
+  : never;
 
 /**
  * A function for validating caveats of a particular type.
@@ -126,6 +124,7 @@ export type CaveatSpecificationBase = {
    * performed. Although caveats can also be validated by permission validators,
    * validating caveat values separately is strongly recommended.
    */
+  // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validator?: CaveatValidator<any>;
 };
@@ -136,8 +135,7 @@ export type RestrictedMethodCaveatSpecificationConstraint =
      * The decorator function used to apply the caveat to restricted method
      * requests.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    decorator: CaveatDecorator<any>;
+    decorator: CaveatDecorator<CaveatConstraint>;
   };
 
 export type EndowmentCaveatSpecificationConstraint = CaveatSpecificationBase;
@@ -175,8 +173,10 @@ type CaveatSpecificationBuilderOptions<
  * tailored to their requirements.
  */
 export type CaveatSpecificationBuilder<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Options extends CaveatSpecificationBuilderOptions<any, any>,
+  Options extends CaveatSpecificationBuilderOptions<
+    Record<string, unknown>,
+    Record<string, unknown>
+  >,
   Specification extends CaveatSpecificationConstraint,
 > = (options: Options) => Specification;
 
@@ -186,8 +186,10 @@ export type CaveatSpecificationBuilder<
  */
 export type CaveatSpecificationBuilderExportConstraint = {
   specificationBuilder: CaveatSpecificationBuilder<
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    CaveatSpecificationBuilderOptions<any, any>,
+    CaveatSpecificationBuilderOptions<
+      Record<string, unknown>,
+      Record<string, unknown>
+    >,
     CaveatSpecificationConstraint
   >;
   decoratorHookNames?: Record<string, true>;
@@ -213,17 +215,14 @@ export type CaveatSpecificationMap<
  */
 export type ExtractCaveats<
   CaveatSpecification extends CaveatSpecificationConstraint,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-> = CaveatSpecification extends any
-  ? CaveatSpecification extends RestrictedMethodCaveatSpecificationConstraint
-    ? Caveat<
-        CaveatSpecification['type'],
-        ExtractCaveatValueFromDecorator<
-          RestrictedMethodCaveatSpecificationConstraint['decorator']
-        >
+> = CaveatSpecification extends RestrictedMethodCaveatSpecificationConstraint
+  ? Caveat<
+      CaveatSpecification['type'],
+      ExtractCaveatValueFromDecorator<
+        RestrictedMethodCaveatSpecificationConstraint['decorator']
       >
-    : Caveat<CaveatSpecification['type'], Json>
-  : never;
+    >
+  : Caveat<CaveatSpecification['type'], Json>;
 
 /**
  * Extracts the type of a specific {@link Caveat} from a union of caveat
