@@ -224,6 +224,7 @@ export class AccountsController extends BaseController<
           keyring: {
             type: '',
           },
+          importTime: 0,
         },
       };
     }
@@ -347,10 +348,15 @@ export class AccountsController extends BaseController<
         metadata: {
           ...internalAccount.metadata,
           name:
-            existingAccount && existingAccount.metadata.name !== ''
-              ? existingAccount.metadata.name
-              : `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          lastSelected: existingAccount?.metadata?.lastSelected,
+            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+            `${keyringTypeName} ${keyringAccountIndex + 1}`,
+          importTime:
+            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
+            Date.now(),
+          lastSelected: this.#populateExistingMetadata(
+            existingAccount?.id,
+            'lastSelected',
+          ),
         },
       };
 
@@ -402,6 +408,7 @@ export class AccountsController extends BaseController<
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
+        importTime: Date.now(),
         keyring: {
           type,
         },
@@ -447,8 +454,10 @@ export class AccountsController extends BaseController<
         address,
       );
 
+      const id = getUUIDFromAddressOfNormalAccount(address);
+
       internalAccounts.push({
-        id: getUUIDFromAddressOfNormalAccount(address),
+        id,
         address,
         options: {},
         methods: [
@@ -461,7 +470,10 @@ export class AccountsController extends BaseController<
         ],
         type: EthAccountType.Eoa,
         metadata: {
-          name: '',
+          name: this.#populateExistingMetadata(id, 'name') ?? '',
+          importTime:
+            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -550,7 +562,7 @@ export class AccountsController extends BaseController<
       for (const account of updatedSnapKeyringAddresses) {
         if (
           !previousSnapInternalAccounts.find(
-            (internalAccount) =>
+            (internalAccount: InternalAccount) =>
               internalAccount.address.toLowerCase() ===
               account.address.toLowerCase(),
           )
@@ -757,6 +769,7 @@ export class AccountsController extends BaseController<
         metadata: {
           ...newAccount.metadata,
           name: accountName,
+          importTime: Date.now(),
           lastSelected: Date.now(),
         },
       };
@@ -773,6 +786,20 @@ export class AccountsController extends BaseController<
     this.update((currentState: Draft<AccountsControllerState>) => {
       delete currentState.internalAccounts.accounts[accountId];
     });
+  }
+
+  /**
+   * Retrieves the value of a specific metadata key for an existing account.
+   * @param accountId - The ID of the account.
+   * @param metadataKey - The key of the metadata to retrieve.
+   * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
+   */
+  #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
+    accountId: string,
+    metadataKey: T,
+  ): InternalAccount['metadata'][T] | undefined {
+    const internalAccount = this.getAccount(accountId);
+    return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
   }
 
   /**

@@ -102,6 +102,7 @@ export type PermissionSubjectMetadata = {
  */
 export type PermissionsRequestMetadata = PermissionSubjectMetadata & {
   id: string;
+  [key: string]: Json;
 };
 
 /**
@@ -1852,6 +1853,7 @@ export class PermissionController<
    * id.
    * @param options.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions. Defaults to `true`.
+   * @param options.metadata - Additional metadata about the permission request.
    * @returns The granted permissions and request metadata.
    */
   async requestPermissions(
@@ -1860,6 +1862,7 @@ export class PermissionController<
     options: {
       id?: string;
       preserveExistingPermissions?: boolean;
+      metadata?: Record<string, Json>;
     } = {},
   ): Promise<
     [
@@ -1877,6 +1880,7 @@ export class PermissionController<
     this.validateRequestedPermissions(origin, requestedPermissions);
 
     const metadata = {
+      ...options.metadata,
       id,
       origin,
     };

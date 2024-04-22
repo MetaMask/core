@@ -415,76 +415,119 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('getProviderAndBlockTracker', () => {
-    describe('provider and block tracker are not cached for the passed domain and networkClientId has been set for the requesting domain', () => {
-      it('creates a proxy provider and block tracker with the domain network client', () => {
+    describe('when the domain already has a cached networkProxy in the domainProxyMap', () => {
+      it('returns the cached proxy provider and block tracker', () => {
+        const mockProxyProvider = {
+          setTarget: jest.fn(),
+        } as unknown as ProviderProxy;
+        const mockProxyBlockTracker = {
+          setTarget: jest.fn(),
+        } as unknown as BlockTrackerProxy;
+
+        const domainProxyMap = new Map<Domain, NetworkProxy>([
+          [
+            'example.com',
+            {
+              provider: mockProxyProvider,
+              blockTracker: mockProxyBlockTracker,
+            },
+          ],
+          [
+            'test.com',
+            {
+              provider: mockProxyProvider,
+              blockTracker: mockProxyBlockTracker,
+            },
+          ],
+        ]);
         const { controller } = setup({
           state: {
-            domains: {
-              'example.com': 'mainnet',
-            },
+            domains: {},
           },
           useRequestQueuePreference: true,
+          domainProxyMap,
         });
+
         const result = controller.getProviderAndBlockTracker('example.com');
-        expect(result).toBeDefined();
-      });
-
-      it('throws an error if the domain network client is not initialized', () => {
-        const { controller, mockGetNetworkClientById } = setup({
-          state: {
-            domains: {
-              'example.com': 'mainnet',
-            },
-          },
-          useRequestQueuePreference: true,
+        expect(result).toStrictEqual({
+          provider: mockProxyProvider,
+          blockTracker: mockProxyBlockTracker,
         });
-        mockGetNetworkClientById.mockImplementation(() => {
-          throw new Error('No network client was found with the ID');
-        });
-
-        expect(() =>
-          controller.getProviderAndBlockTracker('example.com'),
-        ).toThrow('No network client was found with the ID');
       });
     });
+    describe('when the domain does not have a cached networkProxy in the domainProxyMap', () => {
+      describe('when the useRequestQueue preference is true', () => {
+        describe('when the domain has permissions', () => {
+          it('calls to NetworkController:getNetworkClientById and creates a new proxy provider and block tracker with the non-proxied globally selected network client', () => {
+            const { controller, messenger } = setup({
+              state: {
+                domains: {},
+              },
+              useRequestQueuePreference: true,
+            });
+            jest.spyOn(messenger, 'call');
 
-    describe('provider and block tracker are not cached for the passed domain and networkClientId has not been set for the requesting domain', () => {
-      it('creates a new proxy provider and block tracker with the global network client', () => {
-        const { controller } = setup({
-          state: {
-            domains: {},
-          },
-          useRequestQueuePreference: true,
+            const result = controller.getProviderAndBlockTracker('example.com');
+            expect(result).toBeDefined();
+            // unfortunately checking which networkController method is called is the best
+            // proxy (no pun intended) for checking that the correct instance of the networkClient is used
+            expect(messenger.call).toHaveBeenCalledWith(
+              'NetworkController:getNetworkClientById',
+              'mainnet',
+            );
+          });
+          it('throws an error if the globally selected network client is not initialized', () => {
+            const { controller, mockGetSelectedNetworkClient } = setup({
+              state: {
+                domains: {},
+              },
+              useRequestQueuePreference: false,
+            });
+            mockGetSelectedNetworkClient.mockReturnValue(undefined);
+            expect(() =>
+              controller.getProviderAndBlockTracker('example.com'),
+            ).toThrow('Selected network not initialized');
+          });
         });
-        const result = controller.getProviderAndBlockTracker('test.com');
-        expect(result).toBeDefined();
+        describe('when the domain does not have permissions', () => {
+          it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
+            const { controller, messenger, mockHasPermissions } = setup({
+              state: {
+                domains: {},
+              },
+              useRequestQueuePreference: true,
+            });
+            jest.spyOn(messenger, 'call');
+            mockHasPermissions.mockReturnValue(false);
+            const result = controller.getProviderAndBlockTracker('example.com');
+            expect(result).toBeDefined();
+            // unfortunately checking which networkController method is called is the best
+            // proxy (no pun intended) for checking that the correct instance of the networkClient is used
+            expect(messenger.call).not.toHaveBeenCalledWith(
+              'NetworkController:getNetworkClientById',
+              'mainnet',
+            );
+          });
+        });
       });
+      describe('when the useRequestQueue preference is false', () => {
+        it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
+          const { controller, messenger } = setup({
+            state: {
+              domains: {},
+            },
+            useRequestQueuePreference: false,
+          });
+          jest.spyOn(messenger, 'call');
 
-      it('throws an error if the global network client is not initialized', () => {
-        const { controller, mockGetSelectedNetworkClient } = setup({
-          state: {
-            domains: {},
-          },
-          useRequestQueuePreference: false,
+          const result = controller.getProviderAndBlockTracker('example.com');
+          expect(result).toBeDefined();
+          // unfortunately checking which networkController method is called is the best
+          // proxy (no pun intended) for checking that the correct instance of the networkClient is used
+          expect(messenger.call).toHaveBeenCalledWith(
+            'NetworkController:getSelectedNetworkClient',
+          );
         });
-        mockGetSelectedNetworkClient.mockReturnValue(undefined);
-        expect(() => controller.getProviderAndBlockTracker('test.com')).toThrow(
-          'Selected network not initialized',
-        );
-      });
-    });
-
-    describe('provider and block tracker are cached for the passed domain', () => {
-      it('returns the cached proxy provider and block tracker if set', () => {
-        const { controller } = setup({
-          state: {
-            domains: {},
-          },
-          useRequestQueuePreference: true,
-        });
-        controller.setNetworkClientIdForDomain('example.com', 'network7');
-        const result = controller.getProviderAndBlockTracker('example.com');
-        expect(result).toBeDefined();
       });
     });
   });
