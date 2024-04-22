@@ -102,6 +102,7 @@ export type PermissionSubjectMetadata = {
  */
 export type PermissionsRequestMetadata = PermissionSubjectMetadata & {
   id: string;
+  [key: string]: Json;
 };
 
 /**
@@ -1860,6 +1861,7 @@ export class PermissionController<
    * id.
    * @param options.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions. Defaults to `true`.
+   * @param options.metadata - Additional metadata about the permission request.
    * @returns The granted permissions and request metadata.
    */
   async requestPermissions(
@@ -1868,6 +1870,7 @@ export class PermissionController<
     options: {
       id?: string;
       preserveExistingPermissions?: boolean;
+      metadata?: Record<string, Json>;
     } = {},
   ): Promise<
     [
@@ -1885,6 +1888,7 @@ export class PermissionController<
     this.validateRequestedPermissions(origin, requestedPermissions);
 
     const metadata = {
+      ...options.metadata,
       id,
       origin,
     };
@@ -2159,14 +2163,15 @@ export class PermissionController<
     try {
       this.validateRequestedPermissions(origin, permissions);
     } catch (error) {
-      if (error instanceof JsonRpcError) {
+      if (error instanceof Error) {
         // Re-throw as an internal error; we should never receive invalid approved
         // permissions.
         throw internalError(
           `Invalid approved permissions request: ${error.message}`,
-          error.data,
+          error instanceof JsonRpcError ? error.data : undefined,
         );
       }
+      /* istanbul ignore next: We should only throw well-formed errors */
       throw internalError('Unrecognized error type', { error });
     }
   }

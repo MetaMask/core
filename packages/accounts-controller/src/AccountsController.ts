@@ -1,4 +1,3 @@
-import { toBuffer } from '@ethereumjs/util';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -23,9 +22,7 @@ import type {
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
-import { sha256 } from 'ethereum-cryptography/sha256';
 import type { Draft } from 'immer';
-import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
 
@@ -227,13 +224,14 @@ export class AccountsController extends BaseController<
           keyring: {
             type: '',
           },
+          importTime: 0,
         },
       };
     }
 
     const account = this.getAccount(accountId);
     if (account === undefined) {
-      throw new Error(`Account Id ${accountId} not found`);
+      throw new Error(`Account Id "${accountId}" not found`);
     }
     return account;
   }
@@ -265,25 +263,18 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccount(accountId);
+    const account = this.getAccountExpect(accountId);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      if (account) {
-        currentState.internalAccounts.accounts[
-          account.id
-        ].metadata.lastSelected = Date.now();
-        currentState.internalAccounts.selectedAccount = account.id;
-      } else {
-        currentState.internalAccounts.selectedAccount = '';
-      }
+      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    if (account) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedAccountChange',
-        account,
-      );
-    }
+    this.messagingSystem.publish(
+      'AccountsController:selectedAccountChange',
+      account,
+    );
   }
 
   /**
@@ -358,10 +349,15 @@ export class AccountsController extends BaseController<
         metadata: {
           ...internalAccount.metadata,
           name:
-            existingAccount && existingAccount.metadata.name !== ''
-              ? existingAccount.metadata.name
-              : `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          lastSelected: existingAccount?.metadata?.lastSelected,
+            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+            `${keyringTypeName} ${keyringAccountIndex + 1}`,
+          importTime:
+            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
+            Date.now(),
+          lastSelected: this.#populateExistingMetadata(
+            existingAccount?.id,
+            'lastSelected',
+          ),
         },
       };
 
@@ -413,6 +409,7 @@ export class AccountsController extends BaseController<
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
+        importTime: Date.now(),
         keyring: {
           type,
         },
@@ -457,12 +454,11 @@ export class AccountsController extends BaseController<
         'KeyringController:getKeyringForAccount',
         address,
       );
-      const v4options = {
-        random: sha256(toBuffer(address)).slice(0, 16),
-      };
+
+      const id = getUUIDFromAddressOfNormalAccount(address);
 
       internalAccounts.push({
-        id: uuid(v4options),
+        id,
         address,
         options: {},
         methods: [
@@ -475,7 +471,10 @@ export class AccountsController extends BaseController<
         ],
         type: EthAccountType.Eoa,
         metadata: {
-          name: '',
+          name: this.#populateExistingMetadata(id, 'name') ?? '',
+          importTime:
+            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -564,7 +563,7 @@ export class AccountsController extends BaseController<
       for (const account of updatedSnapKeyringAddresses) {
         if (
           !previousSnapInternalAccounts.find(
-            (internalAccount) =>
+            (internalAccount: InternalAccount) =>
               internalAccount.address.toLowerCase() ===
               account.address.toLowerCase(),
           )
@@ -623,7 +622,14 @@ export class AccountsController extends BaseController<
 
         // if the accountToSelect is undefined, then there are no accounts
         // it mean the keyring was reinitialized.
-        this.setSelectedAccount(accountToSelect?.id);
+        if (!accountToSelect) {
+          this.update((currentState: Draft<AccountsControllerState>) => {
+            currentState.internalAccounts.selectedAccount = '';
+          });
+          return;
+        }
+
+        this.setSelectedAccount(accountToSelect.id);
       }
     }
   }
@@ -657,6 +663,29 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Returns the list of accounts for a given keyring type.
+   * @param keyringType - The type of keyring.
+   * @returns The list of accounts associcated with this keyring type.
+   */
+  #getAccountsByKeyringType(keyringType: string) {
+    return this.listAccounts().filter((internalAccount) => {
+      // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
+      // to group those accounts together!
+      if (
+        keyringType === KeyringTypes.hd ||
+        keyringType === KeyringTypes.simple
+      ) {
+        return (
+          internalAccount.metadata.keyring.type === KeyringTypes.hd ||
+          internalAccount.metadata.keyring.type === KeyringTypes.simple
+        );
+      }
+
+      return internalAccount.metadata.keyring.type === keyringType;
+    });
+  }
+
+  /**
    * Returns the next account number for a given keyring type.
    * @param keyringType - The type of keyring.
    * @returns An object containing the account prefix and index to use.
@@ -666,35 +695,31 @@ export class AccountsController extends BaseController<
     indexToUse: number;
   } {
     const keyringName = keyringTypeToName(keyringType);
-    const previousKeyringAccounts = this.listAccounts().filter(
-      (internalAccount) => {
-        if (
-          keyringType === KeyringTypes.hd ||
-          keyringType === KeyringTypes.simple
-        ) {
-          return (
-            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-            internalAccount.metadata.keyring.type === KeyringTypes.simple
-          );
+    const keyringAccounts = this.#getAccountsByKeyringType(keyringType);
+    const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
+      (maxInternalAccountIndex, internalAccount) => {
+        // We **DO NOT USE** `\d+` here to only consider valid "human"
+        // number (rounded decimal number)
+        const match = new RegExp(`${keyringName} ([0-9]+)$`, 'u').exec(
+          internalAccount.metadata.name,
+        );
+
+        if (match) {
+          // Quoting `RegExp.exec` documentation:
+          // > The returned array has the matched text as the first item, and then one item for
+          // > each capturing group of the matched text.
+          // So use `match[1]` to get the captured value
+          const internalAccountIndex = parseInt(match[1], 10);
+          return Math.max(maxInternalAccountIndex, internalAccountIndex);
         }
-        return internalAccount.metadata.keyring.type === keyringType;
+
+        return maxInternalAccountIndex;
       },
+      0,
     );
-    const lastDefaultIndexUsedForKeyringType =
-      previousKeyringAccounts
-        .filter((internalAccount) =>
-          new RegExp(`${keyringName} \\d+$`, 'u').test(
-            internalAccount.metadata.name,
-          ),
-        )
-        .map((internalAccount) => {
-          const nameToWords = internalAccount.metadata.name.split(' '); // get the index of a default account name
-          return parseInt(nameToWords[nameToWords.length], 10);
-        })
-        .sort((a, b) => b - a)[0] || 0;
 
     const indexToUse = Math.max(
-      previousKeyringAccounts.length + 1,
+      keyringAccounts.length + 1,
       lastDefaultIndexUsedForKeyringType + 1,
     );
 
@@ -745,6 +770,7 @@ export class AccountsController extends BaseController<
         metadata: {
           ...newAccount.metadata,
           name: accountName,
+          importTime: Date.now(),
           lastSelected: Date.now(),
         },
       };
@@ -761,6 +787,20 @@ export class AccountsController extends BaseController<
     this.update((currentState: Draft<AccountsControllerState>) => {
       delete currentState.internalAccounts.accounts[accountId];
     });
+  }
+
+  /**
+   * Retrieves the value of a specific metadata key for an existing account.
+   * @param accountId - The ID of the account.
+   * @param metadataKey - The key of the metadata to retrieve.
+   * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
+   */
+  #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
+    accountId: string,
+    metadataKey: T,
+  ): InternalAccount['metadata'][T] | undefined {
+    const internalAccount = this.getAccount(accountId);
+    return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
   }
 
   /**

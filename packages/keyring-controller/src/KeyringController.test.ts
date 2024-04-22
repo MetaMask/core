@@ -176,6 +176,48 @@ describe('KeyringController', () => {
         },
       );
     });
+
+    // Testing fix for bug #4157 {@link https://github.com/MetaMask/core/issues/4157}
+    it('should return an existing HD account if the accountCount is lower than oldAccounts', async () => {
+      const mockAddress = '0x123';
+      stubKeyringClassWithAccount(MockKeyring, mockAddress);
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+        async ({ controller, initialState }) => {
+          await controller.addNewKeyring(MockKeyring.type);
+
+          // expect there to be two accounts, 1 from HD and 1 from MockKeyring
+          expect(await controller.getAccounts()).toHaveLength(2);
+
+          const accountCount = initialState.keyrings[0].accounts.length;
+          // We add a new account for "index 1" (not existing yet)
+          const { addedAccountAddress: firstAccountAdded } =
+            await controller.addNewAccount(accountCount);
+          // Adding an account for an existing index will return the existing account's address
+          const { addedAccountAddress: secondAccountAdded } =
+            await controller.addNewAccount(accountCount);
+          expect(firstAccountAdded).toBe(secondAccountAdded);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
+            accountCount + 1,
+          );
+          expect(await controller.getAccounts()).toHaveLength(3);
+        },
+      );
+    });
+
+    it('should throw instead of returning undefined', async () => {
+      await withController(async ({ controller }) => {
+        jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
+          {
+            getAccounts: () => [undefined, undefined],
+          },
+        ]);
+
+        await expect(controller.addNewAccount(1)).rejects.toThrow(
+          "Can't find account at index 1",
+        );
+      });
+    });
   });
 
   describe('addNewAccountForKeyring', () => {
@@ -1069,12 +1111,20 @@ describe('KeyringController', () => {
        * If there is only HD Key Tree keyring with 1 account and removeAccount is called passing that account
        * It deletes keyring object also from state - not sure if this is correct behavior.
        * https://github.com/MetaMask/core/issues/801
+       *
+       * Update: The behaviour is now modified to never remove the HD keyring as a preventive and temporal solution to the current race
+       * condition case we have been seeing lately. https://github.com/MetaMask/mobile-planning/issues/1507
+       * Enforcing this behaviour is not a 100% correct and it should be responsibility of the consumer to handle the accounts
+       * and keyrings in a way that it matches the expected behaviour.
        */
-      it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
+      it('should not remove HD Key Tree keyring nor the single account from state', async () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0] as Hex;
-          await controller.removeAccount(account);
-          expect(controller.state.keyrings).toHaveLength(0);
+          await expect(controller.removeAccount(account)).rejects.toThrow(
+            KeyringControllerError.NoHdKeyring,
+          );
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(1);
         });
       });
 
@@ -2523,6 +2573,16 @@ describe('KeyringController', () => {
           remainingAccounts,
         );
       });
+
+      it('should return no removed and no remaining accounts if no QR keyring is not present', async () => {
+        await withController(async ({ controller }) => {
+          const { removedAccounts, remainingAccounts } =
+            await controller.forgetQRDevice();
+
+          expect(removedAccounts).toHaveLength(0);
+          expect(remainingAccounts).toHaveLength(0);
+        });
+      });
     });
 
     describe('restoreQRKeyring', () => {
@@ -3097,6 +3157,36 @@ describe('KeyringController', () => {
           await messenger.call('KeyringController:persistAllKeyrings');
 
           expect(controller.persistAllKeyrings).toHaveBeenCalledWith();
+        });
+      });
+    });
+  });
+
+  describe('run conditions', () => {
+    describe('submitPassword', () => {
+      it('should not cause run conditions when called multiple times', async () => {
+        await withController(async ({ controller, initialState }) => {
+          await Promise.all([
+            controller.submitPassword(password),
+            controller.submitPassword(password),
+            controller.submitPassword(password),
+            controller.submitPassword(password),
+          ]);
+
+          expect(controller.state).toStrictEqual(initialState);
+        });
+      });
+
+      it('should not cause run conditions when called multiple times in combination with persistAllKeyrings', async () => {
+        await withController(async ({ controller, initialState }) => {
+          await Promise.all([
+            controller.submitPassword(password),
+            controller.persistAllKeyrings(),
+            controller.submitPassword(password),
+            controller.persistAllKeyrings(),
+          ]);
+
+          expect(controller.state).toStrictEqual(initialState);
         });
       });
     });

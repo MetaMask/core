@@ -1,7 +1,7 @@
 import { CHAIN_IDS } from '../constants';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
-import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow';
+import { ScrollLayer1GasFeeFlow } from './ScrollLayer1GasFeeFlow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
@@ -14,13 +14,13 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
   },
 };
 
-describe('OptimismLayer1GasFeeFlow', () => {
+describe('ScrollLayer1GasFeeFlow', () => {
   describe('matchesTransaction', () => {
     it.each([
-      ['Optimisim mainnet', CHAIN_IDS.OPTIMISM],
-      ['Optimisim testnet', CHAIN_IDS.OPTIMISM_TESTNET],
+      ['Scroll', CHAIN_IDS.SCROLL],
+      ['Scroll Sepolia', CHAIN_IDS.SCROLL_SEPOLIA],
     ])('returns true if chain ID is %s', (_title, chainId) => {
-      const flow = new OptimismLayer1GasFeeFlow();
+      const flow = new ScrollLayer1GasFeeFlow();
 
       const transaction = {
         ...TRANSACTION_META_MOCK,
