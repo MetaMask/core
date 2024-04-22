@@ -302,8 +302,7 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      currentState.internalAccounts.accounts[accountId] =
-        internalAccount as Draft<InternalAccount>;
+      currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
 
