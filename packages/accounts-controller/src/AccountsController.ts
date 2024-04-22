@@ -224,13 +224,14 @@ export class AccountsController extends BaseController<
           keyring: {
             type: '',
           },
+          importTime: 0,
         },
       };
     }
 
     const account = this.getAccount(accountId);
     if (account === undefined) {
-      throw new Error(`Account Id ${accountId} not found`);
+      throw new Error(`Account Id "${accountId}" not found`);
     }
     return account;
   }
@@ -262,25 +263,18 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccount(accountId);
+    const account = this.getAccountExpect(accountId);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      if (account) {
-        currentState.internalAccounts.accounts[
-          account.id
-        ].metadata.lastSelected = Date.now();
-        currentState.internalAccounts.selectedAccount = account.id;
-      } else {
-        currentState.internalAccounts.selectedAccount = '';
-      }
+      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    if (account) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedAccountChange',
-        account,
-      );
-    }
+    this.messagingSystem.publish(
+      'AccountsController:selectedAccountChange',
+      account,
+    );
   }
 
   /**
@@ -355,10 +349,15 @@ export class AccountsController extends BaseController<
         metadata: {
           ...internalAccount.metadata,
           name:
-            existingAccount && existingAccount.metadata.name !== ''
-              ? existingAccount.metadata.name
-              : `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          lastSelected: existingAccount?.metadata?.lastSelected,
+            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+            `${keyringTypeName} ${keyringAccountIndex + 1}`,
+          importTime:
+            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
+            Date.now(),
+          lastSelected: this.#populateExistingMetadata(
+            existingAccount?.id,
+            'lastSelected',
+          ),
         },
       };
 
@@ -410,6 +409,7 @@ export class AccountsController extends BaseController<
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
+        importTime: Date.now(),
         keyring: {
           type,
         },
@@ -455,8 +455,10 @@ export class AccountsController extends BaseController<
         address,
       );
 
+      const id = getUUIDFromAddressOfNormalAccount(address);
+
       internalAccounts.push({
-        id: getUUIDFromAddressOfNormalAccount(address),
+        id,
         address,
         options: {},
         methods: [
@@ -469,7 +471,10 @@ export class AccountsController extends BaseController<
         ],
         type: EthAccountType.Eoa,
         metadata: {
-          name: '',
+          name: this.#populateExistingMetadata(id, 'name') ?? '',
+          importTime:
+            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -558,7 +563,7 @@ export class AccountsController extends BaseController<
       for (const account of updatedSnapKeyringAddresses) {
         if (
           !previousSnapInternalAccounts.find(
-            (internalAccount) =>
+            (internalAccount: InternalAccount) =>
               internalAccount.address.toLowerCase() ===
               account.address.toLowerCase(),
           )
@@ -617,7 +622,14 @@ export class AccountsController extends BaseController<
 
         // if the accountToSelect is undefined, then there are no accounts
         // it mean the keyring was reinitialized.
-        this.setSelectedAccount(accountToSelect?.id);
+        if (!accountToSelect) {
+          this.update((currentState: Draft<AccountsControllerState>) => {
+            currentState.internalAccounts.selectedAccount = '';
+          });
+          return;
+        }
+
+        this.setSelectedAccount(accountToSelect.id);
       }
     }
   }
@@ -758,6 +770,7 @@ export class AccountsController extends BaseController<
         metadata: {
           ...newAccount.metadata,
           name: accountName,
+          importTime: Date.now(),
           lastSelected: Date.now(),
         },
       };
@@ -774,6 +787,20 @@ export class AccountsController extends BaseController<
     this.update((currentState: Draft<AccountsControllerState>) => {
       delete currentState.internalAccounts.accounts[accountId];
     });
+  }
+
+  /**
+   * Retrieves the value of a specific metadata key for an existing account.
+   * @param accountId - The ID of the account.
+   * @param metadataKey - The key of the metadata to retrieve.
+   * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
+   */
+  #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
+    accountId: string,
+    metadataKey: T,
+  ): InternalAccount['metadata'][T] | undefined {
+    const internalAccount = this.getAccount(accountId);
+    return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
   }
 
   /**

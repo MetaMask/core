@@ -53,6 +53,7 @@ const mockAccount: InternalAccount = {
   metadata: {
     name: 'Account 1',
     keyring: { type: KeyringTypes.hd },
+    importTime: 1691565967600,
     lastSelected: 1691565967656,
   },
 };
@@ -66,6 +67,7 @@ const mockAccount2: InternalAccount = {
   metadata: {
     name: 'Account 2',
     keyring: { type: KeyringTypes.hd },
+    importTime: 1691565967600,
     lastSelected: 1955565967656,
   },
 };
@@ -84,6 +86,7 @@ const mockAccount3: InternalAccount = {
       id: 'mock-snap-id',
       name: 'snap-name',
     },
+    importTime: 1691565967600,
     lastSelected: 1955565967656,
   },
 };
@@ -102,6 +105,7 @@ const mockAccount4: InternalAccount = {
       id: 'mock-snap-id',
       name: 'snap-name',
     },
+    importTime: 1955565967656,
     lastSelected: 1955565967656,
   },
 };
@@ -167,6 +171,7 @@ function createExpectedInternalAccount({
     metadata: {
       name,
       keyring: { type: keyringType },
+      importTime: expect.any(Number),
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       lastSelected: undefined,
@@ -202,6 +207,7 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
   ) as InternalAccount;
 
   deepClonedAccount.metadata.lastSelected = expect.any(Number);
+  deepClonedAccount.metadata.importTime = expect.any(Number);
   return deepClonedAccount;
 }
 
@@ -1217,6 +1223,7 @@ describe('AccountsController', () => {
           ...mockSnapAccount.metadata,
           name: 'Snap Account 1',
           lastSelected: undefined,
+          importTime: expect.any(Number),
         },
       };
 
@@ -1226,6 +1233,7 @@ describe('AccountsController', () => {
           ...mockSnapAccount2.metadata,
           name: 'Snap Account 2',
           lastSelected: undefined,
+          importTime: expect.any(Number),
         },
       };
 
@@ -1647,6 +1655,7 @@ describe('AccountsController', () => {
     });
 
     it('should throw an error for an unknown account ID', () => {
+      const accountId = 'unknown id';
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1656,8 +1665,8 @@ describe('AccountsController', () => {
         },
       });
 
-      expect(() => accountsController.getAccountExpect('unknown id')).toThrow(
-        `Account Id unknown id not found`,
+      expect(() => accountsController.getAccountExpect(accountId)).toThrow(
+        `Account Id "${accountId}" not found`,
       );
     });
 
@@ -1683,6 +1692,7 @@ describe('AccountsController', () => {
           keyring: {
             type: '',
           },
+          importTime: 0,
         },
       });
     });
@@ -1726,26 +1736,6 @@ describe('AccountsController', () => {
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockAccount2.id);
     });
-
-    it("should set the selected account to '' if the account is not found", () => {
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      accountsController.setSelectedAccount('unknown');
-
-      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
-        '',
-      );
-    });
   });
 
   describe('setAccountName', () => {
@@ -1781,20 +1771,6 @@ describe('AccountsController', () => {
       expect(() =>
         accountsController.setAccountName(mockAccount.id, 'Account 2'),
       ).toThrow('Account name already exists');
-    });
-
-    it('should throw an error if the account ID is not found', () => {
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-      expect(() =>
-        accountsController.setAccountName('unknown account', 'new name'),
-      ).toThrow(`Account Id unknown account not found`);
     });
   });
 
