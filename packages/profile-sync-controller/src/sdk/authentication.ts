@@ -2,6 +2,10 @@ import { Env, getEnvUrls } from './env';
 import { SiweMessage } from "siwe";
 import { NonceRetrievalError, SignInError, UnsupportedAuthTypeError, ValidationError } from './errors';
 import { MESSAGE_SIGNING_SNAP, connectSnap } from './messaging-signing-snap';
+import { InMemoryStorage, LocalStorage } from './local-storage';
+
+const AUTH_STORAGE_KEY = 'authentication/session';
+const SESSION_LIFETIME_MS = 45 * 60 * 1000; // 45 minutes in milliseconds
 
 export enum AuthType {
     /* sign in using a private key derived from your secret recovery phrase (SRP). 
@@ -53,13 +57,12 @@ export type SiweLogin = {
 };
 
 export abstract class BaseAuth {
-    protected accessToken: AccessToken | null = null;
-    protected userProfile: UserProfile | null = null;
     protected siweLogin: SiweLogin | null = null;
     protected envUrls: { authApiUrl: string; oidcApiUrl: string };
 
     constructor(
         protected config: AuthConfig,
+        protected localStorage: LocalStorage = new InMemoryStorage(),
         protected customSignMessage?: (message: string) => Promise<string>,
         protected customGetIdentifier?: () => Promise<string>) {
         this.envUrls = getEnvUrls(config.env);
@@ -68,11 +71,6 @@ export abstract class BaseAuth {
     abstract getAccessToken(): Promise<AccessToken>;
     abstract getUserProfile(): Promise<UserProfile>;
     protected abstract login(): Promise<LoginResponse>;
-
-    async logout(): Promise<void> {
-        this.accessToken = null;
-        this.userProfile = null;
-    }
 
     protected async getNonce(id: string): Promise<NonceResponse> {
         const nonceUrl = new URL(`${this.envUrls.authApiUrl}/api/v2/nonce`);
@@ -164,11 +162,11 @@ export class JwtBearerAuth extends BaseAuth {
     }
 
     async getAccessToken(): Promise<AccessToken> {
-        if (this.#hasValidAuthSession()) {
-            if (this.accessToken) {
-                return this.accessToken;
-            }
+        const session = await this.#getAuthSession();
+        if (session) {
+            return session.token;
         }
+
         const loginResponse = await this.login();
         if (!loginResponse || !loginResponse.token) {
             throw new SignInError('login failed: access token not received');
@@ -177,11 +175,11 @@ export class JwtBearerAuth extends BaseAuth {
     }
 
     async getUserProfile(): Promise<UserProfile> {
-        if (this.#hasValidAuthSession()) {
-            if (this.userProfile) {
-                return this.userProfile;
-            }
+        const session = await this.#getAuthSession();
+        if (session) {
+            return session.profile;
         }
+
         const loginResponse = await this.login();
         if (!loginResponse || !loginResponse.profile) {
             throw new SignInError('login failed: user profile not received');
@@ -223,12 +221,13 @@ export class JwtBearerAuth extends BaseAuth {
 
     async #finalizeLogin(authResponse: Authentication): Promise<LoginResponse> {
         const tokenResponse = await this.#getAccessToken(authResponse.token);
-        this.accessToken = tokenResponse;
-        this.userProfile = authResponse.profile;
-        return {
-            profile: this.userProfile,
-            token: this.accessToken,
+        const response = {
+            profile: authResponse.profile,
+            token: tokenResponse,
         };
+
+        this.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(response));
+        return response;
     }
 
 
@@ -298,15 +297,19 @@ export class JwtBearerAuth extends BaseAuth {
         }
     }
 
-    #hasValidAuthSession(): boolean {
-        if (!this.accessToken || !this.accessToken.obtainedAt) {
-            return false;
+    async #getAuthSession(): Promise<LoginResponse | null> {
+        const auth = await this.localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!auth){
+            return null;
         }
-
-        const sessionLifetimeMs = 45 * 60 * 1000; // 45 minutes in milliseconds
+    
+        const loginResponse = JSON.parse(auth) as LoginResponse;
         const currentTime = Date.now();
-        const sessionAge = currentTime - this.accessToken.obtainedAt;
-        return sessionAge < sessionLifetimeMs;
+        const sessionAge = currentTime - loginResponse.token.obtainedAt;
+        if (sessionAge < SESSION_LIFETIME_MS){
+            return loginResponse;
+        }
+        return null;
     }
 
     #createSrpLoginRawMessage(
