@@ -162,7 +162,6 @@ export type PermissionControllerSubjects<
   PermissionSubjectEntry<SubjectPermission>
 >;
 
-// TODO:TS4.4 Enable compiler flags to forbid unchecked member access
 /**
  * The state of a {@link PermissionController}.
  *
