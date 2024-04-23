@@ -1,7 +1,7 @@
 import { Env, getEnvUrls } from './env';
-import { SiweMessage } from "siwe";
+import { SiweMessage } from 'siwe';
 import { NonceRetrievalError, SignInError, UnsupportedAuthTypeError, ValidationError } from './errors';
-import { MESSAGE_SIGNING_SNAP, connectSnap } from './messaging-signing-snap';
+import { MESSAGE_SIGNING_SNAP } from './messaging-signing-snap';
 import { InMemoryStorage, LocalStorage } from './local-storage';
 
 const AUTH_STORAGE_KEY = 'authentication/session';
@@ -104,7 +104,7 @@ export abstract class BaseAuth {
         // in order to use the automatic message signing snap, 
         // all messages have to start with "metamask:" prefix
         if (!message.startsWith('metamask:')) {
-            throw new ValidationError('Message must start with "metamask:"');
+            throw new ValidationError('message must start with "metamask:"');
         }
 
         const formattedMessage = message as `metamask:${string}`;
@@ -194,7 +194,7 @@ export class JwtBearerAuth extends BaseAuth {
             case AuthType.SiWE:
                 return this.#handleSiweLogin();
             default:
-                throw new UnsupportedAuthTypeError('Unsupported login type');
+                throw new UnsupportedAuthTypeError('unsupported login type');
         }
     }
 
@@ -340,7 +340,7 @@ export class JwtBearerAuth extends BaseAuth {
             case Env.PRD:
                 return '1132f10a-b4e5-4390-a5f2-d9c6022db564';
             default:
-                throw new ValidationError('missing oidc client id');
+                throw new ValidationError('invalid env: cannot determine oidc client id');
         }
     }
 }

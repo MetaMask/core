@@ -40,14 +40,14 @@ export class UserStorage {
             throw new SignInError('unable to create storage key: user profile missing');
         }
 
-        const key = await this.localStorage.getItem(userProfile.profileId);
-        if(key){ 
-            return key;
+        const storageKey = await this.localStorage.getItem(`user_storage/storage_key/${userProfile.profileId}`);
+        if(storageKey){ 
+            return storageKey;
         }
 
         const storageKeySignature = await this.config.auth.signMessage(`metamask:${userProfile.profileId}`);
         const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
-        await this.localStorage.setItem(userProfile.profileId, hashedStorageKeySignature)
+        await this.localStorage.setItem(`user_storage/storage_key/${userProfile.profileId}`, hashedStorageKeySignature)
         return hashedStorageKeySignature;
     }
 
@@ -121,7 +121,7 @@ export class UserStorage {
     async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
         const accessToken = await this.config.auth.getAccessToken();
         if (!accessToken) {
-            throw new SignInError('Access token is missing, unable to authenticate.');
+            throw new SignInError('access token is missing, unable to authenticate.');
         }
         return { Authorization: `Bearer ${accessToken.accessToken}` };
     }
