@@ -30,7 +30,7 @@ describe('NftDetectionController', () => {
     nock(NFT_API_BASE_URL)
       .persist()
       .get(
-        `/users/0x1/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x1/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -97,7 +97,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x9/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x9/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -121,7 +121,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x123/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x123/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -166,7 +166,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x12345/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x12345/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -687,7 +687,7 @@ describe('NftDetectionController', () => {
       .get(`/users/${selectedAddress}/tokens`)
       .query({
         continuation: '',
-        limit: '200',
+        limit: '50',
         chainIds: '1',
         includeTopBid: true,
       })
@@ -725,7 +725,7 @@ describe('NftDetectionController', () => {
           .get(`/users/${selectedAddress}/tokens`)
           .query({
             continuation: '',
-            limit: '200',
+            limit: '50',
             chainIds: '1',
             includeTopBid: true,
           })
@@ -747,7 +747,7 @@ describe('NftDetectionController', () => {
           .get(`/users/${selectedAddress}/tokens`)
           .query({
             continuation: '',
-            limit: '200',
+            limit: '50',
             chainIds: '1',
             includeTopBid: true,
           })
