@@ -95,7 +95,6 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
   /**
    * Additional data associated with the request.
-   * TODO:TS4.4 make optional
    */
   requestData: RequestData;
 
