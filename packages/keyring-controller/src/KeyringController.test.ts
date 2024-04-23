@@ -328,6 +328,51 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    // Testing fix for bug #4157 {@link https://github.com/MetaMask/core/issues/4157}
+    it('should return an existing HD account if the accountCount is lower than oldAccounts', async () => {
+      const mockAddress = '0x123';
+      const mockAddress2 = '0x456';
+      stubKeyringClassWithAccount(MockKeyring, mockAddress, [
+        mockAddress,
+        mockAddress2,
+      ]);
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+        async ({ controller, initialState }) => {
+          await controller.addNewKeyring(MockKeyring.type);
+          const mockKeyring = (await controller.getKeyringsByType(
+            'Mock Keyring',
+          )[0]) as Keyring<Json>;
+
+          await mockKeyring.addAccounts(2);
+
+          // expect there to be two accounts, 1 from HD and 2 from MockKeyring
+          expect(await controller.getAccounts()).toHaveLength(3);
+
+          const accountCount = initialState.keyrings[0].accounts.length;
+          const [primaryKeyring] = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as Keyring<Json>[];
+
+          const firstAccountAdded = await controller.addNewAccountForKeyring(
+            primaryKeyring,
+            accountCount,
+          );
+          const sameAccountAdded = await controller.addNewAccountForKeyring(
+            primaryKeyring,
+            accountCount,
+          );
+          expect(firstAccountAdded).toBe(sameAccountAdded);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
+            accountCount + 1,
+          );
+
+          // add account should be successful
+          expect(await controller.getAccounts()).toHaveLength(4);
+        },
+      );
+    });
   });
 
   describe('addNewAccountWithoutUpdate', () => {
@@ -3218,15 +3263,17 @@ type WithControllerArgs<ReturnValue> =
  * account.
  *
  * @param keyringClass - The keyring class to stub.
- * @param account - The account to return.
+ * @param account - The account to return in addAccounts
+ * @param accounts - The accounts to return in getAccounts
  */
 function stubKeyringClassWithAccount(
   keyringClass: KeyringClass<Json>,
   account: string,
+  accounts?: string[],
 ) {
   jest
     .spyOn(keyringClass.prototype, 'getAccounts')
-    .mockResolvedValue([account]);
+    .mockResolvedValue(accounts || [account]);
   jest
     .spyOn(keyringClass.prototype, 'addAccounts')
     .mockResolvedValue([account]);
