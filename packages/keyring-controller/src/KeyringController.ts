@@ -1570,6 +1570,8 @@ export class KeyringController extends BaseController<
    * when initializing the controller
    */
   async #addQRKeyring(): Promise<QRKeyring> {
+    this.#assertControllerMutexIsLocked();
+
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
     const qrKeyring = (await this.#newKeyring(KeyringTypes.qr, {
       accounts: [],
@@ -1633,6 +1635,8 @@ export class KeyringController extends BaseController<
       opts?: unknown;
     },
   ): Promise<KeyringControllerMemState> {
+    this.#assertControllerMutexIsLocked();
+
     if (typeof password !== 'string') {
       throw new TypeError(KeyringControllerError.WrongPasswordType);
     }
@@ -1899,6 +1903,8 @@ export class KeyringController extends BaseController<
     data: unknown,
     persist = false,
   ): Promise<EthKeyring<Json>> {
+    this.#assertControllerMutexIsLocked();
+
     const keyringBuilder = this.#getKeyringBuilderForType(type);
 
     if (!keyringBuilder) {
@@ -1968,6 +1974,8 @@ export class KeyringController extends BaseController<
   async #restoreKeyring(
     serialized: SerializedKeyring,
   ): Promise<EthKeyring<Json> | undefined> {
+    this.#assertControllerMutexIsLocked();
+
     try {
       const { type, data } = serialized;
       const keyring = await this.#newKeyring(type, data);
@@ -2003,6 +2011,7 @@ export class KeyringController extends BaseController<
    * (usually after removing the last / only account) from a keyring.
    */
   async #removeEmptyKeyrings(): Promise<void> {
+    this.#assertControllerMutexIsLocked();
     const validKeyrings: EthKeyring<Json>[] = [];
 
     // Since getAccounts returns a Promise
@@ -2068,6 +2077,8 @@ export class KeyringController extends BaseController<
    * @fires KeyringController:unlock
    */
   #setUnlocked(): void {
+    this.#assertControllerMutexIsLocked();
+
     this.update((state) => {
       state.isUnlocked = true;
     });
@@ -2079,6 +2090,17 @@ export class KeyringController extends BaseController<
       isUnlocked: this.state.isUnlocked,
       keyrings: this.state.keyrings,
     };
+  }
+
+  /**
+   * Assert that the controller mutex is locked.
+   *
+   * @throws If the controller mutex is not locked.
+   */
+  #assertControllerMutexIsLocked() {
+    if (!this.#controllerOperationMutex.isLocked()) {
+      throw new Error(KeyringControllerError.ControllerLockRequired);
+    }
   }
 
   /**
@@ -2121,9 +2143,7 @@ export class KeyringController extends BaseController<
       releaseLock: MutexInterface.Releaser;
     }) => Promise<T>,
   ): Promise<T> {
-    if (!this.#controllerOperationMutex.isLocked()) {
-      throw new Error(KeyringControllerError.ControllerLockRequired);
-    }
+    this.#assertControllerMutexIsLocked();
 
     return withLock(this.#vaultOperationMutex, fn);
   }
