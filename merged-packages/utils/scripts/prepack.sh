@@ -8,4 +8,4 @@ if [[ -n $SKIP_PREPACK ]]; then
   exit 0
 fi
 
-yarn build:clean
+yarn build
