@@ -191,6 +191,8 @@ export class TransactionController extends BaseController<
 
   private readonly mutex = new Mutex();
 
+  private readonly lookupRegistryMutex = new Mutex();
+
   private readonly getNetworkState: () => NetworkState;
 
   private readonly gasFeeFlows: GasFeeFlow[];
@@ -425,7 +427,7 @@ export class TransactionController extends BaseController<
         return methodData[fourBytePrefix];
       }
 
-      releaseLock = await this.mutex.acquire();
+      releaseLock = await this.lookupRegistryMutex.acquire();
       const registry = await this.registryLookup(fourBytePrefix);
       this.update({
         methodData: { ...methodData, ...{ [fourBytePrefix]: registry } },
