@@ -54,7 +54,7 @@ type NonceResponse = {
   expiresIn: number;
 };
 
-type LoginResponse = {
+export type LoginResponse = {
   token: AccessToken;
   profile: UserProfile;
 };
