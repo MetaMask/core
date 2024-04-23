@@ -1,4 +1,8 @@
-import { NetworkType, convertHexToDecimal } from '@metamask/controller-utils';
+import {
+  NetworkType,
+  convertHexToDecimal,
+  ChainId,
+} from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
 import {
@@ -10,7 +14,7 @@ import * as sinon from 'sinon';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import { API_BASE_URL, CHAIN_IDS } from './constants';
+import { API_BASE_URL } from './constants';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';
@@ -289,7 +293,7 @@ const createTransactionMeta = (
       nonce: '0x4b',
     },
     type: TransactionType.simpleSend,
-    chainId: CHAIN_IDS.ETHEREUM,
+    chainId: ChainId.mainnet,
     time: 1624408066355,
     defaultGasEstimates: {
       gas: '0x7b0d',
@@ -305,14 +309,14 @@ const createTransactionMeta = (
   };
 };
 
-const ethereumChainIdDec = parseInt(CHAIN_IDS.ETHEREUM, 16);
-const goerliChainIdDec = parseInt(CHAIN_IDS.GOERLI, 16);
+const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
+const sepoliaChainIdDec = parseInt(ChainId.sepolia, 16);
 
 const trackMetaMetricsEventSpy = jest.fn();
 const defaultState = {
   smartTransactionsState: {
     smartTransactions: {
-      [CHAIN_IDS.ETHEREUM]: [],
+      [ChainId.mainnet]: [],
     },
     userOptIn: undefined,
     userOptInV2: undefined,
@@ -321,19 +325,19 @@ const defaultState = {
       tradeTxFees: undefined,
     },
     feesByChainId: {
-      [CHAIN_IDS.ETHEREUM]: {
+      [ChainId.mainnet]: {
         approvalTxFees: undefined,
         tradeTxFees: undefined,
       },
-      [CHAIN_IDS.GOERLI]: {
+      [ChainId.sepolia]: {
         approvalTxFees: undefined,
         tradeTxFees: undefined,
       },
     },
     liveness: true,
     livenessByChainId: {
-      [CHAIN_IDS.ETHEREUM]: true,
-      [CHAIN_IDS.GOERLI]: true,
+      [ChainId.mainnet]: true,
+      [ChainId.sepolia]: true,
     },
   },
 };
@@ -343,7 +347,7 @@ const mockProvider = {
 };
 
 const mockProviderConfig = {
-  chainId: '0x1' as `0x${string}`,
+  chainId: ChainId.mainnet,
   provider: mockProvider,
   type: NetworkType.mainnet,
   ticker: 'ticker',
@@ -356,7 +360,7 @@ const mockNetworkState = {
     id: {
       id: 'id',
       rpcUrl: 'string',
-      chainId: '0x1' as `0x${string}`,
+      chainId: ChainId.mainnet,
       ticker: 'string',
     },
   },
@@ -393,16 +397,16 @@ describe('SmartTransactionsController', () => {
       trackMetaMetricsEvent: trackMetaMetricsEventSpy,
       getNetworkClientById: jest.fn().mockImplementation((networkClientId) => {
         switch (networkClientId) {
-          case 'mainnet':
+          case NetworkType.mainnet:
             return {
               configuration: {
-                chainId: CHAIN_IDS.ETHEREUM,
+                chainId: ChainId.mainnet,
               },
             };
-          case 'goerli':
+          case NetworkType.sepolia:
             return {
               configuration: {
-                chainId: CHAIN_IDS.GOERLI,
+                chainId: ChainId.sepolia,
               },
             };
           default:
@@ -425,8 +429,8 @@ describe('SmartTransactionsController', () => {
   it('initializes with default config', () => {
     expect(smartTransactionsController.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
-      supportedChainIds: [CHAIN_IDS.ETHEREUM, CHAIN_IDS.GOERLI],
-      chainId: CHAIN_IDS.ETHEREUM,
+      supportedChainIds: [ChainId.mainnet, ChainId.sepolia],
+      chainId: ChainId.mainnet,
       clientId: 'default',
     });
   });
@@ -471,7 +475,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: pendingStx as SmartTransaction[],
+            [ChainId.mainnet]: pendingStx as SmartTransaction[],
           },
         },
       });
@@ -519,7 +523,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: pendingStx as SmartTransaction[],
+            [ChainId.mainnet]: pendingStx as SmartTransaction[],
           },
         },
       });
@@ -635,11 +639,11 @@ describe('SmartTransactionsController', () => {
     });
 
     it('should add fee data to feesByChainId state using the networkClientId passed in to identify the appropriate chain', async () => {
-      const tradeTx = createUnsignedTransaction(goerliChainIdDec);
-      const approvalTx = createUnsignedTransaction(goerliChainIdDec);
+      const tradeTx = createUnsignedTransaction(sepoliaChainIdDec);
+      const approvalTx = createUnsignedTransaction(sepoliaChainIdDec);
       const getFeesApiResponse = createGetFeesApiResponse();
       nock(API_BASE_URL)
-        .post(`/networks/${goerliChainIdDec}/getFees`)
+        .post(`/networks/${sepoliaChainIdDec}/getFees`)
         .reply(200, getFeesApiResponse);
 
       expect(
@@ -647,17 +651,17 @@ describe('SmartTransactionsController', () => {
       ).toStrictEqual(defaultState.smartTransactionsState.feesByChainId);
 
       await smartTransactionsController.getFees(tradeTx, approvalTx, {
-        networkClientId: 'goerli',
+        networkClientId: NetworkType.sepolia,
       });
 
       expect(
         smartTransactionsController.state.smartTransactionsState.feesByChainId,
       ).toMatchObject({
-        [CHAIN_IDS.ETHEREUM]: {
+        [ChainId.mainnet]: {
           approvalTxFees: undefined,
           tradeTxFees: undefined,
         },
-        [CHAIN_IDS.GOERLI]: {
+        [ChainId.sepolia]: {
           approvalTxFees: getFeesApiResponse.txs[0],
           tradeTxFees: getFeesApiResponse.txs[1],
         },
@@ -690,7 +694,7 @@ describe('SmartTransactionsController', () => {
 
       expect(
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM][0].uuid,
+          .smartTransactions[ChainId.mainnet][0].uuid,
       ).toBe('dP23W7c2kt4FK9TmXOkz1UM2F20');
     });
   });
@@ -710,14 +714,14 @@ describe('SmartTransactionsController', () => {
         .reply(200, pendingBatchStatusApiResponse);
 
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids, {
-        networkClientId: 'mainnet',
+        networkClientId: NetworkType.mainnet,
       });
       const pendingState = createStateAfterPending()[0];
       const pendingTransaction = { ...pendingState, history: [pendingState] };
       expect(smartTransactionsController.state).toStrictEqual({
         smartTransactionsState: {
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingTransaction],
+            [ChainId.mainnet]: [pendingTransaction],
           },
           userOptIn: undefined,
           userOptInV2: undefined,
@@ -726,19 +730,19 @@ describe('SmartTransactionsController', () => {
             tradeTxFees: undefined,
           },
           feesByChainId: {
-            [CHAIN_IDS.ETHEREUM]: {
+            [ChainId.mainnet]: {
               approvalTxFees: undefined,
               tradeTxFees: undefined,
             },
-            [CHAIN_IDS.GOERLI]: {
+            [ChainId.sepolia]: {
               approvalTxFees: undefined,
               tradeTxFees: undefined,
             },
           },
           liveness: true,
           livenessByChainId: {
-            [CHAIN_IDS.ETHEREUM]: true,
-            [CHAIN_IDS.GOERLI]: true,
+            [ChainId.mainnet]: true,
+            [ChainId.sepolia]: true,
           },
         },
       });
@@ -752,8 +756,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsController.state.smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]:
-              createStateAfterPending() as SmartTransaction[],
+            [ChainId.mainnet]: createStateAfterPending() as SmartTransaction[],
           },
         },
       });
@@ -763,14 +766,14 @@ describe('SmartTransactionsController', () => {
         .reply(200, successBatchStatusApiResponse);
 
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids, {
-        networkClientId: 'mainnet',
+        networkClientId: NetworkType.mainnet,
       });
       const successState = createStateAfterSuccess()[0];
       const successTransaction = { ...successState, history: [successState] };
       expect(smartTransactionsController.state).toStrictEqual({
         smartTransactionsState: {
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [
+            [ChainId.mainnet]: [
               ...createStateAfterPending(),
               ...[successTransaction],
             ],
@@ -783,18 +786,18 @@ describe('SmartTransactionsController', () => {
           },
           liveness: true,
           feesByChainId: {
-            '0x1': {
+            [ChainId.mainnet]: {
               approvalTxFees: undefined,
               tradeTxFees: undefined,
             },
-            '0x5': {
+            [ChainId.sepolia]: {
               approvalTxFees: undefined,
               tradeTxFees: undefined,
             },
           },
           livenessByChainId: {
-            '0x1': true,
-            '0x5': true,
+            [ChainId.mainnet]: true,
+            [ChainId.sepolia]: true,
           },
         },
       });
@@ -813,27 +816,27 @@ describe('SmartTransactionsController', () => {
 
     it('fetches liveness and sets in feesByChainId state for the Smart Transactions API for the chainId of the networkClientId passed in', async () => {
       nock(API_BASE_URL)
-        .get(`/networks/${goerliChainIdDec}/health`)
+        .get(`/networks/${sepoliaChainIdDec}/health`)
         .replyWithError('random error');
 
       expect(
         smartTransactionsController.state.smartTransactionsState
           .livenessByChainId,
       ).toStrictEqual({
-        [CHAIN_IDS.ETHEREUM]: true,
-        [CHAIN_IDS.GOERLI]: true,
+        [ChainId.mainnet]: true,
+        [ChainId.sepolia]: true,
       });
 
       await smartTransactionsController.fetchLiveness({
-        networkClientId: 'goerli',
+        networkClientId: NetworkType.sepolia,
       });
 
       expect(
         smartTransactionsController.state.smartTransactionsState
           .livenessByChainId,
       ).toStrictEqual({
-        [CHAIN_IDS.ETHEREUM]: true,
-        [CHAIN_IDS.GOERLI]: false,
+        [ChainId.mainnet]: true,
+        [ChainId.sepolia]: false,
       });
     });
   });
@@ -854,7 +857,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
           },
         },
       });
@@ -865,13 +868,13 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
         {
-          networkClientId: 'mainnet',
+          networkClientId: NetworkType.mainnet,
         },
       );
 
       expect(
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM][0].status,
+          .smartTransactions[ChainId.mainnet][0].status,
       ).toBe('test');
     });
 
@@ -891,7 +894,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
           },
         },
       });
@@ -907,7 +910,7 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
         {
-          networkClientId: 'mainnet',
+          networkClientId: NetworkType.mainnet,
         },
       );
       await flushPromises();
@@ -916,7 +919,7 @@ describe('SmartTransactionsController', () => {
       ).toHaveBeenCalledTimes(1);
       expect(
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM],
+          .smartTransactions[ChainId.mainnet],
       ).toStrictEqual([
         {
           ...updateTransaction,
@@ -941,7 +944,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
           },
         },
       });
@@ -957,7 +960,7 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
         {
-          networkClientId: 'mainnet',
+          networkClientId: NetworkType.mainnet,
         },
       );
       await flushPromises();
@@ -966,7 +969,7 @@ describe('SmartTransactionsController', () => {
       ).toHaveBeenCalledTimes(1);
       expect(
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM],
+          .smartTransactions[ChainId.mainnet],
       ).toStrictEqual([
         {
           ...updateTransaction,
@@ -991,7 +994,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
           },
         },
       });
@@ -1007,7 +1010,7 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
         {
-          networkClientId: 'mainnet',
+          networkClientId: NetworkType.mainnet,
         },
       );
       await flushPromises();
@@ -1016,7 +1019,7 @@ describe('SmartTransactionsController', () => {
       ).toHaveBeenCalledTimes(1);
       expect(
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM],
+          .smartTransactions[ChainId.mainnet],
       ).toStrictEqual([
         {
           ...updateTransaction,
@@ -1040,7 +1043,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
           },
         },
       });
@@ -1056,7 +1059,7 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
         {
-          networkClientId: 'mainnet',
+          networkClientId: NetworkType.mainnet,
         },
       );
       await flushPromises();
@@ -1065,7 +1068,7 @@ describe('SmartTransactionsController', () => {
       ).not.toHaveBeenCalled();
       expect(
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM],
+          .smartTransactions[ChainId.mainnet],
       ).toStrictEqual([
         {
           ...updateTransaction,
@@ -1089,7 +1092,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
           },
         },
       });
@@ -1105,7 +1108,7 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.updateSmartTransaction(
         updateTransaction as SmartTransaction,
         {
-          networkClientId: 'mainnet',
+          networkClientId: NetworkType.mainnet,
         },
       );
       await flushPromises();
@@ -1114,7 +1117,7 @@ describe('SmartTransactionsController', () => {
       ).not.toHaveBeenCalled();
       expect(
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[CHAIN_IDS.ETHEREUM],
+          .smartTransactions[ChainId.mainnet],
       ).toStrictEqual([
         {
           ...updateTransaction,
@@ -1166,7 +1169,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
           },
         },
       });
@@ -1194,7 +1197,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [
+            [ChainId.mainnet]: [
               successfulSmartTransaction,
             ] as SmartTransaction[],
           },
@@ -1214,7 +1217,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: [
+            [ChainId.mainnet]: [
               successfulSmartTransaction,
             ] as SmartTransaction[],
           },
@@ -1240,8 +1243,7 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsController.state.smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]:
-              createStateAfterPending() as SmartTransaction[],
+            [ChainId.mainnet]: createStateAfterPending() as SmartTransaction[],
           },
         },
       });
@@ -1271,20 +1273,20 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...defaultState.smartTransactionsState,
           smartTransactions: {
-            '0x1': [
+            [ChainId.mainnet]: [
               {
                 uuid: 'uuid1',
                 status: 'pending',
                 cancellable: true,
-                chainId: '0x1',
+                chainId: ChainId.mainnet,
               },
             ],
-            '0x5': [
+            [ChainId.sepolia]: [
               {
                 uuid: 'uuid2',
                 status: 'pending',
                 cancellable: true,
-                chainId: '0x5',
+                chainId: ChainId.sepolia,
               },
             ],
           },
@@ -1294,7 +1296,9 @@ describe('SmartTransactionsController', () => {
       const handleFetchSpy = jest.spyOn(utils, 'handleFetch');
 
       const mainnetPollingToken =
-        smartTransactionsController.startPollingByNetworkClientId('mainnet');
+        smartTransactionsController.startPollingByNetworkClientId(
+          NetworkType.mainnet,
+        );
 
       await advanceTime({ clock, duration: 0 });
 
@@ -1308,7 +1312,7 @@ describe('SmartTransactionsController', () => {
       expect(handleFetchSpy).toHaveBeenNthCalledWith(
         1,
         `${API_BASE_URL}/networks/${convertHexToDecimal(
-          CHAIN_IDS.ETHEREUM,
+          ChainId.mainnet,
         )}/batchStatus?uuids=uuid1`,
         fetchHeaders,
       );
@@ -1318,18 +1322,20 @@ describe('SmartTransactionsController', () => {
       expect(handleFetchSpy).toHaveBeenNthCalledWith(
         2,
         `${API_BASE_URL}/networks/${convertHexToDecimal(
-          CHAIN_IDS.ETHEREUM,
+          ChainId.mainnet,
         )}/batchStatus?uuids=uuid1`,
         fetchHeaders,
       );
 
-      smartTransactionsController.startPollingByNetworkClientId('goerli');
+      smartTransactionsController.startPollingByNetworkClientId(
+        NetworkType.sepolia,
+      );
       await advanceTime({ clock, duration: 0 });
 
       expect(handleFetchSpy).toHaveBeenNthCalledWith(
         3,
         `${API_BASE_URL}/networks/${convertHexToDecimal(
-          CHAIN_IDS.GOERLI,
+          ChainId.sepolia,
         )}/batchStatus?uuids=uuid2`,
         fetchHeaders,
       );
@@ -1339,7 +1345,7 @@ describe('SmartTransactionsController', () => {
       expect(handleFetchSpy).toHaveBeenNthCalledWith(
         5,
         `${API_BASE_URL}/networks/${convertHexToDecimal(
-          CHAIN_IDS.GOERLI,
+          ChainId.sepolia,
         )}/batchStatus?uuids=uuid2`,
         fetchHeaders,
       );
@@ -1354,11 +1360,11 @@ describe('SmartTransactionsController', () => {
 
       await advanceTime({ clock, duration: DEFAULT_INTERVAL });
 
-      // check that the mainnet polling has stopped while the goerli polling continues
+      // check that the mainnet polling has stopped while the sepolia polling continues
       expect(handleFetchSpy).toHaveBeenNthCalledWith(
         6,
         `${API_BASE_URL}/networks/${convertHexToDecimal(
-          CHAIN_IDS.GOERLI,
+          ChainId.sepolia,
         )}/batchStatus?uuids=uuid2`,
         fetchHeaders,
       );
@@ -1366,7 +1372,7 @@ describe('SmartTransactionsController', () => {
       expect(handleFetchSpy).toHaveBeenNthCalledWith(
         7,
         `${API_BASE_URL}/networks/${convertHexToDecimal(
-          CHAIN_IDS.GOERLI,
+          ChainId.sepolia,
         )}/batchStatus?uuids=uuid2`,
         fetchHeaders,
       );
@@ -1375,6 +1381,74 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.update(defaultState);
 
       smartTransactionsController.stopAllPolling();
+    });
+  });
+
+  describe('wipeSmartTransactions', () => {
+    beforeEach(() => {
+      const newSmartTransactions = {
+        [ChainId.mainnet]: [
+          { uuid: 'some-uuid-1', txParams: { from: '0x123' } },
+          { uuid: 'some-uuid-2', txParams: { from: '0x456' } },
+          { uuid: 'some-uuid-3', txParams: { from: '0x123' } },
+        ],
+        [ChainId.sepolia]: [
+          { uuid: 'some-uuid-4', txParams: { from: '0x123' } },
+          { uuid: 'some-uuid-5', txParams: { from: '0x789' } },
+          { uuid: 'some-uuid-6', txParams: { from: '0x123' } },
+        ],
+      };
+      const { smartTransactionsState } = smartTransactionsController.state;
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: newSmartTransactions,
+        },
+      });
+    });
+
+    it('does not modify state if no address is provided', () => {
+      const prevState = {
+        ...smartTransactionsController.state,
+      };
+      smartTransactionsController.wipeSmartTransactions({ address: '' });
+      expect(smartTransactionsController.state).toStrictEqual(prevState);
+    });
+
+    it('removes transactions from current chainId if ignoreNetwork is true', () => {
+      const address = '0x123';
+      smartTransactionsController.wipeSmartTransactions({
+        address,
+        ignoreNetwork: true,
+      });
+      expect(
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[smartTransactionsController.config.chainId],
+      ).not.toContainEqual({ txParams: { from: address } });
+      expect(
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[ChainId.sepolia],
+      ).toContainEqual(
+        expect.objectContaining({
+          txParams: expect.objectContaining({ from: address }),
+        }),
+      );
+    });
+
+    it('removes transactions from all supported chainIds if ignoreNetwork is false', () => {
+      const address = '0x123';
+      smartTransactionsController.wipeSmartTransactions({
+        address,
+        ignoreNetwork: false,
+      });
+      smartTransactionsController.config.supportedChainIds.forEach(
+        (chainId) => {
+          expect(
+            smartTransactionsController.state.smartTransactionsState
+              .smartTransactions[chainId],
+          ).not.toContainEqual({ txParams: { from: address } });
+        },
+      );
     });
   });
 });
