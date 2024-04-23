@@ -363,7 +363,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     address: string;
     next?: string;
   }) {
-    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=${
+    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
       next ?? ''
     }`;
   }
