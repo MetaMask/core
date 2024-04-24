@@ -2,16 +2,17 @@ import { HttpResponse } from 'msw';
 import { AuthType, JwtBearerAuth, LoginResponse } from './authentication';
 import { Env } from './env';
 import { NotFoundError, UserStorageError } from './errors';
-import { MOCK_ACCESS_JWT, MOCK_JWT, handleMockNonce, handleMockOAuth2Token, handleMockSiweLogin, handleMockSrpLogin } from './mocks/mock-auth';
-import { MOCK_NOTIFICATIONS_DATA_ENCRYPTED, MOCK_STORAGE_KEY, handleMockUserStorageGet, handleMockUserStoragePut } from './mocks/mock-userstorage';
+import { MOCK_JWT, handleMockOAuth2Token } from './mocks/mock-auth';
+import { MOCK_STORAGE_KEY, handleMockUserStorageGet, handleMockUserStoragePut } from './mocks/mock-userstorage';
 import { server } from './mocks/msw';
 import { UserStorage } from './user-storage';
+import { createSHA256Hash } from './encryption';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
 describe('User Storage', () => {
-    test('get/set user storage using SRP', async () => {
+    test('get/set key using SRP', async () => {
         const authInstance = new JwtBearerAuth({
             env: Env.DEV,
             type: AuthType.SRP
@@ -51,19 +52,27 @@ describe('User Storage', () => {
         server.use(
             handleMockOAuth2Token({
                 async inspect(ctx) {
-                    const body = await ctx.request.formData()
+                    const body = await ctx.request.formData();
                     expect(body.get('assertion')).toBe(MOCK_JWT);
                 }
             })
         );
 
+        server.use(
+            handleMockUserStorageGet({
+              inspect(ctx) {
+                expect(ctx.request.url).toContain(createSHA256Hash('ui_settings' + MOCK_STORAGE_KEY));
+              }
+            })
+          );
+
         const expected = JSON.stringify({ is_compact: false });
-        await userStorageInstance.setItem('notifications', 'ui_settings', expected)
+        await userStorageInstance.setItem('notifications', 'ui_settings', expected);
         const response = await userStorageInstance.getItem('notifications', 'ui_settings')
         expect(response).toBe(expected);
     });
 
-    test('get/set user storage using SiWE', async () => {
+    test('get/set key using SiWE', async () => {
         const authInstance = new JwtBearerAuth({
             env: Env.DEV,
             type: AuthType.SiWE
@@ -110,9 +119,9 @@ describe('User Storage', () => {
             })
         );
 
-        const expected = JSON.stringify({ is_compact: false })
-        await userStorageInstance.setItem('notifications', 'ui_settings', expected)
-        const response = await userStorageInstance.getItem('notifications', 'ui_settings')
+        const expected = JSON.stringify({ is_compact: false });
+        await userStorageInstance.setItem('notifications', 'ui_settings', expected);
+        const response = await userStorageInstance.getItem('notifications', 'ui_settings');
         expect(response).toBe(expected);
     });
 
@@ -165,14 +174,14 @@ describe('User Storage', () => {
 
         server.use(
             handleMockUserStoragePut({
-              callback: () => HttpResponse.json({
-                message: 'failed to insert storage entry',
-                error: 'generic-error' 
-              }, { status: 500, statusText: `Internal` })
+                callback: () => HttpResponse.json({
+                    message: 'failed to insert storage entry',
+                    error: 'generic-error'
+                }, { status: 500, statusText: `Internal` })
             })
-          );
+        );
 
-        const expected = JSON.stringify({ is_compact: false })
+        const expected = JSON.stringify({ is_compact: false });
         await expect(userStorageInstance.setItem('notifications', 'ui_settings', expected)).rejects.toThrow(UserStorageError);
     });
 
@@ -224,12 +233,12 @@ describe('User Storage', () => {
 
         server.use(
             handleMockUserStorageGet({
-              callback: () => HttpResponse.json({
-                message: 'failed to get storage entry',
-                error: 'generic-error' 
-              }, { status: 500, statusText: `Internal` })
+                callback: () => HttpResponse.json({
+                    message: 'failed to get storage entry',
+                    error: 'generic-error'
+                }, { status: 500, statusText: `Internal` })
             })
-          );
+        );
 
         await expect(userStorageInstance.getItem('notifications', 'ui_settings')).rejects.toThrow(UserStorageError);
     });
@@ -283,12 +292,12 @@ describe('User Storage', () => {
 
         server.use(
             handleMockUserStorageGet({
-              callback: () => HttpResponse.json({
-                message: 'key not found',
-                error: 'cannot get key' 
-              }, { status: 404, statusText: `Not Found` })
+                callback: () => HttpResponse.json({
+                    message: 'key not found',
+                    error: 'cannot get key'
+                }, { status: 404, statusText: `Not Found` })
             })
-          );
+        );
 
         await expect(userStorageInstance.getItem('notifications', 'ui_settings')).rejects.toThrow(NotFoundError);
     });
