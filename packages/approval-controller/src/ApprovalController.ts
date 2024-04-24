@@ -92,7 +92,7 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   /**
    * The type of the approval request.
    * Unfortunately, not all values will match the `ApprovalType` enum.
-   * The `string` type would ideally be removed one day.
+   * TODO: Remove the `string` member by either narrowing the `type` property, or expanding the `ApprovalType` enum, to encompass all approval request types used in the clients.
    */
   type: ApprovalType | string;
 
