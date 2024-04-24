@@ -4,6 +4,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import type { ApprovalType } from '@metamask/controller-utils';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
@@ -91,7 +92,7 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   /**
    * The type of the approval request.
    */
-  type: string;
+  type: ApprovalType;
 
   /**
    * Additional data associated with the request.
