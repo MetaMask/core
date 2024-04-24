@@ -1143,7 +1143,7 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValueOnce([mockAddress1, mockAddress2]),
+        mockGetAccounts.mockResolvedValueOnce([mockAddress1, mockAddress2]),
       );
 
       messenger.registerActionHandler(
@@ -1194,7 +1194,7 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValueOnce([]),
+        mockGetAccounts.mockResolvedValueOnce([]),
       );
 
       messenger.registerActionHandler(
@@ -1248,7 +1248,7 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValueOnce([]),
+        mockGetAccounts.mockResolvedValueOnce([]),
       );
 
       messenger.registerActionHandler(
@@ -1278,7 +1278,7 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValueOnce([mockAddress1, mockAddress2]),
+        mockGetAccounts.mockResolvedValueOnce([mockAddress1, mockAddress2]),
       );
 
       messenger.registerActionHandler(
@@ -1338,7 +1338,7 @@ describe('AccountsController', () => {
       // first account will be normal, second will be a snap account
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValue([mockAddress1, '0x1234']),
+        mockGetAccounts.mockResolvedValue([mockAddress1, '0x1234']),
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
@@ -1393,7 +1393,7 @@ describe('AccountsController', () => {
       // first account will be normal, second will be a snap account
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValue(['0x1234', mockAddress1]),
+        mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]),
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
@@ -1447,7 +1447,7 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValue([mockAddress1]),
+        mockGetAccounts.mockResolvedValue([mockAddress1]),
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
@@ -1494,7 +1494,7 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
-        mockGetAccounts.mockReturnValue([mockAddress1]),
+        mockGetAccounts.mockResolvedValue([mockAddress1]),
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
@@ -2021,7 +2021,7 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         messenger.registerActionHandler(
           'KeyringController:getAccounts',
-          mockGetAccounts.mockReturnValueOnce([]),
+          mockGetAccounts.mockResolvedValueOnce([]),
         );
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',

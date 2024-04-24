@@ -445,7 +445,7 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves to an array of InternalAccount objects.
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
-    const addresses = this.messagingSystem.call(
+    const addresses = await this.messagingSystem.call(
       'KeyringController:getAccounts',
     );
     const internalAccounts: InternalAccount[] = [];

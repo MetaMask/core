@@ -187,7 +187,7 @@ describe('KeyringController', () => {
           await controller.addNewKeyring(MockKeyring.type);
 
           // expect there to be two accounts, 1 from HD and 1 from MockKeyring
-          expect(controller.getAccounts()).toHaveLength(2);
+          expect(await controller.getAccounts()).toHaveLength(2);
 
           const accountCount = initialState.keyrings[0].accounts.length;
           // We add a new account for "index 1" (not existing yet)
@@ -200,7 +200,7 @@ describe('KeyringController', () => {
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
           );
-          expect(controller.getAccounts()).toHaveLength(3);
+          expect(await controller.getAccounts()).toHaveLength(3);
         },
       );
     });
@@ -704,7 +704,7 @@ describe('KeyringController', () => {
     it('should get accounts', async () => {
       await withController(async ({ controller, initialState }) => {
         const initialAccount = initialState.keyrings[0].accounts;
-        const accounts = controller.getAccounts();
+        const accounts = await controller.getAccounts();
         expect(accounts).toStrictEqual(initialAccount);
       });
     });
@@ -2571,7 +2571,7 @@ describe('KeyringController', () => {
           signProcessKeyringController.state.keyrings[1].accounts,
         ).toHaveLength(0);
         expect(accountsToBeRemoved).toStrictEqual(removedAccounts);
-        expect(signProcessKeyringController.getAccounts()).toStrictEqual(
+        expect(await signProcessKeyringController.getAccounts()).toStrictEqual(
           remainingAccounts,
         );
       });
@@ -3141,9 +3141,9 @@ describe('KeyringController', () => {
       it('should return all accounts', async () => {
         jest
           .spyOn(KeyringController.prototype, 'getAccounts')
-          .mockReturnValue(['0x1234']);
+          .mockResolvedValue(['0x1234']);
         await withController(async ({ controller, messenger }) => {
-          messenger.call('KeyringController:getAccounts');
+          await messenger.call('KeyringController:getAccounts');
 
           expect(controller.getAccounts).toHaveBeenCalledWith();
         });

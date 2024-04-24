@@ -790,9 +790,9 @@ export class KeyringController extends BaseController<
   /**
    * Returns the public addresses of all accounts from every keyring.
    *
-   * @returns An array of addresses.
+   * @returns A promise resolving to an array of addresses.
    */
-  getAccounts(): string[] {
+  async getAccounts(): Promise<string[]> {
     return this.state.keyrings.reduce<string[]>(
       (accounts, keyring) => accounts.concat(keyring.accounts),
       [],

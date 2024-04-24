@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING**: `getAccounts` return type changed from `Promise<string>` to `string` ([#4182](https://github.com/MetaMask/core/pull/4182))
-
 ## [15.0.0]
 
 ### Changed
