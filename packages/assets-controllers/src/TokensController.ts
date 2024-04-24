@@ -1,5 +1,9 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import type {
+  AccountsControllerGetAccountExpectAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
   BaseConfig,
@@ -26,7 +30,6 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
   Provider,
 } from '@metamask/network-controller';
-import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -47,18 +50,19 @@ import type {
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import { isEVMAccoount } from '@metamask/accounts-controller/src/utils';
 
 /**
  * @type TokensConfig
  *
  * Tokens controller configuration
- * @property selectedAddress - Vault selected address
+ * @property selectedAccountId - Vault selected address
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokensConfig extends BaseConfig {
-  selectedAddress: string;
+  selectedAccountId: string;
   chainId: Hex;
   provider: Provider | undefined;
 }
@@ -126,7 +130,8 @@ export type TokensControllerAddDetectedTokensAction = {
  */
 export type AllowedActions =
   | AddApprovalRequest
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | AccountsControllerGetAccountExpectAction;
 
 // TODO: Once `TokensController` is upgraded to V2, rewrite this type using the `ControllerStateChangeEvent` type, which constrains `TokensState` as `Record<string, Json>`.
 export type TokensControllerStateChangeEvent = {
@@ -138,8 +143,8 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
 export type AllowedEvents =
   | NetworkControllerNetworkDidChangeEvent
-  | PreferencesControllerStateChangeEvent
-  | TokenListStateChange;
+  | TokenListStateChange
+  | AccountsControllerSelectedAccountChangeEvent;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -236,7 +241,7 @@ export class TokensController extends BaseControllerV1<
     super(config, state);
 
     this.defaultConfig = {
-      selectedAddress: '',
+      selectedAccountId: '',
       chainId: initialChainId,
       provider: undefined,
       ...config,
@@ -258,15 +263,20 @@ export class TokensController extends BaseControllerV1<
     );
 
     this.messagingSystem.subscribe(
-      'PreferencesController:stateChange',
-      ({ selectedAddress }) => {
+      'AccountsController:selectedAccountChange',
+      (internalAccount) => {
+        if (!isEVMAccoount(internalAccount)) {
+          return;
+        }
         const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
         const { chainId } = this.config;
-        this.configure({ selectedAddress });
+        this.configure({ selectedAccountId: internalAccount.id });
         this.update({
-          tokens: allTokens[chainId]?.[selectedAddress] ?? [],
-          ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] ?? [],
-          detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] ?? [],
+          tokens: allTokens[chainId]?.[internalAccount.address] ?? [],
+          ignoredTokens:
+            allIgnoredTokens[chainId]?.[internalAccount.address] ?? [],
+          detectedTokens:
+            allDetectedTokens[chainId]?.[internalAccount.address] ?? [],
         });
       },
     );
@@ -275,7 +285,11 @@ export class TokensController extends BaseControllerV1<
       'NetworkController:networkDidChange',
       ({ providerConfig }) => {
         const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-        const { selectedAddress } = this.config;
+        const { selectedAccountId } = this.config;
+        const { address: selectedAddress } = this.messagingSystem.call(
+          'AccountsController:getAccountExpect',
+          selectedAccountId,
+        );
         const { chainId } = providerConfig;
         this.abortController.abort();
         this.abortController = new AbortController();
@@ -329,7 +343,7 @@ export class TokensController extends BaseControllerV1<
     interactingAddress?: string;
     networkClientId?: NetworkClientId;
   }): Promise<Token[]> {
-    const { chainId, selectedAddress } = this.config;
+    const { chainId, selectedAccountId } = this.config;
     const releaseLock = await this.mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     let currentChainId = chainId;
@@ -340,8 +354,17 @@ export class TokensController extends BaseControllerV1<
       ).configuration.chainId;
     }
 
-    const accountAddress = interactingAddress || selectedAddress;
-    const isInteractingWithWalletAccount = accountAddress === selectedAddress;
+    const internalAccount = this.messagingSystem.call(
+      'AccountsController:getAccountExpect',
+      selectedAccountId,
+    );
+    if (!isEVMAccoount(internalAccount)) {
+      return [];
+    }
+
+    const accountAddress = interactingAddress || internalAccount.address;
+    const isInteractingWithWalletAccount =
+      accountAddress === internalAccount.address;
 
     try {
       address = toChecksumHexAddress(address);
@@ -548,10 +571,18 @@ export class TokensController extends BaseControllerV1<
   ) {
     const releaseLock = await this.mutex.acquire();
 
+    const internalAccount = this.messagingSystem.call(
+      'AccountsController:getAccountExpect',
+      this.config.selectedAccountId,
+    );
+    if (!isEVMAccoount(internalAccount)) {
+      return [];
+    }
+
     // Get existing tokens for the chain + account
     const chainId = detectionDetails?.chainId ?? this.config.chainId;
     const accountAddress =
-      detectionDetails?.selectedAddress ?? this.config.selectedAddress;
+      detectionDetails?.selectedAddress ?? internalAccount.address;
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     let newTokens = [...(allTokens?.[chainId]?.[accountAddress] ?? [])];

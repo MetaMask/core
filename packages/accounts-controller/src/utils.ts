@@ -1,4 +1,6 @@
 import { toBuffer } from '@ethereumjs/util';
+import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import type { V4Options } from 'uuid';
@@ -67,4 +69,15 @@ export function getUUIDOptionsFromAddressOfNormalAccount(
  */
 export function getUUIDFromAddressOfNormalAccount(address: string): string {
   return uuid(getUUIDOptionsFromAddressOfNormalAccount(address));
+}
+
+/**
+ * Checks if the given internal account is an EVM account.
+ * @param internalAccount - The internal account to check.
+ * @returns True if the internal account is an EVM account, false otherwise.
+ */
+export function isEVMAccount(internalAccount: InternalAccount): boolean {
+  return [EthAccountType.Eoa, EthAccountType.Erc4337].includes(
+    internalAccount.type as EthAccountType,
+  );
 }

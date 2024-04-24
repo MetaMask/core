@@ -8,6 +8,7 @@ export type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetAccountAction,
+  AccountsControllerGetAccountExpectAction,
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,
@@ -15,4 +16,8 @@ export type {
   AccountsControllerMessenger,
 } from './AccountsController';
 export { AccountsController } from './AccountsController';
-export { keyringTypeToName, getUUIDFromAddressOfNormalAccount } from './utils';
+export {
+  isEVMAccount,
+  keyringTypeToName,
+  getUUIDFromAddressOfNormalAccount,
+} from './utils';

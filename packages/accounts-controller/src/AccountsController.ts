@@ -75,6 +75,11 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
+export type AccountsControllerGetAccountExpectAction = {
+  type: `${typeof controllerName}:getAccountExpect`;
+  handler: AccountsController['getAccountExpect'];
+};
+
 export type AllowedActions =
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
@@ -88,7 +93,8 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountAction;
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetAccountExpectAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -839,6 +845,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `AccountsController:getAccount`,
       this.getAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `AccountsController:getAccountExpect`,
+      this.getAccountExpect.bind(this),
     );
   }
 }
