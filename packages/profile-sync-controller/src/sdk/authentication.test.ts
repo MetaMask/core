@@ -8,7 +8,7 @@ import { NonceRetrievalError, SignInError } from './errors';
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
-describe('AuthSDK', () => {
+describe('Authentication', () => {
   test('SRP signIn success', async () => {
     const instance = new JwtBearerAuth({
       env: Env.DEV,

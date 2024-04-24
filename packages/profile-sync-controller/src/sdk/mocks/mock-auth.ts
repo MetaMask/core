@@ -1,14 +1,5 @@
 import { HttpResponse, http } from "msw";
-import type { HttpResponseResolver } from "msw";
-import type { ResponseResolverInfo } from "msw/lib/core/handlers/RequestHandler";
-
-export type InterceptParams = {
-  /** inspect allows testers to see inside a mock handler but continue exection */
-  inspect?: (ctx: ResponseResolverInfo<Record<string, unknown>>) => void | Promise<void>;
-  
-  /** callback allows testers to replace the logic and response of handler */
-  callback?: HttpResponseResolver;
-};
+import { InterceptParams } from "./msw";
 
 export const MOCK_JWT =
   "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImIwNzE2N2U2LWJjNWUtNDgyZC1hNjRhLWU1MjQ0MjY2MGU3NyJ9.eyJzdWIiOiI1MzE0ODc5YWM2NDU1OGI3OTQ5ZmI4NWIzMjg2ZjZjNjUwODAzYmFiMTY0Y2QyOWNmMmM3YzdmMjMzMWMwZTRlIiwiaWF0IjoxNzA2MTEzMDYyLCJleHAiOjE3NjkxODUwNjMsImlzcyI6ImF1dGgubWV0YW1hc2suaW8iLCJhdWQiOiJwb3J0Zm9saW8ubWV0YW1hc2suaW8ifQ.E5UL6oABNweS8t5a6IBTqTf7NLOJbrhJSmEcsr7kwLp4bGvcENJzACwnsHDkA6PlzfDV09ZhAGU_F3hlS0j-erbY0k0AFR-GAtyS7E9N02D8RgUDz5oDR65CKmzM8JilgFA8UvruJ6OJGogroaOSOqzRES_s8MjHpP47RJ9lXrUesajsbOudXbuksXWg5QmWip6LLvjwr8UUzcJzNQilyIhiEpo4WdzWM4R3VtTwr4rHnWEvtYnYCov1jmI2w3YQ48y0M-3Y9IOO0ov_vlITRrOnR7Y7fRUGLUFmU5msD8mNWRywjQFLHfJJ1yNP5aJ8TkuCK3sC6kcUH335IVvukQ";
