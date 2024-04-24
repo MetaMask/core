@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.1]
 
-### Uncategorized
+### Fixed
 
 - Support number gas values in user operation receipts ([#4161](https://github.com/MetaMask/core/pull/4161))
-- Release 141.0.0 ([#4183](https://github.com/MetaMask/core/pull/4183))
 
 ## [8.0.0]
 
