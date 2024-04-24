@@ -2747,12 +2747,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat has a value that is not valid JSON', () => {
+    it('throws if a requested caveat has a value with a self-referential cycle', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const circular: any = { foo: 'bar' };
+      const circular: Record<string, unknown> = { foo: 'bar' };
+      // Create a cycle. This will cause our JSON validity check to error.
       circular.circular = circular;
 
       [{ foo: () => undefined }, circular, { foo: BigInt(10) }].forEach(
@@ -2765,6 +2765,7 @@ describe('PermissionController', () => {
                   caveats: [
                     {
                       type: CaveatTypes.filterArrayResponse,
+                      // @ts-expect-error Intentional destructive testing
                       value: invalidValue,
                     },
                   ],
@@ -5406,17 +5407,10 @@ describe('PermissionController', () => {
 
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
-      engine.push(
-        (
-          _req: unknown,
-          res: PendingJsonRpcResponse<'success'>,
-          _next: unknown,
-          end: () => unknown,
-        ) => {
-          res.result = 'success';
-          end();
-        },
-      );
+      engine.push((_req, res, _next, end) => {
+        res.result = 'success';
+        end();
+      });
 
       const response = (await engine.handle({
         jsonrpc: '2.0',

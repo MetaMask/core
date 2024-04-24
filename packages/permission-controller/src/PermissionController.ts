@@ -120,10 +120,14 @@ export type PermissionsRequest = {
 };
 
 export type SideEffects = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  permittedHandlers: Record<string, SideEffectHandler<any, any>>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  failureHandlers: Record<string, SideEffectHandler<any, any>>;
+  permittedHandlers: Record<
+    string,
+    SideEffectHandler<ActionConstraint, EventConstraint>
+  >;
+  failureHandlers: Record<
+    string,
+    SideEffectHandler<ActionConstraint, EventConstraint>
+  >;
 };
 
 /**
