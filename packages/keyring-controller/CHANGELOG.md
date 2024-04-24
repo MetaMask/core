@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: `KeyringController` methods don't return the controller state ([#4199](https://github.com/MetaMask/core/pull/4199))
+- **BREAKING**: Change various `KeyringController` methods so they no longer return the controller state ([#4199](https://github.com/MetaMask/core/pull/4199))
   - Changed `addNewAccount` return type to `Promise<string>`
   - Changed `addNewAccountWithoutUpdate` return type to `Promise<string>`
   - Changed `createNewVaultAndKeychain` return type to `Promise<void>`
