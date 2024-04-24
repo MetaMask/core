@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): bump @metamask/keyring-api to 6.0.0, @metamask/eth-snap-keyring to 4.0.0 and snap dependencies ([#4193](https://github.com/MetaMask/core/pull/4193))
+
 ## [13.0.0]
 
 ### Changed
