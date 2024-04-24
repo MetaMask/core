@@ -1874,6 +1874,8 @@ export class KeyringController extends BaseController<
    * @returns A promise that resolves if the operation is successful.
    */
   async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
+    this.#assertControllerMutexIsLocked();
+
     const keyring = (await this.#newKeyring(
       type,
       opts,
@@ -1953,6 +1955,7 @@ export class KeyringController extends BaseController<
   async #clearKeyrings(
     options: { skipStateUpdate: boolean } = { skipStateUpdate: false },
   ) {
+    this.#assertControllerMutexIsLocked();
     for (const keyring of this.#keyrings) {
       await this.#destroyKeyring(keyring);
     }
