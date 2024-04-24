@@ -1,19 +1,34 @@
 import { HttpResponse, http } from "msw";
 import { InterceptParams } from "./msw";
+import encryption from "../encryption";
+
+export const MOCK_STORAGE_KEY = 'MOCK_STORAGE_KEY';
+export const MOCK_NOTIFICATIONS_DATA = { is_compact: false };
+export const MOCK_NOTIFICATIONS_DATA_ENCRYPTED = encryption.encryptString(
+  JSON.stringify(MOCK_NOTIFICATIONS_DATA),
+  MOCK_STORAGE_KEY,
+);
 
 export const handleMockUserStorageGet = (params?: InterceptParams) =>
-  http.get("https://user-storage.dev-api.cx.metamask.io/api/v1/userstorage/notifications/006924262004cea603c25922bbebdf506ab29f76f7f5f1bb7f0254ca8e9a02c8", async (ctx) => {
-    if (params?.inspect) await params.inspect(ctx);
-    if (params?.callback) return await params.callback(ctx);
-    return HttpResponse.json({
-        HashedKey: "8485d2c14c333ebca415140a276adaf546619b0efc204586b73a5d400a18a5e2",
-        Data: "{\"v\":\"1\",\"d\":\"lFe1XrQHvvnhLx9EsqSgayI8tOC/wC8oDccXA/l9xqzVs7m6TkNdpNTDB4rW58hX6OrhrjCMlFDTtg1GDfgEUA==\",\"iterations\":900000}"
-    });
-  });
+  http.get(
+    'https://user-storage.dev-api.cx.metamask.io/api/v1/userstorage/notifications/*', 
+    async (ctx) => {
+      if (params?.inspect) await params.inspect(ctx);
+      if (params?.callback) return await params.callback(ctx);
+      return HttpResponse.json({
+        HashedKey:
+          '8485d2c14c333ebca415140a276adaf546619b0efc204586b73a5d400a18a5e2',
+        Data: MOCK_NOTIFICATIONS_DATA_ENCRYPTED, 
+      });
+    },
+  );
 
 export const handleMockUserStoragePut = (params?: InterceptParams) =>
-  http.put("https://user-storage.dev-api.cx.metamask.io/api/v1/userstorage/notifications/006924262004cea603c25922bbebdf506ab29f76f7f5f1bb7f0254ca8e9a02c8", async (ctx) => {
-    if (params?.inspect) await params.inspect(ctx); 
-    if (params?.callback) return await params.callback(ctx);
-    return HttpResponse.json({});
-  });
+  http.put(
+    'https://user-storage.dev-api.cx.metamask.io/api/v1/userstorage/notifications/*',
+    async (ctx) => {
+      if (params?.inspect) await params.inspect(ctx);
+      if (params?.callback) return await params.callback(ctx);
+      return HttpResponse.json({});
+    },
+  );
