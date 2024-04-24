@@ -486,7 +486,7 @@ export class KeyringController extends BaseController<
   KeyringControllerState,
   KeyringControllerMessenger
 > {
-  readonly #initVaultMutex = new Mutex();
+  readonly #controllerOperationMutex = new Mutex();
 
   readonly #vaultOperationMutex = new Mutex();
 
@@ -570,39 +570,41 @@ export class KeyringController extends BaseController<
     keyringState: KeyringControllerMemState;
     addedAccountAddress: string;
   }> {
-    const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-      | EthKeyring<Json>
-      | undefined;
-    if (!primaryKeyring) {
-      throw new Error('No HD keyring found');
-    }
-    const oldAccounts = await primaryKeyring.getAccounts();
-
-    if (accountCount && oldAccounts.length !== accountCount) {
-      if (accountCount > oldAccounts.length) {
-        throw new Error('Account out of sequence');
+    return this.#withControllerLock(async () => {
+      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+        | EthKeyring<Json>
+        | undefined;
+      if (!primaryKeyring) {
+        throw new Error('No HD keyring found');
       }
-      // we return the account already existing at index `accountCount`
-      const existingAccount = oldAccounts[accountCount];
+      const oldAccounts = await primaryKeyring.getAccounts();
 
-      if (!existingAccount) {
-        throw new Error(`Can't find account at index ${accountCount}`);
+      if (accountCount && oldAccounts.length !== accountCount) {
+        if (accountCount > oldAccounts.length) {
+          throw new Error('Account out of sequence');
+        }
+        // we return the account already existing at index `accountCount`
+        const existingAccount = oldAccounts[accountCount];
+
+        if (!existingAccount) {
+          throw new Error(`Can't find account at index ${accountCount}`);
+        }
+
+        return {
+          keyringState: this.#getMemState(),
+          addedAccountAddress: existingAccount,
+        };
       }
+
+      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
+      await this.verifySeedPhrase();
+      await this.#updateVault();
 
       return {
         keyringState: this.#getMemState(),
-        addedAccountAddress: existingAccount,
+        addedAccountAddress,
       };
-    }
-
-    const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
-    await this.verifySeedPhrase();
-    await this.#updateVault();
-
-    return {
-      keyringState: this.#getMemState(),
-      addedAccountAddress,
-    };
+    });
   }
 
   /**
@@ -616,28 +618,30 @@ export class KeyringController extends BaseController<
     keyring: EthKeyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
-    const oldAccounts = await this.#getAccountsFromKeyrings();
+    return this.#withControllerLock(async () => {
+      const oldAccounts = await this.#getAccountsFromKeyrings();
 
-    if (accountCount && oldAccounts.length !== accountCount) {
-      if (accountCount > oldAccounts.length) {
-        throw new Error('Account out of sequence');
+      if (accountCount && oldAccounts.length !== accountCount) {
+        if (accountCount > oldAccounts.length) {
+          throw new Error('Account out of sequence');
+        }
+
+        const existingAccount = oldAccounts[accountCount];
+        assertIsStrictHexString(existingAccount);
+
+        return existingAccount;
       }
 
-      const existingAccount = oldAccounts[accountCount];
-      assertIsStrictHexString(existingAccount);
+      await keyring.addAccounts(1);
+      await this.#updateVault();
 
-      return existingAccount;
-    }
+      const addedAccountAddress = (await this.#getAccountsFromKeyrings()).find(
+        (selectedAddress) => !oldAccounts.includes(selectedAddress),
+      );
+      assertIsStrictHexString(addedAccountAddress);
 
-    await keyring.addAccounts(1);
-    await this.#updateVault();
-
-    const addedAccountAddress = (await this.#getAccountsFromKeyrings()).find(
-      (selectedAddress) => !oldAccounts.includes(selectedAddress),
-    );
-    assertIsStrictHexString(addedAccountAddress);
-
-    return addedAccountAddress;
+      return addedAccountAddress;
+    });
   }
 
   /**
@@ -646,16 +650,18 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to current state when the account is added.
    */
   async addNewAccountWithoutUpdate(): Promise<KeyringControllerMemState> {
-    const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-      | EthKeyring<Json>
-      | undefined;
-    if (!primaryKeyring) {
-      throw new Error('No HD keyring found');
-    }
-    await primaryKeyring.addAccounts(1);
-    await this.#updateVault();
-    await this.verifySeedPhrase();
-    return this.#getMemState();
+    return this.#withControllerLock(async () => {
+      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+        | EthKeyring<Json>
+        | undefined;
+      if (!primaryKeyring) {
+        throw new Error('No HD keyring found');
+      }
+      await primaryKeyring.addAccounts(1);
+      await this.#updateVault();
+      await this.verifySeedPhrase();
+      return this.#getMemState();
+    });
   }
 
   /**
@@ -671,12 +677,11 @@ export class KeyringController extends BaseController<
     password: string,
     seed: Uint8Array,
   ): Promise<KeyringControllerMemState> {
-    const releaseLock = await this.#initVaultMutex.acquire();
-    if (!password || !password.length) {
-      throw new Error('Invalid password');
-    }
+    return this.#withControllerLock(async () => {
+      if (!password || !password.length) {
+        throw new Error('Invalid password');
+      }
 
-    try {
       await this.#createNewVaultWithKeyring(password, {
         type: KeyringTypes.hd,
         opts: {
@@ -684,10 +689,9 @@ export class KeyringController extends BaseController<
           numberOfAccounts: 1,
         },
       });
+
       return this.#getMemState();
-    } finally {
-      releaseLock();
-    }
+    });
   }
 
   /**
@@ -697,8 +701,7 @@ export class KeyringController extends BaseController<
    * @returns Newly-created keychain object.
    */
   async createNewVaultAndKeychain(password: string) {
-    const releaseLock = await this.#initVaultMutex.acquire();
-    try {
+    return this.#withControllerLock(async () => {
       const accounts = await this.#getAccountsFromKeyrings();
       if (!accounts.length) {
         await this.#createNewVaultWithKeyring(password, {
@@ -706,9 +709,7 @@ export class KeyringController extends BaseController<
         });
       }
       return this.#getMemState();
-    } finally {
-      releaseLock();
-    }
+    });
   }
 
   /**
@@ -727,7 +728,9 @@ export class KeyringController extends BaseController<
       return this.getOrAddQRKeyring();
     }
 
-    return this.#newKeyring(type, opts, true);
+    return this.#withControllerLock(async () =>
+      this.#newKeyring(type, opts, true),
+    );
   }
 
   /**
@@ -790,7 +793,10 @@ export class KeyringController extends BaseController<
    * @returns A promise resolving to an array of addresses.
    */
   async getAccounts(): Promise<string[]> {
-    return this.#getAccountsFromKeyrings();
+    return this.state.keyrings.reduce<string[]>(
+      (accounts, keyring) => accounts.concat(keyring.accounts),
+      [],
+    );
   }
 
   /**
@@ -903,7 +909,7 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
-    return this.#updateVault();
+    return this.#withControllerLock(async () => this.#updateVault());
   }
 
   /**
@@ -924,55 +930,57 @@ export class KeyringController extends BaseController<
     keyringState: KeyringControllerMemState;
     importedAccountAddress: string;
   }> {
-    let privateKey;
-    switch (strategy) {
-      case 'privateKey':
-        const [importedKey] = args;
-        if (!importedKey) {
-          throw new Error('Cannot import an empty key.');
-        }
-        const prefixed = add0x(importedKey);
+    return this.#withControllerLock(async () => {
+      let privateKey;
+      switch (strategy) {
+        case 'privateKey':
+          const [importedKey] = args;
+          if (!importedKey) {
+            throw new Error('Cannot import an empty key.');
+          }
+          const prefixed = add0x(importedKey);
 
-        let bufferedPrivateKey;
-        try {
-          bufferedPrivateKey = toBuffer(prefixed);
-        } catch {
-          throw new Error('Cannot import invalid private key.');
-        }
+          let bufferedPrivateKey;
+          try {
+            bufferedPrivateKey = toBuffer(prefixed);
+          } catch {
+            throw new Error('Cannot import invalid private key.');
+          }
 
-        if (
-          !isValidPrivate(bufferedPrivateKey) ||
-          // ensures that the key is 64 bytes long
-          getBinarySize(prefixed) !== 64 + '0x'.length
-        ) {
-          throw new Error('Cannot import invalid private key.');
-        }
+          if (
+            !isValidPrivate(bufferedPrivateKey) ||
+            // ensures that the key is 64 bytes long
+            getBinarySize(prefixed) !== 64 + '0x'.length
+          ) {
+            throw new Error('Cannot import invalid private key.');
+          }
 
-        privateKey = remove0x(prefixed);
-        break;
-      case 'json':
-        let wallet;
-        const [input, password] = args;
-        try {
-          wallet = importers.fromEtherWallet(input, password);
-        } catch (e) {
-          wallet = wallet || (await Wallet.fromV3(input, password, true));
-        }
-        privateKey = bytesToHex(wallet.getPrivateKey());
-        break;
-      default:
-        throw new Error(`Unexpected import strategy: '${strategy}'`);
-    }
-    const newKeyring = (await this.#newKeyring(
-      KeyringTypes.simple,
-      [privateKey],
-      true,
-    )) as EthKeyring<Json>;
-    const accounts = await newKeyring.getAccounts();
-    return {
-      keyringState: this.#getMemState(),
-      importedAccountAddress: accounts[0],
-    };
+          privateKey = remove0x(prefixed);
+          break;
+        case 'json':
+          let wallet;
+          const [input, password] = args;
+          try {
+            wallet = importers.fromEtherWallet(input, password);
+          } catch (e) {
+            wallet = wallet || (await Wallet.fromV3(input, password, true));
+          }
+          privateKey = bytesToHex(wallet.getPrivateKey());
+          break;
+        default:
+          throw new Error(`Unexpected import strategy: '${strategy}'`);
+      }
+      const newKeyring = (await this.#newKeyring(
+        KeyringTypes.simple,
+        [privateKey],
+        true,
+      )) as EthKeyring<Json>;
+      const accounts = await newKeyring.getAccounts();
+      return {
+        keyringState: this.#getMemState(),
+        importedAccountAddress: accounts[0],
+      };
+    });
   }
 
   /**
@@ -983,30 +991,35 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving current state when this account removal completes.
    */
   async removeAccount(address: Hex): Promise<KeyringControllerMemState> {
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const returnValue = await this.#withControllerLock(async () => {
+      const keyring = (await this.getKeyringForAccount(
+        address,
+      )) as EthKeyring<Json>;
 
-    // Not all the keyrings support this, so we have to check
-    if (!keyring.removeAccount) {
-      throw new Error(KeyringControllerError.UnsupportedRemoveAccount);
-    }
+      // Not all the keyrings support this, so we have to check
+      if (!keyring.removeAccount) {
+        throw new Error(KeyringControllerError.UnsupportedRemoveAccount);
+      }
 
-    // The `removeAccount` method of snaps keyring is async. We have to update
-    // the interface of the other keyrings to be async as well.
-    // eslint-disable-next-line @typescript-eslint/await-thenable
-    await keyring.removeAccount(address);
+      // The `removeAccount` method of snaps keyring is async. We have to update
+      // the interface of the other keyrings to be async as well.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
+      await keyring.removeAccount(address);
 
-    const accounts = await keyring.getAccounts();
-    // Check if this was the last/only account
-    if (accounts.length === 0) {
-      await this.#removeEmptyKeyrings();
-    }
+      const accounts = await keyring.getAccounts();
+      // Check if this was the last/only account
+      if (accounts.length === 0) {
+        await this.#removeEmptyKeyrings();
+      }
 
-    await this.#updateVault();
+      await this.#updateVault();
+
+      return this.#getMemState();
+    });
 
     this.messagingSystem.publish(`${name}:accountRemoved`, address);
-    return this.#getMemState();
+
+    return returnValue;
   }
 
   /**
@@ -1015,18 +1028,20 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to current state.
    */
   async setLocked(): Promise<KeyringControllerMemState> {
-    this.#unsubscribeFromQRKeyringsEvents();
+    return this.#withControllerLock(async () => {
+      this.#unsubscribeFromQRKeyringsEvents();
 
-    this.#password = undefined;
-    this.update((state) => {
-      state.isUnlocked = false;
-      state.keyrings = [];
+      this.#password = undefined;
+      this.update((state) => {
+        state.isUnlocked = false;
+        state.keyrings = [];
+      });
+      await this.#clearKeyrings();
+
+      this.messagingSystem.publish(`${name}:lock`);
+
+      return this.#getMemState();
     });
-    await this.#clearKeyrings();
-
-    this.messagingSystem.publish(`${name}:lock`);
-
-    return this.#getMemState();
   }
 
   /**
@@ -1233,21 +1248,23 @@ export class KeyringController extends BaseController<
     encryptionKey: string,
     encryptionSalt: string,
   ): Promise<KeyringControllerMemState> {
-    this.#keyrings = await this.#unlockKeyrings(
-      undefined,
-      encryptionKey,
-      encryptionSalt,
-    );
-    this.#setUnlocked();
+    return this.#withControllerLock(async () => {
+      this.#keyrings = await this.#unlockKeyrings(
+        undefined,
+        encryptionKey,
+        encryptionSalt,
+      );
+      this.#setUnlocked();
 
-    const qrKeyring = this.getQRKeyring();
-    if (qrKeyring) {
-      // if there is a QR keyring, we need to subscribe
-      // to its events after unlocking the vault
-      this.#subscribeToQRKeyringEvents(qrKeyring);
-    }
+      const qrKeyring = this.getQRKeyring();
+      if (qrKeyring) {
+        // if there is a QR keyring, we need to subscribe
+        // to its events after unlocking the vault
+        this.#subscribeToQRKeyringEvents(qrKeyring);
+      }
 
-    return this.#getMemState();
+      return this.#getMemState();
+    });
   }
 
   /**
@@ -1258,17 +1275,19 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the current state.
    */
   async submitPassword(password: string): Promise<KeyringControllerMemState> {
-    this.#keyrings = await this.#unlockKeyrings(password);
-    this.#setUnlocked();
+    return this.#withControllerLock(async () => {
+      this.#keyrings = await this.#unlockKeyrings(password);
+      this.#setUnlocked();
 
-    const qrKeyring = this.getQRKeyring();
-    if (qrKeyring) {
-      // if there is a QR keyring, we need to subscribe
-      // to its events after unlocking the vault
-      this.#subscribeToQRKeyringEvents(qrKeyring);
-    }
+      const qrKeyring = this.getQRKeyring();
+      if (qrKeyring) {
+        // if there is a QR keyring, we need to subscribe
+        // to its events after unlocking the vault
+        this.#subscribeToQRKeyringEvents(qrKeyring);
+      }
 
-    return this.#getMemState();
+      return this.#getMemState();
+    });
   }
 
   /**
@@ -1338,15 +1357,20 @@ export class KeyringController extends BaseController<
    * @returns The added keyring
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
-    return this.getQRKeyring() || (await this.#addQRKeyring());
+    return (
+      this.getQRKeyring() ||
+      (await this.#withControllerLock(async () => this.#addQRKeyring()))
+    );
   }
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
-    const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
-    keyring.deserialize(serialized);
-    await this.#updateVault();
+    return this.#withControllerLock(async () => {
+      const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
+      keyring.deserialize(serialized);
+      await this.#updateVault();
+    });
   }
 
   async resetQRKeyringState(): Promise<void> {
@@ -1387,41 +1411,45 @@ export class KeyringController extends BaseController<
   async connectQRHardware(
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {
-    try {
-      const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
-      let accounts;
-      switch (page) {
-        case -1:
-          accounts = await keyring.getPreviousPage();
-          break;
-        case 1:
-          accounts = await keyring.getNextPage();
-          break;
-        default:
-          accounts = await keyring.getFirstPage();
+    return this.#withControllerLock(async () => {
+      try {
+        const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
+        let accounts;
+        switch (page) {
+          case -1:
+            accounts = await keyring.getPreviousPage();
+            break;
+          case 1:
+            accounts = await keyring.getNextPage();
+            break;
+          default:
+            accounts = await keyring.getFirstPage();
+        }
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return accounts.map((account: any) => {
+          return {
+            ...account,
+            balance: '0x0',
+          };
+        });
+      } catch (e) {
+        // TODO: Add test case for when keyring throws
+        /* istanbul ignore next */
+        throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
       }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return accounts.map((account: any) => {
-        return {
-          ...account,
-          balance: '0x0',
-        };
-      });
-    } catch (e) {
-      // TODO: Add test case for when keyring throws
-      /* istanbul ignore next */
-      throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
-    }
+    });
   }
 
   async unlockQRHardwareWalletAccount(index: number): Promise<void> {
-    const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
+    return this.#withControllerLock(async () => {
+      const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
 
-    keyring.setAccountToUnlock(index);
-    await keyring.addAccounts(1);
+      keyring.setAccountToUnlock(index);
+      await keyring.addAccounts(1);
 
-    await this.#updateVault();
+      await this.#updateVault();
+    });
   }
 
   async getAccountKeyringType(account: string): Promise<string> {
@@ -1435,21 +1463,23 @@ export class KeyringController extends BaseController<
     removedAccounts: string[];
     remainingAccounts: string[];
   }> {
-    const keyring = this.getQRKeyring();
+    return this.#withControllerLock(async () => {
+      const keyring = this.getQRKeyring();
 
-    if (!keyring) {
-      return { removedAccounts: [], remainingAccounts: [] };
-    }
+      if (!keyring) {
+        return { removedAccounts: [], remainingAccounts: [] };
+      }
 
-    const allAccounts = (await this.#getAccountsFromKeyrings()) as string[];
-    keyring.forgetDevice();
-    const remainingAccounts =
-      (await this.#getAccountsFromKeyrings()) as string[];
-    const removedAccounts = allAccounts.filter(
-      (address: string) => !remainingAccounts.includes(address),
-    );
-    await this.#updateVault();
-    return { removedAccounts, remainingAccounts };
+      const allAccounts = (await this.#getAccountsFromKeyrings()) as string[];
+      keyring.forgetDevice();
+      const remainingAccounts =
+        (await this.#getAccountsFromKeyrings()) as string[];
+      const removedAccounts = allAccounts.filter(
+        (address: string) => !remainingAccounts.includes(address),
+      );
+      await this.#updateVault();
+      return { removedAccounts, remainingAccounts };
+    });
   }
 
   /**
@@ -1540,6 +1570,8 @@ export class KeyringController extends BaseController<
    * when initializing the controller
    */
   async #addQRKeyring(): Promise<QRKeyring> {
+    this.#assertControllerMutexIsLocked();
+
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
     const qrKeyring = (await this.#newKeyring(KeyringTypes.qr, {
       accounts: [],
@@ -1603,6 +1635,8 @@ export class KeyringController extends BaseController<
       opts?: unknown;
     },
   ): Promise<KeyringControllerMemState> {
+    this.#assertControllerMutexIsLocked();
+
     if (typeof password !== 'string') {
       throw new TypeError(KeyringControllerError.WrongPasswordType);
     }
@@ -1840,6 +1874,8 @@ export class KeyringController extends BaseController<
    * @returns A promise that resolves if the operation is successful.
    */
   async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
+    this.#assertControllerMutexIsLocked();
+
     const keyring = (await this.#newKeyring(
       type,
       opts,
@@ -1869,6 +1905,8 @@ export class KeyringController extends BaseController<
     data: unknown,
     persist = false,
   ): Promise<EthKeyring<Json>> {
+    this.#assertControllerMutexIsLocked();
+
     const keyringBuilder = this.#getKeyringBuilderForType(type);
 
     if (!keyringBuilder) {
@@ -1917,6 +1955,7 @@ export class KeyringController extends BaseController<
   async #clearKeyrings(
     options: { skipStateUpdate: boolean } = { skipStateUpdate: false },
   ) {
+    this.#assertControllerMutexIsLocked();
     for (const keyring of this.#keyrings) {
       await this.#destroyKeyring(keyring);
     }
@@ -1938,6 +1977,8 @@ export class KeyringController extends BaseController<
   async #restoreKeyring(
     serialized: SerializedKeyring,
   ): Promise<EthKeyring<Json> | undefined> {
+    this.#assertControllerMutexIsLocked();
+
     try {
       const { type, data } = serialized;
       const keyring = await this.#newKeyring(type, data);
@@ -1973,6 +2014,7 @@ export class KeyringController extends BaseController<
    * (usually after removing the last / only account) from a keyring.
    */
   async #removeEmptyKeyrings(): Promise<void> {
+    this.#assertControllerMutexIsLocked();
     const validKeyrings: EthKeyring<Json>[] = [];
 
     // Since getAccounts returns a Promise
@@ -2038,6 +2080,8 @@ export class KeyringController extends BaseController<
    * @fires KeyringController:unlock
    */
   #setUnlocked(): void {
+    this.#assertControllerMutexIsLocked();
+
     this.update((state) => {
       state.isUnlocked = true;
     });
@@ -2049,6 +2093,39 @@ export class KeyringController extends BaseController<
       isUnlocked: this.state.isUnlocked,
       keyrings: this.state.keyrings,
     };
+  }
+
+  /**
+   * Assert that the controller mutex is locked.
+   *
+   * @throws If the controller mutex is not locked.
+   */
+  #assertControllerMutexIsLocked() {
+    if (!this.#controllerOperationMutex.isLocked()) {
+      throw new Error(KeyringControllerError.ControllerLockRequired);
+    }
+  }
+
+  /**
+   * Lock the controller mutex before executing the given function,
+   * and release it after the function is resolved or after an
+   * error is thrown.
+   *
+   * This wrapper ensures that each mutable operation that interacts with the
+   * controller and that changes its state is executed in a mutually exclusive way,
+   * preventing unsafe concurrent access that could lead to unpredictable behavior.
+   *
+   * @param fn - The function to execute while the controller mutex is locked.
+   * @returns The result of the function.
+   */
+  async #withControllerLock<T>(
+    fn: ({
+      releaseLock,
+    }: {
+      releaseLock: MutexInterface.Releaser;
+    }) => Promise<T>,
+  ): Promise<T> {
+    return withLock(this.#controllerOperationMutex, fn);
   }
 
   /**
@@ -2069,13 +2146,31 @@ export class KeyringController extends BaseController<
       releaseLock: MutexInterface.Releaser;
     }) => Promise<T>,
   ): Promise<T> {
-    const releaseLock = await this.#vaultOperationMutex.acquire();
+    this.#assertControllerMutexIsLocked();
 
-    try {
-      return await fn({ releaseLock });
-    } finally {
-      releaseLock();
-    }
+    return withLock(this.#vaultOperationMutex, fn);
+  }
+}
+
+/**
+ * Lock the given mutex before executing the given function,
+ * and release it after the function is resolved or after an
+ * error is thrown.
+ *
+ * @param mutex - The mutex to lock.
+ * @param fn - The function to execute while the mutex is locked.
+ * @returns The result of the function.
+ */
+async function withLock<T>(
+  mutex: Mutex,
+  fn: ({ releaseLock }: { releaseLock: MutexInterface.Releaser }) => Promise<T>,
+): Promise<T> {
+  const releaseLock = await mutex.acquire();
+
+  try {
+    return await fn({ releaseLock });
+  } finally {
+    releaseLock();
   }
 }
 

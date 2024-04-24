@@ -571,7 +571,9 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         expect(controller.isUnlocked()).toBe(true);
         expect(controller.state.isUnlocked).toBe(true);
-        controller.setLocked();
+
+        await controller.setLocked();
+
         expect(controller.isUnlocked()).toBe(false);
         expect(controller.state.isUnlocked).toBe(false);
       });
@@ -3163,31 +3165,47 @@ describe('KeyringController', () => {
   });
 
   describe('run conditions', () => {
-    describe('submitPassword', () => {
-      it('should not cause run conditions when called multiple times', async () => {
-        await withController(async ({ controller, initialState }) => {
-          await Promise.all([
-            controller.submitPassword(password),
-            controller.submitPassword(password),
-            controller.submitPassword(password),
-            controller.submitPassword(password),
-          ]);
+    it('should not cause run conditions when called multiple times', async () => {
+      await withController(async ({ controller, initialState }) => {
+        await Promise.all([
+          controller.submitPassword(password),
+          controller.submitPassword(password),
+          controller.submitPassword(password),
+          controller.submitPassword(password),
+        ]);
 
-          expect(controller.state).toStrictEqual(initialState);
-        });
+        expect(controller.state).toStrictEqual(initialState);
       });
+    });
 
-      it('should not cause run conditions when called multiple times in combination with persistAllKeyrings', async () => {
-        await withController(async ({ controller, initialState }) => {
-          await Promise.all([
-            controller.submitPassword(password),
-            controller.persistAllKeyrings(),
-            controller.submitPassword(password),
-            controller.persistAllKeyrings(),
-          ]);
+    it('should not cause run conditions when called multiple times in combination with persistAllKeyrings', async () => {
+      await withController(async ({ controller, initialState }) => {
+        await Promise.all([
+          controller.submitPassword(password),
+          controller.persistAllKeyrings(),
+          controller.submitPassword(password),
+          controller.persistAllKeyrings(),
+        ]);
 
-          expect(controller.state).toStrictEqual(initialState);
+        expect(controller.state).toStrictEqual(initialState);
+      });
+    });
+
+    it('should not cause a deadlock when subscribing to state changes', async () => {
+      await withController(async ({ controller, initialState, messenger }) => {
+        let executed = false;
+        const listener = jest.fn(async () => {
+          if (!executed) {
+            executed = true;
+            await controller.persistAllKeyrings();
+          }
         });
+        messenger.subscribe('KeyringController:stateChange', listener);
+
+        await controller.submitPassword(password);
+
+        expect(controller.state).toStrictEqual(initialState);
+        expect(listener).toHaveBeenCalled();
       });
     });
   });
