@@ -12,7 +12,6 @@ import type {
   JsonRpcFailure,
   JsonRpcRequest,
   JsonRpcSuccess,
-  PendingJsonRpcResponse,
 } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 import assert from 'assert';
@@ -27,6 +26,7 @@ import type {
   PermissionControllerActions,
   PermissionControllerEvents,
   PermissionOptions,
+  PermissionsRequest,
   RestrictedMethodOptions,
   RestrictedMethodParameters,
   ValidPermission,
@@ -457,6 +457,18 @@ type AllowedActions =
   | AcceptApprovalRequest
   | RejectApprovalRequest
   | GetSubjectMetadata;
+
+/**
+ * Params for `ApprovalController:addRequest` of type `wallet_requestPermissions`.
+ */
+type AddPermissionRequestParams = {
+  id: string;
+  origin: string;
+  requestData: PermissionsRequest;
+  type: MethodNames.requestPermissions;
+};
+
+type AddPermissionRequestArgs = [string, AddPermissionRequestParams];
 
 /**
  * Gets a unrestricted controller messenger. Used for tests.
@@ -2888,9 +2900,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -2939,9 +2950,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -2991,9 +3001,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3052,9 +3061,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3117,9 +3125,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3191,9 +3198,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3247,9 +3253,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3300,9 +3305,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3346,9 +3350,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3402,9 +3405,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -3472,9 +3474,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             // endowmentAnySubject is added to the request
@@ -3551,9 +3552,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           const approvedPermissions = { ...requestData.permissions };
           delete approvedPermissions[PermissionNames.wallet_getSecretArray];
 
@@ -3626,9 +3626,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           const approvedPermissions = { ...requestData.permissions };
           approvedPermissions[PermissionNames.wallet_getSecretObject] = {
             caveats: [
@@ -3921,9 +3920,8 @@ describe('PermissionController', () => {
             extensionId: null,
           };
         })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: { ...requestData.permissions },
@@ -4113,9 +4111,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             // different id
             metadata: { ...requestData.metadata, id: 'foo' },
@@ -4164,9 +4161,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             // different origin
             metadata: { ...requestData.metadata, origin: 'foo.com' },
@@ -4215,9 +4211,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: {}, // no permissions
@@ -4268,8 +4263,7 @@ describe('PermissionController', () => {
       const callActionSpy = jest.spyOn(messenger, 'call');
 
       // The metadata is valid, but the permissions are invalid
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const getInvalidRequestObject = (invalidPermissions: any) => {
+      const getInvalidRequestObject = (invalidPermissions: unknown) => {
         return {
           metadata: { origin, id },
           permissions: invalidPermissions,
@@ -4327,9 +4321,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: {
@@ -4401,9 +4394,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
+        .mockImplementationOnce(async (...args) => {
+          const [, { requestData }] = args as AddPermissionRequestArgs;
           return {
             metadata: { ...requestData.metadata },
             permissions: {
