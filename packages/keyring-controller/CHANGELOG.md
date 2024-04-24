@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: `KeyringController` methods don't return the controller state ([#4199](https://github.com/MetaMask/core/pull/4199))
+  - Changed `addNewAccount` return type to `Promise<string>`
+  - Changed `addNewAccountWithoutUpdate` return type to `Promise<string>`
+  - Changed `createNewVaultAndKeychain` return type to `Promise<void>`
+  - Changed `createNewVaultAndRestore` return type to `Promise<void>`
+  - Changed `importAccountWithStrategy` return type to `Promise<string>`
+  - Changed `removeAccount` return type to `Promise<void>`
+  - Changed `setLocked` return type to `Promise<void>`
+  - Changed `submitEncryptionKey` return type to `Promise<void>`
+  - Changed `submitPassword` return type to `Promise<void>`
+
 ## [15.0.0]
 
 ### Changed

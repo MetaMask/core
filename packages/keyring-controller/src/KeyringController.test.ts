@@ -106,7 +106,7 @@ describe('KeyringController', () => {
     describe('when accountCount is not provided', () => {
       it('should add new account', async () => {
         await withController(async ({ controller, initialState }) => {
-          const { addedAccountAddress } = await controller.addNewAccount();
+          const addedAccountAddress = await controller.addNewAccount();
           expect(initialState.keyrings).toHaveLength(1);
           expect(initialState.keyrings[0].accounts).not.toStrictEqual(
             controller.state.keyrings[0].accounts,
@@ -125,7 +125,7 @@ describe('KeyringController', () => {
     describe('when accountCount is provided', () => {
       it('should add new account if accountCount is in sequence', async () => {
         await withController(async ({ controller, initialState }) => {
-          const { addedAccountAddress } = await controller.addNewAccount(
+          const addedAccountAddress = await controller.addNewAccount(
             initialState.keyrings[0].accounts.length,
           );
           expect(initialState.keyrings).toHaveLength(1);
@@ -154,10 +154,12 @@ describe('KeyringController', () => {
       it('should not add a new account if called twice with the same accountCount param', async () => {
         await withController(async ({ controller, initialState }) => {
           const accountCount = initialState.keyrings[0].accounts.length;
-          const { addedAccountAddress: firstAccountAdded } =
-            await controller.addNewAccount(accountCount);
-          const { addedAccountAddress: secondAccountAdded } =
-            await controller.addNewAccount(accountCount);
+          const firstAccountAdded = await controller.addNewAccount(
+            accountCount,
+          );
+          const secondAccountAdded = await controller.addNewAccount(
+            accountCount,
+          );
           expect(firstAccountAdded).toBe(secondAccountAdded);
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
@@ -191,11 +193,13 @@ describe('KeyringController', () => {
 
           const accountCount = initialState.keyrings[0].accounts.length;
           // We add a new account for "index 1" (not existing yet)
-          const { addedAccountAddress: firstAccountAdded } =
-            await controller.addNewAccount(accountCount);
+          const firstAccountAdded = await controller.addNewAccount(
+            accountCount,
+          );
           // Adding an account for an existing index will return the existing account's address
-          const { addedAccountAddress: secondAccountAdded } =
-            await controller.addNewAccount(accountCount);
+          const secondAccountAdded = await controller.addNewAccount(
+            accountCount,
+          );
           expect(firstAccountAdded).toBe(secondAccountAdded);
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
@@ -714,7 +718,7 @@ describe('KeyringController', () => {
     describe('when the keyring for the given address supports getEncryptionPublicKey', () => {
       it('should return the correct encryption public key', async () => {
         await withController(async ({ controller }) => {
-          const { importedAccountAddress } =
+          const importedAccountAddress =
             await controller.importAccountWithStrategy(
               AccountImportStrategy.privateKey,
               [privateKey],
@@ -755,7 +759,7 @@ describe('KeyringController', () => {
     describe('when the keyring for the given address supports decryptMessage', () => {
       it('should successfully decrypt a message with valid parameters and return the raw decryption result', async () => {
         await withController(async ({ controller }) => {
-          const { importedAccountAddress } =
+          const importedAccountAddress =
             await controller.importAccountWithStrategy(
               AccountImportStrategy.privateKey,
               [privateKey],
@@ -936,7 +940,7 @@ describe('KeyringController', () => {
               accounts: [address],
               type: 'Simple Key Pair',
             };
-            const { importedAccountAddress } =
+            const importedAccountAddress =
               await controller.importAccountWithStrategy(
                 AccountImportStrategy.privateKey,
                 [privateKey],
@@ -1002,7 +1006,7 @@ describe('KeyringController', () => {
             const somePassword = 'holachao123';
             const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
 
-            const { importedAccountAddress } =
+            const importedAccountAddress =
               await controller.importAccountWithStrategy(
                 AccountImportStrategy.json,
                 [input, somePassword],

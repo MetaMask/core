@@ -563,13 +563,9 @@ export class KeyringController extends BaseController<
    *
    * @param accountCount - Number of accounts before adding a new one, used to
    * make the method idempotent.
-   * @returns Promise resolving to keyring current state and added account
-   * address.
+   * @returns Promise resolving to the added account address.
    */
-  async addNewAccount(accountCount?: number): Promise<{
-    keyringState: KeyringControllerMemState;
-    addedAccountAddress: string;
-  }> {
+  async addNewAccount(accountCount?: number): Promise<string> {
     return this.#withControllerLock(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring<Json>
@@ -590,20 +586,14 @@ export class KeyringController extends BaseController<
           throw new Error(`Can't find account at index ${accountCount}`);
         }
 
-        return {
-          keyringState: this.#getMemState(),
-          addedAccountAddress: existingAccount,
-        };
+        return existingAccount;
       }
 
       const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
       await this.verifySeedPhrase();
       await this.#updateVault();
 
-      return {
-        keyringState: this.#getMemState(),
-        addedAccountAddress,
-      };
+      return addedAccountAddress;
     });
   }
 
@@ -612,7 +602,7 @@ export class KeyringController extends BaseController<
    *
    * @param keyring - Keyring to add the account to.
    * @param accountCount - Number of accounts before adding a new one, used to make the method idempotent.
-   * @returns Promise resolving to keyring current state and added account
+   * @returns Promise resolving to the added account address
    */
   async addNewAccountForKeyring(
     keyring: EthKeyring<Json>,
@@ -647,9 +637,9 @@ export class KeyringController extends BaseController<
   /**
    * Adds a new account to the default (first) HD seed phrase keyring without updating identities in preferences.
    *
-   * @returns Promise resolving to current state when the account is added.
+   * @returns Promise resolving to the added account address.
    */
-  async addNewAccountWithoutUpdate(): Promise<KeyringControllerMemState> {
+  async addNewAccountWithoutUpdate(): Promise<string> {
     return this.#withControllerLock(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring<Json>
@@ -657,10 +647,10 @@ export class KeyringController extends BaseController<
       if (!primaryKeyring) {
         throw new Error('No HD keyring found');
       }
-      await primaryKeyring.addAccounts(1);
+      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
       await this.#updateVault();
       await this.verifySeedPhrase();
-      return this.#getMemState();
+      return addedAccountAddress;
     });
   }
 
@@ -671,12 +661,12 @@ export class KeyringController extends BaseController<
    * @param password - Password to unlock keychain.
    * @param seed - A BIP39-compliant seed phrase as Uint8Array,
    * either as a string or an array of UTF-8 bytes that represent the string.
-   * @returns Promise resolving to the restored keychain object.
+   * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndRestore(
     password: string,
     seed: Uint8Array,
-  ): Promise<KeyringControllerMemState> {
+  ): Promise<void> {
     return this.#withControllerLock(async () => {
       if (!password || !password.length) {
         throw new Error('Invalid password');
@@ -689,8 +679,6 @@ export class KeyringController extends BaseController<
           numberOfAccounts: 1,
         },
       });
-
-      return this.#getMemState();
     });
   }
 
@@ -698,9 +686,9 @@ export class KeyringController extends BaseController<
    * Create a new primary keychain and wipe any previous keychains.
    *
    * @param password - Password to unlock the new vault.
-   * @returns Newly-created keychain object.
+   * @returns Promise resolving when the operation ends successfully.
    */
-  async createNewVaultAndKeychain(password: string) {
+  async createNewVaultAndKeychain(password: string): Promise<void> {
     return this.#withControllerLock(async () => {
       const accounts = await this.#getAccountsFromKeyrings();
       if (!accounts.length) {
@@ -708,7 +696,6 @@ export class KeyringController extends BaseController<
           type: KeyringTypes.hd,
         });
       }
-      return this.#getMemState();
     });
   }
 
@@ -918,18 +905,14 @@ export class KeyringController extends BaseController<
    * @param strategy - Import strategy name.
    * @param args - Array of arguments to pass to the underlying stategy.
    * @throws Will throw when passed an unrecognized strategy.
-   * @returns Promise resolving to keyring current state and imported account
-   * address.
+   * @returns Promise resolving to the imported account address.
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
-  ): Promise<{
-    keyringState: KeyringControllerMemState;
-    importedAccountAddress: string;
-  }> {
+  ): Promise<string> {
     return this.#withControllerLock(async () => {
       let privateKey;
       switch (strategy) {
@@ -976,10 +959,7 @@ export class KeyringController extends BaseController<
         true,
       )) as EthKeyring<Json>;
       const accounts = await newKeyring.getAccounts();
-      return {
-        keyringState: this.#getMemState(),
-        importedAccountAddress: accounts[0],
-      };
+      return accounts[0];
     });
   }
 
@@ -988,10 +968,10 @@ export class KeyringController extends BaseController<
    *
    * @param address - Address of the account to remove.
    * @fires KeyringController:accountRemoved
-   * @returns Promise resolving current state when this account removal completes.
+   * @returns Promise resolving when the account is removed.
    */
-  async removeAccount(address: Hex): Promise<KeyringControllerMemState> {
-    const returnValue = await this.#withControllerLock(async () => {
+  async removeAccount(address: Hex): Promise<void> {
+    await this.#withControllerLock(async () => {
       const keyring = (await this.getKeyringForAccount(
         address,
       )) as EthKeyring<Json>;
@@ -1013,21 +993,17 @@ export class KeyringController extends BaseController<
       }
 
       await this.#updateVault();
-
-      return this.#getMemState();
     });
 
     this.messagingSystem.publish(`${name}:accountRemoved`, address);
-
-    return returnValue;
   }
 
   /**
    * Deallocates all secrets and locks the wallet.
    *
-   * @returns Promise resolving to current state.
+   * @returns Promise resolving when the operation completes.
    */
-  async setLocked(): Promise<KeyringControllerMemState> {
+  async setLocked(): Promise<void> {
     return this.#withControllerLock(async () => {
       this.#unsubscribeFromQRKeyringsEvents();
 
@@ -1039,8 +1015,6 @@ export class KeyringController extends BaseController<
       await this.#clearKeyrings();
 
       this.messagingSystem.publish(`${name}:lock`);
-
-      return this.#getMemState();
     });
   }
 
@@ -1242,12 +1216,12 @@ export class KeyringController extends BaseController<
    *
    * @param encryptionKey - Key to unlock the keychain.
    * @param encryptionSalt - Salt to unlock the keychain.
-   * @returns Promise resolving to the current state.
+   * @returns Promise resolving when the operation completes.
    */
   async submitEncryptionKey(
     encryptionKey: string,
     encryptionSalt: string,
-  ): Promise<KeyringControllerMemState> {
+  ): Promise<void> {
     return this.#withControllerLock(async () => {
       this.#keyrings = await this.#unlockKeyrings(
         undefined,
@@ -1262,8 +1236,6 @@ export class KeyringController extends BaseController<
         // to its events after unlocking the vault
         this.#subscribeToQRKeyringEvents(qrKeyring);
       }
-
-      return this.#getMemState();
     });
   }
 
@@ -1272,9 +1244,9 @@ export class KeyringController extends BaseController<
    * using the given password.
    *
    * @param password - Password to unlock the keychain.
-   * @returns Promise resolving to the current state.
+   * @returns Promise resolving when the operation completes.
    */
-  async submitPassword(password: string): Promise<KeyringControllerMemState> {
+  async submitPassword(password: string): Promise<void> {
     return this.#withControllerLock(async () => {
       this.#keyrings = await this.#unlockKeyrings(password);
       this.#setUnlocked();
@@ -1285,8 +1257,6 @@ export class KeyringController extends BaseController<
         // to its events after unlocking the vault
         this.#subscribeToQRKeyringEvents(qrKeyring);
       }
-
-      return this.#getMemState();
     });
   }
 
@@ -1634,7 +1604,7 @@ export class KeyringController extends BaseController<
       type: string;
       opts?: unknown;
     },
-  ): Promise<KeyringControllerMemState> {
+  ): Promise<void> {
     this.#assertControllerMutexIsLocked();
 
     if (typeof password !== 'string') {
@@ -1645,7 +1615,6 @@ export class KeyringController extends BaseController<
     await this.#clearKeyrings();
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
     this.#setUnlocked();
-    return this.#getMemState();
   }
 
   /**
@@ -2086,13 +2055,6 @@ export class KeyringController extends BaseController<
       state.isUnlocked = true;
     });
     this.messagingSystem.publish(`${name}:unlock`);
-  }
-
-  #getMemState(): KeyringControllerMemState {
-    return {
-      isUnlocked: this.state.isUnlocked,
-      keyrings: this.state.keyrings,
-    };
   }
 
   /**
