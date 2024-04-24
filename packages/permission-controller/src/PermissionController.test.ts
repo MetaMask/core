@@ -2943,6 +2943,58 @@ describe('PermissionController', () => {
       );
     });
 
+    it('allows caller passing additional metadata', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      expect(
+        await controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_getSecretArray]: {},
+          },
+          { metadata: { foo: 'bar' } },
+        ),
+      ).toMatchObject([
+        {
+          [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+            parentCapability: PermissionNames.wallet_getSecretArray,
+            caveats: null,
+            invoker: origin,
+          }),
+        },
+        { id: expect.any(String), origin },
+      ]);
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { foo: 'bar', id: expect.any(String), origin },
+            permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
     it('requests a permission that requires permitted side-effects', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
@@ -3804,7 +3856,7 @@ describe('PermissionController', () => {
       expect(callActionSpy).not.toHaveBeenCalled();
     });
 
-    it('throws if subjectTypes do not match', async () => {
+    it('throws if subjectTypes do not match (restricted method)', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const origin = 'metamask.io';
@@ -3831,6 +3883,42 @@ describe('PermissionController', () => {
         ),
       ).rejects.toThrow(
         'The method "snap_foo" does not exist / is not available.',
+      );
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+
+    it('throws if subjectTypes do not match (endowment)', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Website,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      await expect(
+        controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.endowmentSnapsOnly]: {},
+          },
+        ),
+      ).rejects.toThrow(
+        'Subject "metamask.io" has no permission for "endowmentSnapsOnly".',
       );
 
       expect(callActionSpy).toHaveBeenCalledTimes(1);
@@ -3929,7 +4017,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if the "caveat" property of a requested permission is invalid', async () => {
+    it('throws if the "caveats" property of a requested permission is invalid', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const origin = 'metamask.io';
@@ -4313,6 +4401,67 @@ describe('PermissionController', () => {
             },
           },
         }),
+      );
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: {
+                parentCapability: PermissionNames.wallet_getSecretArray,
+              },
+            },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('correctly throws errors that do not inherit from JsonRpcError', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+      const controller = getDefaultPermissionController(options);
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: {
+                parentCapability: PermissionNames.wallet_getSecretArray,
+              },
+              [PermissionNames.wallet_getSecretObject]: {
+                parentCapability: PermissionNames.wallet_getSecretObject,
+                caveats: 'foo', // invalid
+              },
+            },
+          };
+        });
+
+      await expect(
+        async () =>
+          await controller.requestPermissions(
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {
+                parentCapability: PermissionNames.wallet_getSecretArray,
+              },
+            },
+          ),
+      ).rejects.toThrow(
+        errors.internalError(
+          `Invalid approved permissions request: The "caveats" property of permission for "${PermissionNames.wallet_getSecretObject}" of subject "${origin}" is invalid. It must be a non-empty array if specified.`,
+        ),
       );
 
       expect(callActionSpy).toHaveBeenCalledTimes(1);

@@ -8,7 +8,11 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
-import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
+import type {
+  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerStateChangeEvent,
+} from '@metamask/selected-network-controller';
+import { SelectedNetworkControllerEventTypes } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
@@ -63,17 +67,20 @@ export type AllowedActions =
   | NetworkControllerSetActiveNetworkAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
 
+export type AllowedEvents = SelectedNetworkControllerStateChangeEvent;
+
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   QueuedRequestControllerActions | AllowedActions,
-  QueuedRequestControllerEvents,
+  QueuedRequestControllerEvents | AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
   methodsRequiringNetworkSwitch: string[];
+  clearPendingConfirmations: () => void;
 };
 
 /**
@@ -138,16 +145,20 @@ export class QueuedRequestController extends BaseController<
    */
   readonly #methodsRequiringNetworkSwitch: string[];
 
+  #clearPendingConfirmations: () => void;
+
   /**
    * Construct a QueuedRequestController.
    *
    * @param options - Controller options.
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
    * @param options.methodsRequiringNetworkSwitch - A list of methods that require the globally selected network to match the dapp selected network.
+   * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.
    */
   constructor({
     messenger,
     methodsRequiringNetworkSwitch,
+    clearPendingConfirmations,
   }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
@@ -161,6 +172,7 @@ export class QueuedRequestController extends BaseController<
       state: { queuedRequestCount: 0 },
     });
     this.#methodsRequiringNetworkSwitch = methodsRequiringNetworkSwitch;
+    this.#clearPendingConfirmations = clearPendingConfirmations;
     this.#registerMessageHandlers();
   }
 
@@ -168,6 +180,42 @@ export class QueuedRequestController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:enqueueRequest`,
       this.enqueueRequest.bind(this),
+    );
+
+    this.messagingSystem.subscribe(
+      SelectedNetworkControllerEventTypes.stateChange,
+      (_, patch) => {
+        patch.forEach(({ op, path }) => {
+          if (
+            path.length === 2 &&
+            path[0] === 'domains' &&
+            typeof path[1] === 'string'
+          ) {
+            const origin = path[1];
+            this.#flushQueueForOrigin(origin);
+            // When a domain is removed from SelectedNetworkController, its because of revoke permissions.
+            // Rather than subscribe to the permissions controller event in addition to the selectedNetworkController ones, we simplify it and just handle remove on this event alone.
+            if (op === 'remove' && origin === this.#originOfCurrentBatch) {
+              this.#clearPendingConfirmations();
+            }
+          }
+        });
+      },
+    );
+  }
+
+  #flushQueueForOrigin(flushOrigin: string) {
+    this.#requestQueue
+      .filter(({ origin }) => origin === flushOrigin)
+      .forEach(({ processRequest }) => {
+        processRequest(
+          new Error(
+            'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+          ),
+        );
+      });
+    this.#requestQueue = this.#requestQueue.filter(
+      ({ origin }) => origin !== flushOrigin,
     );
   }
 
