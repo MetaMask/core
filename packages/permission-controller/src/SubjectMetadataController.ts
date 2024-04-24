@@ -30,7 +30,6 @@ export enum SubjectType {
 
 export type SubjectMetadata = PermissionSubjectMetadata & {
   [key: string]: Json;
-  // TODO:TS4.4 make optional
   name: string | null;
   subjectType: SubjectType | null;
   extensionId: string | null;

@@ -363,7 +363,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     address: string;
     next?: string;
   }) {
-    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=${
+    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
       next ?? ''
     }`;
   }
@@ -429,6 +429,8 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.addNft - Add an NFT.
    * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
    * @param options.getNftState - Gets the current state of the Assets controller.
+   * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
+   * @param options.selectedAddress - Represents current selected address.
    * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -443,6 +445,8 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       addNft,
       getNftApi,
       getNftState,
+      disabled: initialDisabled,
+      selectedAddress: initialSelectedAddress,
     }: {
       chainId: Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -457,6 +461,8 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       addNft: NftController['addNft'];
       getNftApi: NftController['getNftApi'];
       getNftState: () => NftState;
+      disabled: boolean;
+      selectedAddress: string;
     },
     config?: Partial<NftDetectionConfig>,
     state?: Partial<BaseState>,
@@ -465,8 +471,8 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
       chainId: initialChainId,
-      selectedAddress: '',
-      disabled: true,
+      selectedAddress: initialSelectedAddress,
+      disabled: initialDisabled,
     };
     this.initialize();
     this.getNftState = getNftState;

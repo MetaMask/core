@@ -45,7 +45,6 @@ export type PermissionConstraint = {
    */
   readonly '@context'?: NonEmptyArray<string>;
 
-  // TODO:TS4.4 Make optional
   /**
    * The caveats of the permission.
    *
@@ -92,7 +91,6 @@ export type ValidPermission<
   Name extends TargetName,
   AllowedCaveat extends CaveatConstraint,
 > = PermissionConstraint & {
-  // TODO:TS4.4 Make optional
   /**
    * The caveats of the permission.
    *
