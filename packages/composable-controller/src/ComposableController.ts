@@ -186,7 +186,7 @@ export type ComposableControllerMessenger<
   AllowedEvents<ComposableControllerState>['type']
 >;
 
-export type GetChildControllers<
+type GetChildControllers<
   ComposableControllerState,
   P extends keyof ComposableControllerState = keyof ComposableControllerState,
 > = P extends string
