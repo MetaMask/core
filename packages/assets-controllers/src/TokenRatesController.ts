@@ -100,8 +100,13 @@ export interface TokenRatesState extends BaseState {
     Hex,
     Record<string, ContractExchangeRates>
   >;
-  contractPercentChange1d: Record<Hex, ContractExchangeRates>;
-  priceChange1d: Record<Hex, ContractExchangeRates>;
+  oneDayPriceChange: Record<
+    Hex,
+    {
+      priceChange1d: ContractExchangeRates;
+      contractPercentChange1d: ContractExchangeRates;
+    }
+  >;
 }
 
 /**
@@ -229,8 +234,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     this.defaultState = {
       contractExchangeRates: {},
       contractExchangeRatesByChainId: {},
-      contractPercentChange1d: {},
-      priceChange1d: {},
+      oneDayPriceChange: {},
     };
     this.initialize();
     this.setIntervalLength(interval);
@@ -400,15 +404,14 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       const newContractExchangeRates =
         contractInformations.contractExchangeRates;
 
-      const newContractPercentChange1d = {
+      const newOneDayPriceChange = {
         [chainId]: {
-          ...(contractInformations?.contractPercentChange1d ?? {}),
-        },
-      };
-
-      const newPriceChange1d = {
-        [chainId]: {
-          ...(contractInformations?.priceChange1d ?? {}),
+          contractPercentChange1d: {
+            ...(contractInformations?.contractPercentChange1d ?? {}),
+          },
+          priceChange1d: {
+            ...(contractInformations?.priceChange1d ?? {}),
+          },
         },
       };
 
@@ -435,8 +438,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       this.update({
         contractExchangeRates: updatedContractExchangeRates,
         contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
-        contractPercentChange1d: newContractPercentChange1d,
-        priceChange1d: newPriceChange1d,
+        oneDayPriceChange: newOneDayPriceChange,
       });
       updateSucceeded();
     } catch (error: unknown) {
@@ -509,7 +511,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         nativeCurrency,
       });
     }
-
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
       tokenAddresses,
       nativeCurrency,
@@ -580,26 +581,21 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
       const contractNativeInformationsNative =
-        await this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
+        await this.#tokenPricesService.fetchTokenPrices({
           tokenAddresses: [ZERO_ADDRESS],
           chainId: this.config.chainId,
-          nativeCurrency: FALL_BACK_VS_CURRENCY,
+          currency: nativeCurrency,
         });
 
       contractNativeInformations = {
         [ZERO_ADDRESS]: {
           currency: nativeCurrency,
           priceChange1d:
-            contractNativeInformationsNative?.priceChange1d[ZERO_ADDRESS],
+            contractNativeInformationsNative[ZERO_ADDRESS]?.priceChange1d,
           pricePercentChange1d:
-            contractNativeInformationsNative?.contractPercentChange1d[
-              ZERO_ADDRESS
-            ],
+            contractNativeInformationsNative[ZERO_ADDRESS]?.priceChange1d,
           tokenAddress: ZERO_ADDRESS,
-          value:
-            contractNativeInformationsNative?.contractExchangeRates[
-              ZERO_ADDRESS
-            ],
+          value: contractNativeInformationsNative[ZERO_ADDRESS]?.value,
         },
       };
     }

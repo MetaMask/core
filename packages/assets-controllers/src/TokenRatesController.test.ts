@@ -70,8 +70,7 @@ describe('TokenRatesController', () => {
       expect(controller.state).toStrictEqual({
         contractExchangeRates: {},
         contractExchangeRatesByChainId: {},
-        contractPercentChange1d: {},
-        priceChange1d: {},
+        oneDayPriceChange: {},
       });
     });
 
@@ -1738,14 +1737,14 @@ describe('TokenRatesController', () => {
             },
           },
         });
-        expect(controller.state.contractPercentChange1d).toStrictEqual({
+        expect(controller.state.oneDayPriceChange).toStrictEqual({
           '0x1': {
-            '0x0000000000000000000000000000000000000000': undefined,
-          },
-        });
-        expect(controller.state.priceChange1d).toStrictEqual({
-          '0x1': {
-            '0x0000000000000000000000000000000000000000': undefined,
+            contractPercentChange1d: {
+              '0x0000000000000000000000000000000000000000': undefined,
+            },
+            priceChange1d: {
+              '0x0000000000000000000000000000000000000000': undefined,
+            },
           },
         });
       });
@@ -1913,16 +1912,16 @@ describe('TokenRatesController', () => {
                   },
                 },
               },
-              "contractPercentChange1d": Object {
+              "oneDayPriceChange": Object {
                 "0x1": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
-                },
-              },
-              "priceChange1d": Object {
-                "0x1": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
+                  "contractPercentChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
+                  "priceChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
                 },
               },
             }
@@ -1992,16 +1991,16 @@ describe('TokenRatesController', () => {
                     },
                   },
                 },
-                "contractPercentChange1d": Object {
+                "oneDayPriceChange": Object {
                   "0x2": Object {
-                    "0x0000000000000000000000000000000000000001": undefined,
-                    "0x0000000000000000000000000000000000000002": undefined,
-                  },
-                },
-                "priceChange1d": Object {
-                  "0x2": Object {
-                    "0x0000000000000000000000000000000000000001": undefined,
-                    "0x0000000000000000000000000000000000000002": undefined,
+                    "contractPercentChange1d": Object {
+                      "0x0000000000000000000000000000000000000001": undefined,
+                      "0x0000000000000000000000000000000000000002": undefined,
+                    },
+                    "priceChange1d": Object {
+                      "0x0000000000000000000000000000000000000001": undefined,
+                      "0x0000000000000000000000000000000000000002": undefined,
+                    },
                   },
                 },
               }
@@ -2101,16 +2100,16 @@ describe('TokenRatesController', () => {
                   },
                 },
               },
-              "contractPercentChange1d": Object {
+              "oneDayPriceChange": Object {
                 "0x89": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
-                },
-              },
-              "priceChange1d": Object {
-                "0x89": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
+                  "contractPercentChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
+                  "priceChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
                 },
               },
             }
@@ -2273,16 +2272,16 @@ describe('TokenRatesController', () => {
                   },
                 },
               },
-              "contractPercentChange1d": Object {
+              "oneDayPriceChange": Object {
                 "0x3e7": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
-                },
-              },
-              "priceChange1d": Object {
-                "0x3e7": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
+                  "contractPercentChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
+                  "priceChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
                 },
               },
             }
@@ -2360,16 +2359,16 @@ describe('TokenRatesController', () => {
                   },
                 },
               },
-              "contractPercentChange1d": Object {
+              "oneDayPriceChange": Object {
                 "0x1": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
-                },
-              },
-              "priceChange1d": Object {
-                "0x1": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
+                  "contractPercentChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
+                  "priceChange1d": Object {
+                    "0x0000000000000000000000000000000000000001": undefined,
+                    "0x0000000000000000000000000000000000000002": undefined,
+                  },
                 },
               },
             }

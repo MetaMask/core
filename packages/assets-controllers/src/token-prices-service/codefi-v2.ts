@@ -400,13 +400,6 @@ export class CodefiTokenPricesServiceV2
         const priceChange1d =
           pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.priceChange1d;
 
-        if (!price) {
-          // console error instead of throwing to not interrupt the fetching of other tokens in case just one fails
-          console.error(
-            `Could not find price for "${tokenAddress}" in "${currency}"`,
-          );
-        }
-
         const tokenPrice: TokenPrice<Hex, SupportedCurrency> = {
           tokenAddress,
           value: price,
