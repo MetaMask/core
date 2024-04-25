@@ -1,4 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 
 import {
   GasFeeEstimateType,
@@ -8,10 +9,16 @@ import {
   type TransactionMeta,
 } from '../types';
 
-const MULTIPLIER = 1e15;
+const INCREMENT = 1e15; // 0.001 ETH
+const LEVEL_DIFFERENCE = 0.5;
 
+/**
+ * A gas fee flow to facilitate testing in the clients.
+ * Increments the total gas fee by a fixed amount each time it is called.
+ * Relies on the transaction's gas value to generate a distinct total fee in the UI.
+ */
 export class TestGasFeeFlow implements GasFeeFlow {
-  #count = 1;
+  #counter = 1;
 
   matchesTransaction(_transactionMeta: TransactionMeta): boolean {
     return true;
@@ -20,36 +27,56 @@ export class TestGasFeeFlow implements GasFeeFlow {
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
     const { transactionMeta } = request;
     const { txParams } = transactionMeta;
-    const { gas } = txParams;
+    const { gas: gasHex } = txParams;
 
-    const totalTarget = (this.#count + 1) * MULTIPLIER;
-    const priorityTarget = this.#count * MULTIPLIER;
+    if (!gasHex) {
+      throw new Error('Cannot estimate fee without gas value');
+    }
 
-    const maxFeePerGasDecimal = Math.ceil(
-      totalTarget / parseInt(gas as string, 16),
-    );
+    const gasDecimal = parseInt(gasHex, 16);
+    const difference = INCREMENT * LEVEL_DIFFERENCE;
 
-    const maxPriorityFeePerGasDecimal = Math.ceil(
-      priorityTarget / parseInt(gas as string, 16),
-    );
+    const mediumMaxTarget = (this.#counter + 1) * INCREMENT;
+    const mediumPriorityTarget = this.#counter * INCREMENT;
 
-    const maxFeePerGas = toHex(maxFeePerGasDecimal);
-    const maxPriorityFeePerGas = toHex(maxPriorityFeePerGasDecimal);
+    const lowMaxTarget = mediumMaxTarget - difference;
+    const lowPriorityTarget = mediumPriorityTarget - difference;
 
-    const medium = {
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-    };
+    const highMaxTarget = mediumMaxTarget + difference;
+    const highPriorityTarget = mediumPriorityTarget + difference;
 
-    this.#count += 1;
+    this.#counter += 1;
 
     return {
       estimates: {
         type: GasFeeEstimateType.FeeMarket,
-        low: medium,
-        medium,
-        high: medium,
+        low: {
+          maxFeePerGas: this.#getValueForTotalFee(lowMaxTarget, gasDecimal),
+          maxPriorityFeePerGas: this.#getValueForTotalFee(
+            lowPriorityTarget,
+            gasDecimal,
+          ),
+        },
+        medium: {
+          maxFeePerGas: this.#getValueForTotalFee(mediumMaxTarget, gasDecimal),
+          maxPriorityFeePerGas: this.#getValueForTotalFee(
+            mediumPriorityTarget,
+            gasDecimal,
+          ),
+        },
+        high: {
+          maxFeePerGas: this.#getValueForTotalFee(highMaxTarget, gasDecimal),
+          maxPriorityFeePerGas: this.#getValueForTotalFee(
+            highPriorityTarget,
+            gasDecimal,
+          ),
+        },
       },
     };
+  }
+
+  #getValueForTotalFee(totalFee: number, gas: number): Hex {
+    const feeDecimal = Math.ceil(totalFee / gas);
+    return toHex(feeDecimal);
   }
 }
