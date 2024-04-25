@@ -1,5 +1,5 @@
-import type { Caveat, PermissionConstraint } from '.';
-import { decorateWithCaveats, PermissionType } from '.';
+import type { Caveat, CaveatValueMerger, PermissionConstraint } from '.';
+import { makeCaveatMerger, decorateWithCaveats, PermissionType } from '.';
 import * as errors from './errors';
 
 describe('decorateWithCaveats', () => {
@@ -171,6 +171,41 @@ describe('decorateWithCaveats', () => {
         caveatSpecifications.reverse,
         PermissionType.RestrictedMethod,
       ),
+    );
+  });
+});
+
+describe('makeCaveatMerger', () => {
+  type MockCaveat = Caveat<'foo', { bar: number }>;
+  const makeMockCaveat = (bar: number): MockCaveat => ({
+    type: 'foo' as const,
+    value: { bar },
+  });
+  const mergeValue: CaveatValueMerger<MockCaveat['value']> = (
+    leftCaveat,
+    rightCaveat,
+  ) => ({ ...leftCaveat, ...rightCaveat });
+
+  it('creates a function that merges caveats', () => {
+    const mergeCaveat = makeCaveatMerger<MockCaveat>(mergeValue);
+    const leftCaveat = makeMockCaveat(1);
+    const rightCaveat = makeMockCaveat(42);
+    expect(mergeCaveat(leftCaveat, rightCaveat)).toStrictEqual(
+      makeMockCaveat(42),
+    );
+  });
+
+  it('throws if attemping to merge caveats of different types', () => {
+    const mergeCaveat = makeCaveatMerger<MockCaveat>(mergeValue);
+    const leftCaveat = makeMockCaveat(1);
+    const rightCaveat = {
+      type: 'fizz' as const,
+      value: { bar: 42 },
+    };
+
+    // @ts-expect-error Intentional destructive testing
+    expect(() => mergeCaveat(leftCaveat, rightCaveat)).toThrow(
+      new errors.CaveatMergeTypeMismatchError('foo', 'fizz'),
     );
   });
 });

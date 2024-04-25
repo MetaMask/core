@@ -105,6 +105,54 @@ export type CaveatValidator<ParentCaveat extends CaveatConstraint> = (
   target?: string,
 ) => void;
 
+/**
+ * @template ParentCaveat - The caveat type associated with this merger.
+ * @param leftCaveat - The left-hand caveat.
+ * @param rightCaveat - The right-hand caveat.
+ * @returns The merged caveat.
+ */
+export type CaveatMerger<ParentCaveat extends CaveatConstraint> = (
+  leftCaveat: ParentCaveat,
+  rightCaveat: ParentCaveat,
+) => ParentCaveat;
+
+/**
+ * A function that merges two caveat values of the same type.
+ * @template Value - The type of the values to merge.
+ * @param leftValue - The left-hand value.
+ * @param rightValue - The right-hand value.
+ * @returns The merged value.
+ */
+export type CaveatValueMerger<Value extends Json> = (
+  leftValue: Value,
+  rightValue: Value,
+) => Value;
+
+/**
+ * Makes a {@link CaveatMerger} function for a specific caveat type.
+ *
+ * @param mergeValues - The function to merge the values of two caveats.
+ * @returns The {@link CaveatMerger} function.
+ */
+export function makeCaveatMerger<ParentCaveat extends CaveatConstraint>(
+  mergeValues: CaveatValueMerger<ParentCaveat['value']>,
+): CaveatMerger<ParentCaveat> {
+  return (leftCaveat: ParentCaveat, rightCaveat: ParentCaveat) => {
+    // It should be impossible for this to happen via the permission controller's
+    // API, but it's a small price to pay for sound sleep.
+    if (leftCaveat.type !== rightCaveat.type) {
+      throw new Error(
+        `Cannot merge caveats of different types: "${leftCaveat.type}" and "${rightCaveat.type}".`,
+      );
+    }
+
+    return {
+      type: leftCaveat.type,
+      value: mergeValues(leftCaveat.value, rightCaveat.value),
+    } as ParentCaveat;
+  };
+}
+
 export type CaveatSpecificationBase = {
   /**
    * The string type of the caveat.
@@ -125,6 +173,14 @@ export type CaveatSpecificationBase = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validator?: CaveatValidator<any>;
+
+  /**
+   * The merger function used to merge caveats of the associated type during
+   * incremental permission requests.
+   */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  merger?: CaveatMerger<CaveatConstraint>;
 };
 
 export type RestrictedMethodCaveatSpecificationConstraint =

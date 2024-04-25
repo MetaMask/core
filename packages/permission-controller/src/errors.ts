@@ -289,6 +289,20 @@ export class DuplicateCaveatError extends Error {
   }
 }
 
+export class CaveatMergeTypeMismatchError extends Error {
+  public data: {
+    leftCaveatType: string;
+    rightCaveatType: string;
+  };
+
+  constructor(leftCaveatType: string, rightCaveatType: string) {
+    super(
+      `Cannot merge caveats of different types: "${leftCaveatType}" and "${rightCaveatType}".`,
+    );
+    this.data = { leftCaveatType, rightCaveatType };
+  }
+}
+
 export class CaveatSpecificationMismatchError extends Error {
   public data: {
     caveatSpec: Record<string, unknown>;
