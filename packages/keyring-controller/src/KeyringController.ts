@@ -2097,6 +2097,7 @@ export class KeyringController extends BaseController<
   async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
+      const currentPassword = this.#password;
 
       try {
         const callbackResult = await fn({ releaseLock });
@@ -2105,9 +2106,10 @@ export class KeyringController extends BaseController<
 
         return callbackResult;
       } catch (e) {
-        // Keyrings are cleared and restored to their previous state
+        // Keyrings and password are cleared and restored to their previous state
         await this.#clearKeyrings({ skipStateUpdate: true });
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
+        this.#password = currentPassword;
 
         throw e;
       }
