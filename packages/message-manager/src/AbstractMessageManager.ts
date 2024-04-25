@@ -200,7 +200,7 @@ export abstract class AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  override name = 'AbstractMessageManager' as const;
+  override name = 'AbstractMessageManager';
 
   /**
    * Creates an AbstractMessageManager instance.

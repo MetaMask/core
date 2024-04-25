@@ -405,7 +405,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'NftDetectionController';
+  override name = 'NftDetectionController' as const;
 
   private readonly getOpenSeaApiKey: () => string | undefined;
 

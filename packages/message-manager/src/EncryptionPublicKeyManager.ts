@@ -65,7 +65,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  override name = 'EncryptionPublicKeyManager';
+  override name = 'EncryptionPublicKeyManager' as const;
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
