@@ -20,10 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
   - It's no longer possible to import files from `./dist` directly.
 - Add and export functions `isBaseControllerV1` and `isBaseController`, which are type guards for validating controller instances ([#3904](https://github.com/MetaMask/core/pull/3904))
-- Adds and exports new types: ([#3904](https://github.com/MetaMask/core/pull/3904))
-  - `RestrictedControllerMessengerConstraint`, which is the narrowest supertype of all controller-messenger instances.
-  - `LegacyControllerStateConstraint`, a universal supertype for the controller state object, encompassing both BaseControllerV1 and BaseControllerV2 state.
-  - `ComposableControllerStateConstraint`, the narrowest supertype for the composable controller state object.
 - `ComposableController` now accommodates `BaseControllerV1` controllers that use a messenger (specifically, which have a `messagingSystem` property which is an instance of `RestrictedControllerMessenger`), by subscribing to the `stateChange` event of the messenger instead of using the `subscribe` method on the controller ([#3964](https://github.com/MetaMask/core/pull/3964))
 
 ### Changed
