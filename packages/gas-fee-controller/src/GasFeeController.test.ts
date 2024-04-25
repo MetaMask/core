@@ -345,6 +345,7 @@ describe('GasFeeController', () => {
             clientId: '99999',
             ethQuery: expect.any(EthQuery),
             infuraAPIKey: expect.any(String),
+            nonRPCGasFeeApisDisabled: false,
           });
         });
 
@@ -401,6 +402,7 @@ describe('GasFeeController', () => {
             clientId: '99999',
             ethQuery: expect.any(EthQuery),
             infuraAPIKey: expect.any(String),
+            nonRPCGasFeeApisDisabled: false,
           });
         });
 
@@ -497,6 +499,36 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
       });
+    });
+  });
+
+  describe('enableNonRPCGasFeeApis', () => {
+    it('should set state.nonRPCGasFeeApisDisabled to true', async () => {
+      await setupGasFeeController({
+        state: {
+          ...buildMockGasFeeStateEthGasPrice(),
+          nonRPCGasFeeApisDisabled: false,
+        },
+      });
+
+      await gasFeeController.enableNonRPCGasFeeApis();
+
+      expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(false);
+    });
+  });
+
+  describe('disableNonRPCGasFeeApis', () => {
+    it('should set state.nonRPCGasFeeApisDisabled to false', async () => {
+      await setupGasFeeController({
+        state: {
+          ...buildMockGasFeeStateEthGasPrice(),
+          nonRPCGasFeeApisDisabled: true,
+        },
+      });
+
+      await gasFeeController.disableNonRPCGasFeeApis();
+
+      expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(true);
     });
   });
 
@@ -708,6 +740,7 @@ describe('GasFeeController', () => {
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
           infuraAPIKey: expect.any(String),
+          nonRPCGasFeeApisDisabled: false,
         });
       });
 
@@ -755,6 +788,42 @@ describe('GasFeeController', () => {
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
             fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1/gasPrices`,
+          }),
+        );
+      });
+
+      it('should call determineGasFeeCalculations correctly when nonRPCGasFeeApisDisabled is true', async () => {
+        await setupGasFeeController({
+          ...defaultConstructorOptions,
+          state: {
+            ...buildMockGasFeeStateEthGasPrice(),
+            nonRPCGasFeeApisDisabled: true,
+          },
+        });
+
+        await gasFeeController.fetchGasFeeEstimates();
+
+        expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nonRPCGasFeeApisDisabled: true,
+          }),
+        );
+      });
+
+      it('should call determineGasFeeCalculations correctly when nonRPCGasFeeApisDisabled is false', async () => {
+        await setupGasFeeController({
+          ...defaultConstructorOptions,
+          state: {
+            ...buildMockGasFeeStateEthGasPrice(),
+            nonRPCGasFeeApisDisabled: false,
+          },
+        });
+
+        await gasFeeController.fetchGasFeeEstimates();
+
+        expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nonRPCGasFeeApisDisabled: false,
           }),
         );
       });
@@ -816,6 +885,7 @@ describe('GasFeeController', () => {
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
           infuraAPIKey: expect.any(String),
+          nonRPCGasFeeApisDisabled: false,
         });
       });
 
@@ -913,6 +983,7 @@ describe('GasFeeController', () => {
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
           infuraAPIKey: expect.any(String),
+          nonRPCGasFeeApisDisabled: false,
         });
       });
 
