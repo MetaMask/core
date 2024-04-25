@@ -198,19 +198,25 @@ export type ComposableControllerMessenger<
   AllowedEvents<ComposableControllerState>['type']
 >;
 
-type GetStateChangeEvents<Controller extends ControllerInstance> =
-  Controller extends BaseControllerV1Instance
-    ? {
-        type: `${Controller['name']}:stateChange`;
-        payload: [Controller['state'], Patch[]];
-      }
-    : ControllerStateChangeEvent<Controller['name'], Controller['state']>;
+export type GetChildControllers<
+  ComposableControllerState,
+  P extends keyof ComposableControllerState = keyof ComposableControllerState,
+> = P extends string
+  ? ComposableControllerState[P] extends StateConstraint
+    ? { name: P; state: ComposableControllerState[P] }
+    : BaseControllerV1<
+        BaseConfig & Record<string, unknown>,
+        BaseState & ComposableControllerState[P]
+      >
+  : never;
 
 /**
  * Controller that can be used to compose multiple controllers together.
+ * @template ChildControllerState - The composed state of the child controllers that are being used to instantiate the composable controller.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
+  ChildControllers extends ControllerInstance = GetChildControllers<ComposableControllerState>,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
