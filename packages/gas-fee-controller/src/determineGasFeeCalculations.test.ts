@@ -144,6 +144,7 @@ describe('determineGasFeeCalculations', () => {
         isEIP1559Compatible: true,
         isLegacyGasAPICompatible: false,
       });
+      mockedFetchGasEstimates.mockReset();
     });
 
     describe('assuming neither fetchGasEstimates nor calculateTimeEstimate throw errors', () => {
@@ -160,6 +161,63 @@ describe('determineGasFeeCalculations', () => {
           gasFeeEstimates,
           estimatedGasFeeTimeBounds,
           gasEstimateType: 'fee-market',
+        });
+      });
+    });
+
+    describe('when nonRPCGasFeeApisDisabled is true', () => {
+      describe('assuming fetchGasEstimatesViaEthFeeHistory does not throw an error', () => {
+        it('returns a combination of the fetched fee and time estimates', async () => {
+          const gasFeeEstimates = buildMockDataForFetchGasEstimates();
+          mockedFetchGasEstimatesViaEthFeeHistory.mockResolvedValue(
+            gasFeeEstimates,
+          );
+          const estimatedGasFeeTimeBounds =
+            buildMockDataForCalculateTimeEstimate();
+          mockedCalculateTimeEstimate.mockReturnValue(
+            estimatedGasFeeTimeBounds,
+          );
+
+          const gasFeeCalculations = await determineGasFeeCalculations({
+            ...options,
+            nonRPCGasFeeApisDisabled: true,
+          });
+
+          expect(mockedFetchGasEstimates).toHaveBeenCalledTimes(0);
+
+          expect(gasFeeCalculations).toStrictEqual({
+            gasFeeEstimates,
+            estimatedGasFeeTimeBounds,
+            gasEstimateType: 'fee-market',
+          });
+        });
+      });
+
+      describe('when fetchGasEstimatesViaEthFeeHistory throws an error', () => {
+        beforeEach(() => {
+          mockedFetchGasEstimatesViaEthFeeHistory.mockImplementation(() => {
+            throw new Error('Some API failure');
+          });
+        });
+
+        describe('assuming fetchEthGasPriceEstimate does not throw an error', () => {
+          it('returns the fetched fee estimates and an empty set of time estimates', async () => {
+            const gasFeeEstimates = buildMockDataForFetchEthGasPriceEstimate();
+            mockedFetchEthGasPriceEstimate.mockResolvedValue(gasFeeEstimates);
+
+            const gasFeeCalculations = await determineGasFeeCalculations({
+              ...options,
+              nonRPCGasFeeApisDisabled: true,
+            });
+
+            expect(mockedFetchGasEstimates).toHaveBeenCalledTimes(0);
+
+            expect(gasFeeCalculations).toStrictEqual({
+              gasFeeEstimates,
+              estimatedGasFeeTimeBounds: {},
+              gasEstimateType: 'eth_gasPrice',
+            });
+          });
         });
       });
     });
@@ -318,6 +376,7 @@ describe('determineGasFeeCalculations', () => {
         fetchLegacyGasPriceEstimatesUrl:
           'http://some-legacy-gas-price-estimates-url',
       });
+      mockedFetchLegacyGasPriceEstimates.mockReset();
     });
 
     describe('assuming fetchLegacyGasPriceEstimates does not throw an error', () => {
@@ -331,6 +390,28 @@ describe('determineGasFeeCalculations', () => {
           gasFeeEstimates,
           estimatedGasFeeTimeBounds: {},
           gasEstimateType: 'legacy',
+        });
+      });
+    });
+
+    describe('when nonRPCGasFeeApisDisabled is true', () => {
+      describe('assuming fetchEthGasPriceEstimate does not throw an error', () => {
+        it('returns the fetched fee estimates and an empty set of time estimates', async () => {
+          const gasFeeEstimates = buildMockDataForFetchEthGasPriceEstimate();
+          mockedFetchEthGasPriceEstimate.mockResolvedValue(gasFeeEstimates);
+
+          const gasFeeCalculations = await determineGasFeeCalculations({
+            ...options,
+            nonRPCGasFeeApisDisabled: true,
+          });
+
+          expect(mockedFetchLegacyGasPriceEstimates).toHaveBeenCalledTimes(0);
+
+          expect(gasFeeCalculations).toStrictEqual({
+            gasFeeEstimates,
+            estimatedGasFeeTimeBounds: {},
+            gasEstimateType: 'eth_gasPrice',
+          });
         });
       });
     });
