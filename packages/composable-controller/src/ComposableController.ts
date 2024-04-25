@@ -113,18 +113,6 @@ export function isBaseController(
 export type LegacyControllerStateConstraint = BaseState | StateConstraint;
 
 /**
- * A controller state change event for any controller instance that extends from either `BaseControllerV1` or `BaseControllerV2`.
- */
-// TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
-type LegacyControllerStateChangeEvent<
-  ControllerName extends string,
-  ControllerState extends LegacyControllerStateConstraint,
-> = {
-  type: `${ControllerName}:stateChange`;
-  payload: [ControllerState, Patch[]];
-};
-
-/**
  * A universal supertype for the composable controller state object.
  *
  * This type is only intended to be used for disabling the generic constraint on the `ControllerState` type argument in the `BaseController` type as a temporary solution for ensuring compatibility with BaseControllerV1 child controllers.
