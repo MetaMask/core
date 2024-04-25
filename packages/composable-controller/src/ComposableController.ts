@@ -108,34 +108,45 @@ export function isBaseController(
 }
 
 /**
+ * A universal supertype for the controller state object, encompassing both `BaseControllerV1` and `BaseControllerV2` state.
+ */
+export type LegacyControllerStateConstraint = BaseState | StateConstraint;
+
+/**
  * A controller state change event for any controller instance that extends from either `BaseControllerV1` or `BaseControllerV2`.
  */
 // TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
 type LegacyControllerStateChangeEvent<
   ControllerName extends string,
-  ControllerState extends
-    | (BaseState & Record<string, unknown>)
-    | StateConstraint,
+  ControllerState extends LegacyControllerStateConstraint,
 > = {
   type: `${ControllerName}:stateChange`;
   payload: [ControllerState, Patch[]];
 };
 
 /**
- * A narrowest supertype for the composable controller state object.
+ * A universal supertype for the composable controller state object.
+ *
+ * This type is only intended to be used for disabling the generic constraint on the `ControllerState` type argument in the `BaseController` type as a temporary solution for ensuring compatibility with BaseControllerV1 child controllers.
+ * Note that it is unsuitable for general use as a type constraint.
  */
-// TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
-export type ComposableControllerStateConstraint = {
-  // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
-  // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
+// TODO: Replace with `ComposableControllerStateConstraint` once BaseControllerV2 migrations are completed for all controllers.
+type LegacyComposableControllerStateConstraint = {
+  // `any` is used here to disable the generic constraint on the `ControllerState` type argument in the `BaseController` type,
+  // enabling composable controller state types with BaseControllerV1 state objects to be.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: Record<string, any>;
 };
 
-export type ComposableControllerStateChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ComposableControllerState, Patch[]];
+/**
+ * The narrowest supertype for the composable controller state object.
+ * This is also a widest subtype of the 'LegacyComposableControllerStateConstraint' type.
+ */
+// TODO: Replace with `{ [name: string]: StateConstraint }` once BaseControllerV2 migrations are completed for all controllers.
+export type ComposableControllerStateConstraint = {
+  [name: string]: LegacyControllerStateConstraint;
 };
+
 
 export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
 
@@ -166,26 +177,7 @@ type GetStateChangeEvents<Controller extends ControllerInstance> =
  * Controller that can be used to compose multiple controllers together.
  */
 export class ComposableController<
-  ChildControllers extends ControllerInstance,
-  ComposedControllerState extends ComposableControllerState = {
-    [P in ChildControllers as P['name']]: P['state'];
-  },
-  ComposedControllerStateChangeEvent extends EventConstraint & {
-    type: `${typeof controllerName}:stateChange`;
-  } = ControllerStateChangeEvent<
-    typeof controllerName,
-    ComposedControllerState
-  >,
-  ChildControllersStateChangeEvents extends EventConstraint & {
-    type: `${string}:stateChange`;
-  } = GetStateChangeEvents<ChildControllers>,
-  ComposedControllerMessenger extends ComposableControllerMessenger = RestrictedControllerMessenger<
-    typeof controllerName,
-    never,
-    ComposedControllerStateChangeEvent | ChildControllersStateChangeEvents,
-    never,
-    ChildControllersStateChangeEvents['type']
-  >,
+  ComposableControllerState extends LegacyComposableControllerStateConstraint,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
