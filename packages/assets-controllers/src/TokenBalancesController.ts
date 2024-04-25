@@ -198,16 +198,17 @@ export class TokenBalancesController extends BaseController<
     if (this.#disabled) {
       return;
     }
+    const selectedInternalAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+    if (!isEVMAccount(selectedInternalAccount)) {
+      return;
+    }
 
     const newContractBalances: ContractBalances = {};
     for (const token of this.#tokens) {
       const { address } = token;
-      const selectedInternalAccount = this.messagingSystem.call(
-        'AccountsController:getSelectedAccount',
-      );
-      if (!isEVMAccount(selectedInternalAccount)) {
-        return;
-      }
+
       try {
         newContractBalances[address] = toHex(
           await this.#getERC20BalanceOf(

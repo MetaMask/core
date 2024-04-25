@@ -440,4 +440,22 @@ describe('TokenBalancesController', () => {
       '0x02': toHex(new BN(1)),
     });
   });
+
+  it('should not update balances if the account is a non-evm account', async () => {
+    const spyGetERC20BalanceOf = jest.fn();
+    controllerMessenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      jest.fn().mockReturnValue(
+        // @ts-expect-error bitcoin type is not available in, using a mock instead
+        createMockInternalAccount({ address: '0x1234', type: 'bitcoin' }),
+      ),
+    );
+    const controller = new TokenBalancesController({
+      interval: 1337,
+      getERC20BalanceOf: spyGetERC20BalanceOf,
+      messenger,
+    });
+    await controller.updateBalances();
+    expect(spyGetERC20BalanceOf).not.toHaveBeenCalled();
+  });
 });
