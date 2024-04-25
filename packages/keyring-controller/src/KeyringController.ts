@@ -1006,15 +1006,16 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async setLocked(): Promise<void> {
-    return this.#withControllerLock(async () => {
+    return this.#withRollback(async () => {
       this.#unsubscribeFromQRKeyringsEvents();
 
       this.#password = undefined;
+      await this.#clearKeyrings();
+
       this.update((state) => {
         state.isUnlocked = false;
         state.keyrings = [];
       });
-      await this.#clearKeyrings();
 
       this.messagingSystem.publish(`${name}:lock`);
     });
@@ -1224,7 +1225,7 @@ export class KeyringController extends BaseController<
     encryptionKey: string,
     encryptionSalt: string,
   ): Promise<void> {
-    return this.#withControllerLock(async () => {
+    return this.#withRollback(async () => {
       this.#keyrings = await this.#unlockKeyrings(
         undefined,
         encryptionKey,
@@ -1249,7 +1250,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async submitPassword(password: string): Promise<void> {
-    return this.#withControllerLock(async () => {
+    return this.#withRollback(async () => {
       this.#keyrings = await this.#unlockKeyrings(password);
       this.#setUnlocked();
 
@@ -1609,7 +1610,7 @@ export class KeyringController extends BaseController<
     }
     this.#password = password;
 
-    await this.#clearKeyrings({ skipStateUpdate: true });
+    await this.#clearKeyrings();
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
     this.#setUnlocked();
   }
@@ -1687,7 +1688,7 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.VaultError);
       }
 
-      await this.#clearKeyrings({ skipStateUpdate: true });
+      await this.#clearKeyrings();
 
       let vault;
       const updatedState: Partial<KeyringControllerState> = {};
@@ -1946,23 +1947,13 @@ export class KeyringController extends BaseController<
   /**
    * Remove all managed keyrings, destroying all their
    * instances in memory.
-   *
-   * @param options - Operations options.
-   * @param options.skipStateUpdate - Whether to skip updating the controller state.
    */
-  async #clearKeyrings(
-    options: { skipStateUpdate: boolean } = { skipStateUpdate: false },
-  ) {
+  async #clearKeyrings() {
     this.#assertControllerMutexIsLocked();
     for (const keyring of this.#keyrings) {
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
-    if (!options.skipStateUpdate) {
-      this.update((state) => {
-        state.keyrings = [];
-      });
-    }
   }
 
   /**
@@ -2095,19 +2086,32 @@ export class KeyringController extends BaseController<
    * @returns The result of the function.
    */
   async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+    return this.#withRollback(async ({ releaseLock }) => {
+      const callbackResult = await fn({ releaseLock });
+      // State is committed only if the operation is successful
+      await this.#updateVault();
+
+      return callbackResult;
+    });
+  }
+
+  /**
+   * Execute the given function after acquiring the controller lock
+   * and rollback keyrings and password states in case of error.
+   *
+   * @param fn - The function to execute atomically.
+   * @returns The result of the function.
+   */
+  async #withRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
 
       try {
-        const callbackResult = await fn({ releaseLock });
-        // State is committed only if the operation is successful
-        await this.#updateVault();
-
-        return callbackResult;
+        return await fn({ releaseLock });
       } catch (e) {
         // Keyrings and password are cleared and restored to their previous state
-        await this.#clearKeyrings({ skipStateUpdate: true });
+        await this.#clearKeyrings();
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
         this.#password = currentPassword;
 
