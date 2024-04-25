@@ -4,6 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { flushPromises } from '../../../../tests/helpers';
 import type { GasFeeFlowResponse, Layer1GasFeeFlow } from '../types';
 import {
+  GasFeeEstimateType,
   TransactionStatus,
   type GasFeeFlow,
   type TransactionMeta,
@@ -31,6 +32,7 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
 
 const GAS_FEE_FLOW_RESPONSE_MOCK: GasFeeFlowResponse = {
   estimates: {
+    type: GasFeeEstimateType.FeeMarket,
     low: { maxFeePerGas: '0x1', maxPriorityFeePerGas: '0x2' },
     medium: {
       maxFeePerGas: '0x3',

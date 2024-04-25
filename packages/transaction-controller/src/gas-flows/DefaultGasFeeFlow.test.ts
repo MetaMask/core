@@ -6,8 +6,13 @@ import type {
 } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import type { GasFeeEstimates, TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
+import type {
+  FeeMarketGasFeeEstimates,
+  GasPriceGasFeeEstimates,
+  LegacyGasFeeEstimates,
+  TransactionMeta,
+} from '../types';
+import { GasFeeEstimateType, TransactionStatus } from '../types';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 const ETH_QUERY_MOCK = {} as EthQuery;
@@ -53,8 +58,16 @@ const LEGACY_RESPONSE_MOCK = {
   gasFeeEstimates: LEGACY_ESTIMATES_MOCK,
 } as GasFeeState;
 
+const GAS_PRICE_RESPONSE_MOCK = {
+  gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+  gasFeeEstimates: {
+    gasPrice: '3',
+  },
+} as GasFeeState;
+
 // Converted to Hex and multiplied by 1 billion.
-const FEE_MARKET_EXPECTED_RESULT: GasFeeEstimates = {
+const FEE_MARKET_EXPECTED_RESULT: FeeMarketGasFeeEstimates = {
+  type: GasFeeEstimateType.FeeMarket,
   low: {
     maxFeePerGas: '0x3b9aca00',
     maxPriorityFeePerGas: '0x77359400',
@@ -70,19 +83,17 @@ const FEE_MARKET_EXPECTED_RESULT: GasFeeEstimates = {
 };
 
 // Converted to Hex and multiplied by 1 billion.
-const LEGACY_EXPECTED_RESULT: GasFeeEstimates = {
-  low: {
-    maxFeePerGas: '0x3b9aca00',
-    maxPriorityFeePerGas: '0x3b9aca00',
-  },
-  medium: {
-    maxFeePerGas: '0xb2d05e00',
-    maxPriorityFeePerGas: '0xb2d05e00',
-  },
-  high: {
-    maxFeePerGas: '0x12a05f200',
-    maxPriorityFeePerGas: '0x12a05f200',
-  },
+const LEGACY_EXPECTED_RESULT: LegacyGasFeeEstimates = {
+  type: GasFeeEstimateType.Legacy,
+  low: '0x3b9aca00',
+  medium: '0xb2d05e00',
+  high: '0x12a05f200',
+};
+
+// Converted to Hex and multiplied by 1 billion.
+const GAS_PRICE_EXPECTED_RESULT: GasPriceGasFeeEstimates = {
+  type: GasFeeEstimateType.GasPrice,
+  gasPrice: '0xb2d05e00',
 };
 
 describe('DefaultGasFeeFlow', () => {
@@ -133,11 +144,29 @@ describe('DefaultGasFeeFlow', () => {
       });
     });
 
+    it('returns gas price value if estimate type is gas price', async () => {
+      const defaultGasFeeFlow = new DefaultGasFeeFlow();
+
+      const getGasFeeControllerEstimates = jest
+        .fn()
+        .mockResolvedValue(GAS_PRICE_RESPONSE_MOCK);
+
+      const response = await defaultGasFeeFlow.getGasFees({
+        ethQuery: ETH_QUERY_MOCK,
+        getGasFeeControllerEstimates,
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
+
+      expect(response).toStrictEqual({
+        estimates: GAS_PRICE_EXPECTED_RESULT,
+      });
+    });
+
     it('throws if estimate type not supported', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
       const getGasFeeControllerEstimates = jest.fn().mockResolvedValue({
-        gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+        gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
       });
 
       const response = defaultGasFeeFlow.getGasFees({
@@ -146,7 +175,9 @@ describe('DefaultGasFeeFlow', () => {
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
-      await expect(response).rejects.toThrow('No gas fee estimates available');
+      await expect(response).rejects.toThrow(
+        'Unsupported gas estimate type: none',
+      );
     });
   });
 });

@@ -814,7 +814,7 @@ describe('TransactionController', () => {
       expect(gasFeePollerClassMock).toHaveBeenCalledTimes(1);
       expect(gasFeePollerClassMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gasFeeFlows: [lineaGasFeeFlowMock],
+          gasFeeFlows: [lineaGasFeeFlowMock, defaultGasFeeFlowMock],
         }),
       );
     });

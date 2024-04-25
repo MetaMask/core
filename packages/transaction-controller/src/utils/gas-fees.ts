@@ -22,7 +22,7 @@ import type {
   TransactionType,
   GasFeeFlow,
 } from '../types';
-import { UserFeeLevel } from '../types';
+import { GasFeeEstimateType, UserFeeLevel } from '../types';
 import { getGasFeeFlow } from './gas-flow';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 
@@ -303,7 +303,22 @@ async function getSuggestedGasFees(
       transactionMeta: txMeta,
     });
 
-    return response.estimates.medium;
+    const gasFeeEstimateType = response.estimates?.type;
+
+    switch (gasFeeEstimateType) {
+      case GasFeeEstimateType.FeeMarket:
+        return response.estimates.medium;
+      case GasFeeEstimateType.Legacy:
+        return {
+          gasPrice: response.estimates.medium,
+        };
+      case GasFeeEstimateType.GasPrice:
+        return { gasPrice: response.estimates.gasPrice };
+      default:
+        throw new Error(
+          `Unsupported gas fee estimate type returned from flow: ${gasFeeEstimateType}`,
+        );
+    }
   } catch (error) {
     log('Failed to get suggested gas fees', error);
   }

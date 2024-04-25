@@ -1,13 +1,14 @@
 import { toHex } from '@metamask/controller-utils';
 
-import type {
-  GasFeeFlow,
-  GasFeeFlowRequest,
-  GasFeeFlowResponse,
-  TransactionMeta,
+import {
+  GasFeeEstimateType,
+  type GasFeeFlow,
+  type GasFeeFlowRequest,
+  type GasFeeFlowResponse,
+  type TransactionMeta,
 } from '../types';
 
-const MULTIPLIER = 1e18;
+const MULTIPLIER = 1e15;
 
 export class TestGasFeeFlow implements GasFeeFlow {
   #count = 1;
@@ -44,10 +45,11 @@ export class TestGasFeeFlow implements GasFeeFlow {
 
     return {
       estimates: {
+        type: GasFeeEstimateType.FeeMarket,
         low: medium,
         medium,
         high: medium,
       },
-    } as GasFeeFlowResponse;
+    };
   }
 }

@@ -1,11 +1,13 @@
-import type {
-  GasFeeEstimates as GasFeeControllerEstimates,
-  LegacyGasPriceEstimate,
-} from '@metamask/gas-fee-controller';
-import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
+import type { GasFeeEstimates as GasFeeControllerEstimates } from '@metamask/gas-fee-controller';
 
-import type { GasFeeEstimates, GasFeeFlow, TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
+import type {
+  FeeMarketGasFeeEstimates,
+  GasFeeFlow,
+  GasPriceGasFeeEstimates,
+  LegacyGasFeeEstimates,
+  TransactionMeta,
+} from '../types';
+import { GasFeeEstimateType, TransactionStatus } from '../types';
 import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
@@ -40,25 +42,33 @@ const GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK = {
   },
 } as GasFeeControllerEstimates;
 
-const GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK: LegacyGasPriceEstimate = {
-  low: '1',
-  medium: '2',
-  high: '3',
+const TRANSACTION_GAS_FEE_ESTIMATES_FEE_MARKET_MOCK: FeeMarketGasFeeEstimates =
+  {
+    type: GasFeeEstimateType.FeeMarket,
+    low: {
+      maxFeePerGas: '0x7',
+      maxPriorityFeePerGas: '0x8',
+    },
+    medium: {
+      maxFeePerGas: '0x9',
+      maxPriorityFeePerGas: '0xA',
+    },
+    high: {
+      maxFeePerGas: '0xB',
+      maxPriorityFeePerGas: '0xC',
+    },
+  };
+
+const TRANSACTION_GAS_FEE_ESTIMATES_LEGACY_MOCK: LegacyGasFeeEstimates = {
+  type: GasFeeEstimateType.Legacy,
+  low: '0x7',
+  medium: '0x9',
+  high: '0xB',
 };
 
-const TRANSACTION_GAS_FEE_ESTIMATES_MOCK: GasFeeEstimates = {
-  low: {
-    maxFeePerGas: '0x7',
-    maxPriorityFeePerGas: '0x8',
-  },
-  medium: {
-    maxFeePerGas: '0x9',
-    maxPriorityFeePerGas: '0xA',
-  },
-  high: {
-    maxFeePerGas: '0xB',
-    maxPriorityFeePerGas: '0xC',
-  },
+const TRANSACTION_GAS_FEE_ESTIMATES_GAS_PRICE_MOCK: GasPriceGasFeeEstimates = {
+  type: GasFeeEstimateType.GasPrice,
+  gasPrice: '0x9',
 };
 
 /**
@@ -102,9 +112,9 @@ describe('gas-flow', () => {
   describe('mergeGasFeeEstimates', () => {
     it('uses transaction estimates and other gas fee controller properties if estimate type is fee market', () => {
       const result = mergeGasFeeEstimates({
-        gasFeeControllerEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
         gasFeeControllerEstimates: GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
-        transactionGasFeeEstimates: TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
+        transactionGasFeeEstimates:
+          TRANSACTION_GAS_FEE_ESTIMATES_FEE_MARKET_MOCK,
       });
 
       expect(result).toStrictEqual({
@@ -132,9 +142,8 @@ describe('gas-flow', () => {
 
     it('uses transaction estimates only if estimate type is legacy', () => {
       const result = mergeGasFeeEstimates({
-        gasFeeControllerEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
-        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK,
-        transactionGasFeeEstimates: TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
+        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
+        transactionGasFeeEstimates: TRANSACTION_GAS_FEE_ESTIMATES_LEGACY_MOCK,
       });
 
       expect(result).toStrictEqual({
@@ -144,14 +153,27 @@ describe('gas-flow', () => {
       });
     });
 
-    it('uses unchanged gas fee controller estimates if estimate type is gas price', () => {
+    it('uses gas price only if estimate type is gas price', () => {
       const result = mergeGasFeeEstimates({
-        gasFeeControllerEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK,
-        transactionGasFeeEstimates: TRANSACTION_GAS_FEE_ESTIMATES_MOCK,
+        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
+        transactionGasFeeEstimates:
+          TRANSACTION_GAS_FEE_ESTIMATES_GAS_PRICE_MOCK,
       } as never);
 
-      expect(result).toStrictEqual(GAS_FEE_CONTROLLER_LEGACY_ESTIMATES_MOCK);
+      expect(result).toStrictEqual({
+        gasPrice: '0.000000009',
+      });
+    });
+
+    it('uses unchanged gas fee controller estimates if estimate type not recognised', () => {
+      const result = mergeGasFeeEstimates({
+        gasFeeControllerEstimates: GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
+        transactionGasFeeEstimates: { type: 'unknown' } as never,
+      } as never);
+
+      expect(result).toStrictEqual(
+        GAS_FEE_CONTROLLER_FEE_MARKET_ESTIMATES_MOCK,
+      );
     });
   });
 });
