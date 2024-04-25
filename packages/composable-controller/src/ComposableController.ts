@@ -188,8 +188,8 @@ export class ComposableController<
   >,
 > extends BaseController<
   typeof controllerName,
-  ComposedControllerState,
-  ComposedControllerMessenger
+  ComposableControllerState,
+  ComposableControllerMessenger<ComposableControllerState>
 > {
   /**
    * Creates a ComposableController instance.
@@ -204,7 +204,7 @@ export class ComposableController<
     messenger,
   }: {
     controllers: ChildControllers[];
-    messenger: ComposedControllerMessenger;
+    messenger: ComposableControllerMessenger<ComposableControllerState>;
   }) {
     if (messenger === undefined) {
       throw new Error(`Messaging system is required`);
@@ -212,7 +212,7 @@ export class ComposableController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposedControllerState>>(
+      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
@@ -221,7 +221,7 @@ export class ComposableController<
         }),
         {} as never,
       ),
-      state: controllers.reduce<ComposedControllerState>(
+      state: controllers.reduce<ComposableControllerState>(
         (state, controller) => {
           return { ...state, [controller.name]: controller.state };
         },
