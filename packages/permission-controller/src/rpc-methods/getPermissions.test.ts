@@ -1,10 +1,6 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type {
-  Json,
-  JsonRpcRequest,
-  JsonRpcSuccess,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import { assertIsJsonRpcSuccess } from '@metamask/utils';
 
 import type { PermissionConstraint } from '../Permission';
 import { getPermissionsHandler } from './getPermissions';
@@ -34,11 +30,8 @@ describe('getPermissions RPC method', () => {
       id: 1,
       method: 'arbitraryName',
     });
-    expect((response as JsonRpcSuccess<Json>).result).toStrictEqual([
-      'a',
-      'b',
-      'c',
-    ]);
+    assertIsJsonRpcSuccess(response);
+    expect(response.result).toStrictEqual(['a', 'b', 'c']);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });
 
@@ -66,7 +59,8 @@ describe('getPermissions RPC method', () => {
       id: 1,
       method: 'arbitraryName',
     });
-    expect((response as JsonRpcSuccess<Json>).result).toStrictEqual([]);
+    assertIsJsonRpcSuccess(response);
+    expect(response.result).toStrictEqual([]);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });
 });

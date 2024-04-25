@@ -3,8 +3,11 @@ import {
   createAsyncMiddleware,
 } from '@metamask/json-rpc-engine';
 import { rpcErrors, serializeError } from '@metamask/rpc-errors';
-import type { JsonRpcFailure, JsonRpcSuccess } from '@metamask/utils';
-import { hasProperty } from '@metamask/utils';
+import {
+  assertIsJsonRpcFailure,
+  assertIsJsonRpcSuccess,
+  hasProperty,
+} from '@metamask/utils';
 import type {
   PermissionConstraint,
   RequestedPermissions,
@@ -35,12 +38,13 @@ describe('requestPermissions RPC method', () => {
         }),
     );
 
-    const response = (await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
-    })) as JsonRpcSuccess<string[]>;
+    });
+    assertIsJsonRpcSuccess(response);
 
     expect(response.result).toStrictEqual(['a', 'b', 'c']);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledTimes(1);
@@ -68,12 +72,13 @@ describe('requestPermissions RPC method', () => {
       ),
     );
 
-    const response = (await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
-    })) as JsonRpcFailure;
+    });
+    assertIsJsonRpcFailure(response);
 
     expect(hasProperty(response, 'result')).toBe(false);
     delete response.error.stack;
@@ -102,7 +107,7 @@ describe('requestPermissions RPC method', () => {
     );
 
     for (const invalidParams of ['foo', ['bar']]) {
-      const req = {
+      const request = {
         jsonrpc: '2.0',
         id: 1,
         method: 'arbitraryName',
@@ -111,13 +116,14 @@ describe('requestPermissions RPC method', () => {
 
       const expectedError = rpcErrors
         .invalidParams({
-          data: { request: { ...req } },
+          data: { request: { ...request } },
         })
         .serialize();
       delete expectedError.stack;
 
       // @ts-expect-error Intentional destructive testing
-      const response = (await engine.handle(req)) as JsonRpcFailure;
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
       delete response.error.stack;
       expect(response.error).toStrictEqual(expectedError);
       expect(mockRequestPermissionsForOrigin).not.toHaveBeenCalled();

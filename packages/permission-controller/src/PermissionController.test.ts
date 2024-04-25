@@ -7,13 +7,12 @@ import type {
 import { ControllerMessenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type {
-  Json,
-  JsonRpcFailure,
-  JsonRpcRequest,
-  JsonRpcSuccess,
+import type { Json, JsonRpcRequest } from '@metamask/utils';
+import {
+  assertIsJsonRpcFailure,
+  assertIsJsonRpcSuccess,
+  hasProperty,
 } from '@metamask/utils';
-import { hasProperty } from '@metamask/utils';
 import assert from 'assert';
 
 import type {
@@ -5331,11 +5330,12 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const response = (await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
-      })) as JsonRpcSuccess<string[]>;
+      });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toStrictEqual(['a', 'b', 'c']);
     });
@@ -5356,11 +5356,12 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const response = (await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
-      })) as JsonRpcSuccess<string[]>;
+      });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toStrictEqual(['b']);
     });
@@ -5384,11 +5385,12 @@ describe('PermissionController', () => {
       const engine = new JsonRpcEngine();
       engine.push(controller.createPermissionMiddleware({ origin }));
 
-      const response = (await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
-      })) as JsonRpcSuccess<string[]>;
+      });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toStrictEqual(['c', 'a']);
     });
@@ -5404,11 +5406,12 @@ describe('PermissionController', () => {
         end();
       });
 
-      const response = (await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: 'wallet_unrestrictedMethod',
-      })) as JsonRpcSuccess<string[]>;
+      });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toBe('success');
     });
@@ -5451,8 +5454,11 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
-      const { error } = (await engine.handle(request)) as JsonRpcFailure;
-      expect(error).toMatchObject(expect.objectContaining(expectedError));
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
+      expect(response.error).toMatchObject(
+        expect.objectContaining(expectedError),
+      );
     });
 
     it('returns an error if the method does not exist', async () => {
@@ -5470,7 +5476,9 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
-      const { error } = (await engine.handle(request)) as JsonRpcFailure;
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
+      const { error } = response;
 
       expect(error.message).toStrictEqual(expectedError.message);
       // @ts-expect-error We do expect this property to exist.
@@ -5517,7 +5525,10 @@ describe('PermissionController', () => {
         { request: { ...request } },
       );
 
-      const { error } = (await engine.handle(request)) as JsonRpcFailure;
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
+      const { error } = response;
+
       expect(error.message).toStrictEqual(expectedError.message);
       // @ts-expect-error We do expect this property to exist.
       expect(error.data?.cause).toBeNull();

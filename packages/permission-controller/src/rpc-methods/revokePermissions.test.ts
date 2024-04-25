@@ -1,10 +1,9 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type {
-  Json,
-  JsonRpcFailure,
-  JsonRpcRequest,
-  JsonRpcSuccess,
+import type { Json, JsonRpcRequest } from '@metamask/utils';
+import {
+  assertIsJsonRpcFailure,
+  assertIsJsonRpcSuccess,
 } from '@metamask/utils';
 
 import type { RevokePermissionArgs } from './revokePermissions';
@@ -35,7 +34,7 @@ describe('revokePermissions RPC method', () => {
         }),
     );
 
-    const response = (await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -44,7 +43,8 @@ describe('revokePermissions RPC method', () => {
           snap_dialog: {},
         },
       ],
-    })) as JsonRpcSuccess<null>;
+    });
+    assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBeNull();
     expect(mockRevokePermissionsForOrigin).toHaveBeenCalledTimes(1);
@@ -79,7 +79,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    const response = (await engine.handle(req)) as JsonRpcFailure;
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
@@ -111,7 +112,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    const response = (await engine.handle(req)) as JsonRpcFailure;
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
@@ -142,7 +144,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    const response = (await engine.handle(req)) as JsonRpcFailure;
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
@@ -174,7 +177,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    const response = (await engine.handle(req)) as JsonRpcFailure;
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
