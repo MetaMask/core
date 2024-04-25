@@ -18,7 +18,6 @@ import type { Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
@@ -337,7 +336,6 @@ describe('GasFeeController', () => {
             isLegacyGasAPICompatible: true,
             fetchGasEstimates,
             fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
-            fetchGasEstimatesViaEthFeeHistory,
             fetchLegacyGasPriceEstimates,
             fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
             fetchEthGasPriceEstimate,
@@ -394,7 +392,6 @@ describe('GasFeeController', () => {
             isLegacyGasAPICompatible: true,
             fetchGasEstimates,
             fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
-            fetchGasEstimatesViaEthFeeHistory,
             fetchLegacyGasPriceEstimates,
             fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
             fetchEthGasPriceEstimate,
@@ -732,7 +729,6 @@ describe('GasFeeController', () => {
           isLegacyGasAPICompatible: true,
           fetchGasEstimates,
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
-          fetchGasEstimatesViaEthFeeHistory,
           fetchLegacyGasPriceEstimates,
           fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
           fetchEthGasPriceEstimate,
@@ -877,7 +873,6 @@ describe('GasFeeController', () => {
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
-          fetchGasEstimatesViaEthFeeHistory,
           fetchLegacyGasPriceEstimates,
           fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
           fetchEthGasPriceEstimate,
@@ -973,7 +968,6 @@ describe('GasFeeController', () => {
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/suggestedGasFees`,
-          fetchGasEstimatesViaEthFeeHistory,
           fetchLegacyGasPriceEstimates,
           fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,

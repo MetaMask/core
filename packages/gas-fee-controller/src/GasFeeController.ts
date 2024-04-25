@@ -23,7 +23,6 @@ import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
   calculateTimeEstimate,
   fetchGasEstimates,
@@ -466,7 +465,6 @@ export class GasFeeController extends StaticIntervalPollingController<
         '<chain_id>',
         `${decimalChainId}`,
       ),
-      fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
       fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
         '<chain_id>',
