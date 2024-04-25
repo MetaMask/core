@@ -1,0 +1,7 @@
+============= PATCH NOTES ================
+This patch is to ensure `state.gasFeeEstimates` always reflects the gas estiomtes
+for the globally selected chain.
+
+Core PR: https://github.com/MetaMask/core/pull/4214/files
+
+Patch available on core branch `extension-gas-fee-controller-14.0.1-patch`
