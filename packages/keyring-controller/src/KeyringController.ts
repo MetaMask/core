@@ -1663,6 +1663,8 @@ export class KeyringController extends BaseController<
   async #restoreSerializedKeyrings(
     serializedKeyrings: SerializedKeyring[],
   ): Promise<void> {
+    await this.#clearKeyrings();
+
     for (const serializedKeyring of serializedKeyrings) {
       await this.#restoreKeyring(serializedKeyring);
     }
@@ -1687,8 +1689,6 @@ export class KeyringController extends BaseController<
       if (!encryptedVault) {
         throw new Error(KeyringControllerError.VaultError);
       }
-
-      await this.#clearKeyrings();
 
       let vault;
       const updatedState: Partial<KeyringControllerState> = {};
@@ -2110,8 +2110,7 @@ export class KeyringController extends BaseController<
       try {
         return await fn({ releaseLock });
       } catch (e) {
-        // Keyrings and password are cleared and restored to their previous state
-        await this.#clearKeyrings();
+        // Keyrings and password are restored to their previous state
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
         this.#password = currentPassword;
 
