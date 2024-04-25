@@ -147,22 +147,55 @@ export type ComposableControllerStateConstraint = {
   [name: string]: LegacyControllerStateConstraint;
 };
 
-
-export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
-
-type AnyControllerStateChangeEvent = {
-  type: `${string}:stateChange`;
-  payload: [ControllerInstance['state'], Patch[]];
+/**
+ * A controller state change event for any controller instance that extends from either `BaseControllerV1` or `BaseControllerV2`.
+ */
+// TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
+type LegacyControllerStateChangeEvent<
+  ControllerName extends string,
+  ControllerState extends LegacyControllerStateConstraint,
+> = {
+  type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
 };
 
-type AllowedEvents = AnyControllerStateChangeEvent;
+export type ComposableControllerStateChangeEvent<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = LegacyControllerStateChangeEvent<
+  typeof controllerName,
+  ComposableControllerState
+>;
 
-export type ComposableControllerMessenger = RestrictedControllerMessenger<
+export type ComposableControllerEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerStateChangeEvent<ComposableControllerState>;
+
+type ChildControllerStateChangeEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerState extends Record<
+  infer ControllerName extends string,
+  infer ControllerState
+>
+  ? ControllerState extends StateConstraint
+    ? ControllerStateChangeEvent<ControllerName, ControllerState>
+    : ControllerState extends Record<string, unknown>
+    ? LegacyControllerStateChangeEvent<ControllerName, ControllerState>
+    : never
+  : never;
+
+type AllowedEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ChildControllerStateChangeEvents<ComposableControllerState>;
+
+export type ComposableControllerMessenger<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = RestrictedControllerMessenger<
   typeof controllerName,
   never,
-  ComposableControllerEvents | AllowedEvents,
+  | ComposableControllerEvents<ComposableControllerState>
+  | AllowedEvents<ComposableControllerState>,
   never,
-  AllowedEvents['type']
+  AllowedEvents<ComposableControllerState>['type']
 >;
 
 type GetStateChangeEvents<Controller extends ControllerInstance> =
