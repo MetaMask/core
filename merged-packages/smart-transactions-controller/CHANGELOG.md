@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Added
+- Add Sepolia support ([#316](https://github.com/MetaMask/smart-transactions-controller/pull/316))
+- Add function `wipeSmartTransactions` to clear all state for a given address (needs to be supplied in all-lowercase) ([#316](https://github.com/MetaMask/smart-transactions-controller/pull/316))
+
+### Changed
+- Update `@metamask/base-controller` from `^4.1.1` to `^5.0.1` ([#296](https://github.com/MetaMask/smart-transactions-controller/pull/296))
+- Update `@metamask/controller-utils` from `^8.0.3` to `^9.1.0` ([#318](https://github.com/MetaMask/smart-transactions-controller/pull/318))
+- Update `@metamask/network-controller` from `^17.2.0` to `^18.1.0` ([#310](https://github.com/MetaMask/smart-transactions-controller/pull/310))
+- Update `@metamask/polling-controller` from `^5.0.1` to `^6.0.1` ([#294](https://github.com/MetaMask/smart-transactions-controller/pull/294))
+- Update `@metamask/transaction-controller` from `^25.1.0` to `^28.1.0` ([#319](https://github.com/MetaMask/smart-transactions-controller/pull/319))
+
+### Removed
+- **BREAKING**: Remove Goerli support ([#316](https://github.com/MetaMask/smart-transactions-controller/pull/316))
+
 ## [8.1.0]
 ### Changed
 - Update a URL for transaction-api from `https://transaction.metaswap.codefi.network` to `https://transaction.api.cx.metamask.io`, since we shouldn't be using `codefi.network` anymore ([#314](https://github.com/MetaMask/smart-transactions-controller/pull/314))
@@ -254,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.1.0...v9.0.0
 [8.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.0.0...v8.1.0
 [8.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v7.0.0...v8.0.0
 [7.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v6.2.2...v7.0.0
