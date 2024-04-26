@@ -91,10 +91,7 @@ const SUPPORTED_TOKEN_ABIS = {
 
 const REVERTED_ERRORS = ['execution reverted', 'insufficient funds for gas'];
 
-class BalanceTransactionMap extends Map<
-  SimulationToken,
-  SimulationRequestTransaction
-> {}
+type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 
 /**
  * Generate simulation data for a transaction.
@@ -291,33 +288,32 @@ async function getTokenBalanceChanges(
 ): Promise<SimulationTokenBalanceChange[]> {
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
-  const balanceTransactions = [
+  const transactions = [
     ...balanceTxs.before.values(),
     request,
     ...balanceTxs.after.values(),
   ];
 
-  log('Generated balance transactions', balanceTransactions);
+  log('Generated balance transactions', transactions);
 
-  if (balanceTransactions.length === 1) {
+  if (transactions.length === 1) {
     return [];
   }
 
   const response = await simulateTransactions(request.chainId as Hex, {
-    transactions: balanceTransactions,
+    transactions,
   });
 
   log('Balance simulation response', response);
 
-  if (response.transactions.length !== balanceTransactions.length) {
+  if (response.transactions.length !== transactions.length) {
     throw new SimulationInvalidResponseError();
   }
 
   return [...balanceTxs.after.keys()]
     .map((token, index) => {
-      // In the event of an NFT mint, there is no balance transaction before the mint.
-      const isNFTMint = !balanceTxs.before.get(token);
-      const previousBalance = isNFTMint
+      const previousBalanceCheckSkipped = !balanceTxs.before.get(token);
+      const previousBalance = previousBalanceCheckSkipped
         ? '0x0'
         : getValueFromBalanceTransaction(
             request.from,
@@ -362,8 +358,8 @@ function getTokenBalanceTransactions(
   after: BalanceTransactionMap;
 } {
   const tokenKeys = new Set();
-  const before = new BalanceTransactionMap();
-  const after = new BalanceTransactionMap();
+  const before = new Map();
+  const after = new Map();
 
   const userEvents = events.filter(
     (event) =>
@@ -409,13 +405,7 @@ function getTokenBalanceTransactions(
         data,
       };
 
-      const isNFTMint =
-        event.name === 'Transfer' &&
-        event.tokenStandard === SimulationTokenStandard.erc721 &&
-        parseInt(event.args.from as string, 16) === 0;
-
-      if (isNFTMint) {
-        // In the event of an NFT mint, there is no balance transaction before the mint.
+      if (skipPriorBalanceCheck(event)) {
         after.set(simulationToken, transaction);
       } else {
         before.set(simulationToken, transaction);
@@ -425,6 +415,21 @@ function getTokenBalanceTransactions(
   }
 
   return { before, after };
+}
+
+/**
+ * Check if an event needs to check the previous balance.
+ * @param event - The parsed event.
+ * @returns True if the prior balance check should be skipped.
+ */
+function skipPriorBalanceCheck(event: ParsedEvent): boolean {
+  // In the case of an NFT mint, we cannot check the NFT owner before the mint
+  // as the blance check transaction would revert.
+  return (
+    event.name === 'Transfer' &&
+    event.tokenStandard === SimulationTokenStandard.erc721 &&
+    parseInt(event.args.from as string, 16) === 0
+  );
 }
 
 /**
