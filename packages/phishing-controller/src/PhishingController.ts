@@ -224,12 +224,12 @@ export type MaybeUpdateState = {
   handler: PhishingController['maybeUpdateState'];
 };
 
-export type TestOrigin = {
-  type: `${typeof controllerName}:testOrigin`;
+export type TestHostname = {
+  type: `${typeof controllerName}:testHostname`;
   handler: PhishingController['test'];
 };
 
-export type PhishingControllerActions = MaybeUpdateState | TestOrigin;
+export type PhishingControllerActions = MaybeUpdateState | TestHostname;
 
 export type PhishingControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -302,7 +302,7 @@ export class PhishingController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:testOrigin` as const,
+      `${controllerName}:testHostname` as const,
       this.test.bind(this),
     );
   }
