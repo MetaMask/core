@@ -1,6 +1,6 @@
 import {
   type AccountsControllerGetSelectedAccountAction,
-  type AccountsControllerGetAccountExpectAction,
+  type AccountsControllerGetAccountAction,
   type AccountsControllerSelectedAccountChangeEvent,
   isEVMAccount,
 } from '@metamask/accounts-controller';
@@ -107,7 +107,7 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountExpectAction
+  | AccountsControllerGetAccountAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerGetStateAction
@@ -232,7 +232,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       const selectedInternalAccount = this.messagingSystem.call(
         'AccountsController:getSelectedAccount',
       );
-      // return the first evm internal account.
       if (isEVMAccount(selectedInternalAccount)) {
         this.#selectedAccountId = selectedInternalAccount.id;
       }
@@ -458,10 +457,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     networkClientId?: NetworkClientId;
   } = {}): Promise<void> {
     const internalAccount = this.messagingSystem.call(
-      'AccountsController:getAccountExpect',
+      'AccountsController:getAccount',
       selectedAccountId ?? this.#selectedAccountId,
     );
-    if (!isEVMAccount(internalAccount)) {
+    if (!internalAccount || !isEVMAccount(internalAccount)) {
       return;
     }
 
@@ -492,10 +491,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }
 
     const selectedInternalAccount = this.messagingSystem.call(
-      'AccountsController:getAccountExpect',
+      'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    if (!isEVMAccount(selectedInternalAccount)) {
+    if (!selectedInternalAccount || !isEVMAccount(selectedInternalAccount)) {
       return;
     }
 

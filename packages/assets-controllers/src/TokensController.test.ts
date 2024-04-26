@@ -1,3 +1,4 @@
+import type { AccountsController } from '@metamask/accounts-controller';
 import type { ApprovalControllerEvents } from '@metamask/approval-controller';
 import {
   ApprovalController,
@@ -15,6 +16,7 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   BlockTrackerProxy,
   NetworkController,
@@ -25,13 +27,12 @@ import {
   defaultState as defaultNetworkState,
   NetworkClientType,
 } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -98,6 +99,11 @@ describe('TokensController', () => {
     Parameters<NetworkController['getNetworkClientById']>
   >;
 
+  let getAccountHander: jest.Mock<
+    ReturnType<AccountsController['getAccount']>,
+    Parameters<AccountsController['getAccount']>
+  >;
+
   const changeNetwork = (providerConfig: ProviderConfig) => {
     messenger.publish(`NetworkController:networkDidChange`, {
       ...defaultNetworkState,
@@ -105,14 +111,21 @@ describe('TokensController', () => {
     });
   };
 
-  const triggerPreferencesStateChange = (state: PreferencesState) => {
-    messenger.publish('PreferencesController:stateChange', state, []);
+  const triggerSelectedAccountChange = (
+    newInternalAccount: InternalAccount,
+  ) => {
+    messenger.publish(
+      'AccountsController:selectedAccountChange',
+      newInternalAccount,
+    );
   };
 
   const fakeProvider = new FakeProvider();
 
   beforeEach(async () => {
-    const defaultSelectedAddress = '0x1';
+    const defaultSelectedAccount = createMockInternalAccount({
+      address: '0x1',
+    });
     messenger = new ControllerMessenger();
 
     approvalControllerMessenger = messenger.getRestricted({
@@ -130,17 +143,18 @@ describe('TokensController', () => {
       allowedActions: [
         'ApprovalController:addRequest',
         'NetworkController:getNetworkClientById',
+        'AccountsController:getAccount',
       ],
       allowedEvents: [
         'NetworkController:networkDidChange',
-        'PreferencesController:stateChange',
         'TokenListController:stateChange',
+        'AccountsController:selectedAccountChange',
       ],
     });
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
       config: {
-        selectedAddress: defaultSelectedAddress,
+        selectedAccountId: defaultSelectedAccount.id,
         provider: fakeProvider,
       },
       messenger: tokensControllerMessenger,
@@ -160,6 +174,12 @@ describe('TokensController', () => {
           NetworkController['getNetworkClientById']
         >,
       ),
+    );
+
+    getAccountHander = jest.fn();
+    messenger.registerActionHandler(
+      `AccountsController:getAccount`,
+      getAccountHander.mockReturnValue(defaultSelectedAccount),
     );
   });
 
@@ -360,27 +380,25 @@ describe('TokensController', () => {
   it('should add token by selected address', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
 
-    const firstAddress = '0x123';
-    const secondAddress = '0x321';
-
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
+    const firstInternalAccount = createMockInternalAccount({
+      address: '0x123',
     });
+    const secondInternalAccount = createMockInternalAccount({
+      address: '0x321',
+    });
+    getAccountHander.mockReturnValueOnce(firstInternalAccount);
+    triggerSelectedAccountChange(firstInternalAccount);
+
     await tokensController.addToken({
       address: '0x01',
       symbol: 'bar',
       decimals: 2,
     });
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: secondAddress,
-    });
+    getAccountHander.mockReturnValueOnce(secondInternalAccount);
+    triggerSelectedAccountChange(secondInternalAccount);
+
     expect(tokensController.state.tokens).toHaveLength(0);
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
-    });
+    triggerSelectedAccountChange(firstInternalAccount);
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
@@ -490,21 +508,21 @@ describe('TokensController', () => {
 
   it('should remove token by selected address', async () => {
     const stub = stubCreateEthers(tokensController, () => false);
-    const firstAddress = '0x123';
-    const secondAddress = '0x321';
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
+    const firstInternalAccount = createMockInternalAccount({
+      address: '0x123',
     });
+    const secondInternalAccount = createMockInternalAccount({
+      address: '0x321',
+    });
+    getAccountHander.mockReturnValueOnce(firstInternalAccount);
+    triggerSelectedAccountChange(firstInternalAccount);
     await tokensController.addToken({
       address: '0x02',
       symbol: 'baz',
       decimals: 2,
     });
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: secondAddress,
-    });
+    getAccountHander.mockReturnValueOnce(secondInternalAccount);
+    triggerSelectedAccountChange(secondInternalAccount);
     await tokensController.addToken({
       address: '0x01',
       symbol: 'bar',
@@ -512,10 +530,8 @@ describe('TokensController', () => {
     });
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
-    });
+    getAccountHander.mockReturnValueOnce(firstInternalAccount);
+    triggerSelectedAccountChange(firstInternalAccount);
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
       decimals: 2,
@@ -561,14 +577,13 @@ describe('TokensController', () => {
   });
 
   describe('ignoredTokens', () => {
-    const defaultSelectedAddress = '0x0001';
+    const selectedAccount = createMockInternalAccount({
+      address: '0x0001',
+    });
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(() => {
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: defaultSelectedAddress,
-      });
+      triggerSelectedAccountChange(selectedAccount);
       changeNetwork(SEPOLIA);
 
       createEthersStub = stubCreateEthers(tokensController, () => false);
@@ -604,11 +619,8 @@ describe('TokensController', () => {
     });
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
-      const selectedAddress = '0x0001';
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress,
-      });
+      getAccountHander.mockReturnValue(selectedAccount);
+      triggerSelectedAccountChange(selectedAccount);
       changeNetwork(SEPOLIA);
       await tokensController.addToken({
         address: '0x01',
@@ -635,12 +647,13 @@ describe('TokensController', () => {
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
         [SEPOLIA.chainId]: {
-          [selectedAddress]: ['0xFAa'],
+          [selectedAccount.address]: ['0xFAa'],
         },
       });
     });
 
     it('should be able to clear the ignoredToken list', async () => {
+      getAccountHander.mockReturnValue(selectedAccount);
       await tokensController.addToken({
         address: '0x01',
         symbol: 'bar',
@@ -651,7 +664,7 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
         [SEPOLIA.chainId]: {
-          [defaultSelectedAddress]: ['0x01'],
+          [selectedAccount.address]: ['0x01'],
         },
       });
       tokensController.clearIgnoredTokens();
@@ -663,12 +676,16 @@ describe('TokensController', () => {
 
     it('should ignore tokens by [chainID][accountAddress]', async () => {
       const selectedAddress1 = '0x0001';
-      const selectedAddress2 = '0x0002';
-
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: selectedAddress1,
+      const selectedInternalAccount1 = createMockInternalAccount({
+        address: selectedAddress1,
       });
+      const selectedAddress2 = '0x0002';
+      const selectedInternalAccount2 = createMockInternalAccount({
+        address: selectedAddress2,
+      });
+
+      getAccountHander.mockReturnValue(selectedInternalAccount1); // addToken call
+      triggerSelectedAccountChange(selectedInternalAccount1);
       changeNetwork(SEPOLIA);
 
       await tokensController.addToken({
@@ -692,10 +709,8 @@ describe('TokensController', () => {
       tokensController.ignoreTokens(['0x02']);
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x02']);
 
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: selectedAddress2,
-      });
+      getAccountHander.mockReturnValue(selectedInternalAccount2);
+      triggerSelectedAccountChange(selectedInternalAccount2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       await tokensController.addToken({
         address: '0x03',
@@ -707,11 +722,11 @@ describe('TokensController', () => {
 
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
         [SEPOLIA.chainId]: {
-          [selectedAddress1]: ['0x01'],
+          [selectedInternalAccount1.address]: ['0x01'],
         },
         [GOERLI.chainId]: {
-          [selectedAddress1]: ['0x02'],
-          [selectedAddress2]: ['0x03'],
+          [selectedInternalAccount1.address]: ['0x02'],
+          [selectedInternalAccount2.address]: ['0x03'],
         },
       });
     });
@@ -995,11 +1010,12 @@ describe('TokensController', () => {
       // The currently configured chain + address
       const CONFIGURED_CHAIN = SEPOLIA;
       const CONFIGURED_ADDRESS = '0xConfiguredAddress';
-      changeNetwork(CONFIGURED_CHAIN);
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: CONFIGURED_ADDRESS,
+      const CONFIGURED_ACCOUNT = createMockInternalAccount({
+        address: CONFIGURED_ADDRESS,
       });
+      changeNetwork(CONFIGURED_CHAIN);
+      getAccountHander.mockReturnValue(CONFIGURED_ACCOUNT);
+      triggerSelectedAccountChange(CONFIGURED_ACCOUNT);
 
       // A different chain + address
       const OTHER_CHAIN = '0xOtherChainId';
@@ -1062,6 +1078,31 @@ describe('TokensController', () => {
       }
 
       stub.restore();
+    });
+
+    it('should return if the account is non evm', async () => {
+      const dummyDetectedToken: Token = {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        image: undefined,
+        isERC721: false,
+        name: undefined,
+      };
+
+      const nonEvmAccount = createMockInternalAccount({
+        // @ts-expect-error non evm account
+        type: 'bitcoin',
+      });
+
+      getAccountHander.mockReturnValue(nonEvmAccount);
+      const spyUpdate = jest.spyOn(tokensController, 'update');
+
+      await tokensController.addDetectedTokens([dummyDetectedToken]);
+
+      expect(tokensController.state.detectedTokens).toStrictEqual([]);
+      expect(spyUpdate).not.toHaveBeenCalled();
     });
   });
 
@@ -1141,10 +1182,35 @@ describe('TokensController', () => {
         'networkClientId1',
       );
     });
+
+    it('should return an empty array if its a nonevm account', async () => {
+      const dummyToken = {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        image: undefined,
+        name: undefined,
+      };
+      const nonEvmAccount = createMockInternalAccount({
+        // @ts-expect-error non evm account
+        type: 'bitcoin',
+      });
+
+      getAccountHander.mockReturnValue(nonEvmAccount);
+      const spyUpdate = jest.spyOn(tokensController, 'update');
+      await tokensController.addToken(dummyToken);
+
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      expect(spyUpdate).not.toHaveBeenCalled();
+    });
   });
 
   describe('_getNewAllTokensState method', () => {
     const dummySelectedAddress = '0x1';
+    const dummySelectedAccount = createMockInternalAccount({
+      address: dummySelectedAddress,
+    });
     const dummyTokens: Token[] = [
       {
         address: '0x01',
@@ -1157,20 +1223,22 @@ describe('TokensController', () => {
 
     it('should nest newTokens under chain ID and selected address when provided with newTokens as input', () => {
       tokensController.configure({
-        selectedAddress: dummySelectedAddress,
+        selectedAccountId: dummySelectedAccount.id,
         chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
+        processedTokens.newAllTokens[ChainId.mainnet][
+          dummySelectedAccount.address
+        ],
       ).toStrictEqual(dummyTokens);
     });
 
     it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', () => {
       tokensController.configure({
-        selectedAddress: dummySelectedAddress,
+        selectedAccountId: dummySelectedAccount.id,
         chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
@@ -1178,14 +1246,14 @@ describe('TokensController', () => {
       });
       expect(
         processedTokens.newAllDetectedTokens[ChainId.mainnet][
-          dummySelectedAddress
+          dummySelectedAccount.address
         ],
       ).toStrictEqual(dummyTokens);
     });
 
     it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
       tokensController.configure({
-        selectedAddress: dummySelectedAddress,
+        selectedAccountId: dummySelectedAccount.id,
         chainId: ChainId.mainnet,
       });
       const dummyIgnoredTokens = [dummyTokens[0].address];
@@ -1201,6 +1269,9 @@ describe('TokensController', () => {
   });
 
   describe('watchAsset', function () {
+    const defaultSelectedAccount = createMockInternalAccount({
+      address: '0x1',
+    });
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let asset: any, type: any;
@@ -1250,6 +1321,7 @@ describe('TokensController', () => {
           'contractSupportsBase1155Interface',
         )
         .mockImplementation(() => isERC1155);
+      getAccountHander.mockReturnValue(defaultSelectedAccount);
     });
 
     afterEach(() => {
@@ -1390,7 +1462,11 @@ describe('TokensController', () => {
     it('should use symbols/decimals from contract, and allow them to be optional in the request', async function () {
       mockContract([asset]);
 
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(defaultSelectedAccount)
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValueOnce(defaultSelectedAccount);
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reqAsset: any = {
@@ -1409,7 +1485,11 @@ describe('TokensController', () => {
     });
 
     it('should use symbols/decimals from request, and allow them to be optional in the contract', async function () {
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(defaultSelectedAccount)
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValueOnce(defaultSelectedAccount);
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const reqAsset: any = { ...asset, symbol: 'MYSYMBOL', decimals: 13 };
@@ -1446,7 +1526,11 @@ describe('TokensController', () => {
     it('should perform case insensitive validation of symbols', async function () {
       asset.symbol = 'ABC';
       mockContract([asset, asset]);
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(defaultSelectedAccount)
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValueOnce(defaultSelectedAccount);
 
       await tokensController.watchAsset({
         asset: { ...asset, symbol: 'abc' },
@@ -1462,7 +1546,11 @@ describe('TokensController', () => {
     });
 
     it('should be lenient when accepting string vs integer for decimals', async () => {
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+      jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(defaultSelectedAccount)
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValue(defaultSelectedAccount);
       for (const decimals of [6, '6']) {
         asset.decimals = decimals;
         mockContract([asset]);
@@ -1487,8 +1575,9 @@ describe('TokensController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        .mockResolvedValue(undefined);
-
+        .mockReturnValueOnce(defaultSelectedAccount)
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValue(defaultSelectedAccount);
       await tokensController.watchAsset({ asset, type });
 
       expect(tokensController.state.tokens).toHaveLength(1);
@@ -1499,8 +1588,9 @@ describe('TokensController', () => {
           ...asset,
         },
       ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      expect(callActionSpy).toHaveBeenCalledTimes(4);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -1525,7 +1615,9 @@ describe('TokensController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        .mockResolvedValue(undefined);
+        .mockReturnValueOnce(defaultSelectedAccount)
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValue(defaultSelectedAccount);
 
       await tokensController.watchAsset({ asset, type, interactingAddress });
 
@@ -1543,8 +1635,9 @@ describe('TokensController', () => {
           ...asset,
         },
       ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      expect(callActionSpy).toHaveBeenCalledTimes(4);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -1630,6 +1723,7 @@ describe('TokensController', () => {
       const errorMessage = 'Mock Error Message';
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        .mockReturnValueOnce(defaultSelectedAccount)
         .mockRejectedValue(new Error(errorMessage));
 
       await expect(
@@ -1638,8 +1732,9 @@ describe('TokensController', () => {
 
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -1728,13 +1823,13 @@ describe('TokensController', () => {
     });
   });
 
-  describe('onPreferencesStateChange', function () {
-    it('should update tokens list when set address changes', async function () {
+  describe('onSelectedAccountChange', () => {
+    it('should update tokens list when set address changes', async () => {
+      const mockAccount1 = createMockInternalAccount({ address: '0x1' });
+      const mockAccount2 = createMockInternalAccount({ address: '0x2' });
       const stub = stubCreateEthers(tokensController, () => false);
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x1',
-      });
+      getAccountHander.mockReturnValue(mockAccount1);
+      triggerSelectedAccountChange(mockAccount1);
       await tokensController.addToken({
         address: '0x01',
         symbol: 'A',
@@ -1745,20 +1840,16 @@ describe('TokensController', () => {
         symbol: 'B',
         decimals: 5,
       });
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x2',
-      });
+      getAccountHander.mockReturnValue(mockAccount2);
+      triggerSelectedAccountChange(mockAccount2);
       expect(tokensController.state.tokens).toStrictEqual([]);
       await tokensController.addToken({
         address: '0x03',
         symbol: 'C',
         decimals: 6,
       });
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x1',
-      });
+      getAccountHander.mockReturnValue(mockAccount1);
+      triggerSelectedAccountChange(mockAccount1);
       expect(tokensController.state.tokens).toStrictEqual([
         {
           address: '0x01',
@@ -1781,10 +1872,8 @@ describe('TokensController', () => {
           name: undefined,
         },
       ]);
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x2',
-      });
+      getAccountHander.mockReturnValue(mockAccount2);
+      triggerSelectedAccountChange(mockAccount2);
       expect(tokensController.state.tokens).toStrictEqual([
         {
           address: '0x03',
@@ -1797,8 +1886,84 @@ describe('TokensController', () => {
           name: undefined,
         },
       ]);
-
       stub.restore();
+    });
+
+    it('should not update selectedTokenId if the selected account is not an EVM account', async () => {
+      const mockEvmAccount = createMockInternalAccount();
+      triggerSelectedAccountChange(mockEvmAccount);
+      const mockNonEvmAccount = createMockInternalAccount({
+        // @ts-expect-error testing a not evm type
+        type: 'bitcoin',
+      });
+      triggerSelectedAccountChange(mockNonEvmAccount);
+      expect(tokensController.config.selectedAccountId).toBe(mockEvmAccount.id);
+    });
+  });
+
+  describe('Non evm check', () => {
+    it('_getNewAllTokensStatem should not update if the account is not an EVM account', async () => {
+      const dummySelectedAddress = '0x1';
+      const dummySelectedAccount = createMockInternalAccount({
+        address: dummySelectedAddress,
+        // @ts-expect-error testing a not evm type
+        type: 'bitcoin',
+      });
+      tokensController.configure({
+        selectedAccountId: dummySelectedAccount.id,
+        chainId: ChainId.mainnet,
+      });
+      const processedTokens = tokensController._getNewAllTokensState({
+        newTokens: [],
+      });
+      expect(processedTokens.newAllTokens).toStrictEqual({});
+    });
+
+    it('watchAsset should not update if the account is not an EVM account', async () => {
+      const nonEvmAccount = createMockInternalAccount({
+        // @ts-expect-error testing a not evm type
+        type: 'bitcoin',
+      });
+      getAccountHander.mockReturnValue(nonEvmAccount);
+      const type = ERC20;
+      const asset = {
+        address: '0x000000000000000000000000000000000000dEaD',
+        decimals: 12,
+        symbol: 'SES',
+        image: 'image',
+        name: undefined,
+      };
+      await expect(
+        async () =>
+          await tokensController.watchAsset({
+            asset,
+            type,
+          }),
+      ).rejects.toThrow('Account is not an EVM account');
+    });
+
+    it('addDetectedTokens should not update if the account is not an EVM account', async () => {
+      const nonEvmAccount = createMockInternalAccount({
+        // @ts-expect-error testing a not evm type
+        type: 'bitcoin',
+      });
+      getAccountHander.mockReturnValue(nonEvmAccount);
+      const spyUpdate = jest.spyOn(tokensController, 'update');
+      await tokensController.addDetectedTokens([]);
+      expect(spyUpdate).not.toHaveBeenCalled();
+    });
+
+    it('addDetectedTokens should not update if the account is not an EVM account on second check', async () => {
+      const nonEvmAccount = createMockInternalAccount({
+        // @ts-expect-error testing a not evm type
+        type: 'bitcoin',
+      });
+      getAccountHander
+        .mockReturnValueOnce(createMockInternalAccount())
+        .mockReturnValue(nonEvmAccount);
+      const spyUpdate = jest.spyOn(tokensController, 'update');
+      await tokensController.addDetectedTokens([]);
+      expect(spyUpdate).not.toHaveBeenCalled();
     });
   });
 
@@ -1890,6 +2055,24 @@ describe('TokensController', () => {
 
       stub.restore();
     });
+
+    it("should not update if selectedAccountId is ''", async () => {
+      const updateSpy = jest.spyOn(tokensController, 'update');
+      getAccountHander.mockReturnValue(undefined);
+      changeNetwork(SEPOLIA);
+      expect(updateSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not update if its a non evm account that is selected', async () => {
+      const nonEvmAccount = createMockInternalAccount({
+        // @ts-expect-error testing a not evm type
+        type: 'bitcoin',
+      });
+      const updateSpy = jest.spyOn(tokensController, 'update');
+      getAccountHander.mockReturnValue(nonEvmAccount);
+      changeNetwork(SEPOLIA);
+      expect(updateSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('Clearing nested lists', function () {
@@ -1903,23 +2086,28 @@ describe('TokensController', () => {
       },
     ];
     const selectedAddress = '0x1';
+    const selectedInternalAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
     const tokenAddress = '0x01';
 
     it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
       tokensController.configure({
-        selectedAddress,
+        selectedAccountId: selectedInternalAccount.id,
         chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens(['0x01']);
       expect(
-        tokensController.state.allTokens[ChainId.mainnet][selectedAddress],
+        tokensController.state.allTokens[ChainId.mainnet][
+          selectedInternalAccount.address
+        ],
       ).toStrictEqual([]);
     });
 
     it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
       tokensController.configure({
-        selectedAddress,
+        selectedAccountId: selectedInternalAccount.id,
         chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
@@ -1928,14 +2116,14 @@ describe('TokensController', () => {
 
       expect(
         tokensController.state.allIgnoredTokens[ChainId.mainnet][
-          selectedAddress
+          selectedInternalAccount.address
         ],
       ).toStrictEqual([]);
     });
 
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       tokensController.configure({
-        selectedAddress,
+        selectedAccountId: selectedInternalAccount.id,
         chainId: ChainId.mainnet,
       });
       await tokensController.addDetectedTokens(dummyTokens);
@@ -1943,7 +2131,7 @@ describe('TokensController', () => {
 
       expect(
         tokensController.state.allDetectedTokens[ChainId.mainnet][
-          selectedAddress
+          selectedInternalAccount.address
         ],
       ).toStrictEqual([]);
     });

@@ -288,7 +288,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   #getTokenAddresses(chainId: Hex): Hex[] {
     const { allTokens, allDetectedTokens, selectedAccountId } = this.config;
     const internalAccount = this.getInternalAccount(selectedAccountId);
-    const tokens = allTokens[chainId]?.[internalAccount.address];
+    if (!internalAccount || !isEVMAccount(internalAccount)) {
+      return [];
+    }
+    const tokens = allTokens[chainId]?.[internalAccount.address] || [];
     const detectedTokens =
       allDetectedTokens[chainId]?.[internalAccount.address] || [];
 

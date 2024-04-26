@@ -78,6 +78,6 @@ export function getUUIDFromAddressOfNormalAccount(address: string): string {
  */
 export function isEVMAccount(internalAccount: InternalAccount): boolean {
   return [EthAccountType.Eoa, EthAccountType.Erc4337].includes(
-    internalAccount.type as EthAccountType,
+    internalAccount?.type as EthAccountType,
   );
 }
