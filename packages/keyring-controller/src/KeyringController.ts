@@ -652,7 +652,6 @@ export class KeyringController extends BaseController<
         throw new Error('No HD keyring found');
       }
       const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
-      await this.#updateVault();
       await this.verifySeedPhrase();
       return addedAccountAddress;
     });
