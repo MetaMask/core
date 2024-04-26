@@ -4,7 +4,7 @@ import { safelyExecute } from '@metamask/controller-utils';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { toASCII } from 'punycode/';
 
-import { applyDiffs, fetchTimeNow } from './utils';
+import { applyDiffs, fetchTimeNow, isValidHostname } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.metafi.codefi.network';
@@ -390,12 +390,14 @@ export class PhishingController extends BaseController<
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
    */
-  test(origin: string): EthPhishingDetectResult {
-    const punycodeOrigin = toASCII(origin);
-    if (this.state.whitelist.includes(punycodeOrigin)) {
+  test(hostname: string): EthPhishingDetectResult {
+    this.#validateHostname(hostname);
+
+    const punycodeHostname = toASCII(hostname);
+    if (this.state.whitelist.includes(punycodeHostname)) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
-    return this.#detector.check(punycodeOrigin);
+    return this.#detector.check(punycodeHostname);
   }
 
   /**
@@ -403,14 +405,16 @@ export class PhishingController extends BaseController<
    *
    * @param origin - The origin to mark as approved.
    */
-  bypass(origin: string) {
-    const punycodeOrigin = toASCII(origin);
+  bypass(hostname: string) {
+    this.#validateHostname(hostname);
+
+    const punycodeHostname = toASCII(hostname);
     const { whitelist } = this.state;
-    if (whitelist.includes(punycodeOrigin)) {
+    if (whitelist.includes(punycodeHostname)) {
       return;
     }
     this.update((draftState) => {
-      draftState.whitelist.push(punycodeOrigin);
+      draftState.whitelist.push(punycodeHostname);
     });
   }
 
@@ -581,6 +585,16 @@ export class PhishingController extends BaseController<
         return null;
       }
     }
+  }
+
+  #validateHostname(hostname: string) {
+    if (isValidHostname(hostname)) {
+      return true;
+    }
+
+    throw new Error(
+      `Invalid Input: Expected a valid hostname, recieved ${hostname}`,
+    );
   }
 }
 
