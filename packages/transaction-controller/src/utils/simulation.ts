@@ -288,13 +288,13 @@ async function getTokenBalanceChanges(
 ): Promise<SimulationTokenBalanceChange[]> {
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
+  log('Generated balance transactions', [...balanceTxs.after.values()]);
+
   const transactions = [
     ...balanceTxs.before.values(),
     request,
     ...balanceTxs.after.values(),
   ];
-
-  log('Generated balance transactions', transactions);
 
   if (transactions.length === 1) {
     return [];
@@ -424,7 +424,7 @@ function getTokenBalanceTransactions(
  */
 function skipPriorBalanceCheck(event: ParsedEvent): boolean {
   // In the case of an NFT mint, we cannot check the NFT owner before the mint
-  // as the blance check transaction would revert.
+  // as the balance check transaction would revert.
   return (
     event.name === 'Transfer' &&
     event.tokenStandard === SimulationTokenStandard.erc721 &&
