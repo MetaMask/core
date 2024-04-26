@@ -724,9 +724,7 @@ export class KeyringController extends BaseController<
       return this.getOrAddQRKeyring();
     }
 
-    return this.#persistOrRollback(async () =>
-      this.#newKeyring(type, opts, true),
-    );
+    return this.#persistOrRollback(async () => this.#newKeyring(type, opts));
   }
 
   /**
@@ -962,11 +960,9 @@ export class KeyringController extends BaseController<
         default:
           throw new Error(`Unexpected import strategy: '${strategy}'`);
       }
-      const newKeyring = (await this.#newKeyring(
-        KeyringTypes.simple,
-        [privateKey],
-        true,
-      )) as EthKeyring<Json>;
+      const newKeyring = (await this.#newKeyring(KeyringTypes.simple, [
+        privateKey,
+      ])) as EthKeyring<Json>;
       const accounts = await newKeyring.getAccounts();
       return accounts[0];
     });
@@ -1237,13 +1233,6 @@ export class KeyringController extends BaseController<
         encryptionSalt,
       );
       this.#setUnlocked();
-
-      const qrKeyring = this.getQRKeyring();
-      if (qrKeyring) {
-        // if there is a QR keyring, we need to subscribe
-        // to its events after unlocking the vault
-        this.#subscribeToQRKeyringEvents(qrKeyring);
-      }
     });
   }
 
@@ -1258,13 +1247,6 @@ export class KeyringController extends BaseController<
     return this.#withRollback(async () => {
       this.#keyrings = await this.#unlockKeyrings(password);
       this.#setUnlocked();
-
-      const qrKeyring = this.getQRKeyring();
-      if (qrKeyring) {
-        // if there is a QR keyring, we need to subscribe
-        // to its events after unlocking the vault
-        this.#subscribeToQRKeyringEvents(qrKeyring);
-      }
     });
   }
 
@@ -1547,18 +1529,9 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    const qrKeyring = (await this.#newKeyring(KeyringTypes.qr, {
+    return (await this.#newKeyring(KeyringTypes.qr, {
       accounts: [],
     })) as unknown as QRKeyring;
-
-    const accounts = await qrKeyring.getAccounts();
-    await this.#checkForDuplicate(KeyringTypes.qr, accounts);
-
-    this.#keyrings.push(qrKeyring as unknown as EthKeyring<Json>);
-
-    this.#subscribeToQRKeyringEvents(qrKeyring);
-
-    return qrKeyring;
   }
 
   /**
@@ -1881,11 +1854,7 @@ export class KeyringController extends BaseController<
   async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
     this.#assertControllerMutexIsLocked();
 
-    const keyring = (await this.#newKeyring(
-      type,
-      opts,
-      true,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.#newKeyring(type, opts)) as EthKeyring<Json>;
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
@@ -1901,15 +1870,10 @@ export class KeyringController extends BaseController<
    *
    * @param type - The type of keyring to add.
    * @param data - The data to restore a previously serialized keyring.
-   * @param persist - Whether to persist the keyring to the vault.
    * @returns The new keyring.
    * @throws If the keyring includes duplicated accounts.
    */
-  async #newKeyring(
-    type: string,
-    data: unknown,
-    persist = false,
-  ): Promise<EthKeyring<Json>> {
+  async #newKeyring(type: string, data: unknown): Promise<EthKeyring<Json>> {
     this.#assertControllerMutexIsLocked();
 
     const keyringBuilder = this.#getKeyringBuilderForType(type);
@@ -1942,9 +1906,13 @@ export class KeyringController extends BaseController<
 
     await this.#checkForDuplicate(type, await keyring.getAccounts());
 
-    if (persist) {
-      this.#keyrings.push(keyring);
+    if (type === KeyringTypes.qr) {
+      // In case of a QR keyring type, we need to subscribe
+      // to its events after creating it
+      this.#subscribeToQRKeyringEvents(keyring as unknown as QRKeyring);
     }
+
+    this.#keyrings.push(keyring);
 
     return keyring;
   }
@@ -1975,13 +1943,7 @@ export class KeyringController extends BaseController<
 
     try {
       const { type, data } = serialized;
-      const keyring = await this.#newKeyring(type, data);
-
-      // getAccounts also validates the accounts for some keyrings
-      await keyring.getAccounts();
-      this.#keyrings.push(keyring);
-
-      return keyring;
+      return await this.#newKeyring(type, data);
     } catch (_) {
       this.#unsupportedKeyrings.push(serialized);
       return undefined;
