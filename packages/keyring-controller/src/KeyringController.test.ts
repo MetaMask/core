@@ -3217,7 +3217,7 @@ describe('KeyringController', () => {
   describe('atomic operations', () => {
     describe('addNewKeyring', () => {
       it('should rollback the controller keyrings if the keyring creation fails', async () => {
-        const mockAddress = '0x1234';
+        const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);
         // Mocking the serialize method to throw an error will
         // halt the controller everytime it tries to persist the keyring,
@@ -3234,12 +3234,11 @@ describe('KeyringController', () => {
               controller.addNewKeyring(MockKeyring.type),
             ).rejects.toThrow('You will never be able to persist me!');
 
-            expect(controller.state.keyrings).toHaveLength(1);
-            // getAccounts calls each keyring to get its accounts
-            // resulting in an additional '0x1234' account being added
-            // in case of test failure
-            expect(await controller.getAccounts()).toStrictEqual(
-              initialState.keyrings[0].accounts,
+            expect(controller.state).toStrictEqual(initialState);
+            await expect(
+              controller.exportAccount(password, mockAddress),
+            ).rejects.toThrow(
+              'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
             );
           },
         );
