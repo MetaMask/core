@@ -30,12 +30,12 @@ export type ListTypes = 'fuzzylist' | 'blocklist' | 'allowlist';
  * @type EthPhishingResponse
  *
  * Configuration response from the eth-phishing-detect package
- * consisting of approved and unapproved website origins
- * @property blacklist - List of unapproved origins
- * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * consisting of approved and unapproved website hostnames
+ * @property blacklist - List of unapproved hostnames
+ * @property fuzzylist - List of fuzzy-matched unapproved hostnames
  * @property tolerance - Fuzzy match tolerance level
  * @property version - Version number of this configuration
- * @property whitelist - List of approved origins
+ * @property whitelist - List of approved hostnames
  */
 export type EthPhishingResponse = {
   blacklist: string[];
@@ -67,9 +67,9 @@ export type PhishingStalelist = {
  * @type PhishingListState
  *
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
- * @property allowlist - List of approved origins (legacy naming "whitelist")
- * @property blocklist - List of unapproved origins (legacy naming "blacklist")
- * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property allowlist - List of approved hostnames (legacy naming "whitelist")
+ * @property blocklist - List of unapproved hostnames (legacy naming "blacklist")
+ * @property fuzzylist - List of fuzzy-matched unapproved hostnames
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  * @property version - Version of the phishing list state.
@@ -92,7 +92,7 @@ export type PhishingListState = {
  * @property name - Name of the config on which a match was found.
  * @property version - Version of the config on which a match was found.
  * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
- * @property match - The matching fuzzylist origin when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
+ * @property match - The matching fuzzylist hostname when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
  * @property type - The field of the config on which a match was found.
  */
 export type EthPhishingDetectResult = {
@@ -196,7 +196,7 @@ const getDefaultState = (): PhishingControllerState => {
  *
  * Phishing controller state
  * @property phishing - eth-phishing-detect configuration
- * @property whitelist - array of temporarily-approved origins
+ * @property whitelist - array of temporarily-approved hostnames
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
@@ -240,7 +240,7 @@ export type PhishingControllerMessenger = RestrictedControllerMessenger<
 >;
 
 /**
- * Controller that manages community-maintained lists of approved and unapproved website origins.
+ * Controller that manages community-maintained lists of approved and unapproved website hostnames.
  */
 export class PhishingController extends BaseController<
   typeof controllerName,
@@ -381,14 +381,14 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Determines if a given origin is unapproved.
+   * Determines if a given hostname is unapproved.
    *
    * It is strongly recommended that you call {@link maybeUpdateState} before calling this,
    * to check whether the phishing configuration is up-to-date. It will be updated if necessary
    * by calling {@link updateStalelist} or {@link updateHotlist}.
    *
-   * @param origin - Domain origin of a website.
-   * @returns Whether the origin is an unapproved origin.
+   * @param hostname - Hostname of a given website.
+   * @returns Whether the hostname is an unapproved domain.
    */
   test(hostname: string): EthPhishingDetectResult {
     this.#validateHostname(hostname);
@@ -401,9 +401,9 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Temporarily marks a given origin as approved.
+   * Temporarily marks a given hostname as approved.
    *
-   * @param origin - The origin to mark as approved.
+   * @param hostname - The hostname to mark as approved.
    */
   bypass(hostname: string) {
     this.#validateHostname(hostname);
