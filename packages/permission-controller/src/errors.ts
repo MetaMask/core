@@ -7,6 +7,7 @@ import {
 } from '@metamask/rpc-errors';
 
 import type { PermissionType } from './Permission';
+import type { PermissionsDiff } from './PermissionController';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;
@@ -101,6 +102,28 @@ export class InvalidSubjectIdentifierError extends Error {
 export class UnrecognizedSubjectError extends Error {
   constructor(origin: string) {
     super(`Unrecognized subject: "${origin}" has no permissions.`);
+  }
+}
+
+export class CaveatMergerDoesNotExistError extends Error {
+  constructor(caveatType: string) {
+    super(`Caveat merger does not exist for type: ${caveatType}`);
+  }
+}
+
+export class InvalidMergedPermissionsError extends Error {
+  public cause: Error;
+
+  public data: {
+    diff: PermissionsDiff;
+  };
+
+  constructor(origin: string, cause: Error, diff: PermissionsDiff) {
+    super(
+      `Invalid merged permissions for subject "${origin}":\n${cause.message}`,
+    );
+    this.cause = cause;
+    this.data = { diff };
   }
 }
 

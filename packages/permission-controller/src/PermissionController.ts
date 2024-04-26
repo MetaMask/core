@@ -24,7 +24,8 @@ import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
-import { castDraft, type Draft } from 'immer';
+import type { Patch } from 'immer';
+import { castDraft, produceWithPatches, type Draft } from 'immer';
 import { nanoid } from 'nanoid';
 
 import type {
@@ -43,6 +44,7 @@ import {
   CaveatAlreadyExistsError,
   CaveatDoesNotExistError,
   CaveatInvalidJsonError,
+  CaveatMergerDoesNotExistError,
   CaveatMissingValueError,
   CaveatSpecificationMismatchError,
   DuplicateCaveatError,
@@ -54,6 +56,7 @@ import {
   InvalidCaveatFieldsError,
   InvalidCaveatsPropertyError,
   InvalidCaveatTypeError,
+  InvalidMergedPermissionsError,
   invalidParams,
   InvalidSubjectIdentifierError,
   methodNotFound,
@@ -106,6 +109,11 @@ export type PermissionsRequestMetadata = PermissionSubjectMetadata & {
 };
 
 /**
+ * A diff produced by an incremental permissions request.
+ */
+export type PermissionsDiff = (Omit<Patch, 'value'> & { value: Json })[];
+
+/**
  * Used for prompting the user about a proposed new permission.
  * Includes information about the grantee subject, requested permissions, and
  * any additional information added by the consumer.
@@ -117,6 +125,15 @@ export type PermissionsRequest = {
   metadata: PermissionsRequestMetadata;
   permissions: RequestedPermissions;
   [key: string]: Json;
+} & { diff?: PermissionsDiff | null };
+
+/**
+ * Metadata associated with an approved permission request.
+ */
+type ApprovedPermissionsMetadata = {
+  data?: Record<string, unknown>;
+  id: string;
+  origin: OriginString;
 };
 
 export type SideEffects = {
@@ -1526,7 +1543,8 @@ export class PermissionController<
    * caveat is stringently validated – including by calling every specification
    * validator – and an error is thrown if any validation fails.
    *
-   * ATTN: This method does **not** prompt the user for approval.
+   * ATTN: This method does **not** prompt the user for approval. Use consent must
+   * first be obtained through some other means.
    *
    * @see {@link PermissionController.requestPermissions} For initiating a
    * permissions request requiring user approval.
@@ -1834,9 +1852,11 @@ export class PermissionController<
   }
 
   /**
-   * Initiates a permission request that requires user approval. This should
-   * always be used to grant additional permissions to a subject, unless user
-   * approval has been obtained through some other means.
+   * Initiates a permission request that requires user approval.
+   *
+   * Either this or {@link PermissionController.requestPermissionsIncremental}
+   * should always be used to grant additional permissions to a subject,
+   * unless user approval has been obtained through some other means.
    *
    * Permissions are validated at every step of the approval process, and this
    * method will reject if validation fails.
@@ -1872,7 +1892,7 @@ export class PermissionController<
           ControllerCaveatSpecification
         >
       >,
-      { data?: Record<string, unknown>; id: string; origin: OriginString },
+      ApprovedPermissionsMetadata,
     ]
   > {
     const { origin } = subject;
@@ -1891,41 +1911,94 @@ export class PermissionController<
     };
 
     const approvedRequest = await this.requestUserApproval(permissionsRequest);
-    const { permissions: approvedPermissions, ...requestData } =
-      approvedRequest;
+    return await this.#handleApprovedPermissions({
+      subject,
+      metadata,
+      preserveExistingPermissions,
+      approvedRequest,
+    });
+  }
 
-    const sideEffects = this.getSideEffects(approvedPermissions);
+  /**
+   * Initiates an incremental permission request that prompts for user approval.
+   * Incremental permission requests allow the caller to replace existing and/or
+   * add brand new permissions and caveats for the specified subject.
+   *
+   * Incremental permission request are merged with the subject's existing permissions
+   * through a right-biased union, where the incremental permission are the right-hand
+   * side of the merger. If both sides of the merger specify the same caveats for a
+   * given permission, the caveats are merged using their specification's caveat merger
+   * property.
+   *
+   * Either this or {@link PermissionController.requestPermissions} should
+   * always be used to grant additional permissions to a subject, unless user
+   * approval has been obtained through some other means.
+   *
+   * Permissions are validated at every step of the approval process, and this
+   * method will reject if validation fails.
+   *
+   * @see {@link ApprovalController} For the user approval logic.
+   * @see {@link PermissionController.acceptPermissionsRequest} For the method
+   * that _accepts_ the request and resolves the user approval promise.
+   * @see {@link PermissionController.rejectPermissionsRequest} For the method
+   * that _rejects_ the request and the user approval promise.
+   * @param subject - The grantee subject.
+   * @param requestedPermissions - The requested permissions.
+   * @param options - Additional options.
+   * @param options.id - The id of the permissions request. Defaults to a unique
+   * id.
+   * @param options.metadata - Additional metadata about the permission request.
+   * @returns The granted permissions and request metadata.
+   */
+  async requestPermissionsIncremental(
+    subject: PermissionSubjectMetadata,
+    requestedPermissions: RequestedPermissions,
+    options: {
+      id?: string;
+      metadata?: Record<string, Json>;
+    } = {},
+  ) {
+    const { origin } = subject;
+    const { id = nanoid() } = options;
+    this.validateRequestedPermissions(origin, requestedPermissions);
 
-    if (Object.values(sideEffects.permittedHandlers).length > 0) {
-      const sideEffectsData = await this.executeSideEffects(
-        sideEffects,
-        approvedRequest,
-      );
-      const mappedData = Object.keys(sideEffects.permittedHandlers).reduce(
-        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
-        {},
-      );
+    const [newPermissions, permissionsDiff] = this.#mergeIncrementalPermissions(
+      origin,
+      requestedPermissions,
+    );
 
-      return [
-        this.grantPermissions({
-          subject,
-          approvedPermissions,
-          preserveExistingPermissions,
-          requestData,
-        }),
-        { data: mappedData, ...metadata },
-      ];
+    try {
+      // It does not spark joy to run this validation again after the merger operation.
+      // But, doing something about it is probably not worth it, especially considering
+      // that the worst-case scenario for validation is precisely as bad as this.
+      this.validateRequestedPermissions(origin, newPermissions);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new InvalidMergedPermissionsError(origin, error, permissionsDiff);
+      }
+      /* istanbul ignore next: This should be impossible */
+      throw internalError('Unrecognized error type', { error });
     }
 
-    return [
-      this.grantPermissions({
-        subject,
-        approvedPermissions,
-        preserveExistingPermissions,
-        requestData,
-      }),
+    const metadata = {
+      ...options.metadata,
+      id,
+      origin,
+    };
+
+    const permissionsRequest = {
       metadata,
-    ];
+      permissions: newPermissions,
+      diff: permissionsDiff,
+    };
+
+    const approvedRequest = await this.requestUserApproval(permissionsRequest);
+    return await this.#handleApprovedPermissions({
+      subject,
+      metadata,
+      preserveExistingPermissions: false,
+      approvedRequest,
+    });
   }
 
   /**
@@ -1992,6 +2065,131 @@ export class PermissionController<
   }
 
   /**
+   * Merges a set of incrementally requested permissions into the existing permissions of
+   * the requesting subject. The merge is a right-biased union, where the existing
+   * permissions are the left-hand side, and the incrementally requested permissions are
+   * the right-hand side.
+   *
+   * @param origin - The origin of the subject.
+   * @param incrementalRequestedPermissions - The requested permissions to merge.
+   * @returns The merged permissions and the resulting diff.
+   */
+  #mergeIncrementalPermissions(
+    origin: OriginString,
+    incrementalRequestedPermissions: RequestedPermissions,
+  ) {
+    const [newPermissions, permissionsDiff] = produceWithPatches(
+      this.getPermissions(origin) ?? {},
+      (existingPermissions) => {
+        const leftPermissions = existingPermissions as RequestedPermissions;
+
+        Object.entries(incrementalRequestedPermissions).forEach(
+          ([targetName, rightPermission]) => {
+            if (
+              !hasProperty(
+                // We type-guard the targetName key out of existence without this cast.
+                leftPermissions as Record<string, unknown>,
+                targetName,
+              )
+            ) {
+              leftPermissions[targetName] = rightPermission;
+            } else {
+              const leftPermission = leftPermissions[targetName];
+              leftPermissions[targetName] = this.#mergePermission(
+                leftPermission,
+                rightPermission,
+              );
+            }
+          },
+        );
+      },
+    );
+
+    return [newPermissions, permissionsDiff as PermissionsDiff] as const;
+  }
+
+  /**
+   * Performs a right-biased union between two permissions. The task of merging caveats
+   * with the same type between the two permissions is delegated to the corresponding
+   * caveat's merger implementation.
+   *
+   * Throws if the left-hand and right-hand permissions both have a caveat whose
+   * specification does not provide a caveat merger function.
+   *
+   * @param leftPermission - The left-hand permission to merge.
+   * @param rightPermission - The right-hand permission to merge.
+   * @returns The merged permission.
+   */
+  #mergePermission(
+    leftPermission: Partial<PermissionConstraint>,
+    rightPermission: Partial<PermissionConstraint>,
+  ) {
+    const { caveatPairs, uniqueCaveats } = this.#collectUniqueAndPairedCaveats(
+      leftPermission,
+      rightPermission,
+    );
+
+    const mergedCaveats = caveatPairs.map(([leftCaveat, rightCaveat]) => {
+      const { merger } = this.getCaveatSpecification(leftCaveat.type);
+      if (!merger) {
+        throw new CaveatMergerDoesNotExistError(leftCaveat.type);
+      }
+
+      return merger(leftCaveat, rightCaveat);
+    });
+
+    const allCaveats = [...mergedCaveats, ...uniqueCaveats];
+
+    return {
+      ...leftPermission,
+      ...rightPermission,
+      ...(allCaveats.length > 0
+        ? { caveats: allCaveats as NonEmptyArray<CaveatConstraint> }
+        : {}),
+    };
+  }
+
+  /**
+   * Given two permission objects, computes two sets:
+   * - The set of caveats that are unique to either permission.
+   * - The set of caveat pairs that are common to both permissions.
+   *
+   * Assumes that the caveat arrays of both permissions do not contain duplicate
+   * caveats.
+   *
+   * @param leftPermission - The left-hand permission.
+   * @param rightPermission - The right-hand permission.
+   * @returns The sets of caveat pairs and unique caveats.
+   */
+  #collectUniqueAndPairedCaveats(
+    leftPermission: Partial<PermissionConstraint>,
+    rightPermission: Partial<PermissionConstraint>,
+  ) {
+    const leftCaveats = leftPermission.caveats ?? [];
+    const rightCaveats = rightPermission.caveats ?? [];
+    const uniqueCaveats: CaveatConstraint[] = [];
+    const caveatPairs: [CaveatConstraint, CaveatConstraint][] = [];
+
+    // Collect unique caveats and caveat pairs
+    leftCaveats.forEach((leftCaveat) => {
+      const rightCaveatIndex = rightCaveats.findIndex(
+        (rightCaveat) => rightCaveat.type === leftCaveat.type,
+      );
+
+      if (rightCaveatIndex === -1) {
+        uniqueCaveats.push(leftCaveat);
+      } else {
+        caveatPairs.push([leftCaveat, rightCaveats[rightCaveatIndex]]);
+        rightCaveats.splice(rightCaveatIndex, 1);
+      }
+    });
+
+    uniqueCaveats.push(...rightCaveats);
+
+    return { caveatPairs, uniqueCaveats };
+  }
+
+  /**
    * Adds a request to the {@link ApprovalController} using the
    * {@link AddApprovalRequest} action. Also validates the resulting approved
    * permissions request, and throws an error if validation fails.
@@ -2014,6 +2212,60 @@ export class PermissionController<
 
     this.validateApprovedPermissions(approvedRequest, { id, origin });
     return approvedRequest as PermissionsRequest;
+  }
+
+  /**
+   * Accepts a permissions request that has been approved by the user. This
+   * method should be called after the user has approved the request and the
+   * {@link ApprovalController} has resolved the user approval promise.
+   *
+   * @param options - Options bag.
+   * @param options.subject - The subject to grant permissions to.
+   * @param options.metadata - The metadata of the approved permissions request.
+   * @param options.preserveExistingPermissions - Whether to preserve the
+   * subject's existing permissions.
+   * @param options.approvedRequest - The approved permissions request to handle.
+   * @returns The granted permissions and request metadata.
+   */
+  async #handleApprovedPermissions({
+    subject,
+    metadata,
+    preserveExistingPermissions,
+    approvedRequest,
+  }: {
+    subject: PermissionSubjectMetadata;
+    metadata: PermissionsRequest['metadata'];
+    preserveExistingPermissions: boolean;
+    approvedRequest: PermissionsRequest;
+  }): Promise<
+    [ReturnType<typeof this.grantPermissions>, ApprovedPermissionsMetadata]
+  > {
+    const { permissions: approvedPermissions, ...requestData } =
+      approvedRequest;
+    const approvedMetadata: ApprovedPermissionsMetadata = { ...metadata };
+
+    const sideEffects = this.getSideEffects(approvedPermissions);
+    if (Object.values(sideEffects.permittedHandlers).length > 0) {
+      const sideEffectsData = await this.executeSideEffects(
+        sideEffects,
+        approvedRequest,
+      );
+
+      approvedMetadata.data = Object.keys(sideEffects.permittedHandlers).reduce(
+        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
+        {},
+      );
+    }
+
+    return [
+      this.grantPermissions({
+        subject,
+        approvedPermissions,
+        preserveExistingPermissions,
+        requestData,
+      }),
+      approvedMetadata,
+    ];
   }
 
   /**
@@ -2163,7 +2415,7 @@ export class PermissionController<
           error instanceof JsonRpcError ? error.data : undefined,
         );
       }
-      /* istanbul ignore next: We should only throw well-formed errors */
+      /* istanbul ignore next: This should be impossible */
       throw internalError('Unrecognized error type', { error });
     }
   }
