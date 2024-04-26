@@ -1,3 +1,4 @@
+import { isEVMAccount } from '@metamask/accounts-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
   fetchWithErrorHandling,
@@ -5,6 +6,7 @@ import {
   ChainId,
   NFT_API_BASE_URL,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
@@ -138,7 +140,7 @@ export interface ApiNftCreator {
  * NftDetection configuration
  * @property interval - Polling interval used to fetch new token rates
  * @property chainId - Current chain ID
- * @property selectedAddress - Vault selected address
+ * @property selectedAccountId - Vault selected account id
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -146,7 +148,7 @@ export interface ApiNftCreator {
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
   chainId: Hex;
-  selectedAddress: string;
+  selectedAccountId: string;
 }
 
 export type ReservoirResponse = {
@@ -417,6 +419,8 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
+  private readonly getInternalAccount: (accountId: string) => InternalAccount;
+
   /**
    * Creates an NftDetectionController instance.
    *
@@ -425,13 +429,15 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onSelectedAccountChange - Allows subscribing to the change of account from the accoutns controller.
    * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
    * @param options.addNft - Add an NFT.
    * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
    * @param options.getNftState - Gets the current state of the Assets controller.
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
-   * @param options.selectedAddress - Represents current selected address.
+   * @param options.selectedAccountId - Represents current selected account id.
    * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
+   * @param options.getInternalAccount - Gets the internal account from the AccountsController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -441,12 +447,14 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       getNetworkClientById,
       onPreferencesStateChange,
       onNetworkStateChange,
+      onSelectedAccountChange,
       getOpenSeaApiKey,
       addNft,
       getNftApi,
       getNftState,
+      getInternalAccount,
       disabled: initialDisabled,
-      selectedAddress: initialSelectedAddress,
+      selectedAccountId: initialSelectedAccountId,
     }: {
       chainId: Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -457,12 +465,16 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
+      onSelectedAccountChange: (
+        listener: (internalAccount: InternalAccount) => void,
+      ) => void;
       getOpenSeaApiKey: () => string | undefined;
       addNft: NftController['addNft'];
       getNftApi: NftController['getNftApi'];
       getNftState: () => NftState;
+      getInternalAccount: (accountId: string) => InternalAccount;
       disabled: boolean;
-      selectedAddress: string;
+      selectedAccountId: string;
     },
     config?: Partial<NftDetectionConfig>,
     state?: Partial<BaseState>,
@@ -471,22 +483,36 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
       chainId: initialChainId,
-      selectedAddress: initialSelectedAddress,
+      selectedAccountId: initialSelectedAccountId,
       disabled: initialDisabled,
     };
     this.initialize();
     this.getNftState = getNftState;
     this.getNetworkClientById = getNetworkClientById;
-    onPreferencesStateChange(({ selectedAddress, useNftDetection }) => {
-      const { selectedAddress: previouslySelectedAddress, disabled } =
-        this.config;
+    this.getInternalAccount = getInternalAccount;
+    onSelectedAccountChange((internalAccount) => {
+      if (!isEVMAccount(internalAccount)) {
+        this.configure({ selectedAccountId: '' });
+        this.stop();
+        return;
+      }
+      const { selectedAccountId, disabled } = this.config;
+      if (!disabled && selectedAccountId !== internalAccount.id) {
+        this.configure({ selectedAccountId: internalAccount.id });
+        this.start();
+      } else {
+        this.stop();
+      }
+    });
 
-      if (
-        selectedAddress !== previouslySelectedAddress ||
-        !useNftDetection !== disabled
-      ) {
-        this.configure({ selectedAddress, disabled: !useNftDetection });
-        if (useNftDetection) {
+    onPreferencesStateChange(({ useNftDetection }) => {
+      const { disabled, selectedAccountId } = this.config;
+      const selectedInternalAccount =
+        this.getInternalAccount(selectedAccountId);
+
+      if (!useNftDetection !== disabled) {
+        this.configure({ disabled: !useNftDetection });
+        if (useNftDetection && isEVMAccount(selectedInternalAccount)) {
           this.start();
         } else {
           this.stop();
@@ -569,15 +595,21 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.networkClientId - The network client ID to detect NFTs on.
    * @param options.userAddress - The address to detect NFTs for.
    */
-  async detectNfts(
-    {
-      networkClientId,
-      userAddress,
-    }: {
-      networkClientId?: NetworkClientId;
-      userAddress: string;
-    } = { userAddress: this.config.selectedAddress },
-  ) {
+  async detectNfts({
+    networkClientId,
+    userAddress,
+  }: {
+    networkClientId?: NetworkClientId;
+    userAddress?: string;
+  } = {}) {
+    const { selectedAccountId } = this.config;
+    const selectedInternalAccount = this.getInternalAccount(selectedAccountId);
+    if (!isEVMAccount(selectedInternalAccount)) {
+      return;
+    }
+
+    userAddress = userAddress || selectedInternalAccount.address;
+
     /* istanbul ignore if */
     if (!this.isMainnet() || this.disabled) {
       return;
