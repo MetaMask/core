@@ -609,7 +609,7 @@ export class KeyringController extends BaseController<
     accountCount?: number,
   ): Promise<Hex> {
     return this.#withControllerLock(async () => {
-      const oldAccounts = await this.#getAccountsFromKeyrings();
+      const oldAccounts = (await keyring.getAccounts()).map(normalize);
 
       if (accountCount && oldAccounts.length !== accountCount) {
         if (accountCount > oldAccounts.length) {
@@ -625,9 +625,9 @@ export class KeyringController extends BaseController<
       await keyring.addAccounts(1);
       await this.#updateVault();
 
-      const addedAccountAddress = (await this.#getAccountsFromKeyrings()).find(
-        (selectedAddress) => !oldAccounts.includes(selectedAddress),
-      );
+      const addedAccountAddress = (await keyring.getAccounts())
+        .map(normalize)
+        .find((selectedAddress) => !oldAccounts.includes(selectedAddress));
       assertIsStrictHexString(addedAccountAddress);
 
       return addedAccountAddress;
