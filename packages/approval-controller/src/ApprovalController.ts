@@ -4,7 +4,6 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import type { ApprovalType } from '@metamask/controller-utils';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
@@ -91,10 +90,10 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
   /**
    * The type of the approval request.
-   * Unfortunately, not all values will match the `ApprovalType` enum.
-   * TODO: Remove the `string` member by either narrowing the `type` property, or expanding the `ApprovalType` enum, to encompass all approval request types used in the clients.
+   * Unfortunately, not all values will match the `ApprovalType` enum, so we are using `string` here.
+   * TODO: Replace `string` with `ApprovalType` when all `type` values used by the clients can be encompassed by the `ApprovalType` enum.
    */
-  type: ApprovalType | string;
+  type: string;
 
   /**
    * Additional data associated with the request.
