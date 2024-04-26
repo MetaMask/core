@@ -171,4 +171,7 @@ describe('isValidHostname', () => {
 
   it('returns false if hash provided', () =>
     expect(isValidHostname('example.com#')).toBe(false));
+
+  it('returns false if invalid URL provided', () =>
+    expect(isValidHostname('@')).toBe(false));
 });
