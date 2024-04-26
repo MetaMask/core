@@ -47,7 +47,7 @@ export const createMockInternalAccount = ({
     address,
     options: {},
     methods,
-    type: EthAccountType.Eoa,
+    type,
     metadata: {
       name,
       keyring: { type: keyringType },
