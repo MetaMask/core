@@ -66,11 +66,6 @@ type FilterObjectCaveat = Caveat<
 
 type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
-const onPermittedMock = jest.fn(() => Promise.resolve('foo'));
-const onFailureMock = jest.fn(() => Promise.resolve());
-const onPermitted = () => onPermittedMock();
-const onFailure = () => onFailureMock();
-
 /**
  * Gets caveat specifications for:
  * - {@link FilterArrayCaveat}
@@ -240,6 +235,265 @@ const PermissionNames = {
   endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
 } as const;
 
+// Default side-effect implementations.
+const onPermittedSideEffect = () => Promise.resolve('foo');
+const onFailureSideEffect = () => Promise.resolve();
+
+/**
+ * Gets the mocks for the side effect handlers of the permissions that have side effects.
+ * Mocking these handlers is complicated by the fact that their use by the permission
+ * controller precludes using Jest mock functions directly. We must create the mocks
+ * separately, then wrap them inside a plain function in the actual permission
+ * specification. This otherwise circuitous nonsense still allows us to access the
+ * underlying mocks in tests.
+ *
+ * @returns The side effect mocks.
+ */
+function getSideEffectHandlerMocks() {
+  return {
+    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
+      onPermitted: jest.fn(onPermittedSideEffect),
+      onFailure: jest.fn(onFailureSideEffect),
+    },
+    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
+      onPermitted: jest.fn(onPermittedSideEffect),
+      onFailure: jest.fn(onFailureSideEffect),
+    },
+    [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
+      onPermitted: jest.fn(onPermittedSideEffect),
+    },
+  } as const;
+}
+
+/**
+ * Gets permission specifications for our test permissions.
+ * Used as a default in {@link getPermissionControllerOptions}.
+ *
+ * @returns The permission specifications.
+ */
+function getDefaultPermissionSpecificationsAndMocks() {
+  const sideEffectMocks = getSideEffectHandlerMocks();
+
+  return [
+    {
+      [PermissionKeys.wallet_getSecretArray]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_getSecretArray,
+        allowedCaveats: [
+          CaveatTypes.filterArrayResponse,
+          CaveatTypes.reverseArrayResponse,
+        ],
+        methodImplementation: (_args: RestrictedMethodOptions<Json[]>) => {
+          return ['a', 'b', 'c'];
+        },
+      },
+      [PermissionKeys.wallet_getSecretObject]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_getSecretObject,
+        allowedCaveats: [
+          CaveatTypes.filterObjectResponse,
+          CaveatTypes.noopCaveat,
+        ],
+        methodImplementation: (
+          _args: RestrictedMethodOptions<Record<string, Json>>,
+        ) => {
+          return { a: 'x', b: 'y', c: 'z' };
+        },
+        validator: (permission: PermissionConstraint) => {
+          // A dummy validator for a caveat type that should be impossible to add
+          assert.ok(
+            !permission.caveats?.some(
+              (caveat) => caveat.type === CaveatTypes.filterArrayResponse,
+            ),
+            'getSecretObject permission validation failed',
+          );
+        },
+      },
+      [PermissionKeys.wallet_doubleNumber]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_doubleNumber,
+        allowedCaveats: null,
+        methodImplementation: ({
+          params,
+        }: RestrictedMethodOptions<[number]>) => {
+          if (!Array.isArray(params)) {
+            throw new Error(
+              `Invalid ${PermissionKeys.wallet_doubleNumber} request`,
+            );
+          }
+          return params[0] * 2;
+        },
+      },
+      [PermissionKeys.wallet_noop]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noop,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+      },
+      [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName:
+          PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        sideEffect: {
+          onPermitted: () =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
+            ].onPermitted(),
+          onFailure: () =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
+            ].onFailure(),
+        },
+      },
+      [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName:
+          PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        sideEffect: {
+          onPermitted: () =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
+            ].onPermitted(),
+          onFailure: () =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
+            ].onFailure(),
+        },
+      },
+      [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        sideEffect: {
+          onPermitted: () =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedSideEffects
+            ].onPermitted(),
+        },
+      },
+      // This one exists to check some permission validator logic
+      [PermissionKeys.wallet_noopWithValidator]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithValidator,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        allowedCaveats: [
+          CaveatTypes.noopCaveat,
+          CaveatTypes.filterArrayResponse,
+        ],
+        validator: (permission: PermissionConstraint) => {
+          if (
+            permission.caveats?.some(
+              ({ type }) => type !== CaveatTypes.noopCaveat,
+            )
+          ) {
+            throw new Error('noop permission validation failed');
+          }
+        },
+      },
+      [PermissionKeys.wallet_noopWithRequiredCaveat]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        allowedCaveats: [CaveatTypes.noopCaveat],
+        factory: (
+          options: PermissionOptions<NoopWithRequiredCaveat>,
+          _requestData?: Record<string, unknown>,
+        ) => {
+          return constructPermission<NoopWithRequiredCaveat>({
+            ...options,
+            caveats: [
+              {
+                type: CaveatTypes.noopCaveat,
+                value: null,
+              },
+            ],
+          });
+        },
+        validator: (permission: PermissionConstraint) => {
+          if (
+            permission.caveats?.length !== 1 ||
+            !permission.caveats?.some(
+              ({ type }) => type === CaveatTypes.noopCaveat,
+            )
+          ) {
+            throw new Error(
+              'noopWithRequiredCaveat permission validation failed',
+            );
+          }
+        },
+      },
+      // This one exists just to check that permission factories can use the
+      // requestData of approved permission requests
+      [PermissionKeys.wallet_noopWithFactory]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithFactory,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        allowedCaveats: [CaveatTypes.filterArrayResponse],
+        factory: (
+          options: PermissionOptions<NoopWithFactoryPermission>,
+          requestData?: Record<string, unknown>,
+        ) => {
+          if (!requestData) {
+            throw new Error('requestData is required');
+          }
+
+          return constructPermission<NoopWithFactoryPermission>({
+            ...options,
+            caveats: [
+              {
+                type: CaveatTypes.filterArrayResponse,
+                value: requestData.caveatValue as string[],
+              },
+            ],
+          });
+        },
+      },
+      [PermissionKeys.snap_foo]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.snap_foo,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        subjectTypes: [SubjectType.Snap],
+      },
+      [PermissionKeys.endowmentAnySubject]: {
+        permissionType: PermissionType.Endowment,
+        targetName: PermissionKeys.endowmentAnySubject,
+        endowmentGetter: (_options: EndowmentGetterParams) => ['endowment1'],
+        allowedCaveats: null,
+      },
+      [PermissionKeys.endowmentSnapsOnly]: {
+        permissionType: PermissionType.Endowment,
+        targetName: PermissionKeys.endowmentSnapsOnly,
+        endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
+        allowedCaveats: [CaveatTypes.endowmentCaveat],
+        subjectTypes: [SubjectType.Snap],
+      },
+    },
+    sideEffectMocks,
+  ] as const;
+}
+
 /**
  * Gets permission specifications for our test permissions.
  * Used as a default in {@link getPermissionControllerOptions}.
@@ -247,199 +501,7 @@ const PermissionNames = {
  * @returns The permission specifications.
  */
 function getDefaultPermissionSpecifications() {
-  return {
-    [PermissionKeys.wallet_getSecretArray]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_getSecretArray,
-      allowedCaveats: [
-        CaveatTypes.filterArrayResponse,
-        CaveatTypes.reverseArrayResponse,
-      ],
-      methodImplementation: (_args: RestrictedMethodOptions<Json[]>) => {
-        return ['a', 'b', 'c'];
-      },
-    },
-    [PermissionKeys.wallet_getSecretObject]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_getSecretObject,
-      allowedCaveats: [
-        CaveatTypes.filterObjectResponse,
-        CaveatTypes.noopCaveat,
-      ],
-      methodImplementation: (
-        _args: RestrictedMethodOptions<Record<string, Json>>,
-      ) => {
-        return { a: 'x', b: 'y', c: 'z' };
-      },
-      validator: (permission: PermissionConstraint) => {
-        // A dummy validator for a caveat type that should be impossible to add
-        assert.ok(
-          !permission.caveats?.some(
-            (caveat) => caveat.type === CaveatTypes.filterArrayResponse,
-          ),
-          'getSecretObject permission validation failed',
-        );
-      },
-    },
-    [PermissionKeys.wallet_doubleNumber]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_doubleNumber,
-      allowedCaveats: null,
-      methodImplementation: ({ params }: RestrictedMethodOptions<[number]>) => {
-        if (!Array.isArray(params)) {
-          throw new Error(
-            `Invalid ${PermissionKeys.wallet_doubleNumber} request`,
-          );
-        }
-        return params[0] * 2;
-      },
-    },
-    [PermissionKeys.wallet_noop]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noop,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-    },
-    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      sideEffect: {
-        onPermitted,
-        onFailure,
-      },
-    },
-    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      sideEffect: {
-        onPermitted,
-        onFailure,
-      },
-    },
-    [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      sideEffect: {
-        onPermitted,
-      },
-    },
-    // This one exists to check some permission validator logic
-    [PermissionKeys.wallet_noopWithValidator]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithValidator,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      allowedCaveats: [CaveatTypes.noopCaveat, CaveatTypes.filterArrayResponse],
-      validator: (permission: PermissionConstraint) => {
-        if (
-          permission.caveats?.some(
-            ({ type }) => type !== CaveatTypes.noopCaveat,
-          )
-        ) {
-          throw new Error('noop permission validation failed');
-        }
-      },
-    },
-    [PermissionKeys.wallet_noopWithRequiredCaveat]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      allowedCaveats: [CaveatTypes.noopCaveat],
-      factory: (
-        options: PermissionOptions<NoopWithRequiredCaveat>,
-        _requestData?: Record<string, unknown>,
-      ) => {
-        return constructPermission<NoopWithRequiredCaveat>({
-          ...options,
-          caveats: [
-            {
-              type: CaveatTypes.noopCaveat,
-              value: null,
-            },
-          ],
-        });
-      },
-      validator: (permission: PermissionConstraint) => {
-        if (
-          permission.caveats?.length !== 1 ||
-          !permission.caveats?.some(
-            ({ type }) => type === CaveatTypes.noopCaveat,
-          )
-        ) {
-          throw new Error(
-            'noopWithRequiredCaveat permission validation failed',
-          );
-        }
-      },
-    },
-    // This one exists just to check that permission factories can use the
-    // requestData of approved permission requests
-    [PermissionKeys.wallet_noopWithFactory]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithFactory,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      allowedCaveats: [CaveatTypes.filterArrayResponse],
-      factory: (
-        options: PermissionOptions<NoopWithFactoryPermission>,
-        requestData?: Record<string, unknown>,
-      ) => {
-        if (!requestData) {
-          throw new Error('requestData is required');
-        }
-
-        return constructPermission<NoopWithFactoryPermission>({
-          ...options,
-          caveats: [
-            {
-              type: CaveatTypes.filterArrayResponse,
-              value: requestData.caveatValue as string[],
-            },
-          ],
-        });
-      },
-    },
-    [PermissionKeys.snap_foo]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.snap_foo,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      subjectTypes: [SubjectType.Snap],
-    },
-    [PermissionKeys.endowmentAnySubject]: {
-      permissionType: PermissionType.Endowment,
-      targetName: PermissionKeys.endowmentAnySubject,
-      endowmentGetter: (_options: EndowmentGetterParams) => ['endowment1'],
-      allowedCaveats: null,
-    },
-    [PermissionKeys.endowmentSnapsOnly]: {
-      permissionType: PermissionType.Endowment,
-      targetName: PermissionKeys.endowmentSnapsOnly,
-      endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
-      allowedCaveats: [CaveatTypes.endowmentCaveat],
-      subjectTypes: [SubjectType.Snap],
-    },
-  } as const;
+  return getDefaultPermissionSpecificationsAndMocks()[0];
 }
 
 type DefaultPermissionSpecifications = ExtractSpecifications<
@@ -2994,7 +3056,11 @@ describe('PermissionController', () => {
     });
 
     it('requests a permission that requires permitted side-effects', async () => {
-      const options = getPermissionControllerOptions();
+      const [permissionSpecifications, sideEffectMocks] =
+        getDefaultPermissionSpecificationsAndMocks();
+      const options = getPermissionControllerOptions({
+        permissionSpecifications,
+      });
       const { messenger } = options;
       const origin = 'metamask.io';
 
@@ -3009,6 +3075,7 @@ describe('PermissionController', () => {
         });
 
       const controller = getDefaultPermissionController(options);
+
       expect(
         await controller.requestPermissions(
           { origin },
@@ -3034,7 +3101,12 @@ describe('PermissionController', () => {
           origin,
         },
       ]);
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+
+      expect(
+        sideEffectMocks[PermissionNames.wallet_noopWithPermittedSideEffects]
+          .onPermitted,
+      ).toHaveBeenCalledTimes(1);
+
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -3054,7 +3126,11 @@ describe('PermissionController', () => {
     });
 
     it('requests a permission that requires permitted and failure side-effects', async () => {
-      const options = getPermissionControllerOptions();
+      const [permissionSpecifications, sideEffectMocks] =
+        getDefaultPermissionSpecificationsAndMocks();
+      const options = getPermissionControllerOptions({
+        permissionSpecifications,
+      });
       const { messenger } = options;
       const origin = 'metamask.io';
 
@@ -3096,9 +3172,19 @@ describe('PermissionController', () => {
         },
       ]);
 
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onPermitted,
+      ).toHaveBeenCalledTimes(1);
+
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onFailure,
+      ).not.toHaveBeenCalled();
+
       expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
-      expect(onFailureMock).not.toHaveBeenCalled();
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
@@ -3117,8 +3203,12 @@ describe('PermissionController', () => {
       );
     });
 
-    it('can handle multiple side effects', async () => {
-      const options = getPermissionControllerOptions();
+    it('can handle multiple side-effects', async () => {
+      const [permissionSpecifications, sideEffectMocks] =
+        getDefaultPermissionSpecificationsAndMocks();
+      const options = getPermissionControllerOptions({
+        permissionSpecifications,
+      });
       const { messenger } = options;
       const origin = 'metamask.io';
 
@@ -3163,8 +3253,28 @@ describe('PermissionController', () => {
         },
       ]);
 
-      expect(onPermittedMock).toHaveBeenCalledTimes(2);
-      expect(onFailureMock).not.toHaveBeenCalled();
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onPermitted,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+        ].onPermitted,
+      ).toHaveBeenCalledTimes(1);
+
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onFailure,
+      ).not.toHaveBeenCalled();
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+        ].onFailure,
+      ).not.toHaveBeenCalled();
+
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -3186,12 +3296,23 @@ describe('PermissionController', () => {
       );
     });
 
-    it('can handle permitted multiple side-effect failure', async () => {
-      const options = getPermissionControllerOptions();
+    it('can handle multiple permitted side-effect failures', async () => {
+      const [permissionSpecifications, sideEffectMocks] =
+        getDefaultPermissionSpecificationsAndMocks();
+      const options = getPermissionControllerOptions({
+        permissionSpecifications,
+      });
       const { messenger } = options;
       const origin = 'metamask.io';
 
-      onPermittedMock.mockImplementation(async () =>
+      sideEffectMocks[
+        PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+      ].onPermitted.mockImplementation(() =>
+        Promise.reject(new Error('error')),
+      );
+      sideEffectMocks[
+        PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+      ].onPermitted.mockImplementation(() =>
         Promise.reject(new Error('error')),
       );
 
@@ -3218,8 +3339,28 @@ describe('PermissionController', () => {
         'Multiple errors occurred during side-effects execution',
       );
 
-      expect(onPermittedMock).toHaveBeenCalledTimes(2);
-      expect(onFailureMock).toHaveBeenCalledTimes(2);
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onPermitted,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+        ].onPermitted,
+      ).toHaveBeenCalledTimes(1);
+
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onFailure,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+        ].onFailure,
+      ).toHaveBeenCalledTimes(1);
+
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -3241,12 +3382,18 @@ describe('PermissionController', () => {
       );
     });
 
-    it('can handle permitted side-effect rejection', async () => {
-      const options = getPermissionControllerOptions();
+    it('can handle permitted side-effect rejection (no failure handler)', async () => {
+      const [permissionSpecifications, sideEffectMocks] =
+        getDefaultPermissionSpecificationsAndMocks();
+      const options = getPermissionControllerOptions({
+        permissionSpecifications,
+      });
       const { messenger } = options;
       const origin = 'metamask.io';
 
-      onPermittedMock.mockImplementation(async () =>
+      sideEffectMocks[
+        PermissionNames.wallet_noopWithPermittedSideEffects
+      ].onPermitted.mockImplementation(() =>
         Promise.reject(new Error('error')),
       );
 
@@ -3270,7 +3417,11 @@ describe('PermissionController', () => {
         ),
       ).rejects.toThrow('error');
 
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+      expect(
+        sideEffectMocks[PermissionNames.wallet_noopWithPermittedSideEffects]
+          .onPermitted,
+      ).toHaveBeenCalledTimes(1);
+
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -3290,17 +3441,23 @@ describe('PermissionController', () => {
     });
 
     it('can handle failure side-effect rejection', async () => {
-      const options = getPermissionControllerOptions();
+      const [permissionSpecifications, sideEffectMocks] =
+        getDefaultPermissionSpecificationsAndMocks();
+      const options = getPermissionControllerOptions({
+        permissionSpecifications,
+      });
       const { messenger } = options;
       const origin = 'metamask.io';
 
-      onPermittedMock.mockImplementation(async () =>
+      sideEffectMocks[
+        PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+      ].onPermitted.mockImplementation(() =>
         Promise.reject(new Error('error')),
       );
 
-      onFailureMock.mockImplementation(async () =>
-        Promise.reject(new Error('error')),
-      );
+      sideEffectMocks[
+        PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+      ].onFailure.mockImplementation(() => Promise.reject(new Error('error')));
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
@@ -3322,7 +3479,18 @@ describe('PermissionController', () => {
         ),
       ).rejects.toThrow('Unexpected error in side-effects');
 
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onPermitted,
+      ).toHaveBeenCalledTimes(1);
+
+      expect(
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onFailure,
+      ).toHaveBeenCalledTimes(1);
+
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
