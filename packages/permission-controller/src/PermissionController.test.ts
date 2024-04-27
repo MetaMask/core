@@ -31,6 +31,7 @@ import type {
   ValidPermission,
 } from '.';
 import {
+  makeCaveatMerger,
   CaveatMutatorOperation,
   constructPermission,
   MethodNames,
@@ -105,6 +106,9 @@ function getDefaultCaveatSpecifications() {
           );
         }
       },
+      merger: makeCaveatMerger<FilterArrayCaveat>((a, b) =>
+        Array.from(new Set([...a, ...b])),
+      ),
     },
     [CaveatTypes.reverseArrayResponse]: {
       type: CaveatTypes.reverseArrayResponse,
@@ -142,6 +146,9 @@ function getDefaultCaveatSpecifications() {
           });
           return result;
         },
+      merger: makeCaveatMerger<FilterObjectCaveat>((a, b) =>
+        Array.from(new Set([...a, ...b])),
+      ),
     },
     [CaveatTypes.noopCaveat]: {
       type: CaveatTypes.noopCaveat,
@@ -161,6 +168,7 @@ function getDefaultCaveatSpecifications() {
           throw new Error('NoopCaveat value must be null');
         }
       },
+      merger: makeCaveatMerger<NoopCaveat>((_a, _b) => null),
     },
     [CaveatTypes.endowmentCaveat]: {
       type: CaveatTypes.endowmentCaveat,
@@ -198,6 +206,7 @@ const PermissionKeys = {
   wallet_noopWithValidator: 'wallet_noopWithValidator',
   wallet_noopWithRequiredCaveat: 'wallet_noopWithRequiredCaveat',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
+  wallet_noopWithManyCaveats: 'wallet_noopWithManyCaveats',
   snap_foo: 'snap_foo',
   endowmentAnySubject: 'endowmentAnySubject',
   endowmentSnapsOnly: 'endowmentSnapsOnly',
@@ -230,6 +239,7 @@ const PermissionNames = {
     PermissionKeys.wallet_noopWithPermittedSideEffects,
   wallet_noopWithRequiredCaveat: PermissionKeys.wallet_noopWithRequiredCaveat,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
+  wallet_noopWithManyCaveats: PermissionKeys.wallet_noopWithManyCaveats,
   snap_foo: PermissionKeys.snap_foo,
   endowmentAnySubject: PermissionKeys.endowmentAnySubject,
   endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
@@ -466,6 +476,21 @@ function getDefaultPermissionSpecificationsAndMocks() {
             ],
           });
         },
+      },
+      // The implementation of this is fundamentally broken due to its allowed
+      // caveats, but that's okay because we never need to actually execute it.
+      // Originally created for the purpose of testing caveat merging.
+      [PermissionKeys.wallet_noopWithManyCaveats]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithManyCaveats,
+        methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+          return null;
+        },
+        allowedCaveats: [
+          CaveatTypes.filterArrayResponse,
+          CaveatTypes.filterObjectResponse,
+          CaveatTypes.noopCaveat,
+        ],
       },
       [PermissionKeys.snap_foo]: {
         permissionType: PermissionType.RestrictedMethod,
@@ -2954,7 +2979,7 @@ describe('PermissionController', () => {
     });
   });
 
-  describe('permission requests', () => {
+  describe('requesting permissions', () => {
     const getPermissionsDiffMatcher = () =>
       expect.arrayContaining([
         expect.objectContaining({
@@ -4646,6 +4671,308 @@ describe('PermissionController', () => {
           },
           true,
         );
+      });
+    });
+
+    // Permissions and their caveats are merged through a right-biased union.
+    // The existing permissions are the left-hand side and denoted as `A`.
+    // The requested permissions are the right-hand side and denoted as `B`.
+    describe('requestPermissionsIncremental: merging permissions', () => {
+      const makeCaveat = (type: string, value: Json) => ({ type, value });
+      const makeCaveat1 = (...value: string[]) =>
+        makeCaveat(CaveatTypes.filterArrayResponse, value);
+      const makeCaveat2 = (...value: string[]) =>
+        makeCaveat(CaveatTypes.filterObjectResponse, value);
+      const makeCaveat3 = () => makeCaveat(CaveatTypes.noopCaveat, null);
+
+      it('requested permission merges with existing permission', async () => {
+        const options = getPermissionControllerOptions({
+          state: getExistingPermissionState(),
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller.requestPermissionsIncremental(
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretArray,
+              caveats: null,
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                }),
+              },
+              diff: getPermissionsDiffMatcher(),
+            },
+            type: MethodNames.requestPermissions,
+          },
+          true,
+        );
+      });
+
+      it.each([
+        [
+          'A has caveats',
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+          null,
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+        ],
+        [
+          'B has caveats',
+          null,
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+        ],
+        [
+          'A and B have disjoint caveats',
+          [makeCaveat1('a', 'b')],
+          [makeCaveat2('y', 'z'), makeCaveat3()],
+          [makeCaveat1('a', 'b'), makeCaveat2('y', 'z'), makeCaveat3()],
+        ],
+        [
+          'A and B have one of the same caveat',
+          [makeCaveat1('a', 'b')],
+          [makeCaveat1('c')],
+          [makeCaveat1('a', 'b', 'c')],
+        ],
+        [
+          'A and B have one of the same caveat, and others',
+          [makeCaveat1('a', 'b'), makeCaveat2('x')],
+          [makeCaveat1('c'), makeCaveat3()],
+          [makeCaveat1('a', 'b', 'c'), makeCaveat2('x'), makeCaveat3()],
+        ],
+        [
+          'A and B have two of the same caveat',
+          [makeCaveat1('a', 'b'), makeCaveat2('x')],
+          [makeCaveat2('y', 'z'), makeCaveat1('c')],
+          [makeCaveat1('a', 'b', 'c'), makeCaveat2('x', 'y', 'z')],
+        ],
+        [
+          'A and B have two of the same caveat, and A has one other',
+          [makeCaveat1('a', 'b'), makeCaveat2('x'), makeCaveat3()],
+          [makeCaveat2('y', 'z'), makeCaveat1('c')],
+          [
+            makeCaveat1('a', 'b', 'c'),
+            makeCaveat2('x', 'y', 'z'),
+            makeCaveat3(),
+          ],
+        ],
+        [
+          'A and B have two of the same caveat, and B has one other',
+          [makeCaveat1('a', 'b'), makeCaveat2('x')],
+          [makeCaveat2('y', 'z'), makeCaveat1('c'), makeCaveat3()],
+          [
+            makeCaveat1('a', 'b', 'c'),
+            makeCaveat2('x', 'y', 'z'),
+            makeCaveat3(),
+          ],
+        ],
+      ])(
+        'requested permission merges with existing permission: %s',
+        async (_case, leftCaveats, rightCaveats, expectedCaveats) => {
+          const options = getPermissionControllerOptions();
+          const { messenger } = options;
+          const origin = 'metamask.io';
+
+          const controller = getDefaultPermissionController(options);
+
+          controller.grantPermissions({
+            subject: { origin },
+            approvedPermissions: {
+              [PermissionNames.wallet_noopWithManyCaveats]: {
+                // @ts-expect-error We know that the caveat type is correct.
+                caveats: leftCaveats,
+              },
+            },
+          });
+
+          const callActionSpy = jest
+            .spyOn(messenger, 'call')
+            .mockImplementationOnce(async (...args) => {
+              const [, { requestData }] = args as AddPermissionRequestArgs;
+              return {
+                metadata: { ...requestData.metadata },
+                permissions: { ...requestData.permissions },
+              };
+            });
+
+          expect(
+            await controller.requestPermissionsIncremental(
+              { origin },
+              {
+                [PermissionNames.wallet_noopWithManyCaveats]: {
+                  // @ts-expect-error We know that the caveat type is correct.
+                  caveats: rightCaveats,
+                },
+              },
+            ),
+          ).toMatchObject([
+            {
+              [PermissionNames.wallet_noopWithManyCaveats]:
+                getPermissionMatcher({
+                  parentCapability: PermissionNames.wallet_noopWithManyCaveats,
+                  caveats: expectedCaveats,
+                }),
+            },
+            { id: expect.any(String), origin },
+          ]);
+
+          expect(callActionSpy).toHaveBeenCalledTimes(1);
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'ApprovalController:addRequest',
+            {
+              id: expect.any(String),
+              origin,
+              requestData: {
+                metadata: { id: expect.any(String), origin },
+                permissions: {
+                  [PermissionNames.wallet_noopWithManyCaveats]:
+                    getPermissionMatcher({
+                      parentCapability:
+                        PermissionNames.wallet_noopWithManyCaveats,
+                      caveats: expectedCaveats,
+                    }),
+                },
+                diff: getPermissionsDiffMatcher(),
+              },
+              type: MethodNames.requestPermissions,
+            },
+            true,
+          );
+        },
+      );
+
+      it('throws if attempting to merge caveats without a merger function', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const controller = getDefaultPermissionController(options);
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [makeCaveat(CaveatTypes.reverseArrayResponse, null)],
+            },
+          },
+        });
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        await expect(
+          controller.requestPermissionsIncremental(
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {
+                caveats: [makeCaveat(CaveatTypes.reverseArrayResponse, null)],
+              },
+            },
+          ),
+        ).rejects.toThrow(
+          new errors.CaveatMergerDoesNotExistError(
+            CaveatTypes.reverseArrayResponse,
+          ),
+        );
+
+        expect(callActionSpy).not.toHaveBeenCalled();
+      });
+
+      it('throws if merged caveats produce an invalid permission', async () => {
+        const caveatSpecifications = getDefaultCaveatSpecifications();
+        // @ts-expect-error Intentional destructive testing
+        caveatSpecifications[CaveatTypes.filterArrayResponse].merger = () =>
+          'foo';
+
+        const options = getPermissionControllerOptions({
+          caveatSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const controller = getDefaultPermissionController(options);
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [makeCaveat(CaveatTypes.filterArrayResponse, ['a'])],
+            },
+          },
+        });
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        await expect(
+          controller.requestPermissionsIncremental(
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {
+                caveats: [makeCaveat(CaveatTypes.filterArrayResponse, ['b'])],
+              },
+            },
+          ),
+        ).rejects.toThrow(
+          new errors.InvalidMergedPermissionsError(
+            origin,
+            new errors.InvalidCaveatError(
+              'foo',
+              origin,
+              PermissionNames.wallet_getSecretArray,
+            ),
+            [],
+          ),
+        );
+
+        expect(callActionSpy).not.toHaveBeenCalled();
       });
     });
   });

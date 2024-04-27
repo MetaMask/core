@@ -180,7 +180,7 @@ export type CaveatSpecificationBase = {
    */
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  merger?: CaveatMerger<CaveatConstraint>;
+  merger?: CaveatMerger<any>;
 };
 
 export type RestrictedMethodCaveatSpecificationConstraint =
