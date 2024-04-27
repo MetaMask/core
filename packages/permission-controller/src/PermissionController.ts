@@ -125,7 +125,7 @@ export type PermissionsRequest = {
   metadata: PermissionsRequestMetadata;
   permissions: RequestedPermissions;
   [key: string]: Json;
-} & { diff?: PermissionsDiff | null };
+} & { diff?: PermissionsDiff };
 
 /**
  * Metadata associated with an approved permission request.
