@@ -217,6 +217,7 @@ describe('GasFeeController', () => {
    *
    * @param options - The options.
    * @param options.getChainId - Sets getChainId on the GasFeeController.
+   * @param options.onNetworkDidChange - A function for registering an event handler for the
    * @param options.getIsEIP1559Compatible - Sets getCurrentNetworkEIP1559Compatibility on the
    * GasFeeController.
    * @param options.getCurrentNetworkLegacyGasAPICompatibility - Sets
@@ -236,11 +237,13 @@ describe('GasFeeController', () => {
     infuraAPIKey = 'INFURA_API_KEY',
     clientId,
     getChainId,
+    onNetworkDidChange,
     networkControllerState = {},
     state,
     interval,
   }: {
     getChainId?: jest.Mock<Hex>;
+    onNetworkDidChange?: jest.Mock<void>;
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     clientId?: string;
@@ -259,6 +262,7 @@ describe('GasFeeController', () => {
     gasFeeController = new GasFeeController({
       getProvider: jest.fn(),
       getChainId,
+      onNetworkDidChange,
       messenger,
       getCurrentNetworkLegacyGasAPICompatibility,
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkDetails.state.networkDetails.isEIP1559Compatible ???
@@ -981,16 +985,74 @@ describe('GasFeeController', () => {
         });
       });
 
-      it('should update the state with a fetched set of estimates', async () => {
-        await setupGasFeeController(defaultConstructorOptions);
+      describe("the chainId of the networkClientId matches the globally selected network's chainId", () => {
+        it('should update the globally selected network state with a fetched set of estimates', async () => {
+          await setupGasFeeController({
+            ...defaultConstructorOptions,
+            getChainId: jest.fn().mockReturnValue(ChainId.goerli),
+            onNetworkDidChange: jest.fn(),
+          });
 
-        await gasFeeController.fetchGasFeeEstimates({
-          networkClientId: 'goerli',
+          await gasFeeController.fetchGasFeeEstimates({
+            networkClientId: 'goerli',
+          });
+
+          expect(gasFeeController.state).toMatchObject(
+            mockDetermineGasFeeCalculations,
+          );
         });
 
-        expect(
-          gasFeeController.state.gasFeeEstimatesByChainId?.[ChainId.goerli],
-        ).toMatchObject(mockDetermineGasFeeCalculations);
+        it('should update the gasFeeEstimatesByChainId state with a fetched set of estimates', async () => {
+          await setupGasFeeController({
+            ...defaultConstructorOptions,
+            getChainId: jest.fn().mockReturnValue(ChainId.goerli),
+            onNetworkDidChange: jest.fn(),
+          });
+
+          await gasFeeController.fetchGasFeeEstimates({
+            networkClientId: 'goerli',
+          });
+
+          expect(
+            gasFeeController.state.gasFeeEstimatesByChainId?.[ChainId.goerli],
+          ).toMatchObject(mockDetermineGasFeeCalculations);
+        });
+      });
+
+      describe("the chainId of the networkClientId does not match the globally selected network's chainId", () => {
+        it('should not update the globally selected network state with a fetched set of estimates', async () => {
+          await setupGasFeeController({
+            ...defaultConstructorOptions,
+            getChainId: jest.fn().mockReturnValue(ChainId.mainnet),
+            onNetworkDidChange: jest.fn(),
+          });
+
+          await gasFeeController.fetchGasFeeEstimates({
+            networkClientId: 'goerli',
+          });
+
+          expect(gasFeeController.state).toMatchObject({
+            gasFeeEstimates: {},
+            estimatedGasFeeTimeBounds: {},
+            gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+          });
+        });
+
+        it('should update the gasFeeEstimatesByChainId state with a fetched set of estimates', async () => {
+          await setupGasFeeController({
+            ...defaultConstructorOptions,
+            getChainId: jest.fn().mockReturnValue(ChainId.mainnet),
+            onNetworkDidChange: jest.fn(),
+          });
+
+          await gasFeeController.fetchGasFeeEstimates({
+            networkClientId: 'goerli',
+          });
+
+          expect(
+            gasFeeController.state.gasFeeEstimatesByChainId?.[ChainId.goerli],
+          ).toMatchObject(mockDetermineGasFeeCalculations);
+        });
       });
 
       it('should return the same data that it puts into state', async () => {
