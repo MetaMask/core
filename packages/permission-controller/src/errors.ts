@@ -107,7 +107,7 @@ export class UnrecognizedSubjectError extends Error {
 
 export class CaveatMergerDoesNotExistError extends Error {
   constructor(caveatType: string) {
-    super(`Caveat merger does not exist for type: ${caveatType}`);
+    super(`Caveat merger does not exist for type: "${caveatType}"`);
   }
 }
 
