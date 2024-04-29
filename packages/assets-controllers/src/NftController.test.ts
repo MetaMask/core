@@ -1,6 +1,7 @@
 import type { Network } from '@ethersproject/providers';
 import type {
   AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import { createMockInternalAccount } from '@metamask/accounts-controller/src/tests/mocks';
@@ -81,7 +82,10 @@ const GOERLI = {
   ticker: NetworksTicker.goerli,
 };
 
-type ApprovalActions = AddApprovalRequest | AccountsControllerGetAccountAction;
+type ApprovalActions =
+  | AddApprovalRequest
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction;
 type ApprovalEvents =
   | ApprovalStateChange
   | AccountsControllerSelectedAccountChangeEvent;
@@ -142,6 +146,13 @@ function setupController(
     getInternalAccountMock,
   );
 
+  const getSelectedAccountMock = jest.fn().mockReturnValue(OWNER_ACCOUNT);
+
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    getSelectedAccountMock,
+  );
+
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
     allowedActions: [],
@@ -191,6 +202,7 @@ function setupController(
     name: controllerName,
     allowedActions: [
       'ApprovalController:addRequest',
+      'AccountsController:getSelectedAccount',
       'AccountsController:getAccount',
     ],
     allowedEvents: ['AccountsController:selectedAccountChange'],
@@ -245,6 +257,7 @@ function setupController(
     triggerPreferencesStateChange,
     triggerSelectedAccountChange,
     getInternalAccountMock,
+    getSelectedAccountMock,
   };
 }
 

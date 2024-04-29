@@ -2,6 +2,7 @@ import { isAddress } from '@ethersproject/address';
 import {
   type AccountsControllerSelectedAccountChangeEvent,
   type AccountsControllerGetAccountAction,
+  type AccountsControllerGetSelectedAccountAction,
   isEVMAccount,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
@@ -227,7 +228,10 @@ const controllerName = 'NftController';
 /**
  * The external actions available to the {@link NftController}.
  */
-type AllowedActions = AddApprovalRequest | AccountsControllerGetAccountAction;
+type AllowedActions =
+  | AddApprovalRequest
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction;
 
 type AllowedEvents = AccountsControllerSelectedAccountChangeEvent;
 
@@ -1050,35 +1054,31 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       (newSelectedAccount: InternalAccount) => {
-        if (!isEVMAccount(newSelectedAccount)) {
-          return;
-        }
         this.configure({ selectedAccountId: newSelectedAccount.id });
       },
     );
 
     onPreferencesStateChange(
       async ({ ipfsGateway, openSeaEnabled, isIpfsGatewayEnabled }) => {
+        const newSelectedAccount = this.messagingSystem.call(
+          'AccountsController:getSelectedAccount',
+        );
+
         this.configure({
           ipfsGateway,
           openSeaEnabled,
           isIpfsGatewayEnabled,
+          selectedAccountId: newSelectedAccount.id,
         });
 
-        const { selectedAccountId } = this.config;
-        const selectedAccount = this.messagingSystem.call(
-          'AccountsController:getAccount',
-          selectedAccountId,
-        );
-
-        if (selectedAccount && isEVMAccount(selectedAccount)) {
+        if (isEVMAccount(newSelectedAccount)) {
           const needsUpdateNftMetadata =
             (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
           if (needsUpdateNftMetadata) {
             const { chainId } = this.config;
             const nfts: Nft[] =
-              this.state.allNfts[selectedAccount.address]?.[chainId] ?? [];
+              this.state.allNfts[newSelectedAccount.address]?.[chainId] ?? [];
             // filter only nfts
             const nftsToUpdate = nfts.filter(
               (singleNft) =>
@@ -1087,7 +1087,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
             if (nftsToUpdate.length !== 0) {
               await this.updateNftMetadata({
                 nfts: nftsToUpdate,
-                userAddress: selectedAccount.address,
+                userAddress: newSelectedAccount.address,
               });
             }
           }
