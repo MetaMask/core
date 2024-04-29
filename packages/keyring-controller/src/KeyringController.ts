@@ -1324,6 +1324,8 @@ export class KeyringController extends BaseController<
    * @param options.createIfMissing - Whether to create a new keyring if the selected one is missing.
    * @param options.createWithData - Optional data to use when creating a new keyring.
    * @returns Promise resolving to the result of the function execution.
+   * @template SelectedKeyring - The type of the selected keyring.
+   * @template CallbackResult - The type of the value resolved by the callback function.
    * @deprecated This method overload is deprecated. Use `withKeyring` without options instead.
    */
   async withKeyring<
