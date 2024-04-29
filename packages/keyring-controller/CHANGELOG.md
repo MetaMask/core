@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- [keyring-controller] Atomic Operations ([#4192](https://github.com/MetaMask/core/pull/4192))
+- [keyring-controller] Lock controller mutex on write operations ([#4182](https://github.com/MetaMask/core/pull/4182))
+- [keyring-controller] Avoid calling mutable public functions internally ([#4181](https://github.com/MetaMask/core/pull/4181))
+- chore(deps): bump @metamask/keyring-api to 6.0.0, @metamask/eth-snap-keyring to 4.0.0 and snap dependencies ([#4193](https://github.com/MetaMask/core/pull/4193))
+- fix: add HD keyring check to `persistAllKeyrings` ([#4168](https://github.com/MetaMask/core/pull/4168))
+- [keyring-controller] Update state in single call when persisting or unlocking ([#4154](https://github.com/MetaMask/core/pull/4154))
+
 ### Changed
 
 - **BREAKING**: Change various `KeyringController` methods so they no longer return the controller state ([#4199](https://github.com/MetaMask/core/pull/4199))
