@@ -3,7 +3,8 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist/types",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "skipLibCheck": true
   },
   "references": [],
   "include": ["../../types", "./src"]

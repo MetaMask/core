@@ -71,6 +71,11 @@ export type SiweLogin = {
   chainId: number;
 };
 
+type ErrorMessage = {
+  message: string;
+  error: string;
+};
+
 export abstract class BaseAuth {
   protected config: AuthConfig;
 
@@ -99,7 +104,7 @@ export abstract class BaseAuth {
     try {
       const nonceResponse = await fetch(nonceUrl.toString());
       if (!nonceResponse.ok) {
-        const responseBody = await nonceResponse.json();
+        const responseBody = (await nonceResponse.json()) as ErrorMessage;
         throw new Error(
           `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
         );
@@ -112,7 +117,9 @@ export abstract class BaseAuth {
         expiresIn: nonceJson.expires_in,
       };
     } catch (e) {
-      throw new NonceRetrievalError(`failed to generate nonce ${e}`);
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new NonceRetrievalError(`failed to generate nonce ${errorMessage}`);
     }
   }
 
@@ -170,7 +177,10 @@ export class JwtBearerAuth extends BaseAuth {
       });
 
       if (!response.ok) {
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as {
+          error_description: string;
+          error: string;
+        };
         throw new Error(
           `HTTP error: ${responseBody.error_description}, error code: ${responseBody.error}`,
         );
@@ -183,7 +193,9 @@ export class JwtBearerAuth extends BaseAuth {
         obtainedAt: Date.now(),
       };
     } catch (e) {
-      throw new SignInError(`unable to get access token ${e}`);
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new SignInError(`unable to get access token ${errorMessage}`);
     }
   }
 
@@ -281,7 +293,7 @@ export class JwtBearerAuth extends BaseAuth {
       );
 
       if (!response.ok) {
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as ErrorMessage;
         throw new Error(
           `SRP login HTTP error: ${responseBody.message}, error code: ${responseBody.error}`,
         );
@@ -298,7 +310,9 @@ export class JwtBearerAuth extends BaseAuth {
         },
       };
     } catch (e) {
-      throw new SignInError(`unable to perform SRP login ${e}`);
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new SignInError(`unable to perform SRP login ${errorMessage}`);
     }
   }
 
@@ -322,7 +336,7 @@ export class JwtBearerAuth extends BaseAuth {
       );
 
       if (!response.ok) {
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as ErrorMessage;
         throw new Error(
           `SiWE login HTTP error: ${responseBody.message}, error code: ${responseBody.error}`,
         );
@@ -339,7 +353,9 @@ export class JwtBearerAuth extends BaseAuth {
         },
       };
     } catch (e) {
-      throw new SignInError(`unable to perform siwe login ${e}`);
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new SignInError(`unable to perform siwe login ${errorMessage}`);
     }
   }
 

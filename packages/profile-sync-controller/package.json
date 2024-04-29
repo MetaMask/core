@@ -30,6 +30,7 @@
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-sync-controller",
     "publish:preview": "yarn npm publish --tag preview",
@@ -38,8 +39,8 @@
   },
   "dependencies": {
     "@noble/ciphers": "^0.5.2",
-    "ethers": "^6.10.0",
-    "siwe": "^2.1.4"
+    "@noble/hashes": "^1.4.0",
+    "siwe": "^2.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

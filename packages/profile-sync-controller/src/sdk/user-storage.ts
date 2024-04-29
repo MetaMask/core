@@ -21,6 +21,11 @@ export type UserStorageOptions = {
   };
 };
 
+type ErrorMessage = {
+  message: string;
+  error: string;
+};
+
 export class UserStorage {
   protected config: UserStorageConfig;
 
@@ -94,14 +99,16 @@ export class UserStorage {
       });
 
       if (!response.ok) {
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as ErrorMessage;
         throw new Error(
           `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
         );
       }
-    } catch (error) {
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new UserStorageError(
-        `failed to upsert user storage for feature '${feature}' and key '${key}'. ${error}`,
+        `failed to upsert user storage for feature '${feature}' and key '${key}'. ${errorMessage}`,
       );
     }
   }
@@ -130,7 +137,7 @@ export class UserStorage {
       }
 
       if (!response.ok) {
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as ErrorMessage;
         throw new Error(
           `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
         );
@@ -138,13 +145,16 @@ export class UserStorage {
 
       const { Data: encryptedData } = await response.json();
       return encryption.decryptString(encryptedData, storageKey);
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw error;
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
       }
 
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
       throw new UserStorageError(
-        `failed to get user storage for feature '${feature}' and key '${key}'. ${error}`,
+        `failed to get user storage for feature '${feature}' and key '${key}'. ${errorMessage}`,
       );
     }
   }
