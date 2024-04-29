@@ -820,17 +820,19 @@ export class TransactionController extends BaseController<
       blockTracker,
     });
 
+    const findNetworkClientIdByChainId = (chainId: Hex) => {
+      return this.messagingSystem.call(
+        `NetworkController:findNetworkClientIdByChainId`,
+        chainId,
+      );
+    };
+
     this.#multichainTrackingHelper = new MultichainTrackingHelper({
       isMultichainEnabled,
       provider,
       nonceTracker: this.nonceTracker,
       incomingTransactionOptions: incomingTransactions,
-      findNetworkClientIdByChainId: (chainId: Hex) => {
-        return this.messagingSystem.call(
-          `NetworkController:findNetworkClientIdByChainId`,
-          chainId,
-        );
-      },
+      findNetworkClientIdByChainId,
       getNetworkClientById: ((networkClientId: NetworkClientId) => {
         return this.messagingSystem.call(
           `NetworkController:getNetworkClientById`,
@@ -875,7 +877,7 @@ export class TransactionController extends BaseController<
     this.layer1GasFeeFlows = this.#getLayer1GasFeeFlows();
 
     const gasFeePoller = new GasFeePoller({
-      // Default gas fee polling is not yet supported by the clients
+      findNetworkClientIdByChainId,
       gasFeeFlows: this.gasFeeFlows,
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
       getProvider: (chainId, networkClientId) =>
@@ -983,7 +985,7 @@ export class TransactionController extends BaseController<
       sendFlowHistory,
       swaps = {},
       type,
-      networkClientId,
+      networkClientId: requestNetworkClientId,
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
@@ -1004,13 +1006,16 @@ export class TransactionController extends BaseController<
 
     txParams = normalizeTransactionParams(txParams);
     if (
-      networkClientId &&
-      !this.#multichainTrackingHelper.has(networkClientId)
+      requestNetworkClientId &&
+      !this.#multichainTrackingHelper.has(requestNetworkClientId)
     ) {
       throw new Error(
         'The networkClientId for this transaction could not be found',
       );
     }
+
+    const networkClientId =
+      requestNetworkClientId ?? this.#getGlobalNetworkClientId();
 
     const isEIP1559Compatible = await this.getEIP1559Compatibility(
       networkClientId,
@@ -2310,9 +2315,13 @@ export class TransactionController extends BaseController<
       chainId,
     });
 
+    const gasFeeControllerData = await this.getGasFeeEstimates({
+      networkClientId,
+    });
+
     return gasFeeFlow.getGasFees({
       ethQuery,
-      getGasFeeControllerEstimates: this.getGasFeeEstimates,
+      gasFeeControllerData,
       transactionMeta,
     });
   }
@@ -2434,12 +2443,7 @@ export class TransactionController extends BaseController<
 
     const { networkClientId, chainId } = transactionMeta;
 
-    const isCustomNetwork = networkClientId
-      ? this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        ).configuration.type === NetworkClientType.Custom
-      : this.getNetworkState().providerConfig.type === NetworkType.rpc;
+    const isCustomNetwork = this.#isCustomNetwork(networkClientId);
 
     const ethQuery = this.#multichainTrackingHelper.getEthQuery({
       networkClientId,
@@ -2943,14 +2947,17 @@ export class TransactionController extends BaseController<
   }
 
   private getChainId(networkClientId?: NetworkClientId): Hex {
-    if (networkClientId) {
-      return this.messagingSystem.call(
-        `NetworkController:getNetworkClientById`,
-        networkClientId,
-      ).configuration.chainId;
+    const globalChainId = this.#getGlobalChainId();
+    const globalNetworkClientId = this.#getGlobalNetworkClientId();
+
+    if (!networkClientId || networkClientId === globalNetworkClientId) {
+      return globalChainId;
     }
-    const { providerConfig } = this.getNetworkState();
-    return providerConfig.chainId;
+
+    return this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      networkClientId,
+    ).configuration.chainId;
   }
 
   private prepareUnsignedEthTx(
@@ -3780,17 +3787,43 @@ export class TransactionController extends BaseController<
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   }) {
+    const globalChainId = this.#getGlobalChainId();
+    const globalNetworkClientId = this.#getGlobalNetworkClientId();
+
     if (requestNetworkClientId) {
       return requestNetworkClientId;
     }
 
-    const networkClientId = chainId
-      ? this.messagingSystem.call(
-          `NetworkController:findNetworkClientIdByChainId`,
-          chainId,
-        )
-      : undefined;
+    if (!chainId || chainId === globalChainId) {
+      return globalNetworkClientId;
+    }
 
-    return networkClientId ?? this.getNetworkState().selectedNetworkClientId;
+    return this.messagingSystem.call(
+      `NetworkController:findNetworkClientIdByChainId`,
+      chainId,
+    );
+  }
+
+  #getGlobalNetworkClientId() {
+    return this.getNetworkState().selectedNetworkClientId;
+  }
+
+  #getGlobalChainId() {
+    return this.getNetworkState().providerConfig.chainId;
+  }
+
+  #isCustomNetwork(networkClientId?: NetworkClientId) {
+    const globalNetworkClientId = this.#getGlobalNetworkClientId();
+
+    if (!networkClientId || networkClientId === globalNetworkClientId) {
+      return this.getNetworkState().providerConfig.type === NetworkType.rpc;
+    }
+
+    return (
+      this.messagingSystem.call(
+        `NetworkController:getNetworkClientById`,
+        networkClientId,
+      ).configuration.type === NetworkClientType.Custom
+    );
   }
 }

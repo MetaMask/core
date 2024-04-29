@@ -1,6 +1,5 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { GasFeeState } from '@metamask/gas-fee-controller';
 
 import { CHAIN_IDS } from '../constants';
 import type {
@@ -59,18 +58,14 @@ describe('LineaGasFeeFlow', () => {
   const queryMock = jest.mocked(query);
 
   let request: GasFeeFlowRequest;
-  let getGasFeeControllerEstimatesMock: jest.MockedFn<
-    () => Promise<GasFeeState>
-  >;
 
   beforeEach(() => {
     jest.resetAllMocks();
 
     request = {
       ethQuery: {} as EthQuery,
-      getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
       transactionMeta: TRANSACTION_META_MOCK,
-    };
+    } as GasFeeFlowRequest;
 
     queryMock.mockResolvedValue(LINEA_RESPONSE_MOCK);
   });

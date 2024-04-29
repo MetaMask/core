@@ -285,6 +285,8 @@ async function getSuggestedGasFees(
   const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
     request;
 
+  const { networkClientId } = txMeta;
+
   if (
     (!eip1559 && txMeta.txParams.gasPrice) ||
     (eip1559 &&
@@ -297,9 +299,11 @@ async function getSuggestedGasFees(
   const gasFeeFlow = getGasFeeFlow(txMeta, gasFeeFlows) as GasFeeFlow;
 
   try {
+    const gasFeeControllerData = await getGasFeeEstimates({ networkClientId });
+
     const response = await gasFeeFlow.getGasFees({
       ethQuery,
-      getGasFeeControllerEstimates: getGasFeeEstimates,
+      gasFeeControllerData,
       transactionMeta: txMeta,
     });
 

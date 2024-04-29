@@ -1,9 +1,6 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type EthQuery from '@metamask/eth-query';
-import type {
-  FetchGasFeeEstimateOptions,
-  GasFeeState,
-} from '@metamask/gas-fee-controller';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
@@ -1024,10 +1021,8 @@ export type GasFeeFlowRequest = {
   /** An EthQuery instance to enable queries to the associated RPC provider. */
   ethQuery: EthQuery;
 
-  /** Callback to get the GasFeeController estimates. */
-  getGasFeeControllerEstimates: (
-    options: FetchGasFeeEstimateOptions,
-  ) => Promise<GasFeeState>;
+  /** Gas fee controller data matching the chain ID of the transaction. */
+  gasFeeControllerData: GasFeeState;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;

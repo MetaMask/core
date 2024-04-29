@@ -83,6 +83,7 @@ describe('GasFeePoller', () => {
     getTransactionLayer1GasFeeMock.mockResolvedValue(LAYER1_GAS_FEE_MOCK);
 
     constructorOptions = {
+      findNetworkClientIdByChainId: jest.fn(),
       gasFeeFlows: [gasFeeFlowMock],
       getGasFeeControllerEstimates: jest.fn(),
       getTransactions: getTransactionsMock,
@@ -118,12 +119,12 @@ describe('GasFeePoller', () => {
         new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
+        await flushPromises();
 
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           ethQuery: expect.any(Object),
-          getGasFeeControllerEstimates:
-            constructorOptions.getGasFeeControllerEstimates,
+          gasFeeControllerData: undefined,
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
@@ -132,6 +133,7 @@ describe('GasFeePoller', () => {
         new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
+        await flushPromises();
 
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledTimes(1);
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledWith({

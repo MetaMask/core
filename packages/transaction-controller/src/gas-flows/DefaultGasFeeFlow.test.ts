@@ -111,13 +111,9 @@ describe('DefaultGasFeeFlow', () => {
     it('returns fee market values if estimate type is fee market', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
-      const getGasFeeControllerEstimates = jest
-        .fn()
-        .mockResolvedValue(FEE_MARKET_RESPONSE_MOCK);
-
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
-        getGasFeeControllerEstimates,
+        gasFeeControllerData: FEE_MARKET_RESPONSE_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
@@ -129,13 +125,9 @@ describe('DefaultGasFeeFlow', () => {
     it('returns legacy values if estimate type is legacy', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
-      const getGasFeeControllerEstimates = jest
-        .fn()
-        .mockResolvedValue(LEGACY_RESPONSE_MOCK);
-
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
-        getGasFeeControllerEstimates,
+        gasFeeControllerData: LEGACY_RESPONSE_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
@@ -147,13 +139,9 @@ describe('DefaultGasFeeFlow', () => {
     it('returns gas price value if estimate type is gas price', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
-      const getGasFeeControllerEstimates = jest
-        .fn()
-        .mockResolvedValue(GAS_PRICE_RESPONSE_MOCK);
-
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
-        getGasFeeControllerEstimates,
+        gasFeeControllerData: GAS_PRICE_RESPONSE_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
@@ -165,13 +153,11 @@ describe('DefaultGasFeeFlow', () => {
     it('throws if estimate type not supported', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
-      const getGasFeeControllerEstimates = jest.fn().mockResolvedValue({
-        gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
-      });
-
       const response = defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
-        getGasFeeControllerEstimates,
+        gasFeeControllerData: {
+          gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+        } as GasFeeState,
         transactionMeta: TRANSACTION_META_MOCK,
       });
 

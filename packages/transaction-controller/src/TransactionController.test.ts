@@ -1444,10 +1444,10 @@ describe('TransactionController', () => {
       const expectedInitialSnapshot = {
         actionId: undefined,
         chainId: expect.any(String),
-        networkClientId: undefined,
         dappSuggestedGasFees: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
+        networkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
         origin: undefined,
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
@@ -1463,22 +1463,6 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].history).toStrictEqual([
         expectedInitialSnapshot,
       ]);
-    });
-
-    it('only reads the current chain id to filter to initially populate the metadata', async () => {
-      const getNetworkStateMock = jest.fn().mockReturnValue(MOCK_NETWORK.state);
-      const { controller } = setupController({
-        options: { getNetworkState: getNetworkStateMock },
-      });
-
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-
-      // First call comes from getting the chainId to populate the initial unapproved transaction
-      // Second call comes from getting the network type to populate the initial gas estimates
-      expect(getNetworkStateMock).toHaveBeenCalledTimes(2);
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -5055,61 +5039,6 @@ describe('TransactionController', () => {
           },
           false,
         );
-      });
-
-      it('only reads the current chain id to filter for unapproved transactions', async () => {
-        const mockTransactionMeta = {
-          from: ACCOUNT_MOCK,
-          chainId: toHex(5),
-          status: TransactionStatus.unapproved,
-          txParams: {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-        };
-
-        const mockedTransactions = [
-          {
-            id: '123',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '123' }],
-          },
-          {
-            id: '1234',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '1234' }],
-          },
-          {
-            id: '12345',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '12345' }],
-            isUserOperation: true,
-          },
-        ];
-
-        const mockedControllerState = {
-          transactions: mockedTransactions,
-          methodData: {},
-          lastFetchedBlockNumbers: {},
-        };
-
-        const getNetworkStateMock = jest
-          .fn()
-          .mockReturnValue(MOCK_NETWORK.state);
-
-        const { controller } = setupController({
-          options: {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: mockedControllerState as any,
-            getNetworkState: getNetworkStateMock,
-          },
-        });
-
-        controller.initApprovals();
-        await flushPromises();
-
-        expect(getNetworkStateMock).toHaveBeenCalledTimes(1);
       });
 
       it('catches error without code property in error object while creating approval', async () => {

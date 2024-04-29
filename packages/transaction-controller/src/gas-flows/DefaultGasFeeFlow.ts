@@ -33,11 +33,8 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
   }
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
-    const { getGasFeeControllerEstimates, transactionMeta } = request;
-    const { networkClientId } = transactionMeta;
-
-    const { gasEstimateType, gasFeeEstimates } =
-      await getGasFeeControllerEstimates({ networkClientId });
+    const { gasFeeControllerData } = request;
+    const { gasEstimateType, gasFeeEstimates } = gasFeeControllerData;
 
     let response: GasFeeEstimates;
 
