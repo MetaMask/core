@@ -866,4 +866,143 @@ describe('MultichainTrackingHelper', () => {
       expect(options.getNetworkClientById).not.toHaveBeenCalled();
     });
   });
+
+  describe('getProvider', () => {
+    describe('when given networkClientId and chainId', () => {
+      it('returns the provider of the networkClientId when available', () => {
+        const { options, helper } = newMultichainTrackingHelper();
+
+        const provider = helper.getProvider({
+          networkClientId: 'goerli',
+          chainId: '0xa',
+        });
+        expect(provider).toBe(MOCK_PROVIDERS.goerli);
+
+        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
+        expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
+      });
+
+      it('returns a fallback networkClient provider matching the chainId when available', () => {
+        const { options, helper } = newMultichainTrackingHelper();
+
+        const provider = helper.getProvider({
+          networkClientId: 'missingNetworkClientId',
+          chainId: '0xa',
+        });
+        expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
+
+        expect(options.getNetworkClientById).toHaveBeenCalledTimes(2);
+        expect(options.getNetworkClientById).toHaveBeenCalledWith(
+          'missingNetworkClientId',
+        );
+        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
+          '0xa',
+        );
+        expect(options.getNetworkClientById).toHaveBeenCalledWith(
+          'customNetworkClientId-1',
+        );
+      });
+
+      it('returns the fallback global provider if networkClientId and chainId cannot be satisfied', () => {
+        const { options, helper } = newMultichainTrackingHelper();
+
+        const provider = helper.getProvider({
+          networkClientId: 'missingNetworkClientId',
+          chainId: '0xdeadbeef',
+        });
+        expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+
+        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
+        expect(options.getNetworkClientById).toHaveBeenCalledWith(
+          'missingNetworkClientId',
+        );
+        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
+          '0xdeadbeef',
+        );
+      });
+    });
+
+    describe('when given only networkClientId', () => {
+      it('returns the provider of the networkClientId when available', () => {
+        const { options, helper } = newMultichainTrackingHelper();
+
+        const provider = helper.getProvider({ networkClientId: 'goerli' });
+        expect(provider).toBe(MOCK_PROVIDERS.goerli);
+
+        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
+        expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
+      });
+
+      it('returns the fallback global provider if networkClientId cannot be satisfied', () => {
+        const { options, helper } = newMultichainTrackingHelper();
+
+        const provider = helper.getProvider({
+          networkClientId: 'missingNetworkClientId',
+        });
+        expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+
+        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
+        expect(options.getNetworkClientById).toHaveBeenCalledWith(
+          'missingNetworkClientId',
+        );
+      });
+    });
+
+    describe('when given only chainId', () => {
+      it('returns a fallback networkClient provider matching the chainId when available', () => {
+        const { options, helper } = newMultichainTrackingHelper();
+
+        const provider = helper.getProvider({ chainId: '0xa' });
+        expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
+
+        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
+        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
+          '0xa',
+        );
+        expect(options.getNetworkClientById).toHaveBeenCalledWith(
+          'customNetworkClientId-1',
+        );
+      });
+
+      it('returns the fallback global provider if chainId cannot be satisfied', () => {
+        const { options, helper } = newMultichainTrackingHelper();
+
+        const provider = helper.getProvider({ chainId: '0xdeadbeef' });
+        expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+
+        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
+          '0xdeadbeef',
+        );
+      });
+    });
+
+    it('returns the global provider when no arguments are provided', () => {
+      const { options, helper } = newMultichainTrackingHelper();
+
+      const provider = helper.getProvider();
+      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+
+      expect(options.getNetworkClientById).not.toHaveBeenCalled();
+    });
+
+    it('always returns the global provider when isMultichainEnabled: false', () => {
+      const { options, helper } = newMultichainTrackingHelper({
+        isMultichainEnabled: false,
+      });
+
+      let provider = helper.getProvider({
+        networkClientId: 'goerli',
+        chainId: '0x5',
+      });
+      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+      provider = helper.getProvider({ networkClientId: 'goerli' });
+      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+      provider = helper.getProvider({ chainId: '0x5' });
+      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+      provider = helper.getProvider();
+      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
+
+      expect(options.getNetworkClientById).not.toHaveBeenCalled();
+    });
+  });
 });

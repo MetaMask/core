@@ -3,6 +3,7 @@ import type {
   TransactionType,
   UserFeeLevel,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 /**
  * A complete user operation to be submitted to a bundler.
@@ -177,6 +178,9 @@ export type PrepareUserOperationRequest = {
 export type UpdateUserOperationRequest = {
   /** The user operation to update including the dummy signature and dummy paymasterAndData values. */
   userOperation: UserOperation;
+
+  /** The hexadecimal chain ID of the target network. */
+  chainId: string;
 };
 
 /**
@@ -253,6 +257,15 @@ export type UpdateUserOperationResponse = {
    * Not required if a paymaster is not sponsoring the transaction.
    */
   paymasterAndData?: string;
+
+  /**
+   * The final gas limits for the user operation suggested by the smart contract account.
+   * The simulated gas limits may be different after the bundler estimates gas with the use
+   * of the paymaster.
+   */
+  callGasLimit?: string;
+  preVerificationGas?: string;
+  verificationGasLimit?: string;
 };
 
 /**
@@ -303,10 +316,10 @@ export type SmartContractAccount = {
  */
 export type UserOperationReceipt = {
   /** Confirmed total cost of the gas for the user operation. */
-  actualGasCost: string;
+  actualGasCost: Hex | number;
 
   /** Confirmed total amount of gas used by the user operation. */
-  actualGasUsed: string;
+  actualGasUsed: Hex | number;
 
   /** True if the user operation was successfully confirmed on chain. */
   success: boolean;

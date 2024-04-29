@@ -432,7 +432,25 @@ describe('validation', () => {
         'paymasterAndData',
         'wrong type',
         123,
-        'Expected a value of type `Hexadecimal String`, but received: `123`',
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'callGasLimit',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'preVerificationGas',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'verificationGasLimit',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
       ],
     ])(
       'throws if %s is %s',

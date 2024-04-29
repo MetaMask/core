@@ -1,6 +1,6 @@
-import type EthQuery from '@metamask/eth-query';
+import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
+import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -14,7 +14,7 @@ import type {
 } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
-import { updateTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
+import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 
@@ -28,9 +28,9 @@ export class GasFeePoller {
 
   #gasFeeFlows: GasFeeFlow[];
 
-  #getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
-
   #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+
+  #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -44,31 +44,31 @@ export class GasFeePoller {
    * Constructs a new instance of the GasFeePoller.
    * @param options - The options for this instance.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
-   * @param options.getEthQuery - Callback to obtain an EthQuery instance.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
+   * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
    * @param options.onStateChange - Callback to register a listener for controller state changes.
    */
   constructor({
     gasFeeFlows,
-    getEthQuery,
     getGasFeeControllerEstimates,
+    getProvider,
     getTransactions,
     layer1GasFeeFlows,
     onStateChange,
   }: {
     gasFeeFlows: GasFeeFlow[];
-    getEthQuery: (chainId: Hex, networkClientId?: NetworkClientId) => EthQuery;
     getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+    getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     onStateChange: (listener: () => void) => void;
   }) {
     this.#gasFeeFlows = gasFeeFlows;
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
-    this.#getEthQuery = getEthQuery;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
+    this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
 
     onStateChange(() => {
@@ -110,36 +110,58 @@ export class GasFeePoller {
   }
 
   async #onTimeout() {
-    await this.#updateTransactionGasFeeEstimates();
+    await this.#updateUnapprovedTransactions();
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
   }
 
-  async #updateTransactionGasFeeEstimates() {
+  async #updateUnapprovedTransactions() {
     const unapprovedTransactions = this.#getUnapprovedTransactions();
 
-    log('Found unapproved transactions', {
-      count: unapprovedTransactions.length,
-    });
+    if (unapprovedTransactions.length) {
+      log('Found unapproved transactions', unapprovedTransactions.length);
+    }
 
     await Promise.all(
-      unapprovedTransactions.flatMap((tx) => [
-        this.#updateTransactionSuggestedFees(tx),
-        this.#updateTransactionLayer1GasFee(tx),
-      ]),
+      unapprovedTransactions.flatMap((tx) =>
+        this.#updateUnapprovedTransaction(tx),
+      ),
     );
   }
 
-  async #updateTransactionSuggestedFees(transactionMeta: TransactionMeta) {
+  async #updateUnapprovedTransaction(transactionMeta: TransactionMeta) {
+    const { id } = transactionMeta;
+
+    const [gasFeeEstimatesResponse, layer1GasFee] = await Promise.all([
+      this.#updateTransactionGasFeeEstimates(transactionMeta),
+      this.#updateTransactionLayer1GasFee(transactionMeta),
+    ]);
+
+    if (!gasFeeEstimatesResponse && !layer1GasFee) {
+      return;
+    }
+
+    this.hub.emit('transaction-updated', {
+      transactionId: id,
+      gasFeeEstimates: gasFeeEstimatesResponse?.gasFeeEstimates,
+      gasFeeEstimatesLoaded: gasFeeEstimatesResponse?.gasFeeEstimatesLoaded,
+      layer1GasFee,
+    });
+  }
+
+  async #updateTransactionGasFeeEstimates(
+    transactionMeta: TransactionMeta,
+  ): Promise<
+    | { gasFeeEstimates?: GasFeeEstimates; gasFeeEstimatesLoaded: boolean }
+    | undefined
+  > {
     const { chainId, networkClientId } = transactionMeta;
 
-    const ethQuery = this.#getEthQuery(chainId, networkClientId);
+    const ethQuery = new EthQuery(this.#getProvider(chainId, networkClientId));
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
-    if (!gasFeeFlow) {
-      log('No gas fee flow found', transactionMeta.id);
-    } else {
+    if (gasFeeFlow) {
       log(
         'Found gas fee flow',
         gasFeeFlow.constructor.name,
@@ -165,38 +187,34 @@ export class GasFeePoller {
     }
 
     if (!gasFeeEstimates && transactionMeta.gasFeeEstimatesLoaded) {
-      return;
+      return undefined;
     }
 
-    const updatedTransactionMeta: TransactionMeta = {
-      ...transactionMeta,
+    log('Updated gas fee estimates', {
       gasFeeEstimates,
-      gasFeeEstimatesLoaded: true,
-    };
-
-    this.hub.emit('transaction-updated', updatedTransactionMeta);
-
-    log('Updated suggested gas fees', {
-      gasFeeEstimates: updatedTransactionMeta.gasFeeEstimates,
-      transaction: updatedTransactionMeta.id,
+      transaction: transactionMeta.id,
     });
+
+    return { gasFeeEstimates, gasFeeEstimatesLoaded: true };
   }
 
-  async #updateTransactionLayer1GasFee(transactionMeta: TransactionMeta) {
+  async #updateTransactionLayer1GasFee(
+    transactionMeta: TransactionMeta,
+  ): Promise<Hex | undefined> {
     const { chainId, networkClientId } = transactionMeta;
-    const ethQuery = this.#getEthQuery(chainId, networkClientId);
+    const provider = this.#getProvider(chainId, networkClientId);
 
-    await updateTransactionLayer1GasFee({
-      ethQuery,
+    const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
+      provider,
       transactionMeta,
     });
 
-    if (transactionMeta.layer1GasFee === undefined) {
-      return;
+    if (layer1GasFee) {
+      log('Updated layer 1 gas fee', layer1GasFee, transactionMeta.id);
     }
 
-    this.hub.emit('transaction-updated', transactionMeta);
+    return layer1GasFee;
   }
 
   #getUnapprovedTransactions() {

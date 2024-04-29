@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.1.0]
+
+### Added
+
+- Support retrieval of layer 1 gas fees on Scroll networks ([#4155](https://github.com/MetaMask/core/pull/4155))
+
+## [28.0.0]
+
+### Changed
+
+- **BREAKING:** Change `getLayer1GasFee` arguments to a request object ([#4149](https://github.com/MetaMask/core/pull/4149))
+
+### Fixed
+
+- Fix automatic update of layer 1 gas fee after interval ([#4149](https://github.com/MetaMask/core/pull/4149))
+
+## [27.0.1]
+
+### Fixed
+
+- Include wrapped ERC-20 and legacy ERC-721 tokens in simulation balance changes ([#4122](https://github.com/MetaMask/core/pull/4122))
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Change `pendingTransactions.isResubmitEnabled` from optional `boolean` to optional callback ([#4113](https://github.com/MetaMask/core/pull/4113))
+
+### Fixed
+
+- Check pending transactions on startup ([#4113](https://github.com/MetaMask/core/pull/4113))
+
+## [26.0.0]
+
+### Added
+
+- Run `OptimismLayer1GasFeeFlow` on Optimism stack based transactions in order to add `layer1GasFee` property to transaction meta. ([#4055](https://github.com/MetaMask/core/pull/4055))
+- Add `getLayer1GasFee` method to `TransactionController` to get the layer 1 gas fee for the given transaction params ([#4055](https://github.com/MetaMask/core/pull/4055))
+- Add `SimulationErrorCode` enum ([#4106](https://github.com/MetaMask/core/pull/4106))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^15.0.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+- Update `addTransaction` to skip simulation if `requireApproval` is specified as `false` ([#4106](https://github.com/MetaMask/core/pull/4106))
+- Provide simulation error code in locally generated errors (under the `code` property) ([#4106](https://github.com/MetaMask/core/pull/4106))
+- Add dependency `@ethersproject/contracts` `^5.7.0` ([#4055](https://github.com/MetaMask/core/pull/4055))
+- Add dependency `@ethersproject/providers` `^5.7.0` ([#4055](https://github.com/MetaMask/core/pull/4055))
+- Bump dependency `@metamask/network-controller` to `^18.1.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+
+### Removed
+
+- **BREAKING**: Remove `isReverted` property from `SimulationError` type. ([#4106](https://github.com/MetaMask/core/pull/4106))
+
 ## [25.3.0]
 
 ### Added
@@ -727,7 +780,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.1.0...HEAD
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.0.0...@metamask/transaction-controller@28.1.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.1...@metamask/transaction-controller@28.0.0
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.0...@metamask/transaction-controller@27.0.1
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@26.0.0...@metamask/transaction-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.3.0...@metamask/transaction-controller@26.0.0
 [25.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.1...@metamask/transaction-controller@25.3.0
 [25.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.2.0...@metamask/transaction-controller@25.2.1
 [25.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@25.1.0...@metamask/transaction-controller@25.2.0

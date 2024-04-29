@@ -45,7 +45,6 @@ export type PermissionConstraint = {
    */
   readonly '@context'?: NonEmptyArray<string>;
 
-  // TODO:TS4.4 Make optional
   /**
    * The caveats of the permission.
    *
@@ -92,7 +91,6 @@ export type ValidPermission<
   Name extends TargetName,
   AllowedCaveat extends CaveatConstraint,
 > = PermissionConstraint & {
-  // TODO:TS4.4 Make optional
   /**
    * The caveats of the permission.
    *
@@ -118,9 +116,7 @@ export type ValidPermission<
  */
 type ExtractArrayMembers<ArrayType> = ArrayType extends []
   ? never
-  : // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ArrayType extends any[] | readonly any[]
+  : ArrayType extends unknown[] | readonly unknown[]
   ? ArrayType[number]
   : never;
 
@@ -209,9 +205,7 @@ export type RequestedPermissions = Record<TargetName, RequestedPermission>;
  */
 type RestrictedMethodContext = Readonly<{
   origin: OriginString;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  [key: string]: unknown;
 }>;
 
 export type RestrictedMethodParameters = Json[] | Record<string, Json>;
@@ -265,9 +259,10 @@ export type RestrictedMethod<
   | AsyncRestrictedMethod<Params, Result>;
 
 export type ValidRestrictedMethod<
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  MethodImplementation extends RestrictedMethod<any, any>,
+  MethodImplementation extends RestrictedMethod<
+    RestrictedMethodParameters,
+    Json
+  >,
 > = MethodImplementation extends (args: infer Options) => Json | Promise<Json>
   ? Options extends RestrictedMethodOptions<RestrictedMethodParameters>
     ? MethodImplementation
@@ -423,9 +418,7 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    *
    * If the side-effect action fails, the permission that triggered it is revoked.
    */
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sideEffect?: PermissionSideEffect<any, any>;
+  sideEffect?: PermissionSideEffect<ActionConstraint, EventConstraint>;
 
   /**
    * The Permission may be available to only a subset of the subject types. If so, specify the subject types as an array.
@@ -451,7 +444,7 @@ export type RestrictedMethodSpecificationConstraint =
      */
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    methodImplementation: RestrictedMethod<any, any>;
+    methodImplementation: RestrictedMethod<any, Json>;
   };
 
 /**
@@ -469,9 +462,7 @@ export type EndowmentSpecificationConstraint =
      * permission is invoked, after which the host can apply the endowments to
      * the requesting subject in the intended manner.
      */
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    endowmentGetter: EndowmentGetter<any>;
+    endowmentGetter: EndowmentGetter<Json>;
   };
 
 /**
@@ -511,9 +502,11 @@ type PermissionSpecificationBuilderOptions<
  */
 export type PermissionSpecificationBuilder<
   Type extends PermissionType,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Options extends PermissionSpecificationBuilderOptions<any, any, any>,
+  Options extends PermissionSpecificationBuilderOptions<
+    Record<string, unknown>,
+    Record<string, unknown>,
+    Record<string, unknown>
+  >,
   Specification extends PermissionSpecificationConstraint & {
     permissionType: Type;
   },
@@ -527,9 +520,11 @@ export type PermissionSpecificationBuilderExportConstraint = {
   targetName: string;
   specificationBuilder: PermissionSpecificationBuilder<
     PermissionType,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    PermissionSpecificationBuilderOptions<any, any, any>,
+    PermissionSpecificationBuilderOptions<
+      Record<string, unknown>,
+      Record<string, unknown>,
+      Record<string, unknown>
+    >,
     PermissionSpecificationConstraint
   >;
   factoryHookNames?: Record<string, true>;

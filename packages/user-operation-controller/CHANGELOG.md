@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+
+### Fixed
+
+- Support number gas values in user operation receipts ([#4161](https://github.com/MetaMask/core/pull/4161))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING** Bump peer dependency on `@metamask/keyring-controller` to `^15.0.0` and Pass CAIP-2 scope to execution context ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/gas-fee-controller` to `^15.0.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^26.0.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+- Bump dependency `@metamask/network-controller` to `^18.1.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+
 ## [6.0.2]
 
 ### Fixed
@@ -92,7 +113,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@8.0.0...@metamask/user-operation-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@7.0.0...@metamask/user-operation-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@6.0.2...@metamask/user-operation-controller@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@6.0.1...@metamask/user-operation-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@6.0.0...@metamask/user-operation-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@5.0.0...@metamask/user-operation-controller@6.0.0

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING**: Change various `KeyringController` methods so they no longer return the controller state ([#4199](https://github.com/MetaMask/core/pull/4199))
+  - Changed `addNewAccount` return type to `Promise<string>`
+  - Changed `addNewAccountWithoutUpdate` return type to `Promise<string>`
+  - Changed `createNewVaultAndKeychain` return type to `Promise<void>`
+  - Changed `createNewVaultAndRestore` return type to `Promise<void>`
+  - Changed `importAccountWithStrategy` return type to `Promise<string>`
+  - Changed `removeAccount` return type to `Promise<void>`
+  - Changed `setLocked` return type to `Promise<void>`
+  - Changed `submitEncryptionKey` return type to `Promise<void>`
+  - Changed `submitPassword` return type to `Promise<void>`
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING** use getAccounts on HD Keyring when calling addNewAccount ([#4158](https://github.com/MetaMask/core/pull/4158))
+- Pass CAIP-2 scope to execution context ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
+
 ## [14.0.1]
 
 ### Fixed
@@ -400,7 +421,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...@metamask/keyring-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
