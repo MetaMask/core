@@ -94,6 +94,7 @@ type ExtractCaveatValueFromDecorator<
 /**
  * A function for validating caveats of a particular type.
  *
+ * @see `validator` in {@link CaveatSpecificationBase} for more details.
  * @template ParentCaveat - The caveat type associated with this validator.
  * @param caveat - The caveat object to validate.
  * @param origin - The origin associated with the parent permission.
@@ -106,6 +107,10 @@ export type CaveatValidator<ParentCaveat extends CaveatConstraint> = (
 ) => void;
 
 /**
+ * A function that merges two caveats of the same type. The values
+ * must be merged in the fashion of a right-biased union.
+ *
+ * @see `ARCHITECTURE.md` for more details.
  * @template ParentCaveat - The caveat type associated with this merger.
  * @param leftCaveat - The left-hand caveat.
  * @param rightCaveat - The right-hand caveat.
@@ -117,7 +122,10 @@ export type CaveatMerger<ParentCaveat extends CaveatConstraint> = (
 ) => ParentCaveat;
 
 /**
- * A function that merges two caveat values of the same type.
+ * A function that merges two caveat values of the same type. The values
+ * must be merged in the fashion of a right-biased union.
+ *
+ * @see `ARCHITECTURE.md` for more details.
  * @template Value - The type of the values to merge.
  * @param leftValue - The left-hand value.
  * @param rightValue - The right-hand value.
@@ -131,6 +139,7 @@ export type CaveatValueMerger<Value extends Json> = (
 /**
  * Makes a {@link CaveatMerger} function for a specific caveat type.
  *
+ * @see `ARCHITECTURE.md` for more details.
  * @param mergeValues - The function to merge the values of two caveats.
  * @returns The {@link CaveatMerger} function.
  */
@@ -176,7 +185,10 @@ export type CaveatSpecificationBase = {
 
   /**
    * The merger function used to merge caveats of the associated type during
-   * incremental permission requests.
+   * incremental permission requests. The values must be merged in the fashion
+   * of a right-biased union.
+   *
+   * @see `ARCHITECTURE.md` for more details.
    */
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

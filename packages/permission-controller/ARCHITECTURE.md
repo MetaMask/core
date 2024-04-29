@@ -75,7 +75,7 @@ Therefore, as with any data structure we will use to represent information to th
 For the same reason, it is also critical for permission authors to carefully consider the _semantics_ of caveat values.
 In particular, the existence of an authority **must** be represented by the **presence** of a value.
 
-For example, let's say there is a caveat `foo` that restricts the parameters that some method can be called with.
+For example, let's say there is a caveat `foo` that restricts the parameters that a method can be called with.
 In theory, such a caveat could be implemented such that a value of `[1, 2]` means that the
 method will only accept `1` and `2` as parameters, while an empty array `[]` means that
 _all_ parameters are permitted.
@@ -84,12 +84,59 @@ Instead, such a hypothetical caveat could use `['*']` to represent that all para
 
 We, the maintainers of the permission controller, impose this requirement for two reasons:
 
-1. We find it more intuitive to structure caveats in this manner.
+1. We find it more intuitive to reason about caveats structured in this manner.
 2. It leaves the door open for establishing a caveat DSL, and subsequently standardized caveat merger functions in support of [incremental permission requests](#requestpermissionsincremental).
+
+#### Caveat merging
+
+<!-- TODO: Remove the below "if no merger exists" qualifier when mergers are required. -->
+
+Consumers may supply a caveat merger function when specifying a caveat.
+This is required to support [incremental permission requests](#requestpermissionsincremental).
+Caveat values must be merged in the fashion of a right-biased union.
+This operation is _like_ a union in set theory, except the right-hand operand overwrites
+values of the left-hand operand in case of collisions.
+
+Formally, let:
+
+- `A` be the value of the existing / left-hand caveat
+- `B` be the value of the requested / right-hand caveat
+- `C` be the value of the resulting caveat
+- `⊕` be the right-biased union operator
+
+Then the following must be true:
+
+- `C = A ⊕ B`
+- `C ⊇ B`
+- `A` and `C` may have all, some, or no values in common.
+
+Or, in JavaScript:
+
+```js
+// A and B are the same.
+A = { foo: 'bar' };
+B = { foo: 'bar' };
+C = { foo: 'bar' };
+
+// A and B have no values in common.
+A = { foo: 'bar' };
+B = { life: 42 };
+C = { foo: 'bar', life: 42 };
+
+// B overwrites A completely.
+A = { foo: 'bar' };
+B = { foo: 'baz' };
+C = { foo: 'baz' };
+
+// B partially overwrites A.
+A = { foo: 'bar', life: 42 };
+B = { foo: 'baz' };
+C = { foo: 'baz', life: 42 };
+```
 
 ### Requesting permissions
 
-The `PermissionController` provides two ways of requesting permissions:
+The `PermissionController` provides two methods for requesting permissions:
 
 #### `requestPermissions()`
 
@@ -105,6 +152,10 @@ This merger is performed by way of a right-biased union, where the requested per
 
 If a caveat of the same type is encountered on both the left- and right-hand sides, the
 new caveat value is determined by calling that caveat type's merger function.
+This function must also perform a right-biased union, see [caveat merging](#caveat-merging) for more details.
+If no merger exists for a caveat that must be merged, the request will fail.
+
+<!-- TODO: Remove the above "if no merger exists" qualifier when mergers are required. -->
 
 ## Examples
 
@@ -140,7 +191,8 @@ const caveatSpecifications = {
         );
       },
     // This function is called if two caveats of this type have to be merged
-    // due to an incremental permissions request.
+    // due to an incremental permissions request. The values must be merged
+    // in the fashion of a right-biased union.
     merger: makeCaveatMerger<FilterArrayCaveat>((leftValue, rightValue) =>
       Array.from(new Set([...leftValue, ...rightValue])),
     ),
