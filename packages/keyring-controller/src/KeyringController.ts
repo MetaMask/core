@@ -1310,7 +1310,7 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Select a keyring and execute the given function with
+   * Select a keyring and execute the given operation with
    * the selected keyring, as a mutually exclusive atomic
    * operation.
    *
@@ -1319,7 +1319,7 @@ export class KeyringController extends BaseController<
    * is thrown.
    *
    * @param selector - Keyring selector object.
-   * @param fn - Function to execute with the selected keyring.
+   * @param operation - Function to execute with the selected keyring.
    * @param options - Additional options.
    * @param options.createIfMissing - Whether to create a new keyring if the selected one is missing.
    * @param options.createWithData - Optional data to use when creating a new keyring.
@@ -1333,7 +1333,7 @@ export class KeyringController extends BaseController<
     CallbackResult = void,
   >(
     selector: KeyringSelector,
-    fn: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
     // eslint-disable-next-line @typescript-eslint/unified-signatures
     options:
       | { createIfMissing?: false }
@@ -1341,7 +1341,7 @@ export class KeyringController extends BaseController<
   ): Promise<CallbackResult>;
 
   /**
-   * Select a keyring and execute the given function with
+   * Select a keyring and execute the given operation with
    * the selected keyring, as a mutually exclusive atomic
    * operation.
    *
@@ -1350,7 +1350,7 @@ export class KeyringController extends BaseController<
    * is thrown.
    *
    * @param selector - Keyring selector object.
-   * @param fn - Function to execute with the selected keyring.
+   * @param operation - Function to execute with the selected keyring.
    * @returns Promise resolving to the result of the function execution.
    * @template SelectedKeyring - The type of the selected keyring.
    * @template CallbackResult - The type of the value resolved by the callback function.
@@ -1360,7 +1360,7 @@ export class KeyringController extends BaseController<
     CallbackResult = void,
   >(
     selector: KeyringSelector,
-    fn: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
   ): Promise<CallbackResult>;
 
   async withKeyring<
@@ -1368,7 +1368,7 @@ export class KeyringController extends BaseController<
     CallbackResult = void,
   >(
     selector: KeyringSelector,
-    fn: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
     options:
       | { createIfMissing?: false }
       | { createIfMissing: true; createWithData?: unknown } = {
@@ -1399,7 +1399,7 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.KeyringNotFound);
       }
 
-      const result = await fn(keyring);
+      const result = await operation(keyring);
 
       if (Object.is(result, keyring)) {
         // Access to a keyring instance outside of controller safeguards
