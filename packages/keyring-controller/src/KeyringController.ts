@@ -1324,7 +1324,41 @@ export class KeyringController extends BaseController<
    * @param options.createIfMissing - Whether to create a new keyring if the selected one is missing.
    * @param options.createWithData - Optional data to use when creating a new keyring.
    * @returns Promise resolving to the result of the function execution.
+   * @deprecated This method overload is deprecated. Use `withKeyring` without options instead.
    */
+  async withKeyring<
+    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    fn: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    // eslint-disable-next-line @typescript-eslint/unified-signatures
+    options:
+      | { createIfMissing?: false }
+      | { createIfMissing: true; createWithData?: unknown },
+  ): Promise<CallbackResult>;
+
+  /**
+   * Select a keyring and execute the given function with
+   * the selected keyring, as a mutually exclusive atomic
+   * operation.
+   *
+   * The method automatically persists changes at the end of the
+   * function execution, or rolls back the changes if an error
+   * is thrown.
+   *
+   * @param selector - Keyring selector object.
+   * @param fn - Function to execute with the selected keyring.
+   * @returns Promise resolving to the result of the function execution.
+   */
+  async withKeyring<
+    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    fn: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+  ): Promise<CallbackResult>;
+
   async withKeyring<
     SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
     CallbackResult = void,
