@@ -1350,6 +1350,8 @@ export class KeyringController extends BaseController<
    * @param selector - Keyring selector object.
    * @param fn - Function to execute with the selected keyring.
    * @returns Promise resolving to the result of the function execution.
+   * @template SelectedKeyring - The type of the selected keyring.
+   * @template CallbackResult - The type of the value resolved by the callback function.
    */
   async withKeyring<
     SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
