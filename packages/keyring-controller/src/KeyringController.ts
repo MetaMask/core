@@ -364,6 +364,15 @@ export type ExportableKeyEncryptor = GenericEncryptor & {
   importKey: (key: string) => Promise<unknown>;
 };
 
+export type KeyringSelector =
+  | {
+      type: string;
+      index?: number;
+    }
+  | {
+      address: Hex;
+    };
+
 /**
  * A function executed within a mutually exclusive lock, with
  * a mutex releaser in its option bag.
@@ -1297,6 +1306,69 @@ export class KeyringController extends BaseController<
     });
 
     return seedWords;
+  }
+
+  /**
+   * Select a keyring and execute the given function with
+   * the selected keyring, as a mutually exclusive atomic
+   * operation.
+   *
+   * The method automatically persists changes at the end of the
+   * function execution, or rolls back the changes if an error
+   * is thrown.
+   *
+   * @param selector - Keyring selector object.
+   * @param fn - Function to execute with the selected keyring.
+   * @param options - Additional options.
+   * @param options.createIfMissing - Whether to create a new keyring if the selected one is missing.
+   * @param options.createWithData - Optional data to use when creating a new keyring.
+   * @returns Promise resolving to the result of the function execution.
+   */
+  async withKeyring<K extends EthKeyring<Json> = EthKeyring<Json>, T = void>(
+    selector: KeyringSelector,
+    fn: (keyring: K) => Promise<T>,
+    options:
+      | { createIfMissing?: false }
+      | { createIfMissing: true; createWithData?: unknown } = {
+      createIfMissing: false,
+    },
+  ): Promise<T> {
+    return this.#persistOrRollback(async () => {
+      let keyring: K | undefined;
+
+      if ('address' in selector) {
+        keyring = (await this.getKeyringForAccount(
+          normalize(selector.address) as Hex,
+        )) as K | undefined;
+      } else {
+        keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
+          | K
+          | undefined;
+
+        if (!keyring && options.createIfMissing) {
+          keyring = (await this.#newKeyring(
+            selector.type,
+            options.createWithData,
+          )) as K;
+        }
+      }
+
+      if (!keyring) {
+        throw new Error(KeyringControllerError.KeyringNotFound);
+      }
+
+      const result = await fn(keyring);
+
+      if (Object.is(result, keyring)) {
+        // Access to a keyring instance outside of controller safeguards
+        // should be discouraged, as it can lead to unexpected behavior.
+        // This error is thrown to prevent consumers using `withKeyring`
+        // as a way to get a reference to a keyring instance.
+        throw new Error(KeyringControllerError.UnsafeDirectKeyringAccess);
+      }
+
+      return result;
+    });
   }
 
   // QR Hardware related methods
