@@ -1325,32 +1325,35 @@ export class KeyringController extends BaseController<
    * @param options.createWithData - Optional data to use when creating a new keyring.
    * @returns Promise resolving to the result of the function execution.
    */
-  async withKeyring<K extends EthKeyring<Json> = EthKeyring<Json>, T = void>(
+  async withKeyring<
+    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    CallbackResult = void,
+  >(
     selector: KeyringSelector,
-    fn: (keyring: K) => Promise<T>,
+    fn: (keyring: SelectedKeyring) => Promise<CallbackResult>,
     options:
       | { createIfMissing?: false }
       | { createIfMissing: true; createWithData?: unknown } = {
       createIfMissing: false,
     },
-  ): Promise<T> {
+  ): Promise<CallbackResult> {
     return this.#persistOrRollback(async () => {
-      let keyring: K | undefined;
+      let keyring: SelectedKeyring | undefined;
 
       if ('address' in selector) {
         keyring = (await this.getKeyringForAccount(
           normalize(selector.address) as Hex,
-        )) as K | undefined;
+        )) as SelectedKeyring | undefined;
       } else {
         keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
-          | K
+          | SelectedKeyring
           | undefined;
 
         if (!keyring && options.createIfMissing) {
           keyring = (await this.#newKeyring(
             selector.type,
             options.createWithData,
-          )) as K;
+          )) as SelectedKeyring;
         }
       }
 
