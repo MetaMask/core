@@ -1,3 +1,4 @@
+import { toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type {
   GasFeeEstimates as FeeMarketGasPriceEstimate,
@@ -14,7 +15,6 @@ import type {
 } from '../types';
 import { GasFeeEstimateType, TransactionStatus } from '../types';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import { toHex } from '@metamask/controller-utils';
 
 const ETH_QUERY_MOCK = {} as EthQuery;
 
