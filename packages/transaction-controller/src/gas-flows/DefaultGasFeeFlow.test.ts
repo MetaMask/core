@@ -14,6 +14,7 @@ import type {
 } from '../types';
 import { GasFeeEstimateType, TransactionStatus } from '../types';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+import { toHex } from '@metamask/controller-utils';
 
 const ETH_QUERY_MOCK = {} as EthQuery;
 
@@ -65,35 +66,32 @@ const GAS_PRICE_RESPONSE_MOCK = {
   },
 } as GasFeeState;
 
-// Converted to Hex and multiplied by 1 billion.
 const FEE_MARKET_EXPECTED_RESULT: FeeMarketGasFeeEstimates = {
   type: GasFeeEstimateType.FeeMarket,
   low: {
-    maxFeePerGas: '0x3b9aca00',
-    maxPriorityFeePerGas: '0x77359400',
+    maxFeePerGas: toHex(1e9),
+    maxPriorityFeePerGas: toHex(2e9),
   },
   medium: {
-    maxFeePerGas: '0xb2d05e00',
-    maxPriorityFeePerGas: '0xee6b2800',
+    maxFeePerGas: toHex(3e9),
+    maxPriorityFeePerGas: toHex(4e9),
   },
   high: {
-    maxFeePerGas: '0x12a05f200',
-    maxPriorityFeePerGas: '0x165a0bc00',
+    maxFeePerGas: toHex(5e9),
+    maxPriorityFeePerGas: toHex(6e9),
   },
 };
 
-// Converted to Hex and multiplied by 1 billion.
 const LEGACY_EXPECTED_RESULT: LegacyGasFeeEstimates = {
   type: GasFeeEstimateType.Legacy,
-  low: '0x3b9aca00',
-  medium: '0xb2d05e00',
-  high: '0x12a05f200',
+  low: toHex(1e9),
+  medium: toHex(3e9),
+  high: toHex(5e9),
 };
 
-// Converted to Hex and multiplied by 1 billion.
 const GAS_PRICE_EXPECTED_RESULT: GasPriceGasFeeEstimates = {
   type: GasFeeEstimateType.GasPrice,
-  gasPrice: '0xb2d05e00',
+  gasPrice: toHex(3e9),
 };
 
 describe('DefaultGasFeeFlow', () => {
