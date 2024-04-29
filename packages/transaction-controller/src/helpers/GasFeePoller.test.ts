@@ -19,10 +19,13 @@ jest.mock('../utils/layer1-gas-fee-flow', () => ({
 jest.useFakeTimers();
 
 const CHAIN_ID_MOCK: Hex = '0x123';
+const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
+const LAYER1_GAS_FEE_MOCK = '0x123';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
   chainId: CHAIN_ID_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   status: TransactionStatus.unapproved,
   time: 0,
   txParams: {
@@ -45,8 +48,6 @@ const GAS_FEE_FLOW_RESPONSE_MOCK: GasFeeFlowResponse = {
   },
 };
 
-const LAYER1_GAS_FEE_MOCK = '0x123';
-
 /**
  * Creates a mock GasFeeFlow.
  * @returns The mock GasFeeFlow.
@@ -68,6 +69,8 @@ describe('GasFeePoller', () => {
   );
   // As we mock implementation of updateTransactionLayer1GasFee, it does not matter if we pass matching flow here
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
+  const getGasFeeControllerEstimatesMock = jest.fn();
+  const findNetworkClientIdByChainIdMock = jest.fn();
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -83,9 +86,9 @@ describe('GasFeePoller', () => {
     getTransactionLayer1GasFeeMock.mockResolvedValue(LAYER1_GAS_FEE_MOCK);
 
     constructorOptions = {
-      findNetworkClientIdByChainId: jest.fn(),
+      findNetworkClientIdByChainId: findNetworkClientIdByChainIdMock,
       gasFeeFlows: [gasFeeFlowMock],
-      getGasFeeControllerEstimates: jest.fn(),
+      getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
       getTransactions: getTransactionsMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
       onStateChange: (listener: () => void) => {
@@ -116,6 +119,8 @@ describe('GasFeePoller', () => {
       });
 
       it('calls gas fee flow', async () => {
+        getGasFeeControllerEstimatesMock.mockResolvedValue({});
+
         new GasFeePoller(constructorOptions);
 
         triggerOnStateChange();
@@ -124,7 +129,7 @@ describe('GasFeePoller', () => {
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           ethQuery: expect.any(Object),
-          gasFeeControllerData: undefined,
+          gasFeeControllerData: {},
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
@@ -167,6 +172,88 @@ describe('GasFeePoller', () => {
         await flushPromises();
 
         expect(jest.getTimerCount()).toBe(1);
+      });
+
+      it('does nothing if no transactions', async () => {
+        const listener = jest.fn();
+
+        getTransactionsMock.mockReturnValueOnce([{ ...TRANSACTION_META_MOCK }]);
+        getTransactionsMock.mockReturnValueOnce([]);
+
+        const gasFeePoller = new GasFeePoller(constructorOptions);
+        gasFeePoller.hub.on('transaction-updated', listener);
+
+        triggerOnStateChange();
+        await flushPromises();
+
+        expect(listener).toHaveBeenCalledTimes(0);
+        expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledTimes(0);
+        expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(0);
+      });
+
+      describe('fetches GasFeeController data', () => {
+        it('for each unique chain ID', async () => {
+          getTransactionsMock.mockReturnValue([
+            {
+              ...TRANSACTION_META_MOCK,
+              chainId: '0x1',
+              networkClientId: 'networkClientId1',
+            },
+            {
+              ...TRANSACTION_META_MOCK,
+              chainId: '0x2',
+              networkClientId: 'networkClientId2',
+            },
+            {
+              ...TRANSACTION_META_MOCK,
+              chainId: '0x2',
+              networkClientId: 'networkClientId3',
+            },
+            {
+              ...TRANSACTION_META_MOCK,
+              chainId: '0x3',
+              networkClientId: 'networkClientId4',
+            },
+          ]);
+
+          new GasFeePoller(constructorOptions);
+
+          triggerOnStateChange();
+          await flushPromises();
+
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledTimes(3);
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: 'networkClientId1',
+          });
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: 'networkClientId2',
+          });
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: 'networkClientId4',
+          });
+        });
+
+        it('using found network client ID if none in metadata', async () => {
+          getTransactionsMock.mockReturnValue([
+            {
+              ...TRANSACTION_META_MOCK,
+              chainId: '0x1',
+              networkClientId: undefined,
+            },
+          ]);
+
+          findNetworkClientIdByChainIdMock.mockReturnValue('networkClientId1');
+
+          new GasFeePoller(constructorOptions);
+
+          triggerOnStateChange();
+          await flushPromises();
+
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledTimes(1);
+          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
+            networkClientId: 'networkClientId1',
+          });
+        });
       });
     });
 
