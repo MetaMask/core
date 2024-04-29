@@ -110,7 +110,7 @@ Then the following must be true:
 - `C ⊇ B`
 - `A` and `C` may have all, some, or no values in common.
 
-Or, in JavaScript:
+Or, to exemplify in JavaScript:
 
 ```js
 // A and B are the same.
