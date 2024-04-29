@@ -854,7 +854,7 @@ export class KeyringController extends BaseController<
    *
    * @deprecated Use of this method is discouraged as actions executed directly on
    * keyrings are not being reflected in the KeyringController state and not
-   * persisted in the vault.
+   * persisted in the vault. Use `withKeyring` instead.
    * @param account - An account address.
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
@@ -897,7 +897,7 @@ export class KeyringController extends BaseController<
    *
    * @deprecated Use of this method is discouraged as actions executed directly on
    * keyrings are not being reflected in the KeyringController state and not
-   * persisted in the vault.
+   * persisted in the vault. Use `withKeyring` instead.
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
@@ -908,6 +908,7 @@ export class KeyringController extends BaseController<
   /**
    * Persist all serialized keyrings in the vault.
    *
+   * @deprecated This method is being phased out in favor of `withKeyring`.
    * @returns Promise resolving with `true` value when the
    * operation completes.
    */
