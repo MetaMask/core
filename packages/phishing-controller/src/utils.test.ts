@@ -174,4 +174,7 @@ describe('isValidHostname', () => {
 
   it('returns false if invalid URL provided', () =>
     expect(isValidHostname('@')).toBe(false));
+
+  it('returns false if hostname has trailing slash', () =>
+    expect(isValidHostname('example.com/')).toBe(false));
 });
