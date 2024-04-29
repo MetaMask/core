@@ -1888,17 +1888,6 @@ describe('TokensController', () => {
       ]);
       stub.restore();
     });
-
-    it('should not update selectedTokenId if the selected account is not an EVM account', async () => {
-      const mockEvmAccount = createMockInternalAccount();
-      triggerSelectedAccountChange(mockEvmAccount);
-      const mockNonEvmAccount = createMockInternalAccount({
-        // @ts-expect-error testing a not evm type
-        type: 'bitcoin',
-      });
-      triggerSelectedAccountChange(mockNonEvmAccount);
-      expect(tokensController.config.selectedAccountId).toBe(mockEvmAccount.id);
-    });
   });
 
   describe('Non evm check', () => {

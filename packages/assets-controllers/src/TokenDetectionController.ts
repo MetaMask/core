@@ -232,10 +232,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       const selectedInternalAccount = this.messagingSystem.call(
         'AccountsController:getSelectedAccount',
       );
-      if (isEVMAccount(selectedInternalAccount)) {
-        this.#selectedAccountId = selectedInternalAccount.id;
-      }
-      this.#selectedAccountId = '';
+      this.#selectedAccountId = selectedInternalAccount.id;
     }
 
     const { chainId, networkClientId } =
@@ -288,6 +285,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
       async ({ useTokenDetection }) => {
+        const selectedAccount = this.messagingSystem.call(
+          'AccountsController:getSelectedAccount',
+        );
         const isDetectionChangedFromPreferences =
           this.#isDetectionEnabledFromPreferences !== useTokenDetection;
 
@@ -295,7 +295,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
         if (isDetectionChangedFromPreferences) {
           await this.#restartTokenDetection({
-            selectedAccountId: this.#selectedAccountId,
+            selectedAccountId: selectedAccount.id,
           });
         }
       },
@@ -304,9 +304,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       async (internalAccount) => {
-        if (!isEVMAccount(internalAccount)) {
-          return;
-        }
         const didSelectedAccountIdChanged =
           this.#selectedAccountId !== internalAccount.id;
         if (didSelectedAccountIdChanged) {

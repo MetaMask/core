@@ -4,7 +4,7 @@ import type {
   AccountsControllerGetAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import { isEVMAccount } from '@metamask/accounts-controller/src/utils';
+import { isEVMAccount } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
   BaseConfig,
@@ -265,12 +265,12 @@ export class TokensController extends BaseControllerV1<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       (internalAccount) => {
+        this.configure({ selectedAccountId: internalAccount.id });
         if (!isEVMAccount(internalAccount)) {
           return;
         }
         const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
         const { chainId } = this.config;
-        this.configure({ selectedAccountId: internalAccount.id });
         this.update({
           tokens: allTokens[chainId]?.[internalAccount.address] ?? [],
           ignoredTokens:
@@ -290,16 +290,17 @@ export class TokensController extends BaseControllerV1<
           'AccountsController:getAccount',
           selectedAccountId,
         );
+
+        const { chainId } = providerConfig;
+        this.abortController.abort();
+        this.abortController = new AbortController();
+        this.configure({ chainId });
         if (
           !selectedInternalAccount ||
           !isEVMAccount(selectedInternalAccount)
         ) {
           return;
         }
-        const { chainId } = providerConfig;
-        this.abortController.abort();
-        this.abortController = new AbortController();
-        this.configure({ chainId });
         this.update({
           tokens: allTokens[chainId]?.[selectedInternalAccount.address] || [],
           ignoredTokens:
@@ -367,6 +368,7 @@ export class TokensController extends BaseControllerV1<
       selectedAccountId,
     );
     if (!internalAccount || !isEVMAccount(internalAccount)) {
+      releaseLock();
       return [];
     }
 

@@ -239,9 +239,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     }
 
     onSelectedAccountChange(async (internalAccount) => {
-      if (!isEVMAccount(internalAccount)) {
-        return;
-      }
       if (this.config.selectedAccountId !== internalAccount.id) {
         this.configure({ selectedAccountId: internalAccount.id });
         if (this.#pollState === PollState.Active) {
@@ -347,7 +344,12 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * Updates exchange rates for all tokens.
    */
   async updateExchangeRates() {
-    const { chainId, nativeCurrency } = this.config;
+    const { chainId, nativeCurrency, selectedAccountId } = this.config;
+    const selectedAccount = this.getInternalAccount(selectedAccountId);
+    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+      return;
+    }
+
     await this.updateExchangeRatesByChainId({
       chainId,
       nativeCurrency,
