@@ -421,6 +421,8 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
 
   private readonly getInternalAccount: (accountId: string) => InternalAccount;
 
+  private readonly getSelectedAccount: () => InternalAccount;
+
   /**
    * Creates an NftDetectionController instance.
    *
@@ -438,6 +440,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.selectedAccountId - Represents current selected account id.
    * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
    * @param options.getInternalAccount - Gets the internal account from the AccountsController.
+   * @param options.getSelectedAccount - Gets the selected account from the AccountsController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -453,6 +456,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       getNftApi,
       getNftState,
       getInternalAccount,
+      getSelectedAccount,
       disabled: initialDisabled,
       selectedAccountId: initialSelectedAccountId,
     }: {
@@ -473,6 +477,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       getNftApi: NftController['getNftApi'];
       getNftState: () => NftState;
       getInternalAccount: (accountId: string) => InternalAccount;
+      getSelectedAccount: () => InternalAccount;
       disabled: boolean;
       selectedAccountId: string;
     },
@@ -490,15 +495,13 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     this.getNftState = getNftState;
     this.getNetworkClientById = getNetworkClientById;
     this.getInternalAccount = getInternalAccount;
+    this.getSelectedAccount = getSelectedAccount;
+
     onSelectedAccountChange((internalAccount) => {
-      if (!isEVMAccount(internalAccount)) {
-        this.configure({ selectedAccountId: '' });
-        this.stop();
-        return;
-      }
+      this.configure({ selectedAccountId: internalAccount.id });
+
       const { selectedAccountId, disabled } = this.config;
-      if (!disabled && selectedAccountId !== internalAccount.id) {
-        this.configure({ selectedAccountId: internalAccount.id });
+      if (!disabled || selectedAccountId !== internalAccount.id) {
         this.start();
       } else {
         this.stop();
@@ -506,13 +509,19 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     });
 
     onPreferencesStateChange(({ useNftDetection }) => {
-      const { disabled, selectedAccountId } = this.config;
-      const selectedInternalAccount =
-        this.getInternalAccount(selectedAccountId);
+      const { selectedAccountId: previousSelectedAccountId, disabled } =
+        this.config;
+      const newSelectedAccount = this.getSelectedAccount();
 
-      if (!useNftDetection !== disabled) {
-        this.configure({ disabled: !useNftDetection });
-        if (useNftDetection && isEVMAccount(selectedInternalAccount)) {
+      if (
+        newSelectedAccount.id !== previousSelectedAccountId ||
+        !useNftDetection !== disabled
+      ) {
+        this.configure({
+          disabled: !useNftDetection,
+          selectedAccountId: newSelectedAccount.id,
+        });
+        if (useNftDetection) {
           this.start();
         } else {
           this.stop();
