@@ -3,15 +3,9 @@ import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
 import { StaticIntervalPollingController } from './StaticIntervalPollingController';
+import { createDeferredPromise } from '@metamask/utils';
 
 const TICK_TIME = 5;
-
-const createExecutePollMock = () => {
-  const executePollMock = jest.fn().mockImplementation(async () => {
-    return true;
-  });
-  return executePollMock;
-};
 
 class ChildBlockTrackerPollingController extends StaticIntervalPollingController<
   // TODO: Replace `any` with type
@@ -24,7 +18,18 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any
 > {
-  _executePoll = createExecutePollMock();
+  executePollPromises: Array<{reject: (err: unknown) => void, resolve: () => void}> = []
+  _executePoll = jest.fn().mockImplementation(() => {
+    const {
+      promise,
+      reject,
+      resolve,
+    } = createDeferredPromise({
+      suppressUnhandledRejection: true,
+    });
+    this.executePollPromises.push({reject, resolve})
+    return promise
+  })
 }
 
 describe('StaticIntervalPollingController', () => {
@@ -174,6 +179,7 @@ describe('StaticIntervalPollingController', () => {
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
       controller.stopAllPolling();
     });
+
     it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
       const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
@@ -186,6 +192,7 @@ describe('StaticIntervalPollingController', () => {
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
       controller.stopAllPolling();
     });
+
     it('should error if no pollingToken is passed', () => {
       controller.startPollingByNetworkClientId('mainnet');
       expect(() => {
