@@ -32,6 +32,7 @@
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-sync-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-sync-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "vitest run",

@@ -7,5 +7,5 @@
     "skipLibCheck": true
   },
   "references": [],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./definitions"]
 }
