@@ -1379,9 +1379,9 @@ export class KeyringController extends BaseController<
       let keyring: SelectedKeyring | undefined;
 
       if ('address' in selector) {
-        keyring = (await this.getKeyringForAccount(
-          normalize(selector.address) as Hex,
-        )) as SelectedKeyring | undefined;
+        keyring = (await this.getKeyringForAccount(selector.address)) as
+          | SelectedKeyring
+          | undefined;
       } else {
         keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
           | SelectedKeyring
