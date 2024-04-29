@@ -1,17 +1,17 @@
 import { HttpResponse } from 'msw';
 
+import { MOCK_JWT, handleMockOAuth2Token } from './__fixtures__/mock-auth';
+import {
+  MOCK_STORAGE_KEY,
+  handleMockUserStorageGet,
+  handleMockUserStoragePut,
+} from './__fixtures__/mock-userstorage';
+import { server } from './__fixtures__/msw';
 import type { LoginResponse } from './authentication';
 import { AuthType, JwtBearerAuth } from './authentication';
 import { createSHA256Hash } from './encryption';
 import { Env } from './env';
 import { NotFoundError, UserStorageError } from './errors';
-import { MOCK_JWT, handleMockOAuth2Token } from './mocks/mock-auth';
-import {
-  MOCK_STORAGE_KEY,
-  handleMockUserStorageGet,
-  handleMockUserStoragePut,
-} from './mocks/mock-userstorage';
-import { server } from './mocks/msw';
 import { UserStorage } from './user-storage';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
