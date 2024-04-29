@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- comment: add TODO comment for ApprovalRequest type to use ApprovalType ([#4209](https://github.com/MetaMask/core/pull/4209))
-- docs: Remove various TypeScript@4.4 TODOs ([#4196](https://github.com/MetaMask/core/pull/4196))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-
 ## [6.0.1]
 
 ### Fixed

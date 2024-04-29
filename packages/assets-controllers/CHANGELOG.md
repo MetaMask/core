@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: fix detecting NFTs after closing browser ([#4178](https://github.com/MetaMask/core/pull/4178))
-- fix: update limit param ([#4207](https://github.com/MetaMask/core/pull/4207))
-- feat: token detection on 7 more networks ([#4184](https://github.com/MetaMask/core/pull/4184))
-- chore(deps): bump @metamask/keyring-api to 6.0.0, @metamask/eth-snap-keyring to 4.0.0 and snap dependencies ([#4193](https://github.com/MetaMask/core/pull/4193))
-
 ## [28.0.0]
 
 ### Added
