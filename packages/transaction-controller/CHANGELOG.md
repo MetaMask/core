@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.1.1]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` to ^15.1.0 ([#4220](https://github.com/MetaMask/core/pull/4220))
+
+### Fixed
+
+- Fixed simulating minting NFTs where the nft owner was checked before minting, causing a revert. ([#4217](https://github.com/MetaMask/core/pull/4217))
+
 ## [28.1.0]
 
 ### Added
@@ -780,7 +790,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.1.1...HEAD
+[28.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.1.0...@metamask/transaction-controller@28.1.1
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.0.0...@metamask/transaction-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.1...@metamask/transaction-controller@28.0.0
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.0...@metamask/transaction-controller@27.0.1
