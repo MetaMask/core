@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added token detection on 7 more networks ([#4184](https://github.com/MetaMask/core/pull/4184))
+- Add token detection on 7 more networks ([#4184](https://github.com/MetaMask/core/pull/4184))
+  - New supported networks are: cronos, celo, gnosis, fantom, polygon_zkevm, moonbeam, and moonriver
 
 ### Changed
 
