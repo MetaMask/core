@@ -1638,7 +1638,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@^13.0.1, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@^14.0.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -1744,7 +1744,7 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.2
-    "@metamask/accounts-controller": ^13.0.1
+    "@metamask/accounts-controller": ^14.0.0
     "@metamask/approval-controller": ^6.0.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
@@ -1757,7 +1757,7 @@ __metadata:
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.1.0
     "@metamask/polling-controller": ^6.0.2
-    "@metamask/preferences-controller": ^10.0.1
+    "@metamask/preferences-controller": ^11.0.0
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
@@ -1782,11 +1782,11 @@ __metadata:
     typescript: ~4.9.5
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/accounts-controller": ^13.0.0
+    "@metamask/accounts-controller": ^14.0.0
     "@metamask/approval-controller": ^6.0.0
     "@metamask/keyring-controller": ^16.0.0
     "@metamask/network-controller": ^18.0.0
-    "@metamask/preferences-controller": ^10.0.0
+    "@metamask/preferences-controller": ^11.0.0
   languageName: unknown
   linkType: soft
 
@@ -2702,7 +2702,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@^10.0.1, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@^11.0.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
