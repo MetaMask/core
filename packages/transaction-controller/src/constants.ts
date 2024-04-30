@@ -3,9 +3,14 @@ import { TransactionType } from './types';
 export const CHAIN_IDS = {
   MAINNET: '0x1',
   GOERLI: '0x5',
+  BASE: '0x2105',
+  BASE_TESTNET: '0x14a33',
   BSC: '0x38',
   BSC_TESTNET: '0x61',
   OPTIMISM: '0xa',
+  OPTIMISM_TESTNET: '0x1a4',
+  OPBNB: '0xcc',
+  OPBNB_TESTNET: '0x15eb',
   OPTIMISM_SEPOLIA: '0xaa37dc',
   POLYGON: '0x89',
   POLYGON_TESTNET: '0x13881',
@@ -21,6 +26,11 @@ export const CHAIN_IDS = {
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
   GNOSIS: '0x64',
+  ARBITRUM: '0xa4b1',
+  ZKSYNC_ERA: '0x144',
+  ZORA: '0x76adf1',
+  SCROLL: '0x82750',
+  SCROLL_SEPOLIA: '0x8274f',
 } as const;
 
 export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';
@@ -41,11 +51,11 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   },
   [CHAIN_IDS.LINEA_GOERLI]: {
     domain: 'lineascan.build',
-    subdomain: 'goerli',
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli`,
   },
   [CHAIN_IDS.LINEA_SEPOLIA]: {
     domain: 'lineascan.build',
-    subdomain: 'sepolia',
+    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-sepolia`,
   },
   [CHAIN_IDS.LINEA_MAINNET]: {
     domain: 'lineascan.build',
